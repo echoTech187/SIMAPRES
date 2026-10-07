@@ -278,13 +278,13 @@
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:rgba(11,25,44,0.6); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--card-border);">
                 <div style="font-size:11px; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
                   <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 8px #10B981;"></span>
-                  <span>Lapisan Peta: <strong id="pimpinan-map-layer-label" style="color:var(--accent-gold);">🌙 Dark Presisi (CartoDB)</strong></span>
+                  <span>Lapisan Peta: <strong id="pimpinan-map-layer-label" style="color:var(--accent-gold);">🛰️ Citra Satelit Udara (Esri Imagery)</strong></span>
                 </div>
                 <div style="display:flex; gap:6px;">
                   <button type="button" class="btn-quick" id="pimpinan-btn-toggle-resolved" onclick="app.toggleResolvedMapIncidents('pimpinan-real-map', 'pimpinan')" style="padding:4px 9px; font-size:11px; border-color:rgba(16,185,129,0.5); color:#6EE7B7;" title="Tampilkan/Sembunyikan Riwayat Kasus Selesai"><span>👁️</span> Riwayat Selesai: OFF</button>
-                  <button type="button" class="btn-quick active" onclick="app.setMapTileLayer('dark', 'pimpinan-real-map')" style="padding:4px 8px; font-size:11px;">🌙 Dark GIS</button>
+                  <button type="button" class="btn-quick" onclick="app.setMapTileLayer('dark', 'pimpinan-real-map')" style="padding:4px 8px; font-size:11px;">🌙 Dark GIS</button>
                   <button type="button" class="btn-quick" onclick="app.setMapTileLayer('osm', 'pimpinan-real-map')" style="padding:4px 8px; font-size:11px;">🗺️ Peta Jalan (OSM)</button>
-                  <button type="button" class="btn-quick" onclick="app.setMapTileLayer('satellite', 'pimpinan-real-map')" style="padding:4px 8px; font-size:11px;">🛰️ Satelit</button>
+                  <button type="button" class="btn-quick active" onclick="app.setMapTileLayer('satellite', 'pimpinan-real-map')" style="padding:4px 8px; font-size:11px;">🛰️ Satelit</button>
                   <button type="button" class="btn-quick" onclick="app.toggleTacticalRadarMode('pimpinan-real-map', 'tactical-canvas')" style="padding:4px 8px; font-size:11px;">⚡ Radar Canvas</button>
                 </div>
               </div>
@@ -654,13 +654,13 @@
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:rgba(11,25,44,0.6); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--card-border);">
               <div style="font-size:11px; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
                 <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 8px #10B981;"></span>
-                <span>Lapisan Peta: <strong id="kabagops-map-layer-label" style="color:var(--accent-gold);">🌙 Dark Presisi (CartoDB)</strong></span>
+                <span>Lapisan Peta: <strong id="kabagops-map-layer-label" style="color:var(--accent-gold);">🛰️ Citra Satelit Udara (Esri Imagery)</strong></span>
               </div>
               <div style="display:flex; gap:6px;">
                 <button type="button" class="btn-quick" id="kabagops-btn-toggle-resolved" onclick="app.toggleResolvedMapIncidents('kabagops-real-map', 'kabagops')" style="padding:4px 9px; font-size:11px; border-color:rgba(16,185,129,0.5); color:#6EE7B7;" title="Tampilkan/Sembunyikan Riwayat Kasus Selesai"><span>👁️</span> Riwayat Selesai: OFF</button>
-                <button type="button" class="btn-quick active" onclick="app.setMapTileLayer('dark', 'kabagops-real-map')" style="padding:4px 8px; font-size:11px;">🌙 Dark GIS</button>
+                <button type="button" class="btn-quick" onclick="app.setMapTileLayer('dark', 'kabagops-real-map')" style="padding:4px 8px; font-size:11px;">🌙 Dark GIS</button>
                 <button type="button" class="btn-quick" onclick="app.setMapTileLayer('osm', 'kabagops-real-map')" style="padding:4px 8px; font-size:11px;">🗺️ OSM</button>
-                <button type="button" class="btn-quick" onclick="app.setMapTileLayer('satellite', 'kabagops-real-map')" style="padding:4px 8px; font-size:11px;">🛰️ Satelit</button>
+                <button type="button" class="btn-quick active" onclick="app.setMapTileLayer('satellite', 'kabagops-real-map')" style="padding:4px 8px; font-size:11px;">🛰️ Satelit</button>
                 <button type="button" class="btn-quick" onclick="app.toggleTacticalRadarMode('kabagops-real-map', 'kabagops-tactical-canvas')" style="padding:4px 8px; font-size:11px;">⚡ Radar Canvas</button>
               </div>
             </div>
@@ -2225,6 +2225,9 @@
               <button type="button" class="btn-quick" style="background:rgba(56,189,248,0.18); border-color:#38BDF8; color:#38BDF8; font-weight:700;" onclick="app.recenterPersonilMap()">
                 🎯 Pusatkan Posisi GPS Saya
               </button>
+              <button type="button" class="btn-quick" id="btn-toggle-personil-layer" style="background:rgba(16,185,129,0.18); border-color:#10B981; color:#6EE7B7; font-weight:700;" onclick="app.togglePersonilMapLayer()">
+                🗺️ Mode Jalan
+              </button>
               <button type="button" class="btn-quick" id="btn-toggle-personil-fleet" style="background:rgba(245,158,11,0.18); border-color:#F59E0B; color:#FCD34D; font-weight:700;" onclick="app.togglePersonilFleetOverlay()">
                 👁️ Sebaran Armada Kawan: ON
               </button>
@@ -3534,7 +3537,7 @@
                 🎯 GPS Saya
               </button>
               <button type="button" class="btn-quick" id="btn-public-map-layer" style="padding:2px 8px; font-size:10px;" onclick="app.togglePublicIncidentMapLayer()">
-                🛰️ Satelit / Peta
+                🗺️ Mode Jalan
               </button>
             </div>
           </div>

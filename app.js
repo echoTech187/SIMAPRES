@@ -2062,10 +2062,16 @@ class SimapresApp {
       attributionControl: false
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19
+    });
+    const streetsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       maxZoom: 19,
       subdomains: 'abcd'
-    }).addTo(map);
+    });
+    satLayer.addTo(map);
+    this.personilMapTileLayers = { satellite: satLayer, streets: streetsLayer };
+    this.activePersonilMapLayer = 'satellite';
 
     if (!this.leafMaps) this.leafMaps = {};
     this.leafMaps[containerId] = map;
@@ -2204,6 +2210,26 @@ class SimapresApp {
       });
       this.otherFleetMarkers = [];
       this.showToast("Sebaran armada rekan disembunyikan.", "info");
+    }
+  }
+
+  togglePersonilMapLayer() {
+    const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
+    if (!map || !this.personilMapTileLayers) return;
+
+    const btn = document.getElementById('btn-toggle-personil-layer');
+    if (this.activePersonilMapLayer === 'satellite') {
+      map.removeLayer(this.personilMapTileLayers.satellite);
+      this.personilMapTileLayers.streets.addTo(map);
+      this.activePersonilMapLayer = 'streets';
+      if (btn) btn.innerHTML = '🛰️ Mode Satelit';
+      this.showToast("Peta Personil beralih ke Mode Jalan (Vector)", "info");
+    } else {
+      map.removeLayer(this.personilMapTileLayers.streets);
+      this.personilMapTileLayers.satellite.addTo(map);
+      this.activePersonilMapLayer = 'satellite';
+      if (btn) btn.innerHTML = '🗺️ Mode Jalan';
+      this.showToast("Peta Personil beralih ke Citra Satelit (ESRI)", "info");
     }
   }
 
@@ -3530,9 +3556,9 @@ Sesuai UU Perlindungan Data Pribadi (UU PDP), rincian kasus dan dokumentasi foto
       maxZoom: 19
     });
 
-    streetsLayer.addTo(map);
+    satLayer.addTo(map);
     this.publicMapTileLayers = { streets: streetsLayer, satellite: satLayer };
-    this.activePublicMapLayer = 'streets';
+    this.activePublicMapLayer = 'satellite';
 
     const incidentIcon = L.divIcon({
       className: 'custom-public-incident-pin',
@@ -3636,18 +3662,18 @@ Sesuai UU Perlindungan Data Pribadi (UU PDP), rincian kasus dan dokumentasi foto
     if (!map || !this.publicMapTileLayers) return;
 
     const btn = document.getElementById('btn-public-map-layer');
-    if (this.activePublicMapLayer === 'streets') {
+    if (this.activePublicMapLayer === 'satellite') {
+      map.removeLayer(this.publicMapTileLayers.satellite);
+      this.publicMapTileLayers.streets.addTo(map);
+      this.activePublicMapLayer = 'streets';
+      if (btn) btn.innerHTML = '🛰️ Mode Satelit';
+      this.showToast("Beralih ke tampilan Peta Jalan Vektor", "info");
+    } else {
       map.removeLayer(this.publicMapTileLayers.streets);
       this.publicMapTileLayers.satellite.addTo(map);
       this.activePublicMapLayer = 'satellite';
       if (btn) btn.innerHTML = '🗺️ Peta Jalan';
       this.showToast("Beralih ke tampilan Citra Satelit (ESRI)", "info");
-    } else {
-      map.removeLayer(this.publicMapTileLayers.satellite);
-      this.publicMapTileLayers.streets.addTo(map);
-      this.activePublicMapLayer = 'streets';
-      if (btn) btn.innerHTML = '🛰️ Satelit';
-      this.showToast("Beralih ke tampilan Peta Jalan Vektor", "info");
     }
   }
 
@@ -5013,9 +5039,8 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         attributionControl: false
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd'
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
       }).addTo(map);
 
       this.leafMaps[containerId] = map;
@@ -5416,9 +5441,8 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         attributionControl: false
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd'
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 19
       }).addTo(map);
 
       this.leafMaps[containerId] = map;
@@ -6974,13 +6998,13 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         maxZoom: 18
       });
 
-      darkLayer.addTo(map);
+      satLayer.addTo(map);
 
       this.tileLayers[containerId] = {
         dark: darkLayer,
         osm: osmLayer,
         satellite: satLayer,
-        current: 'dark'
+        current: 'satellite'
       };
 
       this.leafMaps[containerId] = map;
@@ -7267,6 +7291,18 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
     const labelId = containerId === 'kabagops-real-map' ? 'kabagops-map-layer-label' : 'pimpinan-map-layer-label';
     const labelEl = document.getElementById(labelId);
+
+    // Update active button state
+    const cardEl = labelEl ? labelEl.closest('.card') : null;
+    if (cardEl) {
+      cardEl.querySelectorAll('button[onclick*="setMapTileLayer"]').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(`'${type}'`)) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+    }
 
     if (type === 'osm') {
       layers.osm.addTo(map);
