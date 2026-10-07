@@ -2076,19 +2076,20 @@ class SimapresApp {
     if (!this.leafMaps) this.leafMaps = {};
     this.leafMaps[containerId] = map;
 
-    // 1. Ahmad Marker (Vehicle R4-Samapta-81)
+    // 1. Ahmad Marker (Vehicle R4-Samapta-81 - 'POLISI' branded icon)
     const carIcon = L.divIcon({
       html: `
-        <div style="position:relative; width:44px; height:44px;">
-          <div class="pulse-ring" style="border: 2px solid #F59E0B; background: rgba(245,158,11,0.25);"></div>
-          <div style="position:absolute; top:6px; left:6px; width:32px; height:32px; background:#78350F; border:2px solid #F59E0B; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 15px #F59E0B;">
-            🚔
+        <div style="position:relative; width:52px; height:46px; text-align:center;">
+          <div class="pulse-ring" style="border: 2px solid #38BDF8; background: rgba(56,189,248,0.25);"></div>
+          <div style="position:absolute; top:2px; left:6px; width:40px; height:32px; background:#0F172A; border:2px solid #38BDF8; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(56,189,248,0.85); cursor:pointer;">
+            <span style="font-size:14px; line-height:1;">🚔</span>
+            <span style="font-size:7.5px; font-weight:900; color:#FCD34D; letter-spacing:0.5px; line-height:1; margin-top:1px;">POLISI</span>
           </div>
         </div>
       `,
       className: 'custom-ahmad-marker',
-      iconSize: [44, 44],
-      iconAnchor: [22, 22]
+      iconSize: [52, 46],
+      iconAnchor: [26, 23]
     });
 
     this.ahmadFullMapMarker = L.marker([ahmadLat, ahmadLng], { icon: carIcon }).addTo(map);
@@ -2100,26 +2101,37 @@ class SimapresApp {
       </div>
     `);
 
-    // 2. Patrol Route Checkpoints
-    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
-    const roadPath = this.getRoadSnappedPath('SAMAPTA_AHMAD') || checkpoints.map(cp => [cp.lat, cp.lng]);
-
-    if (roadPath.length > 1) {
+    // 2. Multi-Color Patrol Route Segments (Green, Yellow, Red)
+    const segments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+    segments.forEach(seg => {
       // Glow underlay
-      L.polyline(roadPath, {
-        color: '#10B981',
-        weight: 8,
-        opacity: 0.3
+      L.polyline(seg.path, {
+        color: seg.color,
+        weight: 9,
+        opacity: 0.35
       }).addTo(map);
 
-      // Main road-snapped line following actual streets
-      L.polyline(roadPath, {
-        color: '#10B981',
-        weight: 4,
+      // Main road-snapped line with distinctive color
+      const segPoly = L.polyline(seg.path, {
+        color: seg.color,
+        weight: 4.5,
         opacity: 0.95,
-        dashArray: '6, 6'
+        dashArray: seg.color === '#EF4444' ? '8, 5' : (seg.color === '#F59E0B' ? '6, 4' : null)
       }).addTo(map);
-    }
+
+      segPoly.bindPopup(`
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px;">
+          <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+          <div style="margin:4px 0;">
+            <span class="badge" style="background:${seg.color}; color:#000; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+            <span style="color:#94A3B8; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
+          </div>
+          <p style="font-size:11px; margin:4px 0 0 0; color:#cbd5e1;">${seg.description}</p>
+        </div>
+      `);
+    });
+
+    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
 
     checkpoints.forEach((cp, idx) => {
       const isVisited = idx < 2;
@@ -2143,20 +2155,39 @@ class SimapresApp {
       `);
     });
 
-    // 3. Crime Hotspots
+    // 3. Crime Hotspots & Prominent 'Titik Rawan' Red Pins (as seen in tablet UI)
+    const titikRawanIcon = L.divIcon({
+      html: `
+        <div style="position:relative; width:34px; height:34px;">
+          <div class="pulse-ring" style="border: 2px solid #EF4444; background: rgba(239,68,68,0.3);"></div>
+          <div style="position:absolute; top:2px; left:2px; width:30px; height:30px; background:#DC2626; border:2px solid #fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; box-shadow:0 0 12px #EF4444;">
+            📍
+          </div>
+        </div>
+      `,
+      className: 'personil-titik-rawan-pin',
+      iconSize: [34, 34],
+      iconAnchor: [17, 17]
+    });
+
     this.state.hotspots.forEach(h => {
       L.circle([h.lat, h.lng], {
         radius: h.radius || 200,
         color: '#EF4444',
         fillColor: '#EF4444',
-        fillOpacity: 0.2,
+        fillOpacity: 0.22,
         weight: 1.5,
         dashArray: '4, 4'
-      }).addTo(map).bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:11.5px;">
-          <strong style="color:#EF4444;">🚨 Titik Rawan: ${h.name}</strong><br>
-          <span>Kategori: ${h.category || 'Rawan Kamtibmas'}</span><br>
-          <small style="color:#FCD34D;">Jam Rawan: ${h.hours || '22:00 - 04:00 WIB'}</small>
+      }).addTo(map);
+
+      const m = L.marker([h.lat, h.lng], { icon: titikRawanIcon }).addTo(map);
+      m.bindPopup(`
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:180px;">
+          <div style="color:#EF4444; font-weight:800; font-size:13px; display:flex; align-items:center; gap:4px;">
+            <span>🚨</span> Titik Rawan: ${h.name}
+          </div>
+          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">Kategori: <strong style="color:#fff;">${h.category || 'Rawan Kamtibmas'}</strong></div>
+          <div style="font-size:10.5px; color:#FCD34D; margin-top:2px;">🕒 Jam Atensi: ${h.hours || '22:00 - 04:00 WIB'}</div>
         </div>
       `);
     });
@@ -5062,32 +5093,84 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     }, 100);
   }
 
-  getRoadSnappedPath(unitKey = 'SAMAPTA_AHMAD') {
-    // Dense street coordinates following real road network (Thamrin, Sudirman, Saharjo, Gatot Subroto, Semanggi)
+  getPatrolMultiColorRouteSegments(unitKey = 'SAMAPTA_AHMAD') {
+    // Multi-color sector corridors matching tactical police map (Green = Safe, Yellow = Alert, Red = Hotspot 3C)
     return [
-      [-6.2015, 106.8195], // Mako Polres Metro (Jl. Medan Merdeka)
-      [-6.2025, 106.8210], // Jl. Medan Merdeka Barat
-      [-6.2040, 106.8235], // Menuju Jl. M.H. Thamrin
-      [-6.2058, 106.8268], // Depan Sarinah / Gedung Jaya
-      [-6.2072, 106.8292], // Menuju Bundaran HI
-      [-6.2080, 106.8310], // Pos 2: Simpang 5 Sudirman / Bundaran
-      [-6.2092, 106.8335], // Jl. Jend. Sudirman
-      [-6.2110, 106.8370], // Depan Dukuh Atas
-      [-6.2128, 106.8410], // Belok ke Jl. K.H. Mas Mansyur / Saharjo
-      [-6.2140, 106.8450], // Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)
-      [-6.2175, 106.8445], // Koridor Jl. Minangkabau Barat
-      [-6.2220, 106.8432], // Jl. Prof. Dr. Soepomo
-      [-6.2280, 106.8418], // Simpang Tebet / Pancoran
-      [-6.2340, 106.8402], // Arah Flyover Rel
-      [-6.2380, 106.8390], // Pos 4: Jembatan Flyover Rel Kereta
-      [-6.2375, 106.8350], // Masuk Arteri Koridor Jl. Gatot Subroto
-      [-6.2355, 106.8305], // Koridor Barat Gatot Subroto (Polda Metro Area)
-      [-6.2320, 106.8260], // Menuju Simpang Susun Semanggi
-      [-6.2260, 106.8235], // Ramp Semanggi arah Sudirman Utara
-      [-6.2180, 106.8215], // Sudirman Utara (Karet)
-      [-6.2090, 106.8205], // Thamrin Selatan
-      [-6.2015, 106.8195]  // Pos 5: Kembali ke Mako Polres Metro
+      {
+        id: 'seg-green-1',
+        name: 'Jalur Hijau: Sektor Thamrin - Bundaran HI',
+        color: '#10B981', // Green
+        zoneStatus: 'ZONA AMAN (LANCAR)',
+        speedLimit: '40 km/jam',
+        description: 'Koridor Mako ke Pos 2 Simpang Sudirman. Situasi lalu lintas tertib dan kamtibmas kondusif.',
+        path: [
+          [-6.2015, 106.8195], // Pos 1: Mako Polres Metro
+          [-6.2025, 106.8210], // Jl. Medan Merdeka Barat
+          [-6.2040, 106.8235], // Jl. M.H. Thamrin
+          [-6.2058, 106.8268], // Depan Gedung Sarinah
+          [-6.2072, 106.8292], // Bundaran Hotel Indonesia
+          [-6.2080, 106.8310]  // Pos 2: Simpang 5 Sudirman
+        ]
+      },
+      {
+        id: 'seg-yellow-1',
+        name: 'Jalur Kuning: Sektor Sudirman - Dukuh Atas - Saharjo',
+        color: '#F59E0B', // Yellow
+        zoneStatus: 'ZONA WASPADA (SIAGA)',
+        speedLimit: '30 km/jam',
+        description: 'Kawasan sentra niaga & perbankan padat. Peningkatan patroli dialogis cegah copet & curat.',
+        path: [
+          [-6.2080, 106.8310], // Pos 2: Simpang 5 Sudirman
+          [-6.2092, 106.8335], // Jl. Jend. Sudirman
+          [-6.2110, 106.8370], // Kawasan Dukuh Atas
+          [-6.2128, 106.8410], // Belok Jl. K.H. Mas Mansyur
+          [-6.2140, 106.8450]  // Pos 3: Pasar Tradisional Jaya
+        ]
+      },
+      {
+        id: 'seg-red-1',
+        name: 'Jalur Merah: Sektor Saharjo - Flyover Rel - Gatot Subroto',
+        color: '#EF4444', // Red
+        zoneStatus: 'ZONA RAWAN (HOTSPOT 3C)',
+        speedLimit: '20 km/jam',
+        description: 'Titik rawan curanmor, balap liar dini hari, dan potensi tawuran remaja antar-kelurahan.',
+        path: [
+          [-6.2140, 106.8450], // Pos 3: Pasar Tradisional Jaya (Rawan 3C)
+          [-6.2175, 106.8445], // Jl. Minangkabau Barat
+          [-6.2220, 106.8432], // Jl. Prof. Dr. Soepomo
+          [-6.2280, 106.8418], // Simpang Pancoran / Tebet
+          [-6.2340, 106.8402], // Arah Flyover Rel Kereta
+          [-6.2380, 106.8390], // Pos 4: Jembatan Flyover Rel Kereta (Rawan Tawuran)
+          [-6.2375, 106.8350], // Koridor Arteri Gatot Subroto
+          [-6.2355, 106.8305], // Gatot Subroto Barat
+          [-6.2320, 106.8260]  // Menuju Simpang Susun Semanggi
+        ]
+      },
+      {
+        id: 'seg-green-2',
+        name: 'Jalur Hijau: Sektor Semanggi - Sudirman Utara - Mako',
+        color: '#10B981', // Green
+        zoneStatus: 'ZONA AMAN (KONSOLIDASI)',
+        speedLimit: '40 km/jam',
+        description: 'Jalur kepulangan dinas patroli dan pergeseran pasukan kembali ke Mako Polres Metro.',
+        path: [
+          [-6.2320, 106.8260], // Simpang Susun Semanggi
+          [-6.2260, 106.8235], // Sudirman Utara (Karet)
+          [-6.2180, 106.8215], // Dukuh Atas Barat
+          [-6.2090, 106.8205], // Thamrin Selatan
+          [-6.2015, 106.8195]  // Pos 5: Mako Polres Metro
+        ]
+      }
     ];
+  }
+
+  getRoadSnappedPath(unitKey = 'SAMAPTA_AHMAD') {
+    const segments = this.getPatrolMultiColorRouteSegments(unitKey);
+    let all = [];
+    segments.forEach(seg => {
+      all = all.concat(seg.path);
+    });
+    return all;
   }
 
   getRouteStopsForCurrentSelection() {
@@ -5171,23 +5254,36 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       badgeEl.style.borderColor = routeInfo.color;
     }
 
-    const roadPath = this.getRoadSnappedPath(this.selectedPatrolUnit || 'SAMAPTA_AHMAD') || stops.map(s => [s.lat, s.lng]);
+    const segments = this.getPatrolMultiColorRouteSegments(this.selectedPatrolUnit || 'SAMAPTA_AHMAD');
+    
+    // 1. Draw Multi-Color Route Polylines (Green, Yellow, Red)
+    segments.forEach(seg => {
+      const glow = L.polyline(seg.path, {
+        color: seg.color,
+        weight: 9,
+        opacity: 0.35
+      }).addTo(map);
+      this.routeLayers.push(glow);
 
-    // 1. Draw Route Polyline (Following actual streets & turns with glow)
-    const routeGlow = L.polyline(roadPath, {
-      color: routeInfo.color,
-      weight: 8,
-      opacity: 0.35
-    }).addTo(map);
-    this.routeLayers.push(routeGlow);
+      const poly = L.polyline(seg.path, {
+        color: seg.color,
+        weight: 4.5,
+        opacity: 0.95,
+        dashArray: seg.color === '#EF4444' ? '8, 5' : (seg.color === '#F59E0B' ? '6, 4' : null)
+      }).addTo(map);
 
-    const routePoly = L.polyline(roadPath, {
-      color: routeInfo.color,
-      weight: 4,
-      opacity: 0.95,
-      dashArray: '8, 6'
-    }).addTo(map);
-    this.routeLayers.push(routePoly);
+      poly.bindPopup(`
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:200px;">
+          <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+          <div style="margin:4px 0;">
+            <span class="badge" style="background:${seg.color}; color:#000; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+            <span style="color:#94A3B8; font-size:10.5px; margin-left:4px;">Speed: ${seg.speedLimit}</span>
+          </div>
+          <p style="font-size:11px; margin:4px 0 0 0; color:#cbd5e1;">${seg.description}</p>
+        </div>
+      `);
+      this.routeLayers.push(poly);
+    });
 
     // 2. Draw Numbered Bus-Stop Milestones & Buffer Circles
     stops.forEach((s, idx) => {

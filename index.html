@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SIMAPRES 110 - Sistem Monitoring & Akuntabilitas Pengaduan Presisi (Web Portal)</title>
-  <link rel="stylesheet" href="style.css?v=20261007_sat_v3">
+  <link rel="stylesheet" href="style.css?v=20261007_sat_v4">
   <!-- Leaflet CSS & JS for Real-World GIS Police Map Integration (Fast CDNJS Cloudflare) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -754,8 +754,29 @@
           </div>
 
           <!-- Leaflet Route Map Canvas -->
-          <div class="map-wrapper" style="margin-bottom:14px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; overflow:hidden;">
+          <div class="map-wrapper" style="margin-bottom:14px; border:1px solid rgba(255,255,255,0.1); border-radius:8px; overflow:hidden; position:relative;">
             <div id="kabagops-route-map" class="real-leaflet-map" style="width:100%; height:380px;"></div>
+
+            <!-- Visual Route Legend Overlay -->
+            <div class="patrol-map-legend" id="kabagops-patrol-legend" style="bottom:16px;">
+              <div style="font-weight:800; margin-bottom:5px; color:var(--accent-gold); display:flex; align-items:center; gap:5px; font-size:11.5px;">
+                <span>🗺️</span> Keterangan Jalur Sektor
+              </div>
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-block; width:18px; height:4px; background:#10B981; border-radius:2px;"></span>
+                  <span>Jalur Hijau (Aman / Kondusif)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-block; width:18px; height:4px; background:#F59E0B; border-radius:2px;"></span>
+                  <span>Jalur Kuning (Siaga Sentra Niaga)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-block; width:18px; height:4px; background:#EF4444; border-radius:2px;"></span>
+                  <span>Jalur Merah (Hotspot 3C & Tawuran)</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Bus-Style Transit Line & Timetable Stepper -->
@@ -2235,8 +2256,37 @@
           </div>
 
           <!-- Full Map Container -->
-          <div style="border:1px solid rgba(56,189,248,0.35); border-radius:var(--radius-sm); overflow:hidden; background:#0B1424;">
+          <div style="border:1px solid rgba(56,189,248,0.35); border-radius:var(--radius-sm); overflow:hidden; background:#0B1424; position:relative;">
             <div id="personil-full-leaflet-map" style="height:480px; width:100%;"></div>
+
+            <!-- Visual Route Legend Overlay (Matching Tablet E-Tribrata Log Design) -->
+            <div class="patrol-map-legend" id="personil-patrol-legend">
+              <div style="font-weight:800; margin-bottom:5px; color:var(--accent-gold); display:flex; align-items:center; gap:5px; font-size:11.5px;">
+                <span>🗺️</span> Keterangan Rute Patroli
+              </div>
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-block; width:18px; height:4px; background:#10B981; border-radius:2px; box-shadow:0 0 6px #10B981;"></span>
+                  <span>Jalur Hijau (Zona Aman / Lancar)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-block; width:18px; height:4px; background:#F59E0B; border-radius:2px; box-shadow:0 0 6px #F59E0B;"></span>
+                  <span>Jalur Kuning (Zona Siaga Patroli)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="display:inline-block; width:18px; height:4px; background:#EF4444; border-radius:2px; box-shadow:0 0 6px #EF4444;"></span>
+                  <span>Jalur Merah (Zona Rawan / Hotspot 3C)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-top:2px; padding-top:3px; border-top:1px solid rgba(255,255,255,0.1);">
+                  <span>📍</span>
+                  <span style="color:#FCA5A5; font-weight:700;">Titik Rawan (Curanmor / Tawuran)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span>🚔</span>
+                  <span style="color:#93C5FD; font-weight:700;">Posisi Mobil Patroli POLISI</span>
+                </div>
+              </div>
+            </div>
             
             <!-- HUD Telemetry Strip Below Map -->
             <div style="background:#0F172A; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-top:1px solid rgba(255,255,255,0.08); font-size:12px;">
@@ -3643,7 +3693,7 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="app.js?v=20261007_sat_v3"></script>
+  <script src="app.js?v=20261007_sat_v4"></script>
 
   <!-- Floating Scenario Guide Box (Collapsible) -->
   <div class="demo-scenario-box" id="demo-scenario-box">
