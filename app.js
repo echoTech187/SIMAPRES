@@ -2065,9 +2065,9 @@ class SimapresApp {
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       maxZoom: 19
     });
-    const streetsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const streetsLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd'
+      attribution: '&copy; OpenStreetMap contributors'
     });
     satLayer.addTo(map);
     this.personilMapTileLayers = { satellite: satLayer, streets: streetsLayer };
@@ -3547,9 +3547,9 @@ Sesuai UU Perlindungan Data Pribadi (UU PDP), rincian kasus dan dokumentasi foto
       attributionControl: false
     });
 
-    const streetsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const streetsLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd'
+      attribution: '&copy; OpenStreetMap contributors'
     });
 
     const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -4232,7 +4232,7 @@ Instruksikan anggota untuk mengganti PIN saat login pertama kali.`);
         actorName: "Tile Server GIS Engine",
         actorNrp: "SYS-GIS",
         actorRole: "SYSTEM",
-        ip: "basemaps.cartocdn.com",
+        ip: "server.arcgisonline.com",
         device: "Cloud CDN Edge",
         action: "Penyegaran Cache Basemap Peta Taktis",
         details: "Pre-rendering 64 tile layer peta taktis wilayah hukum Polres Metro selesai. Latensi: 28ms.",
@@ -6601,9 +6601,9 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     });
 
     // Streets layer fallback
-    const streetsLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    const streetsLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      subdomains: 'abcd'
+      attribution: '&copy; OpenStreetMap contributors'
     });
 
     satLayer.addTo(map);
@@ -6982,10 +6982,10 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         attributionControl: false
       });
 
-      // CartoDB Dark Matter (High-tech Dark Police GIS)
-      const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-        subdomains: 'abcd'
+      // Esri Dark Gray Canvas (High-tech Police GIS - No API key required)
+      const darkLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        maxZoom: 18,
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
       });
 
       // OpenStreetMap Standard (Full-color Detailed Road Map)

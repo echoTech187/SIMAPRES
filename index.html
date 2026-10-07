@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SIMAPRES 110 - Sistem Monitoring & Akuntabilitas Pengaduan Presisi (Web Portal)</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261007_sat_v3">
   <!-- Leaflet CSS & JS for Real-World GIS Police Map Integration (Fast CDNJS Cloudflare) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -1584,7 +1584,7 @@
             <div class="sitik-gw-details">
               <div class="sitik-gw-row">
                 <span class="sitik-gw-lbl">Tile CDN Endpoint</span>
-                <span class="sitik-gw-val" style="font-family:'JetBrains Mono'; font-size:10.5px;">basemaps.cartocdn.com/rastertiles/...</span>
+                <span class="sitik-gw-val" style="font-family:'JetBrains Mono'; font-size:10.5px;">server.arcgisonline.com/ArcGIS/rest/...</span>
               </div>
               <div class="sitik-gw-row">
                 <span class="sitik-gw-lbl">Cache Hit Ratio</span>
@@ -2225,7 +2225,7 @@
               <button type="button" class="btn-quick" style="background:rgba(56,189,248,0.18); border-color:#38BDF8; color:#38BDF8; font-weight:700;" onclick="app.recenterPersonilMap()">
                 🎯 Pusatkan Posisi GPS Saya
               </button>
-              <button type="button" class="btn-quick" id="btn-toggle-personil-layer" style="background:rgba(16,185,129,0.18); border-color:#10B981; color:#6EE7B7; font-weight:700;" onclick="app.togglePersonilMapLayer()">
+              <button type="button" class="btn-quick" id="btn-toggle-personil-layer" style="background:rgba(16,185,129,0.18); border-color:#10B981; color:#6EE7B7; font-weight:700;" onclick="if(window.app && window.app.togglePersonilMapLayer){window.app.togglePersonilMapLayer();}else{console.warn('Peta sedang dimuat ulang...');location.reload(true);}">
                 🗺️ Mode Jalan
               </button>
               <button type="button" class="btn-quick" id="btn-toggle-personil-fleet" style="background:rgba(245,158,11,0.18); border-color:#F59E0B; color:#FCD34D; font-weight:700;" onclick="app.togglePersonilFleetOverlay()">
@@ -3643,7 +3643,7 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20261007_sat_v3"></script>
 
   <!-- Floating Scenario Guide Box (Collapsible) -->
   <div class="demo-scenario-box" id="demo-scenario-box">
@@ -4247,5 +4247,39 @@ Laporan pengaduan darurat Anda (LP-110-2026-0040) sedang dalam penanganan petuga
 
   
 
+  <!-- Global Defensive Fallback for Map Toggling & Cache Invalidation -->
+  <script>
+    (function() {
+      function ensurePersonilMapToggle() {
+        if (window.app && !window.app.togglePersonilMapLayer) {
+          window.app.togglePersonilMapLayer = function() {
+            const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
+            if (!map || !this.personilMapTileLayers) return;
+            const btn = document.getElementById('btn-toggle-personil-layer');
+            if (this.activePersonilMapLayer === 'satellite') {
+              map.removeLayer(this.personilMapTileLayers.satellite);
+              this.personilMapTileLayers.streets.addTo(map);
+              this.activePersonilMapLayer = 'streets';
+              if (btn) btn.innerHTML = '🛰️ Mode Satelit';
+              this.showToast("Peta Personil beralih ke Mode Jalan (OpenStreetMap)", "info");
+            } else {
+              map.removeLayer(this.personilMapTileLayers.streets);
+              this.personilMapTileLayers.satellite.addTo(map);
+              this.activePersonilMapLayer = 'satellite';
+              if (btn) btn.innerHTML = '🗺️ Mode Jalan';
+              this.showToast("Peta Personil beralih ke Citra Satelit (ESRI)", "info");
+            }
+          };
+        }
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensurePersonilMapToggle);
+      } else {
+        ensurePersonilMapToggle();
+      }
+      setTimeout(ensurePersonilMapToggle, 500);
+      setTimeout(ensurePersonilMapToggle, 1500);
+    })();
+  </script>
 </body>
 </html>
