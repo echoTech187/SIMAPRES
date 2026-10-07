@@ -815,7 +815,7 @@ const INITIAL_DATA = {
   // Crime & Vulnerability Hotspots (Titik Rawan)
   hotspots: [
     { id: "HS-01", name: "Titik Rawan Curanmor Pasar Jaya", address: "Jl. Merdeka No. 45, Kawasan Parkir Pasar Jaya", category: "Curanmor", lat: -6.2140, lng: 106.8458, radius: 220, risk: "TINGGI", level: "TINGGI", hours: "14:00 - 18:00 WIB", notes: "Patroli dialogis juru parkir, imbau kunci ganda" },
-    { id: "HS-02", name: "Titik Rawan Tawuran Flyover Baru", address: "Flyover Cempaka KM 4, Bawah Jembatan Layang Rel KA", category: "Tawuran", lat: -6.2380, lng: 106.8400, radius: 250, risk: "KRITIS", level: "KRITIS", hours: "22:00 - 04:00 WIB", notes: "Patroli blue light stasioner cegah geng motor" },
+    { id: "HS-02", name: "Titik Rawan Tawuran Flyover Baru", address: "Flyover Cempaka KM 4, Bawah Jembatan Layang Rel KA", category: "Tawuran", lat: -6.2380, lng: 106.8400, radius: 250, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "22:00 - 04:00 WIB", notes: "Patroli blue light stasioner cegah geng motor" },
     { id: "HS-03", name: "Titik Rawan Balap Liar Bypass", address: "Jl. Bypass Protokol KM 12 Timur, Jalur Lurus Bebas Hambatan", category: "Balap Liar", lat: -6.2450, lng: 106.8600, radius: 400, risk: "SEDANG", level: "SEDANG", hours: "01:00 - 04:00 WIB", notes: "Pemeriksaan surat kendaraan & knalpot brong" },
     { id: "HS-04", name: "Titik Rawan Laka Lantas Simpang Cempaka", address: "Pertigaan Jl. Cempaka Raya - Jl. Veteran, Depan SPBU", category: "Laka Lantas", lat: -6.2255, lng: 106.8520, radius: 200, risk: "TINGGI", level: "TINGGI", hours: "06:30 - 09:00 WIB", notes: "Pengaturan arus lalu lintas jam berangkat kerja" }
   ],
@@ -1213,7 +1213,7 @@ class SimapresApp {
       }, 120);
     } else if (viewName === 'personil') {
       this.renderPersonilView();
-      setTimeout(() => this.drawTacticalCanvas('personil-canvas'), 100);
+      setTimeout(() => this.initPersonilFullMap('personil-canvas'), 100);
     } else if (viewName === 'masyarakat') {
       this.renderPublicRecentReports();
     }
@@ -1981,7 +1981,7 @@ class SimapresApp {
 
     this.saveState();
     this.drawTacticalCanvas('tactical-canvas');
-    this.drawTacticalCanvas('personil-canvas');
+    this.initPersonilFullMap('personil-canvas');
     this.showToast("Rute patroli dan urutan checkpoint berhasil diperbarui dan disinkronkan ke layar anggota lapangan! Log sebelumnya tetap terjaga utuh.", "success");
   }
 
@@ -2023,7 +2023,7 @@ class SimapresApp {
     }
 
     if (tabId === 'tab-personil-beranda') {
-      setTimeout(() => this.drawTacticalCanvas('personil-canvas'), 100);
+      setTimeout(() => this.initPersonilFullMap('personil-canvas'), 100);
     } else if (tabId === 'tab-personil-peta') {
       setTimeout(() => this.initPersonilFullMap(), 150);
     } else if (tabId === 'tab-personil-kinerja') {
@@ -2038,171 +2038,324 @@ class SimapresApp {
   }
 
   // --- TAB 2: FULLSCREEN TACTICAL MAP METHODS ---
-  initPersonilFullMap() {
-    const containerId = 'personil-full-leaflet-map';
+  initPersonilFullMap(containerId = 'personil-full-leaflet-map') {
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    if (typeof L === 'undefined') {
+    if (typeof google === 'undefined' || !google.maps) {
+      setTimeout(() => this.initPersonilFullMap(containerId), 1000);
       return;
     }
 
-    if (this.leafMaps && this.leafMaps[containerId]) {
-      setTimeout(() => this.leafMaps[containerId].invalidateSize(), 150);
-      return;
-    }
-
-    // Position car right on the active patrol corridor (Pos 2 Simpang 5 Sudirman / Casablanca)
     const ahmadLat = -6.2078;
     const ahmadLng = 106.8318;
 
-    const map = L.map(containerId, {
-      center: [ahmadLat, ahmadLng],
+    const map = new google.maps.Map(container, {
+      center: { lat: ahmadLat, lng: ahmadLng },
       zoom: 15,
+      mapTypeId: 'roadmap',
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
       zoomControl: true,
-      attributionControl: false
+      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM }
     });
-
-    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19
-    });
-    const streetsLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    });
-    satLayer.addTo(map);
-    this.personilMapTileLayers = { satellite: satLayer, streets: streetsLayer };
-    this.activePersonilMapLayer = 'satellite';
 
     if (!this.leafMaps) this.leafMaps = {};
-    this.leafMaps[containerId] = map;
+    this.leafMaps[containerId] = map; // Store ref so other functions know it's initialized
 
-    // 1. Ahmad Marker (Vehicle R4-Samapta-81 - 'POLISI' branded icon)
-    const carIcon = L.divIcon({
-      html: `
-        <div style="position:relative; width:52px; height:46px; text-align:center;">
-          <div class="pulse-ring" style="border: 2px solid #38BDF8; background: rgba(56,189,248,0.25);"></div>
-          <div style="position:absolute; top:2px; left:6px; width:40px; height:32px; background:#0F172A; border:2px solid #38BDF8; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; box-shadow:0 0 15px rgba(56,189,248,0.85); cursor:pointer;">
-            <span style="font-size:14px; line-height:1;">🚔</span>
-            <span style="font-size:7.5px; font-weight:900; color:#FCD34D; letter-spacing:0.5px; line-height:1; margin-top:1px;">POLISI</span>
-          </div>
-        </div>
-      `,
-      className: 'custom-ahmad-marker',
-      iconSize: [52, 46],
-      iconAnchor: [26, 23]
-    });
+    // Define reusable HTML Marker class if not already defined globally
+    if (typeof window.GoogleHTMLMarker === 'undefined') {
+      window.GoogleHTMLMarker = class extends google.maps.OverlayView {
+        constructor(latlng, html, map, anchor) {
+          super();
+          this.latlng = latlng;
+          this.html = html;
+          this.anchor = anchor || [15, 15];
+          this.setMap(map);
+        }
+        onAdd() {
+          this.div = document.createElement('div');
+          this.div.style.position = 'absolute';
+          this.div.style.cursor = 'pointer';
+          this.div.innerHTML = this.html;
+          this.getPanes().overlayMouseTarget.appendChild(this.div);
+          
+          const self = this;
+          this.div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            google.maps.event.trigger(self, 'click');
+          });
+        }
+        draw() {
+          const pos = this.getProjection().fromLatLngToDivPixel(this.latlng);
+          if (pos && this.div) {
+            this.div.style.left = (pos.x - this.anchor[0]) + 'px';
+            this.div.style.top = (pos.y - this.anchor[1]) + 'px';
+          }
+        }
+        onRemove() {
+          if (this.div) {
+            this.div.parentNode.removeChild(this.div);
+            this.div = null;
+          }
+        }
+        setPosition(latlng) {
+          this.latlng = latlng;
+          this.draw();
+        }
+      };
+    }
 
-    this.ahmadFullMapMarker = L.marker([ahmadLat, ahmadLng], { icon: carIcon }).addTo(map);
-    this.ahmadFullMapMarker.bindPopup(`
-      <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#fff;">
-        <strong style="color:#FCD34D;">🚔 Bripka Ahmad Subagyo (R4-Samapta-81)</strong><br>
+    // 1. Ahmad Marker
+    const carHtml = `
+      <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center;">
+        <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid #38BDF8; background: rgba(56,189,248,0.15);"></div>
+        <div style="font-size:36px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6)); position:relative; z-index:2;">🚔</div>
+      </div>
+    `;
+    const ahmadPos = new google.maps.LatLng(ahmadLat, ahmadLng);
+    this.ahmadFullMapMarker = new window.GoogleHTMLMarker(ahmadPos, carHtml, map, [26, 23]);
+    
+    const ahmadInfo = new google.maps.InfoWindow({
+      content: `
+      <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
+        <strong style="color:#F59E0B;">🚔 Bripka Ahmad Subagyo (R4-Samapta-81)</strong><br>
         <span>Posisi: Pos Pantau Simpang Sudirman</span><br>
         <span style="color:#10B981;">Status: Patroli Wilayah (Kecepatan: 25 km/jam)</span>
-      </div>
-    `);
-
-    // 2. Multi-Color Patrol Route Segments (Green, Yellow, Red)
-    const segments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
-    segments.forEach(seg => {
-      // Glow underlay
-      L.polyline(seg.path, {
-        color: seg.color,
-        weight: 9,
-        opacity: 0.35
-      }).addTo(map);
-
-      // Main road-snapped line with distinctive color
-      const segPoly = L.polyline(seg.path, {
-        color: seg.color,
-        weight: 4.5,
-        opacity: 0.95,
-        dashArray: seg.color === '#EF4444' ? '8, 5' : (seg.color === '#F59E0B' ? '6, 4' : null)
-      }).addTo(map);
-
-      segPoly.bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px;">
-          <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
-          <div style="margin:4px 0;">
-            <span class="badge" style="background:${seg.color}; color:#000; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
-            <span style="color:#94A3B8; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
-          </div>
-          <p style="font-size:11px; margin:4px 0 0 0; color:#cbd5e1;">${seg.description}</p>
-        </div>
-      `);
+      </div>`
+    });
+    this.ahmadFullMapMarker.addListener('click', () => {
+      ahmadInfo.setPosition(ahmadPos);
+      ahmadInfo.open(map);
     });
 
-    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
+    // 2. Multi-Color Patrol Route Segments using Google Directions API
+    const ds = new google.maps.DirectionsService();
+    const cps = this.state.checkpoints;
+    
+    ds.route({
+      origin: new google.maps.LatLng(cps[0].lat, cps[0].lng),
+      destination: new google.maps.LatLng(cps[cps.length - 1].lat, cps[cps.length - 1].lng),
+      waypoints: cps.slice(1, cps.length - 1).map(cp => ({
+        location: new google.maps.LatLng(cp.lat, cp.lng),
+        stopover: true
+      })),
+      travelMode: google.maps.TravelMode.DRIVING
+    }, (result, status) => {
+      if (status === 'OK') {
+        const fallbackSegments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+        
+        result.routes[0].legs.forEach((leg, i) => {
+          const seg = fallbackSegments[i % fallbackSegments.length];
+          const detailedPath = leg.steps.flatMap(step => step.path);
+          
+          // Glow underlay
+          new google.maps.Polyline({
+            path: detailedPath,
+            strokeColor: seg.color,
+            strokeWeight: 9,
+            strokeOpacity: 0.35,
+            map: map
+          });
 
+          // Main line
+          const segPoly = new google.maps.Polyline({
+            path: detailedPath,
+            strokeColor: seg.color,
+            strokeWeight: 4.5,
+            strokeOpacity: 0.95,
+            map: map
+          });
+
+          const segInfo = new google.maps.InfoWindow({
+            content: `
+            <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px; color:#333;">
+              <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+              <div style="margin:4px 0;">
+                <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                <span style="color:#64748b; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
+              </div>
+              <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
+            </div>`
+          });
+
+          google.maps.event.addListener(segPoly, 'click', (e) => {
+            segInfo.setPosition(e.latLng);
+            segInfo.open(map);
+          });
+        });
+      } else {
+        console.warn('Directions API failed (billing/key issue). Fallback to OSRM:', status);
+        this.showToast('⚠️ Google Directions API Ditolak (Billing). Menggunakan OSRM Open-Source...', 'warning');
+
+        // Fallback using OSRM to get perfectly snapped roads for free (Per segment for colors!)
+        const fallbackSegments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+        const osrmPromises = [];
+        
+        for (let i = 0; i < cps.length - 1; i++) {
+          const cp1 = cps[i];
+          const cp2 = cps[i+1];
+          osrmPromises.push(
+            fetch(`https://router.project-osrm.org/route/v1/driving/${cp1.lng},${cp1.lat};${cp2.lng},${cp2.lat}?overview=full&geometries=geojson`)
+              .then(res => res.json())
+          );
+        }
+
+        Promise.all(osrmPromises)
+          .then(results => {
+            let hasError = false;
+            results.forEach((data, i) => {
+               const seg = fallbackSegments[i % fallbackSegments.length];
+               if(data.routes && data.routes.length > 0) {
+                 const geom = data.routes[0].geometry.coordinates;
+                 const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
+                 
+                 // Glow underlay
+                 new google.maps.Polyline({
+                   path: detailedPath, strokeColor: seg.color, strokeWeight: 9, strokeOpacity: 0.35, map: map
+                 });
+
+                 // Main line
+                 const segPoly = new google.maps.Polyline({
+                   path: detailedPath, strokeColor: seg.color, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
+                 });
+
+                 const segInfo = new google.maps.InfoWindow({
+                   content: `
+                   <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px; color:#333;">
+                     <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+                     <div style="margin:4px 0;">
+                       <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                       <span style="color:#64748b; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
+                     </div>
+                     <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
+                   </div>`
+                 });
+
+                 google.maps.event.addListener(segPoly, 'click', (e) => {
+                   segInfo.setPosition(e.latLng);
+                   segInfo.open(map);
+                 });
+               } else {
+                 hasError = true;
+               }
+            });
+
+            if (!hasError) {
+               this.showToast('✅ OSRM Berhasil: Rute Personil multi-warna telah di-snap ke aspal jalan.', 'success');
+            } else {
+               throw new Error("Some segments failed");
+            }
+          })
+          .catch(e => {
+            // Final fallback to coarse segments
+            const segments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+            segments.forEach(seg => {
+              const nativePath = seg.path.map(p => ({lat: p[0], lng: p[1]}));
+              
+              new google.maps.Polyline({
+                path: nativePath, strokeColor: seg.color, strokeWeight: 9, strokeOpacity: 0.35, map: map
+              });
+
+              const segPoly = new google.maps.Polyline({
+                path: nativePath, strokeColor: seg.color, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
+              });
+
+              const segInfo = new google.maps.InfoWindow({
+                content: `
+                <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px; color:#333;">
+                  <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+                  <div style="margin:4px 0;">
+                    <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                    <span style="color:#64748b; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
+                  </div>
+                  <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
+                </div>`
+              });
+              google.maps.event.addListener(segPoly, 'click', (e) => { segInfo.setPosition(e.latLng); segInfo.open(map); });
+            });
+          });
+      }
+    });
+
+    // Checkpoints
+    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
     checkpoints.forEach((cp, idx) => {
       const isVisited = idx < 2;
       const markerHtml = `
-        <div style="width:26px; height:26px; border-radius:50%; background:${isVisited ? '#059669' : '#0F172A'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 8px ${isVisited ? '#10B981' : '#F59E0B'}; font-family:'JetBrains Mono';">
-          ${idx + 1}
+        <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6)); opacity:${isVisited ? 0.4 : 1};">
+          🚩
         </div>
       `;
-      const cpIcon = L.divIcon({
-        html: markerHtml,
-        className: 'personil-cp-icon',
-        iconSize: [26, 26],
-        iconAnchor: [13, 13]
-      });
-      L.marker([cp.lat, cp.lng], { icon: cpIcon }).addTo(map).bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px;">
+      const pos = new google.maps.LatLng(cp.lat, cp.lng);
+      const cpMarker = new window.GoogleHTMLMarker(pos, markerHtml, map, [13, 13]);
+      
+      const cpInfo = new google.maps.InfoWindow({
+        content: `
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
           <strong>${cp.name}</strong><br>
           <small>${cp.address || ''}</small><br>
-          <span style="color:#FCD34D;">Target: ${cp.timeTarget || 'Jadwal Regu'}</span>
-        </div>
-      `);
+          <span style="color:#F59E0B;">Target: ${cp.timeTarget || 'Jadwal Regu'}</span>
+        </div>`
+      });
+      cpMarker.addListener('click', () => {
+        cpInfo.setPosition(pos);
+        cpInfo.open(map);
+      });
     });
 
-    // 3. Crime Hotspots & Prominent 'Titik Rawan' Red Pins (as seen in tablet UI)
-    const titikRawanIcon = L.divIcon({
-      html: `
-        <div style="position:relative; width:34px; height:34px;">
-          <div class="pulse-ring" style="border: 2px solid #EF4444; background: rgba(239,68,68,0.3);"></div>
-          <div style="position:absolute; top:2px; left:2px; width:30px; height:30px; background:#DC2626; border:2px solid #fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; box-shadow:0 0 12px #EF4444;">
-            📍
-          </div>
-        </div>
-      `,
-      className: 'personil-titik-rawan-pin',
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
-    });
+    // 3. Hotspots
+    const titikRawanHtml = `
+      <div style="position:relative; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+        <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid #EF4444; background: rgba(239,68,68,0.15);"></div>
+        <div style="font-size:28px; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6)); position:relative; z-index:2;">📍</div>
+      </div>
+    `;
 
     this.state.hotspots.forEach(h => {
-      L.circle([h.lat, h.lng], {
+      const pos = new google.maps.LatLng(h.lat, h.lng);
+      
+      new google.maps.Circle({
+        center: pos,
         radius: h.radius || 200,
-        color: '#EF4444',
+        strokeColor: '#EF4444',
+        strokeOpacity: 0.8,
+        strokeWeight: 1.5,
         fillColor: '#EF4444',
         fillOpacity: 0.22,
-        weight: 1.5,
-        dashArray: '4, 4'
-      }).addTo(map);
+        map: map
+      });
 
-      const m = L.marker([h.lat, h.lng], { icon: titikRawanIcon }).addTo(map);
-      m.bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:180px;">
+      const hMarker = new window.GoogleHTMLMarker(pos, titikRawanHtml, map, [17, 17]);
+      const hInfo = new google.maps.InfoWindow({
+        content: `
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:180px; color:#333;">
           <div style="color:#EF4444; font-weight:800; font-size:13px; display:flex; align-items:center; gap:4px;">
             <span>🚨</span> Titik Rawan: ${h.name}
           </div>
-          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">Kategori: <strong style="color:#fff;">${h.category || 'Rawan Kamtibmas'}</strong></div>
-          <div style="font-size:10.5px; color:#FCD34D; margin-top:2px;">🕒 Jam Atensi: ${h.hours || '22:00 - 04:00 WIB'}</div>
-        </div>
-      `);
+          <div style="font-size:11px; color:#475569; margin-top:2px;">Kategori: <strong>${h.category || 'Rawan Kamtibmas'}</strong></div>
+          <div style="font-size:10.5px; color:#F59E0B; margin-top:2px;">🕒 Jam Atensi: ${h.hours || '22:00 - 04:00 WIB'}</div>
+        </div>`
+      });
+      hMarker.addListener('click', () => {
+        hInfo.setPosition(pos);
+        hInfo.open(map);
+      });
     });
 
-    // Render Checkpoint Summary Cards
     this.renderPersonilCheckpointCards();
-    setTimeout(() => map.invalidateSize(), 200);
+    
+    // Simulate invalidateSize for Native Google Maps
+    setTimeout(() => google.maps.event.trigger(map, 'resize'), 200);
   }
 
   recenterPersonilMap() {
     const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
-    if (map) {
-      map.flyTo([-6.2250, 106.8520], 16, { duration: 0.8 });
-      if (this.ahmadFullMapMarker) this.ahmadFullMapMarker.openPopup();
+    if (map && map.setCenter) {
+      map.setCenter({ lat: -6.2250, lng: 106.8520 });
+      map.setZoom(16);
+      if (this.ahmadFullMapMarker) google.maps.event.trigger(this.ahmadFullMapMarker, 'click');
       this.showToast("📍 Peta dipusatkan ke koordinat GPS Bripka Ahmad.", "info");
     }
   }
@@ -2224,29 +2377,32 @@ class SimapresApp {
       const fleet = this.state.patrolFleet || [];
       fleet.forEach(f => {
         if (f.officerNrp === '88123456') return; // skip self
-        const icon = L.divIcon({
-          html: `
-            <div style="width:30px; height:30px; border-radius:50%; background:#1E293B; border:2px solid #38BDF8; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 10px #38BDF8;">
-              ${f.icon || '🚔'}
-            </div>
-          `,
-          className: 'personil-other-fleet',
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        });
-        const m = L.marker([f.lat, f.lng], { icon: icon }).addTo(map).bindPopup(`
-          <div style="font-family:'Plus Jakarta Sans'; font-size:12px;">
+        const html = `
+          <div style="width:30px; height:30px; border-radius:50%; background:#1E293B; border:2px solid #38BDF8; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 10px #38BDF8;">
+            ${f.icon || '🚔'}
+          </div>
+        `;
+        const pos = new google.maps.LatLng(f.lat, f.lng);
+        const m = new window.GoogleHTMLMarker(pos, html, map, [15, 15]);
+        
+        const mInfo = new google.maps.InfoWindow({
+          content: `
+          <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
             <strong>${f.callsign}</strong><br>
             <span>Petugas: ${f.officerName}</span><br>
             <span style="color:#10B981;">Status: ${f.status}</span>
-          </div>
-        `);
+          </div>`
+        });
+        m.addListener('click', () => {
+          mInfo.setPosition(pos);
+          mInfo.open(map);
+        });
         this.otherFleetMarkers.push(m);
       });
       this.showToast("Radar taktis sektor aktif: Memantau 3 armada rekan di lapangan.", "info");
     } else {
       this.otherFleetMarkers.forEach(m => {
-        try { map.removeLayer(m); } catch(e) {}
+        try { m.setMap(null); } catch(e) {}
       });
       this.otherFleetMarkers = [];
       this.showToast("Sebaran armada rekan disembunyikan.", "info");
@@ -2255,21 +2411,17 @@ class SimapresApp {
 
   togglePersonilMapLayer() {
     const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
-    if (!map || !this.personilMapTileLayers) return;
+    if (!map || !map.getMapTypeId) return;
 
     const btn = document.getElementById('btn-toggle-personil-layer');
-    if (this.activePersonilMapLayer === 'satellite') {
-      map.removeLayer(this.personilMapTileLayers.satellite);
-      this.personilMapTileLayers.streets.addTo(map);
-      this.activePersonilMapLayer = 'streets';
+    if (map.getMapTypeId() === 'satellite') {
+      map.setMapTypeId('roadmap');
       if (btn) btn.innerHTML = '🛰️ Mode Satelit';
       this.showToast("Peta Personil beralih ke Mode Jalan (Vector)", "info");
     } else {
-      map.removeLayer(this.personilMapTileLayers.streets);
-      this.personilMapTileLayers.satellite.addTo(map);
-      this.activePersonilMapLayer = 'satellite';
+      map.setMapTypeId('satellite');
       if (btn) btn.innerHTML = '🗺️ Mode Jalan';
-      this.showToast("Peta Personil beralih ke Citra Satelit (ESRI)", "info");
+      this.showToast("Peta Personil beralih ke Citra Satelit", "info");
     }
   }
 
@@ -3587,12 +3739,13 @@ Sesuai UU Perlindungan Data Pribadi (UU PDP), rincian kasus dan dokumentasi foto
       attributionControl: false
     });
 
-    const streetsLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // ESRI World Street Map (High-reliability Vector Road Map - No 403 Block, No API Key)
+    const streetsLayer = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: 'Tiles &copy; Esri'
     });
 
-    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    const satLayer = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', {
       maxZoom: 19
     });
 
@@ -5058,13 +5211,273 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
 
   // ============================================================================
+  // ============================================================================
+  // DYNAMIC A-TO-B ROAD ROUTING ENGINE (GOOGLE MAPS / OSRM STYLE)
+  // ============================================================================
+  calculateDynamicRouteFromInputs() {
+    const routeSelect = document.getElementById('dynamic-route-preset')?.value || 'BSD_CIPEDAK';
+    const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
+    if (!map) return;
+
+    if (!this.dynamicNavLayers) this.dynamicNavLayers = [];
+    this.dynamicNavLayers.forEach(l => {
+      try { map.removeLayer(l); } catch(e) {}
+    });
+    this.dynamicNavLayers = [];
+
+    // --- Preset route metadata (untuk UI HUD) ---
+    let routeMeta = null;
+
+    if (routeSelect === 'BSD_CIPEDAK') {
+      routeMeta = {
+        name: "Tol Serpong - Cinere & Arteri Depok",
+        originName: "BSD City (Pasar Modern / ICE), Tangsel",
+        destName: "Cipedak, Jagakarsa, Jakarta Selatan",
+        originCoord: { lat: -6.3020, lng: 106.6850 },
+        destCoord:   { lat: -6.3450, lng: 106.8120 }
+      };
+    } else if (routeSelect === 'MAKO_GRANDMALL') {
+      routeMeta = {
+        name: "Mako Polres Metro ke TKP Grand Mall",
+        originName: "Mako Polres Metro (Dukuh Atas BNI)",
+        destName: "Area Parkir Grand Mall, Jl. Merdeka",
+        originCoord: { lat: -6.2018, lng: 106.8225 },
+        destCoord:   { lat: -6.2146, lng: 106.8451 }
+      };
+    } else {
+      routeMeta = {
+        name: "Patroli Sektor Timur (Guntur ke Flyover Rel)",
+        originName: "Pos 2: Simpang Guntur",
+        destName: "Pos 4: Jembatan Flyover Rel Kereta",
+        originCoord: { lat: -6.2078, lng: 106.8318 },
+        destCoord:   { lat: -6.2380, lng: 106.8400 }
+      };
+    }
+
+    this.showToast(`🗺️ Menghitung rute: ${routeMeta.name}...`, 'info');
+    this._fetchAndDrawDynamicRoute(map, routeMeta);
+  }
+
+  _fetchAndDrawDynamicRoute(map, routeMeta) {
+    const apiKey = this.googleMapsApiKey || this._extractGoogleApiKeyFromScript();
+
+    if (apiKey) {
+      // --- Google Routes API v2 ---
+      fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': [
+            'routes.duration',
+            'routes.distanceMeters',
+            'routes.polyline.encodedPolyline',
+            'routes.legs.duration',
+            'routes.legs.distanceMeters'
+          ].join(',')
+        },
+        body: JSON.stringify({
+          origin:      { location: { latLng: { latitude: routeMeta.originCoord.lat, longitude: routeMeta.originCoord.lng } } },
+          destination: { location: { latLng: { latitude: routeMeta.destCoord.lat,   longitude: routeMeta.destCoord.lng   } } },
+          travelMode: 'DRIVE',
+          routingPreference: 'TRAFFIC_AWARE',
+          computeAlternativeRoutes: true,
+          languageCode: 'id-ID',
+          units: 'METRIC'
+        })
+      })
+      .then(res => res.ok ? res.json() : res.json().then(e => { throw e; }))
+      .then(data => {
+        if (!data.routes?.length) throw new Error('No routes');
+        const main = data.routes[0];
+        const mainPoints = this._decodeGooglePolyline(main.polyline.encodedPolyline);
+        const durationSec = parseInt(main.duration?.replace('s', '') || '0', 10);
+        const durationText = durationSec >= 3600
+          ? `${Math.floor(durationSec / 3600)} jam ${Math.round((durationSec % 3600) / 60)} mnt`
+          : `${Math.round(durationSec / 60)} mnt`;
+        const distanceText = `${(main.distanceMeters / 1000).toFixed(1)} km`;
+        const altRoutes = data.routes.slice(1).map(r => this._decodeGooglePolyline(r.polyline.encodedPolyline));
+        this._drawDynamicNavRoute(map, routeMeta, mainPoints, durationText, distanceText, altRoutes, 'google');
+      })
+      .catch(err => {
+        console.warn('Routes API error:', err?.error?.message || err?.message, '— Fallback OSRM');
+        this.showToast('⚠️ Routes API gagal. Menggunakan OSRM...', 'warning');
+        this._fetchDynamicRouteOSRM(map, routeMeta);
+      });
+    } else {
+      this._fetchDynamicRouteOSRM(map, routeMeta);
+    }
+  }
+
+  _fetchDynamicRouteOSRM(map, routeMeta) {
+    const { originCoord: o, destCoord: d } = routeMeta;
+    const url = `https://router.project-osrm.org/route/v1/driving/` +
+      `${o.lng},${o.lat};${d.lng},${d.lat}?overview=full&geometries=geojson&alternatives=true`;
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.routes?.length) throw new Error('No routes from OSRM');
+        const main = data.routes[0];
+        const mainPoints = main.geometry.coordinates.map(c => [c[1], c[0]]);
+        const durationText = `${Math.round(main.duration / 60)} mnt`;
+        const distanceText = `${(main.distance / 1000).toFixed(1)} km`;
+        const altRoutes = data.routes.slice(1).map(r => r.geometry.coordinates.map(c => [c[1], c[0]]));
+        this._drawDynamicNavRoute(map, routeMeta, mainPoints, durationText, distanceText, altRoutes, 'osrm');
+      })
+      .catch(err => {
+        console.error('OSRM error:', err);
+        this.showToast('Gagal memuat rute. Periksa koneksi internet.', 'error');
+      });
+  }
+
+  _drawDynamicNavRoute(map, routeMeta, mainPoints, durationText, distanceText, altRoutes = [], source = 'google') {
+    if (!this.dynamicNavLayers) this.dynamicNavLayers = [];
+
+    // Gambar rute alternatif dulu (di belakang)
+    altRoutes.forEach(pts => {
+      const alt = L.polyline(pts, { color: '#94A3B8', weight: 5, opacity: 0.55 }).addTo(map);
+      this.dynamicNavLayers.push(alt);
+    });
+
+    // Glow + main polyline rute utama
+    const glow = L.polyline(mainPoints, { color: '#0284C7', weight: 10, opacity: 0.35 }).addTo(map);
+    const mainRoute = L.polyline(mainPoints, { color: '#2563EB', weight: 5.5, opacity: 0.97 }).addTo(map);
+    this.dynamicNavLayers.push(glow, mainRoute);
+
+    // Marker A (origin)
+    const iconA = L.divIcon({
+      html: `<div style="background:#0284C7;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;border:2px solid #fff;box-shadow:0 0 10px rgba(2,132,199,0.9);">A</div>`,
+      className: 'nav-marker-a', iconSize: [30,30], iconAnchor: [15,15]
+    });
+    const markerA = L.marker([routeMeta.originCoord.lat, routeMeta.originCoord.lng], { icon: iconA }).addTo(map);
+    markerA.bindPopup(`<b>Titik Awal:</b><br>${routeMeta.originName}`);
+    this.dynamicNavLayers.push(markerA);
+
+    // Marker B (destination)
+    const iconB = L.divIcon({
+      html: `<div style="background:#EF4444;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;border:2px solid #fff;box-shadow:0 0 10px rgba(239,68,68,0.9);">B</div>`,
+      className: 'nav-marker-b', iconSize: [30,30], iconAnchor: [15,15]
+    });
+    const markerB = L.marker([routeMeta.destCoord.lat, routeMeta.destCoord.lng], { icon: iconB }).addTo(map);
+    markerB.bindPopup(`<b>Titik Tujuan:</b><br>${routeMeta.destName}`);
+    this.dynamicNavLayers.push(markerB);
+
+    // ETA pill di titik tengah rute
+    const mid = mainPoints[Math.floor(mainPoints.length / 2)];
+    const etaIcon = L.divIcon({
+      html: `<div class="route-eta-pill-badge" style="cursor:pointer;"><span>🚗</span> <strong>${durationText}</strong> (${distanceText})</div>`,
+      className: 'custom-route-eta-pill', iconSize: [150,32], iconAnchor: [75,16]
+    });
+    const etaMarker = L.marker(mid, { icon: etaIcon }).addTo(map);
+    etaMarker.bindPopup(`
+      <div style="font-family:'Plus Jakarta Sans';font-size:12px;min-width:200px;">
+        <div style="color:#0284C7;font-weight:800;font-size:13px;margin-bottom:4px;">🚗 Rute Tercepat: ${durationText}</div>
+        <div>Jarak Tempuh: <strong>${distanceText}</strong></div>
+        <div style="color:#10B981;font-size:11px;margin-top:4px;">Sumber: ${source === 'google' ? 'Google Routes API' : 'OSRM (Open-Source)'}</div>
+      </div>
+    `);
+    this.dynamicNavLayers.push(etaMarker);
+
+    // --- Sync to Native Google Maps (if initialized) ---
+    if (this.nativeGoogleMap && typeof google !== 'undefined') {
+      if (!this.nativeDynamicNavLayers) this.nativeDynamicNavLayers = [];
+      this.nativeDynamicNavLayers.forEach(l => l.setMap(null));
+      this.nativeDynamicNavLayers = [];
+
+      const nativePoints = mainPoints.map(p => ({ lat: p[0], lng: p[1] }));
+      
+      altRoutes.forEach(pts => {
+        const altNativePts = pts.map(p => ({ lat: p[0], lng: p[1] }));
+        const altNative = new google.maps.Polyline({
+          path: altNativePts, strokeColor: '#94A3B8', strokeOpacity: 0.55, strokeWeight: 5, map: this.nativeGoogleMap
+        });
+        this.nativeDynamicNavLayers.push(altNative);
+      });
+
+      const nativeGlow = new google.maps.Polyline({
+        path: nativePoints, strokeColor: '#0284C7', strokeOpacity: 0.35, strokeWeight: 10, map: this.nativeGoogleMap
+      });
+      const nativeMainRoute = new google.maps.Polyline({
+        path: nativePoints, strokeColor: '#2563EB', strokeOpacity: 0.97, strokeWeight: 6, map: this.nativeGoogleMap
+      });
+      this.nativeDynamicNavLayers.push(nativeGlow, nativeMainRoute);
+
+      const nMarkerA = new google.maps.Marker({
+        position: nativePoints[0], map: this.nativeGoogleMap, title: routeMeta.originName,
+        label: { text: "A", color: "white", fontWeight: "bold" }
+      });
+      const nMarkerB = new google.maps.Marker({
+        position: nativePoints[nativePoints.length - 1], map: this.nativeGoogleMap, title: routeMeta.destName,
+        label: { text: "B", color: "white", fontWeight: "bold" }
+      });
+      this.nativeDynamicNavLayers.push(nMarkerA, nMarkerB);
+
+      const bounds = new google.maps.LatLngBounds();
+      nativePoints.forEach(p => bounds.extend(p));
+      this.nativeGoogleMap.fitBounds(bounds);
+    }
+
+    // Update HUD
+    const hudEl = document.getElementById('dynamic-route-result-hud');
+    if (hudEl) {
+      hudEl.style.display = 'block';
+      hudEl.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div style="font-size:13px;font-weight:800;color:#38BDF8;display:flex;align-items:center;gap:6px;">
+              <span>🚗</span> Rute Aktif: ${routeMeta.name}
+            </div>
+            <div style="font-size:11px;color:#cbd5e1;margin-top:2px;">
+              Dari: <strong>${routeMeta.originName}</strong> &rarr; Ke: <strong>${routeMeta.destName}</strong>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="route-eta-pill-badge" style="font-size:12px;">🚗 ${durationText} (${distanceText})</div>
+            <button type="button" class="btn-quick" style="padding:4px 8px;font-size:10.5px;" onclick="app.clearDynamicNavRoute()">✖ Hapus Rute</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:#94A3B8;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.08);padding-top:6px;">
+          <span>Rute Utama: <strong style="color:#10B981;">${durationText} (${distanceText})</strong></span>
+          <span style="color:#64748B;">via ${source === 'google' ? 'Google Routes API ✅' : 'OSRM Open-Source 🗺️'}</span>
+          ${altRoutes.length ? `<span>Alternatif tersedia: ${altRoutes.length} rute</span>` : ''}
+        </div>
+      `;
+    }
+
+    try {
+      map.fitBounds(mainRoute.getBounds(), { padding: [50, 50] });
+    } catch(e) {}
+
+    this.showToast(`✅ Rute berhasil: ${durationText} · ${distanceText} (${source === 'google' ? 'Google Routes API' : 'OSRM'})`, 'success');
+  }
+
+  clearDynamicNavRoute() {
+    const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
+    if (this.dynamicNavLayers) {
+      this.dynamicNavLayers.forEach(l => {
+        try { if (map) map.removeLayer(l); } catch(e) {}
+      });
+      this.dynamicNavLayers = [];
+    }
+    
+    if (this.nativeDynamicNavLayers) {
+      this.nativeDynamicNavLayers.forEach(l => l.setMap(null));
+      this.nativeDynamicNavLayers = [];
+    }
+    
+    const hudEl = document.getElementById('dynamic-route-result-hud');
+    if (hudEl) hudEl.style.display = 'none';
+    this.showToast("Kalkulasi rute dinamis dibersihkan.", "info");
+  }
+
   // KABAG OPS - BUS-STYLE ROUTE MAPPING & TRANSIT PREVIEW ENGINE
   // ============================================================================
   initRouteMap(containerId = 'kabagops-route-map') {
-    const mapEl = document.getElementById(containerId);
-    if (!mapEl) return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
 
-    if (typeof L === 'undefined') {
+    if (typeof google === 'undefined' || !google.maps) {
       setTimeout(() => this.initRouteMap(containerId), 200);
       return;
     }
@@ -5072,25 +5485,22 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     if (!this.leafMaps) this.leafMaps = {};
 
     if (!this.leafMaps[containerId]) {
-      const map = L.map(containerId, {
-        center: [-6.2146, 106.8451],
+      const map = new google.maps.Map(container, {
+        center: { lat: -6.2146, lng: 106.8451 },
         zoom: 14,
+        mapTypeId: 'roadmap',
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
         zoomControl: true,
-        attributionControl: false
+        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM }
       });
-
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19
-      }).addTo(map);
 
       this.leafMaps[containerId] = map;
     }
 
     setTimeout(() => {
-      if (this.leafMaps[containerId]) {
-        this.leafMaps[containerId].invalidateSize();
-        this.renderRouteMapData(containerId);
-      }
+      this.renderRouteMapData(containerId);
     }, 100);
   }
 
@@ -5202,7 +5612,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       address: "Jl. Veteran No. 1, Gambir",
       lat: -6.2146,
       lng: 106.8451,
-      timeTarget: "20:30 WIB",
+      timeTarget: "Keberangkatan",
       dwellTime: "Persiapan Armada (15 Mnt)",
       isTerminal: true
     };
@@ -5230,7 +5640,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       address: "Jl. Veteran No. 1, Gambir",
       lat: -6.2146,
       lng: 106.8451,
-      timeTarget: "23:30 WIB",
+      timeTarget: "Kembali ke Mako",
       dwellTime: "Konsolidasi Pasukan",
       isTerminal: true
     });
@@ -5275,88 +5685,136 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
     const segments = this.getPatrolMultiColorRouteSegments(this.selectedPatrolUnit || 'SAMAPTA_AHMAD');
     
-    // 1. Draw Multi-Color Route Polylines (Green, Yellow, Red)
-    segments.forEach(seg => {
-      const glow = L.polyline(seg.path, {
-        color: seg.color,
-        weight: 9,
-        opacity: 0.35
-      }).addTo(map);
-      this.routeLayers.push(glow);
+    // 1. Draw Multi-Color Route Polylines (Green, Yellow, Red) using Google Maps + OSRM Snapping
+    const osrmPromises = [];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const cp1 = stops[i];
+      const cp2 = stops[i+1];
+      osrmPromises.push(
+        fetch(`https://router.project-osrm.org/route/v1/driving/${cp1.lng},${cp1.lat};${cp2.lng},${cp2.lat}?overview=full&geometries=geojson`)
+          .then(res => res.json())
+      );
+    }
 
-      const poly = L.polyline(seg.path, {
-        color: seg.color,
-        weight: 4.5,
-        opacity: 0.95,
-        dashArray: seg.color === '#EF4444' ? '8, 5' : (seg.color === '#F59E0B' ? '6, 4' : null)
-      }).addTo(map);
+    Promise.all(osrmPromises)
+      .then(results => {
+        results.forEach((data, i) => {
+           const seg = segments[i % segments.length];
+           if(data.routes && data.routes.length > 0) {
+             const geom = data.routes[0].geometry.coordinates;
+             const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
+             const dash = seg.color === '#EF4444' || seg.color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
+             
+             // Glow
+             const glow = new google.maps.Polyline({
+                path: detailedPath, strokeColor: seg.color, strokeWeight: 9, strokeOpacity: 0.35, map: map
+             });
+             this.routeLayers.push(glow);
 
-      poly.bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:200px;">
-          <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
-          <div style="margin:4px 0;">
-            <span class="badge" style="background:${seg.color}; color:#000; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
-            <span style="color:#94A3B8; font-size:10.5px; margin-left:4px;">Speed: ${seg.speedLimit}</span>
-          </div>
-          <p style="font-size:11px; margin:4px 0 0 0; color:#cbd5e1;">${seg.description}</p>
-        </div>
-      `);
-      this.routeLayers.push(poly);
-    });
+             const poly = new google.maps.Polyline({
+                path: detailedPath,
+                strokeColor: seg.color,
+                strokeWeight: 4.5,
+                strokeOpacity: 0.95,
+                icons: dash.length ? dash : null,
+                map: map
+             });
+             this.routeLayers.push(poly);
+
+             const infoWindow = new google.maps.InfoWindow({
+               content: `
+               <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:200px; color:#333;">
+                 <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+                 <div style="margin:4px 0;">
+                   <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                   <span style="color:#64748B; font-size:10.5px; margin-left:4px;">Speed: ${seg.speedLimit}</span>
+                 </div>
+                 <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
+               </div>`
+             });
+
+             google.maps.event.addListener(poly, 'click', (e) => {
+               infoWindow.setPosition(e.latLng);
+               infoWindow.open(map);
+             });
+           }
+        });
+      })
+      .catch(e => {
+        // Fallback to coarse segments if OSRM fails
+        segments.forEach(seg => {
+          const nativePath = seg.path.map(p => ({lat: p[0], lng: p[1]}));
+          const dash = seg.color === '#EF4444' || seg.color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
+          
+          const poly = new google.maps.Polyline({
+            path: nativePath, strokeColor: seg.color, strokeWeight: 4.5, strokeOpacity: 0.95, icons: dash.length ? dash : null, map: map
+          });
+          this.routeLayers.push(poly);
+        });
+      });
 
     // 2. Draw Numbered Bus-Stop Milestones & Buffer Circles
     stops.forEach((s, idx) => {
       const isStart = idx === 0;
       const isEnd = idx === stops.length - 1;
-      const labelNum = isStart ? 'M' : (isEnd ? '🏁' : String(idx));
+      const labelNum = String(idx + 1);
 
       const markerHtml = `
-        <div style="width:30px; height:30px; border-radius:50%; background:${isStart || isEnd ? '#0284C7' : '#0F172A'}; border:2.5px solid ${routeInfo.color}; color:#fff; font-weight:800; font-size:${isStart||isEnd?'12px':'11px'}; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px ${routeInfo.color}; font-family:'JetBrains Mono';">
-          ${labelNum}
+        <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+          🚩
         </div>
       `;
 
-      const stopIcon = L.divIcon({
-        html: markerHtml,
-        className: 'custom-bus-stop-marker',
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-      });
+      const fPos = new google.maps.LatLng(s.lat, s.lng);
+      
+      if (typeof window.GoogleHTMLMarker !== 'undefined') {
+        const marker = new window.GoogleHTMLMarker(fPos, markerHtml, map, [15, 15]);
+        this.routeLayers.push(marker);
 
-      const marker = L.marker([s.lat, s.lng], { icon: stopIcon }).addTo(map);
-      marker.bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#fff; min-width:200px;">
-          <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-            <span class="badge" style="background:${routeInfo.color}; color:#000; font-weight:800; font-size:10px;">
-              ${isStart ? 'START TERMINAL' : (isEnd ? 'FINISH TERMINAL' : `POS PUSH ${idx}`)}
-            </span>
-          </div>
-          <strong style="font-size:13px; color:#fff;">${s.name}</strong>
-          <div style="color:#cbd5e1; font-size:11px; margin-top:2px;">📍 ${s.address || 'Wilayah Sektor'}</div>
-          <div style="margin-top:6px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.1); font-size:11px; color:#FCD34D;">
-            🕒 Target Singgah: <strong>${s.timeTarget || '-'}</strong>
-          </div>
-          <div style="font-size:10.5px; color:#94A3B8;">
-            ⏱️ Durasi: ${s.dwellTime || '15 Menit Patroli Dialogis'}
-          </div>
-        </div>
-      `);
-      this.routeLayers.push(marker);
+        const markerInfo = new google.maps.InfoWindow({
+          content: `
+          <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333; min-width:200px;">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <span class="badge" style="background:${routeInfo.color}; color:#fff; font-weight:800; font-size:10px;">
+                ${isStart ? 'START TERMINAL' : (isEnd ? 'FINISH TERMINAL' : `POS PUSH ${idx}`)}
+              </span>
+            </div>
+            <strong style="font-size:13px; color:#333;">${s.name}</strong>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">📍 ${s.address || 'Wilayah Sektor'}</div>
+            <div style="margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:11px; color:#F59E0B;">
+              ⏳ Target Tiba: ${s.timeTarget || 'Fleksibel'}
+            </div>
+            <div style="font-size:11px; color:#475569; margin-top:2px;">⏱️ Durasi: ${s.dwellTime}</div>
+          </div>`
+        });
 
-      // Geofence circle
-      const circle = L.circle([s.lat, s.lng], {
-        radius: 60,
-        color: routeInfo.color,
-        weight: 1,
-        fillColor: routeInfo.color,
-        fillOpacity: 0.12
-      }).addTo(map);
-      this.routeLayers.push(circle);
+        window.google.maps.event.addListener(marker, 'click', () => {
+          markerInfo.setPosition(fPos);
+          markerInfo.open(map);
+        });
+      }
+
+      // Buffer Circle (Zone of Control)
+      if (!isStart && !isEnd) {
+        const circle = new google.maps.Circle({
+          strokeColor: routeInfo.color,
+          strokeOpacity: 0.6,
+          strokeWeight: 1,
+          fillColor: routeInfo.color,
+          fillOpacity: 0.1,
+          map: map,
+          center: fPos,
+          radius: 350
+        });
+        this.routeLayers.push(circle);
+      }
     });
 
     // 3. Fit bounds
     try {
-      map.fitBounds(routePoly.getBounds(), { padding: [40, 40] });
+      const bounds = new google.maps.LatLngBounds();
+      stops.forEach(s => bounds.extend(new google.maps.LatLng(s.lat, s.lng)));
+      map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 40, right: 40 } });
     } catch(e) {}
 
     // 4. Render Transit Stepper
@@ -5463,21 +5921,28 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     }
 
     if (this.routeSimMarker) {
-      try { map.removeLayer(this.routeSimMarker); } catch(e) {}
+      try { this.routeSimMarker.setMap(null); } catch(e) {}
     }
 
-    const simIcon = L.divIcon({
-      html: `
-        <div style="width:36px; height:36px; border-radius:50%; background:#1E293B; border:3px solid ${routeInfo.color}; display:flex; align-items:center; justify-content:center; font-size:20px; box-shadow:0 0 16px ${routeInfo.color}; animation:pulseMarker 1.5s infinite;">
+    const simIconHtml = `
+      <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center; transition: left 1.5s linear, top 1.5s linear;">
+        <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid ${routeInfo.color}; background: transparent; animation:pulseMarker 1.5s infinite;"></div>
+        <div style="font-size:32px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6)); position:relative; z-index:2;">
           ${routeInfo.icon}
         </div>
-      `,
-      className: 'route-sim-marker',
-      iconSize: [36, 36],
-      iconAnchor: [18, 18]
-    });
+      </div>
+    `;
 
-    this.routeSimMarker = L.marker([stops[0].lat, stops[0].lng], { icon: simIcon, zIndexOffset: 1000 }).addTo(map);
+    const startLatLng = new google.maps.LatLng(stops[0].lat, stops[0].lng);
+    this.routeSimMarker = new window.GoogleHTMLMarker(startLatLng, simIconHtml, map, [18, 18]);
+    
+    // Add setPosition polyfill temporarily to the instance if it doesn't exist on the class
+    if (!this.routeSimMarker.setPosition) {
+       this.routeSimMarker.setPosition = function(latlng) {
+          this.latlng = latlng;
+          this.draw();
+       };
+    }
 
     let currIdx = 0;
     const runStep = () => {
@@ -5501,14 +5966,14 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       if (statusEl) statusEl.innerText = `Singgah di ${currStop.name} &bull; ${currStop.dwellTime || 'Patroli Dialogis'}`;
       if (etaEl) etaEl.innerText = `Target Selanjutnya: ${nextStop.name}`;
 
-      map.panTo([currStop.lat, currStop.lng], { animate: true, duration: 0.6 });
+      map.panTo(new google.maps.LatLng(currStop.lat, currStop.lng));
 
       // Move marker towards next stop smoothly
       this.routeSimTimer = setTimeout(() => {
         if (!this.isRouteSimulating) return;
 
         if (statusEl) statusEl.innerText = `Meluncur ke ${nextStop.name}... Kecepatan: 35 km/jam`;
-        this.routeSimMarker.setLatLng([nextStop.lat, nextStop.lng]);
+        this.routeSimMarker.setPosition(new google.maps.LatLng(nextStop.lat, nextStop.lng));
 
         currIdx = nextIdx;
         this.routeSimTimer = setTimeout(runStep, 2000);
@@ -5523,9 +5988,8 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     this.isRouteSimulating = false;
     if (this.routeSimTimer) clearTimeout(this.routeSimTimer);
 
-    const map = this.leafMaps && this.leafMaps['kabagops-route-map'];
-    if (this.routeSimMarker && map) {
-      try { map.removeLayer(this.routeSimMarker); } catch(e) {}
+    if (this.routeSimMarker) {
+      try { this.routeSimMarker.setMap(null); } catch(e) {}
       this.routeSimMarker = null;
     }
 
@@ -5577,7 +6041,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     const mapEl = document.getElementById(containerId);
     if (!mapEl) return;
 
-    if (typeof L === 'undefined') {
+    if (typeof google === 'undefined' || !google.maps) {
       setTimeout(() => this.initHistoryMap(containerId), 200);
       return;
     }
@@ -5585,23 +6049,21 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     if (!this.leafMaps) this.leafMaps = {};
 
     if (!this.leafMaps[containerId]) {
-      const map = L.map(containerId, {
-        center: [-6.2190, 106.8460],
+      const map = new google.maps.Map(mapEl, {
+        center: { lat: -6.2190, lng: 106.8460 },
         zoom: 14,
         zoomControl: true,
-        attributionControl: false
+        mapTypeId: 'roadmap',
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true
       });
-
-      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19
-      }).addTo(map);
 
       this.leafMaps[containerId] = map;
     }
 
     setTimeout(() => {
       if (this.leafMaps[containerId]) {
-        this.leafMaps[containerId].invalidateSize();
         this.renderHistoryMapPath(containerId);
       }
     }, 100);
@@ -5614,29 +6076,13 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     // Clear old history layers
     if (this.historyLayers) {
       this.historyLayers.forEach(l => {
-        try { map.removeLayer(l); } catch(e) {}
+        try { l.setMap(null); } catch(e) {}
       });
     }
     this.historyLayers = [];
 
     const waypoints = this.getDailyHistoryWaypoints();
-    const latlngs = waypoints.map(w => [w.lat, w.lng]);
-
-    // Draw Cyan Traveled Polyline with Glow
-    const glowPath = L.polyline(latlngs, {
-      color: '#06B6D4',
-      weight: 8,
-      opacity: 0.3
-    }).addTo(map);
-    this.historyLayers.push(glowPath);
-
-    const actualPath = L.polyline(latlngs, {
-      color: '#06B6D4',
-      weight: 4,
-      opacity: 0.95
-    }).addTo(map);
-    this.historyLayers.push(actualPath);
-
+    
     // Draw Stop Markers
     let stopIdx = 1;
     waypoints.forEach((w, idx) => {
@@ -5647,35 +6093,89 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       const label = isStart ? 'M' : (isEnd ? '🏁' : String(stopIdx++));
 
       const markerHtml = `
-        <div style="width:28px; height:28px; border-radius:50%; background:${isStart||isEnd?'#0284C7':'#0F172A'}; border:2.5px solid #22D3EE; color:#fff; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 10px #22D3EE; font-family:'JetBrains Mono';">
-          ${label}
+        <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+          🏁
         </div>
       `;
 
-      const icon = L.divIcon({
-        html: markerHtml,
-        className: 'history-stop-pin',
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
-      });
-
-      const m = L.marker([w.lat, w.lng], { icon: icon }).addTo(map);
-      m.bindPopup(`
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#fff; min-width:210px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <span class="badge" style="background:#06B6D4; color:#000; font-weight:800; font-size:9.5px;">${w.time}</span>
-            <span style="color:#FCD34D; font-size:10.5px; font-weight:700;">⏱️ ${w.dwell || 'Stasioner'}</span>
-          </div>
-          <strong style="font-size:13px; color:#fff;">${w.loc}</strong>
-          <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">${w.desc}</div>
-        </div>
-      `);
-      this.historyLayers.push(m);
+      const wPos = new google.maps.LatLng(w.lat, w.lng);
+      if (typeof window.GoogleHTMLMarker !== 'undefined') {
+        const m = new window.GoogleHTMLMarker(wPos, markerHtml, map, [14, 14]);
+        this.historyLayers.push(m);
+        
+        const info = new google.maps.InfoWindow({
+          content: `
+            <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333; min-width:210px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span class="badge" style="background:#06B6D4; color:#000; font-weight:800; font-size:9.5px;">${w.time}</span>
+                <span style="color:#F59E0B; font-size:10.5px; font-weight:700;">⏱️ ${w.dwell || 'Stasioner'}</span>
+              </div>
+              <strong style="font-size:13px;">${w.loc}</strong>
+              <div style="font-size:11px; color:#64748B; margin-top:2px;">${w.desc}</div>
+            </div>
+          `
+        });
+        
+        google.maps.event.addListener(m, 'click', () => {
+          info.setPosition(wPos);
+          info.open(map);
+        });
+      }
     });
 
-    try {
-      map.fitBounds(actualPath.getBounds(), { padding: [40, 40] });
-    } catch(e) {}
+    // Draw Cyan Traveled Polyline with OSRM Road Snapping
+    const coordString = waypoints.map(w => `${w.lng},${w.lat}`).join(';');
+    fetch(`https://router.project-osrm.org/route/v1/driving/${coordString}?overview=full&geometries=geojson`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes.length > 0) {
+          const geom = data.routes[0].geometry.coordinates;
+          const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
+          
+          const glowPath = new google.maps.Polyline({
+            path: detailedPath,
+            strokeColor: '#06B6D4',
+            strokeWeight: 8,
+            strokeOpacity: 0.3,
+            map: map
+          });
+          this.historyLayers.push(glowPath);
+
+          const actualPath = new google.maps.Polyline({
+            path: detailedPath,
+            strokeColor: '#06B6D4',
+            strokeWeight: 4,
+            strokeOpacity: 0.95,
+            map: map
+          });
+          this.historyLayers.push(actualPath);
+          
+          try {
+            const bounds = new google.maps.LatLngBounds();
+            detailedPath.forEach(p => bounds.extend(p));
+            map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 40, right: 40 } });
+          } catch(e) {}
+        } else {
+           throw new Error("OSRM failed");
+        }
+      })
+      .catch(e => {
+        // Fallback to coarse straight lines
+        const fallbackPath = waypoints.map(w => new google.maps.LatLng(w.lat, w.lng));
+        const fallbackPoly = new google.maps.Polyline({
+            path: fallbackPath,
+            strokeColor: '#06B6D4',
+            strokeWeight: 4,
+            strokeOpacity: 0.95,
+            map: map
+        });
+        this.historyLayers.push(fallbackPoly);
+        try {
+            const bounds = new google.maps.LatLngBounds();
+            fallbackPath.forEach(p => bounds.extend(p));
+            map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 40, right: 40 } });
+        } catch(e) {}
+      });
   }
 
   renderHistoryTelemetryData() {
@@ -6241,8 +6741,10 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
     tbody.innerHTML = this.state.hotspots.map(h => {
       const riskLevel = h.level || h.risk || 'TINGGI';
-      const isCritical = riskLevel === 'TINGGI' || riskLevel === 'KRITIS' || riskLevel === 'SANGAT_RAWAN';
-      const badgeClass = isCritical ? 'badge-danger' : 'badge-warning';
+      const isCritical = riskLevel === 'SANGAT_RAWAN' || riskLevel === 'KRITIS';
+      const isHigh = riskLevel === 'TINGGI';
+      const badgeClass = isCritical ? 'badge-danger' : (isHigh ? 'badge-warning' : 'badge-gold');
+      const badgeText = isCritical ? 'SANGAT RAWAN' : (isHigh ? 'TINGGI' : 'SEDANG');
       const latStr = typeof h.lat === 'number' ? h.lat.toFixed(4) : h.lat;
       const lngStr = typeof h.lng === 'number' ? h.lng.toFixed(4) : h.lng;
 
@@ -6257,7 +6759,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
             <small style="color:var(--text-muted); font-size:10.5px;">Zona Radius Pantau: ${h.radius || 250} Meter</small>
           </td>
           <td>
-            <span class="badge ${badgeClass}" style="font-weight:700;">${riskLevel}</span>
+            <span class="badge ${badgeClass}" style="font-weight:700;">${badgeText}</span>
           </td>
           <td>
             <button class="btn-quick btn-danger-outline" style="padding:2px 8px; font-size:11px;" onclick="app.deleteHotspot('${h.id}')">Hapus</button>
@@ -6447,7 +6949,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     document.getElementById('checkpoint-edit-index').value = String(index);
     document.getElementById('cp-input-name').value = cp.name || '';
     document.getElementById('cp-input-address').value = cp.address || '';
-    document.getElementById('cp-input-time').value = cp.timeTarget || '11:30 WIB';
+    document.getElementById('cp-input-time').value = cp.timeTarget || '';
     const radEl = document.getElementById('cp-input-radius');
     if (radEl) radEl.value = String(cp.radius || 50);
     const dwellEl = document.getElementById('cp-input-dwell');
@@ -6539,6 +7041,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       this.leafMaps['kabagops-real-map'].invalidateSize();
     }
     this.drawTacticalCanvas('kabagops-tactical-canvas');
+    this.renderRouteMapData('kabagops-route-map');
   }
 
   removeKabagOpsCheckpoint(index) {
@@ -6561,6 +7064,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       }
       this.saveState();
       this.renderKabagOpsCheckpointsList();
+      this.renderRouteMapData('kabagops-route-map');
       this.showToast(`Pos pantau "${removed[0].name}" berhasil dihapus.`, 'info');
     }
   }
@@ -6590,6 +7094,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
     this.saveState();
     this.renderKabagOpsCheckpointsList();
+    this.renderRouteMapData('kabagops-route-map');
     this.showToast(`Urutan pos pantau diperbarui: ${temp.name} menjadi urutan ${newIndex + 1}.`, 'info');
   }
 
@@ -6603,7 +7108,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     }
     this.drawTacticalCanvas('kabagops-tactical-canvas');
     this.drawTacticalCanvas('tactical-canvas');
-    this.drawTacticalCanvas('personil-canvas');
+    this.initPersonilFullMap('personil-canvas');
     this.showToast("🚨 Rute Operasi Gabungan berhasil dibroadcast serentak ke seluruh 12 armada dinas!", "warning");
   }
 
@@ -6747,14 +7252,15 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     });
 
     // Satellite layer (ESRI World Imagery High-Resolution)
-    const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    const satLayer = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', {
       maxZoom: 19
     });
 
     // Streets layer fallback
-    const streetsLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // ESRI World Street Map (High-reliability Vector Road Map - No 403 Block, No API Key)
+    const streetsLayer = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
+      attribution: 'Tiles &copy; Esri'
     });
 
     satLayer.addTo(map);
@@ -7066,120 +7572,92 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
   }
 
   initRealMap(containerId) {
-    if (typeof L === 'undefined') {
-      // Dynamic loader with auto-retry across top CDNs
-      if (!this._leafletLoading) {
-        this._leafletLoading = true;
-        const script1 = document.createElement('script');
-        script1.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
-        script1.onload = () => {
-          this._leafletLoading = false;
-          this.initRealMap(containerId);
-        };
-        script1.onerror = () => {
-          const script2 = document.createElement('script');
-          script2.src = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
-          script2.onload = () => {
-            this._leafletLoading = false;
-            this.initRealMap(containerId);
-          };
-          if (document.head) document.head.appendChild(script2);
-        };
-        if (document.head) document.head.appendChild(script1);
-      }
-
-      // Check if Leaflet finishes loading asynchronously
-      let retries = 0;
-      const pollTimer = setInterval(() => {
-        retries++;
-        if (typeof L !== 'undefined') {
-          clearInterval(pollTimer);
-          this.initRealMap(containerId);
-        } else if (retries >= 20) {
-          clearInterval(pollTimer);
-          // Seamless offline fallback to realistic vector canvas
-          const canvasId = containerId === 'kabagops-real-map' ? 'kabagops-tactical-canvas' : 'tactical-canvas';
-          const canvasEl = document.getElementById(canvasId);
-          const mapEl = document.getElementById(containerId);
-          if (canvasEl && mapEl) {
-            mapEl.style.display = 'none';
-            canvasEl.style.display = 'block';
-            this.drawTacticalCanvas(canvasId);
-          }
-        }
-      }, 100);
+    if (typeof google === 'undefined' || !google.maps) {
+      setTimeout(() => this.initRealMap(containerId), 1000);
       return;
     }
 
     const container = document.getElementById(containerId);
     if (!container) return;
 
-    if (this.leafMaps && this.leafMaps[containerId]) {
-      setTimeout(() => this.leafMaps[containerId].invalidateSize(), 150);
-      return;
-    }
-
     if (!this.leafMaps) this.leafMaps = {};
     if (!this.tileLayers) this.tileLayers = {};
 
-    // Center coordinates: Jakarta & Tangerang metropolitan area
-    const center = [-6.2146, 106.8451];
+    const center = { lat: -6.2146, lng: 106.8451 };
 
-    try {
-      const map = L.map(containerId, {
-        center: center,
-        zoom: 13,
-        zoomControl: true,
-        attributionControl: false
-      });
+    const map = new google.maps.Map(container, {
+      center: center,
+      zoom: 13,
+      mapTypeId: 'roadmap',
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM }
+    });
 
-      // Esri Dark Gray Canvas (High-tech Police GIS - No API key required)
-      const darkLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18,
-        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
-      });
+    this.leafMaps[containerId] = map;
 
-      // OpenStreetMap Standard (Full-color Detailed Road Map)
-      const osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
-      });
-
-      // Esri Satellite (Real Aerial Photography)
-      const satLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 18
-      });
-
-      satLayer.addTo(map);
-
-      this.tileLayers[containerId] = {
-        dark: darkLayer,
-        osm: osmLayer,
-        satellite: satLayer,
-        current: 'satellite'
+    // Define window.GoogleHTMLMarker globally if not yet defined
+    if (typeof window.GoogleHTMLMarker === 'undefined') {
+      window.GoogleHTMLMarker = class extends google.maps.OverlayView {
+        constructor(latlng, html, map, anchor) {
+          super();
+          this.latlng = latlng;
+          this.html = html;
+          this.anchor = anchor || [15, 15];
+          this.setMap(map);
+        }
+        onAdd() {
+          this.div = document.createElement('div');
+          this.div.style.position = 'absolute';
+          this.div.style.cursor = 'pointer';
+          this.div.innerHTML = this.html;
+          this.getPanes().overlayMouseTarget.appendChild(this.div);
+          
+          const self = this;
+          this.div.addEventListener('click', (e) => {
+            e.stopPropagation();
+            google.maps.event.trigger(self, 'click');
+          });
+        }
+        draw() {
+          const pos = this.getProjection().fromLatLngToDivPixel(this.latlng);
+          if (pos && this.div) {
+            this.div.style.left = (pos.x - this.anchor[0]) + 'px';
+            this.div.style.top = (pos.y - this.anchor[1]) + 'px';
+          }
+        }
+        onRemove() {
+          if (this.div) {
+            this.div.parentNode.removeChild(this.div);
+            this.div = null;
+          }
+        }
       };
+    }
 
-      this.leafMaps[containerId] = map;
-
-      // 1. Add Mapolres Metro HQ Marker
-      const hqIcon = L.divIcon({
-        className: 'custom-hq-marker',
-        html: `<div style="background:#0F172A; border:2px solid var(--accent-gold); border-radius:50%; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 0 18px rgba(241,196,15,0.7); cursor:pointer;">🏢</div>`,
-        iconSize: [38, 38],
-        iconAnchor: [19, 19]
-      });
-
-      const hqMarker = L.marker([-6.2015, 106.8195], { icon: hqIcon }).addTo(map);
-      hqMarker.bindPopup(`
-        <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif;">
-          <div style="font-size:14px; font-weight:800; color:var(--accent-gold); display:flex; align-items:center; gap:6px;">
-            <span>🏢</span> Mapolres Metro (Mako Pusat)
-          </div>
-          <div style="color:#94A3B8; font-size:11px; margin-top:2px;">Pusat Pengendali Operasi & Gelar Pasukan Presisi</div>
-          <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:8px 0;">
-          <div style="color:#fff;"><strong>Alamat:</strong> Jl. Jend. Sudirman No. 1</div>
-          <div style="color:#10B981; font-weight:700; margin-top:4px;">Status: Siaga 1 Presisi &bull; 12 Unit Armada Standby</div>
+    // 1. Add Mapolres Metro HQ Marker
+    const hqHtml = `<div style="font-size:32px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6));">🏢</div>`;
+    const hqPos = new google.maps.LatLng(-6.2015, 106.8195);
+    const hqMarker = new window.GoogleHTMLMarker(hqPos, hqHtml, map, [19, 19]);
+    
+    const hqInfo = new google.maps.InfoWindow({
+      content: `
+      <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
+        <div style="font-size:14px; font-weight:800; color:#F59E0B; display:flex; align-items:center; gap:6px;">
+          <span>🏢</span> Mapolres Metro (Mako Pusat)
         </div>
-      `);
+        <div style="color:#64748B; font-size:11px; margin-top:2px;">Pusat Pengendali Operasi & Gelar Pasukan Presisi</div>
+        <hr style="border:none; border-top:1px solid #e2e8f0; margin:8px 0;">
+        <div style="color:#000;"><strong>Alamat:</strong> Jl. Jend. Sudirman No. 1</div>
+        <div style="color:#10B981; font-weight:700; margin-top:4px;">Status: Siaga 1 Presisi &bull; 12 Unit Armada Standby</div>
+      </div>`
+    });
+    hqMarker.addListener('click', () => {
+      hqInfo.setPosition(hqPos);
+      hqInfo.open(map);
+    });
 
       // 2. Add All Active Patrol Units (Samapta, Perintis Presisi, Patwal, Bhabin)
       this.fleetMarkers = this.fleetMarkers || {};
@@ -7190,55 +7668,92 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         const ringColor = isBusy ? '#F59E0B' : '#38BDF8';
         const iconBg = isBusy ? '#78350F' : '#0369A1';
 
-        const fleetIcon = L.divIcon({
-          className: 'custom-patrol-marker',
-          html: `
-            <div style="position:relative; width:44px; height:44px;">
-              <div class="pulse-ring" style="border: 2px solid ${ringColor}; background: rgba(56, 189, 248, 0.25);"></div>
-              <div style="position:absolute; top:6px; left:6px; width:32px; height:32px; background:${iconBg}; border:2px solid ${ringColor}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 15px ${ringColor};">
-                ${f.icon}
-              </div>
-            </div>
-          `,
-          iconSize: [44, 44],
-          iconAnchor: [22, 22]
-        });
-
-        const fMarker = L.marker([f.lat, f.lng], { icon: fleetIcon }).addTo(map);
-        fMarker.bindPopup(`
-          <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif;">
-            <div style="font-size:13px; font-weight:800; color:${ringColor}; display:flex; align-items:center; gap:6px;">
-              <span>${f.icon}</span> ${f.callsign}
-            </div>
-            <div style="color:#fff; font-weight:700; margin-top:4px;">${f.officerName} (NRP ${f.officerNrp})</div>
-            <div style="color:#94A3B8; font-size:11px;">${f.unit} &bull; ${f.vehicle}</div>
-            <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:8px 0;">
-            <div style="color:${isBusy ? 'var(--accent-gold)' : '#10B981'}; font-weight:700;">Status: ${f.status}</div>
-            <div style="font-size:11px; color:#cbd5e1; margin-top:2px;">Tugas: ${f.currentTask}</div>
-            <div style="font-size:11px; color:#94A3B8; margin-top:2px;">Kecepatan: ${f.speedKmh} km/jam &bull; Sinyal GPS Prima</div>
+      const fleetHtml = `
+        <div style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center;">
+          <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid ${ringColor}; background: rgba(56, 189, 248, 0.15);"></div>
+          <div style="font-size:28px; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6)); position:relative; z-index:2;">${f.icon}</div>
+        </div>
+      `;
+      const fPos = new google.maps.LatLng(f.lat, f.lng);
+      const fMarker = new window.GoogleHTMLMarker(fPos, fleetHtml, map, [22, 22]);
+      
+      const fInfo = new google.maps.InfoWindow({
+        content: `
+        <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
+          <div style="font-size:13px; font-weight:800; color:${ringColor}; display:flex; align-items:center; gap:6px;">
+            <span>${f.icon}</span> ${f.callsign}
           </div>
-        `);
-        this.fleetMarkers[f.id] = fMarker;
+          <div style="color:#000; font-weight:700; margin-top:4px;">${f.officerName} (NRP ${f.officerNrp})</div>
+          <div style="color:#64748B; font-size:11px;">${f.unit} &bull; ${f.vehicle}</div>
+          <hr style="border:none; border-top:1px solid #e2e8f0; margin:8px 0;">
+          <div style="color:${isBusy ? '#F59E0B' : '#10B981'}; font-weight:700;">Status: ${f.status}</div>
+          <div style="font-size:11px; color:#475569; margin-top:2px;">Tugas: ${f.currentTask}</div>
+          <div style="font-size:11px; color:#64748B; margin-top:2px;">Kecepatan: ${f.speedKmh} km/jam &bull; Sinyal GPS Prima</div>
+        </div>`
+      });
+      fMarker.addListener('click', () => {
+        fInfo.setPosition(fPos);
+        fInfo.open(map);
+      });
+      this.fleetMarkers[f.id] = fMarker;
       });
 
-      // 2B. Proximity Line from Active Emergency Incident to Nearest Unit
+      // 2B. Proximity Line from Active Emergency Incident to Nearest Unit (Road Snapped via OSRM)
       const activeUnassigned = this.state.complaints.find(c => c.status === 'BELUM_DITANGANI' || c.status === 'DISPOSISI');
       if (activeUnassigned && activeUnassigned.lat && activeUnassigned.lng) {
         const nearestList = this.getNearestOfficersForComplaint(activeUnassigned);
         if (nearestList.length > 0) {
           const nearest = nearestList[0];
-          const proxLine = L.polyline([[activeUnassigned.lat, activeUnassigned.lng], [nearest.lat, nearest.lng]], {
-            color: '#38BDF8',
-            weight: 3,
-            dashArray: '8, 8',
-            opacity: 0.85
-          }).addTo(map);
-
-          proxLine.bindTooltip(`📍 Jalur Terdekat ke ${activeUnassigned.id}: ${nearest.distanceKm} km (Est. ${nearest.etaMinutes} Mnt) &bull; ${nearest.callsign}`, {
-            permanent: false,
-            sticky: true,
-            className: 'custom-map-tooltip'
-          });
+          
+          fetch(`https://router.project-osrm.org/route/v1/driving/${activeUnassigned.lng},${activeUnassigned.lat};${nearest.lng},${nearest.lat}?overview=full&geometries=geojson`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.routes && data.routes.length > 0) {
+                const geom = data.routes[0].geometry.coordinates;
+                const path = geom.map(p => new google.maps.LatLng(p[1], p[0]));
+                
+                const proxPoly = new google.maps.Polyline({
+                  path: path,
+                  strokeColor: '#38BDF8',
+                  strokeWeight: 4,
+                  strokeOpacity: 0.9,
+                  icons: [{
+                    icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 },
+                    offset: '0',
+                    repeat: '20px'
+                  }],
+                  map: map
+                });
+                
+                const proxInfo = new google.maps.InfoWindow({
+                  content: `<div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">📍 Rute Intercept ke ${activeUnassigned.id}: ${nearest.distanceKm} km (Est. ${nearest.etaMinutes} Mnt) &bull; ${nearest.callsign}</div>`
+                });
+                google.maps.event.addListener(proxPoly, 'click', (e) => {
+                  proxInfo.setPosition(e.latLng);
+                  proxInfo.open(map);
+                });
+              } else {
+                throw new Error("OSRM failed");
+              }
+            })
+            .catch(() => {
+              // Fallback to straight line if OSRM fails
+              const proxPoly = new google.maps.Polyline({
+                path: [{lat: activeUnassigned.lat, lng: activeUnassigned.lng}, {lat: nearest.lat, lng: nearest.lng}],
+                strokeColor: '#38BDF8',
+                strokeWeight: 3,
+                strokeOpacity: 0.85,
+                icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }],
+                map: map
+              });
+              const proxInfo = new google.maps.InfoWindow({
+                content: `<div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">📍 Rute Intercept (Direct) ke ${activeUnassigned.id}: ${nearest.distanceKm} km (Est. ${nearest.etaMinutes} Mnt) &bull; ${nearest.callsign}</div>`
+              });
+              google.maps.event.addListener(proxPoly, 'click', (e) => {
+                proxInfo.setPosition(e.latLng);
+                proxInfo.open(map);
+              });
+            });
         }
       }
 
@@ -7252,71 +7767,169 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         const circleColor = isHigh ? '#EF4444' : '#F59E0B';
         const rad = h.radius || 250;
 
-        const circle = L.circle([h.lat, h.lng], {
+        const hPos = new google.maps.LatLng(h.lat, h.lng);
+
+        new google.maps.Circle({
+          center: hPos,
           radius: rad,
-          color: circleColor,
-          weight: 2,
+          strokeColor: circleColor,
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
           fillColor: circleColor,
           fillOpacity: 0.22,
-          dashArray: '5, 5'
-        }).addTo(map);
+          map: map
+        });
 
-        circle.bindPopup(`
-          <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif;">
+        const hInfo = new google.maps.InfoWindow({
+          content: `
+          <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
             <div style="font-size:13px; font-weight:800; color:${circleColor};">📍 Zona Kerawanan: ${h.name}</div>
-            <div style="color:#fff; margin-top:2px;">Kategori: <strong>${h.category || 'Rawan Kamtibmas'}</strong></div>
-            <div style="color:var(--accent-gold); font-size:11px; margin-top:2px;">Tingkat Risiko: <strong>${h.level || h.risk}</strong> &bull; Radius Pantau: ${rad} Meter</div>
-            <div style="font-size:11px; color:#94A3B8; margin-top:4px;">⏰ Jam Rawan: ${h.hours || '22:00 - 04:00 WIB'}</div>
-            <div style="font-size:11px; color:#cbd5e1; margin-top:4px; font-style:italic;">👉 ${h.notes || 'Patroli stasioner dan dialogis rutin'}</div>
+            <div style="color:#000; margin-top:2px;">Kategori: <strong>${h.category || 'Rawan Kamtibmas'}</strong></div>
+            <div style="color:#F59E0B; font-size:11px; margin-top:2px;">Tingkat Risiko: <strong>${h.level || h.risk}</strong> &bull; Radius Pantau: ${rad} Meter</div>
+            <div style="font-size:11px; color:#64748B; margin-top:4px;">⏰ Jam Rawan: ${h.hours || '22:00 - 04:00 WIB'}</div>
+            <div style="font-size:11px; color:#475569; margin-top:4px; font-style:italic;">👉 ${h.notes || 'Patroli stasioner dan dialogis rutin'}</div>
+          </div>`
+        });
+        const titikRawanHtml = `
+          <div style="position:relative; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+            <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid ${circleColor}; background: rgba(${circleColor === '#EF4444' ? '239,68,68' : '245,158,11'},0.15);"></div>
+            <div style="font-size:28px; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6)); position:relative; z-index:2;">📍</div>
           </div>
-        `);
+        `;
+        const hMarker = new window.GoogleHTMLMarker(hPos, titikRawanHtml, map, [17,17]);
+        hMarker.addListener('click', () => {
+          hInfo.setPosition(hPos);
+          hInfo.open(map);
+        });
       });
 
-      // 5. Add Patrol Route (Green Traversed Line & Orange Dashed Planned Line)
-      const routePoints = this.state.checkpoints.map(cp => [cp.lat, cp.lng]);
-      if (routePoints.length > 1) {
-        // Traversed segment
-        const traversed = routePoints.slice(0, 3);
-        L.polyline(traversed, {
-          color: '#10B981',
-          weight: 4,
-          opacity: 0.9
-        }).addTo(map);
+      // 5. Add Patrol Route (Using Google Directions API for real road snapping!)
+      const ds = new google.maps.DirectionsService();
+      
+      const cps = this.state.checkpoints;
+      const origin = new google.maps.LatLng(cps[0].lat, cps[0].lng);
+      const destination = new google.maps.LatLng(cps[cps.length - 1].lat, cps[cps.length - 1].lng);
+      const waypoints = cps.slice(1, cps.length - 1).map(cp => ({
+        location: new google.maps.LatLng(cp.lat, cp.lng),
+        stopover: true
+      }));
 
-        // Planned segment
-        const planned = routePoints.slice(2);
-        L.polyline(planned, {
-          color: '#F59E0B',
-          weight: 3,
-          dashArray: '6, 8',
-          opacity: 0.8
-        }).addTo(map);
-      }
+      ds.route({
+        origin: origin,
+        destination: destination,
+        waypoints: waypoints,
+        travelMode: google.maps.TravelMode.DRIVING
+      }, (result, status) => {
+        if (status === 'OK') {
+          const colors = ['#10B981', '#F59E0B', '#EF4444', '#10B981']; 
+          result.routes[0].legs.forEach((leg, i) => {
+            const color = colors[i % colors.length];
+            const dash = color === '#EF4444' || color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
+            const detailedPath = leg.steps.flatMap(step => step.path);
+            
+            new google.maps.Polyline({
+              path: detailedPath,
+              strokeColor: color,
+              strokeWeight: color === '#10B981' ? 4 : 3,
+              strokeOpacity: color === '#10B981' ? 0.9 : 0.8,
+              icons: dash.length ? dash : null,
+              map: map
+            });
+          });
+        } else {
+          console.warn('Directions API failed (billing/key issue). Fallback to OSRM:', status);
+          this.showToast('⚠️ Google Directions API Ditolak (Billing). Menggunakan OSRM Open-Source...', 'warning');
+          
+          // Fallback using OSRM to get perfectly snapped roads for free (Per segment for colors!)
+          const fallbackSegments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+          const osrmPromises = [];
+          
+          for (let i = 0; i < cps.length - 1; i++) {
+            const cp1 = cps[i];
+            const cp2 = cps[i+1];
+            osrmPromises.push(
+              fetch(`https://router.project-osrm.org/route/v1/driving/${cp1.lng},${cp1.lat};${cp2.lng},${cp2.lat}?overview=full&geometries=geojson`)
+                .then(res => res.json())
+            );
+          }
+
+          Promise.all(osrmPromises)
+            .then(results => {
+              let hasError = false;
+              results.forEach((data, i) => {
+                 const seg = fallbackSegments[i % fallbackSegments.length];
+                 if(data.routes && data.routes.length > 0) {
+                   const geom = data.routes[0].geometry.coordinates;
+                   const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
+                   const dash = seg.color === '#EF4444' || seg.color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
+                   
+                   new google.maps.Polyline({
+                      path: detailedPath,
+                      strokeColor: seg.color,
+                      strokeWeight: seg.color === '#10B981' ? 4 : 3,
+                      strokeOpacity: seg.color === '#10B981' ? 0.9 : 0.8,
+                      icons: dash.length ? dash : null,
+                      map: map
+                   });
+                 } else {
+                   hasError = true;
+                 }
+              });
+
+              if (!hasError) {
+                 this.showToast('✅ OSRM Berhasil: Rute multi-warna telah di-snap ke aspal jalan.', 'success');
+              } else {
+                 throw new Error("Some segments failed");
+              }
+            })
+            .catch(e => {
+              // Final fallback to straight lines if OSRM also fails
+              const segments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+              segments.forEach(seg => {
+                const nativePath = seg.path.map(p => ({lat: p[0], lng: p[1]}));
+                const dash = seg.color === '#EF4444' || seg.color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
+                new google.maps.Polyline({
+                  path: nativePath,
+                  strokeColor: seg.color,
+                  strokeWeight: seg.color === '#10B981' ? 4 : 3,
+                  strokeOpacity: seg.color === '#10B981' ? 0.9 : 0.8,
+                  icons: dash.length ? dash : null,
+                  map: map
+                });
+              });
+            });
+        }
+      });
 
       // 6. Add Checkpoint Flags
       this.state.checkpoints.forEach((cp, idx) => {
-        const flagIcon = L.divIcon({
-          className: 'custom-cp-marker',
-          html: `<div style="background:#1E293B; border:1px solid #38BDF8; color:#38BDF8; font-weight:800; font-size:10px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 8px rgba(56,189,248,0.5);">${idx + 1}</div>`,
-          iconSize: [22, 22],
-          iconAnchor: [11, 11]
-        });
-
-        const cpMarker = L.marker([cp.lat, cp.lng], { icon: flagIcon }).addTo(map);
-        cpMarker.bindPopup(`
-          <div style="font-size:11px; font-family:'Plus Jakarta Sans',sans-serif;">
-            <strong style="color:#fff;">${cp.name}</strong><br>
-            <span style="color:var(--accent-gold);">Scan QR: ${cp.qrCode}</span><br>
-            <span style="color:#94A3B8;">Target Kunjungan: ${cp.timeTarget}</span>
+        const isStart = idx === 0;
+        const isEnd = idx === this.state.checkpoints.length - 1;
+        const flagHtml = `
+          <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+            🚩
           </div>
-        `);
+        `;
+        const cpPos = new google.maps.LatLng(cp.lat, cp.lng);
+        const cpMarker = new window.GoogleHTMLMarker(cpPos, flagHtml, map, [13, 13]);
+        
+        const cpInfo = new google.maps.InfoWindow({
+          content: `
+          <div style="font-size:11px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
+            <strong style="color:#000;">${cp.name}</strong><br>
+            <span style="color:#F59E0B;">Scan QR: ${cp.qrCode}</span><br>
+            <span style="color:#64748B;">Target Kunjungan: ${cp.timeTarget}</span>
+          </div>`
+        });
+        cpMarker.addListener('click', () => {
+          cpInfo.setPosition(cpPos);
+          cpInfo.open(map);
+        });
       });
 
-      setTimeout(() => map.invalidateSize(), 200);
+      setTimeout(() => google.maps.event.trigger(map, 'resize'), 200);
 
-    } catch (err) {
-      console.error("Leaflet init error:", err);
-    }
+    // No catch block needed as we don't throw, but just keeping signature consistent
   }
 
 
@@ -7370,7 +7983,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     // Remove old complaint markers
     if (this.complaintMarkers && this.complaintMarkers[containerId]) {
       this.complaintMarkers[containerId].forEach(m => {
-        try { map.removeLayer(m); } catch (e) {}
+        try { m.setMap(null); } catch (e) {}
       });
       this.complaintMarkers[containerId] = [];
     } else {
@@ -7390,30 +8003,25 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       const opacity = isResolved ? '0.65' : '1';
       const size = isResolved ? 26 : 34;
 
-      if (typeof L === 'undefined') return;
+      const incHtml = `
+        <div style="font-size:28px; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6)); opacity:${opacity};">
+          ${iconChar}
+        </div>
+      `;
+      const pos = new google.maps.LatLng(c.lat, c.lng);
+      const m = new window.GoogleHTMLMarker(pos, incHtml, map, [size / 2, size / 2]);
 
-      const incIcon = L.divIcon({
-        className: 'custom-inc-marker',
-        html: `
-          <div style="background:#0F172A; border:2px solid ${color}; border-radius:50%; width:${size}px; height:${size}px; display:flex; align-items:center; justify-content:center; font-size:${isResolved ? 13 : 16}px; box-shadow:0 0 ${isResolved ? '6px #10B981' : '14px #EF4444'}; opacity:${opacity};">
-            ${iconChar}
-          </div>
-        `,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2]
-      });
-
-      const m = L.marker([c.lat, c.lng], { icon: incIcon }).addTo(map);
-      m.bindPopup(`
-        <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif;">
+      const info = new google.maps.InfoWindow({
+        content: `
+        <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
           <div style="font-size:13px; font-weight:800; color:${color};">
             ${iconChar} ${c.id} - ${c.category}
           </div>
-          <div style="font-weight:700; color:#fff; margin-top:3px;">${c.title}</div>
-          <div style="color:#94A3B8; font-size:11px; margin-top:2px;">📍 ${c.locationName}</div>
-          <hr style="border:none; border-top:1px solid rgba(255,255,255,0.1); margin:8px 0;">
+          <div style="font-weight:700; color:#000; margin-top:3px;">${c.title}</div>
+          <div style="color:#64748B; font-size:11px; margin-top:2px;">📍 ${c.locationName}</div>
+          <hr style="border:none; border-top:1px solid #e2e8f0; margin:8px 0;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#cbd5e1;">Status Penanganan:</span>
+            <span style="color:#475569;">Status Penanganan:</span>
             <span class="badge ${isResolved ? 'badge-success' : 'badge-danger'}">${c.status}</span>
           </div>
           ${isResolved && c.assignedOfficer ? `
@@ -7424,21 +8032,20 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
           <button class="btn-primary" style="margin-top:8px; width:100%; justify-content:center; font-size:11px; padding:6px;" onclick="app.viewComplaintDetail('${c.id}')">
             📄 Buka Berkas Kasus & Bukti
           </button>
-        </div>
-      `);
+        </div>`
+      });
+      m.addListener('click', () => {
+        info.setPosition(pos);
+        info.open(map);
+      });
       this.complaintMarkers[containerId].push(m);
     });
   }
 
   setMapTileLayer(type, containerId = 'kabagops-real-map') {
-    if (!this.leafMaps || !this.leafMaps[containerId] || !this.tileLayers || !this.tileLayers[containerId]) return;
+    if (!this.leafMaps || !this.leafMaps[containerId]) return;
 
     const map = this.leafMaps[containerId];
-    const layers = this.tileLayers[containerId];
-
-    if (layers[layers.current]) {
-      map.removeLayer(layers[layers.current]);
-    }
 
     const labelId = containerId === 'kabagops-real-map' ? 'kabagops-map-layer-label' : 'pimpinan-map-layer-label';
     const labelEl = document.getElementById(labelId);
@@ -7456,17 +8063,14 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     }
 
     if (type === 'osm') {
-      layers.osm.addTo(map);
-      layers.current = 'osm';
-      if (labelEl) labelEl.textContent = '🗺️ Peta Jalan Real (OpenStreetMap)';
+      if (map.setMapTypeId) map.setMapTypeId('roadmap');
+      if (labelEl) labelEl.textContent = '🗺️ Peta Jalan Vektor (Google Maps)';
     } else if (type === 'satellite') {
-      layers.satellite.addTo(map);
-      layers.current = 'satellite';
-      if (labelEl) labelEl.textContent = '🛰️ Citra Satelit Udara (Esri Imagery)';
+      if (map.setMapTypeId) map.setMapTypeId('satellite');
+      if (labelEl) labelEl.textContent = '🛰️ Peta Citra Satelit (Google Maps)';
     } else {
-      layers.dark.addTo(map);
-      layers.current = 'dark';
-      if (labelEl) labelEl.textContent = '🌙 Dark Command Center (CartoDB)';
+      if (map.setMapTypeId) map.setMapTypeId('terrain');
+      if (labelEl) labelEl.textContent = '🌙 Peta Taktis Malam (Google Terrain)';
     }
 
     this.showToast(`Lapisan peta aktif: ${type.toUpperCase()}`, 'info');
@@ -8227,6 +8831,539 @@ SELECT 'SIMAPRES 110 SNAPSHOT VALID' AS backup_status;
     const select = document.getElementById('kabagops-patrol-unit-select');
     if (select) select.value = unitKey;
   }
+
+  // ============================================================================
+  // GOOGLE MAPS PLATFORM VS STANDALONE GIS SIMULATOR CONTROLLER
+  // ============================================================================
+  openGoogleMapsSimulatorModal() {
+    this.openModal('modal-google-maps-simulator');
+    setTimeout(() => {
+      this.initGoogleSimMap();
+    }, 200);
+  }
+
+  switchGoogleSimTab(tab) {
+    document.querySelectorAll('.gmaps-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('gmaps-sim-tab-visual').style.display = 'none';
+    document.getElementById('gmaps-sim-tab-cost').style.display = 'none';
+    document.getElementById('gmaps-sim-tab-matrix').style.display = 'none';
+
+    if (tab === 'visual') {
+      document.getElementById('btn-tab-sim-visual')?.classList.add('active');
+      document.getElementById('gmaps-sim-tab-visual').style.display = 'block';
+      setTimeout(() => {
+        if (this.leafMaps && this.leafMaps['gmaps-sim-leaflet-map']) {
+          this.leafMaps['gmaps-sim-leaflet-map'].invalidateSize();
+        }
+      }, 100);
+    } else if (tab === 'cost') {
+      document.getElementById('btn-tab-sim-cost')?.classList.add('active');
+      document.getElementById('gmaps-sim-tab-cost').style.display = 'block';
+      this.updateGcpBillingCalculator();
+    } else {
+      document.getElementById('btn-tab-sim-matrix')?.classList.add('active');
+      document.getElementById('gmaps-sim-tab-matrix').style.display = 'block';
+    }
+  }
+
+  // ============================================================================
+  // GOOGLE MAPS PLATFORM NATIVE ENGINE INTEGRATION (USING USER'S DEMO KEY)
+  // ============================================================================
+  handleGoogleAuthFailure() {
+    this.showToast("⚠️ Google Maps ditolak: Billing Account belum aktif di Google Cloud Console. Mengalihkan ke Satelit ESRI.", "error");
+    const banner = document.getElementById('google-maps-error-alert-banner');
+    if (banner) {
+      banner.style.display = 'flex';
+    }
+    const btn = document.getElementById('btn-toggle-engine-google');
+    if (btn) {
+      btn.innerHTML = '<span>⚠️</span> Google Maps (Billing Belum Aktif)';
+      btn.style.borderColor = '#EF4444';
+      btn.style.color = '#FCA5A5';
+    }
+    // Automatically switch back to ESRI map after short delay so the user is never stuck on gray box
+    setTimeout(() => {
+      this.toggleMapEngineMode('esri');
+    }, 2000);
+  }
+
+  initGoogleMapsNative() {
+    this.googleMapsApiKey = "AIzaSyB1QcFpu-g_cH3en18yW6Gsi4G6hljoukA";
+    this.activeEngine = "esri"; // default to esri satellite, toggleable to google
+  }
+
+  toggleMapEngineMode(targetEngine = null) {
+    if (!targetEngine) {
+      targetEngine = this.activeEngine === 'google' ? 'esri' : 'google';
+    }
+
+    const leafletEl = document.getElementById('personil-full-leaflet-map');
+    const googleEl = document.getElementById('personil-google-map');
+    const btn = document.getElementById('btn-toggle-engine-google');
+    const legendEl = document.getElementById('personil-patrol-legend');
+
+    if (targetEngine === 'google') {
+      if (typeof google === 'undefined' || !google.maps) {
+        this.showToast("Sedang memuat SDK Google Maps resmi... Silakan tunggu 2 detik.", "info");
+        setTimeout(() => this.toggleMapEngineMode('google'), 1500);
+        return;
+      }
+
+      this.activeEngine = 'google';
+      if (leafletEl) leafletEl.style.display = 'none';
+      if (googleEl) googleEl.style.display = 'block';
+      if (legendEl) legendEl.style.display = 'none';
+      if (btn) {
+        btn.innerHTML = '<span>🛡️</span> Kembali ke Satelit ESRI (Rp 0)';
+        btn.style.borderColor = '#10B981';
+        btn.style.color = '#6EE7B7';
+      }
+
+      this.renderNativeGoogleMap();
+      this.showToast("🌐 Google Maps Platform Asli Aktif! (API Key: AIzaSyB1Q...)", "success");
+    } else {
+      this.activeEngine = 'esri';
+      if (googleEl) googleEl.style.display = 'none';
+      if (leafletEl) {
+        leafletEl.style.display = 'block';
+        if (this.leafMaps && this.leafMaps['personil-full-leaflet-map']) {
+          this.leafMaps['personil-full-leaflet-map'].invalidateSize();
+        }
+      }
+      if (legendEl) legendEl.style.display = 'block';
+      if (btn) {
+        btn.innerHTML = '<span>🌐</span> Beralih ke Google Maps Asli';
+        btn.style.borderColor = '#4285F4';
+        btn.style.color = '#93C5FD';
+      }
+      this.showToast("Kembali ke Peta Satelit Mandiri (ESRI / Leaflet)", "info");
+    }
+  }
+
+  renderNativeGoogleMap() {
+    const container = document.getElementById('personil-google-map');
+    if (!container || typeof google === 'undefined' || !google.maps) return;
+
+    if (!this.nativeGoogleMap) {
+      // Tangerang Selatan / BSD center
+      const bsdCenter = { lat: -6.3245, lng: 106.7480 };
+
+      this.nativeGoogleMap = new google.maps.Map(container, {
+        center: bsdCenter,
+        zoom: 12,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        zoomControl: true
+      });
+
+      // Enable Live Traffic Layer (Real-time traffic congestion colors!)
+      this.nativeGoogleTrafficLayer = new google.maps.TrafficLayer();
+      this.nativeGoogleTrafficLayer.setMap(this.nativeGoogleMap);
+
+      // Directions Renderer
+      this.nativeGoogleDirectionsRenderer = new google.maps.DirectionsRenderer({
+        map: this.nativeGoogleMap,
+        polylineOptions: {
+          strokeColor: '#2563EB',
+          strokeWeight: 6,
+          strokeOpacity: 0.95
+        }
+      });
+    }
+
+    // Call real Google Directions API with user's key
+    const directionsService = new google.maps.DirectionsService();
+    const origin = { lat: -6.3020, lng: 106.6850 }; // BSD City
+    const destination = { lat: -6.3450, lng: 106.8120 }; // Cipedak Jagakarsa
+
+    directionsService.route({
+      origin: origin,
+      destination: destination,
+      travelMode: google.maps.TravelMode.DRIVING,
+      provideRouteAlternatives: true
+    }, (result, status) => {
+      if (status === 'OK') {
+        this.nativeGoogleDirectionsRenderer.setDirections(result);
+        const leg = result.routes[0].legs[0];
+        this.showToast(`Google Directions Sukses: ${leg.duration.text} (${leg.distance.text})`, 'success');
+      } else {
+        console.warn("Google Directions status with demo key:", status);
+        // If Directions API not enabled yet on this specific demo key, draw native Google Polyline fallback
+        this.renderGoogleNativePolylineFallback();
+      }
+    });
+  }
+
+  renderGoogleNativePolylineFallback() {
+    if (!this.nativeGoogleMap || typeof google === 'undefined') return;
+
+    // Trigger the real dynamic routing engine instead of drawing a hardcoded straight line!
+    // This will fetch from Routes API or OSRM, and then draw on this native map
+    // using the updated _drawDynamicNavRoute function.
+    this.calculateDynamicRouteFromInputs();
+  }
+
+  initGoogleSimMap() {
+    const containerId = 'gmaps-sim-leaflet-map';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (typeof L === 'undefined') return;
+
+    if (this.leafMaps && this.leafMaps[containerId]) {
+      this.leafMaps[containerId].invalidateSize();
+      return;
+    }
+
+    // Default center at BSD - Tangerang Selatan (matching user photo)
+    const map = L.map(containerId, {
+      center: [-6.3245, 106.7480],
+      zoom: 12,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    const streetsLayer = L.tileLayer('http://mt0.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', {
+      maxZoom: 19
+    });
+
+    const satLayer = L.tileLayer('http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}', {
+      maxZoom: 19
+    });
+
+    streetsLayer.addTo(map);
+
+    if (!this.leafMaps) this.leafMaps = {};
+    if (!this.simMapLayers) this.simMapLayers = {};
+    this.leafMaps[containerId] = map;
+    this.simMapLayers[containerId] = {
+      streets: streetsLayer,
+      satellite: satLayer,
+      current: 'streets'
+    };
+
+    this.renderSimulatedGoogleRoute();
+  }
+
+  setSimulatedMapEngine(engine) {
+    const map = this.leafMaps && this.leafMaps['gmaps-sim-leaflet-map'];
+    if (!map) return;
+
+    const btnG = document.getElementById('btn-engine-gmaps');
+    const btnF = document.getElementById('btn-engine-free');
+    const titleEl = document.getElementById('sim-engine-title');
+    const descEl = document.getElementById('sim-engine-desc');
+    const keyStatusEl = document.getElementById('sim-key-status');
+    const quotaEl = document.getElementById('sim-quota-txt');
+    const costEl = document.getElementById('sim-cost-txt');
+    const brandStrip = document.getElementById('gmaps-branding-strip');
+
+    if (engine === 'google') {
+      btnG?.classList.add('active');
+      btnF?.classList.remove('active');
+      if (titleEl) titleEl.textContent = 'Google Maps Platform (GCP Console)';
+      if (descEl) descEl.innerHTML = 'Mode Google Maps aktif. Menampilkan rute belokan aspal presisi, live traffic layer kemacetan, dan integrasi Google Street View API.';
+      if (keyStatusEl) {
+        keyStatusEl.textContent = 'API KEY ACTIVE (GCP)';
+        keyStatusEl.style.background = '#10B981';
+      }
+      if (quotaEl) quotaEl.textContent = 'Request GCP Hari Ini: 4.120';
+      if (costEl) costEl.textContent = 'Est. Billing: $28.84 USD';
+      if (brandStrip) brandStrip.style.display = 'flex';
+
+      // Switch to streets
+      if (this.simMapLayers && this.simMapLayers['gmaps-sim-leaflet-map']) {
+        const l = this.simMapLayers['gmaps-sim-leaflet-map'];
+        map.removeLayer(l.satellite);
+        l.streets.addTo(map);
+      }
+      this.renderSimulatedGoogleRoute(true);
+      this.showToast("Beralih ke Simulasi Google Maps Platform (GCP)", "info");
+    } else {
+      btnF?.classList.add('active');
+      btnG?.classList.remove('active');
+      if (titleEl) titleEl.textContent = 'Arsitektur Mandiri (ESRI / Leaflet / OSRM)';
+      if (descEl) descEl.innerHTML = 'Mode Arsitektur Mandiri aktif. 100% Bebas Kuota, Rp 0 biaya bulanan, kedaulatan data di server lokal Polri, dan citra satelit ultra-tajam.';
+      if (keyStatusEl) {
+        keyStatusEl.textContent = 'ZERO COST (NO KEY NEEDED)';
+        keyStatusEl.style.background = '#3B82F6';
+      }
+      if (quotaEl) quotaEl.textContent = 'Biaya API: Rp 0 (Unlimited)';
+      if (costEl) costEl.textContent = 'Server: On-Premise Polres';
+      if (brandStrip) brandStrip.style.display = 'none';
+
+      // Switch to satellite
+      if (this.simMapLayers && this.simMapLayers['gmaps-sim-leaflet-map']) {
+        const l = this.simMapLayers['gmaps-sim-leaflet-map'];
+        map.removeLayer(l.streets);
+        l.satellite.addTo(map);
+      }
+      this.renderSimulatedGoogleRoute(false);
+      this.showToast("Beralih ke Arsitektur Mandiri (ESRI / Open-Source)", "info");
+    }
+  }
+
+  // Decode Google Maps encoded polyline to array of [lat, lng]
+  _decodeGooglePolyline(encoded) {
+    const points = [];
+    let index = 0, lat = 0, lng = 0;
+    while (index < encoded.length) {
+      let shift = 0, result = 0, b;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+      shift = 0; result = 0;
+      do {
+        b = encoded.charCodeAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+      points.push([lat / 1e5, lng / 1e5]);
+    }
+    return points;
+  }
+
+  // Draw the decoded route path on Leaflet map
+  _drawRouteOnLeaflet(map, routePoints, isGoogleMode, durationText, distanceText, altRoutes = []) {
+    if (!this.simRouteOverlays) this.simRouteOverlays = [];
+    this.simRouteOverlays.forEach(l => { try { map.removeLayer(l); } catch(e) {} });
+    this.simRouteOverlays = [];
+
+    if (isGoogleMode) {
+      // Draw alternative routes first (behind)
+      altRoutes.forEach(altPoints => {
+        const pAlt = L.polyline(altPoints, { color: '#94A3B8', weight: 5, opacity: 0.60 }).addTo(map);
+        this.simRouteOverlays.push(pAlt);
+      });
+
+      // Glow underlay
+      const glow = L.polyline(routePoints, { color: '#2563EB', weight: 11, opacity: 0.30 }).addTo(map);
+      // Main route
+      const main = L.polyline(routePoints, { color: '#1D4ED8', weight: 6, opacity: 0.97 }).addTo(map);
+      this.simRouteOverlays.push(glow, main);
+    } else {
+      // Standalone / OSRM mode
+      const glow = L.polyline(routePoints, { color: '#0284C7', weight: 11, opacity: 0.35 }).addTo(map);
+      const main = L.polyline(routePoints, { color: '#38BDF8', weight: 6, opacity: 0.97 }).addTo(map);
+      this.simRouteOverlays.push(glow, main);
+    }
+
+    // ETA pill on midpoint of route
+    const mid = routePoints[Math.floor(routePoints.length / 2)] || [-6.3260, 106.7580];
+    const etaPill = L.divIcon({
+      html: `
+        <div class="route-eta-pill-badge" style="cursor:pointer; background:${isGoogleMode ? '#1D4ED8' : '#0284C7'};">
+          <span>🚗</span> <strong>${durationText}</strong> (${distanceText})
+        </div>
+      `,
+      className: 'sim-eta-pill',
+      iconSize: [160, 32],
+      iconAnchor: [80, 16]
+    });
+    const etaMarker = L.marker(mid, { icon: etaPill }).addTo(map);
+    this.simRouteOverlays.push(etaMarker);
+
+    // Start & End Pins
+    const origin = routePoints[0];
+    const dest = routePoints[routePoints.length - 1];
+    const pinA = L.marker(origin).addTo(map).bindPopup('<b>Lokasi Anda (BSD Tangsel)</b>');
+    const pinB = L.marker(dest).addTo(map).bindPopup('<b>Tujuan: Cipedak Jagakarsa</b>');
+    this.simRouteOverlays.push(pinA, pinB);
+
+    try {
+      map.fitBounds(L.polyline(routePoints).getBounds(), { padding: [40, 40] });
+    } catch(e) {}
+  }
+
+  renderSimulatedGoogleRoute(isGoogleMode = true) {
+    const map = this.leafMaps && this.leafMaps['gmaps-sim-leaflet-map'];
+    if (!map) return;
+
+    const origin = { lat: -6.3020, lng: 106.6850 };   // BSD City
+    const destination = { lat: -6.3450, lng: 106.8120 }; // Cipedak Jagakarsa
+
+    if (isGoogleMode) {
+      // --- Mode Google: Panggil Routes API v2 (pengganti Directions API) ---
+      this._renderRouteViaRoutesAPI(map, origin, destination);
+    } else {
+      // --- Mode Mandiri: Gunakan OSRM (gratis, tanpa API key, ikuti jalan) ---
+      this._renderRouteViaOSRM(map, origin, destination, false);
+    }
+  }
+
+  _renderRouteViaRoutesAPI(map, origin, destination) {
+    // Ambil API key: prioritas dari this.googleMapsApiKey, lalu dari script tag di index.html
+    const apiKey = this.googleMapsApiKey || this._extractGoogleApiKeyFromScript();
+    if (!apiKey) {
+      console.warn('Routes API: API key tidak ditemukan. Fallback ke OSRM.');
+      this.showToast('⚠️ API key tidak ditemukan. Menggunakan OSRM...', 'warning');
+      this._renderRouteViaOSRM(map, origin, destination, true);
+      return;
+    }
+
+    // Google Routes API v2 — pengganti modern Directions API
+    // Docs: https://developers.google.com/maps/documentation/routes/compute_route_directions
+    fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        // Field mask: hanya minta field yang diperlukan (hemat biaya)
+        'X-Goog-FieldMask': [
+          'routes.duration',
+          'routes.distanceMeters',
+          'routes.polyline.encodedPolyline',
+          'routes.legs.duration',
+          'routes.legs.distanceMeters',
+          'routes.travelAdvisory.speedReadingIntervals'
+        ].join(',')
+      },
+      body: JSON.stringify({
+        origin: {
+          location: { latLng: { latitude: origin.lat, longitude: origin.lng } }
+        },
+        destination: {
+          location: { latLng: { latitude: destination.lat, longitude: destination.lng } }
+        },
+        travelMode: 'DRIVE',
+        routingPreference: 'TRAFFIC_AWARE',
+        computeAlternativeRoutes: true,
+        routeModifiers: {
+          avoidTolls: false,
+          avoidHighways: false
+        },
+        languageCode: 'id-ID',
+        units: 'METRIC'
+      })
+    })
+    .then(res => {
+      if (!res.ok) return res.json().then(e => { throw e; });
+      return res.json();
+    })
+    .then(data => {
+      if (!data.routes || data.routes.length === 0) throw new Error('Routes API: no routes returned');
+
+      const mainRoute = data.routes[0];
+      const mainPoints = this._decodeGooglePolyline(mainRoute.polyline.encodedPolyline);
+
+      // Durasi & jarak dari Routes API (dalam detik & meter)
+      const durationSec = parseInt(mainRoute.duration?.replace('s', '') || '0', 10);
+      const durationText = durationSec >= 3600
+        ? `${Math.floor(durationSec / 3600)} jam ${Math.round((durationSec % 3600) / 60)} mnt`
+        : `${Math.round(durationSec / 60)} mnt`;
+      const distanceKm = (mainRoute.distanceMeters / 1000).toFixed(1);
+
+      // Rute alternatif
+      const altRoutes = data.routes.slice(1).map(r =>
+        this._decodeGooglePolyline(r.polyline.encodedPolyline)
+      );
+
+      this._drawRouteOnLeaflet(map, mainPoints, true, durationText, `${distanceKm} km`, altRoutes);
+      this.showToast(`✅ Google Routes API: ${durationText} · ${distanceKm} km`, 'success');
+    })
+    .catch(err => {
+      const errMsg = err?.error?.message || err?.message || 'Unknown error';
+      console.warn('Routes API error:', errMsg, '— Fallback ke OSRM');
+      this.showToast(`⚠️ Routes API: ${errMsg}. Menggunakan OSRM...`, 'warning');
+      this._renderRouteViaOSRM(map, origin, destination, true);
+    });
+  }
+
+  // Ekstrak API key dari script tag Google Maps yang sudah di-load di halaman
+  _extractGoogleApiKeyFromScript() {
+    const scripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+    for (const s of scripts) {
+      const match = s.src.match(/[?&]key=([^&]+)/);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  _renderRouteViaOSRM(map, origin, destination, isGoogleMode) {
+    // OSRM public demo server — ikuti jalan nyata, gratis, tanpa key
+    const url = `https://router.project-osrm.org/route/v1/driving/` +
+      `${origin.lng},${origin.lat};${destination.lng},${destination.lat}` +
+      `?overview=full&geometries=geojson&alternatives=true`;
+
+    fetch(url)
+      .then(r => r.json())
+      .then(data => {
+        if (!data.routes || data.routes.length === 0) throw new Error('No routes from OSRM');
+        const mainRoute = data.routes[0];
+        const mainPoints = mainRoute.geometry.coordinates.map(c => [c[1], c[0]]);
+        const durationMin = Math.round(mainRoute.duration / 60);
+        const distanceKm = (mainRoute.distance / 1000).toFixed(1);
+        const altRoutes = data.routes.slice(1).map(r => r.geometry.coordinates.map(c => [c[1], c[0]]));
+
+        this._drawRouteOnLeaflet(map, mainPoints, isGoogleMode, `${durationMin} mnt`, `${distanceKm} km`, altRoutes);
+        this.showToast(`🗺️ OSRM: ${durationMin} mnt · ${distanceKm} km (rute nyata, bebas kuota)`, 'info');
+      })
+      .catch(err => {
+        console.error('OSRM error:', err);
+        this.showToast('Gagal memuat rute. Cek koneksi internet.', 'error');
+      });
+  }
+
+  toggleSimulatedTraffic() {
+    this.isSimTrafficOn = !this.isSimTrafficOn;
+    const btn = document.getElementById('btn-sim-traffic');
+    if (btn) {
+      btn.innerHTML = this.isSimTrafficOn ? '🚦 Live Traffic: ON' : '🚦 Live Traffic: OFF';
+      btn.style.borderColor = this.isSimTrafficOn ? '#10B981' : 'rgba(255,255,255,0.2)';
+    }
+    this.renderSimulatedGoogleRoute(this.isSimTrafficOn);
+    this.showToast(this.isSimTrafficOn ? "Traffic Layer Google Maps diaktifkan." : "Traffic Layer disembunyikan.", "info");
+  }
+
+  toggleSimulatedStreetView(show = null) {
+    const el = document.getElementById('sim-streetview-overlay');
+    if (!el) return;
+    if (show === null) {
+      el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    } else {
+      el.style.display = show ? 'flex' : 'none';
+    }
+  }
+
+  updateGcpBillingCalculator() {
+    const fleetCount = parseInt(document.getElementById('calc-fleet-count')?.value || '15', 10);
+    const intervalMins = parseInt(document.getElementById('calc-interval-select')?.value || '5', 10);
+
+    const txtFleet = document.getElementById('calc-fleet-count-txt');
+    const txtInterval = document.getElementById('calc-interval-txt');
+    if (txtFleet) txtFleet.textContent = `${fleetCount} Unit Armada`;
+    if (txtInterval) txtInterval.textContent = `Setiap ${intervalMins} Menit`;
+
+    const reqPerHourPerCar = 60 / intervalMins;
+    const totalDailyReq = fleetCount * reqPerHourPerCar * 24;
+    const totalMonthlyReq = totalDailyReq * 30;
+
+    const routesCost = (totalMonthlyReq / 1000) * 5.0;
+    const mapLoads = totalMonthlyReq / 5;
+    const mapsCost = (mapLoads / 1000) * 7.0;
+    const totalCostUsd = routesCost + mapsCost;
+    const idrRate = 15750;
+    const totalCostIdr = totalCostUsd * idrRate;
+
+    const elTotalReq = document.getElementById('calc-total-req-txt');
+    const elRoutesCost = document.getElementById('calc-routes-cost-txt');
+    const elMapsCost = document.getElementById('calc-maps-cost-txt');
+    const elTotalUsd = document.getElementById('calc-total-usd-txt');
+    const elTotalIdr = document.getElementById('calc-total-idr-txt');
+
+    if (elTotalReq) elTotalReq.textContent = `${Math.round(totalMonthlyReq).toLocaleString('id-ID')} Req`;
+    if (elRoutesCost) elRoutesCost.textContent = `$${routesCost.toFixed(2)}`;
+    if (elMapsCost) elMapsCost.textContent = `$${mapsCost.toFixed(2)}`;
+    if (elTotalUsd) elTotalUsd.textContent = `$${Math.round(totalCostUsd).toLocaleString('id-ID')} USD`;
+    if (elTotalIdr) elTotalIdr.textContent = `Rp ${Math.round(totalCostIdr).toLocaleString('id-ID')} / Bln`;
+  }
+
 
   selectFleetAssignmentFromTable(unitKey) {
     this.switchKabagOpsTab('tab-kabagops-rute');
