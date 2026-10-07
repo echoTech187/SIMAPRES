@@ -2052,8 +2052,9 @@ class SimapresApp {
       return;
     }
 
-    const ahmadLat = -6.2250;
-    const ahmadLng = 106.8520;
+    // Position car right on the active patrol corridor (Pos 2 Simpang 5 Sudirman / Casablanca)
+    const ahmadLat = -6.2080;
+    const ahmadLng = 106.8310;
 
     const map = L.map(containerId, {
       center: [ahmadLat, ahmadLng],
@@ -5094,70 +5095,103 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
   }
 
   getPatrolMultiColorRouteSegments(unitKey = 'SAMAPTA_AHMAD') {
-    // Multi-color sector corridors matching tactical police map (Green = Safe, Yellow = Alert, Red = Hotspot 3C)
+    // High-Density Street-Snapped Coordinates Following Actual Roads (Zero diagonal building cuts)
     return [
       {
         id: 'seg-green-1',
-        name: 'Jalur Hijau: Sektor Thamrin - Bundaran HI',
+        name: 'Jalur Hijau: Koridor Mas Mansyur - Casablanca Barat',
         color: '#10B981', // Green
         zoneStatus: 'ZONA AMAN (LANCAR)',
         speedLimit: '40 km/jam',
-        description: 'Koridor Mako ke Pos 2 Simpang Sudirman. Situasi lalu lintas tertib dan kamtibmas kondusif.',
+        description: 'Koridor Mako ke Pos 2 Simpang Sudirman. Menyusuri Jl. Mas Mansyur selatan lalu belok ke Jl. Prof. Dr. Satrio.',
         path: [
           [-6.2015, 106.8195], // Pos 1: Mako Polres Metro
-          [-6.2025, 106.8210], // Jl. Medan Merdeka Barat
-          [-6.2040, 106.8235], // Jl. M.H. Thamrin
-          [-6.2058, 106.8268], // Depan Gedung Sarinah
-          [-6.2072, 106.8292], // Bundaran Hotel Indonesia
-          [-6.2080, 106.8310]  // Pos 2: Simpang 5 Sudirman
+          [-6.2025, 106.8197], // Jl. K.H. Mas Mansyur
+          [-6.2038, 106.8199], // Lurus menyusuri jalan aspal
+          [-6.2052, 106.8202], // Dekat Citywalk Sudirman
+          [-6.2065, 106.8205], // Mendekati perempatan Satrio
+          [-6.2075, 106.8209], // Tikungan sudut jalan
+          [-6.2078, 106.8215], // Belok ke Jl. Prof. Dr. Satrio (Casablanca)
+          [-6.2080, 106.8225], // Masuk jalur layang Casablanca
+          [-6.2081, 106.8240], // Menyusuri Jl. Satrio timur
+          [-6.2081, 106.8258], // Melewati Lotte Shopping Avenue
+          [-6.2081, 106.8275], // Koridor Kuningan City
+          [-6.2080, 106.8292], // Mendekati simpang lima
+          [-6.2080, 106.8310]  // Pos 2: Pos Pantau Simpang 5 Sudirman
         ]
       },
       {
         id: 'seg-yellow-1',
-        name: 'Jalur Kuning: Sektor Sudirman - Dukuh Atas - Saharjo',
+        name: 'Jalur Kuning: Koridor Casablanca Timur - Saharjo',
         color: '#F59E0B', // Yellow
         zoneStatus: 'ZONA WASPADA (SIAGA)',
         speedLimit: '30 km/jam',
-        description: 'Kawasan sentra niaga & perbankan padat. Peningkatan patroli dialogis cegah copet & curat.',
+        description: 'Sentra niaga & perbankan padat. Menyusuri Flyover Casablanca timur lalu belok selatan ke Jl. Dr. Saharjo.',
         path: [
           [-6.2080, 106.8310], // Pos 2: Simpang 5 Sudirman
-          [-6.2092, 106.8335], // Jl. Jend. Sudirman
-          [-6.2110, 106.8370], // Kawasan Dukuh Atas
-          [-6.2128, 106.8410], // Belok Jl. K.H. Mas Mansyur
+          [-6.2081, 106.8328], // Flyover Casablanca timur
+          [-6.2082, 106.8348], // Melewati Mal Ambassador
+          [-6.2085, 106.8368], // Terowongan Casablanca
+          [-6.2089, 106.8388], // Menyusuri turunan flyover
+          [-6.2095, 106.8408], // Arah Manggarai/Tebet
+          [-6.2104, 106.8425], // Tikungan ramp Saharjo
+          [-6.2115, 106.8436], // Belok selatan ke Jl. Dr. Saharjo
+          [-6.2125, 106.8444], // Menyusuri aspal Jl. Dr. Saharjo
+          [-6.2133, 106.8448], // Mendekati pasar
           [-6.2140, 106.8450]  // Pos 3: Pasar Tradisional Jaya
         ]
       },
       {
         id: 'seg-red-1',
-        name: 'Jalur Merah: Sektor Saharjo - Flyover Rel - Gatot Subroto',
+        name: 'Jalur Merah: Koridor Saharjo - Soepomo - Gatot Subroto',
         color: '#EF4444', // Red
         zoneStatus: 'ZONA RAWAN (HOTSPOT 3C)',
         speedLimit: '20 km/jam',
-        description: 'Titik rawan curanmor, balap liar dini hari, dan potensi tawuran remaja antar-kelurahan.',
+        description: 'Sektor rawan curanmor & tawuran. Menyusuri Jl. Saharjo ke Jl. Soepomo selatan, belok ke Arteri Gatot Subroto barat.',
         path: [
-          [-6.2140, 106.8450], // Pos 3: Pasar Tradisional Jaya (Rawan 3C)
-          [-6.2175, 106.8445], // Jl. Minangkabau Barat
-          [-6.2220, 106.8432], // Jl. Prof. Dr. Soepomo
-          [-6.2280, 106.8418], // Simpang Pancoran / Tebet
-          [-6.2340, 106.8402], // Arah Flyover Rel Kereta
-          [-6.2380, 106.8390], // Pos 4: Jembatan Flyover Rel Kereta (Rawan Tawuran)
-          [-6.2375, 106.8350], // Koridor Arteri Gatot Subroto
-          [-6.2355, 106.8305], // Gatot Subroto Barat
-          [-6.2320, 106.8260]  // Menuju Simpang Susun Semanggi
+          [-6.2140, 106.8450], // Pos 3: Pasar Tradisional Jaya (Hotspot)
+          [-6.2155, 106.8451], // Jl. Dr. Saharjo selatan
+          [-6.2175, 106.8450], // Lurus di aspal Saharjo
+          [-6.2198, 106.8448], // Masuk Jl. Prof. Dr. Soepomo
+          [-6.2222, 106.8444], // Sentra Tebet Barat
+          [-6.2248, 106.8438], // Menuju flyover rel
+          [-6.2275, 106.8430], // Perempatan Tebet
+          [-6.2302, 106.8422], // Menyusuri Soepomo selatan
+          [-6.2330, 106.8412], // Arah flyover Pancoran
+          [-6.2358, 106.8400], // Menanjak jembatan flyover
+          [-6.2380, 106.8390], // Pos 4: Jembatan Flyover Rel Kereta (Hotspot Tawuran)
+          [-6.2378, 106.8370], // Belok barat ke Jl. Gatot Subroto
+          [-6.2372, 106.8348], // Arteri Gatot Subroto jalur cepat
+          [-6.2365, 106.8325], // Depan RS Medistra / Kuningan
+          [-6.2355, 106.8300], // Simpang Kuningan Mampang
+          [-6.2342, 106.8275], // Menuju Balai Kartini
+          [-6.2325, 106.8252], // Arteri Gatot Subroto barat
+          [-6.2300, 106.8235], // Mendekati Semanggi
+          [-6.2272, 106.8220], // Ramp interchange
+          [-6.2250, 106.8210]  // Simpang Susun Semanggi
         ]
       },
       {
         id: 'seg-green-2',
-        name: 'Jalur Hijau: Sektor Semanggi - Sudirman Utara - Mako',
+        name: 'Jalur Hijau: Semanggi - Sudirman Utara - Mako',
         color: '#10B981', // Green
         zoneStatus: 'ZONA AMAN (KONSOLIDASI)',
         speedLimit: '40 km/jam',
-        description: 'Jalur kepulangan dinas patroli dan pergeseran pasukan kembali ke Mako Polres Metro.',
+        description: 'Jalur kepulangan dinas. Memutar kurva Semanggi cloverleaf lalu lurus menyusuri Jl. Jend. Sudirman utara.',
         path: [
-          [-6.2320, 106.8260], // Simpang Susun Semanggi
-          [-6.2260, 106.8235], // Sudirman Utara (Karet)
-          [-6.2180, 106.8215], // Dukuh Atas Barat
-          [-6.2090, 106.8205], // Thamrin Selatan
+          [-6.2250, 106.8210], // Simpang Susun Semanggi
+          [-6.2238, 106.8205], // Kurva melengkung daun Semanggi
+          [-6.2222, 106.8200], // Masuk jalur Sudirman arah utara
+          [-6.2205, 106.8198], // Belokan ramp Semanggi
+          [-6.2188, 106.8202], // Melewati Plaza Senayan / Benhil
+          [-6.2170, 106.8208], // Jl. Jend. Sudirman jalur cepat
+          [-6.2145, 106.8212], // Depan Sampoerna Strategic
+          [-6.2120, 106.8215], // Karet Sudirman
+          [-6.2095, 106.8218], // Stasiun Sudirman / Dukuh Atas
+          [-6.2070, 106.8216], // Sudirman utara
+          [-6.2045, 106.8212], // Mendekati BNI City
+          [-6.2030, 106.8206], // Tikungan Mas Mansyur
+          [-6.2020, 106.8200], // Masuk jalan Mako
           [-6.2015, 106.8195]  // Pos 5: Mako Polres Metro
         ]
       }
