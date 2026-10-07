@@ -1986,6 +1986,392 @@ class SimapresApp {
   }
 
   // --- ROLE: PERSONIL LAPANGAN ---
+  
+  // ==========================================================================
+  // ROLE: PERSONEL LAPANGAN - 5-TAB MOBILE/DESKTOP NAVIGATION SYSTEM
+  // 1. Beranda, 2. Peta Fullscreen, 3. Buat Log (+), 4. Kinerja, 5. Profil & Presensi
+  // ==========================================================================
+  switchPersonilTab(tabId) {
+    this.activePersonilTab = tabId;
+
+    // Update subnav buttons (desktop)
+    document.querySelectorAll('.personil-tab-btn').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // Update bottom nav buttons (mobile)
+    document.querySelectorAll('.personil-bottom-btn').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    // Switch tab contents
+    document.querySelectorAll('.personil-tab-content').forEach(content => {
+      content.classList.remove('active');
+    });
+
+    const activeContent = document.getElementById(tabId);
+    if (activeContent) {
+      activeContent.classList.add('active');
+    }
+
+    if (tabId === 'tab-personil-beranda') {
+      setTimeout(() => this.drawTacticalCanvas('personil-canvas'), 100);
+    } else if (tabId === 'tab-personil-peta') {
+      setTimeout(() => this.initPersonilFullMap(), 150);
+    } else if (tabId === 'tab-personil-kinerja') {
+      this.renderPersonilKinerjaData();
+    } else if (tabId === 'tab-personil-profil') {
+      this.renderPersonilProfilData();
+    }
+  }
+
+  openQuickLogSelector() {
+    this.openModal('modal-personil-quick-log');
+  }
+
+  // --- TAB 2: FULLSCREEN TACTICAL MAP METHODS ---
+  initPersonilFullMap() {
+    const containerId = 'personil-full-leaflet-map';
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (typeof L === 'undefined') {
+      return;
+    }
+
+    if (this.leafMaps && this.leafMaps[containerId]) {
+      setTimeout(() => this.leafMaps[containerId].invalidateSize(), 150);
+      return;
+    }
+
+    const ahmadLat = -6.2250;
+    const ahmadLng = 106.8520;
+
+    const map = L.map(containerId, {
+      center: [ahmadLat, ahmadLng],
+      zoom: 15,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(map);
+
+    if (!this.leafMaps) this.leafMaps = {};
+    this.leafMaps[containerId] = map;
+
+    // 1. Ahmad Marker (Vehicle R4-Samapta-81)
+    const carIcon = L.divIcon({
+      html: `
+        <div style="position:relative; width:44px; height:44px;">
+          <div class="pulse-ring" style="border: 2px solid #F59E0B; background: rgba(245,158,11,0.25);"></div>
+          <div style="position:absolute; top:6px; left:6px; width:32px; height:32px; background:#78350F; border:2px solid #F59E0B; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 0 15px #F59E0B;">
+            🚔
+          </div>
+        </div>
+      `,
+      className: 'custom-ahmad-marker',
+      iconSize: [44, 44],
+      iconAnchor: [22, 22]
+    });
+
+    this.ahmadFullMapMarker = L.marker([ahmadLat, ahmadLng], { icon: carIcon }).addTo(map);
+    this.ahmadFullMapMarker.bindPopup(`
+      <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#fff;">
+        <strong style="color:#FCD34D;">🚔 Bripka Ahmad Subagyo (R4-Samapta-81)</strong><br>
+        <span>Posisi: Pos Pantau Simpang Sudirman</span><br>
+        <span style="color:#10B981;">Status: Patroli Wilayah (Kecepatan: 25 km/jam)</span>
+      </div>
+    `);
+
+    // 2. Patrol Route Checkpoints
+    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
+    const latlngs = checkpoints.map(cp => [cp.lat, cp.lng]);
+
+    if (latlngs.length > 1) {
+      L.polyline(latlngs, {
+        color: '#10B981',
+        weight: 4,
+        opacity: 0.9,
+        dashArray: '6, 6'
+      }).addTo(map);
+    }
+
+    checkpoints.forEach((cp, idx) => {
+      const isVisited = idx < 2;
+      const markerHtml = `
+        <div style="width:26px; height:26px; border-radius:50%; background:${isVisited ? '#059669' : '#0F172A'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 8px ${isVisited ? '#10B981' : '#F59E0B'}; font-family:'JetBrains Mono';">
+          ${idx + 1}
+        </div>
+      `;
+      const cpIcon = L.divIcon({
+        html: markerHtml,
+        className: 'personil-cp-icon',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      });
+      L.marker([cp.lat, cp.lng], { icon: cpIcon }).addTo(map).bindPopup(`
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px;">
+          <strong>${cp.name}</strong><br>
+          <small>${cp.address || ''}</small><br>
+          <span style="color:#FCD34D;">Target: ${cp.timeTarget || 'Jadwal Regu'}</span>
+        </div>
+      `);
+    });
+
+    // 3. Crime Hotspots
+    this.state.hotspots.forEach(h => {
+      L.circle([h.lat, h.lng], {
+        radius: h.radius || 200,
+        color: '#EF4444',
+        fillColor: '#EF4444',
+        fillOpacity: 0.2,
+        weight: 1.5,
+        dashArray: '4, 4'
+      }).addTo(map).bindPopup(`
+        <div style="font-family:'Plus Jakarta Sans'; font-size:11.5px;">
+          <strong style="color:#EF4444;">🚨 Titik Rawan: ${h.name}</strong><br>
+          <span>Kategori: ${h.category || 'Rawan Kamtibmas'}</span><br>
+          <small style="color:#FCD34D;">Jam Rawan: ${h.hours || '22:00 - 04:00 WIB'}</small>
+        </div>
+      `);
+    });
+
+    // Render Checkpoint Summary Cards
+    this.renderPersonilCheckpointCards();
+    setTimeout(() => map.invalidateSize(), 200);
+  }
+
+  recenterPersonilMap() {
+    const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
+    if (map) {
+      map.flyTo([-6.2250, 106.8520], 16, { duration: 0.8 });
+      if (this.ahmadFullMapMarker) this.ahmadFullMapMarker.openPopup();
+      this.showToast("📍 Peta dipusatkan ke koordinat GPS Bripka Ahmad.", "info");
+    }
+  }
+
+  togglePersonilFleetOverlay() {
+    this.isFleetOverlayActive = !this.isFleetOverlayActive;
+    const btn = document.getElementById('btn-toggle-personil-fleet');
+    if (btn) {
+      btn.innerHTML = this.isFleetOverlayActive ? '👁️ Sebaran Armada Kawan: ON' : '👁️ Sebaran Armada Kawan: OFF';
+      btn.style.borderColor = this.isFleetOverlayActive ? '#F59E0B' : 'rgba(255,255,255,0.2)';
+    }
+
+    const map = this.leafMaps && this.leafMaps['personil-full-leaflet-map'];
+    if (!map) return;
+
+    if (!this.otherFleetMarkers) this.otherFleetMarkers = [];
+
+    if (this.isFleetOverlayActive) {
+      const fleet = this.state.patrolFleet || [];
+      fleet.forEach(f => {
+        if (f.officerNrp === '88123456') return; // skip self
+        const icon = L.divIcon({
+          html: `
+            <div style="width:30px; height:30px; border-radius:50%; background:#1E293B; border:2px solid #38BDF8; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 0 10px #38BDF8;">
+              ${f.icon || '🚔'}
+            </div>
+          `,
+          className: 'personil-other-fleet',
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+        const m = L.marker([f.lat, f.lng], { icon: icon }).addTo(map).bindPopup(`
+          <div style="font-family:'Plus Jakarta Sans'; font-size:12px;">
+            <strong>${f.callsign}</strong><br>
+            <span>Petugas: ${f.officerName}</span><br>
+            <span style="color:#10B981;">Status: ${f.status}</span>
+          </div>
+        `);
+        this.otherFleetMarkers.push(m);
+      });
+      this.showToast("Radar taktis sektor aktif: Memantau 3 armada rekan di lapangan.", "info");
+    } else {
+      this.otherFleetMarkers.forEach(m => {
+        try { map.removeLayer(m); } catch(e) {}
+      });
+      this.otherFleetMarkers = [];
+      this.showToast("Sebaran armada rekan disembunyikan.", "info");
+    }
+  }
+
+  renderPersonilCheckpointCards() {
+    const container = document.getElementById('personil-checkpoints-summary-cards');
+    if (!container) return;
+
+    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
+
+    container.innerHTML = checkpoints.map((cp, idx) => {
+      const isVisited = idx < 2;
+      return `
+        <div style="background:#0F172A; border:1px solid ${isVisited ? '#10B981' : 'rgba(255,255,255,0.08)'}; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; gap:10px;">
+          <div style="width:28px; height:28px; border-radius:50%; background:${isVisited ? '#059669' : '#1E293B'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">
+            ${isVisited ? '✓' : idx + 1}
+          </div>
+          <div>
+            <div style="font-weight:700; color:#fff; font-size:12px;">${cp.name}</div>
+            <div style="font-size:11px; color:#FCD34D;">🕒 ${cp.timeTarget || 'Target Jadwal'} &bull; <span style="color:${isVisited ? '#10B981' : '#94A3B8'};">${isVisited ? 'Sudah Disinggahi' : 'Siaga Menuju'}</span></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // --- TAB 4: KINERJA DETAIL METHODS ---
+  setPersonilKinerjaPeriod(period) {
+    this.currentKinerjaPeriod = period;
+
+    ['daily', 'weekly', 'monthly'].forEach(p => {
+      const btn = document.getElementById(`btn-kinerja-${p}`);
+      if (btn) btn.classList.remove('active');
+    });
+
+    const activeBtn = document.getElementById(`btn-kinerja-${period.toLowerCase()}`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    const labelEl = document.getElementById('kinerja-period-label');
+    const totalEl = document.getElementById('kinerja-total-giat');
+    const gpsEl = document.getElementById('kinerja-gps-accuracy');
+    const slaEl = document.getElementById('kinerja-avg-sla');
+    const kpiEl = document.getElementById('kinerja-kpi-score');
+
+    if (period === 'HARIAN') {
+      if (labelEl) labelEl.textContent = 'Total Giat Hari Ini';
+      if (totalEl) totalEl.textContent = '4 Kegiatan';
+      if (gpsEl) gpsEl.textContent = '100% Valid';
+      if (slaEl) slaEl.textContent = '4.8 Menit';
+      if (kpiEl) kpiEl.textContent = '98 / 100';
+      this.updateKinerjaBars(2, 1, 1, 0, 4);
+    } else if (period === 'MINGGUAN') {
+      if (labelEl) labelEl.textContent = 'Total Giat Minggu Ini';
+      if (totalEl) totalEl.textContent = '28 Kegiatan';
+      if (gpsEl) gpsEl.textContent = '98.5%';
+      if (slaEl) slaEl.textContent = '6.2 Menit';
+      if (kpiEl) kpiEl.textContent = '96 / 100';
+      this.updateKinerjaBars(14, 8, 4, 2, 28);
+    } else {
+      if (labelEl) labelEl.textContent = 'Total Giat Bulan Oktober';
+      if (totalEl) totalEl.textContent = '112 Kegiatan';
+      if (gpsEl) gpsEl.textContent = '97.8%';
+      if (slaEl) slaEl.textContent = '5.9 Menit';
+      if (kpiEl) kpiEl.textContent = '94 / 100';
+      this.updateKinerjaBars(58, 32, 14, 8, 112);
+    }
+
+    this.showToast(`Laporan kinerja diperbarui untuk periode ${period}.`, 'info');
+  }
+
+  updateKinerjaBars(patroli, sambang, tptkp, pam, total) {
+    const pPct = Math.round((patroli / total) * 100);
+    const sPct = Math.round((sambang / total) * 100);
+    const tPct = Math.round((tptkp / total) * 100);
+    const mPct = Math.round((pam / total) * 100);
+
+    const vp = document.getElementById('bar-val-patroli');
+    const fp = document.getElementById('bar-fill-patroli');
+    if (vp) vp.textContent = `${patroli} Giat (${pPct}%)`;
+    if (fp) fp.style.width = `${pPct}%`;
+
+    const vs = document.getElementById('bar-val-sambang');
+    const fs = document.getElementById('bar-fill-sambang');
+    if (vs) vs.textContent = `${sambang} Giat (${sPct}%)`;
+    if (fs) fs.style.width = `${sPct}%`;
+
+    const vt = document.getElementById('bar-val-tptkp');
+    const ft = document.getElementById('bar-fill-tptkp');
+    if (vt) vt.textContent = `${tptkp} Giat (${tPct}%)`;
+    if (ft) ft.style.width = `${tPct}%`;
+
+    const vm = document.getElementById('bar-val-pam');
+    const fm = document.getElementById('bar-fill-pam');
+    if (vm) vm.textContent = `${pam} Giat (${mPct}%)`;
+    if (fm) fm.style.width = `${mPct}%`;
+  }
+
+  renderPersonilKinerjaData() {
+    const tbody = document.getElementById('personil-kinerja-tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = this.state.eLogbook.map(l => `
+      <tr>
+        <td style="font-family:'JetBrains Mono'; font-size:11px; color:#38BDF8;">
+          ${l.time}<br>
+          <small style="color:var(--text-muted);">${l.id}</small>
+        </td>
+        <td>
+          <span class="badge badge-info" style="font-size:10px;">${l.type}</span>
+        </td>
+        <td>
+          <strong style="color:#fff; font-size:12px;">${l.title}</strong><br>
+          <small style="color:var(--text-secondary);">📍 ${l.locationClaimed}</small>
+        </td>
+        <td>
+          <span style="font-family:'JetBrains Mono'; font-weight:700; color:${l.discrepancyKm > 0.5 ? '#EF4444' : '#10B981'}; font-size:11px;">
+            ${l.discrepancyKm > 0.5 ? '⚠️ ' : '🟢 '} ${l.discrepancyKm} km
+          </span>
+        </td>
+        <td>
+          <span class="badge ${l.status === 'DISETUJUI' ? 'badge-success' : 'badge-warning'}">
+            ${l.status === 'DISETUJUI' ? '✅ Disetujui Kapolres' : '⏳ Menunggu Validasi'}
+          </span>
+        </td>
+        <td style="font-family:'JetBrains Mono'; font-weight:800; color:var(--accent-gold);">
+          ${l.discrepancyKm <= 0.5 ? '98 / 100' : '65 / 100'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // --- TAB 5: PROFIL & PRESENSI METHODS ---
+  renderPersonilProfilData() {
+    // Profil data is synced
+  }
+
+  doOfficerPresensi(type) {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+
+    const badgeStatus = document.getElementById('presensi-badge-status');
+    const timeStamp = document.getElementById('presensi-time-stamp');
+    const locText = document.getElementById('presensi-location-text');
+    const liveBadge = document.getElementById('personil-presensi-live-badge');
+    const dinasBadge = document.getElementById('personil-status-dinas-badge');
+
+    if (type === 'MASUK') {
+      if (badgeStatus) {
+        badgeStatus.className = 'badge badge-success';
+        badgeStatus.textContent = '🟢 TELAH ABSEN MASUK';
+      }
+      if (timeStamp) timeStamp.textContent = timeStr;
+      if (locText) locText.innerHTML = '📍 Mako Polres Metro (Pintu Keluar Samapta)';
+      if (liveBadge) liveBadge.textContent = `Presensi Masuk: ${timeStr} (GPS Valid)`;
+      if (dinasBadge) dinasBadge.textContent = 'STATUS: DINAS (Patroli Wilayah)';
+      this.showToast(`✅ Absen Masuk berhasil dicatat (${timeStr}) dengan koordinat GPS Mako Polres!`, 'success');
+    } else {
+      if (badgeStatus) {
+        badgeStatus.className = 'badge badge-warning';
+        badgeStatus.textContent = '🏠 TELAH ABSEN PULANG';
+      }
+      if (timeStamp) timeStamp.textContent = timeStr;
+      if (locText) locText.innerHTML = '📍 Mako Polres Metro (Garasi Kendaraan Dinas)';
+      if (liveBadge) liveBadge.textContent = `Presensi Pulang: ${timeStr} (Piket Selesai)`;
+      if (dinasBadge) dinasBadge.textContent = 'STATUS: LEPAS DINAS / STANDBY';
+      this.showToast(`🏠 Absen Pulang berhasil dicatat (${timeStr}). Serah terima piket patroli selesai.`, 'info');
+    }
+  }
+
   renderPersonilView() {
     // Dynamic Officer Device Binding Badge & Status
     const ahmadUser = (this.state.systemUsers && this.state.systemUsers.find(u => u.nrp === '88123456')) || {
