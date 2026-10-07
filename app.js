@@ -2102,13 +2102,21 @@ class SimapresApp {
 
     // 2. Patrol Route Checkpoints
     const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
-    const latlngs = checkpoints.map(cp => [cp.lat, cp.lng]);
+    const roadPath = this.getRoadSnappedPath('SAMAPTA_AHMAD') || checkpoints.map(cp => [cp.lat, cp.lng]);
 
-    if (latlngs.length > 1) {
-      L.polyline(latlngs, {
+    if (roadPath.length > 1) {
+      // Glow underlay
+      L.polyline(roadPath, {
+        color: '#10B981',
+        weight: 8,
+        opacity: 0.3
+      }).addTo(map);
+
+      // Main road-snapped line following actual streets
+      L.polyline(roadPath, {
         color: '#10B981',
         weight: 4,
-        opacity: 0.9,
+        opacity: 0.95,
         dashArray: '6, 6'
       }).addTo(map);
     }
@@ -5054,6 +5062,34 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     }, 100);
   }
 
+  getRoadSnappedPath(unitKey = 'SAMAPTA_AHMAD') {
+    // Dense street coordinates following real road network (Thamrin, Sudirman, Saharjo, Gatot Subroto, Semanggi)
+    return [
+      [-6.2015, 106.8195], // Mako Polres Metro (Jl. Medan Merdeka)
+      [-6.2025, 106.8210], // Jl. Medan Merdeka Barat
+      [-6.2040, 106.8235], // Menuju Jl. M.H. Thamrin
+      [-6.2058, 106.8268], // Depan Sarinah / Gedung Jaya
+      [-6.2072, 106.8292], // Menuju Bundaran HI
+      [-6.2080, 106.8310], // Pos 2: Simpang 5 Sudirman / Bundaran
+      [-6.2092, 106.8335], // Jl. Jend. Sudirman
+      [-6.2110, 106.8370], // Depan Dukuh Atas
+      [-6.2128, 106.8410], // Belok ke Jl. K.H. Mas Mansyur / Saharjo
+      [-6.2140, 106.8450], // Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)
+      [-6.2175, 106.8445], // Koridor Jl. Minangkabau Barat
+      [-6.2220, 106.8432], // Jl. Prof. Dr. Soepomo
+      [-6.2280, 106.8418], // Simpang Tebet / Pancoran
+      [-6.2340, 106.8402], // Arah Flyover Rel
+      [-6.2380, 106.8390], // Pos 4: Jembatan Flyover Rel Kereta
+      [-6.2375, 106.8350], // Masuk Arteri Koridor Jl. Gatot Subroto
+      [-6.2355, 106.8305], // Koridor Barat Gatot Subroto (Polda Metro Area)
+      [-6.2320, 106.8260], // Menuju Simpang Susun Semanggi
+      [-6.2260, 106.8235], // Ramp Semanggi arah Sudirman Utara
+      [-6.2180, 106.8215], // Sudirman Utara (Karet)
+      [-6.2090, 106.8205], // Thamrin Selatan
+      [-6.2015, 106.8195]  // Pos 5: Kembali ke Mako Polres Metro
+    ];
+  }
+
   getRouteStopsForCurrentSelection() {
     const isGabungan = this.patrolConfigMode === 'GABUNGAN';
     const unitKey = isGabungan ? 'GABUNGAN_POLRES' : (this.selectedPatrolUnit || 'SAMAPTA_AHMAD');
@@ -5135,17 +5171,17 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       badgeEl.style.borderColor = routeInfo.color;
     }
 
-    const latlngs = stops.map(s => [s.lat, s.lng]);
+    const roadPath = this.getRoadSnappedPath(this.selectedPatrolUnit || 'SAMAPTA_AHMAD') || stops.map(s => [s.lat, s.lng]);
 
-    // 1. Draw Route Polyline (Bus-Line style with glow and dashes)
-    const routeGlow = L.polyline(latlngs, {
+    // 1. Draw Route Polyline (Following actual streets & turns with glow)
+    const routeGlow = L.polyline(roadPath, {
       color: routeInfo.color,
       weight: 8,
       opacity: 0.35
     }).addTo(map);
     this.routeLayers.push(routeGlow);
 
-    const routePoly = L.polyline(latlngs, {
+    const routePoly = L.polyline(roadPath, {
       color: routeInfo.color,
       weight: 4,
       opacity: 0.95,
