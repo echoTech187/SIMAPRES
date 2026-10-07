@@ -814,29 +814,29 @@ const INITIAL_DATA = {
 
   // Crime & Vulnerability Hotspots (Titik Rawan)
   hotspots: [
-    { id: "HS-01", name: "Titik Rawan Curanmor Pasar Jaya", address: "Jl. Merdeka No. 45, Kawasan Parkir Pasar Jaya", category: "Curanmor", lat: -6.2140, lng: 106.8450, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "14:00 - 18:00 WIB", notes: "Patroli dialogis juru parkir, imbau kunci ganda" },
-    { id: "HS-02", name: "Titik Rawan Tawuran Flyover Baru", address: "Flyover Cempaka KM 4, Bawah Jembatan Layang Rel KA", category: "Tawuran", lat: -6.2380, lng: 106.8390, radius: 300, risk: "KRITIS", level: "KRITIS", hours: "22:00 - 04:00 WIB", notes: "Patroli blue light stasioner cegah geng motor" },
+    { id: "HS-01", name: "Titik Rawan Curanmor Pasar Jaya", address: "Jl. Merdeka No. 45, Kawasan Parkir Pasar Jaya", category: "Curanmor", lat: -6.2140, lng: 106.8458, radius: 220, risk: "TINGGI", level: "TINGGI", hours: "14:00 - 18:00 WIB", notes: "Patroli dialogis juru parkir, imbau kunci ganda" },
+    { id: "HS-02", name: "Titik Rawan Tawuran Flyover Baru", address: "Flyover Cempaka KM 4, Bawah Jembatan Layang Rel KA", category: "Tawuran", lat: -6.2380, lng: 106.8400, radius: 250, risk: "KRITIS", level: "KRITIS", hours: "22:00 - 04:00 WIB", notes: "Patroli blue light stasioner cegah geng motor" },
     { id: "HS-03", name: "Titik Rawan Balap Liar Bypass", address: "Jl. Bypass Protokol KM 12 Timur, Jalur Lurus Bebas Hambatan", category: "Balap Liar", lat: -6.2450, lng: 106.8600, radius: 400, risk: "SEDANG", level: "SEDANG", hours: "01:00 - 04:00 WIB", notes: "Pemeriksaan surat kendaraan & knalpot brong" },
     { id: "HS-04", name: "Titik Rawan Laka Lantas Simpang Cempaka", address: "Pertigaan Jl. Cempaka Raya - Jl. Veteran, Depan SPBU", category: "Laka Lantas", lat: -6.2255, lng: 106.8520, radius: 200, risk: "TINGGI", level: "TINGGI", hours: "06:30 - 09:00 WIB", notes: "Pengaturan arus lalu lintas jam berangkat kerja" }
   ],
 
   // Patrol Route Checkpoints (Daftar Titik Singgah)
   checkpoints: [
-    { id: 1, name: "Pos 1: Mapolres Metro (Titik Keberangkatan)", address: "Jl. Jend. Sudirman No. 1, Gedung Mako Polres", lat: -6.2015, lng: 106.8195, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "TERKUNJUNGI", lastVisited: "08:05 WIB" },
-    { id: 2, name: "Pos 2: Pos Pantau Simpang 5 Sudirman", address: "Jl. Sudirman Simpang Lima, Pos Polisi Lantas", lat: -6.2080, lng: 106.8310, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "TERKUNJUNGI", lastVisited: "09:20 WIB" },
-    { id: 3, name: "Pos 3: Pasar Tradisional Jaya (Zona Rawan Curanmor)", address: "Jl. Merdeka No. 45, Pos Satpam Pintu Barat Pasar", lat: -6.2140, lng: 106.8450, timeTarget: "10:30 WIB", qrCode: "QR-POS-03", status: "SIAGA PATROLI", lastVisited: "Target 10:30 WIB" },
-    { id: 4, name: "Pos 4: Jembatan Flyover Rel Kereta (Zona Rawan Tawuran)", address: "Kawasan Bawah Flyover Rel KA Cempaka KM 4", lat: -6.2380, lng: 106.8390, timeTarget: "12:00 WIB", qrCode: "QR-POS-04", status: "SIAGA PATROLI", lastVisited: "Target 12:00 WIB" },
-    { id: 5, name: "Pos 5: Mapolres Metro (Kembali Konsolidasi)", address: "Jl. Jend. Sudirman No. 1, Lapangan Mako Polres", lat: -6.2015, lng: 106.8195, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
+    { id: 1, name: "Pos 1: Mapolres Metro (Dukuh Atas BNI)", address: "Kawasan Dukuh Atas BNI, Jl. Galunggung", lat: -6.2018, lng: 106.8225, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "TERKUNJUNGI", lastVisited: "08:05 WIB" },
+    { id: 2, name: "Pos 2: Pos Pantau Simpang Guntur / Halimun", address: "Simpang Jl. Guntur - Jl. Sultan Agung", lat: -6.2078, lng: 106.8318, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "TERKUNJUNGI", lastVisited: "09:20 WIB" },
+    { id: 3, name: "Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)", address: "Jl. Dr. Saharjo No. 45, Pasar Manggis Jaya", lat: -6.2140, lng: 106.8458, timeTarget: "10:30 WIB", qrCode: "QR-POS-03", status: "SIAGA PATROLI", lastVisited: "Target 10:30 WIB" },
+    { id: 4, name: "Pos 4: Jembatan Flyover Rel Kereta (Jl. Soepomo)", address: "Bawah Jembatan Layang Rel KA, Jl. Prof. Dr. Soepomo", lat: -6.2380, lng: 106.8400, timeTarget: "12:00 WIB", qrCode: "QR-POS-04", status: "SIAGA PATROLI", lastVisited: "Target 12:00 WIB" },
+    { id: 5, name: "Pos 5: Mapolres Metro (Dukuh Atas BNI)", address: "Kawasan Dukuh Atas BNI, Jl. Galunggung", lat: -6.2018, lng: 106.8225, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
   ],
 
   // Unit-Specific Patrol Routes (Sistem Beat per-Regu) & Operasi Gabungan
   unitCheckpoints: {
     SAMAPTA_AHMAD: [
-      { id: 1, name: "Pos 1: Mapolres Metro (Titik Keberangkatan)", lat: -6.2015, lng: 106.8195, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "TERKUNJUNGI", lastVisited: "08:05 WIB" },
-      { id: 2, name: "Pos 2: Pos Pantau Simpang 5 Sudirman", lat: -6.2080, lng: 106.8310, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "TERKUNJUNGI", lastVisited: "09:20 WIB" },
-      { id: 3, name: "Pos 3: Pasar Tradisional Jaya (Zona Rawan Curanmor)", lat: -6.2140, lng: 106.8450, timeTarget: "10:30 WIB", qrCode: "QR-POS-03", status: "SIAGA PATROLI", lastVisited: "Target 10:30 WIB" },
-      { id: 4, name: "Pos 4: Jembatan Flyover Rel Kereta (Zona Rawan Tawuran)", lat: -6.2380, lng: 106.8390, timeTarget: "12:00 WIB", qrCode: "QR-POS-04", status: "SIAGA PATROLI", lastVisited: "Target 12:00 WIB" },
-      { id: 5, name: "Pos 5: Mapolres Metro (Kembali Konsolidasi)", lat: -6.2015, lng: 106.8195, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
+      { id: 1, name: "Pos 1: Mapolres Metro (Dukuh Atas BNI)", lat: -6.2018, lng: 106.8225, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "TERKUNJUNGI", lastVisited: "08:05 WIB" },
+      { id: 2, name: "Pos 2: Pos Pantau Simpang Guntur / Halimun", lat: -6.2078, lng: 106.8318, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "TERKUNJUNGI", lastVisited: "09:20 WIB" },
+      { id: 3, name: "Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)", lat: -6.2140, lng: 106.8458, timeTarget: "10:30 WIB", qrCode: "QR-POS-03", status: "SIAGA PATROLI", lastVisited: "Target 10:30 WIB" },
+      { id: 4, name: "Pos 4: Jembatan Flyover Rel Kereta (Jl. Soepomo)", lat: -6.2380, lng: 106.8400, timeTarget: "12:00 WIB", qrCode: "QR-POS-04", status: "SIAGA PATROLI", lastVisited: "Target 12:00 WIB" },
+      { id: 5, name: "Pos 5: Mapolres Metro (Dukuh Atas BNI)", lat: -6.2018, lng: 106.8225, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
     ],
     PERINTIS_JOKO: [
       { id: 1, name: "Pos A: Pangkalan Tim Perintis Presisi (Mako Barat)", lat: -6.2100, lng: 106.8250, timeTarget: "22:00 WIB", qrCode: "QR-PRT-01", status: "TERKUNJUNGI", lastVisited: "22:10 WIB" },
@@ -2053,8 +2053,8 @@ class SimapresApp {
     }
 
     // Position car right on the active patrol corridor (Pos 2 Simpang 5 Sudirman / Casablanca)
-    const ahmadLat = -6.2080;
-    const ahmadLng = 106.8310;
+    const ahmadLat = -6.2078;
+    const ahmadLng = 106.8318;
 
     const map = L.map(containerId, {
       center: [ahmadLat, ahmadLng],
@@ -5095,104 +5095,89 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
   }
 
   getPatrolMultiColorRouteSegments(unitKey = 'SAMAPTA_AHMAD') {
-    // High-Density Street-Snapped Coordinates Following Actual Roads (Zero diagonal building cuts)
+    // Exact Street Network Geometry (Following Jl. Galunggung, Jl. Sultan Agung, Jl. Dr. Saharjo, Jl. Soepomo, Jl. Gatot Subroto, & Jl. Jend. Sudirman)
     return [
       {
         id: 'seg-green-1',
-        name: 'Jalur Hijau: Koridor Mas Mansyur - Casablanca Barat',
+        name: 'Jalur Hijau: Koridor Jl. Galunggung - Simpang Guntur',
         color: '#10B981', // Green
         zoneStatus: 'ZONA AMAN (LANCAR)',
         speedLimit: '40 km/jam',
-        description: 'Koridor Mako ke Pos 2 Simpang Sudirman. Menyusuri Jl. Mas Mansyur selatan lalu belok ke Jl. Prof. Dr. Satrio.',
+        description: 'Koridor Dukuh Atas BNI menyusuri tepi Kali Banjir Barat via Jl. Galunggung menuju Pos 2 Simpang Guntur / Halimun.',
         path: [
-          [-6.2015, 106.8195], // Pos 1: Mako Polres Metro
-          [-6.2025, 106.8197], // Jl. K.H. Mas Mansyur
-          [-6.2038, 106.8199], // Lurus menyusuri jalan aspal
-          [-6.2052, 106.8202], // Dekat Citywalk Sudirman
-          [-6.2065, 106.8205], // Mendekati perempatan Satrio
-          [-6.2075, 106.8209], // Tikungan sudut jalan
-          [-6.2078, 106.8215], // Belok ke Jl. Prof. Dr. Satrio (Casablanca)
-          [-6.2080, 106.8225], // Masuk jalur layang Casablanca
-          [-6.2081, 106.8240], // Menyusuri Jl. Satrio timur
-          [-6.2081, 106.8258], // Melewati Lotte Shopping Avenue
-          [-6.2081, 106.8275], // Koridor Kuningan City
-          [-6.2080, 106.8292], // Mendekati simpang lima
-          [-6.2080, 106.8310]  // Pos 2: Pos Pantau Simpang 5 Sudirman
+          [-6.2018, 106.8225], // Pos 1 / 5: Dukuh Atas BNI (Stasiun Sudirman)
+          [-6.2019, 106.8238], // Jl. Galunggung barat (tepi kanal)
+          [-6.2023, 106.8255], // Menyusuri tepi Kali Banjir Barat
+          [-6.2030, 106.8272], // Tikungan Jl. Galunggung
+          [-6.2038, 106.8290], // Depan Waduk Setiabudi Timur
+          [-6.2048, 106.8305], // Simpang Halimun
+          [-6.2060, 106.8314], // Tikungan Halimun ke arah Jl. Guntur
+          [-6.2070, 106.8317], // Jl. Guntur utara
+          [-6.2078, 106.8318]  // Pos 2: Pos Pantau Guntur / Halimun
         ]
       },
       {
         id: 'seg-yellow-1',
-        name: 'Jalur Kuning: Koridor Casablanca Timur - Saharjo',
+        name: 'Jalur Kuning: Koridor Jl. Sultan Agung - Jl. Dr. Saharjo',
         color: '#F59E0B', // Yellow
         zoneStatus: 'ZONA WASPADA (SIAGA)',
         speedLimit: '30 km/jam',
-        description: 'Sentra niaga & perbankan padat. Menyusuri Flyover Casablanca timur lalu belok selatan ke Jl. Dr. Saharjo.',
+        description: 'Menyusuri Jl. Sultan Agung ke arah timur melewati Pasar Manggis hingga Simpang Manggarai, lalu belok 90° ke Jl. Dr. Saharjo.',
         path: [
-          [-6.2080, 106.8310], // Pos 2: Simpang 5 Sudirman
-          [-6.2081, 106.8328], // Flyover Casablanca timur
-          [-6.2082, 106.8348], // Melewati Mal Ambassador
-          [-6.2085, 106.8368], // Terowongan Casablanca
-          [-6.2089, 106.8388], // Menyusuri turunan flyover
-          [-6.2095, 106.8408], // Arah Manggarai/Tebet
-          [-6.2104, 106.8425], // Tikungan ramp Saharjo
-          [-6.2115, 106.8436], // Belok selatan ke Jl. Dr. Saharjo
-          [-6.2125, 106.8444], // Menyusuri aspal Jl. Dr. Saharjo
-          [-6.2133, 106.8448], // Mendekati pasar
-          [-6.2140, 106.8450]  // Pos 3: Pasar Tradisional Jaya
+          [-6.2078, 106.8318], // Pos 2: Pos Pantau Guntur
+          [-6.2070, 106.8322], // Masuk Jl. Sultan Agung
+          [-6.2072, 106.8340], // Jl. Sultan Agung lurus ke timur
+          [-6.2075, 106.8365], // Melewati Pasar Manggis utara
+          [-6.2080, 106.8390], // Jl. Sultan Agung arah Manggarai
+          [-6.2086, 106.8415], // Halte Pasar Rumput
+          [-6.2095, 106.8440], // Mendekati Simpang Manggarai
+          [-6.2105, 106.8450], // Simpang Minangkabau / Manggarai (Belok 90 derajat ke selatan!)
+          [-6.2115, 106.8455], // Masuk Jl. Dr. Saharjo utara
+          [-6.2128, 106.8458], // Menyusuri aspal Jl. Dr. Saharjo
+          [-6.2140, 106.8458]  // Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)
         ]
       },
       {
         id: 'seg-red-1',
-        name: 'Jalur Merah: Koridor Saharjo - Soepomo - Gatot Subroto',
+        name: 'Jalur Merah: Koridor Saharjo - Soepomo - Arteri Gatot Subroto',
         color: '#EF4444', // Red
         zoneStatus: 'ZONA RAWAN (HOTSPOT 3C)',
         speedLimit: '20 km/jam',
-        description: 'Sektor rawan curanmor & tawuran. Menyusuri Jl. Saharjo ke Jl. Soepomo selatan, belok ke Arteri Gatot Subroto barat.',
+        description: 'Menyusuri Jl. Dr. Saharjo lurus ke Jl. Prof. Dr. Soepomo (Tebet), jembatan Pos 4 Flyover Rel, lalu belok barat ke Arteri Gatot Subroto.',
         path: [
-          [-6.2140, 106.8450], // Pos 3: Pasar Tradisional Jaya (Hotspot)
-          [-6.2155, 106.8451], // Jl. Dr. Saharjo selatan
-          [-6.2175, 106.8450], // Lurus di aspal Saharjo
-          [-6.2198, 106.8448], // Masuk Jl. Prof. Dr. Soepomo
-          [-6.2222, 106.8444], // Sentra Tebet Barat
-          [-6.2248, 106.8438], // Menuju flyover rel
-          [-6.2275, 106.8430], // Perempatan Tebet
-          [-6.2302, 106.8422], // Menyusuri Soepomo selatan
-          [-6.2330, 106.8412], // Arah flyover Pancoran
-          [-6.2358, 106.8400], // Menanjak jembatan flyover
-          [-6.2380, 106.8390], // Pos 4: Jembatan Flyover Rel Kereta (Hotspot Tawuran)
-          [-6.2378, 106.8370], // Belok barat ke Jl. Gatot Subroto
-          [-6.2372, 106.8348], // Arteri Gatot Subroto jalur cepat
-          [-6.2365, 106.8325], // Depan RS Medistra / Kuningan
-          [-6.2355, 106.8300], // Simpang Kuningan Mampang
-          [-6.2342, 106.8275], // Menuju Balai Kartini
-          [-6.2325, 106.8252], // Arteri Gatot Subroto barat
-          [-6.2300, 106.8235], // Mendekati Semanggi
-          [-6.2272, 106.8220], // Ramp interchange
-          [-6.2250, 106.8210]  // Simpang Susun Semanggi
+          [-6.2140, 106.8458], // Pos 3: Pasar Tradisional Jaya (Hotspot Curanmor)
+          [-6.2160, 106.8458], // Jl. Dr. Saharjo selatan
+          [-6.2185, 106.8457], // Lurus di aspal Saharjo
+          [-6.2215, 106.8453], // Sentra Tebet Barat
+          [-6.2245, 106.8448], // Masuk Jl. Prof. Dr. Soepomo
+          [-6.2280, 106.8440], // Simpang Saharjo Soepomo
+          [-6.2315, 106.8430], // Soepomo selatan
+          [-6.2350, 106.8415], // Menuju flyover rel kereta
+          [-6.2380, 106.8400], // Pos 4: Jembatan Flyover Rel Kereta (Hotspot Tawuran)
+          [-6.2378, 106.8375], // Belok barat ke Jl. Gatot Subroto
+          [-6.2370, 106.8340], // Jalur cepat Gatot Subroto
+          [-6.2358, 106.8300], // RS Medistra
+          [-6.2345, 106.8265], // Kuningan Mampang
+          [-6.2325, 106.8235], // Balai Kartini
+          [-6.2280, 106.8218]  // Simpang Susun Semanggi
         ]
       },
       {
         id: 'seg-green-2',
-        name: 'Jalur Hijau: Semanggi - Sudirman Utara - Mako',
+        name: 'Jalur Hijau: Semanggi - Jl. Jend. Sudirman - Dukuh Atas',
         color: '#10B981', // Green
         zoneStatus: 'ZONA AMAN (KONSOLIDASI)',
         speedLimit: '40 km/jam',
-        description: 'Jalur kepulangan dinas. Memutar kurva Semanggi cloverleaf lalu lurus menyusuri Jl. Jend. Sudirman utara.',
+        description: 'Memutar ramp Semanggi, lalu lurus ke utara menyusuri jalur cepat Jl. Jend. Sudirman (melewati Setiabudi Astra & Karet) ke Dukuh Atas BNI.',
         path: [
-          [-6.2250, 106.8210], // Simpang Susun Semanggi
-          [-6.2238, 106.8205], // Kurva melengkung daun Semanggi
-          [-6.2222, 106.8200], // Masuk jalur Sudirman arah utara
-          [-6.2205, 106.8198], // Belokan ramp Semanggi
-          [-6.2188, 106.8202], // Melewati Plaza Senayan / Benhil
-          [-6.2170, 106.8208], // Jl. Jend. Sudirman jalur cepat
-          [-6.2145, 106.8212], // Depan Sampoerna Strategic
-          [-6.2120, 106.8215], // Karet Sudirman
-          [-6.2095, 106.8218], // Stasiun Sudirman / Dukuh Atas
-          [-6.2070, 106.8216], // Sudirman utara
-          [-6.2045, 106.8212], // Mendekati BNI City
-          [-6.2030, 106.8206], // Tikungan Mas Mansyur
-          [-6.2020, 106.8200], // Masuk jalan Mako
-          [-6.2015, 106.8195]  // Pos 5: Mako Polres Metro
+          [-6.2280, 106.8218], // Simpang Susun Semanggi
+          [-6.2250, 106.8215], // Ramp interchange Semanggi
+          [-6.2220, 106.8216], // Masuk Jl. Jend. Sudirman arah utara
+          [-6.2180, 106.8217], // Depan Benhil
+          [-6.2140, 106.8219], // Depan Setiabudi Astra (Lurus di Sudirman)
+          [-6.2100, 106.8221], // Depan Stasiun Karet
+          [-6.2060, 106.8223], // Stasiun Sudirman
+          [-6.2018, 106.8225]  // Pos 5 / 1: Dukuh Atas BNI (Kembali ke Mako)
         ]
       }
     ];
