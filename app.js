@@ -2341,6 +2341,7 @@ class SimapresApp {
                 const nextPos = new google.maps.LatLng(emergencyPath[pathIndex].lat, emergencyPath[pathIndex].lng);
                 if (this.ahmadFullMapMarker) {
                   this.ahmadFullMapMarker.setPosition(nextPos);
+                  map.panTo(new google.maps.LatLng(nextPos.lat() - 0.006, nextPos.lng()));
                 }
                 // Step size could be customized, but jumping 1 coordinate at a time gives a good 'tracking' feel.
                 pathIndex++;
@@ -2467,8 +2468,8 @@ class SimapresApp {
                  const geom = data.routes[0].geometry.coordinates;
                  const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
                  
-                 if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 3)) {
-                   window.patrolPassedCount = tkpInserted ? 3 : 2;
+                 if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 4)) {
+                   window.patrolPassedCount = tkpInserted ? 4 : 2;
                  }
                  let isPassed = (i < window.patrolPassedCount);
                  const pathColor = isPassed ? '#64748B' : seg.color;
@@ -2507,12 +2508,12 @@ class SimapresApp {
             if (!hasError) {
                // Animasi Live Patroli (hanya jika tidak sedang darurat 110)
                if (!activeTask) {
-                 if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 3)) {
-                   window.patrolPassedCount = tkpInserted ? 3 : 2;
+                 if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 4)) {
+                   window.patrolPassedCount = tkpInserted ? 4 : 2;
                  }
                  let fullAnimPath = [];
                  results.forEach((data, i) => {
-                   if (i >= window.patrolPassedCount && data.routes && data.routes.length > 0) {
+                   if (i >= window.patrolPassedCount - 1 && data.routes && data.routes.length > 0) {
                      const geom = data.routes[0].geometry.coordinates;
                      geom.forEach((p, pIdx) => {
                        let isCp = (pIdx === geom.length - 1);
@@ -2557,7 +2558,10 @@ class SimapresApp {
                          window.currentTargetCpName = modifiedCps[node.checkpointIndex].name;
                        }
 
-                       if (this.ahmadFullMapMarker) this.ahmadFullMapMarker.setPosition(node.latLng);
+                       if (this.ahmadFullMapMarker) {
+                         this.ahmadFullMapMarker.setPosition(node.latLng);
+                         map.panTo(new google.maps.LatLng(node.latLng.lat() - 0.006, node.latLng.lng()));
+                       }
                        
                        const p = passedPolyline.getPath();
                        p.push(node.latLng);
@@ -2946,17 +2950,34 @@ class SimapresApp {
       }
       if(titleEl) titleEl.innerHTML = `🚩 Daftar Checkpoint Rute Patroli Regu Anda:`;
       
-      const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
-      
       const completedTasks = this.state.complaints.filter(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status === 'SELESAI');
-      const baseCount = completedTasks.length > 0 ? 3 : 2;
+      const activeTask = this.state.complaints.find(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status !== 'SELESAI');
+      
+      const checkpoints = this.getRouteStopsForCurrentSelection();
+      if (!activeTask && completedTasks.length > 0) {
+        checkpoints.splice(3, 0, {
+          name: "🚨 TKP Darurat: Jembatan Flyover (Diselesaikan)",
+          timeTarget: "Telah Ditangani",
+          status: "SELESAI",
+          isTkp: true
+        });
+      }
+      
+      const baseCount = completedTasks.length > 0 ? 4 : 2;
       if (window.patrolPassedCount === undefined || window.patrolPassedCount < baseCount) {
         window.patrolPassedCount = baseCount;
       }
 
       const hudLocation = document.getElementById('personil-hud-location');
       const hudTarget = document.getElementById('personil-hud-target');
-      if (hudLocation) hudLocation.innerHTML = `Pos Pantau Simpang Sudirman (Sektor Timur)`;
+      if (hudLocation) {
+        let locName = 'Mako Sabhara Sektor Pusat';
+        if (window.patrolPassedCount > 0 && checkpoints[window.patrolPassedCount - 1]) {
+           const lastCpName = checkpoints[window.patrolPassedCount - 1].name;
+           locName = `Area Sektor ${lastCpName}`;
+        }
+        hudLocation.innerHTML = locName;
+      }
       if (hudTarget) {
         const targetName = window.currentTargetCpName || (checkpoints[window.patrolPassedCount] ? checkpoints[window.patrolPassedCount].name : 'Pos 3');
         const eta = window.simulatedEtaMinutes || 8;
@@ -2970,6 +2991,8 @@ class SimapresApp {
       };
 
       container.innerHTML = checkpoints.map((cp, idx) => {
+        if (cp.isTkp) return ''; // Hide TKP from UI list
+
         const isVisited = idx < window.patrolPassedCount;
         let timeLabel = `🕒 Tgt: ${cp.timeTarget || '-'}`;
         if (isVisited) {
@@ -2977,10 +3000,13 @@ class SimapresApp {
            timeLabel = `🕒 Tgt: <strike style="opacity:0.6">${cp.timeTarget}</strike> &nbsp;✅ Tiba: <strong style="color:#10B981">${arrTime}</strong>`;
         }
 
+        const hasCompletedTkp = !activeTask && completedTasks.length > 0;
+        const visualNumber = (hasCompletedTkp && idx > 3) ? idx : idx + 1;
+
         return `
           <div style="background:#0F172A; border:1px solid ${isVisited ? '#10B981' : 'rgba(255,255,255,0.08)'}; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; gap:10px;">
             <div style="width:28px; height:28px; border-radius:50%; background:${isVisited ? '#059669' : '#1E293B'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">
-              ${isVisited ? '✓' : idx + 1}
+              ${isVisited ? '✓' : visualNumber}
             </div>
             <div>
               <div style="font-weight:700; color:#fff; font-size:12px;">${cp.name}</div>

@@ -1167,7 +1167,9 @@ body {
     display: none !important;
   }
   #header-actions-container .btn-quick,
-  #header-actions-container .btn-logout {
+  #header-actions-container .btn-logout,
+  #header-actions-container .badge,
+  .gateway-hero-banner .btn-quick {
     display: none !important;
   }
 }
@@ -3101,7 +3103,7 @@ body {
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-    padding: 16px 12px 100px 12px !important; /* Slightly smaller padding for mobile */
+    padding: 16px 12px 0px 12px !important; /* Slightly smaller padding for mobile */
     overflow-x: hidden !important;
   }
 
@@ -3525,7 +3527,12 @@ body {
   .hidden-btn {
     display: none !important;
   }
-
+  
+  /* CRITICAL: Override the above display: flex !important for specific hidden elements */
+  .gateway-hero-banner .btn-quick,
+  .mobile-tablet-hidden.btn-quick {
+    display: none !important;
+  }
   /* Subnav and Bottom nav visibility */
   .personil-subnav-tabs {
     display: none !important;
@@ -3600,6 +3607,43 @@ body {
   .officer-web-stats-bar {
     grid-template-columns: repeat(2, 1fr) !important;
   }
+  
+  /* Landing Page Tablet & Mobile Fixes */
+  .gateway-title { font-size: 22px !important; line-height: 1.3 !important; }
+  .gateway-hero-banner { padding: 24px 14px 20px !important; }
+  
+  .btn-demo-fill { 
+    flex-direction: column !important; 
+    align-items: flex-start !important; 
+    gap: 12px !important; 
+    padding: 14px 16px !important;
+  }
+  .btn-demo-fill > div { 
+    white-space: normal !important; 
+    width: 100% !important;
+  }
+  .btn-demo-fill strong {
+    font-size: 13px !important;
+    display: inline-block !important;
+    margin-bottom: 4px !important;
+  }
+  .btn-demo-fill small {
+    display: block !important;
+    font-size: 11px !important;
+    line-height: 1.5 !important;
+  }
+  .btn-demo-fill span { 
+    align-self: stretch !important; 
+    text-align: right !important; 
+    width: 100% !important;
+    padding-top: 10px !important;
+    border-top: 1px dashed rgba(255,255,255,0.1) !important;
+    display: block !important;
+  }
+  
+  /* Fix header on mobile/tablet */
+  #header-brand-sub { display: none !important; }
+  .auth-top-header { padding: 10px 14px !important; }
 }
 
 @media (max-width: 600px) {
@@ -3615,6 +3659,7 @@ body {
     width: 100% !important;
     margin-top: 8px !important;
   }
+
 }
 
 /* Utilities */
