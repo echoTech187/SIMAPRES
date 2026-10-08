@@ -2021,6 +2021,12 @@ class SimapresApp {
     if (activeContent) {
       activeContent.classList.add('active');
     }
+    
+    if (tabId === 'tab-personil-peta') {
+      document.body.classList.add('map-fullscreen-active');
+    } else {
+      document.body.classList.remove('map-fullscreen-active');
+    }
 
     if (tabId === 'tab-personil-beranda') {
       setTimeout(() => this.initPersonilFullMap('personil-canvas'), 100);
@@ -2030,6 +2036,88 @@ class SimapresApp {
       this.renderPersonilKinerjaData();
     } else if (tabId === 'tab-personil-profil') {
       this.renderPersonilProfilData();
+    }
+  }
+
+  togglePatrolStatus(isStarting) {
+    const btnStart = document.getElementById('btn-start-patrol');
+    const btnStop = document.getElementById('btn-stop-patrol');
+    if (!btnStart || !btnStop) return;
+
+    if (isStarting) {
+      btnStart.classList.add('hidden-btn');
+      btnStop.classList.remove('hidden-btn');
+      this.showToast('Patroli Regu Dimulai. Sistem melacak pergerakan real-time GPS Anda.', 'success');
+      
+      // Update HUD status if applicable
+      const speedEl = document.getElementById('personil-hud-speed');
+      if (speedEl) speedEl.innerHTML = '10 km/jam (Mulai bergerak)';
+    } else {
+      // Validasi: Cegah penyelesaian patroli jika ada laporan 110 yang masih aktif (belum SELESAI)
+      const activeTask = this.state.complaints.find(c => 
+        c.assignedOfficer && 
+        c.assignedOfficer.nrp === '88123456' && 
+        c.status !== 'SELESAI'
+      );
+      
+      if (activeTask) {
+        alert(`🚨 PERINGATAN SOP (PELANGGARAN DISIPLIN)\n\nAnda tidak dapat mengakhiri sesi patroli karena masih memiliki tugas aktif:\n\n• ID Laporan: ${activeTask.id}\n• Kasus: ${activeTask.category}\n• Status: ${activeTask.status.replace(/_/g, ' ')}\n\nMohon selesaikan penugasan ini di TKP dan buat Berita Acara (Logbook) terlebih dahulu sebelum kembali ke Mako.`);
+        return; // Hentikan eksekusi, patroli tetap berjalan
+      }
+
+      btnStop.classList.add('hidden-btn');
+      btnStart.classList.remove('hidden-btn');
+      this.showToast('Patroli Regu Selesai. Data tracking telah diamankan ke server command center.', 'success');
+      
+      const speedEl = document.getElementById('personil-hud-speed');
+      if (speedEl) speedEl.innerHTML = '0 km/jam (Berhenti)';
+
+      // Simulasi update ke sistem Backend/Database
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      const dateStr = now.toISOString().split('T')[0];
+
+      this.state.eLogbook.unshift({
+        id: `LOG-PAT-${Date.now()}`,
+        date: dateStr,
+        time: timeStr,
+        officer: 'Bripka Ahmad Subagyo',
+        nrp: '88123456',
+        unit: 'R4-Samapta-81',
+        type: 'PATROLI',
+        locationClaimed: 'Penyelesaian Rute Patroli',
+        locationGpsAddress: 'Mako Polres Metro',
+        coordinate: '-6.2078, 106.8318',
+        discrepancyKm: 0.0,
+        description: 'Telah melaksanakan patroli sesuai rute yang ditentukan Command Center. Seluruh checkpoint rute aman dan kondusif.',
+        photo: 'https://images.unsplash.com/photo-1596464716127-f2a82984de30?w=500&q=80',
+        auditVerdict: 'VALID_MATCH',
+        status: 'TERKIRIM'
+      });
+
+      if (this.state.officerStats) {
+        this.state.officerStats.logKirim = (this.state.officerStats.logKirim || 0) + 1;
+        this.state.officerStats.logDisetujui = (this.state.officerStats.logDisetujui || 0) + 1;
+      }
+      
+      this.saveState();
+    }
+  }
+
+  resolveActiveTaskOverride() {
+    const activeTask = this.state.complaints.find(c => 
+      c.assignedOfficer && 
+      c.assignedOfficer.nrp === '88123456' && 
+      c.status !== 'SELESAI'
+    );
+    if (!activeTask) return;
+    
+    if (activeTask.status === 'DISPOSISI') {
+      this.openDepartureModal(activeTask.id);
+    } else if (activeTask.status === 'MENUJU_TKP') {
+      this.openTptkpModal(activeTask.id);
+    } else if (activeTask.status === 'PENANGANAN_TKP') {
+      this.openCompleteTaskModal(activeTask.id);
     }
   }
 
@@ -2047,8 +2135,49 @@ class SimapresApp {
       return;
     }
 
-    const ahmadLat = -6.2078;
-    const ahmadLng = 106.8318;
+    // CHECK FOR EMERGENCY OVERRIDE
+    const activeTask = this.state.complaints.find(c => 
+      c.assignedOfficer && 
+      c.assignedOfficer.nrp === '88123456' && 
+      c.status !== 'SELESAI'
+    );
+
+    let destLat, destLng;
+    if (activeTask) {
+      if (activeTask.lat !== undefined && activeTask.lng !== undefined) {
+        destLat = parseFloat(activeTask.lat);
+        destLng = parseFloat(activeTask.lng);
+      } else if (activeTask.coordinate) {
+        const coords = activeTask.coordinate.split(',');
+        destLat = parseFloat(coords[0].trim());
+        destLng = parseFloat(coords[1].trim());
+      } else {
+        destLat = -6.2078;
+        destLng = 106.8318;
+      }
+    }
+
+    let ahmadLat = -6.2078;
+    let ahmadLng = 106.8318;
+
+    const completedTasks = this.state.complaints.filter(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status === 'SELESAI');
+    if (!activeTask && completedTasks.length > 0) {
+      const lastTask = completedTasks[completedTasks.length - 1];
+      if (lastTask.lat && lastTask.lng) {
+        ahmadLat = lastTask.lat;
+        ahmadLng = lastTask.lng;
+      } else if (lastTask.coordinate) {
+        const coords = lastTask.coordinate.split(',');
+        ahmadLat = parseFloat(coords[0].trim());
+        ahmadLng = parseFloat(coords[1].trim());
+      }
+    }
+
+    // Posisikan anggota di TKP langsung jika statusnya sudah di tahap PENANGANAN_TKP
+    if (activeTask && activeTask.status === 'PENANGANAN_TKP') {
+      ahmadLat = destLat;
+      ahmadLng = destLng;
+    }
 
     const map = new google.maps.Map(container, {
       center: { lat: ahmadLat, lng: ahmadLng },
@@ -2057,8 +2186,9 @@ class SimapresApp {
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: true,
-      zoomControl: true,
-      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM }
+      fullscreenControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+      zoomControl: false,
+      scaleControl: false
     });
 
     if (!this.leafMaps) this.leafMaps = {};
@@ -2088,7 +2218,9 @@ class SimapresApp {
           });
         }
         draw() {
-          const pos = this.getProjection().fromLatLngToDivPixel(this.latlng);
+          const projection = this.getProjection();
+          if (!projection) return;
+          const pos = projection.fromLatLngToDivPixel(this.latlng);
           if (pos && this.div) {
             this.div.style.left = (pos.x - this.anchor[0]) + 'px';
             this.div.style.top = (pos.y - this.anchor[1]) + 'px';
@@ -2130,20 +2262,128 @@ class SimapresApp {
       ahmadInfo.open(map);
     });
 
-    // 2. Multi-Color Patrol Route Segments using Google Directions API
-    const ds = new google.maps.DirectionsService();
-    const cps = this.state.checkpoints;
-    
-    ds.route({
-      origin: new google.maps.LatLng(cps[0].lat, cps[0].lng),
-      destination: new google.maps.LatLng(cps[cps.length - 1].lat, cps[cps.length - 1].lng),
-      waypoints: cps.slice(1, cps.length - 1).map(cp => ({
-        location: new google.maps.LatLng(cp.lat, cp.lng),
-        stopover: true
-      })),
-      travelMode: google.maps.TravelMode.DRIVING
-    }, (result, status) => {
-      if (status === 'OK') {
+    if (activeTask) {
+      // 🚨 OVERRIDE MODE: DRAW EMERGENCY ROUTE
+      const destPos = new google.maps.LatLng(destLat, destLng);
+      
+      const destHtml = `
+        <div style="position:relative; width:40px; height:40px; display:flex; align-items:center; justify-content:center; animation: pulse 1s infinite;">
+          <div style="font-size:28px; filter:drop-shadow(0 4px 6px rgba(239,68,68,0.8));">🚨</div>
+        </div>
+      `;
+      const emergencyMarker = new window.GoogleHTMLMarker(destPos, destHtml, map, [20, 20]);
+      
+      const destInfo = new google.maps.InfoWindow({
+        content: `
+        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
+          <strong style="color:#EF4444; font-size:13px;">🚨 TKP DARURAT: ${activeTask.id}</strong><br>
+          <div style="margin:4px 0; font-size:11px;">
+            ${activeTask.category} - Pelapor: ${activeTask.reporter || activeTask.reporterName || 'NN'}
+          </div>
+          <span style="color:#475569;">${activeTask.locationName || activeTask.location || 'Menunggu titik koordinat'}</span>
+        </div>`
+      });
+      emergencyMarker.addListener('click', () => {
+        destInfo.setPosition(destPos);
+        destInfo.open(map);
+      });
+
+      if (activeTask.status !== 'PENANGANAN_TKP') {
+        // Gunakan OSRM Routing API untuk rute darurat (menghindari garis lurus)
+        fetch(`https://router.project-osrm.org/route/v1/driving/${ahmadLng},${ahmadLat};${destLng},${destLat}?overview=full&geometries=geojson`)
+          .then(res => res.json())
+          .then(data => {
+            let emergencyPath = [
+              { lat: ahmadLat, lng: ahmadLng },
+              { lat: destLat, lng: destLng }
+            ];
+            if(data.routes && data.routes[0]) {
+               emergencyPath = data.routes[0].geometry.coordinates.map(c => ({ lat: c[1], lng: c[0] }));
+               
+               const hudTarget = document.getElementById('personil-hud-target');
+               if (hudTarget) {
+                 const minutes = Math.ceil(data.routes[0].duration / 60);
+                 const distKm = (data.routes[0].distance / 1000).toFixed(1);
+                 
+                 // Simpan awal ETA ke variabel global untuk dianimasikan
+                 window.simulatedEtaMinutes = minutes;
+                 window.simulatedDistKm = parseFloat(distKm);
+                 
+                 hudTarget.innerHTML = `TKP Darurat (${minutes} Mnt - ${distKm} km)`;
+               }
+            }
+            
+            new google.maps.Polyline({
+              path: emergencyPath, strokeColor: '#EF4444', strokeWeight: 9, strokeOpacity: 0.35, map: map
+            });
+            new google.maps.Polyline({
+              path: emergencyPath, strokeColor: '#EF4444', strokeWeight: 5, strokeOpacity: 0.95, map: map,
+              icons: [{
+                icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, strokeColor: '#fff', scale: 2 },
+                offset: '50%'
+              }]
+            });
+            
+            // --- Animasi Live Marker Armada (Simulasi Melaju ke TKP) ---
+            if (window.emergencyCarAnimationInterval) {
+              clearInterval(window.emergencyCarAnimationInterval);
+            }
+            
+            let pathIndex = 0;
+            window.emergencyCarAnimationInterval = setInterval(() => {
+              const taskActive = this.state.complaints.find(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status !== 'SELESAI');
+              if (!taskActive || taskActive.status === 'PENANGANAN_TKP') {
+                clearInterval(window.emergencyCarAnimationInterval);
+                return;
+              }
+              
+              if (pathIndex < emergencyPath.length) {
+                const nextPos = new google.maps.LatLng(emergencyPath[pathIndex].lat, emergencyPath[pathIndex].lng);
+                if (this.ahmadFullMapMarker) {
+                  this.ahmadFullMapMarker.setPosition(nextPos);
+                }
+                // Step size could be customized, but jumping 1 coordinate at a time gives a good 'tracking' feel.
+                pathIndex++;
+              } else {
+                clearInterval(window.emergencyCarAnimationInterval);
+              }
+            }, 600);
+            // -----------------------------------------------------------
+          })
+          .catch(err => {
+            // Fallback garis lurus jika OSRM gagal
+            const emergencyPath = [{ lat: ahmadLat, lng: ahmadLng }, { lat: destLat, lng: destLng }];
+            new google.maps.Polyline({
+              path: emergencyPath, strokeColor: '#EF4444', strokeWeight: 5, strokeOpacity: 0.95, map: map
+            });
+          });
+      }
+      
+      // Calculate center between Ahmad and Task to fit both
+      setTimeout(() => {
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend(ahmadPos);
+        bounds.extend(destPos);
+        map.fitBounds(bounds, { padding: 50 });
+      }, 500);
+
+    } else {
+      // 2. Multi-Color Patrol Route Segments using Google Directions API
+      // const ds = new google.maps.DirectionsService(); // Completely disabled to prevent warning
+      const cps = this.getRouteStopsForCurrentSelection();
+      
+      ((req, cb) => cb(null, 'REQUEST_DENIED'))({
+        origin: new google.maps.LatLng(cps[0].lat, cps[0].lng),
+        destination: new google.maps.LatLng(cps[cps.length - 1].lat, cps[cps.length - 1].lng),
+        waypoints: cps.slice(1, cps.length - 1).map(cp => ({
+          location: new google.maps.LatLng(cp.lat, cp.lng),
+          stopover: true
+        })),
+        travelMode: google.maps.TravelMode.DRIVING
+      }, (result, status) => {
+        // Bypass Google Directions API (Legacy API warning & Billing Block) to use OSRM directly
+        status = 'REQUEST_DENIED';
+        if (status === 'OK') {
         const fallbackSegments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
         
         result.routes[0].legs.forEach((leg, i) => {
@@ -2186,16 +2426,32 @@ class SimapresApp {
           });
         });
       } else {
-        console.warn('Directions API failed (billing/key issue). Fallback to OSRM:', status);
-        this.showToast('⚠️ Google Directions API Ditolak (Billing). Menggunakan OSRM Open-Source...', 'warning');
+        // console.warn('Directions API failed (billing/key issue). Fallback to OSRM:', status);
+        // this.showToast('⚠️ Google Directions API Ditolak (Billing). Menggunakan OSRM Open-Source...', 'warning');
 
         // Fallback using OSRM to get perfectly snapped roads for free (Per segment for colors!)
         const fallbackSegments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
+        
+        let modifiedCps = [...cps];
+        let tkpInserted = false;
+        if (!activeTask && completedTasks.length > 0) {
+          const lastTask = completedTasks[completedTasks.length - 1];
+          let tLat = null, tLng = null;
+          if (lastTask.lat && lastTask.lng) { tLat = lastTask.lat; tLng = lastTask.lng; }
+          else if (lastTask.coordinate) { const c = lastTask.coordinate.split(','); tLat = parseFloat(c[0]); tLng = parseFloat(c[1]); }
+          
+          if (tLat && tLng) {
+             // Insert at index 3 so it goes Mako -> Pos 1 -> Pos 2 -> TKP -> Pos 3
+             modifiedCps.splice(3, 0, { name: "Lokasi Penanganan Terakhir (" + lastTask.id + ")", address: lastTask.locationName || 'Selesai', lat: tLat, lng: tLng });
+             tkpInserted = true;
+          }
+        }
+
         const osrmPromises = [];
         
-        for (let i = 0; i < cps.length - 1; i++) {
-          const cp1 = cps[i];
-          const cp2 = cps[i+1];
+        for (let i = 0; i < modifiedCps.length - 1; i++) {
+          const cp1 = modifiedCps[i];
+          const cp2 = modifiedCps[i+1];
           osrmPromises.push(
             fetch(`https://router.project-osrm.org/route/v1/driving/${cp1.lng},${cp1.lat};${cp2.lng},${cp2.lat}?overview=full&geometries=geojson`)
               .then(res => res.json())
@@ -2211,22 +2467,28 @@ class SimapresApp {
                  const geom = data.routes[0].geometry.coordinates;
                  const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
                  
+                 if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 3)) {
+                   window.patrolPassedCount = tkpInserted ? 3 : 2;
+                 }
+                 let isPassed = (i < window.patrolPassedCount);
+                 const pathColor = isPassed ? '#64748B' : seg.color;
+
                  // Glow underlay
                  new google.maps.Polyline({
-                   path: detailedPath, strokeColor: seg.color, strokeWeight: 9, strokeOpacity: 0.35, map: map
+                   path: detailedPath, strokeColor: pathColor, strokeWeight: 9, strokeOpacity: 0.35, map: map
                  });
 
                  // Main line
                  const segPoly = new google.maps.Polyline({
-                   path: detailedPath, strokeColor: seg.color, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
+                   path: detailedPath, strokeColor: pathColor, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
                  });
 
                  const segInfo = new google.maps.InfoWindow({
                    content: `
                    <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px; color:#333;">
-                     <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+                     <strong style="color:${pathColor}; font-size:13px;">${seg.name} ${isPassed ? '(Selesai Dilewati)' : ''}</strong>
                      <div style="margin:4px 0;">
-                       <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                       <span class="badge" style="background:${pathColor}; color:#fff; font-weight:800; font-size:9.5px;">${isPassed ? 'SELESAI' : seg.zoneStatus}</span>
                        <span style="color:#64748b; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
                      </div>
                      <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
@@ -2243,6 +2505,94 @@ class SimapresApp {
             });
 
             if (!hasError) {
+               // Animasi Live Patroli (hanya jika tidak sedang darurat 110)
+               if (!activeTask) {
+                 if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 3)) {
+                   window.patrolPassedCount = tkpInserted ? 3 : 2;
+                 }
+                 let fullAnimPath = [];
+                 results.forEach((data, i) => {
+                   if (i >= window.patrolPassedCount && data.routes && data.routes.length > 0) {
+                     const geom = data.routes[0].geometry.coordinates;
+                     geom.forEach((p, pIdx) => {
+                       let isCp = (pIdx === geom.length - 1);
+                       fullAnimPath.push({
+                         latLng: new google.maps.LatLng(p[1], p[0]),
+                         isCheckpoint: isCp,
+                         isStartOfSegment: pIdx === 0,
+                         segDist: data.routes[0].distance / 1000,
+                         segEta: Math.ceil(data.routes[0].duration / 60),
+                         checkpointIndex: i + 1,
+                         checkpointData: modifiedCps[i + 1]
+                       });
+                     });
+                   }
+                 });
+
+                 if (fullAnimPath.length > 0) {
+                   if (window.patrolAnimationInterval) clearInterval(window.patrolAnimationInterval);
+                   
+                   const passedPolyline = new google.maps.Polyline({
+                     path: [], strokeColor: '#64748B', strokeWeight: 9, strokeOpacity: 0.35, map: map, zIndex: 10
+                   });
+                   const passedPolylineMain = new google.maps.Polyline({
+                     path: [], strokeColor: '#64748B', strokeWeight: 4.5, strokeOpacity: 0.95, map: map, zIndex: 11
+                   });
+
+                   let pathIdx = 0;
+                   window.patrolAnimationInterval = setInterval(() => {
+                     // Hentikan jika ada interupsi tugas darurat tiba-tiba
+                     if (this.state.complaints.find(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status !== 'SELESAI')) {
+                       clearInterval(window.patrolAnimationInterval);
+                       return;
+                     }
+
+                     if (pathIdx < fullAnimPath.length) {
+                       const node = fullAnimPath[pathIdx];
+                       
+                       // Set ETA/Dist di awal segment baru
+                       if (node.isStartOfSegment && modifiedCps[node.checkpointIndex]) {
+                         window.simulatedDistKm = node.segDist || 2.5;
+                         window.simulatedEtaMinutes = node.segEta || 8;
+                         window.currentTargetCpName = modifiedCps[node.checkpointIndex].name;
+                       }
+
+                       if (this.ahmadFullMapMarker) this.ahmadFullMapMarker.setPosition(node.latLng);
+                       
+                       const p = passedPolyline.getPath();
+                       p.push(node.latLng);
+                       const pMain = passedPolylineMain.getPath();
+                       pMain.push(node.latLng);
+
+                       if (node.isCheckpoint && node.checkpointData) {
+                         window.patrolPassedCount = node.checkpointIndex + 1; // Update global state
+                         
+                         const now = new Date();
+                         const arrivalTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`;
+                         window.checkpointArrivalTimes = window.checkpointArrivalTimes || {};
+                         window.checkpointArrivalTimes[node.checkpointIndex] = arrivalTimeStr;
+
+                         this.renderPersonilCheckpointCards(); // Render ulang UI list
+                         
+                         // Target HUD diupdate oleh physics interval, cukup set nama target
+                         if (modifiedCps[node.checkpointIndex + 1]) {
+                           window.currentTargetCpName = modifiedCps[node.checkpointIndex + 1].name;
+                         }
+
+                         this.showToast(`✅ Tiba di ${node.checkpointData.name}. Status absen rute diperbarui.`, 'success');
+                       }
+                       pathIdx++;
+                     } else {
+                       clearInterval(window.patrolAnimationInterval);
+                       this.showToast(`🏁 Seluruh rute patroli regu Anda telah selesai dikerjakan!`, 'info');
+                       
+                       const hudTarget = document.getElementById('personil-hud-target');
+                       if (hudTarget) hudTarget.innerHTML = `Patroli Selesai (Standby)`;
+                     }
+                   }, 350); // Kecepatan simulasi patroli 350ms per koordinat
+                 }
+               }
+               
                this.showToast('✅ OSRM Berhasil: Rute Personil multi-warna telah di-snap ke aspal jalan.', 'success');
             } else {
                throw new Error("Some segments failed");
@@ -2251,23 +2601,33 @@ class SimapresApp {
           .catch(e => {
             // Final fallback to coarse segments
             const segments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
-            segments.forEach(seg => {
+            segments.forEach((seg, i) => {
               const nativePath = seg.path.map(p => ({lat: p[0], lng: p[1]}));
               
+              let isPassed = false;
+              // i=0 is Pos1->Pos2 in fallbackSegments. Both are passed.
+              if (i < 1) isPassed = true; 
+              
+              // Hide segment 1 (Pos2->Pos3) if TKP inserted, because we will draw manual connecting lines
+              if (tkpInserted && i === 1) return;
+
+              const pathColor = isPassed ? '#64748B' : seg.color;
+              
+              // Glow underlay
               new google.maps.Polyline({
-                path: nativePath, strokeColor: seg.color, strokeWeight: 9, strokeOpacity: 0.35, map: map
+                path: nativePath, strokeColor: pathColor, strokeWeight: 9, strokeOpacity: 0.35, map: map
               });
 
               const segPoly = new google.maps.Polyline({
-                path: nativePath, strokeColor: seg.color, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
+                path: nativePath, strokeColor: pathColor, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
               });
 
               const segInfo = new google.maps.InfoWindow({
                 content: `
                 <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:210px; color:#333;">
-                  <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
+                  <strong style="color:${pathColor}; font-size:13px;">${seg.name} ${isPassed ? '(Selesai Dilewati)' : ''}</strong>
                   <div style="margin:4px 0;">
-                    <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                    <span class="badge" style="background:${pathColor}; color:#fff; font-weight:800; font-size:9.5px;">${isPassed ? 'SELESAI' : seg.zoneStatus}</span>
                     <span style="color:#64748b; font-size:10.5px; margin-left:4px;">Batas Kecepatan: ${seg.speedLimit}</span>
                   </div>
                   <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
@@ -2275,35 +2635,67 @@ class SimapresApp {
               });
               google.maps.event.addListener(segPoly, 'click', (e) => { segInfo.setPosition(e.latLng); segInfo.open(map); });
             });
+
+            // If TKP inserted, manually draw connecting lines for fallback mode
+            if (tkpInserted) {
+              const pos2 = modifiedCps[2]; // Pos 2
+              const tkp = modifiedCps[3]; // TKP
+              const pos3 = modifiedCps[4]; // Pos 3
+              
+              if (pos2 && tkp) {
+                new google.maps.Polyline({
+                  path: [new google.maps.LatLng(pos2.lat, pos2.lng), new google.maps.LatLng(tkp.lat, tkp.lng)],
+                  strokeColor: '#64748B', // Gray (Passed)
+                  strokeWeight: 4.5,
+                  strokeOpacity: 0.95,
+                  map: map
+                });
+              }
+              if (tkp && pos3) {
+                new google.maps.Polyline({
+                  path: [new google.maps.LatLng(tkp.lat, tkp.lng), new google.maps.LatLng(pos3.lat, pos3.lng)],
+                  strokeColor: '#F59E0B', // Active (Yellow for Koridor Saharjo)
+                  strokeWeight: 4.5,
+                  strokeOpacity: 0.95,
+                  geodesic: true,
+                  map: map,
+                  icons: [{
+                    icon: { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW },
+                    offset: '50%'
+                  }]
+                });
+              }
+            }
           });
       }
     });
 
-    // Checkpoints
-    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
-    checkpoints.forEach((cp, idx) => {
-      const isVisited = idx < 2;
-      const markerHtml = `
-        <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6)); opacity:${isVisited ? 0.4 : 1};">
-          🚩
-        </div>
-      `;
-      const pos = new google.maps.LatLng(cp.lat, cp.lng);
-      const cpMarker = new window.GoogleHTMLMarker(pos, markerHtml, map, [13, 13]);
-      
-      const cpInfo = new google.maps.InfoWindow({
-        content: `
-        <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
-          <strong>${cp.name}</strong><br>
-          <small>${cp.address || ''}</small><br>
-          <span style="color:#F59E0B;">Target: ${cp.timeTarget || 'Jadwal Regu'}</span>
-        </div>`
+      // Checkpoints (Hanya muncul saat Patroli Rutin)
+      const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
+      checkpoints.forEach((cp, idx) => {
+        const isVisited = idx < 2;
+        const markerHtml = `
+          <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6)); opacity:${isVisited ? 0.4 : 1};">
+            🚩
+          </div>
+        `;
+        const pos = new google.maps.LatLng(cp.lat, cp.lng);
+        const cpMarker = new window.GoogleHTMLMarker(pos, markerHtml, map, [13, 13]);
+        
+        const cpInfo = new google.maps.InfoWindow({
+          content: `
+          <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
+            <strong>${cp.name}</strong><br>
+            <small>${cp.address || ''}</small><br>
+            <span style="color:#F59E0B;">Target: ${cp.timeTarget || 'Jadwal Regu'}</span>
+          </div>`
+        });
+        cpMarker.addListener('click', () => {
+          cpInfo.setPosition(pos);
+          cpInfo.open(map);
+        });
       });
-      cpMarker.addListener('click', () => {
-        cpInfo.setPosition(pos);
-        cpInfo.open(map);
-      });
-    });
+    } // End of Emergency Override Else Block
 
     // 3. Hotspots
     const titikRawanHtml = `
@@ -2429,22 +2821,175 @@ class SimapresApp {
     const container = document.getElementById('personil-checkpoints-summary-cards');
     if (!container) return;
 
-    const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
+    const activeTask = this.state.complaints.find(c => 
+      c.assignedOfficer && 
+      c.assignedOfficer.nrp === '88123456' && 
+      c.status !== 'SELESAI'
+    );
 
-    container.innerHTML = checkpoints.map((cp, idx) => {
-      const isVisited = idx < 2;
-      return `
-        <div style="background:#0F172A; border:1px solid ${isVisited ? '#10B981' : 'rgba(255,255,255,0.08)'}; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; gap:10px;">
-          <div style="width:28px; height:28px; border-radius:50%; background:${isVisited ? '#059669' : '#1E293B'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">
-            ${isVisited ? '✓' : idx + 1}
+    const btnStop = document.getElementById('btn-stop-patrol');
+    const btnResolve = document.getElementById('btn-resolve-task');
+    const btnStart = document.getElementById('btn-start-patrol');
+    const titleEl = container.previousElementSibling;
+
+    if (!window.personilHudSpeedInterval) {
+      window.personilHudSpeedInterval = setInterval(() => {
+        const hudSpeed = document.getElementById('personil-hud-speed');
+        if (hudSpeed) {
+          const currentTask = this.state.complaints.find(c => 
+            c.assignedOfficer && 
+            c.assignedOfficer.nrp === '88123456' && 
+            c.status !== 'SELESAI'
+          );
+          if (currentTask && currentTask.status === 'PENANGANAN_TKP') {
+            hudSpeed.innerHTML = `0 km/jam`;
+          } else if (currentTask) {
+            const speed = Math.floor(Math.random() * 15) + 60;
+            hudSpeed.innerHTML = `${speed} km/jam`; // Ngebut darurat (60-75)
+            
+            // ETA and Distance reduction physics simulation (v = s/t)
+            if (window.simulatedDistKm !== undefined && window.simulatedDistKm > 0.05) {
+              const distanceTravelled = (speed / 3600) * 3.5; // Jarak dalam 3.5 detik (km)
+              window.simulatedDistKm -= distanceTravelled;
+              window.simulatedDistKm = Math.max(0.01, window.simulatedDistKm);
+              
+              if (window.simulatedEtaMinutes > 1) {
+                window.simulatedEtaMinutes = Math.ceil(window.simulatedDistKm / (speed / 60));
+              }
+              
+              const hudTarget = document.getElementById('personil-hud-target');
+              if (hudTarget && hudTarget.innerHTML.includes('TKP Darurat')) {
+                hudTarget.innerHTML = `TKP Darurat (${window.simulatedEtaMinutes} Mnt - ${window.simulatedDistKm.toFixed(2)} km)`;
+              }
+            }
+          } else {
+            const speed = Math.floor(Math.random() * 10) + 20;
+            hudSpeed.innerHTML = `${speed} km/jam`; // Kecepatan patroli santai (20-30)
+
+            // ETA and Distance reduction physics simulation (v = s/t) untuk rute patroli biasa
+            if (window.simulatedDistKm !== undefined && window.simulatedDistKm > 0.05) {
+              const distanceTravelled = (speed / 3600) * 3.5; // Jarak dalam 3.5 detik (km)
+              window.simulatedDistKm -= distanceTravelled;
+              window.simulatedDistKm = Math.max(0.01, window.simulatedDistKm);
+              
+              if (window.simulatedEtaMinutes > 1) {
+                window.simulatedEtaMinutes = Math.ceil(window.simulatedDistKm / (speed / 60));
+              }
+              
+              const hudTarget = document.getElementById('personil-hud-target');
+              if (hudTarget && !hudTarget.innerHTML.includes('TKP Darurat')) {
+                const targetName = window.currentTargetCpName || 'Pos Berikutnya';
+                hudTarget.innerHTML = `${targetName} (${window.simulatedEtaMinutes} Mnt - ${window.simulatedDistKm.toFixed(2)} km)`;
+              }
+            }
+          }
+        }
+      }, 3500);
+    }
+
+    if (activeTask) {
+      // Gunakan !important inline agar tidak berbenturan dengan CSS button:not(.hidden-btn)
+      if(btnStop) btnStop.style.setProperty('display', 'none', 'important');
+      if(btnStart) btnStart.style.setProperty('display', 'none', 'important');
+      if(btnResolve) {
+        btnResolve.classList.remove('hidden-btn');
+        btnResolve.style.setProperty('display', 'flex', 'important');
+
+        if (activeTask.status === 'DISPOSISI') {
+          btnResolve.innerHTML = '🚔 Terima Tugas & Meluncur';
+        } else if (activeTask.status === 'MENUJU_TKP') {
+          btnResolve.innerHTML = '📍 Sampai Lokasi';
+        } else if (activeTask.status === 'PENANGANAN_TKP') {
+          btnResolve.innerHTML = '✅ Selesaikan Tugas';
+        }
+      }
+      if(titleEl) titleEl.innerHTML = `🚨 INTERUPSI DARURAT: Menuju TKP 110`;
+      
+      const hudLocation = document.getElementById('personil-hud-location');
+      const hudTarget = document.getElementById('personil-hud-target');
+      if (hudLocation) {
+        hudLocation.innerHTML = activeTask.status === 'PENANGANAN_TKP' ? `Berada di TKP: ${activeTask.id}` : `Menuju TKP 110: ${activeTask.id}`;
+      }
+      if (hudTarget) {
+        hudTarget.innerHTML = activeTask.status === 'PENANGANAN_TKP' ? `Sedang Olah TKP` : `TKP Darurat (Menghitung ETA...)`;
+        hudTarget.style.color = `#EF4444`;
+      }
+       
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; background:rgba(239,68,68,0.15); border:1px solid #EF4444; border-radius:var(--radius-md); padding:16px; margin-bottom:10px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <div style="font-size:24px;">🚨</div>
+            <div>
+              <div style="font-size:11px; font-weight:800; color:#EF4444; letter-spacing:1px;">PRIORITAS TINGGI</div>
+              <div style="font-weight:700; color:#fff; font-size:14px;">${activeTask.category}</div>
+            </div>
           </div>
-          <div>
-            <div style="font-weight:700; color:#fff; font-size:12px;">${cp.name}</div>
-            <div style="font-size:11px; color:#FCD34D;">🕒 ${cp.timeTarget || 'Target Jadwal'} &bull; <span style="color:${isVisited ? '#10B981' : '#94A3B8'};">${isVisited ? 'Sudah Disinggahi' : 'Siaga Menuju'}</span></div>
+          <div style="font-size:12px; color:#cbd5e1; margin-bottom:12px; line-height:1.5;">
+            <strong>TKP:</strong> ${activeTask.locationName || activeTask.location || 'Menunggu titik koordinat'}<br>
+            <strong>Pelapor:</strong> ${activeTask.reporter || activeTask.reporterName || 'NN'}<br>
+            <strong>Kontak:</strong> ${activeTask.phone || '-'}<br>
+            <strong>Prioritas:</strong> <span style="color:#EF4444; font-weight:bold;">${activeTask.priority || 'TINGGI'}</span><br>
+            <strong>Waktu Kejadian:</strong> ${activeTask.timestamp || '-'}
+          </div>
+          <div style="background:#EF4444; color:#fff; padding:6px 10px; border-radius:4px; font-size:11px; font-weight:700; display:inline-block;">
+            ⚠️ Rute Patroli Rutin Ditangguhkan (Dihold)
           </div>
         </div>
       `;
-    }).join('');
+    } else {
+      // Hapus inline style 'display' agar kembali diatur oleh class .hidden-btn (sesuai status patroli)
+      if(btnStop) btnStop.style.removeProperty('display');
+      if(btnStart) btnStart.style.removeProperty('display');
+      if(btnResolve) {
+        btnResolve.classList.add('hidden-btn');
+        btnResolve.style.setProperty('display', 'none', 'important');
+      }
+      if(titleEl) titleEl.innerHTML = `🚩 Daftar Checkpoint Rute Patroli Regu Anda:`;
+      
+      const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
+      
+      const completedTasks = this.state.complaints.filter(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status === 'SELESAI');
+      const baseCount = completedTasks.length > 0 ? 3 : 2;
+      if (window.patrolPassedCount === undefined || window.patrolPassedCount < baseCount) {
+        window.patrolPassedCount = baseCount;
+      }
+
+      const hudLocation = document.getElementById('personil-hud-location');
+      const hudTarget = document.getElementById('personil-hud-target');
+      if (hudLocation) hudLocation.innerHTML = `Pos Pantau Simpang Sudirman (Sektor Timur)`;
+      if (hudTarget) {
+        const targetName = window.currentTargetCpName || (checkpoints[window.patrolPassedCount] ? checkpoints[window.patrolPassedCount].name : 'Pos 3');
+        const eta = window.simulatedEtaMinutes || 8;
+        const dist = window.simulatedDistKm ? window.simulatedDistKm.toFixed(2) + ' km' : '';
+        hudTarget.innerHTML = `${targetName} (${eta} Mnt${dist ? ' - ' + dist : ''})`;
+        hudTarget.style.color = `#38BDF8`;
+      }
+      window.checkpointArrivalTimes = window.checkpointArrivalTimes || {
+        0: '20:45 WIB',
+        1: '21:10 WIB'
+      };
+
+      container.innerHTML = checkpoints.map((cp, idx) => {
+        const isVisited = idx < window.patrolPassedCount;
+        let timeLabel = `🕒 Tgt: ${cp.timeTarget || '-'}`;
+        if (isVisited) {
+           const arrTime = window.checkpointArrivalTimes[idx] || cp.timeTarget;
+           timeLabel = `🕒 Tgt: <strike style="opacity:0.6">${cp.timeTarget}</strike> &nbsp;✅ Tiba: <strong style="color:#10B981">${arrTime}</strong>`;
+        }
+
+        return `
+          <div style="background:#0F172A; border:1px solid ${isVisited ? '#10B981' : 'rgba(255,255,255,0.08)'}; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; gap:10px;">
+            <div style="width:28px; height:28px; border-radius:50%; background:${isVisited ? '#059669' : '#1E293B'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">
+              ${isVisited ? '✓' : idx + 1}
+            </div>
+            <div>
+              <div style="font-weight:700; color:#fff; font-size:12px;">${cp.name}</div>
+              <div style="font-size:11px; color:#FCD34D;">${timeLabel} &bull; <span style="color:${isVisited ? '#10B981' : '#94A3B8'};">${isVisited ? 'Disinggahi' : 'Siaga'}</span></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
   }
 
   // --- TAB 4: KINERJA DETAIL METHODS ---
@@ -2576,8 +3121,29 @@ class SimapresApp {
       if (locText) locText.innerHTML = '📍 Mako Polres Metro (Pintu Keluar Samapta)';
       if (liveBadge) liveBadge.textContent = `Presensi Masuk: ${timeStr} (GPS Valid)`;
       if (dinasBadge) dinasBadge.textContent = 'STATUS: DINAS (Patroli Wilayah)';
+      
+      const btnMasuk = document.getElementById('btn-absen-masuk');
+      const btnPulang = document.getElementById('btn-absen-pulang');
+      if(btnMasuk) {
+        btnMasuk.style.background = 'rgba(255,255,255,0.1)';
+        btnMasuk.style.color = '#94A3B8';
+        btnMasuk.style.cursor = 'not-allowed';
+        btnMasuk.disabled = true;
+        btnMasuk.innerHTML = `<span>✔️</span> Telah Absen (${timeStr})`;
+      }
+      if(btnPulang) {
+        btnPulang.style.background = 'linear-gradient(135deg, #EF4444, #B91C1C)';
+        btnPulang.style.color = '#fff';
+        btnPulang.style.cursor = 'pointer';
+        btnPulang.disabled = false;
+        btnPulang.innerHTML = `<span>🏠</span> Absen Pulang (20:00)`;
+      }
+
       this.showToast(`✅ Absen Masuk berhasil dicatat (${timeStr}) dengan koordinat GPS Mako Polres!`, 'success');
     } else {
+      if (!confirm('Peringatan: Apakah Anda yakin ingin melakukan Absen Pulang? Ini akan mengakhiri sesi dinas dan menonaktifkan pelacakan patroli.')) {
+        return;
+      }
       if (badgeStatus) {
         badgeStatus.className = 'badge badge-warning';
         badgeStatus.textContent = '🏠 TELAH ABSEN PULANG';
@@ -2586,6 +3152,16 @@ class SimapresApp {
       if (locText) locText.innerHTML = '📍 Mako Polres Metro (Garasi Kendaraan Dinas)';
       if (liveBadge) liveBadge.textContent = `Presensi Pulang: ${timeStr} (Piket Selesai)`;
       if (dinasBadge) dinasBadge.textContent = 'STATUS: LEPAS DINAS / STANDBY';
+      
+      const btnPulang = document.getElementById('btn-absen-pulang');
+      if(btnPulang) {
+        btnPulang.style.background = 'rgba(255,255,255,0.1)';
+        btnPulang.style.color = '#94A3B8';
+        btnPulang.style.cursor = 'not-allowed';
+        btnPulang.disabled = true;
+        btnPulang.innerHTML = `<span>✔️</span> Selesai Dinas (${timeStr})`;
+      }
+
       this.showToast(`🏠 Absen Pulang berhasil dicatat (${timeStr}). Serah terima piket patroli selesai.`, 'info');
     }
   }
@@ -2618,7 +3194,7 @@ class SimapresApp {
       } else {
         devBadgeEl.className = 'badge';
         devBadgeEl.style.cssText = 'background:rgba(192,132,252,0.2); border:1px solid #C084FC; color:#E9D5FF; font-weight:700;';
-        devBadgeEl.innerHTML = `📱 Gawai Terikat: ${dev.model} (Anti-Mock GPS Aktif)`;
+        devBadgeEl.innerHTML = `📱 Gawai Terikat: ${dev.model}`;
         devBadgeEl.onclick = null;
         if (unboundAlert) unboundAlert.style.display = 'none';
         if (revokedAlert) revokedAlert.style.display = 'none';
@@ -2701,7 +3277,7 @@ class SimapresApp {
           statusDesc = `Armada sedang meluncur menuju lokasi kejadian. Begitu tiba di lokasi, wajib laporkan kedatangan dan olah TKP awal berkoordinat GPS.`;
           actionButtons = `
             <button class="btn-primary" style="flex:1; font-size:13px; padding:12px; background:linear-gradient(135deg, #3B82F6, #1D4ED8); font-weight:700; box-shadow:0 0 15px rgba(59,130,246,0.4);" onclick="app.openTptkpModal('${activeTask.id}')">
-              📍 Tiba di Lokasi & Unggah Bukti Kedatangan / Olah TKP
+              📍 Tiba di Lokasi & Unggah Bukti Kedatangan
             </button>
           `;
         } else if (activeTask.status === 'PENANGANAN_TKP') {
@@ -2722,7 +3298,7 @@ class SimapresApp {
               <h3 style="font-size:16px; font-weight:800; color:#fff; margin-top:6px;">${activeTask.title}</h3>
               <p style="font-size:12px; color:var(--text-secondary); margin-top:2px;">📍 ${activeTask.locationName}</p>
               <p style="font-size:11px; color:var(--text-muted); margin-top:2px;">👤 Pelapor: ${activeTask.reporter} (${activeTask.phone})</p>
-              <p style="font-size:11.5px; color:#FCD34D; margin-top:8px; background:rgba(245,158,11,0.15); padding:8px 12px; border-radius:6px; border-left:3px solid #F59E0B;">
+              <p style="font-size:11.5px; color:#FCD34D; margin-top:8px;margin-bottom:8px; background:rgba(245,158,11,0.15); padding:8px 12px; border-radius:6px; border-left:3px solid #F59E0B;">
                 ℹ️ <strong>Status Alur:</strong> ${statusDesc}
               </p>
             </div>
@@ -2789,6 +3365,8 @@ class SimapresApp {
     });
 
     this.saveState();
+    this.renderPersonilCheckpointCards();
+    this.initPersonilFullMap();
     this.closeAllModals();
     this.showToast(`Tugas diterima! Bukti armada terunggah. Status: MENUJU_TKP (Petugas Bergerak).`, 'success');
   }
@@ -2827,6 +3405,8 @@ class SimapresApp {
     });
 
     this.saveState();
+    this.renderPersonilCheckpointCards();
+    this.initPersonilFullMap();
     this.closeAllModals();
     this.showToast("Bukti olah TKP berhasil diunggah! Status: Sedang Dalam Penanganan.", "success");
   }
@@ -2860,6 +3440,8 @@ class SimapresApp {
     });
 
     this.saveState();
+    this.renderPersonilCheckpointCards();
+    this.initPersonilFullMap();
     this.closeAllModals();
     this.showToast(`Kasus ${c.id} berhasil diselesaikan dengan bukti dokumen resmi! Notifikasi terkirim ke pelapor.`, "success");
   }
@@ -4071,7 +4653,7 @@ Anggota dapat langsung login menggunakan NRP tersebut.`);
     if (!this.selectedDeviceUser) return;
     const u = this.selectedDeviceUser;
     u.deviceBinding = {
-      model: "Samsung Galaxy XCover 5 Enterprise (Gawai Baru)",
+      model: "Samsung Galaxy XCover 5 Enterprise",
       uuid: `SEC-POL-${u.nrp}-NEW${Math.floor(Math.random()*900 + 100)}`,
       status: "TERIKAT",
       keystore: "Hardware StrongBox TEE (FIPS 140-2)",
@@ -5810,6 +6392,52 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       }
     });
 
+    // 2b. Draw Hotspots (Titik Rawan)
+    const titikRawanHtml = `
+      <div style="position:relative; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
+        <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid #EF4444; background: rgba(239,68,68,0.15);"></div>
+        <div style="font-size:28px; filter:drop-shadow(0 3px 5px rgba(0,0,0,0.6)); position:relative; z-index:2;">📍</div>
+      </div>
+    `;
+
+    if (this.state.hotspots) {
+      this.state.hotspots.forEach(h => {
+        const pos = new google.maps.LatLng(h.lat, h.lng);
+        
+        const hCircle = new google.maps.Circle({
+          center: pos,
+          radius: h.radius || 200,
+          strokeColor: '#EF4444',
+          strokeOpacity: 0.8,
+          strokeWeight: 1.5,
+          fillColor: '#EF4444',
+          fillOpacity: 0.22,
+          map: map
+        });
+        this.routeLayers.push(hCircle);
+
+        if (typeof window.GoogleHTMLMarker !== 'undefined') {
+          const hMarker = new window.GoogleHTMLMarker(pos, titikRawanHtml, map, [17, 17]);
+          this.routeLayers.push(hMarker);
+          
+          const hInfo = new google.maps.InfoWindow({
+            content: `
+            <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:180px; color:#333;">
+              <div style="color:#EF4444; font-weight:800; font-size:13px; display:flex; align-items:center; gap:4px;">
+                <span>🚨</span> Titik Rawan: ${h.name}
+              </div>
+              <div style="font-size:11px; color:#475569; margin-top:2px;">Kategori: <strong>${h.category || 'Rawan Kamtibmas'}</strong></div>
+              <div style="font-size:10.5px; color:#F59E0B; margin-top:2px;">🕒 Jam Atensi: ${h.hours || '22:00 - 04:00 WIB'}</div>
+            </div>`
+          });
+          window.google.maps.event.addListener(hMarker, 'click', () => {
+            hInfo.setPosition(pos);
+            hInfo.open(map);
+          });
+        }
+      });
+    }
+
     // 3. Fit bounds
     try {
       const bounds = new google.maps.LatLngBounds();
@@ -6908,7 +7536,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     document.getElementById('checkpoint-edit-index').value = "-1";
     document.getElementById('cp-input-name').value = "";
     document.getElementById('cp-input-address').value = "";
-    document.getElementById('cp-input-time').value = "11:30 WIB";
+    document.getElementById('cp-input-time').value = "";
 
     const radEl = document.getElementById('cp-input-radius');
     if (radEl) radEl.value = '50';
@@ -7306,6 +7934,34 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         this.pickerCircle.setLatLng([lat, lng]);
         this.pickerCircle.setRadius(r);
       }
+      
+      const addrInp = document.getElementById('cp-input-address');
+      if (addrInp) {
+        addrInp.value = this.getAddressFromCoords(lat, lng);
+      }
+      
+      const timeInp = document.getElementById('cp-input-time');
+      if (timeInp && !timeInp.value) {
+        let baseTime = "20:30";
+        const isGabungan = this.patrolConfigMode === 'GABUNGAN';
+        const unitKey = isGabungan ? 'GABUNGAN_POLRES' : (this.selectedPatrolUnit || 'SAMAPTA_AHMAD');
+        const targetList = (this.state.unitCheckpoints && this.state.unitCheckpoints[unitKey]) || this.state.checkpoints;
+        if (targetList && targetList.length > 0) {
+          const lastCp = targetList[targetList.length - 1];
+          if (lastCp.timeTarget) {
+            const match = lastCp.timeTarget.match(/(\d{2}):(\d{2})/);
+            if (match) baseTime = match[0];
+          }
+        }
+        const parts = baseTime.split(':');
+        if (parts.length === 2) {
+          let h = parseInt(parts[0], 10);
+          let m = parseInt(parts[1], 10) + 30;
+          if (m >= 60) { m -= 60; h = (h + 1) % 24; }
+          timeInp.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} WIB`;
+        }
+      }
+
       const hint = document.getElementById('cp-picker-hint');
       if (hint) {
         hint.innerHTML = `<span style="color:#FCD34D; font-weight:700;">✅ Titik Satelit Terkunci:</span> <strong>Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}</strong> (Geofence Radius: ${r}m)`;
@@ -7622,7 +8278,9 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
           });
         }
         draw() {
-          const pos = this.getProjection().fromLatLngToDivPixel(this.latlng);
+          const projection = this.getProjection();
+          if (!projection) return;
+          const pos = projection.fromLatLngToDivPixel(this.latlng);
           if (pos && this.div) {
             this.div.style.left = (pos.x - this.anchor[0]) + 'px';
             this.div.style.top = (pos.y - this.anchor[1]) + 'px';
@@ -7804,9 +8462,9 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       });
 
       // 5. Add Patrol Route (Using Google Directions API for real road snapping!)
-      const ds = new google.maps.DirectionsService();
+      // const ds = new google.maps.DirectionsService(); // Completely disabled to prevent warning
       
-      const cps = this.state.checkpoints;
+      const cps = this.getRouteStopsForCurrentSelection();
       const origin = new google.maps.LatLng(cps[0].lat, cps[0].lng);
       const destination = new google.maps.LatLng(cps[cps.length - 1].lat, cps[cps.length - 1].lng);
       const waypoints = cps.slice(1, cps.length - 1).map(cp => ({
@@ -7814,12 +8472,14 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         stopover: true
       }));
 
-      ds.route({
+      ((req, cb) => cb(null, 'REQUEST_DENIED'))({
         origin: origin,
         destination: destination,
         waypoints: waypoints,
         travelMode: google.maps.TravelMode.DRIVING
       }, (result, status) => {
+        // Bypass Google Directions API (Legacy API warning & Billing Block) to use OSRM directly
+        status = 'REQUEST_DENIED';
         if (status === 'OK') {
           const colors = ['#10B981', '#F59E0B', '#EF4444', '#10B981']; 
           result.routes[0].legs.forEach((leg, i) => {
@@ -7837,8 +8497,8 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
             });
           });
         } else {
-          console.warn('Directions API failed (billing/key issue). Fallback to OSRM:', status);
-          this.showToast('⚠️ Google Directions API Ditolak (Billing). Menggunakan OSRM Open-Source...', 'warning');
+          // console.warn('Directions API failed (billing/key issue). Fallback to OSRM:', status);
+          // this.showToast('⚠️ Google Directions API Ditolak (Billing). Menggunakan OSRM Open-Source...', 'warning');
           
           // Fallback using OSRM to get perfectly snapped roads for free (Per segment for colors!)
           const fallbackSegments = this.getPatrolMultiColorRouteSegments('SAMAPTA_AHMAD');
@@ -8952,10 +9612,13 @@ SELECT 'SIMAPRES 110 SNAPSHOT VALID' AS backup_status;
         center: bsdCenter,
         zoom: 12,
         mapTypeId: google.maps.MapTypeId.ROADMAP,
-        mapTypeControl: true,
-        streetViewControl: true,
+        disableDefaultUI: true, // Hide default clutter
+        zoomControl: false,
+        scaleControl: false,
         fullscreenControl: true,
-        zoomControl: true
+        fullscreenControlOptions: {
+          position: google.maps.ControlPosition.RIGHT_BOTTOM
+        }
       });
 
       // Enable Live Traffic Layer (Real-time traffic congestion colors!)
@@ -8974,16 +9637,18 @@ SELECT 'SIMAPRES 110 SNAPSHOT VALID' AS backup_status;
     }
 
     // Call real Google Directions API with user's key
-    const directionsService = new google.maps.DirectionsService();
+    // const directionsService = new google.maps.DirectionsService(); // Completely disabled to prevent warning
     const origin = { lat: -6.3020, lng: 106.6850 }; // BSD City
     const destination = { lat: -6.3450, lng: 106.8120 }; // Cipedak Jagakarsa
 
-    directionsService.route({
+    ((req, cb) => cb(null, 'REQUEST_DENIED'))({
       origin: origin,
       destination: destination,
       travelMode: google.maps.TravelMode.DRIVING,
       provideRouteAlternatives: true
     }, (result, status) => {
+      // Bypass Google Directions API (Legacy API warning & Billing Block) to use OSRM directly
+      status = 'REQUEST_DENIED';
       if (status === 'OK') {
         this.nativeGoogleDirectionsRenderer.setDirections(result);
         const leg = result.routes[0].legs[0];

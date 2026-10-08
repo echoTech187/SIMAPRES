@@ -491,7 +491,7 @@ body {
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: none !important;
   text-align: left;
   font-size: 13px;
 }
@@ -1020,6 +1020,49 @@ body {
   to { transform: scale(1); opacity: 1; }
 }
 
+/* -------------------------------------------------------------
+ * QUICK LOG MODAL -> BOTTOM SHEET TRANSFORMATION 
+ * ------------------------------------------------------------- */
+#modal-personil-quick-log {
+  align-items: flex-end !important; /* Push container to the bottom */
+  padding: 0 !important;
+}
+#modal-personil-quick-log .modal-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border-radius: 0 !important;
+  border-top-left-radius: 28px !important;
+  border-top-right-radius: 28px !important;
+  border: none !important;
+  border-top: 1px solid rgba(255,255,255,0.15) !important;
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.7) !important;
+  padding-bottom: 24px !important; /* Safe area padding */
+  animation: bottomSheetSlide 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+@keyframes bottomSheetSlide {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* -------------------------------------------------------------
+ * FULLSCREEN MODAL (TPTKP EVIDENCE & KEBERANGKATAN)
+ * ------------------------------------------------------------- */
+#modal-tptkp-evidence, #modal-departure-evidence, #modal-complete-task {
+  padding: 0 !important;
+}
+#modal-tptkp-evidence .modal-container, #modal-departure-evidence .modal-container, #modal-complete-task .modal-container {
+  max-width: 100% !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+
 .modal-header {
   padding: 18px 24px;
   border-bottom: 1px solid var(--card-border);
@@ -1053,6 +1096,99 @@ body {
 
 .modal-body {
   padding: 24px;
+}
+
+/* -------------------------------------------------------------
+ * FULLSCREEN MODAL OVERRIDE (For Create Log Form)
+ * ------------------------------------------------------------- */
+#modal-create-log {
+  padding: 0 !important;
+}
+#modal-create-log .modal-container {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+}
+#modal-create-log .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 40px !important;
+  /* Hide scrollbar */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+#modal-create-log .modal-body::-webkit-scrollbar {
+  display: none;
+}
+#modal-create-log .modal-footer {
+  margin-top: 0;
+  padding: 16px;
+  background: #0E182A;
+  border-top: 1px solid var(--card-border);
+}
+
+/* Responsive adjustments for Form Input Log Modal */
+.responsive-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.responsive-modal-header .header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.responsive-gps-container {
+  background: #0B1424;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 1024px) {
+  .hide-on-tablet-mobile {
+    display: none !important;
+  }
+  #header-actions-container .btn-quick,
+  #header-actions-container .btn-logout {
+    display: none !important;
+  }
+}
+@media (max-width: 767px) {
+  .responsive-modal-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+  .responsive-modal-header .header-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+  .responsive-modal-header .modal-title {
+    font-size: 14px !important;
+  }
+  .responsive-gps-container {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
 }
 
 .modal-footer {
@@ -1549,31 +1685,108 @@ body {
 }
 
 .officer-web-stats-bar {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
 }
 
 .web-stat-box {
-  background: rgba(11, 25, 44, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-sm);
-  padding: 10px 16px;
-  text-align: center;
+  border-radius: 16px;
+  padding: 16px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.web-stat-box:hover {
+  transform: translateY(-2px);
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.stat-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.stat-trend {
+  font-size: 14px;
+}
+
+.stat-texts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: #F8FAFC;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.stat-subtitle {
+  font-size: 10px;
+  color: #94A3B8;
+  font-weight: 600;
 }
 
 .web-stat-num {
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 800;
   font-family: 'JetBrains Mono', monospace;
+  margin-top: 4px;
 }
 
-.web-stat-title {
-  font-size: 11px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  font-weight: 600;
+/* Tactical Dark Themes */
+.modern-stat-blue {
+  background: linear-gradient(135deg, #0F172A, #1E293B);
+  border: 1px solid #1E3A8A;
+  border-top: 3px solid #3B82F6;
 }
+.modern-stat-blue .web-stat-num { color: #60A5FA; text-shadow: 0 0 15px rgba(96,165,250,0.4); }
+.modern-stat-blue .stat-trend { color: #60A5FA; }
+
+.modern-stat-green {
+  background: linear-gradient(135deg, #0F172A, #1E293B);
+  border: 1px solid #064E3B;
+  border-top: 3px solid #10B981;
+}
+.modern-stat-green .web-stat-num { color: #34D399; text-shadow: 0 0 15px rgba(52,211,153,0.4); }
+.modern-stat-green .stat-trend { color: #34D399; }
+
+.modern-stat-yellow {
+  background: linear-gradient(135deg, #0F172A, #1E293B);
+  border: 1px solid #78350F;
+  border-top: 3px solid #F59E0B;
+}
+.modern-stat-yellow .web-stat-num { color: #FBBF24; text-shadow: 0 0 15px rgba(251,191,36,0.4); }
+.modern-stat-yellow .stat-trend { color: #FBBF24; }
+
+.modern-stat-red {
+  background: linear-gradient(135deg, #0F172A, #1E293B);
+  border: 1px solid #831843;
+  border-top: 3px solid #F43F5E;
+}
+.modern-stat-red .web-stat-num { color: #FB7185; text-shadow: 0 0 15px rgba(251,113,133,0.4); }
+.modern-stat-red .stat-trend { color: #FB7185; }
 
 .officer-web-grid {
   display: grid;
@@ -2540,6 +2753,7 @@ body {
 .history-time-slider {
   flex: 1;
   min-width: 220px;
+  appearance: none;
   -webkit-appearance: none;
   height: 6px;
   border-radius: 3px;
@@ -2727,12 +2941,23 @@ body {
   pointer-events: auto;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1024px) {
   .patrol-map-legend {
-    bottom: 75px;
+    bottom: calc(45vh + 120px);
     left: 8px;
     padding: 6px 10px;
     font-size: 10px;
+  }
+}
+
+/* Legend Toggle Button Logic */
+#btn-toggle-legend {
+  display: none !important;
+}
+
+@media (max-width: 1024px) {
+  #btn-toggle-legend {
+    display: flex !important;
   }
 }
 
@@ -2856,4 +3081,545 @@ body {
   border-radius: 8px;
   padding: 14px;
   text-align: center;
+}
+
+/* ==========================================================================
+   SIMAPRES: Responsive Layout Fixes (Tablet & Mobile)
+   Prinsip: Mobile-First, Fluid Grid, Auto Layout, 48px Touch Target
+   ========================================================================== */
+@media (max-width: 1024px) {
+  /* CRITICAL: Force the browser's layout viewport to NEVER exceed the physical screen width */
+  html, body {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    position: relative;
+  }
+
+  /* Ensure the main container respects the body width and doesn't spill */
+  .view-viewport {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding: 16px 12px 100px 12px !important; /* Slightly smaller padding for mobile */
+    overflow-x: hidden !important;
+  }
+
+  /* Hide unused elements on mobile/tablet */
+  .mobile-tablet-hidden,
+  .btn-logout {
+    display: none !important;
+  }
+
+  /* Fullscreen Modal Map for Mobile - Bulletproof Body Class Approach */
+  body.map-fullscreen-active {
+    overflow: hidden !important;
+  }
+  
+  body.map-fullscreen-active .auth-top-header {
+    display: none !important;
+  }
+  
+  body.map-fullscreen-active .view-viewport {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  #tab-personil-peta.active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    width: 100vw !important;
+    z-index: 100 !important;
+    background: #000 !important;
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Reset the card container */
+  #tab-personil-peta.active > .card {
+    height: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    display: block !important;
+  }
+
+  /* 1. Map Background (Fullscreen) */
+  #tab-personil-peta.active .mobile-map-wrapper {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    display: block !important;
+  }
+
+  #tab-personil-peta.active #personil-full-leaflet-map,
+  #tab-personil-peta.active #personil-google-map {
+    height: 100% !important;
+    width: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+  }
+
+  /* HUD Telemetry - Compact Floating Glassmorphism Pill at Top */
+  #tab-personil-peta.active .mobile-map-wrapper > div:last-child {
+    position: absolute !important;
+    top: 16px !important;
+    left: 12px !important;
+    right: 12px !important;
+    z-index: 10 !important;
+    border-radius: 16px !important;
+    background: rgba(15, 23, 42, 0.9) !important;
+    backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+    padding: 10px 14px !important;
+    
+    /* Override inline styles to force compact vertical layout */
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+  
+  /* Location Row (Keep it as a row so the collapse button stays on the right) */
+  #tab-personil-peta.active .mobile-map-wrapper > div:last-child > div:first-child {
+    border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    padding-bottom: 8px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  
+  /* Stats Row */
+  #tab-personil-peta.active .mobile-map-wrapper > div:last-child > div:last-child {
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+  }
+  
+  /* Make HUD text smaller to fit gracefully */
+  #tab-personil-peta.active .mobile-map-wrapper > div:last-child * {
+    font-size: 10.5px !important;
+  }
+  
+  #tab-personil-peta.active .mobile-map-wrapper > div:last-child strong {
+    font-size: 11px !important;
+  }
+
+  /* Map Legend - Hidden on mobile by default, shown via button toggle */
+  #tab-personil-peta.active .patrol-map-legend:not(.show-force) {
+    display: none !important;
+  }
+  #tab-personil-peta.active .patrol-map-legend.show-force {
+    display: flex !important;
+    flex-direction: column;
+    z-index: 9999 !important;
+  }
+  
+  /* Move Leaflet controls up so they aren't buried by Bottom Sheet */
+  #tab-personil-peta.active .leaflet-bottom.leaflet-right {
+    bottom: calc(45vh + 70px) !important;
+  }
+  
+  /* Move Google Maps controls up so they aren't buried by Bottom Sheet */
+  #tab-personil-peta.active .gmnoprint,
+  .gm-style-mtc {
+    margin-bottom: calc(45vh + 70px) !important;
+    margin-right: 8px !important;
+  }
+  
+  /* Robust styling for Google Maps Controls using Filter */
+  #tab-personil-peta.active .gmnoprint > div,
+  .gm-style-mtc > div {
+    filter: invert(0.9) hue-rotate(180deg) opacity(0.85) !important;
+    border-radius: 4px !important;
+  }
+
+  /* 2. Checkpoints as Modern Bottom Sheet Modal */
+  #tab-personil-peta.active > .card > div:last-child {
+    position: absolute !important;
+    bottom: 64px !important; /* Sits exactly on top of bottom nav */
+    left: 0 !important;
+    width: 100vw !important;
+    z-index: 20 !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border-top-left-radius: 28px !important;
+    border-top-right-radius: 28px !important;
+    padding: 28px 20px 20px 20px !important;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.7) !important;
+    border-top: 1px solid rgba(255,255,255,0.15) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    max-height: 45vh !important;
+    overflow-y: auto !important;
+    /* Hide scrollbar for clean UI */
+    -ms-overflow-style: none !important;  /* IE and Edge */
+    scrollbar-width: none !important;  /* Firefox */
+    transition: max-height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  
+  #tab-personil-peta.active > .card > div:last-child.expanded-sheet {
+    max-height: 85vh !important;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  #tab-personil-peta.active > .card > div:last-child::-webkit-scrollbar {
+    display: none !important;
+  }
+  
+  /* Center and style the Checkpoints Title for the Bottom Sheet */
+  #tab-personil-peta.active > .card > div:last-child h4 {
+    font-size: 13px !important;
+    text-align: center !important;
+    margin-bottom: 16px !important;
+    color: #FCD34D !important;
+  }
+
+  /* Bottom Sheet Drag Handle Style (Large Touch Target) */
+  .bottom-sheet-drag-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 28px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    z-index: 30;
+  }
+  .bottom-sheet-drag-handle::before {
+    content: '';
+    width: 48px;
+    height: 5px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 5px;
+  }
+
+  /* Hide redundant map texts and original controls container */
+  #tab-personil-peta.active h3, 
+  #tab-personil-peta.active p,
+  #tab-personil-peta.active > .card > div:first-child,
+  #tab-personil-peta.active .desktop-hidden {
+    display: none !important;
+  }
+
+  /* 0. Global Top Header (Prevent Squishing & Redundancy) */
+  .auth-top-header {
+    flex-direction: row !important; 
+    flex-wrap: wrap !important; /* CRITICAL: Allow wrapping so it doesn't force body width! */
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .bar-actions {
+    width: auto !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+  .user-session-badge {
+    display: none !important; /* Remove redundant avatar/name on mobile */
+  }
+  .auth-top-header .btn-quick {
+    display: none !important; /* Hide redundant guide button on mobile */
+  }
+
+  /* 1 & 2. Auto Layout & Fluid Grid (Fill Container) */
+  .officer-web-hero {
+    flex-direction: column !important;
+    align-items: stretch !important; /* Ensure children fill width completely */
+    gap: 16px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important; /* Prevent bleeding */
+  }
+  
+  .officer-web-meta {
+    flex-direction: row !important; /* Keep Avatar and Text side-by-side */
+    align-items: center !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 2.5 Force All Badges and Pills to Wrap */
+  .badge, 
+  .role-pill-btn, 
+  .brand-text h1, 
+  .brand-text p {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    height: auto !important;
+    text-align: left !important;
+  }
+
+  .officer-web-details {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .officer-web-details p,
+  #officer-assigned-task h3,
+  #officer-assigned-task p,
+  #officer-pursuit-strip div {
+    white-space: normal !important; /* Force text to wrap */
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    line-height: 1.5 !important;
+  }
+
+  /* 3. Prevent Flex Children from breaking layout (Flexbox Wrap Fix) */
+  .web-quick-btn-text,
+  .activity-info {
+    flex: 1 !important;
+    min-width: 0 !important; /* CRITICAL: Allows flex items to shrink below their content size so text can wrap */
+  }
+
+  .web-quick-btn-text p,
+  .web-quick-btn-text h4,
+  .activity-title,
+  .activity-desc {
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+
+  /* Allow the Activity Feed title and badge to wrap if they collide */
+  .activity-info > div:first-child {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  /* Ensure dynamic inline-flex containers and button groups wrap */
+  #officer-assigned-task div[style*="display:flex"],
+  #officer-pursuit-strip div[style*="display:flex"],
+  #officer-assigned-task > div,
+  #officer-pursuit-strip {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Stack buttons fully on mobile inside dynamic assigned task cards */
+  #officer-assigned-task button,
+  #officer-pursuit-strip button {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* CRITICAL: Prevent CSS Grid & Flexbox Blowouts */
+  /* Without this, long unbroken strings force grids/flex items to expand past the 100% viewport width */
+  .officer-web-grid > *,
+  #personil-profil-grid > *,
+  #officer-assigned-task div[style*="display:flex"] > div,
+  .card {
+    min-width: 0 !important;
+  }
+
+  /* Safely collapse ALL hardcoded inline grids to 1 column on mobile/tablet */
+  #personil-profil-grid,
+  div[style*="grid-template-columns:1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns:1fr 1fr 1fr"],
+  div[style*="grid-template-columns: 1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Force pursuit banners to fill container */
+  #officer-pursuit-strip, #officer-pursuit-active-banner {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  /* Make sure Stats bar handles smaller screens fluidly */
+  .officer-web-stats-bar {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  
+  .web-stat-box {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    padding: 12px !important; /* Compact padding */
+  }
+  .web-stat-num {
+    font-size: 16px !important; /* Smaller number */
+    word-break: break-word !important;
+  }
+  .web-stat-title {
+    font-size: 10px !important; /* Smaller label */
+  }
+  
+  .responsive-kinerja-filter {
+    flex-wrap: wrap !important;
+    justify-content: space-between !important;
+  }
+  .responsive-kinerja-filter .btn-quick {
+    flex: 1 !important;
+    padding: 8px !important;
+    font-size: 11px !important;
+    min-width: 0 !important; /* Allow shrinking */
+  }
+  
+  .responsive-bar-label {
+    flex-wrap: wrap !important;
+    gap: 4px;
+  }
+  .responsive-bar-label span {
+    flex: 1 1 100%;
+    margin-bottom: 2px;
+  }
+
+  /* 3. Flexible Images & Media */
+  .map-wrapper, .real-leaflet-map {
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: 250px !important; /* Ensure map doesn't collapse */
+  }
+
+  /* Prevent Tables from breaking horizontal layout */
+  .data-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 4. Touch Target yang Nyaman (Min 48x48) */
+  button:not(.hidden-btn), 
+  .btn-primary:not(.hidden-btn), 
+  .btn-quick:not(.hidden-btn) {
+    min-height: 48px !important;
+    min-width: 48px !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  .hidden-btn {
+    display: none !important;
+  }
+
+  /* Subnav and Bottom nav visibility */
+  .personil-subnav-tabs {
+    display: none !important;
+  }
+  .personil-bottom-nav {
+    display: flex !important;
+    height: 64px !important; /* Restore fixed height so FAB floats correctly */
+    width: 100% !important;
+    box-sizing: border-box !important;
+    justify-content: space-around !important; /* Evenly distribute 5 buttons */
+    align-items: center !important;
+  }
+  
+  /* Prevent Bottom Nav buttons from distorting */
+  .personil-bottom-btn {
+    flex: none !important; /* Remove flex:1 so they don't stretch into ovals */
+    min-width: 60px !important; /* Good touch target width */
+    height: 100% !important;
+    padding: 8px 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Restore perfect circle for the (+) floating button */
+  .personil-bottom-btn.fab-btn {
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    top: -14px !important; /* Float above the bar */
+  }
+
+  /* Ensure body padding accommodates the fixed bottom nav */
+  #view-personil {
+    padding-bottom: 90px !important;
+  }
+
+  /* Transform Data Tables into Cards on Mobile/Tablet */
+  .data-table, 
+  .data-table tbody, 
+  .data-table tr, 
+  .data-table td {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .data-table thead {
+    display: none !important; /* Hide standard table headers */
+  }
+  .data-table tr {
+    /* margin-bottom: 16px !important; */
+    /* background: rgba(11, 25, 44, 0.7) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important; */
+    border-radius: var(--radius-sm) !important;
+    padding: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+  .data-table td {
+    padding: 6px 0 !important;
+    text-align: left !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.1) !important;
+  }
+  .data-table td:last-child {
+    border-bottom: none !important;
+  }
+  .data-table-container {
+    overflow-x: hidden !important;
+  }
+
+  .officer-web-stats-bar {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+@media (max-width: 600px) {
+  /* 1. Mobile First: Single Column Grid */
+  
+  .web-quick-btn-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Ensure Action Buttons within banners stack properly */
+  #btn-officer-pursuit, 
+  #officer-pursuit-active-banner button {
+    width: 100% !important;
+    margin-top: 8px !important;
+  }
+}
+
+/* Utilities */
+@media (min-width: 1025px) {
+  .desktop-hidden {
+    display: none !important;
+  }
 }

@@ -5,16 +5,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SIMAPRES 110 - Sistem Monitoring & Akuntabilitas Pengaduan Presisi (Web Portal)</title>
-  <link rel="stylesheet" href="style.css?v=20261007_gerr_v11">
+  <link rel="stylesheet" href="style.css?v=20261008_modal49">
   <!-- Leaflet CSS & JS for Real-World GIS Police Map Integration (Fast CDNJS Cloudflare) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-  <!-- Google Maps JavaScript API with User's Official Demo Key -->
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDoTzQ6zZteC5ptkXk-T7EQVKJtJBlxVkY&libraries=places,geometry"></script>
+  <!-- Google Maps JavaScript API without Key (Development Mode fallback) -->
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry&loading=async&v=quarterly"></script>
 
   <link rel="icon"
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👮‍♂️</text></svg>">
+  <!-- Sembunyikan spanduk error Google Maps agar marker & rute OSRM tetap terlihat di atas kanvas kosong -->
+  <style>
+    .gm-err-container, .gm-err-content, .gm-err-title { display: none !important; opacity: 0 !important; visibility: hidden !important; }
+    .gm-style > div:has(.dismissButton) { display: none !important; }
+    .gm-style-cc { display: none !important; }
+  </style>
+
   <!-- Google Maps Global Error Interceptor (Auto-Recovery to ESRI Satellite) -->
   <script>
     window.gm_authFailure = function () {
@@ -2232,7 +2239,7 @@
     <section class="role-view" id="view-personil">
 
       <!-- Subnav Tab Bar (Desktop & Tablet) -->
-      <nav class="personil-subnav-tabs">
+      <nav class="personil-subnav-tabs" style="display: none;">
         <button type="button" class="personil-tab-btn active" data-tab="tab-personil-beranda"
           onclick="app.switchPersonilTab('tab-personil-beranda')">
           <span>🏠</span> Beranda
@@ -2293,7 +2300,7 @@
             <div class="officer-web-details">
               <h3>Bripka Ahmad Subagyo</h3>
               <p>NRP: 88123456 &bull; Danru Unit Patroli Samapta Sektor Timur &bull; Kendaraan: R4-Samapta-81</p>
-              <div style="margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <div class="mobile-tablet-hidden" style="margin-top:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                 <span class="badge badge-success" id="personil-status-dinas-badge">STATUS: DINAS (Patroli
                   Wilayah)</span>
                 <span class="badge badge-gold" id="personil-presensi-live-badge">Presensi GPS Terverifikasi</span>
@@ -2344,87 +2351,119 @@
             </div>
           </div>
 
-          <!-- Hot Pursuit Tactical Diversion Button Strip -->
-          <div id="officer-pursuit-strip"
-            style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; background:#14080B; border:1px solid rgba(239,68,68,0.5); border-radius:var(--radius-sm); padding:10px 16px; flex-wrap:wrap; gap:10px; box-shadow:0 0 15px rgba(239,68,68,0.15);">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:24px;">🚨</span>
-              <div>
-                <div style="font-size:12.5px; font-weight:800; color:#FCA5A5;">Diskresi Kepolisian: Pengejaran
-                  Tertangkap Tangan (Hot Pursuit)</div>
-                <div style="font-size:11px; color:#cbd5e1;">Keluar rute resmi untuk mengejar pelaku kejahatan darurat
-                  (Curanmor/Begal). Audit deviasi rute otomatis dibekukan (Bukan Pelanggaran).</div>
+
+          <div class="officer-web-stats-bar" id="v2-stats-bar">
+            <div class="web-stat-box modern-stat-blue">
+              <div class="stat-header">
+                <div class="stat-icon-wrapper">📝</div>
+                <div class="stat-trend">↗️</div>
+              </div>
+              <div class="stat-texts">
+                <div class="stat-title">Log Terkirim</div>
+                <div class="stat-subtitle">Total log hari ini</div>
+                <div class="web-stat-num" id="officer-log-kirim">28</div>
               </div>
             </div>
-            <button type="button" class="btn-primary" id="btn-officer-pursuit"
-              style="background:linear-gradient(135deg, #DC2626, #991B1B); color:#fff; font-weight:800; font-size:11.5px; padding:7px 16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(220,38,38,0.4);"
-              onclick="app.toggleHotPursuitMode()">
-              <span>🚨</span> Aktifkan Mode Pengejaran Pelaku
+
+            <div class="web-stat-box modern-stat-green">
+              <div class="stat-header">
+                <div class="stat-icon-wrapper">✅</div>
+                <div class="stat-trend">↗️</div>
+              </div>
+              <div class="stat-texts">
+                <div class="stat-title">Disetujui</div>
+                <div class="stat-subtitle">Oleh pimpinan</div>
+                <div class="web-stat-num" id="officer-log-disetujui">25</div>
+              </div>
+            </div>
+
+            <div class="web-stat-box modern-stat-yellow">
+              <div class="stat-header">
+                <div class="stat-icon-wrapper">⏳</div>
+                <div class="stat-trend">↗️</div>
+              </div>
+              <div class="stat-texts">
+                <div class="stat-title">Menunggu</div>
+                <div class="stat-subtitle">Status verifikasi</div>
+                <div class="web-stat-num" id="officer-log-menunggu">3</div>
+              </div>
+            </div>
+
+            <div class="web-stat-box modern-stat-red">
+              <div class="stat-header">
+                <div class="stat-icon-wrapper">⭐</div>
+                <div class="stat-trend">↗️</div>
+              </div>
+              <div class="stat-texts">
+                <div class="stat-title">KPI Kinerja</div>
+                <div class="stat-subtitle">Performa total</div>
+                <div class="web-stat-num" id="officer-kpi-val">92%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hot Pursuit Tactical Diversion Button Strip -->
+        <div id="officer-pursuit-strip"
+          style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; background:#14080B; border:1px solid rgba(239,68,68,0.5); border-radius:var(--radius-sm); padding:10px 16px; flex-wrap:wrap; gap:10px; box-shadow:0 0 15px rgba(239,68,68,0.15);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:24px;">🚨</span>
+            <div>
+              <div style="font-size:12.5px; font-weight:800; color:#FCA5A5;">Diskresi Kepolisian: Pengejaran
+                Tertangkap Tangan (Hot Pursuit)</div>
+              <div style="font-size:11px; color:#cbd5e1;">Keluar rute resmi untuk mengejar pelaku kejahatan darurat
+                (Curanmor/Begal). Audit deviasi rute otomatis dibekukan (Bukan Pelanggaran).</div>
+            </div>
+          </div>
+          <button type="button" class="btn-primary" id="btn-officer-pursuit"
+            style="background:linear-gradient(135deg, #DC2626, #991B1B); color:#fff; font-weight:800; font-size:11.5px; padding:7px 16px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 0 15px rgba(220,38,38,0.4);"
+            onclick="app.toggleHotPursuitMode()">
+            <span>🚨</span> Aktifkan Mode Pengejaran Pelaku
+          </button>
+        </div>
+
+        <!-- Hot Pursuit Active Banner -->
+        <div id="officer-pursuit-active-banner"
+          style="display:none; background:rgba(220,38,38,0.22); border:2px solid #EF4444; border-radius:8px; padding:14px 18px; margin-bottom:16px; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; animation:pulseMarker 2s infinite;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:28px;">🚔</span>
+            <div>
+              <div style="font-size:13px; font-weight:800; color:#FECACA; display:flex; align-items:center; gap:8px;">
+                <span>🚨 MODE PENGEJARAN AKTIF (HOT PURSUIT)</span>
+                <span class="badge badge-danger" style="animation:pulseDot 1s infinite;">KECEPATAN TAKTIS 68
+                  KM/JAM</span>
+              </div>
+              <div style="font-size:11.5px; color:#fff; margin-top:2px;">
+                Rotator & Sirine aktif. Koordinat live GPS tersiar ke Command Center Kabag Ops. Sanksi deviasi rute
+                dibebaskan sesuai Pasal 18 UU No. 2/2002.
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn-primary"
+              style="background:linear-gradient(135deg, #10B981, #059669); color:#fff; font-weight:800; font-size:11px; padding:7px 14px;"
+              onclick="app.completeHotPursuit('TANGKAP')">
+              ⚖️ Pelaku Tertangkap & Terbitkan LP
             </button>
-          </div>
-
-          <!-- Hot Pursuit Active Banner -->
-          <div id="officer-pursuit-active-banner"
-            style="display:none; background:rgba(220,38,38,0.22); border:2px solid #EF4444; border-radius:8px; padding:14px 18px; margin-bottom:16px; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; animation:pulseMarker 2s infinite;">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <span style="font-size:28px;">🚔</span>
-              <div>
-                <div style="font-size:13px; font-weight:800; color:#FECACA; display:flex; align-items:center; gap:8px;">
-                  <span>🚨 MODE PENGEJARAN AKTIF (HOT PURSUIT)</span>
-                  <span class="badge badge-danger" style="animation:pulseDot 1s infinite;">KECEPATAN TAKTIS 68
-                    KM/JAM</span>
-                </div>
-                <div style="font-size:11.5px; color:#fff; margin-top:2px;">
-                  Rotator & Sirine aktif. Koordinat live GPS tersiar ke Command Center Kabag Ops. Sanksi deviasi rute
-                  dibebaskan sesuai Pasal 18 UU No. 2/2002.
-                </div>
-              </div>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <button type="button" class="btn-primary"
-                style="background:linear-gradient(135deg, #10B981, #059669); color:#fff; font-weight:800; font-size:11px; padding:7px 14px;"
-                onclick="app.completeHotPursuit('TANGKAP')">
-                ⚖️ Pelaku Tertangkap & Terbitkan LP
-              </button>
-              <button type="button" class="btn-quick"
-                style="background:#1E293B; border-color:#94A3B8; color:#fff; font-size:11px; padding:7px 12px;"
-                onclick="app.toggleHotPursuitMode()">
-                ⏹ Selesai & Kembali ke Rute
-              </button>
-            </div>
-          </div>
-
-          <div class="officer-web-stats-bar">
-            <div class="web-stat-box">
-              <div class="web-stat-num" id="officer-log-kirim" style="color:#60A5FA;">28</div>
-              <div class="web-stat-title">Log Terkirim</div>
-            </div>
-            <div class="web-stat-box">
-              <div class="web-stat-num" id="officer-log-disetujui" style="color:#34D399;">25</div>
-              <div class="web-stat-title">Disetujui Pimpinan</div>
-            </div>
-            <div class="web-stat-box">
-              <div class="web-stat-num" id="officer-log-menunggu" style="color:#FBBF24;">3</div>
-              <div class="web-stat-title">Menunggu Verifikasi</div>
-            </div>
-            <div class="web-stat-box">
-              <div class="web-stat-num" id="officer-kpi-val" style="color:var(--accent-gold);">92%</div>
-              <div class="web-stat-title">KPI Kinerja</div>
-            </div>
+            <button type="button" class="btn-quick"
+              style="background:#1E293B; border-color:#94A3B8; color:#fff; font-size:11px; padding:7px 12px;"
+              onclick="app.toggleHotPursuitMode()">
+              ⏹ Selesai & Kembali ke Rute
+            </button>
           </div>
         </div>
 
         <div class="officer-web-grid">
           <div class="officer-web-col-left">
 
-            <div class="card"
+            <div class="card" id="v2-task-card"
               style="border: 2px solid var(--danger); background: linear-gradient(180deg, #1C192E, #111E33); padding:20px;">
               <div id="officer-assigned-task">
                 <!-- Populated by JS -->
               </div>
             </div>
 
-            <div class="card">
+            <div class="card mobile-tablet-hidden" id="v2-map-card">
               <div class="card-header">
                 <div class="card-title">
                   <span class="card-title-icon">🗺️</span> Peta Rute Patroli & Titik Rawan Wilayah Tugas
@@ -2441,13 +2480,13 @@
               <div class="map-wrapper" style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; position: relative; z-index: 1;">
                 <div id="personil-canvas" class="real-leaflet-map" style="height:320px; width:100%;"></div>
               </div>
-              <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">
+              <p style="font-size:11px; color:var(--text-muted); margin-top:8px;" id="v2-map-desc">
                 * Rute garis hijau menunjukkan jalur patroli yang telah dilalui Bripka Ahmad hari ini. Penanda merah
                 mengindikasikan zona rawan yang ditetapkan Kabag Ops.
               </p>
             </div>
 
-            <div class="card">
+            <div class="card" id="v2-logbook-card">
               <div class="card-header">
                 <div class="card-title">
                   <span class="card-title-icon">📑</span> Jurnal Riwayat Log Kegiatan Hari Ini
@@ -2478,7 +2517,7 @@
           </div>
 
           <div class="officer-web-col-right">
-            <div class="card" style="border-top: 3px solid var(--accent-gold);">
+            <div class="card mobile-tablet-hidden" id="v2-quicklog-card" style="border-top: 3px solid var(--accent-gold);">
               <div class="card-header">
                 <div class="card-title" style="font-size:14px;">
                   <span class="card-title-icon">⚡</span> Input Log Kegiatan Cepat
@@ -2486,7 +2525,7 @@
                 <span class="badge badge-info" style="font-size:10px;">Wajib Foto Bukti</span>
               </div>
 
-              <p style="font-size:12px; color:var(--text-secondary); margin-bottom:14px;">
+              <p style="font-size:12px; color:var(--text-secondary); margin-bottom:14px;" id="v2-quicklog-desc">
                 Pilih salah satu dari 4 modul kegiatan kepolisian di bawah ini untuk mencatat tindakan di lapangan
                 secara langsung:
               </p>
@@ -2526,7 +2565,7 @@
               </div>
             </div>
 
-            <div class="card">
+            <div class="card" id="v2-timeline-card">
               <div class="card-header">
                 <div class="card-title" style="font-size:14px;">
                   <span class="card-title-icon">⏱️</span> Kronologi Aktivitas Harian
@@ -2546,7 +2585,10 @@
       <!-- TAB 2: PETA (TAMPILAN PETA PENUH UNTUK NAVIGASI & SEBARAN PERSONEL)   -->
       <!-- ==================================================================== -->
       <div class="personil-tab-content" id="tab-personil-peta">
-        <div class="card" style="border-top:3px solid var(--accent-gold); padding:20px; margin-bottom:20px;">
+        <button class="desktop-hidden" onclick="app.switchPersonilTab('tab-personil-beranda')" style="position:absolute; top:16px; right:16px; z-index:9999; background:rgba(239,68,68,0.9); color:#fff; border:1px solid #B91C1C; padding:8px 16px; border-radius:20px; font-weight:bold; box-shadow:0 4px 10px rgba(0,0,0,0.5);">
+          ✖ Tutup Peta
+        </button>
+        <div class="card" style="border-top:3px solid var(--accent-gold); padding:20px; margin-bottom:20px; position:relative;">
           <div
             style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
             <div>
@@ -2562,7 +2604,7 @@
             </div>
 
             <!-- Map Controls -->
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div class="mobile-tablet-hidden" style="display:flex; gap:8px; flex-wrap:wrap;">
               <button type="button" class="btn-quick"
                 style="background:rgba(56,189,248,0.18); border-color:#38BDF8; color:#38BDF8; font-weight:700;"
                 onclick="app.recenterPersonilMap()">
@@ -2587,7 +2629,7 @@
           </div>
 
           <!-- Dynamic A-to-B Navigation Calculator Panel (Google Maps Style Routing) -->
-          <div class="route-calc-panel">
+          <div class="route-calc-panel mobile-tablet-hidden">
             <div
               style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
               <div style="display:flex; align-items:center; gap:8px;">
@@ -2661,10 +2703,17 @@
           </div>
 
           <!-- Full Map Container -->
-          <div
+          <div class="mobile-map-wrapper"
             style="border:1px solid rgba(56,189,248,0.35); border-radius:var(--radius-sm); overflow:hidden; background:#0B1424; position:relative;">
             <div id="personil-full-leaflet-map" style="height:480px; width:100%;"></div>
             <div id="personil-google-map" style="display:none; height:480px; width:100%;"></div>
+            <!-- Legend Toggle Button (Mobile) -->
+            <button type="button" 
+                    id="btn-toggle-legend"
+                    onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('personil-patrol-legend').classList.toggle('show-force');"
+                    style="pointer-events:auto !important; position:absolute; bottom:calc(45vh + 70px); left:12px; z-index:9999; background:rgba(15,23,42,0.9); border:1px solid rgba(255,255,255,0.2); border-radius:8px; width:44px; height:44px; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.5); cursor:pointer;">
+              <span style="font-size:22px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.4)); pointer-events:none;">🗺️</span>
+            </button>
 
             <!-- Visual Route Legend Overlay (Matching Tablet E-Tribrata Log Design) -->
             <div class="patrol-map-legend" id="personil-patrol-legend">
@@ -2673,6 +2722,11 @@
                 <span>🗺️</span> Keterangan Rute Patroli
               </div>
               <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span
+                    style="display:inline-block; width:18px; height:4px; background:#64748B; border-radius:2px; box-shadow:0 0 6px #64748B;"></span>
+                  <span>Jalur Abu-abu (Sudah Dilewati)</span>
+                </div>
                 <div style="display:flex; align-items:center; gap:8px;">
                   <span
                     style="display:inline-block; width:18px; height:4px; background:#10B981; border-radius:2px; box-shadow:0 0 6px #10B981;"></span>
@@ -2694,44 +2748,72 @@
                   <span style="color:#FCA5A5; font-weight:700;">Titik Rawan (Curanmor / Tawuran)</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
+                  <span>🚨</span>
+                  <span style="color:#FCD34D; font-weight:700;">Lokasi TKP Aduan (110)</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
                   <span>🚔</span>
                   <span style="color:#93C5FD; font-weight:700;">Posisi Mobil Patroli POLISI</span>
                 </div>
               </div>
             </div>
 
-            <!-- HUD Telemetry Strip Below Map -->
-            <div
-              style="background:#0F172A; padding:12px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-top:1px solid rgba(255,255,255,0.08); font-size:12px;">
-              <div>
-                <span style="color:#94A3B8;">📍 Posisi Dinas Terkini:</span>
-                <strong style="color:#fff; margin-left:4px;" id="personil-hud-location">Pos Pantau Simpang Sudirman
-                  (Sektor Timur)</strong>
+            <!-- HUD Telemetry Strip Below Map (Collapsible) -->
+            <div id="personil-hud-telemetry" class="hud-glass-pill" style="background:rgba(15,23,42,0.9); backdrop-filter:blur(12px); padding:10px 14px; border:1px solid rgba(255,255,255,0.15); font-size:11px; border-radius:16px; box-shadow:0 8px 32px rgba(0,0,0,0.5); z-index:10; position:absolute; top:16px; left:12px; right:12px; display:flex; flex-direction:column; gap:8px;">
+              <!-- Header Row -->
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                  <span style="color:#94A3B8;">📍 Posisi Dinas Terkini:</span>
+                  <strong style="color:#fff;" id="personil-hud-location">Pos Pantau Simpang Sudirman (Sektor Timur)</strong>
+                </div>
+                <button type="button" onclick="const s = document.getElementById('hud-stats-row'); s.style.display = s.style.display === 'none' ? 'flex' : 'none'; this.innerHTML = s.style.display === 'none' ? '&#9660;' : '&#9650;';" style="background:transparent; border:none; color:#fff; font-size:16px; font-weight:bold; cursor:pointer; padding:4px 0 4px 10px;">&#9660;</button>
               </div>
-              <div style="display:flex; align-items:center; gap:16px;">
-                <div>
+              
+              <!-- Stats Row (Collapsible) -->
+              <div id="hud-stats-row" style="display:none; justify-content:space-between; align-items:center; gap:6px;">
+                <div style="display:flex; flex-direction:column; gap:2px;">
                   <span style="color:#94A3B8;">Kecepatan:</span>
-                  <strong style="color:#FCD34D; font-family:'JetBrains Mono';" id="personil-hud-speed">25
-                    km/jam</strong>
+                  <strong style="color:#FCD34D; font-family:'JetBrains Mono';" id="personil-hud-speed">25 km/jam</strong>
                 </div>
-                <div>
+                <div style="display:flex; flex-direction:column; gap:2px;">
                   <span style="color:#94A3B8;">Next Target:</span>
-                  <strong style="color:#38BDF8;" id="personil-hud-target">Pos 3 - Sentra Perbankan (8 Mnt)</strong>
+                  <strong style="color:#38BDF8;" id="personil-hud-target">Pos 3 (8 Mnt)</strong>
                 </div>
                 <div>
-                  <span class="badge badge-success" style="font-size:10px;">🟢 GPS 3D Fix (Akurasi ±3m)</span>
+                  <span class="badge badge-success" style="font-size:9px; padding:4px 6px;">🟢 GPS 3D FIX</span>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Checkpoints Progress Cards -->
-          <div style="margin-top:18px;">
-            <h4 style="font-size:14px; font-weight:800; color:#fff; margin-bottom:10px;">🚩 Daftar Checkpoint Rute
-              Patroli Regu Anda:</h4>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px;"
+          <div style="margin-top:18px; position:relative; display:flex; flex-direction:column;">
+            
+            <!-- Draggable Header Area -->
+            <div style="position: absolute; top: -28px; left: -20px; right: -20px; height: 55px; z-index: 30; display:flex; flex-direction:column; align-items:center; cursor:pointer;"
+                 onclick="this.parentElement.parentElement.classList.toggle('expanded-sheet');"
+                 ontouchstart="this.startY = event.touches[0].clientY;"
+                 ontouchend="if(this.startY - event.changedTouches[0].clientY > 20) this.parentElement.parentElement.classList.add('expanded-sheet'); else if(event.changedTouches[0].clientY - this.startY > 20) this.parentElement.parentElement.classList.remove('expanded-sheet');">
+              <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.6); border-radius: 5px; margin-top: 12px; margin-bottom: 12px;"></div>
+            </div>
+
+            <h4 style="font-size:14px; font-weight:800; color:#fff; margin-bottom:10px; text-align:center; position:relative; z-index:20; pointer-events:none;">🚩 Daftar Checkpoint Rute Patroli Regu Anda:</h4>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom: 16px;"
               id="personil-checkpoints-summary-cards">
               <!-- Populated by JS -->
+            </div>
+            
+            <!-- Start/Stop Patrol Action Buttons -->
+            <div id="patrol-action-container" style="position: sticky; bottom: -20px; background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); padding: 12px 0 20px 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; margin-left:-20px; margin-right:-20px; padding-left:20px; padding-right:20px; z-index:10;">
+               <button id="btn-start-patrol" type="button" class="btn hidden-btn" style="width:100%; padding:14px; background:#10B981; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#000; box-shadow: 0 4px 15px rgba(16,185,129,0.3); transition:all 0.2s;" onclick="app.togglePatrolStatus(true)">
+                 ▶ MULAI PATROLI
+               </button>
+               <button id="btn-stop-patrol" type="button" class="btn" style="width:100%; padding:14px; background:#EF4444; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#fff; box-shadow: 0 4px 15px rgba(239,68,68,0.3); transition:all 0.2s;" onclick="app.togglePatrolStatus(false)">
+                 🛑 SELESAIKAN PATROLI
+               </button>
+               <button id="btn-resolve-task" type="button" class="btn hidden-btn" style="width:100%; padding:14px; background:#F59E0B; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#000; box-shadow: 0 4px 15px rgba(245,158,11,0.3); transition:all 0.2s; animation: pulse-border 2s infinite;" onclick="app.resolveActiveTaskOverride()">
+                 🚨 SELESAIKAN TUGAS (110)
+               </button>
             </div>
           </div>
         </div>
@@ -2757,7 +2839,7 @@
             </div>
 
             <!-- Timeframe Filter -->
-            <div
+            <div class="responsive-kinerja-filter"
               style="display:flex; gap:6px; background:#0B1424; padding:4px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
               <button type="button" class="btn-quick active" id="btn-kinerja-daily"
                 onclick="app.setPersonilKinerjaPeriod('HARIAN')">📅 Harian</button>
@@ -2796,7 +2878,7 @@
 
             <div style="display:flex; flex-direction:column; gap:12px;">
               <div>
-                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                <div class="responsive-bar-label" style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
                   <span style="color:#fff;">🚔 Patroli Dialogis & Obvit (Target: 100%)</span>
                   <strong style="color:#38BDF8;" id="bar-val-patroli">14 Giat (50%)</strong>
                 </div>
@@ -2807,7 +2889,7 @@
               </div>
 
               <div>
-                <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
+                <div class="responsive-bar-label" style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;">
                   <span style="color:#fff;">🤝 Sambang Warga / Polmas DDS (Target: 80%)</span>
                   <strong style="color:#34D399;" id="bar-val-sambang">8 Giat (28%)</strong>
                 </div>
@@ -2959,12 +3041,12 @@
 
             <!-- Action Buttons for Presensi -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
-              <button type="button" class="btn-primary"
-                style="background:linear-gradient(135deg, #10B981, #059669); justify-content:center; padding:10px; font-weight:800; font-size:12px;"
-                onclick="app.doOfficerPresensi('MASUK')">
-                <span>📍</span> Absen Masuk (08:00)
+              <button type="button" class="btn-primary" id="btn-absen-masuk"
+                style="background:rgba(255,255,255,0.1); color:#94A3B8; justify-content:center; padding:10px; font-weight:800; font-size:12px; cursor:not-allowed;"
+                disabled>
+                <span>✔️</span> Telah Absen (08:00)
               </button>
-              <button type="button" class="btn-primary"
+              <button type="button" class="btn-primary" id="btn-absen-pulang"
                 style="background:linear-gradient(135deg, #EF4444, #B91C1C); justify-content:center; padding:10px; font-weight:800; font-size:12px;"
                 onclick="app.doOfficerPresensi('PULANG')">
                 <span>🏠</span> Absen Pulang (20:00)
@@ -3000,12 +3082,22 @@
 
     <!-- Modal Quick Log Selector (Action for Floating + Button) -->
     <div class="modal-overlay" id="modal-personil-quick-log">
-      <div class="modal-container" style="max-width:500px;">
-        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center;">
-          <div class="modal-title">
+      <div class="modal-container">
+        
+        <!-- Drag Handle / Swipe Down to Close -->
+        <div style="width: 100%; height: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; margin-top: 8px;"
+             onclick="app.closeAllModals()"
+             ontouchstart="this.startY = event.touches[0].clientY;"
+             ontouchend="if(event.changedTouches[0].clientY - this.startY > 30) app.closeAllModals();">
+          <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.4); border-radius: 5px;"></div>
+        </div>
+
+        <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; padding-top: 10px; border-bottom: none;">
+          <div class="modal-title" style="text-align:center; width:100%; font-size:16px;">
             <span>➕</span> Pilih Kategori e-Logbook Cepat
           </div>
-          <button class="btn-close-modal">&times;</button>
+          <!-- hide native close button since we have drag handle -->
+          <button class="btn-close-modal" style="display:none;">&times;</button>
         </div>
         <div class="modal-body" style="padding:18px;">
           <p style="font-size:12px; color:var(--text-secondary); margin-bottom:14px;">
@@ -3286,13 +3378,10 @@
 
         <div class="form-group">
           <label class="form-label">Wajib Unggah Bukti Foto Armada Siap Meluncur dari Mako</label>
-          <div class="upload-dropzone"
-            onclick="app.showToast('Foto kesiapan armada keberangkatan dipilih (Stempel GPS: Mako Polres)', 'info')">
+          <div class="upload-dropzone" style="display:block; text-align:center; cursor:pointer;" onclick="app.showToast('Membuka Kamera Utama Perangkat (Akses Galeri Dikunci Sistem)...', 'info'); setTimeout(() => app.showToast('Kamera diakses. Foto kesiapan armada berhasil direkam (Stempel GPS: Mako Polres)', 'success'), 1500)">
             <div style="font-size:28px;">📸</div>
-            <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px;">Ambil Foto Armada Siap Berangkat
-            </div>
-            <div style="font-size:10.5px; color:var(--text-muted);">Merekam koordinat GPS awal Mako Polres secara
-              otomatis</div>
+            <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px;">Buka Kamera Utama (Wajib Jepret Langsung)</div>
+            <div style="font-size:10.5px; color:var(--text-muted);">Upload dari galeri dikunci. Merekam koordinat GPS otomatis.</div>
           </div>
           <div class="photo-preview-grid" style="margin-top:10px;">
             <div class="photo-preview-card">
@@ -3342,12 +3431,10 @@
 
         <div class="form-group">
           <label class="form-label">Wajib Unggah Bukti Foto/Video Olah TKP Awal</label>
-          <div class="upload-dropzone"
-            onclick="app.showToast('Foto dokumentasi olah TKP dipilih dengan koordinat GPS valid!', 'info')">
+          <div class="upload-dropzone" style="display:block; text-align:center; cursor:pointer;" onclick="app.showToast('Membuka Kamera Utama Perangkat (Akses Galeri Dikunci Sistem)...', 'info'); setTimeout(() => app.showToast('Kamera diakses. Bukti kondisi tempat kejadian (TKP) berhasil direkam!', 'success'), 1500)">
             <div style="font-size:28px;">📷</div>
-            <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px;">Ambil Foto Olah TKP / Kondisi
-              Tempat Kejadian</div>
-            <div style="font-size:10px; color:var(--text-muted);">Merekam stempel waktu dan geolokasi otomatis</div>
+            <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px;">Buka Kamera Utama (Wajib Jepret Langsung)</div>
+            <div style="font-size:10px; color:var(--text-muted);">Upload dari galeri dikunci. Merekam geolokasi titik TKP asli.</div>
           </div>
           <div class="photo-preview-grid">
             <div class="photo-preview-card">
@@ -3400,11 +3487,10 @@
 
         <div class="form-group">
           <label class="form-label">Unggah Bukti Berkas Laporan Polisi (LP) / Berita Acara / Surat Perdamaian</label>
-          <div class="upload-dropzone" onclick="app.showToast('Berkas Berita Acara (PDF) berhasil diunggah!', 'info')">
+          <div class="upload-dropzone" style="display:block; text-align:center; cursor:pointer;" onclick="app.showToast('Membuka Kamera Utama Perangkat (Akses Galeri Dikunci Sistem)...', 'info'); setTimeout(() => app.showToast('Kamera diakses. Foto Berkas Berita Acara / Surat Sah berhasil dipindai!', 'success'), 1500)">
             <div style="font-size:26px;">📑</div>
-            <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px;">Unggah Dokumen PDF / Foto Surat
-              Bertanda Tangan</div>
-            <div style="font-size:10px; color:var(--text-muted);">Format didukung: PDF, JPG, PNG</div>
+            <div style="font-size:12px; font-weight:700; color:#fff; margin-top:4px;">Potret Lembar Kertas Berita Acara (Wajib Jepret Langsung)</div>
+            <div style="font-size:10px; color:var(--text-muted);">Gunakan kamera ponsel untuk mengambil gambar dokumen bermeterai/tanda tangan.</div>
           </div>
           <div
             style="margin-top:10px; background:#182436; border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px; display:flex; align-items:center; gap:10px;">
@@ -3445,28 +3531,19 @@
   <!-- Modal Create E-Logbook -->
   <div class="modal-overlay" id="modal-create-log">
     <div class="modal-container">
-      <div class="modal-header"
-        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-        <div class="modal-title">
-          <span>📝</span> Form Input Log Kegiatan: <span id="modal-log-title-type"
+      <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <div class="modal-title" style="display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0;">
+          <span style="margin-right: 6px;">📝</span>Form Input Log Kegiatan: <span id="modal-log-title-type"
             style="color:var(--accent-gold);"></span>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" class="btn-quick"
-            style="padding:4px 10px; font-size:11px; background:rgba(245,158,11,0.22); border-color:#F59E0B; color:#FCD34D; font-weight:700;"
-            onclick="app.simulateFillLogForm(false)">
-            ✨ Isi Data Simulasi
-          </button>
-          <button class="btn-close-modal">&times;</button>
-        </div>
+        <button class="btn-close-modal" style="flex-shrink: 0; margin-right:-8px;">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="form-log-type" value="PATROLI">
         <input type="hidden" id="form-log-lat" value="-6.2140">
         <input type="hidden" id="form-log-lng" value="106.8450">
 
-        <div
-          style="background:#0B1424; border:1px solid var(--card-border); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+        <div class="responsive-gps-container">
           <div id="gps-status-indicator">
             <span class="badge badge-success">📡 GPS Terkunci Akurasi Tinggi</span>
           </div>
@@ -3517,7 +3594,7 @@
           </div>
         </div>
 
-        <div
+        <div class="hide-on-tablet-mobile"
           style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:var(--radius-sm); padding:12px; margin-top:14px;">
           <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer;">
             <input type="checkbox" id="check-simulate-mismatch" style="margin-top:3px;">
@@ -4349,7 +4426,7 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <script src="app.js?v=20261007_gerr_v20"></script>
+  <script src="app.js?v=20261008_modal63"></script>
 
   <!-- Floating Scenario Guide Box (Collapsible) -->
   <div class="demo-scenario-box" id="demo-scenario-box">
@@ -4385,7 +4462,7 @@
   </div>
 
   <!-- Floating Quick Demo Role Navigator -->
-  <div class="demo-floating-bar" id="demo-floating-bar">
+  <div class="demo-floating-bar" id="demo-floating-bar" style="display: none;">
     <div class="demo-bar-label">
       <span>🎭</span> Role Navigator:
     </div>
