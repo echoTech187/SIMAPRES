@@ -598,9 +598,9 @@ const INITIAL_DATA = {
       vehicleType: "BIKE",
       lat: -6.2220,
       lng: 106.8520,
-      status: "SIAGA",
-      currentTask: "Patroli Kring Sentra Niaga",
-      speedKmh: 42,
+      status: "PENGEJARAN",
+      currentTask: "Jl. Merdeka Timur",
+      speedKmh: 68,
       phone: "0813-7766-5544",
       icon: "🏍️"
     },
@@ -615,7 +615,7 @@ const INITIAL_DATA = {
       lat: -6.2080,
       lng: 106.8390,
       status: "SIAGA",
-      currentTask: "Pengaturan Lalin Pos Simpang Sudirman",
+      currentTask: "Simpang Sudirman",
       speedKmh: 0,
       phone: "0817-2233-4455",
       icon: "🚓"
@@ -1150,7 +1150,79 @@ class SimapresApp {
 
   init() {
     this.setupEventListeners();
+    this.listenForCrossTabSync();
     this.switchView('gateway');
+  }
+
+  listenForCrossTabSync() {
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'simapres_fleet_sync' && e.newValue) {
+        try {
+          const syncData = JSON.parse(e.newValue);
+          // Perbarui state lokal di tab ini
+          if (this.state && this.state.patrolFleet) {
+            const ahmadData = this.state.patrolFleet.find(f => f.officerNrp === syncData.nrp);
+            if (ahmadData) {
+              ahmadData.lat = syncData.lat;
+              ahmadData.lng = syncData.lng;
+              if (syncData.status) ahmadData.status = syncData.status;
+              if (syncData.currentTask) ahmadData.currentTask = syncData.currentTask;
+            }
+          }
+          // Perbarui marker Google Maps jika ada (Puskodal/KabagOps)
+          if (this.fleetMarkers && this.fleetMarkers[syncData.fleetId] && typeof this.fleetMarkers[syncData.fleetId].setPosition === 'function') {
+            const newPos = new google.maps.LatLng(syncData.lat, syncData.lng);
+            this.fleetMarkers[syncData.fleetId].setPosition(newPos);
+            
+            // Auto-follow if this is the currently followed fleet
+            if (window.followedFleetId === syncData.fleetId) {
+              const mapContainerId = this.currentView === 'kabagops' ? 'kabagops-real-map' : 'pimpinan-real-map';
+              const mapInstance = this.leafMaps ? this.leafMaps[mapContainerId] : null;
+              if (mapInstance) {
+                // Smooth pan to keep the marker roughly in center, slightly offset for UI
+                mapInstance.panTo(new google.maps.LatLng(syncData.lat - 0.006, syncData.lng));
+              }
+            }
+
+            // If the infowindow is open, refresh its content with the synced status!
+            if (this.fleetMarkers[syncData.fleetId].infoWindow && this.fleetMarkers[syncData.fleetId].infoWindow.getMap()) {
+               if (typeof this.fleetMarkers[syncData.fleetId].updateContent === 'function') {
+                 this.fleetMarkers[syncData.fleetId].updateContent();
+               }
+            }
+          }
+        } catch (err) {
+          console.error("Cross-tab sync error:", err);
+        }
+      } else if (e.key === 'simapres_state_v4' && e.newValue) {
+        try {
+          const newState = JSON.parse(e.newValue);
+          this.state = newState;
+          // Render views if they are active
+          if (this.currentView === 'pimpinan' && typeof this.renderPimpinanComplaintsTable === 'function') {
+            this.renderPimpinanComplaintsTable();
+            if (this.leafMaps && this.leafMaps['pimpinan-real-map']) {
+               // Update markers without re-init
+               const fleet = this.state.patrolFleet;
+               if (fleet && this.fleetMarkers) {
+                 fleet.forEach(f => {
+                    if (this.fleetMarkers[f.id]) {
+                       // Refresh info window if open
+                       if (this.fleetMarkers[f.id].infoWindow && this.fleetMarkers[f.id].infoWindow.getMap()) {
+                          if (typeof this.fleetMarkers[f.id].updateContent === 'function') {
+                            this.fleetMarkers[f.id].updateContent();
+                          }
+                       }
+                    }
+                 });
+               }
+            }
+          }
+        } catch (err) {
+          console.error("State sync error:", err);
+        }
+      }
+    });
   }
 
   setupEventListeners() {
@@ -1239,12 +1311,30 @@ class SimapresApp {
       activeContent.classList.add('active');
     }
 
-    if (tabId === 'tab-pimpinan-monitoring') {
+    document.querySelectorAll('.pimpinan-bottom-btn').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    if (tabId === 'tab-pimpinan-dasbor') {
       this.renderPimpinanHotspotsSummary();
-      setTimeout(() => this.drawTacticalCanvas('tactical-canvas'), 100);
+    } else if (tabId === 'tab-pimpinan-puskodal') {
+      setTimeout(() => {
+        this.initRealMap('pimpinan-real-map');
+        this.drawTacticalCanvas('tactical-canvas');
+      }, 100);
     } else if (tabId === 'tab-pimpinan-config') {
       this.renderConfigHotspotsTable();
       this.renderCheckpointsList();
+    }
+    
+    if (tabId === 'tab-pimpinan-puskodal') {
+      document.body.classList.add('map-fullscreen-active');
+    } else {
+      document.body.classList.remove('map-fullscreen-active');
     }
   }
 
@@ -2235,6 +2325,9 @@ class SimapresApp {
         setPosition(latlng) {
           this.latlng = latlng;
           this.draw();
+          if (this.infoWindow && typeof this.infoWindow.setPosition === 'function' && this.infoWindow.getMap()) {
+            this.infoWindow.setPosition(latlng);
+          }
         }
       };
     }
@@ -2249,18 +2342,42 @@ class SimapresApp {
     const ahmadPos = new google.maps.LatLng(ahmadLat, ahmadLng);
     this.ahmadFullMapMarker = new window.GoogleHTMLMarker(ahmadPos, carHtml, map, [26, 23]);
     
+    const getAhmadInfoContent = () => {
+      const isEmergency = !!activeTask;
+      const currentF = (this.state && this.state.patrolFleet) ? this.state.patrolFleet.find(f => f.officerNrp === '88123456') : null;
+      if (!currentF) return '';
+      
+      const isBusy = currentF.status === 'BERTUGAS' || currentF.status === 'MENUJU_TKP' || currentF.status === 'PENANGANAN_TKP' || currentF.status === 'PENGEJARAN';
+      const ringColor = isBusy ? '#EF4444' : '#38BDF8';
+      
+      return `
+        <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
+          <div style="font-size:13px; font-weight:800; color:${ringColor}; display:flex; align-items:center; gap:6px;">
+            <span>${currentF.icon}</span> ${currentF.callsign}
+          </div>
+          <div style="color:#000; font-weight:700; margin-top:4px;">${currentF.officerName} (NRP ${currentF.officerNrp})</div>
+          <div style="color:#64748B; font-size:11px;">${currentF.unit} &bull; ${currentF.vehicle}</div>
+          <hr style="border:none; border-top:1px solid #e2e8f0; margin:8px 0;">
+          <div style="color:${isBusy ? '#EF4444' : (currentF.status === 'PATROLI_RUTIN' ? '#10B981' : '#F59E0B')}; font-weight:800; font-size:12px; text-transform:uppercase;">Status: ${currentF.status.replace(/_/g, ' ')}</div>
+          <div style="font-size:11px; color:#475569; margin-top:2px;">Tugas: ${currentF.currentTask}</div>
+          <div style="font-size:11px; color:#64748B; margin-top:2px;">Kecepatan: ${currentF.speedKmh} km/jam &bull; Sinyal GPS Prima</div>
+        </div>`;
+    };
     const ahmadInfo = new google.maps.InfoWindow({
-      content: `
-      <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333;">
-        <strong style="color:#F59E0B;">🚔 Bripka Ahmad Subagyo (R4-Samapta-81)</strong><br>
-        <span>Posisi: Pos Pantau Simpang Sudirman</span><br>
-        <span style="color:#10B981;">Status: Patroli Wilayah (Kecepatan: 25 km/jam)</span>
-      </div>`
+      disableAutoPan: true,
+      content: getAhmadInfoContent()
     });
     this.ahmadFullMapMarker.addListener('click', () => {
-      ahmadInfo.setPosition(ahmadPos);
+      ahmadInfo.setContent(getAhmadInfoContent());
+      // Ambil posisi terkini dari latlng property (atau ahmadPos)
+      ahmadInfo.setPosition(this.ahmadFullMapMarker.latlng || ahmadPos);
       ahmadInfo.open(map);
     });
+    this.ahmadFullMapMarker.updateContent = () => {
+      if (ahmadInfo.getMap()) {
+        ahmadInfo.setContent(getAhmadInfoContent());
+      }
+    };
 
     if (activeTask) {
       // 🚨 OVERRIDE MODE: DRAW EMERGENCY ROUTE
@@ -2336,13 +2453,42 @@ class SimapresApp {
                 clearInterval(window.emergencyCarAnimationInterval);
                 return;
               }
+              if (taskActive.status === 'DISPOSISI') {
+                return; // Tunggu anggota klik "Terima Tugas & Meluncur"
+              }
               
               if (pathIndex < emergencyPath.length) {
                 const nextPos = new google.maps.LatLng(emergencyPath[pathIndex].lat, emergencyPath[pathIndex].lng);
                 if (this.ahmadFullMapMarker) {
                   this.ahmadFullMapMarker.setPosition(nextPos);
+                  if (typeof this.ahmadFullMapMarker.updateContent === 'function') {
+                    this.ahmadFullMapMarker.updateContent();
+                  }
                   map.panTo(new google.maps.LatLng(nextPos.lat() - 0.006, nextPos.lng()));
                 }
+                
+                // Sinkronisasi ke map lain
+                if (this.state && this.state.patrolFleet) {
+                  const ahmadData = this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+                  if (ahmadData) {
+                    ahmadData.lat = nextPos.lat();
+                    ahmadData.lng = nextPos.lng();
+                  }
+                }
+                if (this.fleetMarkers && this.fleetMarkers['FLEET-01'] && typeof this.fleetMarkers['FLEET-01'].setPosition === 'function') {
+                  this.fleetMarkers['FLEET-01'].setPosition(nextPos);
+                }
+                // BROADCAST LINTAS-TAB (Agar tab Puskodal terupdate saat tab Anggota darurat)
+                const ahmadInfo = (this.state && this.state.patrolFleet) ? this.state.patrolFleet.find(f => f.officerNrp === '88123456') : null;
+                localStorage.setItem('simapres_fleet_sync', JSON.stringify({
+                  fleetId: 'FLEET-01',
+                  nrp: '88123456',
+                  lat: nextPos.lat(),
+                  lng: nextPos.lng(),
+                  status: ahmadInfo ? ahmadInfo.status : 'BERTUGAS',
+                  currentTask: ahmadInfo ? ahmadInfo.currentTask : (taskActive ? `Menuju TKP 110: ${taskActive.title}` : 'Penugasan Darurat'),
+                  timestamp: Date.now()
+                }));
                 // Step size could be customized, but jumping 1 coordinate at a time gives a good 'tracking' feel.
                 pathIndex++;
               } else {
@@ -2560,8 +2706,38 @@ class SimapresApp {
 
                        if (this.ahmadFullMapMarker) {
                          this.ahmadFullMapMarker.setPosition(node.latLng);
+                         if (typeof this.ahmadFullMapMarker.updateContent === 'function') {
+                           this.ahmadFullMapMarker.updateContent();
+                         }
                          map.panTo(new google.maps.LatLng(node.latLng.lat() - 0.006, node.latLng.lng()));
                        }
+                       
+                       // Sinkronisasi posisi ke global fleet state dan Puskodal/KabagOps Map
+                       if (this.state && this.state.patrolFleet) {
+                         const ahmadData = this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+                         if (ahmadData) {
+                           ahmadData.lat = node.latLng.lat();
+                           ahmadData.lng = node.latLng.lng();
+                           ahmadData.status = 'PATROLI_RUTIN';
+                           if (window.currentTargetCpName) {
+                             ahmadData.currentTask = `Menuju ${window.currentTargetCpName}`;
+                           }
+                         }
+                       }
+                       if (this.fleetMarkers && this.fleetMarkers['FLEET-01'] && typeof this.fleetMarkers['FLEET-01'].setPosition === 'function') {
+                         this.fleetMarkers['FLEET-01'].setPosition(node.latLng);
+                       }
+                       // BROADCAST LINTAS-TAB (Agar tab Puskodal terupdate saat tab Anggota berjalan)
+                       const ahmadInfoPatrol = (this.state && this.state.patrolFleet) ? this.state.patrolFleet.find(f => f.officerNrp === '88123456') : null;
+                       localStorage.setItem('simapres_fleet_sync', JSON.stringify({
+                         fleetId: 'FLEET-01',
+                         nrp: '88123456',
+                         lat: node.latLng.lat(),
+                         lng: node.latLng.lng(),
+                         status: ahmadInfoPatrol ? ahmadInfoPatrol.status : 'SIAGA',
+                         currentTask: ahmadInfoPatrol ? ahmadInfoPatrol.currentTask : 'Patroli Rutin',
+                         timestamp: Date.now()
+                       }));
                        
                        const p = passedPolyline.getPath();
                        p.push(node.latLng);
@@ -3004,7 +3180,7 @@ class SimapresApp {
         const visualNumber = (hasCompletedTkp && idx > 3) ? idx : idx + 1;
 
         return `
-          <div style="background:#0F172A; border:1px solid ${isVisited ? '#10B981' : 'rgba(255,255,255,0.08)'}; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; gap:10px;">
+          <div style="background:#0F172A; border:1px solid ${isVisited ? '#10B981' : 'rgba(255,255,255,0.08)'}; border-radius:var(--radius-sm); padding:10px 12px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:transform 0.1s;" onclick="app.focusMapOnCoordinate(${cp.lat}, ${cp.lng})" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
             <div style="width:28px; height:28px; border-radius:50%; background:${isVisited ? '#059669' : '#1E293B'}; border:2px solid ${isVisited ? '#10B981' : '#F59E0B'}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">
               ${isVisited ? '✓' : visualNumber}
             </div>
@@ -3350,6 +3526,51 @@ class SimapresApp {
     }
   }
 
+  submitAtensiSidak() {
+    const armada = document.getElementById('atensi-armada-select').value;
+    const priority = document.getElementById('atensi-priority-select').value;
+    const message = document.getElementById('atensi-message').value.trim();
+
+    if (!message) {
+      this.showToast('Pesan atensi tidak boleh kosong!', 'warning');
+      return;
+    }
+
+    this.closeModal('modal-atensi-sidak');
+    document.getElementById('atensi-message').value = '';
+
+    const priorityLabel = priority === 'URGENT' ? 'DARURAT' : (priority === 'HIGH' ? 'WASPADA' : 'INFO');
+    const priorityColor = priority === 'URGENT' ? '#EF4444' : (priority === 'HIGH' ? '#F59E0B' : '#3B82F6');
+
+    // Simulate sending broadcast
+    this.showToast(`Memancarkan Atensi ${priorityLabel} ke armada...`, 'info');
+
+    setTimeout(() => {
+      this.showToast(`✅ Atensi / Sidak berhasil dikirim ke ${armada === 'ALL' ? 'Seluruh Armada' : armada}`, 'success');
+      
+      // Update global timeline if it's high or urgent
+      if (priority !== 'NORMAL') {
+        const publicTimeline = document.getElementById('public-timeline');
+        if (publicTimeline) {
+          const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + " WIB";
+          const html = `
+            <div class="timeline-item">
+              <div class="timeline-time">${timeStr}</div>
+              <div class="timeline-content">
+                <div style="font-size:10px; font-weight:800; color:${priorityColor}; margin-bottom:4px; text-transform:uppercase;">
+                  ⚡ ATENSI / SIDAK PIMPINAN
+                </div>
+                <div class="timeline-title">Instruksi Khusus ke ${armada === 'ALL' ? 'Semua Unit' : armada}</div>
+                <div class="timeline-desc">"${message}"</div>
+              </div>
+            </div>
+          `;
+          publicTimeline.insertAdjacentHTML('afterbegin', html);
+        }
+      }
+    }, 800);
+  }
+
   // ============================================================================
   // TAHAP 2: BUKTI KEBERANGKATAN ARMADA (DISPOSISI -> MENUJU_TKP)
   // ============================================================================
@@ -3374,6 +3595,13 @@ class SimapresApp {
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
     c.status = 'MENUJU_TKP';
+    if (c.assignedOfficer && c.assignedOfficer.nrp) {
+      const realOfficer = this.state.patrolFleet.find(o => o.officerNrp === c.assignedOfficer.nrp);
+      if (realOfficer) {
+        realOfficer.status = 'MENUJU_TKP';
+        realOfficer.currentTask = `Menuju TKP 110: ${c.title}`;
+      }
+    }
     c.timeline.push({
       stage: "MENUJU_TKP",
       time: timeStr,
@@ -3414,6 +3642,13 @@ class SimapresApp {
     if (!c) return;
 
     c.status = 'PENANGANAN_TKP';
+    if (c.assignedOfficer && c.assignedOfficer.nrp) {
+      const realOfficer = this.state.patrolFleet.find(o => o.officerNrp === c.assignedOfficer.nrp);
+      if (realOfficer) {
+        realOfficer.status = 'PENANGANAN_TKP';
+        realOfficer.currentTask = `Sedang Olah TKP: ${c.title}`;
+      }
+    }
     c.timeline.push({
       stage: "PENANGANAN_TKP",
       time: "15:52",
@@ -3449,6 +3684,13 @@ class SimapresApp {
     if (!c) return;
 
     c.status = 'SELESAI';
+    if (c.assignedOfficer && c.assignedOfficer.nrp) {
+      const realOfficer = this.state.patrolFleet.find(o => o.officerNrp === c.assignedOfficer.nrp);
+      if (realOfficer) {
+        realOfficer.status = 'SIAGA';
+        realOfficer.currentTask = 'Patroli Rutin';
+      }
+    }
     c.timeline.push({
       stage: "SELESAI",
       time: "16:15",
@@ -7184,6 +7426,13 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     c.officerNrp = targetOfficer.officerNrp;
     c.assignedVehicle = targetOfficer.vehicle;
 
+    // Update the real officer object in state, not the shallow copy
+    const realOfficer = this.state.patrolFleet.find(o => o.officerNrp === targetOfficer.officerNrp);
+    if (realOfficer) {
+      realOfficer.status = 'BERTUGAS';
+      realOfficer.currentTask = `Menuju TKP 110: ${c.title}`;
+    }
+
     targetOfficer.status = 'BERTUGAS';
     targetOfficer.currentTask = `Menuju TKP 110: ${c.title}`;
 
@@ -7227,12 +7476,42 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     const map = this.leafMaps ? this.leafMaps[containerId] : null;
 
     if (map) {
-      map.flyTo([officer.lat, officer.lng], 15, { duration: 1 });
-      if (this.fleetMarkers && this.fleetMarkers[officer.id]) {
-        setTimeout(() => this.fleetMarkers[officer.id].openPopup(), 1100);
+      window.followedFleetId = officer.id; // Set target to follow
+      this.focusMapOnCoordinate(officer.lat, officer.lng, map, officer.id);
+    }
+    this.showToast(`Mengikuti pergerakan armada ${officer.callsign} (${officer.officerName})`, 'info');
+  }
+
+  focusMapOnCoordinate(lat, lng, mapInstance = null, markerId = null) {
+    let map = mapInstance;
+    if (!map) {
+       const containerId = this.currentView === 'personil' ? 'personil-google-map' : (this.currentView === 'kabagops' ? 'kabagops-real-map' : 'pimpinan-real-map');
+       map = this.leafMaps ? this.leafMaps[containerId] : null;
+    }
+    if (!map) return;
+
+    if (typeof map.flyTo === 'function') {
+      // Leaflet Map
+      map.flyTo([lat, lng], 16, { duration: 1 });
+      if (markerId && this.fleetMarkers && this.fleetMarkers[markerId]) {
+        setTimeout(() => {
+          if (typeof this.fleetMarkers[markerId].openPopup === 'function') {
+            this.fleetMarkers[markerId].openPopup();
+          }
+        }, 1100);
+      }
+    } else if (typeof map.panTo === 'function') {
+      // Google Maps
+      map.panTo({ lat: lat, lng: lng });
+      map.setZoom(16);
+      if (markerId && this.fleetMarkers && this.fleetMarkers[markerId]) {
+        setTimeout(() => {
+          if (typeof google !== 'undefined' && google.maps && google.maps.event) {
+            google.maps.event.trigger(this.fleetMarkers[markerId], 'click');
+          }
+        }, 100);
       }
     }
-    this.showToast(`Memusatkan peta ke armada ${officer.callsign} (${officer.officerName})`, 'info');
   }
 
   renderKabagOpsNearestDispatch() {
@@ -7350,10 +7629,16 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     const fleet = this.state.patrolFleet || INITIAL_DATA.patrolFleet;
 
     listEl.innerHTML = fleet.map(f => {
-      const isAvailable = f.status === 'SIAGA';
-      const statusBadge = isAvailable
-        ? `<span class="badge badge-success" style="font-size:10px;">🟢 SIAGA PATROLI</span>`
-        : `<span class="badge badge-warning" style="font-size:10px; background:#F59E0B; color:#000; font-weight:800;">🚔 BERTUGAS</span>`;
+      let statusBadge = '';
+      if (f.status === 'SIAGA') {
+        statusBadge = `<span class="badge badge-success" style="font-size:10px;">🟢 SIAGA / STANDBY</span>`;
+      } else if (f.status === 'PATROLI_RUTIN') {
+        statusBadge = `<span class="badge badge-success" style="font-size:10px;">🟢 PATROLI RUTIN</span>`;
+      } else if (f.status === 'PENGEJARAN') {
+        statusBadge = `<span class="badge badge-danger" style="font-size:10px; background:#EF4444; color:#fff; font-weight:800; animation: pulse-border 1.5s infinite;">🚨 PENGEJARAN</span>`;
+      } else {
+        statusBadge = `<span class="badge badge-warning" style="font-size:10px; background:#F59E0B; color:#000; font-weight:800;">🚔 ${f.status.replace(/_/g, ' ')}</span>`;
+      }
 
       const locAddress = f.locationName || this.getAddressFromCoords(f.lat, f.lng);
 
@@ -8280,6 +8565,14 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
     this.leafMaps[containerId] = map;
 
+    // Batalkan follow otomatis jika user menggeser peta secara manual
+    map.addListener('dragstart', () => {
+      if (window.followedFleetId) {
+        window.followedFleetId = null;
+        this.showToast('Berhenti mengikuti armada.', 'info');
+      }
+    });
+
     // Define window.GoogleHTMLMarker globally if not yet defined
     if (typeof window.GoogleHTMLMarker === 'undefined') {
       window.GoogleHTMLMarker = class extends google.maps.OverlayView {
@@ -8318,6 +8611,13 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
             this.div = null;
           }
         }
+        setPosition(latlng) {
+          this.latlng = latlng;
+          this.draw();
+          if (this.infoWindow && typeof this.infoWindow.setPosition === 'function' && this.infoWindow.getMap()) {
+            this.infoWindow.setPosition(latlng);
+          }
+        }
       };
     }
 
@@ -8327,6 +8627,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     const hqMarker = new window.GoogleHTMLMarker(hqPos, hqHtml, map, [19, 19]);
     
     const hqInfo = new google.maps.InfoWindow({
+      disableAutoPan: true,
       content: `
       <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
         <div style="font-size:14px; font-weight:800; color:#F59E0B; display:flex; align-items:center; gap:6px;">
@@ -8348,7 +8649,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       const fleet = this.state.patrolFleet || INITIAL_DATA.patrolFleet;
 
       fleet.forEach(f => {
-        const isBusy = f.status === 'BERTUGAS';
+        const isBusy = f.status === 'BERTUGAS' || f.status === 'MENUJU_TKP' || f.status === 'PENANGANAN_TKP' || f.status === 'PENGEJARAN';
         const ringColor = isBusy ? '#F59E0B' : '#38BDF8';
         const iconBg = isBusy ? '#78350F' : '#0369A1';
 
@@ -8361,22 +8662,36 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       const fPos = new google.maps.LatLng(f.lat, f.lng);
       const fMarker = new window.GoogleHTMLMarker(fPos, fleetHtml, map, [22, 22]);
       
-      const fInfo = new google.maps.InfoWindow({
-        content: `
+      const getInfoContent = () => {
+        // Fetch the freshest data from global state, or fallback to the closed-over 'f'
+        const currentF = (this.state && this.state.patrolFleet) ? this.state.patrolFleet.find(p => p.id === f.id) : f;
+        const isBusy = currentF.status === 'BERTUGAS' || currentF.status === 'MENUJU_TKP' || currentF.status === 'PENANGANAN_TKP' || currentF.status === 'PENGEJARAN';
+        const ringColor = isBusy ? '#F59E0B' : '#38BDF8';
+        return `
         <div style="font-size:12px; font-family:'Plus Jakarta Sans',sans-serif; color:#333;">
           <div style="font-size:13px; font-weight:800; color:${ringColor}; display:flex; align-items:center; gap:6px;">
-            <span>${f.icon}</span> ${f.callsign}
+            <span>${currentF.icon}</span> ${currentF.callsign}
           </div>
-          <div style="color:#000; font-weight:700; margin-top:4px;">${f.officerName} (NRP ${f.officerNrp})</div>
-          <div style="color:#64748B; font-size:11px;">${f.unit} &bull; ${f.vehicle}</div>
+          <div style="color:#000; font-weight:700; margin-top:4px;">${currentF.officerName} (NRP ${currentF.officerNrp})</div>
+          <div style="color:#64748B; font-size:11px;">${currentF.unit} &bull; ${currentF.vehicle}</div>
           <hr style="border:none; border-top:1px solid #e2e8f0; margin:8px 0;">
-          <div style="color:${isBusy ? '#F59E0B' : '#10B981'}; font-weight:700;">Status: ${f.status}</div>
-          <div style="font-size:11px; color:#475569; margin-top:2px;">Tugas: ${f.currentTask}</div>
-          <div style="font-size:11px; color:#64748B; margin-top:2px;">Kecepatan: ${f.speedKmh} km/jam &bull; Sinyal GPS Prima</div>
-        </div>`
+          <div style="color:${isBusy ? '#EF4444' : (currentF.status === 'PATROLI_RUTIN' ? '#10B981' : '#F59E0B')}; font-weight:800; font-size:12px; text-transform:uppercase;">Status: ${currentF.status.replace(/_/g, ' ')}</div>
+          <div style="font-size:11px; color:#475569; margin-top:2px;">Tugas: ${currentF.currentTask}</div>
+          <div style="font-size:11px; color:#64748B; margin-top:2px;">Kecepatan: ${currentF.speedKmh} km/jam &bull; Sinyal GPS Prima</div>
+        </div>`;
+      };
+      
+      const fInfo = new google.maps.InfoWindow({
+        disableAutoPan: true,
+        content: getInfoContent()
       });
+      fMarker.infoWindow = fInfo; // Store reference so it can move with the marker
+      fMarker.updateContent = () => {
+         fInfo.setContent(getInfoContent());
+      };
       fMarker.addListener('click', () => {
-        fInfo.setPosition(fPos);
+        fMarker.updateContent();
+        fInfo.setPosition(fMarker.latlng);
         fInfo.open(map);
       });
       this.fleetMarkers[f.id] = fMarker;

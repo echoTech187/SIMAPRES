@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SIMAPRES 110 - Sistem Monitoring & Akuntabilitas Pengaduan Presisi (Web Portal)</title>
-  <link rel="stylesheet" href="style.css?v=20261008_modal76">
+  <link rel="stylesheet" href="style.css?v=20261008_modal84">
   <!-- Leaflet CSS & JS for Real-World GIS Police Map Integration (Fast CDNJS Cloudflare) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -17,15 +17,50 @@
     href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>👮‍♂️</text></svg>">
   <!-- Sembunyikan spanduk error Google Maps agar marker & rute OSRM tetap terlihat di atas kanvas kosong -->
   <style>
+    /* Sembunyikan watermark For Development Purposes Only */
     .gm-err-container, .gm-err-content, .gm-err-title { display: none !important; opacity: 0 !important; visibility: hidden !important; }
-    .gm-style > div:has(.dismissButton) { display: none !important; }
     .gm-style-cc { display: none !important; }
+    
+    /* Perbaikan InfoWindow Google Maps modern (menghilangkan padding atas raksasa) */
+    .gm-style .gm-style-iw-c {
+      padding: 12px !important;
+    }
+    .gm-style .gm-style-iw-tc {
+      display: none !important;
+    }
+    .gm-style .gm-style-iw-chr {
+      display: block !important;
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      padding: 0 !important;
+      z-index: 100;
+    }
+    .gm-style .gm-style-iw-d {
+      overflow: hidden !important;
+      padding-right: 15px !important;
+    }
   </style>
 
   <!-- Google Maps Global Error Interceptor (Auto-Recovery to ESRI Satellite) -->
   <script>
     window.gm_authFailure = function () {
       console.warn("Google Maps Auth Failure: Key requires Billing Account / API activation in Google Cloud Console.");
+      
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === 1 && node.tagName === 'DIV') {
+              const text = node.innerText || '';
+              if (text.includes("Halaman ini tidak dapat memuat") || text.includes("This page can't load")) {
+                node.remove();
+                observer.disconnect();
+              }
+            }
+          });
+        });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
       if (window.app && typeof window.app.handleGoogleAuthFailure === 'function') {
         window.app.handleGoogleAuthFailure();
       } else {
@@ -255,76 +290,135 @@
       <!-- Overdue / Desk Alert Banner -->
       <div class="audit-alert-box" id="unhandled-desk-alert" style="display:none;"></div>
 
-      <!-- Top KPI Cards Grid -->
-      <div class="kpi-grid">
-        <div class="kpi-card highlight-gold">
-          <div class="kpi-label">
-            <span>Total Laporan 110 Hari Ini</span>
-            <span>📞</span>
-          </div>
-          <div class="kpi-value" id="kpi-total-110">0</div>
-          <div class="kpi-subtext">Masuk via Call Center 110 & Portal</div>
-        </div>
+      <!-- Top KPI Cards Grid (Moved to Dasbor Tab) -->
 
-        <div class="kpi-card highlight-danger">
-          <div class="kpi-label">
-            <span>Belum Ditangani (LP di Meja)</span>
-            <span style="color:var(--danger)">⚠️</span>
-          </div>
-          <div class="kpi-value" id="kpi-belum-110" style="color:var(--danger);">0</div>
-          <div class="kpi-subtext" style="color:#FCA5A5;">Perlu segera didisposisi ke personil</div>
-        </div>
-
-        <div class="kpi-card highlight-warning">
-          <div class="kpi-label">
-            <span>Sedang Dalam Proses</span>
-            <span style="color:var(--warning)">🚔</span>
-          </div>
-          <div class="kpi-value" id="kpi-proses-110" style="color:var(--warning);">0</div>
-          <div class="kpi-subtext">Menuju TKP & Penanganan Pertama</div>
-        </div>
-
-        <div class="kpi-card highlight-success">
-          <div class="kpi-label">
-            <span>Selesai Ditangani</span>
-            <span style="color:var(--success)">✅</span>
-          </div>
-          <div class="kpi-value" id="kpi-selesai-110" style="color:var(--success);">0</div>
-          <div class="kpi-subtext">Dilengkapi bukti foto & berkas LP</div>
-        </div>
-
-        <div class="kpi-card highlight-danger">
-          <div class="kpi-label">
-            <span>Audit Mismatch GPS</span>
-            <span style="color:var(--danger)">🚨</span>
-          </div>
-          <div class="kpi-value" id="kpi-audit-alerts" style="color:#F87171;">0</div>
-          <div class="kpi-subtext">Indikasi anggota tidak di lokasi TKP</div>
-        </div>
-      </div>
-
-      <!-- Pimpinan Module Sub-navigation Tabs -->
+      <!-- Pimpinan Module Sub-navigation Tabs (Desktop) -->
       <nav class="pimpinan-subnav-tabs">
-        <button class="pimpinan-tab-btn active" data-tab="tab-pimpinan-monitoring"
-          onclick="app.switchPimpinanTab('tab-pimpinan-monitoring')">
-          <span>📊</span> Antrean Kasus 110 & Peta Taktis
+        <button class="pimpinan-tab-btn active" data-tab="tab-pimpinan-dasbor" onclick="app.switchPimpinanTab('tab-pimpinan-dasbor')">
+          <span>🏠</span> Dasbor
         </button>
-        <button class="pimpinan-tab-btn" data-tab="tab-pimpinan-audit"
-          onclick="app.switchPimpinanTab('tab-pimpinan-audit')">
-          <span>🛡️</span> Audit Akuntabilitas Personel
+        <button class="pimpinan-tab-btn" data-tab="tab-pimpinan-puskodal" onclick="app.switchPimpinanTab('tab-pimpinan-puskodal')">
+          <span>🗺️</span> Puskodal
         </button>
-        <button class="pimpinan-tab-btn" data-tab="tab-pimpinan-evaluasi"
-          onclick="app.switchPimpinanTab('tab-pimpinan-evaluasi')">
-          <span>📈</span> Rekapitulasi Kinerja Jajaran Satker & Polsek
+        <button type="button" class="pimpinan-tab-btn btn-plus-tab" onclick="app.openModal('modal-atensi-sidak');" style="background: linear-gradient(135deg, #F59E0B, #D97706); color: #000; font-weight: 800;">
+          <span>⚡</span> Atensi
+        </button>
+        <button class="pimpinan-tab-btn" data-tab="tab-pimpinan-rekapitulasi" onclick="app.switchPimpinanTab('tab-pimpinan-rekapitulasi')">
+          <span>📈</span> Rekap
+        </button>
+        <button class="pimpinan-tab-btn" data-tab="tab-pimpinan-profil" onclick="app.switchPimpinanTab('tab-pimpinan-profil')">
+          <span>⚙️</span> Profil
         </button>
       </nav>
 
-      <!-- TAB 1: Antrean Kasus 110 & Peta Taktis Live -->
-      <div class="pimpinan-tab-content active" id="tab-pimpinan-monitoring">
-        <div class="dashboard-grid-2col">
+      <!-- Fixed Mobile Bottom Navigation Bar -->
+      <div class="pimpinan-bottom-nav">
+        <button type="button" class="pimpinan-bottom-btn active" data-tab="tab-pimpinan-dasbor" onclick="app.switchPimpinanTab('tab-pimpinan-dasbor')">
+          <span class="icon">🏠</span>
+          <span>Dasbor</span>
+        </button>
+        <button type="button" class="pimpinan-bottom-btn" data-tab="tab-pimpinan-puskodal" onclick="app.switchPimpinanTab('tab-pimpinan-puskodal')">
+          <span class="icon">🗺️</span>
+          <span>Puskodal</span>
+        </button>
+        <button type="button" class="pimpinan-bottom-btn fab-btn" onclick="app.openModal('modal-atensi-sidak');" title="Atensi / Sidak">
+          <span class="icon">⚡</span>
+        </button>
+        <button type="button" class="pimpinan-bottom-btn" data-tab="tab-pimpinan-rekapitulasi" onclick="app.switchPimpinanTab('tab-pimpinan-rekapitulasi')">
+          <span class="icon">📈</span>
+          <span>Rekap</span>
+        </button>
+        <button type="button" class="pimpinan-bottom-btn" data-tab="tab-pimpinan-profil" onclick="app.switchPimpinanTab('tab-pimpinan-profil')">
+          <span class="icon">⚙️</span>
+          <span>Profil</span>
+        </button>
+      </div>
 
+      <!-- TAB 1: Dasbor (KPI & Antrean) -->
+      <div class="pimpinan-tab-content active" id="tab-pimpinan-dasbor">
+        <div class="kpi-grid" style="margin-bottom: 20px;">
+          <div class="kpi-card highlight-gold">
+            <div class="kpi-label">
+              <span>Total Laporan 110 Hari Ini</span>
+              <span>📞</span>
+            </div>
+            <div class="kpi-value" id="kpi-total-110">0</div>
+            <div class="kpi-subtext">Masuk via Call Center 110 & Portal</div>
+          </div>
+          <div class="kpi-card highlight-danger">
+            <div class="kpi-label">
+              <span>Belum Ditangani (LP di Meja)</span>
+              <span style="color:var(--danger)">⚠️</span>
+            </div>
+            <div class="kpi-value" id="kpi-belum-110" style="color:var(--danger);">0</div>
+            <div class="kpi-subtext" style="color:#FCA5A5;">Perlu segera didisposisi ke personil</div>
+          </div>
+          <div class="kpi-card highlight-warning">
+            <div class="kpi-label">
+              <span>Sedang Dalam Proses</span>
+              <span style="color:var(--warning)">🚔</span>
+            </div>
+            <div class="kpi-value" id="kpi-proses-110" style="color:var(--warning);">0</div>
+            <div class="kpi-subtext">Menuju TKP & Penanganan Pertama</div>
+          </div>
+          <div class="kpi-card highlight-success">
+            <div class="kpi-label">
+              <span>Selesai Ditangani</span>
+              <span style="color:var(--success)">✅</span>
+            </div>
+            <div class="kpi-value" id="kpi-selesai-110" style="color:var(--success);">0</div>
+            <div class="kpi-subtext">Dilengkapi bukti foto & berkas LP</div>
+          </div>
+          <div class="kpi-card highlight-danger">
+            <div class="kpi-label">
+              <span>Audit Mismatch GPS</span>
+              <span style="color:var(--danger)">🚨</span>
+            </div>
+            <div class="kpi-value" id="kpi-audit-alerts" style="color:#F87171;">0</div>
+            <div class="kpi-subtext">Indikasi anggota tidak di lokasi TKP</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="flex-wrap: wrap; gap:10px;">
+            <div class="card-title">
+              <span class="card-title-icon">📋</span> Antrean Laporan Pengaduan 110 Masuk
+            </div>
+            <div>
+              <select class="form-select" id="filter-complaint-status" style="padding:6px 12px; font-size:12px; width:auto;">
+                <option value="ALL">Semua Status (All)</option>
+                <option value="BELUM_DITANGANI">⚠️ Belum Ditangani Saja</option>
+                <option value="MENUJU_TKP">🚔 Sedang Menuju TKP</option>
+                <option value="PENANGANAN_TKP">🔍 Dalam Penanganan</option>
+                <option value="SELESAI">✅ Selesai</option>
+              </select>
+            </div>
+          </div>
+          <div class="data-table-container">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>No. Tiket / Waktu</th>
+                  <th>Judul & Lokasi Kasus</th>
+                  <th>Kategori</th>
+                  <th>Personel Bertugas</th>
+                  <th>Status Kasus</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="pimpinan-complaints-tbody">
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Puskodal (Peta Taktis & Kecepatan Respon) -->
+      <div class="pimpinan-tab-content" id="tab-pimpinan-puskodal">
+        <div class="dashboard-grid-2col pimpinan-puskodal-wrapper">
           <div class="dashboard-col-left">
-            <div class="card">
+            <div class="card pimpinan-map-card">
               <div class="card-header">
                 <div class="card-title">
                   <span class="card-title-icon">🗺️</span> Peta Taktis Wilayah & Titik Kerawanan Kriminalitas
@@ -332,15 +426,14 @@
                 <div class="badge badge-gold">Live Radar Presisi</div>
               </div>
 
-              <!-- Map Layer & Controls Bar -->
-              <div
-                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:rgba(11,25,44,0.6); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--card-border);">
-                <div style="font-size:11px; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
-                  <span
-                    style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 8px #10B981;"></span>
+              <!-- Map Layer & Controls Bar (With flex-wrap fix) -->
+              <div class="pimpinan-hud-controls"
+                style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px; background:rgba(11,25,44,0.6); padding:8px 12px; border-radius:var(--radius-sm); border:1px solid var(--card-border);">
+                <div style="font-size:11px; color:var(--text-secondary); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981; box-shadow:0 0 8px #10B981;"></span>
                   <span>Lapisan Peta: <strong id="pimpinan-map-layer-label" style="color:var(--accent-gold);">🗺️ Peta Jalan Dasar (Google Maps)</strong></span>
                 </div>
-                <div style="display:flex; gap:6px;">
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
                   <button type="button" class="btn-quick" id="pimpinan-btn-toggle-resolved"
                     onclick="app.toggleResolvedMapIncidents('pimpinan-real-map', 'pimpinan')"
                     style="padding:4px 9px; font-size:11px; border-color:rgba(16,185,129,0.5); color:#6EE7B7;"
@@ -349,11 +442,9 @@
                     style="padding:4px 8px; font-size:11px;">🌙 Dark GIS</button>
                   <button type="button" class="btn-quick active" onclick="app.setMapTileLayer('osm', 'pimpinan-real-map')"
                     style="padding:4px 8px; font-size:11px;">🗺️ Peta Jalan</button>
-                  <button type="button" class="btn-quick"
-                    onclick="app.setMapTileLayer('satellite', 'pimpinan-real-map')"
+                  <button type="button" class="btn-quick" onclick="app.setMapTileLayer('satellite', 'pimpinan-real-map')"
                     style="padding:4px 8px; font-size:11px;">🛰️ Satelit</button>
-                  <button type="button" class="btn-quick"
-                    onclick="app.toggleTacticalRadarMode('pimpinan-real-map', 'tactical-canvas')"
+                  <button type="button" class="btn-quick" onclick="app.toggleTacticalRadarMode('pimpinan-real-map', 'tactical-canvas')"
                     style="padding:4px 8px; font-size:11px;">⚡ Radar Canvas</button>
                 </div>
               </div>
@@ -364,22 +455,13 @@
                 <div style="display:flex; align-items:center; gap:8px;">
                   <span style="font-size:22px;">🚨</span>
                   <div>
-                    <strong style="color:#FECACA; font-size:12px;">PERINGATAN OPERASI: SAT-SAMAPTA-01 Keluar Jalur
-                      Pengejaran Curanmor!</strong>
-                    <div style="font-size:11px; color:#cbd5e1;">Bripka Ahmad melakukan pengejaran pelaku Honda Beat
-                      Merah ke arah Jl. Merdeka Timur (Speed: 68 km/jam).</div>
+                    <strong style="color:#FECACA; font-size:12px;">PERINGATAN OPERASI: SAT-SAMAPTA-01 Keluar Jalur Pengejaran Curanmor!</strong>
+                    <div style="font-size:11px; color:#cbd5e1;">Bripka Ahmad melakukan pengejaran pelaku Honda Beat Merah ke arah Jl. Merdeka Timur (Speed: 68 km/jam).</div>
                   </div>
                 </div>
                 <div style="display:flex; gap:6px;">
-                  <button type="button" class="btn-primary"
-                    style="font-size:11px; padding:5px 12px; background:linear-gradient(135deg, #F59E0B, #D97706); color:#000; font-weight:800;"
-                    onclick="app.dispatchRoadblockIntercept()">
-                    🚧 Kirim Penyekatan (TIM-PERINTIS-02)
-                  </button>
-                  <button type="button" class="btn-quick" style="font-size:11px; padding:5px 10px;"
-                    onclick="app.focusOfficerOnMap('88123456')">
-                    🎯 Pantau Armada
-                  </button>
+                  <button type="button" class="btn-primary" style="font-size:11px; padding:5px 12px; background:linear-gradient(135deg, #F59E0B, #D97706); color:#000; font-weight:800;" onclick="app.dispatchRoadblockIntercept()">🚧 Kirim Penyekatan (TIM-PERINTIS-02)</button>
+                  <button type="button" class="btn-quick" style="font-size:11px; padding:5px 10px;" onclick="app.focusOfficerOnMap('88123456')">🎯 Pantau Armada</button>
                 </div>
               </div>
 
@@ -387,94 +469,88 @@
                 <!-- Real Leaflet Interactive Map Container -->
                 <div id="pimpinan-real-map" class="real-leaflet-map" style="width:100%; height:380px;"></div>
                 <!-- Canvas Radar Fallback -->
-                <canvas id="tactical-canvas" class="canvas-tactical-map"
-                  style="display:none; width:100%; height:380px;"></canvas>
+                <canvas id="tactical-canvas" class="canvas-tactical-map" style="display:none; width:100%; height:380px;"></canvas>
               </div>
               <p style="font-size:11px; color:var(--text-muted); margin-top:8px;">
-                * Peta menampilkan rute dinamis patroli personel (garis hijau), rute rencana (oranye), serta titik rawan
-                kriminalitas yang terintegrasi secara real-time.
+                * Peta menampilkan rute dinamis patroli personel (garis hijau), rute rencana (oranye), serta titik rawan kriminalitas yang terintegrasi secara real-time.
               </p>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <div class="card-title">
-                  <span class="card-title-icon">📋</span> Antrean Laporan Pengaduan 110 Masuk
-                </div>
-                <div>
-                  <select class="form-select" id="filter-complaint-status"
-                    style="padding:6px 12px; font-size:12px; width:auto;">
-                    <option value="ALL">Semua Status (All)</option>
-                    <option value="BELUM_DITANGANI">⚠️ Belum Ditangani Saja</option>
-                    <option value="MENUJU_TKP">🚔 Sedang Menuju TKP</option>
-                    <option value="PENANGANAN_TKP">🔍 Dalam Penanganan</option>
-                    <option value="SELESAI">✅ Selesai</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="data-table-container">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>No. Tiket / Waktu</th>
-                      <th>Judul & Lokasi Kasus</th>
-                      <th>Kategori</th>
-                      <th>Personel Bertugas</th>
-                      <th>Status Kasus</th>
-                      <th>Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pimpinan-complaints-tbody">
-                    <!-- Populated by JS -->
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
-
-          <div class="dashboard-col-right">
-            <div class="card">
-              <div class="card-header">
+          
+          <div class="dashboard-col-right pimpinan-bottom-sheet" onclick="if(!this.classList.contains('expanded-sheet')) this.classList.add('expanded-sheet');">
+            <!-- Draggable Header Area (Mobile Only) -->
+            <div class="desktop-hidden pimpinan-drag-handle" style="position: sticky; top: -24px; left: 0px; right: 0px; height: 40px; z-index: 30; display:flex; flex-direction:column; align-items:center; cursor:pointer; touch-action: none; background: inherit; margin-left: -16px; margin-right: -16px; margin-top: -24px; margin-bottom: 12px; border-radius: 20px 20px 0 0;"
+                 onclick="event.stopPropagation(); this.parentElement.classList.toggle('expanded-sheet');"
+                 ontouchstart="this.startY = event.touches[0].clientY;"
+                 ontouchend="if(this.startY - event.changedTouches[0].clientY > 20) { this.parentElement.classList.add('expanded-sheet'); } else if(event.changedTouches[0].clientY - this.startY > 20) { this.parentElement.classList.remove('expanded-sheet'); }">
+              <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.6); border-radius: 5px; margin-top: 12px;"></div>
+            </div>
+            
+            <div class="card pimpinan-fleet-status-card">
+              <div class="card-header" style="flex-wrap: wrap; gap:10px;">
                 <div class="card-title">
-                  <span class="card-title-icon">⚡</span> Standar Kecepatan Respon (Quick Response)
+                  <span class="card-title-icon">🚔</span> Status Armada Patroli (Live)
+                </div>
+                <div class="badge badge-success">3 Unit Aktif</div>
+              </div>
+              
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <!-- Armada 1 -->
+                <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="app.focusOfficerOnMap('88123456'); this.closest('.pimpinan-bottom-sheet').classList.remove('expanded-sheet');">
+                  <div>
+                    <div style="font-weight:bold; font-size:12px; color:#93C5FD;">SAT-SAMAPTA-01</div>
+                    <div style="font-size:10px; color:#cbd5e1;">Bripka Ahmad &bull; Kec. 35 km/jam</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="badge badge-success" style="font-size:9px; padding:3px 6px;">Patroli Rutin</div>
+                    <div style="font-size:10px; color:#94A3B8; margin-top:4px;">Menuju Pos 3</div>
+                  </div>
+                </div>
+
+                <!-- Armada 2 -->
+                <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="app.focusOfficerOnMap('82050412'); this.closest('.pimpinan-bottom-sheet').classList.remove('expanded-sheet');">
+                  <div>
+                    <div style="font-weight:bold; font-size:12px; color:#FCA5A5;">TIM-PERINTIS-02</div>
+                    <div style="font-size:10px; color:#cbd5e1;">Aipda Joko &bull; Kec. 68 km/jam</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="badge badge-danger" style="font-size:9px; padding:3px 6px; animation: pulse-border 1.5s infinite;">Pengejaran</div>
+                    <div style="font-size:10px; color:#94A3B8; margin-top:4px;">Jl. Merdeka Timur</div>
+                  </div>
+                </div>
+
+                <!-- Armada 3 -->
+                <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="app.focusOfficerOnMap('85090123'); this.closest('.pimpinan-bottom-sheet').classList.remove('expanded-sheet');">
+                  <div>
+                    <div style="font-weight:bold; font-size:12px; color:#93C5FD;">PATWAL-LANTAS-01</div>
+                    <div style="font-size:10px; color:#cbd5e1;">Bripka Dani &bull; Kec. 0 km/jam</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div class="badge badge-warning" style="font-size:9px; padding:3px 6px; color:#000;">Siaga / Standby</div>
+                    <div style="font-size:10px; color:#94A3B8; margin-top:4px;">Simpang Sudirman</div>
+                  </div>
                 </div>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div>
-                  <div style="font-size:11px; color:var(--text-secondary);">Rata-rata Waktu Tanggap</div>
-                  <div style="font-size:22px; font-weight:800; color:var(--success); font-family:'JetBrains Mono';">8
-                    Menit 14 Detik</div>
-                </div>
-                <div class="badge badge-success">Sesuai SOP 110 (&lt; 10 Menit)</div>
-              </div>
-              <p style="font-size:11px; color:var(--text-muted);">
-                Sistem mencatat timeline otomatis sejak pelapor menelepon hingga anggota menekan tombol <em>"Tiba di
-                  TKP"</em> dengan verifikasi geolokasi.
-              </p>
             </div>
 
             <div class="card">
-              <div class="card-header">
+              <div class="card-header" style="flex-wrap: wrap; gap:10px;">
                 <div class="card-title">
                   <span class="card-title-icon">🚨</span> Ringkasan Titik Rawan Aktif
                 </div>
-                <button class="btn-quick"
-                  onclick="app.quickSwitchRole('kabagops'); app.switchKabagOpsTab('tab-kabagops-rute');"
-                  title="Buka Pengaturan Rute & Titik Rawan di Bag Ops">Kelola Rute & Hotspot (Kabag Ops)
-                  &rarr;</button>
+                <button class="btn-quick" onclick="app.quickSwitchRole('kabagops'); app.switchKabagOpsTab('tab-kabagops-rute');" title="Buka Pengaturan Rute & Titik Rawan di Bag Ops">Kelola Rute & Hotspot &rarr;</button>
               </div>
               <div id="pimpinan-hotspot-summary-list">
                 <!-- Populated by JS -->
               </div>
             </div>
           </div>
-
         </div>
       </div>
 
-      <!-- TAB 2: Audit Akuntabilitas Personel & Sidak GPS -->
-      <div class="pimpinan-tab-content" id="tab-pimpinan-audit">
+      <!-- TAB 3: Rekapitulasi (Audit & Evaluasi) -->
+      <div class="pimpinan-tab-content" id="tab-pimpinan-rekapitulasi">
+        
         <div class="card" style="border-top: 3px solid var(--danger);">
           <div class="card-header">
             <div class="card-title">
@@ -535,10 +611,9 @@
             </table>
           </div>
         </div>
-      </div>
+      <div style="height: 20px;"></div>
 
-      <!-- TAB 3: Laporan Eksekutif Kinerja Satker & Polsek Jajaran -->
-      <div class="pimpinan-tab-content" id="tab-pimpinan-evaluasi">
+      <!-- Laporan Eksekutif Kinerja Satker & Polsek Jajaran -->
         <div class="card" style="border-top:3px solid var(--accent-gold);">
           <div class="card-header">
             <div class="card-title">
@@ -638,6 +713,13 @@
         </div>
       </div>
 
+      <!-- TAB 4: Profil Pimpinan -->
+      <div class="pimpinan-tab-content" id="tab-pimpinan-profil">
+        <div class="card" style="border-top:3px solid var(--accent-gold); padding:20px;">
+          <h3 style="color:#fff;">Profil & Pengaturan Akun</h3>
+          <p style="color:var(--text-secondary);">Halaman profil eksekutif pimpinan (Kapolres) sedang dalam pengembangan.</p>
+        </div>
+      </div>
 
 
     </section>
@@ -3084,11 +3166,11 @@
     <div class="modal-overlay" id="modal-personil-quick-log">
       <div class="modal-container">
         
-        <!-- Drag Handle / Swipe Down to Close -->
+        <!-- Drag Handle / Swipe Down to Close & Up to Expand -->
         <div style="width: 100%; height: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; margin-top: 8px;"
-             onclick="app.closeAllModals()"
-             ontouchstart="this.startY = event.touches[0].clientY;"
-             ontouchend="if(event.changedTouches[0].clientY - this.startY > 30) app.closeAllModals();">
+             ontouchstart="this.startY = event.touches[0].clientY; this.startH = this.parentElement.offsetHeight; this.parentElement.style.transition = 'none';"
+             ontouchmove="var dy = event.touches[0].clientY - this.startY; if (dy > 0) { this.parentElement.style.transform = `translateY(${dy}px)`; } else { let h = this.startH - dy; if(h > window.innerHeight*0.9) h = window.innerHeight*0.9; this.parentElement.style.height = `${h}px`; }"
+             ontouchend="this.parentElement.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'; var dy = event.changedTouches[0].clientY - this.startY; if (dy > 50) { app.closeAllModals(); setTimeout(()=>{this.parentElement.style.transform=''; this.parentElement.style.height='';}, 300); } else if (dy < -30) { this.parentElement.style.height = '90vh'; this.parentElement.style.transform = 'translateY(0)'; } else { this.parentElement.style.transform = 'translateY(0)'; }">
           <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.4); border-radius: 5px;"></div>
         </div>
 
@@ -3294,6 +3376,49 @@
 
     </section>
 
+    <!-- ==================================================================== -->
+    <!-- MODAL: ATENSI / SIDAK PIMPINAN                                     -->
+    <!-- ==================================================================== -->
+    <div id="modal-atensi-sidak" class="modal-overlay" style="display:none; z-index:10000;">
+      <div class="modal-content" style="max-width:480px; padding:24px;">
+        <h2 style="font-size:18px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:24px;">🎯</span> <span>Kirim Atensi / Sidak Patroli</span>
+        </h2>
+        <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px;">
+          Kirimkan atensi khusus atau perintah sidak mendadak kepada armada patroli yang sedang bertugas.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">Tujuan Armada</label>
+          <select id="atensi-armada-select" class="form-select">
+            <option value="ALL">🔊 Broadcast Seluruh Armada (Radio Mode)</option>
+            <option value="FLEET-01">🚔 Patroli Samapta 110-A (Bripka Ahmad)</option>
+            <option value="FLEET-02">🏍️ Perintis Presisi Alpha (Aipda Joko)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Prioritas</label>
+          <select id="atensi-priority-select" class="form-select">
+            <option value="NORMAL">INFO: Arahan Rutin (Normal)</option>
+            <option value="HIGH">WASPADA: Atensi Khusus (Tinggi)</option>
+            <option value="URGENT">DARURAT: Interupsi Segera (Mendesak)</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom:20px;">
+          <label class="form-label">Pesan / Instruksi Atensi</label>
+          <textarea id="atensi-message" class="form-input" style="height:80px; resize:none;"
+            placeholder="Ketik instruksi atau atensi di sini... (Contoh: Patroli agar difokuskan ke simpang empat)"></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn-secondary" onclick="app.closeModal('modal-atensi-sidak')">Batal</button>
+          <button type="button" class="btn-primary" onclick="app.submitAtensiSidak()">Kirim Atensi</button>
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <!-- ========================================== -->
@@ -3344,11 +3469,18 @@
   <!-- Modal: Konfirmasi Penerimaan Tugas & Unggah Bukti Keberangkatan Armada -->
   <div class="modal-overlay" id="modal-departure-evidence">
     <div class="modal-container">
-      <div class="modal-header">
+        <!-- Drag Handle / Swipe Down to Close & Up to Expand -->
+        <div style="width: 100%; height: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; margin-top: 8px;"
+             ontouchstart="this.startY = event.touches[0].clientY; this.startH = this.parentElement.offsetHeight; this.parentElement.style.transition = 'none';"
+             ontouchmove="var dy = event.touches[0].clientY - this.startY; if (dy > 0) { this.parentElement.style.transform = `translateY(${dy}px)`; } else { let h = this.startH - dy; if(h > window.innerHeight*0.9) h = window.innerHeight*0.9; this.parentElement.style.height = `${h}px`; }"
+             ontouchend="this.parentElement.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'; var dy = event.changedTouches[0].clientY - this.startY; if (dy > 50) { app.closeAllModals(); setTimeout(()=>{this.parentElement.style.transform=''; this.parentElement.style.height='';}, 300); } else if (dy < -30) { this.parentElement.style.height = '90vh'; this.parentElement.style.transform = 'translateY(0)'; } else { this.parentElement.style.transform = 'translateY(0)'; }">
+          <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.4); border-radius: 5px;"></div>
+        </div>
+      <div class="modal-header" style="border-bottom:none; padding-top:10px;">
         <div class="modal-title">
           <span>🚔</span> Penerimaan Tugas & Unggah Bukti Keberangkatan Armada
         </div>
-        <button class="btn-close-modal">&times;</button>
+        <button class="btn-close-modal" style="display:none;">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="departure-complaint-id">
@@ -3403,11 +3535,18 @@
 
   <div class="modal-overlay" id="modal-tptkp-evidence">
     <div class="modal-container">
-      <div class="modal-header">
+        <!-- Drag Handle / Swipe Down to Close & Up to Expand -->
+        <div style="width: 100%; height: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; margin-top: 8px;"
+             ontouchstart="this.startY = event.touches[0].clientY; this.startH = this.parentElement.offsetHeight; this.parentElement.style.transition = 'none';"
+             ontouchmove="var dy = event.touches[0].clientY - this.startY; if (dy > 0) { this.parentElement.style.transform = `translateY(${dy}px)`; } else { let h = this.startH - dy; if(h > window.innerHeight*0.9) h = window.innerHeight*0.9; this.parentElement.style.height = `${h}px`; }"
+             ontouchend="this.parentElement.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'; var dy = event.changedTouches[0].clientY - this.startY; if (dy > 50) { app.closeAllModals(); setTimeout(()=>{this.parentElement.style.transform=''; this.parentElement.style.height='';}, 300); } else if (dy < -30) { this.parentElement.style.height = '90vh'; this.parentElement.style.transform = 'translateY(0)'; } else { this.parentElement.style.transform = 'translateY(0)'; }">
+          <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.4); border-radius: 5px;"></div>
+        </div>
+      <div class="modal-header" style="border-bottom:none; padding-top:10px;">
         <div class="modal-title">
           <span>📸</span> Unggah Bukti Tiba di TKP & Tindakan Pertama
         </div>
-        <button class="btn-close-modal">&times;</button>
+        <button class="btn-close-modal" style="display:none;">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="tptkp-complaint-id">
@@ -3455,11 +3594,18 @@
   <!-- Modal: Selesaikan Kasus & Unggah Berita Acara (Dokumen Final) -->
   <div class="modal-overlay" id="modal-complete-task">
     <div class="modal-container">
-      <div class="modal-header">
+        <!-- Drag Handle / Swipe Down to Close & Up to Expand -->
+        <div style="width: 100%; height: 30px; display: flex; justify-content: center; align-items: center; cursor: pointer; margin-top: 8px;"
+             ontouchstart="this.startY = event.touches[0].clientY; this.startH = this.parentElement.offsetHeight; this.parentElement.style.transition = 'none';"
+             ontouchmove="var dy = event.touches[0].clientY - this.startY; if (dy > 0) { this.parentElement.style.transform = `translateY(${dy}px)`; } else { let h = this.startH - dy; if(h > window.innerHeight*0.9) h = window.innerHeight*0.9; this.parentElement.style.height = `${h}px`; }"
+             ontouchend="this.parentElement.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'; var dy = event.changedTouches[0].clientY - this.startY; if (dy > 50) { app.closeAllModals(); setTimeout(()=>{this.parentElement.style.transform=''; this.parentElement.style.height='';}, 300); } else if (dy < -30) { this.parentElement.style.height = '90vh'; this.parentElement.style.transform = 'translateY(0)'; } else { this.parentElement.style.transform = 'translateY(0)'; }">
+          <div style="width: 48px; height: 5px; background: rgba(255,255,255,0.4); border-radius: 5px;"></div>
+        </div>
+      <div class="modal-header" style="border-bottom:none; padding-top:10px;">
         <div class="modal-title">
           <span>✅</span> Selesaikan Penanganan & Unggah Dokumen Berita Acara
         </div>
-        <button class="btn-close-modal">&times;</button>
+        <button class="btn-close-modal" style="display:none;">&times;</button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="complete-task-id">
