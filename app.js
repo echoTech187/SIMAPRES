@@ -519,161 +519,44 @@ const INITIAL_DATA = {
   ],
 
   fleetAssignments: [
-    {
-      id: "ASSIGN-01",
-      unitKey: "SAMAPTA_AHMAD",
-      vehicleName: "Sedan Samapta 110-A",
-      vehiclePlate: "R4-81 / B 1100 POL",
-      vehicleType: "CAR",
-      officerNrp: "88123456",
-      officerName: "Bripka Ahmad Subagyo",
-      officerRole: "Danru Samapta 110-A",
-      routeName: "Beat 1 Pasar & Sentra Perbankan",
-      routeCode: "BEAT-01",
-      shift: "Shift 1 Pagi (08:00 - 16:00 WIB)",
-      sprintNo: "Sprin/412/X/OPS.1.1/2026",
-      status: "AKTIF",
-      icon: "🚔",
-      color: "#38BDF8"
-    },
-    {
-      id: "ASSIGN-02",
-      unitKey: "PERINTIS_JOKO",
-      vehicleName: "Tim Perintis Presisi Trail 02",
-      vehiclePlate: "KLX-250 / B 2200 POL",
-      vehicleType: "BIKE",
-      officerNrp: "82050412",
-      officerName: "Aipda Joko Susanto",
-      officerRole: "Katim Perintis Presisi",
-      routeName: "Beat 2 Flyover & Sentra Niaga",
-      routeCode: "BEAT-02",
-      shift: "Shift 2 Malam (20:00 - 04:00 WIB)",
-      sprintNo: "Sprin/415/X/OPS.1.1/2026",
-      status: "AKTIF",
-      icon: "🏍️",
-      color: "#34D399"
-    },
-    {
-      id: "ASSIGN-03",
-      unitKey: "PATWAL_DANI",
-      vehicleName: "Patwal Sat Lantas R4-01",
-      vehiclePlate: "XJ900P / B 3300 POL",
-      vehicleType: "CAR",
-      officerNrp: "85090123",
-      officerName: "Bripka Dani Prasetyo",
-      officerRole: "Danru Patwal Lantas",
-      routeName: "Beat 3 Simpang Sudirman",
-      routeCode: "BEAT-03",
-      shift: "Shift 1 Pagi (06:00 - 14:00 WIB)",
-      sprintNo: "Sprin/418/X/OPS.1.1/2026",
-      status: "AKTIF",
-      icon: "🚓",
-      color: "#FBBF24"
-    }
+    { id: "ASSIGN-01", unitKey: "SAMAPTA_AHMAD", vehicleName: "Sedan Samapta 110-A", vehiclePlate: "R4-81 / B 1100 POL", vehicleType: "CAR", officerNrp: "88123456", officerName: "Bripka Ahmad Subagyo", officerRole: "Danru Samapta 110-A", routeName: "Beat 1 Pasar & Sentra Perbankan", routeCode: "BEAT-01", shift: "Shift 1 Pagi (08:00 - 16:00 WIB)", sprintNo: "Sprin/412/X/OPS.1.1/2026", status: "AKTIF", icon: "🚔", color: "#38BDF8" },
+    { id: "ASSIGN-02", unitKey: "PERINTIS_JOKO", vehicleName: "Tim Perintis Presisi Trail 02", vehiclePlate: "KLX-250 / B 2200 POL", vehicleType: "BIKE", officerNrp: "82050412", officerName: "Aipda Joko Susanto", officerRole: "Katim Perintis Presisi", routeName: "Beat 2 Flyover & Sentra Niaga", routeCode: "BEAT-02", shift: "Shift 2 Malam (20:00 - 04:00 WIB)", sprintNo: "Sprin/415/X/OPS.1.1/2026", status: "AKTIF", icon: "🏍️", color: "#34D399" },
+    { id: "ASSIGN-03", unitKey: "PATWAL_DANI", vehicleName: "Patwal Sat Lantas R4-01", vehiclePlate: "XJ900P / B 3300 POL", vehicleType: "CAR", officerNrp: "85090123", officerName: "Bripka Dani Prasetyo", officerRole: "Danru Patwal Lantas", routeName: "Beat 3 Simpang Sudirman", routeCode: "BEAT-03", shift: "Shift 1 Pagi (06:00 - 14:00 WIB)", sprintNo: "Sprin/418/X/OPS.1.1/2026", status: "AKTIF", icon: "🚓", color: "#FBBF24" },
+    { id: "ASSIGN-04", unitKey: "SABHARA_BAMBANG", vehicleName: "Rantis Sabhara 03", vehiclePlate: "R4-83 / B 1300 POL", vehicleType: "CAR", officerNrp: "81010111", officerName: "Bripka Bambang", officerRole: "Danru Sabhara", routeName: "Beat 4 Sektor Selatan", routeCode: "BEAT-04", shift: "Shift 1 Pagi (08:00 - 16:00 WIB)", sprintNo: "Sprin/419/X/OPS.1.1/2026", status: "AKTIF", icon: "🚙", color: "#A855F7" },
+    { id: "ASSIGN-05", unitKey: "LANTAS_BUDI", vehicleName: "BM Sat Lantas 05", vehiclePlate: "R2-05 / B 4400 POL", vehicleType: "BIKE", officerNrp: "82020222", officerName: "Bripka Budi", officerRole: "Anggota Lantas", routeName: "Beat 5 Jalur Protokol", routeCode: "BEAT-05", shift: "Shift 1 Pagi (08:00 - 16:00 WIB)", sprintNo: "Sprin/420/X/OPS.1.1/2026", status: "AKTIF", icon: "🏍️", color: "#FBBF24" },
+    { id: "ASSIGN-06", unitKey: "RESERSE_RUDI", vehicleName: "Kring Serse Opsnal", vehiclePlate: "B 5500 POL", vehicleType: "CAR", officerNrp: "83030333", officerName: "Bripka Rudi", officerRole: "Katim Opsnal", routeName: "Beat 6 Titik Rawan", routeCode: "BEAT-06", shift: "Shift 2 Malam (20:00 - 04:00 WIB)", sprintNo: "Sprin/421/X/OPS.1.1/2026", status: "AKTIF", icon: "🚗", color: "#EF4444" },
+    { id: "ASSIGN-07", unitKey: "BHABIN_HENDRA", vehicleName: "Motor Dinas Bhabin", vehiclePlate: "R2-07 / B 6600 POL", vehicleType: "BIKE", officerNrp: "89010234", officerName: "Bripka Hendra", officerRole: "Bhabinkamtibmas", routeName: "Beat 7 Pemukiman", routeCode: "BEAT-07", shift: "Shift 1 Pagi (08:00 - 16:00 WIB)", sprintNo: "Sprin/422/X/OPS.1.1/2026", status: "AKTIF", icon: "🛵", color: "#F472B6" },
+    { id: "ASSIGN-08", unitKey: "INTEL_AGUS", vehicleName: "Mobile Intelkam", vehiclePlate: "B 7700 POL", vehicleType: "CAR", officerNrp: "85050555", officerName: "Bripka Agus", officerRole: "Anggota Intel", routeName: "Beat 8 Obvitnas", routeCode: "BEAT-08", shift: "Shift 2 Malam (20:00 - 04:00 WIB)", sprintNo: "Sprin/423/X/OPS.1.1/2026", status: "AKTIF", icon: "🚙", color: "#6366F1" },
+    { id: "ASSIGN-09", unitKey: "PAMOBVIT_YUDI", vehicleName: "Patroli Pamobvit", vehiclePlate: "R4-09 / B 8800 POL", vehicleType: "CAR", officerNrp: "86060666", officerName: "Bripka Yudi", officerRole: "Anggota Pamobvit", routeName: "Beat 9 Kawasan Industri", routeCode: "BEAT-09", shift: "Shift 1 Pagi (08:00 - 16:00 WIB)", sprintNo: "Sprin/424/X/OPS.1.1/2026", status: "AKTIF", icon: "🚓", color: "#14B8A6" }
   ],
   patrolFleet: [
-    {
-      id: "FLEET-01",
-      callsign: "Patroli Samapta 110-A",
-      unit: "Sat Samapta (Sektor Timur)",
-      officerName: "Bripka Ahmad Subagyo",
-      officerNrp: "88123456",
-      vehicle: "Sedan R4-Samapta-81",
-      vehicleType: "CAR",
-      lat: -6.2146,
-      lng: 106.8451,
-      status: "SIAGA",
-      currentTask: "Patroli Rute Beat 1 (Pasar & Bank)",
-      speedKmh: 35,
-      phone: "0812-8899-7711",
-      icon: "🚔"
-    },
-    {
-      id: "FLEET-02",
-      callsign: "Perintis Presisi Alpha",
-      unit: "Tim Perintis Presisi",
-      officerName: "Aipda Joko Susanto",
-      officerNrp: "82050412",
-      vehicle: "Motor Trail KLX 250",
-      vehicleType: "BIKE",
-      lat: -6.2220,
-      lng: 106.8520,
-      status: "PENGEJARAN",
-      currentTask: "Jl. Merdeka Timur",
-      speedKmh: 68,
-      phone: "0813-7766-5544",
-      icon: "🏍️"
-    },
-    {
-      id: "FLEET-03",
-      callsign: "Patwal Lantas 01",
-      unit: "Sat Lantas Polres",
-      officerName: "Bripka Dani Prasetyo",
-      officerNrp: "85090123",
-      vehicle: "Sedan Patwal R4-01",
-      vehicleType: "CAR",
-      lat: -6.2080,
-      lng: 106.8390,
-      status: "SIAGA",
-      currentTask: "Simpang Sudirman",
-      speedKmh: 0,
-      phone: "0817-2233-4455",
-      icon: "🚓"
-    },
-    {
-      id: "FLEET-04",
-      callsign: "Bhabin Cempaka 01",
-      unit: "Polsek Cempaka Raya",
-      officerName: "Bripka Hendra",
-      officerNrp: "89010234",
-      vehicle: "Motor Dinas Trail 05",
-      vehicleType: "BIKE",
-      lat: -6.2280,
-      lng: 106.8410,
-      status: "SIAGA",
-      currentTask: "Sambang Warga DDS RT 04",
-      speedKmh: 15,
-      phone: "0856-1122-3344",
-      icon: "👮‍♂️"
-    }
+    { id: "FLEET-01", callsign: "Patroli Samapta 110-A", unit: "Sat Samapta (Sektor Timur)", unitKey: "SAMAPTA_AHMAD", officerName: "Bripka Ahmad Subagyo", officerNrp: "88123456", vehicle: "Sedan R4-Samapta-81", vehicleType: "CAR", lat: -6.2532689, lng: 106.7994054, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0812-8899-7711", icon: "🚔", routeCode: "BEAT-01" },
+    { id: "FLEET-02", callsign: "Perintis Presisi Alpha", unit: "Tim Perintis Presisi", unitKey: "PERINTIS_JOKO", officerName: "Aipda Joko Susanto", officerNrp: "82050412", vehicle: "Motor Trail KLX 250", vehicleType: "BIKE", lat: -6.2220, lng: 106.8520, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0813-7766-5544", icon: "🏍️", routeCode: "BEAT-02" },
+    { id: "FLEET-03", callsign: "Patwal Lantas 01", unit: "Sat Lantas Polres", unitKey: "PATWAL_DANI", officerName: "Bripka Dani Prasetyo", officerNrp: "85090123", vehicle: "Sedan Patwal R4-01", vehicleType: "CAR", lat: -6.2080, lng: 106.8390, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0817-2233-4455", icon: "🚓", routeCode: "BEAT-03" },
+    { id: "FLEET-04", callsign: "Sabhara Rantis 03", unit: "Sat Sabhara", unitKey: "SABHARA_BAMBANG", officerName: "Bripka Bambang", officerNrp: "81010111", vehicle: "Rantis Sabhara 03", vehicleType: "CAR", lat: -6.2532, lng: 106.7994, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0811-2233-4455", icon: "🚙", routeCode: "BEAT-04" },
+    { id: "FLEET-05", callsign: "BM Lantas 05", unit: "Sat Lantas", unitKey: "LANTAS_BUDI", officerName: "Bripka Budi", officerNrp: "82020222", vehicle: "BM Sat Lantas 05", vehicleType: "BIKE", lat: -6.2532, lng: 106.7994, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0812-3344-5566", icon: "🏍️", routeCode: "BEAT-05" },
+    { id: "FLEET-06", callsign: "Kring Serse 01", unit: "Sat Reskrim", unitKey: "RESERSE_RUDI", officerName: "Bripka Rudi", officerNrp: "83030333", vehicle: "Kring Serse Opsnal", vehicleType: "CAR", lat: -6.2532, lng: 106.7994, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0813-4455-6677", icon: "🚗", routeCode: "BEAT-06" },
+    { id: "FLEET-07", callsign: "Bhabin Cempaka 01", unit: "Polsek Cempaka Raya", unitKey: "BHABIN_HENDRA", officerName: "Bripka Hendra", officerNrp: "89010234", vehicle: "Motor Dinas Trail 05", vehicleType: "BIKE", lat: -6.2532, lng: 106.7994, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0856-1122-3344", icon: "🛵", routeCode: "BEAT-07" },
+    { id: "FLEET-08", callsign: "Intelkam Mobile 08", unit: "Sat Intelkam", unitKey: "INTEL_AGUS", officerName: "Bripka Agus", officerNrp: "85050555", vehicle: "Mobile Intelkam", vehicleType: "CAR", lat: -6.2532, lng: 106.7994, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0815-5566-7788", icon: "🚙", routeCode: "BEAT-08" },
+    { id: "FLEET-09", callsign: "Pamobvit 09", unit: "Sat Pamobvit", unitKey: "PAMOBVIT_YUDI", officerName: "Bripka Yudi", officerNrp: "86060666", vehicle: "Patroli Pamobvit", vehicleType: "CAR", lat: -6.2532, lng: 106.7994, status: "SIAGA", currentTask: "Standby Mako", speedKmh: 0, phone: "0816-6677-8899", icon: "🚓", routeCode: "BEAT-09" }
   ],
   systemUsers: [
-    { 
-      nrp: "76110988", name: "AKBP Hendro Wibowo, S.I.K., M.Si.", rank: "AKBP", unit: "Pimpinan Polres Metro", role: "PIMPINAN_KAPOLRES", status: "AKTIF",
-      deviceBinding: { model: "iPhone 14 Pro Max (Apple Secure Enclave)", uuid: "SEC-POL-76110988-IOS", status: "TERIKAT", keystore: "Apple Secure Enclave mTLS", antiMock: "Aktif", enrolledAt: "01 Sep 2026" }
-    },
-    { 
-      nrp: "80080155", name: "AKP Danang Kusuma, S.H.", rank: "AKP", unit: "Polsek Cempaka Raya", role: "KAPOLSEK", status: "AKTIF",
-      deviceBinding: { model: "Samsung Galaxy S22 Tactical Edition", uuid: "SEC-POL-80080155-TAC1", status: "TERIKAT", keystore: "Knox Vault Hardware TEE", antiMock: "Aktif", enrolledAt: "05 Sep 2026" }
-    },
-    { 
-      nrp: "78030211", name: "Kompol Wahyu Santoso, S.H.", rank: "Kompol", unit: "Bagian Operasi (Bag Ops)", role: "PERWIRA_OPS", status: "AKTIF",
-      deviceBinding: { model: "Samsung Galaxy Tab Active3 Rugged Tablet", uuid: "SEC-POL-78030211-TAB", status: "TERIKAT", keystore: "Hardware StrongBox TEE", antiMock: "Aktif", enrolledAt: "02 Sep 2026" }
-    },
-    { 
-      nrp: "94050112", name: "Briptu Siti Nurhaliza", rank: "Briptu", unit: "SPKT / Call Center 110", role: "OPERATOR_SPKT", status: "AKTIF",
-      deviceBinding: { model: "Terminal Workstation SPKT 110 (MDT Desktop-04)", uuid: "SEC-POL-94050112-WKS", status: "TERIKAT", keystore: "TPM 2.0 Security Chip", antiMock: "N/A (Fixed PC)", enrolledAt: "10 Sep 2026" }
-    },
-    { 
-      nrp: "88123456", name: "Bripka Ahmad Subagyo", rank: "Bripka", unit: "Sat Samapta (Sektor Timur)", role: "PERSONIL_LAPANGAN", status: "AKTIF",
-      deviceBinding: { model: "Samsung Galaxy XCover 5 Enterprise (Police Rugged)", uuid: "SEC-POL-88123456-XCV9", status: "TERIKAT", keystore: "Hardware StrongBox TEE", antiMock: "Aktif (Mock Blocked)", enrolledAt: "15 Sep 2026" }
-    },
-    { 
-      nrp: "79040122", name: "Iptu Budi Santoso, S.H.", rank: "Iptu", unit: "Kanit Turjawali Samapta / Pawas", role: "KANIT_PAWAS", status: "AKTIF",
-      deviceBinding: { model: "Samsung Galaxy A54 5G (Dinas Pawas)", uuid: "SEC-POL-79040122-A54", status: "TERIKAT", keystore: "ARM TrustZone Keystore", antiMock: "Aktif", enrolledAt: "12 Sep 2026" }
-    },
-    { 
-      nrp: "81060333", name: "Iptu Hendra Wijaya, S.H.", rank: "Iptu", unit: "Seksi Propam Polres", role: "KASI_PROPAM", status: "AKTIF",
-      deviceBinding: { model: "Google Pixel 7 (Titan M2 Security Chip)", uuid: "SEC-POL-81060333-PIX", status: "TERIKAT", keystore: "Titan M2 Hardware Chip", antiMock: "Aktif", enrolledAt: "08 Sep 2026" }
-    },
-    { 
-      nrp: "83070455", name: "Aipda Pratama, S.Kom.", rank: "Aipda", unit: "Seksi TIK Polres", role: "ADMIN_TIK", status: "AKTIF",
-      deviceBinding: { model: "Workstation Konsol Si TIK Cyber Center", uuid: "SEC-POL-83070455-ADM", status: "TERIKAT", keystore: "FIPS 140-2 Level 3 HSM", antiMock: "N/A (Master Terminal)", enrolledAt: "01 Agu 2026" }
-    },
-    { 
-      nrp: "82050412", name: "Aipda Joko Susanto", rank: "Aipda", unit: "Tim Perintis Presisi", role: "PERSONIL_LAPANGAN", status: "AKTIF",
-      deviceBinding: { model: "Panasonic Toughbook FZ-T1 Police Rugged", uuid: "SEC-POL-82050412-FZ88", status: "TERIKAT", keystore: "Hardware StrongBox TEE", antiMock: "Aktif (Mock Blocked)", enrolledAt: "18 Sep 2026" }
-    }
+    { nrp: "76110988", name: "AKBP Hendro Wibowo, S.I.K., M.Si.", rank: "AKBP", unit: "Pimpinan Polres Metro", role: "PIMPINAN_KAPOLRES", status: "AKTIF", deviceBinding: { model: "iPhone 14 Pro Max", uuid: "SEC-POL-76110988-IOS" } },
+    { nrp: "80080155", name: "AKP Danang Kusuma, S.H.", rank: "AKP", unit: "Polsek Cempaka Raya", role: "KAPOLSEK", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy S22", uuid: "SEC-POL-80080155-TAC1" } },
+    { nrp: "78030211", name: "Kompol Wahyu Santoso, S.H.", rank: "Kompol", unit: "Bagian Operasi (Bag Ops)", role: "PERWIRA_OPS", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy Tab", uuid: "SEC-POL-78030211-TAB" } },
+    { nrp: "94050112", name: "Briptu Siti Nurhaliza", rank: "Briptu", unit: "SPKT / Call Center 110", role: "OPERATOR_SPKT", status: "AKTIF", deviceBinding: { model: "Terminal Workstation", uuid: "SEC-POL-94050112-WKS" } },
+    { nrp: "88123456", name: "Bripka Ahmad Subagyo", rank: "Bripka", unit: "Sat Samapta", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy XCover", uuid: "SEC-POL-88123456" } },
+    { nrp: "82050412", name: "Aipda Joko Susanto", rank: "Aipda", unit: "Tim Perintis Presisi", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Panasonic Toughbook", uuid: "SEC-POL-82050412" } },
+    { nrp: "85090123", name: "Bripka Dani Prasetyo", rank: "Bripka", unit: "Sat Lantas", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-85090123" } },
+    { nrp: "81010111", name: "Bripka Bambang", rank: "Bripka", unit: "Sat Sabhara", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-81010111" } },
+    { nrp: "82020222", name: "Bripka Budi", rank: "Bripka", unit: "Sat Lantas", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-82020222" } },
+    { nrp: "83030333", name: "Bripka Rudi", rank: "Bripka", unit: "Sat Reskrim", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-83030333" } },
+    { nrp: "89010234", name: "Bripka Hendra", rank: "Bripka", unit: "Polsek Cempaka Raya", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-89010234" } },
+    { nrp: "85050555", name: "Bripka Agus", rank: "Bripka", unit: "Sat Intelkam", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-85050555" } },
+    { nrp: "86060666", name: "Bripka Yudi", rank: "Bripka", unit: "Sat Pamobvit", role: "PERSONIL_LAPANGAN", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-86060666" } },
+    { nrp: "79040122", name: "Iptu Budi Santoso, S.H.", rank: "Iptu", unit: "Kanit Turjawali", role: "KANIT_PAWAS", status: "AKTIF", deviceBinding: { model: "Samsung Galaxy A54", uuid: "SEC-POL-79040122" } },
+    { nrp: "81060333", name: "Iptu Hendra Wijaya, S.H.", rank: "Iptu", unit: "Seksi Propam Polres", role: "KASI_PROPAM", status: "AKTIF", deviceBinding: { model: "Google Pixel 7", uuid: "SEC-POL-81060333" } },
+    { nrp: "83070455", name: "Aipda Pratama, S.Kom.", rank: "Aipda", unit: "Seksi TIK Polres", role: "ADMIN_TIK", status: "AKTIF", deviceBinding: { model: "Workstation Konsol", uuid: "SEC-POL-83070455" } }
   ],
   complaints: [
     {
@@ -686,14 +569,8 @@ const INITIAL_DATA = {
       locationName: "Area Parkir Ruko Grand Mall, Jl. Merdeka No. 12",
       lat: -6.2146,
       lng: 106.8451,
-      status: "DISPOSISI",
+      status: "VERIFIKASI_110",
       priority: "TINGGI",
-      assignedOfficer: {
-        name: "Bripka Ahmad Subagyo",
-        nrp: "88123456",
-        unit: "Patroli Samapta / Tim Presisi",
-        phone: "0811-2233-4455"
-      },
       timeline: [
         { 
           stage: "VERIFIKASI_110",
@@ -704,25 +581,6 @@ const INITIAL_DATA = {
             { type: "DOC", title: "Lembar Registrasi SPKT 110 (LP-110-2026-0089)", meta: "Dokumen Registrasi Digital SPKT", icon: "📑", url: "#" },
             { type: "PHOTO", title: "Foto KTP & STNK Pelapor (Bambang Sudirjo)", meta: "Bukti Kepemilikan Kendaraan Sah", icon: "📸", url: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80" },
             { type: "DOC", title: "Lembar Disposisi SPKT No. DISP/110/X/2026", meta: "Dokumen Registrasi SPKT", icon: "📑", url: "#" }
-          ]
-        },
-        { 
-          stage: "MENUJU_TKP",
-          time: "14:28", 
-          title: "2. Petugas Meluncur Menuju Lokasi (TKP)", 
-          desc: "Unit Patroli Roda 4 Samapta (Bripka Ahmad) bergerak dengan estimasi 12 menit.",
-          attachments: [
-            { type: "PHOTO", title: "Foto Keberangkatan Armada R4 Samapta-81", meta: "Stempel Lokasi: Mako Polres Metro (Jl. Jend. Sudirman No. 1)", icon: "🚔", url: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=600&q=80" }
-          ]
-        },
-        { 
-          stage: "PENANGANAN_TKP",
-          time: "14:40", 
-          title: "3. Tiba di TKP & Tindakan Pertama (TP-TKP)", 
-          desc: "Petugas berada di lokasi melakukan pengamanan, olah bukti CCTV, dan interogasi saksi.",
-          attachments: [
-            { type: "PHOTO", title: "Foto Olah TKP Awal Parkiran Ruko", meta: "Lokasi TKP: Area Parkir Ruko Grand Mall (Terverifikasi di Lokasi)", icon: "📸", url: "https://images.unsplash.com/photo-1590856029826-c7a73142bbf1?auto=format&fit=crop&w=600&q=80" },
-            { type: "VIDEO", title: "Video Rekaman CCTV Detik-Detik Pelaku Beraksi", meta: "Video MP4 &bull; 14.5 MB", icon: "🎥", url: "#" }
           ]
         }
       ]
@@ -814,29 +672,70 @@ const INITIAL_DATA = {
 
   // Crime & Vulnerability Hotspots (Titik Rawan)
   hotspots: [
-    { id: "HS-01", name: "Titik Rawan Curanmor Pasar Jaya", address: "Jl. Merdeka No. 45, Kawasan Parkir Pasar Jaya", category: "Curanmor", lat: -6.2140, lng: 106.8458, radius: 220, risk: "TINGGI", level: "TINGGI", hours: "14:00 - 18:00 WIB", notes: "Patroli dialogis juru parkir, imbau kunci ganda" },
-    { id: "HS-02", name: "Titik Rawan Tawuran Flyover Baru", address: "Flyover Cempaka KM 4, Bawah Jembatan Layang Rel KA", category: "Tawuran", lat: -6.2380, lng: 106.8400, radius: 250, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "22:00 - 04:00 WIB", notes: "Patroli blue light stasioner cegah geng motor" },
-    { id: "HS-03", name: "Titik Rawan Balap Liar Bypass", address: "Jl. Bypass Protokol KM 12 Timur, Jalur Lurus Bebas Hambatan", category: "Balap Liar", lat: -6.2450, lng: 106.8600, radius: 400, risk: "SEDANG", level: "SEDANG", hours: "01:00 - 04:00 WIB", notes: "Pemeriksaan surat kendaraan & knalpot brong" },
-    { id: "HS-04", name: "Titik Rawan Laka Lantas Simpang Cempaka", address: "Pertigaan Jl. Cempaka Raya - Jl. Veteran, Depan SPBU", category: "Laka Lantas", lat: -6.2255, lng: 106.8520, radius: 200, risk: "TINGGI", level: "TINGGI", hours: "06:30 - 09:00 WIB", notes: "Pengaturan arus lalu lintas jam berangkat kerja" }
+    // --- JAKARTA SELATAN ---
+    { id: "HS-01", name: "Balap Liar JLNT Antasari", address: "Jalan Layang Non-Tol (JLNT) Pangeran Antasari, Jakarta Selatan", category: "Balap Liar", lat: -6.2550, lng: 106.8110, radius: 450, risk: "SEDANG", level: "SEDANG", hours: "01:00 - 05:00 WIB", notes: "Penyekatan ujung JLNT & teguran rombongan motor" },
+    { id: "HS-02", name: "Tawuran Manggarai - Tambak", address: "Terowongan Manggarai & Jl. Tambak, Jakarta Selatan", category: "Tawuran", lat: -6.2085, lng: 106.8450, radius: 300, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "16:00 - 20:00 WIB", notes: "Patroli Samapta rutin antisipasi kumpul warga" },
+    { id: "HS-03", name: "Tawuran Pelajar Bulungan", address: "Kawasan Taman Ayodya / Bulungan, Kebayoran Baru", category: "Tawuran", lat: -6.2460, lng: 106.7960, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "14:00 - 17:00 WIB", notes: "Razia sajam pada jam pulang sekolah" },
+    { id: "HS-04", name: "Begal & Curas Pasar Minggu", address: "Jl. Raya Pasar Minggu (Sekitar Robinson)", category: "Street Crime", lat: -6.2840, lng: 106.8440, radius: 300, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "02:00 - 04:30 WIB", notes: "Patroli tertutup Kring Serse" },
+    { id: "HS-05", name: "Curanmor Kos Setiabudi", address: "Kawasan Pemukiman Padat / Kos Setiabudi, Jakarta Selatan", category: "Curanmor", lat: -6.2120, lng: 106.8280, radius: 200, risk: "TINGGI", level: "TINGGI", hours: "18:00 - 23:00 WIB", notes: "Patroli dialogis door-to-door Bhabinkamtibmas" },
+    { id: "HS-06", name: "Balap Liar TB Simatupang", address: "Sepanjang Jl. TB Simatupang (Cilandak - Ampera)", category: "Balap Liar", lat: -6.2900, lng: 106.8050, radius: 600, risk: "SEDANG", level: "SEDANG", hours: "00:00 - 04:00 WIB", notes: "Patroli stasioner Lantas & Samapta" },
+    { id: "HS-07", name: "Curanmor Gandaria", address: "Kawasan Parkir Liar Gandaria City & Radio Dalam", category: "Curanmor", lat: -6.2440, lng: 106.7830, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "16:00 - 21:00 WIB", notes: "Penertiban parkir liar & patroli dialogis" },
+    { id: "HS-08", name: "Tawuran Pasar Rumput", address: "Pasar Rumput & Underpass Manggarai", category: "Tawuran", lat: -6.2060, lng: 106.8410, radius: 350, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "23:00 - 05:00 WIB", notes: "Penyiagaan water cannon & gas air mata" },
+
+    // --- JAKARTA PUSAT ---
+    { id: "HS-09", name: "Tawuran Warga Johar Baru", address: "Kawasan Jembatan Besi & Kota Paris, Johar Baru, Jakpus", category: "Tawuran", lat: -6.1820, lng: 106.8550, radius: 250, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "23:00 - 04:00 WIB", notes: "Plotting stasioner Tim Patroli Presisi" },
+    { id: "HS-10", name: "Balap Liar Asia Afrika Senayan", address: "Jl. Asia Afrika & Gerbang Pemuda, Senayan, Jakarta Pusat", category: "Balap Liar", lat: -6.2230, lng: 106.8000, radius: 500, risk: "SEDANG", level: "SEDANG", hours: "00:00 - 05:00 WIB", notes: "Pemasangan speed trap portable" },
+    { id: "HS-11", name: "Jambret Underpass Cideng", address: "Underpass Cideng / Tanah Abang, Jakarta Pusat", category: "Street Crime", lat: -6.1850, lng: 106.8150, radius: 200, risk: "TINGGI", level: "TINGGI", hours: "21:00 - 03:00 WIB", notes: "Penyalaan lampu rotator (Blue Light Patrol)" },
+    { id: "HS-12", name: "Curanmor Kawasan Kemayoran", address: "Sekitar Masjid Akbar Kemayoran & Jl. Benyamin Sueb", category: "Curanmor", lat: -6.1600, lng: 106.8500, radius: 300, risk: "TINGGI", level: "TINGGI", hours: "19:00 - 23:00 WIB", notes: "Imbauan parkir liar & kunci ganda" },
+    { id: "HS-13", name: "Balap Liar Monas", address: "Jl. Medan Merdeka Selatan (Depan Balai Kota)", category: "Balap Liar", lat: -6.1810, lng: 106.8270, radius: 350, risk: "SEDANG", level: "SEDANG", hours: "01:00 - 04:00 WIB", notes: "Razia knalpot brong" },
+    { id: "HS-14", name: "Curanmor Thamrin-Jaksa", address: "Kawasan Kuliner Jl. Sabang & Jl. Jaksa", category: "Curanmor", lat: -6.1850, lng: 106.8230, radius: 200, risk: "TINGGI", level: "TINGGI", hours: "20:00 - 02:00 WIB", notes: "Patroli jalan kaki (Foot Patrol)" },
+
+    // --- JAKARTA BARAT ---
+    { id: "HS-15", name: "Curanmor Kos-kosan Kemanggisan", address: "Jl. Kemanggisan Raya, Kec. Palmerah, Jakarta Barat", category: "Curanmor", lat: -6.1950, lng: 106.7900, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "14:00 - 18:00 WIB", notes: "Patroli dialogis door-to-door" },
+    { id: "HS-16", name: "Tawuran Geng Motor Kalijodo", address: "Kawasan Tubagus Angke / Eks Kalijodo, Jakarta Barat", category: "Tawuran", lat: -6.1430, lng: 106.7900, radius: 350, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "01:00 - 04:00 WIB", notes: "Titik kumpul regu operasi cipta kondisi" },
+    { id: "HS-17", name: "Laka Lantas Daan Mogot", address: "Jl. Daan Mogot KM 12 (Titik Putar Balik), Jakarta Barat", category: "Laka Lantas", lat: -6.1550, lng: 106.7550, radius: 300, risk: "TINGGI", level: "TINGGI", hours: "06:00 - 09:00 WIB", notes: "Gatur lalin pagi Sat Lantas" },
+    { id: "HS-18", name: "Balap Liar CNI Kembangan", address: "Kawasan Sentra Primer Barat / CNI, Kembangan", category: "Balap Liar", lat: -6.1850, lng: 106.7350, radius: 400, risk: "SEDANG", level: "SEDANG", hours: "00:00 - 03:00 WIB", notes: "Patroli preventif rutin" },
+    { id: "HS-19", name: "Balap Liar Ring Road", address: "Ring Road Cengkareng - Puri Indah", category: "Balap Liar", lat: -6.1600, lng: 106.7300, radius: 550, risk: "TINGGI", level: "TINGGI", hours: "02:00 - 05:00 WIB", notes: "Standby mobil patroli Lantas" },
+    { id: "HS-20", name: "Tawuran Grogol", address: "Perempatan Kyai Tapa, Grogol", category: "Tawuran", lat: -6.1650, lng: 106.7890, radius: 250, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "23:00 - 03:00 WIB", notes: "Posko taktis operasi gabungan" },
+    { id: "HS-21", name: "Laka Lantas Pesing", address: "Flyover Pesing (Jalur Motor Ilegal)", category: "Laka Lantas", lat: -6.1610, lng: 106.7660, radius: 300, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "06:00 - 10:00 WIB", notes: "Penindakan tilang pelanggar flyover" },
+
+    // --- JAKARTA TIMUR ---
+    { id: "HS-22", name: "Tawuran Warga Kampung Melayu", address: "Terminal & Jembatan Kampung Melayu, Jatinegara", category: "Tawuran", lat: -6.2250, lng: 106.8660, radius: 300, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "23:00 - 04:00 WIB", notes: "Standby Blue Light di bawah flyover" },
+    { id: "HS-23", name: "Balap Liar BKT Duren Sawit", address: "Sepanjang Kanal Banjir Timur (BKT), Duren Sawit, Jaktim", category: "Balap Liar", lat: -6.2300, lng: 106.9100, radius: 800, risk: "TINGGI", level: "TINGGI", hours: "01:00 - 05:00 WIB", notes: "Pembubaran paksa & tilang manual" },
+    { id: "HS-24", name: "Begal Kawasan Industri Pulogadung", address: "Jalan Lingkar Kawasan Industri Pulogadung (JIEP)", category: "Street Crime", lat: -6.1950, lng: 106.9050, radius: 500, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "23:00 - 04:00 WIB", notes: "Patroli roda 4 bersenjata lengkap" },
+    { id: "HS-25", name: "Tawuran Remaja Pasar Rebo", address: "Simpang Raya Bogor - TL Pasar Rebo", category: "Tawuran", lat: -6.3150, lng: 106.8650, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "00:00 - 04:00 WIB", notes: "Pengecekan anak nongkrong di pinggir jalan" },
+    { id: "HS-26", name: "Balap Liar Velodrome", address: "Jl. Pemuda Raya / Velodrome Rawamangun", category: "Balap Liar", lat: -6.1920, lng: 106.8900, radius: 400, risk: "SEDANG", level: "SEDANG", hours: "00:00 - 03:00 WIB", notes: "Patroli Perintis Presisi" },
+    { id: "HS-27", name: "Tawuran Cipinang (Prumpung)", address: "Kawasan TPU Prumpung / By Pass DI Panjaitan", category: "Tawuran", lat: -6.2200, lng: 106.8750, radius: 300, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "01:00 - 04:30 WIB", notes: "Penyiagaan personil Sabhara perbatasan" },
+    { id: "HS-28", name: "Begal Cakung-Cilincing", address: "Jl. Cacing (Cakung - Cilincing) Area Truk Kontainer", category: "Street Crime", lat: -6.1600, lng: 106.9350, radius: 600, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "02:00 - 05:00 WIB", notes: "Kawal truk dan patroli anti-bajing loncat" },
+    { id: "HS-29", name: "Jambret Matraman", address: "Perempatan Matraman Raya / Salemba", category: "Street Crime", lat: -6.2050, lng: 106.8580, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "21:00 - 01:00 WIB", notes: "Pantauan CCTV dan kring serse" },
+
+    // --- JAKARTA UTARA ---
+    { id: "HS-30", name: "Laka & Titik Buta Plumpang", address: "Jl. Yos Sudarso - Plumpang, Koja, Jakarta Utara", category: "Laka Lantas", lat: -6.1300, lng: 106.8900, radius: 350, risk: "TINGGI", level: "TINGGI", hours: "05:00 - 10:00 WIB", notes: "Gatur lalin & pemantauan truk trailer" },
+    { id: "HS-31", name: "Bajing Loncat Pelabuhan Tj Priok", address: "Jalur Distribusi Pintu Masuk Pelabuhan Tanjung Priok", category: "Street Crime", lat: -6.1100, lng: 106.8850, radius: 400, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "02:00 - 06:00 WIB", notes: "Patroli kawal truk kargo" },
+    { id: "HS-32", name: "Balap Liar Danau Sunter", address: "Sepanjang Jalan Danau Sunter Selatan", category: "Balap Liar", lat: -6.1450, lng: 106.8700, radius: 450, risk: "SEDANG", level: "SEDANG", hours: "00:00 - 03:00 WIB", notes: "Patroli preventif rutin Samapta" },
+    { id: "HS-33", name: "Balap Liar Kemayoran Ancol", address: "Jl. Benyamin Sueb Ujung / Pintu Tol Ancol", category: "Balap Liar", lat: -6.1350, lng: 106.8480, radius: 400, risk: "TINGGI", level: "TINGGI", hours: "01:00 - 05:00 WIB", notes: "Penutupan jalur cepat oleh Patwal" },
+    { id: "HS-34", name: "Premanisme Terminal Tj Priok", address: "Kawasan Terminal Bus Tanjung Priok", category: "Street Crime", lat: -6.1150, lng: 106.8820, radius: 300, risk: "SANGAT_RAWAN", level: "SANGAT_RAWAN", hours: "18:00 - 23:00 WIB", notes: "Operasi yustisi & razia sajam preman" },
+    { id: "HS-35", name: "Tawuran Pademangan", address: "Kawasan Rel Kereta Pademangan", category: "Tawuran", lat: -6.1380, lng: 106.8350, radius: 250, risk: "TINGGI", level: "TINGGI", hours: "23:00 - 03:00 WIB", notes: "Patroli kewilayahan Polsek setempat" },
+    { id: "HS-36", name: "Curanmor Kelapa Gading", address: "Sentra Bisnis & Kuliner Boulevard Kelapa Gading", category: "Curanmor", lat: -6.1600, lng: 106.9000, radius: 350, risk: "TINGGI", level: "TINGGI", hours: "17:00 - 21:00 WIB", notes: "Patroli dialogis juru parkir" }
   ],
 
   // Patrol Route Checkpoints (Daftar Titik Singgah)
   checkpoints: [
-    { id: 1, name: "Pos 1: Mapolres Metro (Dukuh Atas BNI)", address: "Kawasan Dukuh Atas BNI, Jl. Galunggung", lat: -6.2018, lng: 106.8225, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "TERKUNJUNGI", lastVisited: "08:05 WIB" },
-    { id: 2, name: "Pos 2: Pos Pantau Simpang Guntur / Halimun", address: "Simpang Jl. Guntur - Jl. Sultan Agung", lat: -6.2078, lng: 106.8318, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "TERKUNJUNGI", lastVisited: "09:20 WIB" },
+    { id: 1, name: "Pos 1: Mapolres Metro (Mako Utama)", address: "Jl. Wijaya II No.42, Kebayoran Baru", lat: -6.2532689, lng: 106.7994054, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "SIAGA PATROLI", lastVisited: "Target 08:00 WIB" },
+    { id: 2, name: "Pos 2: Pos Pantau Simpang Guntur / Halimun", address: "Simpang Jl. Guntur - Jl. Sultan Agung", lat: -6.2078, lng: 106.8318, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "SIAGA PATROLI", lastVisited: "Target 09:15 WIB" },
     { id: 3, name: "Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)", address: "Jl. Dr. Saharjo No. 45, Pasar Manggis Jaya", lat: -6.2140, lng: 106.8458, timeTarget: "10:30 WIB", qrCode: "QR-POS-03", status: "SIAGA PATROLI", lastVisited: "Target 10:30 WIB" },
     { id: 4, name: "Pos 4: Jembatan Flyover Rel Kereta (Jl. Soepomo)", address: "Bawah Jembatan Layang Rel KA, Jl. Prof. Dr. Soepomo", lat: -6.2380, lng: 106.8400, timeTarget: "12:00 WIB", qrCode: "QR-POS-04", status: "SIAGA PATROLI", lastVisited: "Target 12:00 WIB" },
-    { id: 5, name: "Pos 5: Mapolres Metro (Dukuh Atas BNI)", address: "Kawasan Dukuh Atas BNI, Jl. Galunggung", lat: -6.2018, lng: 106.8225, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
+    { id: 5, name: "Pos 5: Mapolres Metro (Mako Utama)", address: "Jl. Wijaya II No.42, Kebayoran Baru", lat: -6.2532689, lng: 106.7994054, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
   ],
 
   // Unit-Specific Patrol Routes (Sistem Beat per-Regu) & Operasi Gabungan
   unitCheckpoints: {
     SAMAPTA_AHMAD: [
-      { id: 1, name: "Pos 1: Mapolres Metro (Dukuh Atas BNI)", lat: -6.2018, lng: 106.8225, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "TERKUNJUNGI", lastVisited: "08:05 WIB" },
-      { id: 2, name: "Pos 2: Pos Pantau Simpang Guntur / Halimun", lat: -6.2078, lng: 106.8318, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "TERKUNJUNGI", lastVisited: "09:20 WIB" },
+      { id: 1, name: "Pos 1: Mapolres Metro (Mako Utama)", lat: -6.2532689, lng: 106.7994054, timeTarget: "08:00 WIB", qrCode: "QR-POS-01", status: "SIAGA PATROLI", lastVisited: "Target 08:00 WIB" },
+      { id: 2, name: "Pos 2: Pos Pantau Simpang Guntur / Halimun", lat: -6.2078, lng: 106.8318, timeTarget: "09:15 WIB", qrCode: "QR-POS-02", status: "SIAGA PATROLI", lastVisited: "Target 09:15 WIB" },
       { id: 3, name: "Pos 3: Pasar Tradisional Jaya (Jl. Dr. Saharjo)", lat: -6.2140, lng: 106.8458, timeTarget: "10:30 WIB", qrCode: "QR-POS-03", status: "SIAGA PATROLI", lastVisited: "Target 10:30 WIB" },
       { id: 4, name: "Pos 4: Jembatan Flyover Rel Kereta (Jl. Soepomo)", lat: -6.2380, lng: 106.8400, timeTarget: "12:00 WIB", qrCode: "QR-POS-04", status: "SIAGA PATROLI", lastVisited: "Target 12:00 WIB" },
-      { id: 5, name: "Pos 5: Mapolres Metro (Dukuh Atas BNI)", lat: -6.2018, lng: 106.8225, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
+      { id: 5, name: "Pos 5: Mapolres Metro (Mako Utama)", lat: -6.2532689, lng: 106.7994054, timeTarget: "14:00 WIB", qrCode: "QR-POS-05", status: "KONSOLIDASI", lastVisited: "Target 14:00 WIB" }
     ],
     PERINTIS_JOKO: [
       { id: 1, name: "Pos A: Pangkalan Tim Perintis Presisi (Mako Barat)", lat: -6.2100, lng: 106.8250, timeTarget: "22:00 WIB", qrCode: "QR-PRT-01", status: "TERKUNJUNGI", lastVisited: "22:10 WIB" },
@@ -855,57 +754,36 @@ const INITIAL_DATA = {
       { id: 3, name: "Zona Pantau 3: Pasar Tradisional & Sentra Ekonomi", lat: -6.2140, lng: 106.8450, timeTarget: "01:30 WIB", qrCode: "QR-GAB-03", status: "SIAGA PATROLI", lastVisited: "Target 01:30 WIB" },
       { id: 4, name: "Zona Pantau 4: Flyover Rel Kereta & Batas Sektor", lat: -6.2380, lng: 106.8390, timeTarget: "03:00 WIB", qrCode: "QR-GAB-04", status: "SIAGA PATROLI", lastVisited: "Target 03:00 WIB" },
       { id: 5, name: "Titik Akhir: Mapolres Metro (Konsolidasi Pasukan)", lat: -6.2015, lng: 106.8195, timeTarget: "04:30 WIB", qrCode: "QR-GAB-05", status: "KONSOLIDASI", lastVisited: "Target 04:30 WIB" }
+    ],
+    SABHARA_BAMBANG: [
+      { id: 1, name: "Pos 1: Terminal Blok M", lat: -6.2440, lng: 106.7990, timeTarget: "21:00 WIB", qrCode: "QR-BBG-01", status: "SIAGA PATROLI", lastVisited: "Target 21:00 WIB" },
+      { id: 2, name: "Pos 2: Kawasan Hiburan Kemang", lat: -6.2610, lng: 106.8120, timeTarget: "23:00 WIB", qrCode: "QR-BBG-02", status: "SIAGA PATROLI", lastVisited: "Target 23:00 WIB" },
+      { id: 3, name: "Pos 3: Flyover Antasari", lat: -6.2510, lng: 106.8100, timeTarget: "01:30 WIB", qrCode: "QR-BBG-03", status: "SIAGA PATROLI", lastVisited: "Target 01:30 WIB" }
+    ],
+    BUSER_RIZKI: [
+      { id: 1, name: "Titik Kumpul: Polsek Tanah Abang", lat: -6.1950, lng: 106.8100, timeTarget: "21:00 WIB", qrCode: "QR-BSR-01", status: "SIAGA PATROLI", lastVisited: "Target 21:00 WIB" },
+      { id: 2, name: "Kring Serse: Pasar Kambing", lat: -6.1850, lng: 106.8150, timeTarget: "23:00 WIB", qrCode: "QR-BSR-02", status: "SIAGA PATROLI", lastVisited: "Target 23:00 WIB" }
+    ],
+    PATWAL_SURYA: [
+      { id: 1, name: "Pos Gatur: Bundaran HI", lat: -6.1950, lng: 106.8230, timeTarget: "06:00 WIB", qrCode: "QR-PTW-01", status: "SIAGA PATROLI", lastVisited: "Target 06:00 WIB" },
+      { id: 2, name: "Pos Gatur: Sarinah", lat: -6.1880, lng: 106.8230, timeTarget: "08:00 WIB", qrCode: "QR-PTW-02", status: "SIAGA PATROLI", lastVisited: "Target 08:00 WIB" }
+    ],
+    BHABIN_HENDRA: [
+      { id: 1, name: "Poskamling RT 03", lat: -6.2200, lng: 106.8300, timeTarget: "10:00 WIB", qrCode: "QR-BHB-01", status: "SIAGA PATROLI", lastVisited: "Target 10:00 WIB" },
+      { id: 2, name: "Balai Warga RW 05", lat: -6.2250, lng: 106.8350, timeTarget: "11:00 WIB", qrCode: "QR-BHB-02", status: "SIAGA PATROLI", lastVisited: "Target 11:00 WIB" }
+    ],
+    PAM_OBVIT_KEVIN: [
+      { id: 1, name: "Objek Vital: BI", lat: -6.1820, lng: 106.8220, timeTarget: "08:00 WIB", qrCode: "QR-OBV-01", status: "SIAGA PATROLI", lastVisited: "Target 08:00 WIB" },
+      { id: 2, name: "Objek Vital: Istana", lat: -6.1700, lng: 106.8230, timeTarget: "10:00 WIB", qrCode: "QR-OBV-02", status: "SIAGA PATROLI", lastVisited: "Target 10:00 WIB" }
+    ],
+    PERINTIS_DONI: [
+      { id: 1, name: "Pos Anti Tawuran Manggarai", lat: -6.2085, lng: 106.8450, timeTarget: "23:00 WIB", qrCode: "QR-DONI-01", status: "SIAGA PATROLI", lastVisited: "Target 23:00 WIB" },
+      { id: 2, name: "Pos Cegat Matraman", lat: -6.2050, lng: 106.8580, timeTarget: "01:00 WIB", qrCode: "QR-DONI-02", status: "SIAGA PATROLI", lastVisited: "Target 01:00 WIB" }
     ]
   },
 
   // Field Officer Activity Logs (E-Logbook)
-  eLogbook: [
-    {
-      id: "LOG-0101",
-      type: "PATROLI",
-      officerName: "Bripka Ahmad Subagyo",
-      officerNrp: "88123456",
-      time: "09:30 WIB",
-      title: "Patroli Dialogis Pasar Jaya & Obvit Bank",
-      locationClaimed: "Pasar Tradisional Jaya, Pos Satpam",
-      locationGps: { lat: -6.2145, lng: 106.8452 },
-      discrepancyKm: 0.06,
-      status: "DISETUJUI",
-      auditVerdict: "VALID",
-      photoUrl: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=600&q=80",
-      notes: "Dialog dengan juru parkir agar waspada curanmor roda dua."
-    },
-    {
-      id: "LOG-0102",
-      type: "TP-TKP",
-      officerName: "Bripka Ahmad Subagyo",
-      officerNrp: "88123456",
-      time: "11:15 WIB",
-      title: "Penanganan Laka Lantas Ringan Roda Dua",
-      locationClaimed: "Jl. Cempaka Raya No. 45",
-      locationGps: { lat: -6.2250, lng: 106.8518 },
-      discrepancyKm: 0.07,
-      status: "MENUNGGU",
-      auditVerdict: "VALID",
-      photoUrl: "https://images.unsplash.com/photo-1590856029826-c7a73142bbf1?auto=format&fit=crop&w=600&q=80",
-      notes: "Kedua pihak sepakat musyawarah kekeluargaan, surat kesepakatan terlampir."
-    },
-    {
-      id: "LOG-0103",
-      type: "SAMBANG",
-      officerName: "Bripka Hendra (Bhabinkamtibmas)",
-      officerNrp: "89010234",
-      time: "13:40 WIB",
-      title: "Sambang Warga & Sosialisasi Call Center 110",
-      locationClaimed: "Balai RW 07 Kelurahan Mekarsari (Jarak 5.2 km dari Polres)",
-      locationGps: { lat: -6.2020, lng: 106.8200 },
-      discrepancyKm: 6.84,
-      status: "MENUNGGU",
-      auditVerdict: "MISMATCH_ALERT",
-      photoUrl: "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80",
-      notes: "Penyuluhan Kamtibmas ke warga (Peringatan Sistem: Koordinat GPS unggahan berjarak 6.8 km dari klaim lokasi Balai RW!)"
-    }
-  ],
+  eLogbook: [],
 
   officerStats: {
     logKirim: 28,
@@ -915,9 +793,15 @@ const INITIAL_DATA = {
   },
 
   kanitUnitMembers: [
-    { nrp: "88123456", name: "Bripka Ahmad Subagyo", rank: "Bripka", beat: "Beat 1 - Pasar & Sentra Perbankan", shift: "Shift Pagi (08:00 - 20:00)", logCount: 2, gpsScore: "100%", statusText: "Menuju TKP 110", statusBadge: "badge-info" },
-    { nrp: "82050412", name: "Aipda Joko Susanto", rank: "Aipda", beat: "Beat 2 - Sentra Niaga & Cempaka", shift: "Shift Pagi (08:00 - 20:00)", logCount: 3, gpsScore: "98%", statusText: "Patroli Dialogis", statusBadge: "badge-success" },
-    { nrp: "92070119", name: "Bripda Rizki Pratama", rank: "Bripda", beat: "Beat 3 - Perumahan & Jalur Protokol", shift: "Shift Pagi (08:00 - 20:00)", logCount: 1, gpsScore: "99%", statusText: "Standby Pos Polisi", statusBadge: "badge-gold" }
+    { nrp: "88123456", name: "Bripka Ahmad Subagyo", rank: "Bripka", unitKey: "SAMAPTA_AHMAD", beat: "Beat 1 - Pasar & Sentra Perbankan", shift: "Shift Pagi (08:00 - 20:00)", logCount: 2, gpsScore: "100%", statusText: "Menuju TKP 110", statusBadge: "badge-info" },
+    { nrp: "82050412", name: "Aipda Joko Susanto", rank: "Aipda", unitKey: "PERINTIS_JOKO", beat: "Beat 2 - Sentra Niaga & Cempaka", shift: "Shift Pagi (08:00 - 20:00)", logCount: 3, gpsScore: "98%", statusText: "Patroli Motor", statusBadge: "badge-success" },
+    { nrp: "92070119", name: "Bripda Rizki Pratama", rank: "Bripda", unitKey: "BUSER_RIZKI", beat: "Kring Serse Tertutup", shift: "Shift Pagi (08:00 - 20:00)", logCount: 1, gpsScore: "99%", statusText: "Penyelidikan Tertutup", statusBadge: "badge-gold" },
+    { nrp: "77012345", name: "Bripka Bambang Supriyadi", rank: "Bripka", unitKey: "SABHARA_BAMBANG", beat: "Beat 4 - Kemang & Blok M", shift: "Shift Malam (20:00 - 08:00)", logCount: 0, gpsScore: "100%", statusText: "Patroli Kewilayahan", statusBadge: "badge-success" },
+    { nrp: "85023412", name: "Iptu Surya Hidayat", rank: "Iptu", unitKey: "PATWAL_SURYA", beat: "Gatur Lalin Protokol", shift: "Shift Pagi (08:00 - 20:00)", logCount: 2, gpsScore: "100%", statusText: "Penertiban Lalin", statusBadge: "badge-info" },
+    { nrp: "89012211", name: "Aiptu Hendra Gunawan", rank: "Aiptu", unitKey: "BHABIN_HENDRA", beat: "Patroli Dialogis Warga", shift: "Shift Pagi (08:00 - 20:00)", logCount: 1, gpsScore: "95%", statusText: "Patroli Dialogis", statusBadge: "badge-success" },
+    { nrp: "91022344", name: "Bripda Kevin Siregar", rank: "Bripda", unitKey: "PAM_OBVIT_KEVIN", beat: "Pengamanan Objek Vital", shift: "Shift Malam (20:00 - 08:00)", logCount: 0, gpsScore: "100%", statusText: "Penjagaan Objek Vital", statusBadge: "badge-gold" },
+    { nrp: "83045566", name: "Bripka Doni Tata", rank: "Bripka", unitKey: "PERINTIS_DONI", beat: "Anti Tawuran Malam", shift: "Shift Malam (20:00 - 08:00)", logCount: 1, gpsScore: "100%", statusText: "Standby Pos Polisi", statusBadge: "badge-secondary" },
+    { nrp: "88055566", name: "Bripka Dani", rank: "Bripka", unitKey: "PATWAL_DANI", beat: "Beat 3 - Simpang Sudirman", shift: "Shift Pagi (08:00 - 20:00)", logCount: 1, gpsScore: "100%", statusText: "Standby Pos Polisi", statusBadge: "badge-secondary" }
   ],
   kabagopsSprintRecords: [
     {
@@ -1045,7 +929,8 @@ class SimapresApp {
   }
 
   loadState() {
-    const saved = localStorage.getItem('simapres_state_v5') || localStorage.getItem('simapres_state_v4');
+    // FORCE RESET for this session by ignoring previous versions
+    const saved = localStorage.getItem('simapres_state_v8');
     let state = null;
     if (saved) {
       try {
@@ -1082,7 +967,7 @@ class SimapresApp {
         ...cp,
         address: cp.address || (INITIAL_DATA.checkpoints[idx] ? INITIAL_DATA.checkpoints[idx].address : 'Wilayah Sektor Cempaka'),
         qrCode: cp.qrCode || `QR-POS-0${idx + 1}`,
-        status: cp.status || (idx < 2 ? 'TERKUNJUNGI' : 'SIAGA PATROLI'),
+        status: cp.status || 'SIAGA PATROLI',
         lastVisited: cp.lastVisited || cp.timeTarget || 'Target: Sesuai Rute'
       }));
     }
@@ -1134,17 +1019,25 @@ class SimapresApp {
   }
 
   saveState() {
-    localStorage.setItem('simapres_state_v5', JSON.stringify(this.state));
-    localStorage.setItem('simapres_state_v4', JSON.stringify(this.state));
+    localStorage.setItem('simapres_state_v8', JSON.stringify(this.state));
+    localStorage.setItem('simapres_state_v7', JSON.stringify(this.state));
     this.renderActiveDashboard();
   }
 
   resetState() {
     if (confirm("Reset seluruh data simulasi ke pengaturan awal?")) {
-      localStorage.removeItem('simapres_state_v4');
+      localStorage.removeItem('simapres_state_v8');
+      localStorage.removeItem('simapres_state_v7');
+      localStorage.removeItem('simapres_state_v5');
       this.state = JSON.parse(JSON.stringify(INITIAL_DATA));
+      
+      // Kosongkan mock data agar simulasi benar-benar mulai dari awal
+      this.state.complaints = [];
+      this.state.eLogbook = [];
+      
       this.saveState();
-      this.showToast("Data simulasi berhasil di-reset!", "success");
+      this.showToast("Data simulasi berhasil di-reset! Memuat ulang...", "success");
+      setTimeout(() => { window.location.reload(); }, 800);
     }
   }
 
@@ -1194,7 +1087,7 @@ class SimapresApp {
         } catch (err) {
           console.error("Cross-tab sync error:", err);
         }
-      } else if (e.key === 'simapres_state_v4' && e.newValue) {
+      } else if (e.key === 'simapres_state_v8' && e.newValue) {
         try {
           const newState = JSON.parse(e.newValue);
           this.state = newState;
@@ -2139,9 +2032,23 @@ class SimapresApp {
       btnStop.classList.remove('hidden-btn');
       this.showToast('Patroli Regu Dimulai. Sistem melacak pergerakan real-time GPS Anda.', 'success');
       
+      if (this.state && this.state.patrolFleet) {
+        const ahmadData = this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+        if (ahmadData) {
+          ahmadData.status = 'PATROLI_RUTIN';
+          ahmadData.currentTask = 'Patroli Rute Beat 1 (Pasar & Bank)';
+        }
+        this.saveState();
+      }
+
       // Update HUD status if applicable
       const speedEl = document.getElementById('personil-hud-speed');
       if (speedEl) speedEl.innerHTML = '10 km/jam (Mulai bergerak)';
+      
+      // Update infowindow if open
+      if (this.ahmadFullMapMarker && typeof this.ahmadFullMapMarker.updateContent === 'function') {
+        this.ahmadFullMapMarker.updateContent();
+      }
     } else {
       // Validasi: Cegah penyelesaian patroli jika ada laporan 110 yang masih aktif (belum SELESAI)
       const activeTask = this.state.complaints.find(c => 
@@ -2159,8 +2066,52 @@ class SimapresApp {
       btnStart.classList.remove('hidden-btn');
       this.showToast('Patroli Regu Selesai. Data tracking telah diamankan ke server command center.', 'success');
       
+      if (this.state && this.state.patrolFleet) {
+        const ahmadData = this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+        if (ahmadData) {
+          ahmadData.status = 'SIAGA';
+          ahmadData.currentTask = 'Standby Mako';
+          ahmadData.lat = -6.2532689; // Mako Polres Metro
+          ahmadData.lng = 106.7994054;
+          
+          // Broadcast perubahan koordinat & status ke dashboard pimpinan secara real-time
+          localStorage.setItem('simapres_fleet_sync', JSON.stringify({
+            fleetId: ahmadData.id,
+            nrp: ahmadData.officerNrp,
+            lat: ahmadData.lat,
+            lng: ahmadData.lng,
+            status: ahmadData.status,
+            currentTask: ahmadData.currentTask,
+            timestamp: Date.now()
+          }));
+        }
+        
+        window.patrolPassedCount = 0;
+        window.checkpointArrivalTimes = {};
+        window.simulatedDistKm = undefined;
+        window.simulatedEtaMinutes = undefined;
+        window.currentTargetCpName = undefined;
+        
+        this.saveState();
+      }
+
+      if (window.patrolAnimationInterval) {
+        clearInterval(window.patrolAnimationInterval);
+      }
+      if (window.personilHudSpeedInterval) {
+        clearInterval(window.personilHudSpeedInterval);
+        window.personilHudSpeedInterval = null;
+      }
+
       const speedEl = document.getElementById('personil-hud-speed');
       if (speedEl) speedEl.innerHTML = '0 km/jam (Berhenti)';
+
+      if (this.ahmadFullMapMarker) {
+        this.ahmadFullMapMarker.setPosition(new google.maps.LatLng(-6.2532689, 106.7994054));
+        if (typeof this.ahmadFullMapMarker.updateContent === 'function') {
+          this.ahmadFullMapMarker.updateContent();
+        }
+      }
 
       // Simulasi update ke sistem Backend/Database
       const now = new Date();
@@ -2247,8 +2198,16 @@ class SimapresApp {
       }
     }
 
-    let ahmadLat = -6.2078;
-    let ahmadLng = 106.8318;
+    let ahmadLat = -6.2532689; // Default Mako
+    let ahmadLng = 106.7994054;
+    
+    if (this.state && this.state.patrolFleet) {
+      const ahmadData = this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+      if (ahmadData && ahmadData.lat !== undefined && ahmadData.lng !== undefined) {
+        ahmadLat = parseFloat(ahmadData.lat);
+        ahmadLng = parseFloat(ahmadData.lng);
+      }
+    }
 
     const completedTasks = this.state.complaints.filter(c => c.assignedOfficer && c.assignedOfficer.nrp === '88123456' && c.status === 'SELESAI');
     if (!activeTask && completedTasks.length > 0) {
@@ -2304,7 +2263,12 @@ class SimapresApp {
           const self = this;
           this.div.addEventListener('click', (e) => {
             e.stopPropagation();
-            google.maps.event.trigger(self, 'click');
+            e.preventDefault();
+            // Trigger a custom event name to avoid intercept by native poly.js / marker.js 
+            // which expects 'this' to be a native Google Maps class and throws "this.th is not a function"
+            google.maps.event.trigger(self, 'marker_click');
+            // Also trigger standard click just in case, but safely
+            try { google.maps.event.trigger(self, 'click'); } catch(err) {}
           });
         }
         draw() {
@@ -2332,15 +2296,23 @@ class SimapresApp {
       };
     }
 
+    // 0. Mako Building Marker
+    const makoHtml = `
+      <div style="font-size:32px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.4)); position:relative; z-index:1; text-align:center;">🏢</div>
+      <div style="position:absolute; bottom:-15px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:#fff; font-size:10px; padding:2px 6px; border-radius:4px; white-space:nowrap; font-weight:bold;">Mako Polres</div>
+    `;
+    const makoPos = new google.maps.LatLng(-6.2532689, 106.7994054);
+    new window.GoogleHTMLMarker(makoPos, makoHtml, map, [16, 32]);
+
     // 1. Ahmad Marker
     const carHtml = `
       <div style="position:relative; width:48px; height:48px; display:flex; align-items:center; justify-content:center;">
-        <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid #38BDF8; background: rgba(56,189,248,0.15);"></div>
-        <div style="font-size:36px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6)); position:relative; z-index:2;">🚔</div>
+        <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid #38BDF8; background: rgba(56,189,248,0.15); border-radius: 50%;"></div>
+        <div style="font-size:28px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6)); position:relative; z-index:2; margin-top:-4px;">🚔</div>
       </div>
     `;
     const ahmadPos = new google.maps.LatLng(ahmadLat, ahmadLng);
-    this.ahmadFullMapMarker = new window.GoogleHTMLMarker(ahmadPos, carHtml, map, [26, 23]);
+    this.ahmadFullMapMarker = new window.GoogleHTMLMarker(ahmadPos, carHtml, map, [24, 24]);
     
     const getAhmadInfoContent = () => {
       const isEmergency = !!activeTask;
@@ -2367,9 +2339,15 @@ class SimapresApp {
       disableAutoPan: true,
       content: getAhmadInfoContent()
     });
-    this.ahmadFullMapMarker.addListener('click', () => {
+    this.ahmadFullMapMarker.addListener('marker_click', () => {
       ahmadInfo.setContent(getAhmadInfoContent());
       // Ambil posisi terkini dari latlng property (atau ahmadPos)
+      ahmadInfo.setPosition(this.ahmadFullMapMarker.latlng || ahmadPos);
+      ahmadInfo.open(map);
+    });
+    this.ahmadFullMapMarker.addListener('click', () => {
+      // Fallback
+      ahmadInfo.setContent(getAhmadInfoContent());
       ahmadInfo.setPosition(this.ahmadFullMapMarker.latlng || ahmadPos);
       ahmadInfo.open(map);
     });
@@ -2399,6 +2377,10 @@ class SimapresApp {
           </div>
           <span style="color:#475569;">${activeTask.locationName || activeTask.location || 'Menunggu titik koordinat'}</span>
         </div>`
+      });
+      emergencyMarker.addListener('marker_click', () => {
+        destInfo.setPosition(destPos);
+        destInfo.open(map);
       });
       emergencyMarker.addListener('click', () => {
         destInfo.setPosition(destPos);
@@ -2594,6 +2576,14 @@ class SimapresApp {
           }
         }
 
+        const ahmadData = this.state.patrolFleet && this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+        const isPatrolling = ahmadData && (ahmadData.status === 'PATROLI_RUTIN' || ahmadData.status === 'PENGEJARAN' || ahmadData.status === 'PENERTIBAN');
+
+        if (!isPatrolling) {
+            // Hide routes on the live monitoring map if the unit is on standby
+            return;
+        }
+
         const osrmPromises = [];
         
         for (let i = 0; i < modifiedCps.length - 1; i++) {
@@ -2615,7 +2605,7 @@ class SimapresApp {
                  const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
                  
                  if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 4)) {
-                   window.patrolPassedCount = tkpInserted ? 4 : 2;
+                   window.patrolPassedCount = tkpInserted ? 4 : 0;
                  }
                  let isPassed = (i < window.patrolPassedCount);
                  const pathColor = isPassed ? '#64748B' : seg.color;
@@ -2652,10 +2642,9 @@ class SimapresApp {
             });
 
             if (!hasError) {
-               // Animasi Live Patroli (hanya jika tidak sedang darurat 110)
                if (!activeTask) {
                  if (window.patrolPassedCount === undefined || (tkpInserted && window.patrolPassedCount < 4)) {
-                   window.patrolPassedCount = tkpInserted ? 4 : 2;
+                   window.patrolPassedCount = tkpInserted ? 4 : 0;
                  }
                  let fullAnimPath = [];
                  results.forEach((data, i) => {
@@ -2718,10 +2707,6 @@ class SimapresApp {
                          if (ahmadData) {
                            ahmadData.lat = node.latLng.lat();
                            ahmadData.lng = node.latLng.lng();
-                           ahmadData.status = 'PATROLI_RUTIN';
-                           if (window.currentTargetCpName) {
-                             ahmadData.currentTask = `Menuju ${window.currentTargetCpName}`;
-                           }
                          }
                        }
                        if (this.fleetMarkers && this.fleetMarkers['FLEET-01'] && typeof this.fleetMarkers['FLEET-01'].setPosition === 'function') {
@@ -2853,7 +2838,8 @@ class SimapresApp {
       // Checkpoints (Hanya muncul saat Patroli Rutin)
       const checkpoints = (this.state.unitCheckpoints && this.state.unitCheckpoints.SAMAPTA_AHMAD) || this.state.checkpoints;
       checkpoints.forEach((cp, idx) => {
-        const isVisited = idx < 2;
+        const passedCount = window.patrolPassedCount || 0;
+        const isVisited = idx < passedCount;
         const markerHtml = `
           <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6)); opacity:${isVisited ? 0.4 : 1};">
             🚩
@@ -3043,24 +3029,29 @@ class SimapresApp {
               }
             }
           } else {
-            const speed = Math.floor(Math.random() * 10) + 20;
-            hudSpeed.innerHTML = `${speed} km/jam`; // Kecepatan patroli santai (20-30)
+            const ahmadData = this.state.patrolFleet && this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+            if (ahmadData && ahmadData.status === 'PATROLI_RUTIN') {
+              const speed = Math.floor(Math.random() * 10) + 20;
+              hudSpeed.innerHTML = `${speed} km/jam`; // Kecepatan patroli santai (20-30)
 
-            // ETA and Distance reduction physics simulation (v = s/t) untuk rute patroli biasa
-            if (window.simulatedDistKm !== undefined && window.simulatedDistKm > 0.05) {
-              const distanceTravelled = (speed / 3600) * 3.5; // Jarak dalam 3.5 detik (km)
-              window.simulatedDistKm -= distanceTravelled;
-              window.simulatedDistKm = Math.max(0.01, window.simulatedDistKm);
-              
-              if (window.simulatedEtaMinutes > 1) {
-                window.simulatedEtaMinutes = Math.ceil(window.simulatedDistKm / (speed / 60));
+              // ETA and Distance reduction physics simulation (v = s/t) untuk rute patroli biasa
+              if (window.simulatedDistKm !== undefined && window.simulatedDistKm > 0.05) {
+                const distanceTravelled = (speed / 3600) * 3.5; // Jarak dalam 3.5 detik (km)
+                window.simulatedDistKm -= distanceTravelled;
+                window.simulatedDistKm = Math.max(0.01, window.simulatedDistKm);
+                
+                if (window.simulatedEtaMinutes > 1) {
+                  window.simulatedEtaMinutes = Math.ceil(window.simulatedDistKm / (speed / 60));
+                }
+                
+                const hudTarget = document.getElementById('personil-hud-target');
+                if (hudTarget && !hudTarget.innerHTML.includes('TKP Darurat')) {
+                  const targetName = window.currentTargetCpName || 'Pos Berikutnya';
+                  hudTarget.innerHTML = `${targetName} (${window.simulatedEtaMinutes} Mnt - ${window.simulatedDistKm.toFixed(2)} km)`;
+                }
               }
-              
-              const hudTarget = document.getElementById('personil-hud-target');
-              if (hudTarget && !hudTarget.innerHTML.includes('TKP Darurat')) {
-                const targetName = window.currentTargetCpName || 'Pos Berikutnya';
-                hudTarget.innerHTML = `${targetName} (${window.simulatedEtaMinutes} Mnt - ${window.simulatedDistKm.toFixed(2)} km)`;
-              }
+            } else {
+              hudSpeed.innerHTML = `0 km/jam`;
             }
           }
         }
@@ -3117,9 +3108,21 @@ class SimapresApp {
         </div>
       `;
     } else {
-      // Hapus inline style 'display' agar kembali diatur oleh class .hidden-btn (sesuai status patroli)
-      if(btnStop) btnStop.style.removeProperty('display');
-      if(btnStart) btnStart.style.removeProperty('display');
+      const ahmadData = this.state.patrolFleet && this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+      const isPatrolling = ahmadData && ahmadData.status === 'PATROLI_RUTIN';
+
+      if(btnStop) {
+        btnStop.style.removeProperty('display');
+        if (isPatrolling) btnStop.classList.remove('hidden-btn');
+        else btnStop.classList.add('hidden-btn');
+      }
+      
+      if(btnStart) {
+        btnStart.style.removeProperty('display');
+        if (isPatrolling) btnStart.classList.add('hidden-btn');
+        else btnStart.classList.remove('hidden-btn');
+      }
+
       if(btnResolve) {
         btnResolve.classList.add('hidden-btn');
         btnResolve.style.setProperty('display', 'none', 'important');
@@ -3139,7 +3142,7 @@ class SimapresApp {
         });
       }
       
-      const baseCount = completedTasks.length > 0 ? 4 : 2;
+      const baseCount = completedTasks.length > 0 ? 4 : 0;
       if (window.patrolPassedCount === undefined || window.patrolPassedCount < baseCount) {
         window.patrolPassedCount = baseCount;
       }
@@ -3155,16 +3158,19 @@ class SimapresApp {
         hudLocation.innerHTML = locName;
       }
       if (hudTarget) {
-        const targetName = window.currentTargetCpName || (checkpoints[window.patrolPassedCount] ? checkpoints[window.patrolPassedCount].name : 'Pos 3');
-        const eta = window.simulatedEtaMinutes || 8;
-        const dist = window.simulatedDistKm ? window.simulatedDistKm.toFixed(2) + ' km' : '';
-        hudTarget.innerHTML = `${targetName} (${eta} Mnt${dist ? ' - ' + dist : ''})`;
-        hudTarget.style.color = `#38BDF8`;
+        const ahmadData = this.state.patrolFleet && this.state.patrolFleet.find(f => f.officerNrp === '88123456');
+        if (ahmadData && ahmadData.status === 'PATROLI_RUTIN') {
+          const targetName = window.currentTargetCpName || (checkpoints[window.patrolPassedCount] ? checkpoints[window.patrolPassedCount].name : 'Pos 3');
+          const eta = window.simulatedEtaMinutes || 8;
+          const dist = window.simulatedDistKm ? window.simulatedDistKm.toFixed(2) + ' km' : '';
+          hudTarget.innerHTML = `${targetName} (${eta} Mnt${dist ? ' - ' + dist : ''})`;
+          hudTarget.style.color = `#38BDF8`;
+        } else {
+          hudTarget.innerHTML = `Menunggu Instruksi (Standby)`;
+          hudTarget.style.color = `#94A3B8`;
+        }
       }
-      window.checkpointArrivalTimes = window.checkpointArrivalTimes || {
-        0: '20:45 WIB',
-        1: '21:10 WIB'
-      };
+      window.checkpointArrivalTimes = window.checkpointArrivalTimes || {};
 
       container.innerHTML = checkpoints.map((cp, idx) => {
         if (cp.isTkp) return ''; // Hide TKP from UI list
@@ -6091,7 +6097,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         name: "Mako Polres Metro ke TKP Grand Mall",
         originName: "Mako Polres Metro (Dukuh Atas BNI)",
         destName: "Area Parkir Grand Mall, Jl. Merdeka",
-        originCoord: { lat: -6.2018, lng: 106.8225 },
+        originCoord: { lat: -6.2532689, lng: 106.7994054 },
         destCoord:   { lat: -6.2146, lng: 106.8451 }
       };
     } else {
@@ -6355,6 +6361,58 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
   }
 
   getPatrolMultiColorRouteSegments(unitKey = 'SAMAPTA_AHMAD') {
+    if (unitKey === 'SABHARA_BAMBANG') {
+      return [
+        {
+          id: 'seg-bambang-1',
+          name: 'Jalur Hijau: Mako - Blok M',
+          color: '#10B981',
+          zoneStatus: 'ZONA AMAN (LANCAR)',
+          speedLimit: '30 km/jam',
+          description: 'Rute patroli kawasan pemukiman Blok M.',
+          path: [
+             [-6.2532689, 106.7994054],
+             [-6.2440, 106.7990]
+          ]
+        },
+        {
+          id: 'seg-bambang-2',
+          name: 'Jalur Kuning: Blok M - Kemang',
+          color: '#F59E0B',
+          zoneStatus: 'ZONA WASPADA (SIAGA)',
+          speedLimit: '40 km/jam',
+          description: 'Rute patroli area komersial & hiburan Kemang.',
+          path: [
+             [-6.2440, 106.7990],
+             [-6.2610, 106.8120]
+          ]
+        },
+        {
+          id: 'seg-bambang-3',
+          name: 'Jalur Merah: Kemang - Antasari',
+          color: '#EF4444',
+          zoneStatus: 'ZONA RAWAN (BALAP LIAR)',
+          speedLimit: '50 km/jam',
+          description: 'Rute patroli Flyover Antasari.',
+          path: [
+             [-6.2610, 106.8120],
+             [-6.2510, 106.8100]
+          ]
+        },
+        {
+          id: 'seg-bambang-4',
+          name: 'Jalur Hijau: Antasari - Mako',
+          color: '#10B981',
+          zoneStatus: 'ZONA AMAN (KONSOLIDASI)',
+          speedLimit: '40 km/jam',
+          description: 'Kembali ke Mako Polres.',
+          path: [
+             [-6.2510, 106.8100],
+             [-6.2532689, 106.7994054]
+          ]
+        }
+      ];
+    }
     // Exact Street Network Geometry (Following Jl. Galunggung, Jl. Sultan Agung, Jl. Dr. Saharjo, Jl. Soepomo, Jl. Gatot Subroto, & Jl. Jend. Sudirman)
     return [
       {
@@ -6365,7 +6423,11 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
         speedLimit: '40 km/jam',
         description: 'Koridor Dukuh Atas BNI menyusuri tepi Kali Banjir Barat via Jl. Galunggung menuju Pos 2 Simpang Guntur / Halimun.',
         path: [
-          [-6.2018, 106.8225], // Pos 1 / 5: Dukuh Atas BNI (Stasiun Sudirman)
+          [-6.2532689, 106.7994054], // Pos 1 / 5: Mako Utama
+          [-6.2400, 106.8000], // Menuju utara via Jl. Prapanca
+          [-6.2280, 106.8050], // Kawasan Senopati / SCBD
+          [-6.2180, 106.8180], // Memasuki Jl. Jend Sudirman
+          [-6.2080, 106.8220], // Dukuh Atas
           [-6.2019, 106.8238], // Jl. Galunggung barat (tepi kanal)
           [-6.2023, 106.8255], // Menyusuri tepi Kali Banjir Barat
           [-6.2030, 106.8272], // Tikungan Jl. Galunggung
@@ -6437,7 +6499,10 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
           [-6.2140, 106.8219], // Depan Setiabudi Astra (Lurus di Sudirman)
           [-6.2100, 106.8221], // Depan Stasiun Karet
           [-6.2060, 106.8223], // Stasiun Sudirman
-          [-6.2018, 106.8225]  // Pos 5 / 1: Dukuh Atas BNI (Kembali ke Mako)
+          [-6.2180, 106.8180], // Arah Selatan via Sudirman
+          [-6.2280, 106.8050], // Kawasan Senopati
+          [-6.2400, 106.8000], // Jl. Prapanca
+          [-6.2532689, 106.7994054]  // Kembali ke Mako
         ]
       }
     ];
@@ -6452,29 +6517,86 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     return all;
   }
 
-  getRouteStopsForCurrentSelection() {
-    const isGabungan = this.patrolConfigMode === 'GABUNGAN';
-    const unitKey = isGabungan ? 'GABUNGAN_POLRES' : (this.selectedPatrolUnit || 'SAMAPTA_AHMAD');
+  setPatrolConfigMode(mode) {
+    this.patrolConfigMode = mode;
+    
+    // Update Mode Toggles UI
+    const btnBeat = document.getElementById('btn-mode-beat');
+    const btnGab = document.getElementById('btn-mode-gabungan');
+    if (btnBeat) btnBeat.classList.toggle('active', mode === 'BEAT');
+    if (btnGab) btnGab.classList.toggle('active', mode === 'GABUNGAN');
+    
+    const badge = document.getElementById('kabagops-mode-badge');
+    if (badge) badge.innerText = mode === 'BEAT' ? 'Mode Beat Sektor' : 'Operasi Gabungan';
 
-    // Mako as base terminal
+    // Show/Hide relevant controls
+    const beatContainer = document.getElementById('kabagops-beat-selector-container');
+    const gabunganContainer = document.getElementById('kabagops-gabungan-checkboxes');
+    
+    if (mode === 'BEAT') {
+      if (beatContainer) beatContainer.style.display = 'block';
+      if (gabunganContainer) gabunganContainer.style.display = 'none';
+    } else {
+      if (beatContainer) beatContainer.style.display = 'none';
+      if (gabunganContainer) {
+        gabunganContainer.style.display = 'block';
+        this.renderGabunganCheckboxes();
+      }
+    }
+
+    this.renderRouteMapData();
+  }
+
+  renderGabunganCheckboxes() {
+    const container = document.getElementById('kabagops-gabungan-checkboxes');
+    if (!container) return;
+    
+    if (!this.gabunganSelectedUnits) {
+      this.gabunganSelectedUnits = ['SAMAPTA_AHMAD', 'LANTAS_DANI', 'PERINTIS_JOKO']; // Default
+    }
+
+    let html = '<div style="font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:8px;">Pilih Armada Gabungan:</div>';
+    html += '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
+
+    (this.kanitUnitMembers || []).forEach(unit => {
+      const isChecked = this.gabunganSelectedUnits.includes(unit.id) ? 'checked' : '';
+      html += `
+        <label style="display:flex; align-items:center; gap:4px; font-size:11px; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px; cursor:pointer;">
+          <input type="checkbox" value="${unit.id}" ${isChecked} onchange="app.toggleGabunganUnit(this.value, this.checked)">
+          ${unit.icon} ${unit.name}
+        </label>
+      `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  toggleGabunganUnit(unitId, isChecked) {
+    if (!this.gabunganSelectedUnits) this.gabunganSelectedUnits = [];
+    if (isChecked) {
+      if (!this.gabunganSelectedUnits.includes(unitId)) this.gabunganSelectedUnits.push(unitId);
+    } else {
+      this.gabunganSelectedUnits = this.gabunganSelectedUnits.filter(id => id !== unitId);
+    }
+    this.renderRouteMapData();
+  }
+
+  getRouteStopsForCurrentSelection(specificUnitKey = null) {
+    const unitKey = specificUnitKey || this.selectedPatrolUnit || 'SAMAPTA_AHMAD';
+
     const mako = {
       name: "Mako Polres Metro (Depot / Start)",
-      address: "Jl. Veteran No. 1, Gambir",
-      lat: -6.2146,
-      lng: 106.8451,
+      address: "Jl. Wijaya II No.42, Kebayoran Baru",
+      lat: -6.2532689,
+      lng: 106.7994054,
       timeTarget: "Keberangkatan",
       dwellTime: "Persiapan Armada (15 Mnt)",
       isTerminal: true
     };
 
-    let stops = [];
-    if (isGabungan) {
-      stops = (this.state.unitCheckpoints && this.state.unitCheckpoints.GABUNGAN_POLRES) || this.state.checkpoints;
-    } else {
-      stops = (this.state.unitCheckpoints && this.state.unitCheckpoints[unitKey]) || this.state.checkpoints;
-    }
+    let stops = (this.state.unitCheckpoints && this.state.unitCheckpoints[unitKey]) || this.state.checkpoints || [];
 
-    // Format stops into a closed-loop transit route
     const formatted = [mako];
     stops.forEach((s, idx) => {
       formatted.push({
@@ -6484,12 +6606,11 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       });
     });
 
-    // Return to Mako
     formatted.push({
       name: "Mako Polres Metro (Finish / Return)",
-      address: "Jl. Veteran No. 1, Gambir",
-      lat: -6.2146,
-      lng: 106.8451,
+      address: "Jl. Wijaya II No.42, Kebayoran Baru",
+      lat: -6.2532689,
+      lng: 106.7994054,
       timeTarget: "Kembali ke Mako",
       dwellTime: "Konsolidasi Pasukan",
       isTerminal: true
@@ -6498,17 +6619,25 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     return formatted;
   }
 
-  getRouteColorForCurrentSelection() {
-    if (this.patrolConfigMode === 'GABUNGAN') return { color: '#EF4444', name: 'Operasi Gabungan (All Units)', icon: '🚨' };
-    const unitKey = this.selectedPatrolUnit || 'SAMAPTA_AHMAD';
+  getRouteColorForCurrentSelection(specificUnitKey = null) {
+    const unitKey = specificUnitKey || this.selectedPatrolUnit || 'SAMAPTA_AHMAD';
+    
+    if (unitKey === 'GABUNGAN_POLRES') return { color: '#EF4444', name: 'Operasi Gabungan (All Units)', icon: '🚨' };
+
     const fa = this.state.fleetAssignments && this.state.fleetAssignments.find(f => f.unitKey === unitKey);
-    if (fa) {
-      return { color: fa.color || '#38BDF8', name: `${fa.vehicleName} (${fa.officerName})`, icon: fa.icon || '🚔' };
+    if (fa) return { color: fa.color || '#38BDF8', name: `${fa.vehicleName} (${fa.officerName})`, icon: fa.icon || '🚔' };
+
+    const predefined = (this.kanitUnitMembers || []).find(u => u.id === unitKey);
+    if (predefined) {
+       let defaultColor = '#38BDF8';
+       if (unitKey.includes('PERINTIS')) defaultColor = '#34D399';
+       if (unitKey.includes('LANTAS')) defaultColor = '#FBBF24';
+       if (unitKey.includes('RESERSE')) defaultColor = '#EF4444';
+       if (unitKey.includes('BHABIN')) defaultColor = '#F472B6';
+       return { color: defaultColor, name: predefined.name, icon: predefined.icon };
     }
-    if (unitKey === 'SAMAPTA_AHMAD') return { color: '#38BDF8', name: 'Sedan Samapta 110-A (Bripka Ahmad)', icon: '🚔' };
-    if (unitKey === 'PERINTIS_JOKO') return { color: '#34D399', name: 'Perintis Presisi Trail 02 (Aipda Joko)', icon: '🏍️' };
-    if (unitKey === 'PATWAL_DANI') return { color: '#FBBF24', name: 'Patwal Sat Lantas R4-01 (Bripka Dani)', icon: '🚓' };
-    return { color: '#38BDF8', name: 'Unit Samapta', icon: '🚔' };
+
+    return { color: '#38BDF8', name: 'Unit Patroli', icon: '🚔' };
   }
 
   renderRouteMapData(containerId = 'kabagops-route-map') {
@@ -6519,148 +6648,172 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     if (this.routeLayers) {
       this.routeLayers.forEach(l => {
         try { map.removeLayer(l); } catch(e) {}
+        try { l.setMap(null); } catch(e) {}
       });
     }
     this.routeLayers = [];
 
-    const stops = this.getRouteStopsForCurrentSelection();
-    const routeInfo = this.getRouteColorForCurrentSelection();
-
-    // Update active unit badge
-    const badgeEl = document.getElementById('route-active-unit-badge');
-    if (badgeEl) {
-      badgeEl.innerHTML = `${routeInfo.icon} ${routeInfo.name}`;
-      badgeEl.style.borderColor = routeInfo.color;
-    }
-
-    const segments = this.getPatrolMultiColorRouteSegments(this.selectedPatrolUnit || 'SAMAPTA_AHMAD');
+    const isGabungan = this.patrolConfigMode === 'GABUNGAN';
     
-    // 1. Draw Multi-Color Route Polylines (Green, Yellow, Red) using Google Maps + OSRM Snapping
-    const osrmPromises = [];
-    for (let i = 0; i < stops.length - 1; i++) {
-      const cp1 = stops[i];
-      const cp2 = stops[i+1];
-      osrmPromises.push(
-        fetch(`https://router.project-osrm.org/route/v1/driving/${cp1.lng},${cp1.lat};${cp2.lng},${cp2.lat}?overview=full&geometries=geojson`)
-          .then(res => res.json())
-      );
-    }
-
-    Promise.all(osrmPromises)
-      .then(results => {
-        results.forEach((data, i) => {
-           const seg = segments[i % segments.length];
-           if(data.routes && data.routes.length > 0) {
-             const geom = data.routes[0].geometry.coordinates;
-             const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
-             const dash = seg.color === '#EF4444' || seg.color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
-             
-             // Glow
-             const glow = new google.maps.Polyline({
-                path: detailedPath, strokeColor: seg.color, strokeWeight: 9, strokeOpacity: 0.35, map: map
-             });
-             this.routeLayers.push(glow);
-
-             const poly = new google.maps.Polyline({
-                path: detailedPath,
-                strokeColor: seg.color,
-                strokeWeight: 4.5,
-                strokeOpacity: 0.95,
-                icons: dash.length ? dash : null,
-                map: map
-             });
-             this.routeLayers.push(poly);
-
-             const infoWindow = new google.maps.InfoWindow({
-               content: `
-               <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:200px; color:#333;">
-                 <strong style="color:${seg.color}; font-size:13px;">${seg.name}</strong>
-                 <div style="margin:4px 0;">
-                   <span class="badge" style="background:${seg.color}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
-                   <span style="color:#64748B; font-size:10.5px; margin-left:4px;">Speed: ${seg.speedLimit}</span>
-                 </div>
-                 <p style="font-size:11px; margin:4px 0 0 0; color:#475569;">${seg.description}</p>
-               </div>`
-             });
-
-             google.maps.event.addListener(poly, 'click', (e) => {
-               infoWindow.setPosition(e.latLng);
-               infoWindow.open(map);
-             });
-           }
-        });
-      })
-      .catch(e => {
-        // Fallback to coarse segments if OSRM fails
-        segments.forEach(seg => {
-          const nativePath = seg.path.map(p => ({lat: p[0], lng: p[1]}));
-          const dash = seg.color === '#EF4444' || seg.color === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
-          
-          const poly = new google.maps.Polyline({
-            path: nativePath, strokeColor: seg.color, strokeWeight: 4.5, strokeOpacity: 0.95, icons: dash.length ? dash : null, map: map
-          });
-          this.routeLayers.push(poly);
-        });
+    // Determine which units to render
+    let unitsToRender = [];
+    if (isGabungan) {
+      const selected = this.gabunganSelectedUnits || [];
+      // Tampilkan rute armada yang dipilih dalam operasi gabungan tanpa memfilter status
+      selected.forEach(uId => {
+         unitsToRender.push(uId);
       });
 
-    // 2. Draw Numbered Bus-Stop Milestones & Buffer Circles
-    stops.forEach((s, idx) => {
-      const isStart = idx === 0;
-      const isEnd = idx === stops.length - 1;
-      const labelNum = String(idx + 1);
+      // Update badge
+      const badgeEl = document.getElementById('route-active-unit-badge');
+      if (badgeEl) {
+        badgeEl.innerHTML = `🚨 Operasi Gabungan (${unitsToRender.length} Armada Terpilih)`;
+        badgeEl.style.borderColor = '#EF4444';
+      }
+    } else {
+      const unitKey = this.selectedPatrolUnit || 'SAMAPTA_AHMAD';
+      // Tampilkan rute armada di mode Beat (Sektor) tanpa memfilter status
+      unitsToRender.push(unitKey);
 
-      const markerHtml = `
-        <div style="font-size:24px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
-          🚩
-        </div>
-      `;
+      const routeInfo = this.getRouteColorForCurrentSelection(unitKey);
+      const activeFleet = this.state.patrolFleet || [];
+      const fleetUnit = activeFleet.find(f => f.id === unitKey || f.unitKey === unitKey);
+      const isPatrolling = fleetUnit && (fleetUnit.status === 'PATROLI_RUTIN' || fleetUnit.status === 'PENGEJARAN' || fleetUnit.status === 'PENERTIBAN');
 
-      const fPos = new google.maps.LatLng(s.lat, s.lng);
+      const badgeEl = document.getElementById('route-active-unit-badge');
+      if (badgeEl) {
+        if (isPatrolling) {
+           badgeEl.innerHTML = `${routeInfo.icon} ${routeInfo.name}`;
+           badgeEl.style.borderColor = routeInfo.color;
+        } else {
+           badgeEl.innerHTML = `⏳ ${routeInfo.name} (Status: SIAGA)`;
+           badgeEl.style.borderColor = '#94A3B8';
+        }
+      }
+    }
+
+    const bounds = new google.maps.LatLngBounds();
+
+    unitsToRender.forEach((unitKey, renderIndex) => {
+      const stops = this.getRouteStopsForCurrentSelection(unitKey);
+      const routeInfo = this.getRouteColorForCurrentSelection(unitKey);
+      const segments = this.getPatrolMultiColorRouteSegments(unitKey);
       
-      if (typeof window.GoogleHTMLMarker !== 'undefined') {
-        const marker = new window.GoogleHTMLMarker(fPos, markerHtml, map, [15, 15]);
-        this.routeLayers.push(marker);
-
-        const markerInfo = new google.maps.InfoWindow({
-          content: `
-          <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333; min-width:200px;">
-            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-              <span class="badge" style="background:${routeInfo.color}; color:#fff; font-weight:800; font-size:10px;">
-                ${isStart ? 'START TERMINAL' : (isEnd ? 'FINISH TERMINAL' : `POS PUSH ${idx}`)}
-              </span>
-            </div>
-            <strong style="font-size:13px; color:#333;">${s.name}</strong>
-            <div style="color:#64748B; font-size:11px; margin-top:2px;">📍 ${s.address || 'Wilayah Sektor'}</div>
-            <div style="margin-top:6px; padding-top:6px; border-top:1px solid #e2e8f0; font-size:11px; color:#F59E0B;">
-              ⏳ Target Tiba: ${s.timeTarget || 'Fleksibel'}
-            </div>
-            <div style="font-size:11px; color:#475569; margin-top:2px;">⏱️ Durasi: ${s.dwellTime}</div>
-          </div>`
-        });
-
-        window.google.maps.event.addListener(marker, 'click', () => {
-          markerInfo.setPosition(fPos);
-          markerInfo.open(map);
-        });
+      // Draw Polylines
+      const osrmPromises = [];
+      for (let i = 0; i < stops.length - 1; i++) {
+        const cp1 = stops[i];
+        const cp2 = stops[i+1];
+        osrmPromises.push(
+          fetch(`https://router.project-osrm.org/route/v1/driving/${cp1.lng},${cp1.lat};${cp2.lng},${cp2.lat}?overview=full&geometries=geojson`)
+            .then(res => res.json())
+        );
       }
 
-      // Buffer Circle (Zone of Control)
-      if (!isStart && !isEnd) {
-        const circle = new google.maps.Circle({
-          strokeColor: routeInfo.color,
-          strokeOpacity: 0.6,
-          strokeWeight: 1,
-          fillColor: routeInfo.color,
-          fillOpacity: 0.1,
-          map: map,
-          center: fPos,
-          radius: 350
+      Promise.all(osrmPromises)
+        .then(results => {
+          results.forEach((data, i) => {
+             const seg = segments[i % segments.length] || { color: routeInfo.color, name: 'Rute', zoneStatus: 'AKTIF', speedLimit: '40 km/jam', description: '' };
+             // Use routeInfo.color for distinction in Gabungan mode
+             const drawColor = isGabungan ? routeInfo.color : seg.color;
+
+             if(data.routes && data.routes.length > 0) {
+               const geom = data.routes[0].geometry.coordinates;
+               const detailedPath = geom.map(p => new google.maps.LatLng(p[1], p[0]));
+               const dash = drawColor === '#EF4444' || drawColor === '#F59E0B' ? [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 4 }, offset: '0', repeat: '20px' }] : [];
+               
+               const glow = new google.maps.Polyline({
+                  path: detailedPath, strokeColor: drawColor, strokeWeight: 9, strokeOpacity: 0.35, map: map
+               });
+               this.routeLayers.push(glow);
+
+               const poly = new google.maps.Polyline({
+                  path: detailedPath, strokeColor: drawColor, strokeWeight: 4.5, strokeOpacity: 0.95, icons: dash.length ? dash : null, map: map
+               });
+               this.routeLayers.push(poly);
+
+               const infoWindow = new google.maps.InfoWindow({
+                 content: `
+                 <div style="font-family:'Plus Jakarta Sans'; font-size:12px; min-width:200px; color:#333;">
+                   <strong style="color:${drawColor}; font-size:13px;">${routeInfo.name} - ${seg.name}</strong>
+                   <div style="margin:4px 0;">
+                     <span class="badge" style="background:${drawColor}; color:#fff; font-weight:800; font-size:9.5px;">${seg.zoneStatus}</span>
+                   </div>
+                 </div>`
+               });
+
+               google.maps.event.addListener(poly, 'click', (e) => {
+                 infoWindow.setPosition(e.latLng);
+                 infoWindow.open(map);
+               });
+             }
+          });
+        })
+        .catch(e => {
+          // Fallback
+          segments.forEach(seg => {
+            const drawColor = isGabungan ? routeInfo.color : seg.color;
+            const nativePath = seg.path.map(p => ({lat: p[0], lng: p[1]}));
+            const poly = new google.maps.Polyline({
+              path: nativePath, strokeColor: drawColor, strokeWeight: 4.5, strokeOpacity: 0.95, map: map
+            });
+            this.routeLayers.push(poly);
+          });
         });
-        this.routeLayers.push(circle);
+
+      // Draw Checkpoints for this unit
+      stops.forEach((s, idx) => {
+        const isStart = idx === 0;
+        const isEnd = idx === stops.length - 1;
+        const labelNum = String(idx + 1);
+        
+        const fPos = new google.maps.LatLng(s.lat, s.lng);
+        bounds.extend(fPos);
+        
+        // Hide terminal markers if rendering multiple units so they don't overlap too much
+        if (isGabungan && (isStart || isEnd) && renderIndex > 0) return;
+
+        const markerHtml = `<div style="font-size:20px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6));">🚩</div>`;
+        
+        if (typeof window.GoogleHTMLMarker !== 'undefined') {
+          const marker = new window.GoogleHTMLMarker(fPos, markerHtml, map, [15, 15]);
+          this.routeLayers.push(marker);
+
+          const markerInfo = new google.maps.InfoWindow({
+            content: `
+            <div style="font-family:'Plus Jakarta Sans'; font-size:12px; color:#333; min-width:200px;">
+              <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+                <span class="badge" style="background:${routeInfo.color}; color:#fff; font-weight:800; font-size:10px;">
+                  ${isStart ? 'START TERMINAL' : (isEnd ? 'FINISH TERMINAL' : `${routeInfo.name} - POS ${idx}`)}
+                </span>
+              </div>
+              <strong style="font-size:13px; color:#333;">${s.name}</strong>
+            </div>`
+          });
+
+          window.google.maps.event.addListener(marker, 'click', () => {
+            markerInfo.setPosition(fPos);
+            markerInfo.open(map);
+          });
+        }
+      });
+      
+      // Update transit stepper ONLY for the first selected unit, or handle specially
+      if (renderIndex === 0 && !isGabungan) {
+         this.renderTransitRouteStepper(stops, routeInfo);
       }
     });
 
-    // 2b. Draw Hotspots (Titik Rawan)
+    if (unitsToRender.length === 0) {
+       // Kosongkan stepper
+       const stepperEl = document.getElementById('kabagops-transit-stepper');
+       if (stepperEl) stepperEl.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:20px; text-align:center;">Tidak ada rute yang sedang aktif dipatroli. Armada masih berstatus SIAGA.</div>';
+    } else if (isGabungan) {
+       const stepperEl = document.getElementById('kabagops-transit-stepper');
+       if (stepperEl) stepperEl.innerHTML = '<div style="color:var(--text-muted); font-size:12px; padding:20px; text-align:center;">(Operasi Gabungan) Menampilkan jalur gabungan dari beberapa unit aktif di peta.</div>';
+    }
+
+    // Draw Hotspots (Titik Rawan)
     const titikRawanHtml = `
       <div style="position:relative; width:40px; height:40px; display:flex; align-items:center; justify-content:center;">
         <div class="pulse-ring" style="position:absolute; width:100%; height:100%; border: 2px solid #EF4444; background: rgba(239,68,68,0.15);"></div>
@@ -6671,6 +6824,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     if (this.state.hotspots) {
       this.state.hotspots.forEach(h => {
         const pos = new google.maps.LatLng(h.lat, h.lng);
+        bounds.extend(pos);
         
         const hCircle = new google.maps.Circle({
           center: pos,
@@ -6695,7 +6849,6 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
                 <span>🚨</span> Titik Rawan: ${h.name}
               </div>
               <div style="font-size:11px; color:#475569; margin-top:2px;">Kategori: <strong>${h.category || 'Rawan Kamtibmas'}</strong></div>
-              <div style="font-size:10.5px; color:#F59E0B; margin-top:2px;">🕒 Jam Atensi: ${h.hours || '22:00 - 04:00 WIB'}</div>
             </div>`
           });
           window.google.maps.event.addListener(hMarker, 'click', () => {
@@ -6706,16 +6859,14 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
       });
     }
 
-    // 3. Fit bounds
+    // Fit bounds only if we have active units or hotspots
     try {
-      const bounds = new google.maps.LatLngBounds();
-      stops.forEach(s => bounds.extend(new google.maps.LatLng(s.lat, s.lng)));
-      map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 40, right: 40 } });
+      if (!bounds.isEmpty()) {
+         map.fitBounds(bounds, { padding: { top: 40, bottom: 40, left: 40, right: 40 } });
+      }
     } catch(e) {}
-
-    // 4. Render Transit Stepper
-    this.renderTransitRouteStepper(stops, routeInfo);
   }
+
 
   fitRouteMapBounds() {
     const map = this.leafMaps && this.leafMaps['kabagops-route-map'];
@@ -7799,7 +7950,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
 
     listEl.innerHTML = targetList.map((cp, idx) => {
       const qr = cp.qrCode || `QR-POS-0${idx + 1}`;
-      const status = cp.status || (idx < 2 ? 'TERKUNJUNGI' : 'SIAGA PATROLI');
+      const status = cp.status || 'SIAGA PATROLI';
       const isVisited = status === 'TERKUNJUNGI';
       const badgeClass = isVisited ? 'badge-success' : 'badge-gold';
       const visitTime = cp.lastVisited || cp.timeTarget || 'Target Rute';
@@ -8550,7 +8701,7 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     if (!this.leafMaps) this.leafMaps = {};
     if (!this.tileLayers) this.tileLayers = {};
 
-    const center = { lat: -6.2146, lng: 106.8451 };
+    const center = { lat: -6.2532689, lng: 106.7994054 };
 
     const map = new google.maps.Map(container, {
       center: center,
@@ -8593,7 +8744,9 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
           const self = this;
           this.div.addEventListener('click', (e) => {
             e.stopPropagation();
-            google.maps.event.trigger(self, 'click');
+            e.preventDefault();
+            google.maps.event.trigger(self, 'marker_click');
+            try { google.maps.event.trigger(self, 'click'); } catch(err) {}
           });
         }
         draw() {
@@ -8622,9 +8775,9 @@ Laporan langsung berstatus 'BELUM DITANGANI' di Command Center Pimpinan untuk se
     }
 
     // 1. Add Mapolres Metro HQ Marker
-    const hqHtml = `<div style="font-size:32px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6));">🏢</div>`;
-    const hqPos = new google.maps.LatLng(-6.2015, 106.8195);
-    const hqMarker = new window.GoogleHTMLMarker(hqPos, hqHtml, map, [19, 19]);
+    const hqHtml = `<div style="font-size:32px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.6)); text-align:center;">🏢</div>`;
+    const hqPos = new google.maps.LatLng(-6.2532689, 106.7994054);
+    const hqMarker = new window.GoogleHTMLMarker(hqPos, hqHtml, map, [16, 32]);
     
     const hqInfo = new google.maps.InfoWindow({
       disableAutoPan: true,

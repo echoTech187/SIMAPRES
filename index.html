@@ -240,6 +240,12 @@
               <span>🔑</span> Masuk ke Sistem Internal
             </button>
           </form>
+          
+          <!-- Tombol Reset Skenario -->
+          <button type="button" class="btn-primary" onclick="app.resetState()"
+            style="width:100%; justify-content:center; padding:12px; margin-top:14px; background:linear-gradient(135deg, #DC2626, #991B1B); border:1px solid #EF4444; color:#fff;">
+            <span>🔄</span> Reset Seluruh Data Simulasi (Mulai dari Awal)
+          </button>
 
           <div class="security-lock-notice" style="margin-top:16px; margin-bottom:0;">
             <span>🛡️</span> Seluruh aktivitas, waktu unggahan, dan koordinat GPS dicatat secara ketat oleh Divisi
@@ -1153,12 +1159,15 @@
                 </div>
                 <select class="form-select" id="kabagops-patrol-unit-select"
                   onchange="app.onPatrolUnitChange(this.value)">
-                  <option value="SAMAPTA_AHMAD" selected>🚔 Sedan Samapta 110-A (Bripka Ahmad - Beat 1 Pasar & Sentra
-                    Perbankan)</option>
-                  <option value="PERINTIS_JOKO">🏍️ Tim Perintis Presisi Trail 02 (Aipda Joko - Beat 2 Flyover & Sentra
-                    Niaga)</option>
-                  <option value="PATWAL_DANI">🚓 Patwal Sat Lantas R4-01 (Bripka Dani - Beat 3 Simpang Sudirman)
-                  </option>
+                  <option value="SAMAPTA_AHMAD" selected>🚔 Sedan Samapta 110-A (Bripka Ahmad - Beat 1 Pasar & Sentra Perbankan)</option>
+                  <option value="PERINTIS_JOKO">🏍️ Tim Perintis Presisi Trail 02 (Aipda Joko - Beat 2 Flyover & Sentra Niaga)</option>
+                  <option value="PATWAL_DANI">🚓 Patwal Sat Lantas R4-01 (Bripka Dani - Beat 3 Simpang Sudirman)</option>
+                  <option value="SABHARA_BAMBANG">🚙 Rantis Sabhara 03 (Bripka Bambang - Beat 4 Kemang & Blok M)</option>
+                  <option value="BUSER_RIZKI">🚗 Resmob / Buser (Bripda Rizki - Kring Serse Tertutup)</option>
+                  <option value="PATWAL_SURYA">🚓 Patwal Lantas Moge (Iptu Surya - Gatur Lalin)</option>
+                  <option value="BHABIN_HENDRA">🛵 Bhabinkamtibmas (Aiptu Hendra - Patroli Dialogis Warga)</option>
+                  <option value="PAM_OBVIT_KEVIN">🚙 Rantis Pam Obvit (Bripda Kevin - Pengamanan Objek Vital)</option>
+                  <option value="PERINTIS_DONI">🏍️ Tim Perintis Presisi (Bripka Doni - Anti Tawuran Malam)</option>
                 </select>
               </div>
               <div
@@ -1175,12 +1184,17 @@
               </div>
             </div>
 
-            <!-- Kontrol Mode 2: Pemberitahuan Operasi Gabungan (Seluruh Armada) -->
             <div id="kabagops-gabungan-notice"
               style="display:none; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:var(--radius-sm); padding:8px 12px; margin-bottom:12px; font-size:11px; color:#FCD34D;">
               <strong>Operasi Skala Besar (Koridor Induk Terpadu):</strong> Rute pos pantau di bawah ini berlaku
-              serentak untuk seluruh 12 unit armada (Samapta, Lantas, Tim Presisi, Resmob) dalam konvoi patroli
-              gabungan.
+              serentak untuk armada yang diceklis dalam konvoi patroli gabungan. Rute armada yang tidak diceklis tidak akan terpengaruh.
+              
+              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(245,158,11,0.35);">
+                <div style="font-weight: 700; margin-bottom: 6px;">PILIH PASUKAN BKO OPERASI GABUNGAN:</div>
+                <div id="kabagops-gabungan-checkboxes" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
             </div>
 
             <div id="kabagops-checkpoints-list">
@@ -2887,10 +2901,10 @@
             
             <!-- Start/Stop Patrol Action Buttons -->
             <div id="patrol-action-container" style="position: sticky; bottom: -20px; background: rgba(15,23,42,0.95); backdrop-filter: blur(10px); padding: 12px 0 20px 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: auto; margin-left:-20px; margin-right:-20px; padding-left:20px; padding-right:20px; z-index:10;">
-               <button id="btn-start-patrol" type="button" class="btn hidden-btn" style="width:100%; padding:14px; background:#10B981; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#000; box-shadow: 0 4px 15px rgba(16,185,129,0.3); transition:all 0.2s;" onclick="app.togglePatrolStatus(true)">
+               <button id="btn-start-patrol" type="button" class="btn" style="width:100%; padding:14px; background:#10B981; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#000; box-shadow: 0 4px 15px rgba(16,185,129,0.3); transition:all 0.2s;" onclick="app.togglePatrolStatus(true)">
                  ▶ MULAI PATROLI
                </button>
-               <button id="btn-stop-patrol" type="button" class="btn" style="width:100%; padding:14px; background:#EF4444; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#fff; box-shadow: 0 4px 15px rgba(239,68,68,0.3); transition:all 0.2s;" onclick="app.togglePatrolStatus(false)">
+               <button id="btn-stop-patrol" type="button" class="btn hidden-btn" style="width:100%; padding:14px; background:#EF4444; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#fff; box-shadow: 0 4px 15px rgba(239,68,68,0.3); transition:all 0.2s;" onclick="app.togglePatrolStatus(false)">
                  🛑 SELESAIKAN PATROLI
                </button>
                <button id="btn-resolve-task" type="button" class="btn hidden-btn" style="width:100%; padding:14px; background:#F59E0B; border:none; border-radius:12px; font-weight:800; font-size:14px; color:#000; box-shadow: 0 4px 15px rgba(245,158,11,0.3); transition:all 0.2s; animation: pulse-border 2s infinite;" onclick="app.resolveActiveTaskOverride()">
