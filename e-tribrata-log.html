@@ -331,7 +331,67 @@
       margin: 0 16px 24px;
     }
 
-    /* Screen 3: Validasi (Split Card Layout) */
+    /* Screen 3: Validasi (Tabs Filter & Split Card Layout) */
+    .val-filter-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 0 16px 12px;
+      scrollbar-width: none;
+    }
+    .val-filter-tabs::-webkit-scrollbar { display: none; }
+    .val-tab-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .val-tab-btn:hover {
+      border-color: var(--primary);
+      background: #F8FAFC;
+    }
+    .val-tab-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 2px 6px rgba(21,62,117,0.25);
+    }
+    .val-tab-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #F1F5F9;
+      color: var(--text);
+    }
+    .val-tab-btn.active .val-tab-badge {
+      background: rgba(255,255,255,0.25);
+      color: white;
+    }
+    .val-tab-badge.orange { background: #FEF3C7; color: #D97706; }
+    .val-tab-badge.green { background: #DCFCE7; color: #16A34A; }
+    .val-tab-badge.red { background: #FEE2E2; color: #DC2626; }
+    .val-tab-badge.primary { background: #EDE9FE; color: #6D28D9; }
+    .val-tab-badge.secondary { background: #D1FAE5; color: #059669; }
+    .val-tab-btn.active .val-tab-badge.orange,
+    .val-tab-btn.active .val-tab-badge.green,
+    .val-tab-btn.active .val-tab-badge.red,
+    .val-tab-btn.active .val-tab-badge.primary,
+    .val-tab-btn.active .val-tab-badge.secondary {
+      background: rgba(255,255,255,0.3);
+      color: white;
+    }
+
     .split-layout {
       display: flex;
       gap: 12px;
@@ -345,8 +405,33 @@
       background: white;
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 12px;
+      padding: 14px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .val-card:hover {
+      border-color: #93C5FD;
+      box-shadow: 0 4px 12px rgba(21,62,117,0.1);
+      transform: translateY(-2px);
+    }
+    .val-card.selected {
+      border: 2px solid var(--primary) !important;
+      background: #F8FAFC !important;
+      box-shadow: 0 4px 14px rgba(21,62,117,0.15) !important;
+    }
+    .val-card.selected::before {
+      content: '● TERPILIH';
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 9px;
+      font-weight: 800;
+      color: var(--primary);
+      background: #EFF6FF;
+      padding: 2px 6px;
+      border-radius: 4px;
     }
     .val-user { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .val-user img { width: 36px; height: 36px; border-radius: 50%; }
@@ -597,27 +682,85 @@
 
     <!-- SCREEN 3: VALIDASI -->
     <section id="view-validasi" class="view">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 4px;">
-        <h2 class="page-title" style="margin:0;">Validasi Atasan</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px;">
+        <div>
+          <h2 class="page-title" style="margin:0;">Validasi Atasan</h2>
+          <div class="page-subtitle" style="margin:2px 0 0; color:var(--text-muted); font-size:12px;">Pilih kategori status di bawah untuk memfilter log:</div>
+        </div>
         <div onclick="switchTab('view-beranda')" style="font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; background:#EFF6FF; padding:6px 12px; border-radius:6px; transition:0.2s; display:flex; align-items:center; gap:4px;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
           <span>←</span> Kembali ke Beranda
         </div>
       </div>
-      <div class="page-subtitle" style="margin-top:6px;">Menunggu Validasi</div>
+      
+      <!-- Status Filter Tabs / Card Status di Halaman Validasi -->
+      <div class="val-filter-tabs" id="val-tabs-bar">
+        <button type="button" class="val-tab-btn" id="val-tab-semua" onclick="openValidasiList('semua')">
+          Semua <span class="val-tab-badge" id="val-badge-semua">28</span>
+        </button>
+        <button type="button" class="val-tab-btn active" id="val-tab-menunggu" onclick="openValidasiList('menunggu')">
+          Menunggu Tindakan <span class="val-tab-badge orange" id="val-badge-menunggu">3</span>
+        </button>
+        <button type="button" class="val-tab-btn" id="val-tab-disetujui" onclick="openValidasiList('disetujui')">
+          Disetujui <span class="val-tab-badge green" id="val-badge-disetujui">10</span>
+        </button>
+        <button type="button" class="val-tab-btn" id="val-tab-ditolak" onclick="openValidasiList('ditolak')">
+          Ditolak <span class="val-tab-badge red" id="val-badge-ditolak">2</span>
+        </button>
+        <button type="button" class="val-tab-btn" id="val-tab-diproses" onclick="openValidasiList('diproses')">
+          Diproses <span class="val-tab-badge primary" id="val-badge-diproses">1</span>
+        </button>
+        <button type="button" class="val-tab-btn" id="val-tab-selesai" onclick="openValidasiList('selesai')">
+          Selesai <span class="val-tab-badge secondary" id="val-badge-selesai">12</span>
+        </button>
+      </div>
+
+      <div class="page-subtitle" id="val-subtitle-text" style="margin-top:4px; font-weight:700;">Menampilkan: 3 Data Menunggu Tindakan</div>
       
       <div class="split-layout">
         <div class="val-list" id="val-list-container">
           <!-- Cards will be generated dynamically by JavaScript -->
         </div>
         
-        <div class="val-detail">
-          <div style="font-size:14px; font-weight:800; margin-bottom:12px;">Lampirkan Foto</div>
-          <img id="detail-val-img" src="https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran" class="detail-img">
-          <div class="detail-text">
-            Deskripsi:<br><span id="detail-val-desc">Patroli rutin</span><br><br>
-            Sektor:<br><span id="detail-val-sektor">Sektor Selatan</span><br><br>
-            Petugas:<br><span id="detail-val-petugas">Bripka Ahmad</span>
+        <div class="val-detail" style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:sticky; top:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:14px; font-weight:800; color:var(--text);">Detail Laporan</div>
+            <span id="detail-val-status-badge" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; background:#FEF3C7; color:#D97706;">Menunggu Validasi</span>
           </div>
+
+          <div id="detail-val-title" style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:12px; line-height:1.4;">Laporan Pengamanan belum direview #1</div>
+
+          <div style="position:relative; margin-bottom:12px;">
+            <img id="detail-val-img" src="https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran" class="detail-img" style="width:100%; height:180px; border-radius:8px; object-fit:cover; margin:0;">
+            <div style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.65); color:white; font-size:10px; padding:3px 8px; border-radius:4px; font-weight:600;">📷 Foto Lampiran</div>
+          </div>
+
+          <div class="detail-text" style="font-size:12px; line-height:1.6;">
+            <div style="margin-bottom:6px;">
+              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Waktu Pengiriman:</div>
+              <span id="detail-val-waktu" style="color:var(--text); font-weight:700;">10:15 WIB</span>
+            </div>
+            <div style="margin-bottom:6px;">
+              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Sektor / Wilayah:</div>
+              <span id="detail-val-sektor" style="color:var(--text); font-weight:700;">Sektor Selatan</span>
+            </div>
+            <div style="margin-bottom:6px;">
+              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Personel Pelapor:</div>
+              <span id="detail-val-petugas" style="color:var(--text); font-weight:700;">Bripka Ahmad</span>
+            </div>
+            <div style="margin-bottom:6px;">
+              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Deskripsi Kejadian:</div>
+              <span id="detail-val-desc" style="color:var(--text); line-height:1.4; display:block; margin-top:2px;">Patroli rutin</span>
+            </div>
+          </div>
+
+          <!-- Alert jika ditolak -->
+          <div id="detail-val-alasan-box" style="display:none; background:#FEF2F2; border-left:3px solid var(--danger); padding:8px 10px; border-radius:4px; font-size:11px; color:#991B1B; margin-top:10px; line-height:1.4;">
+            <strong>⚠️ Catatan Penolakan:</strong>
+            <div id="detail-val-alasan-text" style="margin-top:2px;"></div>
+          </div>
+
+          <!-- Action buttons inside right detail panel -->
+          <div id="detail-val-actions" style="margin-top:14px; display:flex; gap:8px;"></div>
         </div>
       </div>
     </section>
@@ -1150,135 +1293,176 @@
   }
 
   // ==========================================
-  // CENTRALIZED DATA MODEL FOR LOGS
+  // CENTRALIZED DATA MODEL & LOCAL STORAGE
   // ==========================================
-  let appLogs = [
-    // 3 Menunggu Tindakan (ID 1 - 3)
-    {
-      id: 1,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'menunggu',
-      statusText: 'Menunggu Validasi',
-      title: 'Laporan Pengamanan belum direview #1',
-      deskripsi: 'Patroli rutin pengamanan objek vital dan pertokoan di wilayah Sektor Selatan.',
-      sektor: 'Sektor Selatan',
-      waktu: '10:15 WIB',
-      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+1',
-      alasanTolak: ''
-    },
-    {
-      id: 2,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'menunggu',
-      statusText: 'Menunggu Validasi',
-      title: 'Laporan Pengamanan belum direview #2',
-      deskripsi: 'Sambang pos ronda dan penyuluhan kamtibmas warga RT 04/RW 02.',
-      sektor: 'Sektor Barat',
-      waktu: '11:40 WIB',
-      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+2',
-      alasanTolak: ''
-    },
-    {
-      id: 3,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'menunggu',
-      statusText: 'Menunggu Validasi',
-      title: 'Laporan Pengamanan belum direview #3',
-      deskripsi: 'Pengaturan arus lalu lintas di titik rawan macet simpang empat protokol.',
-      sektor: 'Sektor Utara',
-      waktu: '12:20 WIB',
-      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+3',
-      alasanTolak: ''
-    },
-    // 2 Ditolak (ID 14, 15)
-    {
-      id: 14,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'ditolak',
-      statusText: 'Ditolak / Revisi',
-      title: 'Laporan Patroli. Foto buram, mohon perbaiki #1',
-      deskripsi: 'Patroli pengawasan batas kota pada malam hari.',
-      sektor: 'Sektor Timur',
-      waktu: '08:10 WIB',
-      fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+1',
-      alasanTolak: 'Foto Bukti Tidak Jelas / Buram - Dokumentasi minim cahaya dan plat kendaraan sasaran tidak terbaca.'
-    },
-    {
-      id: 15,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'ditolak',
-      statusText: 'Ditolak / Revisi',
-      title: 'Laporan Patroli. Foto buram, mohon perbaiki #2',
-      deskripsi: 'Pemeriksaan kendaraan mencurigakan di area pergudangan.',
-      sektor: 'Sektor Barat',
-      waktu: '09:00 WIB',
-      fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+2',
-      alasanTolak: 'Uraian Kegiatan Belum Lengkap - Hasil pemeriksaan identitas pengemudi belum dicantumkan pada deskripsi.'
-    },
-    // 1 Diproses (ID 16)
-    {
-      id: 16,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'diproses',
-      statusText: 'Sedang Diproses',
-      title: 'Tindak lanjut laporan masyarakat 110 #1',
-      deskripsi: 'Personel sedang bergerak menindaklanjuti informasi kerumunan remaja.',
-      sektor: 'Sektor Selatan',
-      waktu: '13:05 WIB',
-      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Diproses',
-      alasanTolak: ''
+  function getDefaultLogs() {
+    const list = [
+      // 3 Menunggu Tindakan (ID 1 - 3)
+      {
+        id: 1,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'menunggu',
+        statusText: 'Menunggu Validasi',
+        title: 'Laporan Pengamanan belum direview #1',
+        deskripsi: 'Patroli rutin pengamanan objek vital dan pertokoan di wilayah Sektor Selatan.',
+        sektor: 'Sektor Selatan',
+        waktu: '10:15 WIB',
+        fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+1',
+        alasanTolak: ''
+      },
+      {
+        id: 2,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'menunggu',
+        statusText: 'Menunggu Validasi',
+        title: 'Laporan Pengamanan belum direview #2',
+        deskripsi: 'Sambang pos ronda dan penyuluhan kamtibmas warga RT 04/RW 02.',
+        sektor: 'Sektor Barat',
+        waktu: '11:40 WIB',
+        fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+2',
+        alasanTolak: ''
+      },
+      {
+        id: 3,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'menunggu',
+        statusText: 'Menunggu Validasi',
+        title: 'Laporan Pengamanan belum direview #3',
+        deskripsi: 'Pengaturan arus lalu lintas di titik rawan macet simpang empat protokol.',
+        sektor: 'Sektor Utara',
+        waktu: '12:20 WIB',
+        fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+3',
+        alasanTolak: ''
+      },
+      // 2 Ditolak (ID 14, 15)
+      {
+        id: 14,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'ditolak',
+        statusText: 'Ditolak / Revisi',
+        title: 'Laporan Patroli. Foto buram, mohon perbaiki #1',
+        deskripsi: 'Patroli pengawasan batas kota pada malam hari.',
+        sektor: 'Sektor Timur',
+        waktu: '08:10 WIB',
+        fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+1',
+        alasanTolak: 'Foto Bukti Tidak Jelas / Buram - Dokumentasi minim cahaya dan plat kendaraan sasaran tidak terbaca.'
+      },
+      {
+        id: 15,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'ditolak',
+        statusText: 'Ditolak / Revisi',
+        title: 'Laporan Patroli. Foto buram, mohon perbaiki #2',
+        deskripsi: 'Pemeriksaan kendaraan mencurigakan di area pergudangan.',
+        sektor: 'Sektor Barat',
+        waktu: '09:00 WIB',
+        fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+2',
+        alasanTolak: 'Uraian Kegiatan Belum Lengkap - Hasil pemeriksaan identitas pengemudi belum dicantumkan pada deskripsi.'
+      },
+      // 1 Diproses (ID 16)
+      {
+        id: 16,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'diproses',
+        statusText: 'Sedang Diproses',
+        title: 'Tindak lanjut laporan masyarakat 110 #1',
+        deskripsi: 'Personel sedang bergerak menindaklanjuti informasi kerumunan remaja.',
+        sektor: 'Sektor Selatan',
+        waktu: '13:05 WIB',
+        fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Diproses',
+        alasanTolak: ''
+      }
+    ];
+
+    // 10 Disetujui (ID 4 - 13)
+    for (let i = 1; i <= 10; i++) {
+      list.push({
+        id: 3 + i,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'disetujui',
+        statusText: 'Disetujui',
+        title: 'Patroli Dialogis Pasar Jaya #' + i,
+        deskripsi: 'Patroli dialogis pembinaan pedagang kaki lima dan pengunjung pasar, situasi tertib dan kondusif.',
+        sektor: 'Sektor Selatan',
+        waktu: '07:' + (10 + i * 4) + ' WIB',
+        fotoLampiran: 'https://placehold.co/300x400/10B981/FFFFFF?text=Disetujui+#' + i,
+        alasanTolak: ''
+      });
     }
-  ];
 
-  // Inisialisasi 10 Disetujui (ID 4 - 13)
-  for (let i = 1; i <= 10; i++) {
-    appLogs.push({
-      id: 3 + i,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'disetujui',
-      statusText: 'Disetujui',
-      title: 'Patroli Dialogis Pasar Jaya #' + i,
-      deskripsi: 'Patroli dialogis pembinaan pedagang kaki lima dan pengunjung pasar, situasi tertib dan kondusif.',
-      sektor: 'Sektor Selatan',
-      waktu: '07:' + (10 + i * 4) + ' WIB',
-      fotoLampiran: 'https://placehold.co/300x400/10B981/FFFFFF?text=Disetujui+#' + i,
-      alasanTolak: ''
-    });
+    // 12 Selesai (ID 17 - 28)
+    for (let i = 1; i <= 12; i++) {
+      list.push({
+        id: 16 + i,
+        nama: 'Bripka Ahmad',
+        nrp: '50123456',
+        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        status: 'selesai',
+        statusText: 'Kasus Selesai',
+        title: 'Penyelesaian insiden lalu lintas #' + i,
+        deskripsi: 'Mediasi damai laka lantas ringan di pos polantas, kedua belah pihak sepakat damai.',
+        sektor: 'Sektor Pusat',
+        waktu: '06:' + (15 + i * 3) + ' WIB',
+        fotoLampiran: 'https://placehold.co/300x400/047857/FFFFFF?text=Selesai+#' + i,
+        alasanTolak: ''
+      });
+    }
+    return list;
   }
 
-  // Inisialisasi 12 Selesai (ID 17 - 28)
-  for (let i = 1; i <= 12; i++) {
-    appLogs.push({
-      id: 16 + i,
-      nama: 'Bripka Ahmad',
-      nrp: '50123456',
-      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-      status: 'selesai',
-      statusText: 'Kasus Selesai',
-      title: 'Penyelesaian insiden lalu lintas #' + i,
-      deskripsi: 'Mediasi damai laka lantas ringan di pos polantas, kedua belah pihak sepakat damai.',
-      sektor: 'Sektor Pusat',
-      waktu: '06:' + (15 + i * 3) + ' WIB',
-      fotoLampiran: 'https://placehold.co/300x400/047857/FFFFFF?text=Selesai+#' + i,
-      alasanTolak: ''
-    });
+  let appLogs = [];
+
+  function loadLogsFromStorage() {
+    try {
+      const saved = localStorage.getItem('simapres_app_logs_v1');
+      if (saved) {
+        appLogs = JSON.parse(saved);
+      } else {
+        appLogs = getDefaultLogs();
+        saveLogsToStorage();
+      }
+    } catch (e) {
+      console.warn('Gagal memuat dari storage, menggunakan data default', e);
+      appLogs = getDefaultLogs();
+    }
   }
 
-  let currentValidasiFilter = 'semua';
+  function saveLogsToStorage() {
+    try {
+      localStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+    } catch (e) {
+      console.warn('Storage tidak tersedia', e);
+    }
+  }
+
+  function resetDemoData() {
+    if (confirm('Reset ulang data log ke kondisi default awal (3 Menunggu, 10 Disetujui, 2 Ditolak)?')) {
+      localStorage.removeItem('simapres_app_logs_v1');
+      appLogs = getDefaultLogs();
+      saveLogsToStorage();
+      updateRekapCounts();
+      openValidasiList('menunggu');
+    }
+  }
+
+  // Load awal
+  loadLogsFromStorage();
+
+  let currentValidasiFilter = 'menunggu';
 
   function updateRekapCounts() {
     const cTotal = appLogs.length;
@@ -1288,6 +1472,7 @@
     const cDiproses = appLogs.filter(l => l.status === 'diproses').length;
     const cSelesai = appLogs.filter(l => l.status === 'selesai').length;
 
+    // 1. Update Card Rekapitulasi di Beranda
     const elTotal = document.getElementById('rekap-total-val');
     if (elTotal) elTotal.innerText = cTotal;
     const elMenunggu = document.getElementById('rekap-menunggu-val');
@@ -1300,6 +1485,20 @@
     if (elDiproses) elDiproses.innerText = cDiproses;
     const elSelesai = document.getElementById('rekap-selesai-val');
     if (elSelesai) elSelesai.innerText = cSelesai;
+
+    // 2. Update Badge Tabs di Halaman Validasi Atasan
+    const bSemua = document.getElementById('val-badge-semua');
+    if (bSemua) bSemua.innerText = cTotal;
+    const bMenunggu = document.getElementById('val-badge-menunggu');
+    if (bMenunggu) bMenunggu.innerText = cMenunggu;
+    const bDisetujui = document.getElementById('val-badge-disetujui');
+    if (bDisetujui) bDisetujui.innerText = cDisetujui;
+    const bDitolak = document.getElementById('val-badge-ditolak');
+    if (bDitolak) bDitolak.innerText = cDitolak;
+    const bDiproses = document.getElementById('val-badge-diproses');
+    if (bDiproses) bDiproses.innerText = cDiproses;
+    const bSelesai = document.getElementById('val-badge-selesai');
+    if (bSelesai) bSelesai.innerText = cSelesai;
   }
 
   function setujuiLog(id) {
@@ -1308,10 +1507,14 @@
 
     log.status = 'disetujui';
     log.statusText = 'Disetujui';
+    saveLogsToStorage();
     updateRekapCounts();
 
-    alert('✓ Laporan #' + log.id + ' ("' + log.title + '") berhasil disetujui!\n\nLaporan telah masuk ke LOG DISETUJUI.');
-    openValidasiList('disetujui');
+    const remainingMenunggu = appLogs.filter(l => l.status === 'menunggu').length;
+    alert('✓ Laporan #' + log.id + ' ("' + log.title + '") berhasil disetujui!\n\nJumlah "Menunggu Tindakan" berkurang menjadi ' + remainingMenunggu + ' data.\nLaporan telah masuk ke LOG DISETUJUI.');
+
+    // Tetap di filter saat ini agar user melihat data yang sedang dikerjakan berkurang secara langsung
+    openValidasiList(currentValidasiFilter || 'menunggu');
   }
 
   function bukaHalamanTolak(id) {
@@ -1359,23 +1562,111 @@
     log.status = 'ditolak';
     log.statusText = 'Ditolak / Revisi';
     log.alasanTolak = kategori + ' - ' + alasan;
+    saveLogsToStorage();
     updateRekapCounts();
 
-    alert('✕ Laporan #' + log.id + ' telah ditolak dengan catatan:\n"' + log.alasanTolak + '"\n\nNotifikasi revisi terkirim ke personel dan laporan telah masuk ke LOG DITOLAK.');
+    const remainingMenunggu = appLogs.filter(l => l.status === 'menunggu').length;
+    alert('✕ Laporan #' + log.id + ' telah ditolak dengan catatan:\n"' + log.alasanTolak + '"\n\nJumlah "Menunggu Tindakan" berkurang menjadi ' + remainingMenunggu + ' data.\nLaporan telah masuk ke LOG DITOLAK.');
+
+    // Buka tampilan Log Ditolak agar user dapat langsung melihat log yang baru ditolak
     openValidasiList('ditolak');
   }
 
-  function previewLogDetail(id) {
+  let selectedLogId = null;
+
+  function selectLogCard(id) {
+    selectedLogId = id;
+    
+    // Highlight kartu yang dipilih
+    document.querySelectorAll('.val-card').forEach(card => card.classList.remove('selected'));
+    const selectedCard = document.getElementById('card-log-' + id);
+    if (selectedCard) {
+      selectedCard.classList.add('selected');
+    }
+
+    displayLogDetail(id);
+  }
+
+  function displayLogDetail(id) {
     const log = appLogs.find(l => l.id === id);
     if (!log) return;
+
+    selectedLogId = id;
+
     const imgEl = document.getElementById('detail-val-img');
+    const titleEl = document.getElementById('detail-val-title');
     const descEl = document.getElementById('detail-val-desc');
     const sektorEl = document.getElementById('detail-val-sektor');
     const petugasEl = document.getElementById('detail-val-petugas');
+    const waktuEl = document.getElementById('detail-val-waktu');
+    const statusBadgeEl = document.getElementById('detail-val-status-badge');
+    const alasanBox = document.getElementById('detail-val-alasan-box');
+    const alasanText = document.getElementById('detail-val-alasan-text');
+    const actionsBox = document.getElementById('detail-val-actions');
+
     if (imgEl && log.fotoLampiran) imgEl.src = log.fotoLampiran;
+    if (titleEl) titleEl.innerText = log.title;
     if (descEl) descEl.innerText = log.deskripsi;
     if (sektorEl) sektorEl.innerText = log.sektor;
     if (petugasEl) petugasEl.innerText = log.nama;
+    if (waktuEl) waktuEl.innerText = log.waktu;
+
+    // Badge status di panel kanan
+    if (statusBadgeEl) {
+      statusBadgeEl.innerText = log.statusText;
+      if (log.status === 'menunggu') {
+        statusBadgeEl.style.background = '#FEF3C7';
+        statusBadgeEl.style.color = '#D97706';
+      } else if (log.status === 'disetujui') {
+        statusBadgeEl.style.background = '#DCFCE7';
+        statusBadgeEl.style.color = '#16A34A';
+      } else if (log.status === 'ditolak') {
+        statusBadgeEl.style.background = '#FEE2E2';
+        statusBadgeEl.style.color = '#DC2626';
+      } else if (log.status === 'diproses') {
+        statusBadgeEl.style.background = '#EDE9FE';
+        statusBadgeEl.style.color = '#6D28D9';
+      } else {
+        statusBadgeEl.style.background = '#D1FAE5';
+        statusBadgeEl.style.color = '#059669';
+      }
+    }
+
+    // Alasan penolakan jika status ditolak
+    if (alasanBox && alasanText) {
+      if (log.status === 'ditolak' && log.alasanTolak) {
+        alasanBox.style.display = 'block';
+        alasanText.innerText = log.alasanTolak;
+      } else {
+        alasanBox.style.display = 'none';
+      }
+    }
+
+    // Tombol aksi di panel kanan sesuai status
+    if (actionsBox) {
+      if (log.status === 'menunggu') {
+        actionsBox.innerHTML = `
+          <button type="button" class="btn-acc" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="setujuiLog(${log.id})">
+            <span>✓</span> Setujui Laporan
+          </button>
+          <button type="button" class="btn-rej" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--danger); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="bukaHalamanTolak(${log.id})">
+            <span>✕</span> Tolak Laporan
+          </button>
+        `;
+      } else if (log.status === 'disetujui') {
+        actionsBox.innerHTML = `
+          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="switchTab('view-wizard')">
+            <span>🚀</span> Buka Wizard Penanganan Kasus ➔
+          </button>
+        `;
+      } else {
+        actionsBox.innerHTML = '';
+      }
+    }
+  }
+
+  function previewLogDetail(id) {
+    displayLogDetail(id);
   }
 
   function openValidasiList(filter) {
@@ -1383,7 +1674,12 @@
     const listContainer = document.getElementById('val-list-container');
     let html = '';
 
-    // Filter log data
+    // 1. Highlight tombol tab yang aktif di Halaman Validasi
+    document.querySelectorAll('.val-tab-btn').forEach(btn => btn.classList.remove('active'));
+    const activeTab = document.getElementById('val-tab-' + filter);
+    if (activeTab) activeTab.classList.add('active');
+
+    // 2. Filter log data
     const filteredLogs = (filter === 'semua') 
       ? appLogs 
       : appLogs.filter(l => l.status === filter);
@@ -1393,30 +1689,25 @@
         <div style="text-align:center; padding:40px 16px; background:white; border-radius:12px; border:1px solid var(--border);">
           <div style="font-size:36px; margin-bottom:8px;">📭</div>
           <div style="font-weight:700; color:var(--text); font-size:14px;">Tidak Ada Data</div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Saat ini tidak ada laporan dengan kategori ini.</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Semua laporan pada kategori ini telah selesai ditindaklanjuti.</div>
         </div>
       `;
     } else {
       filteredLogs.forEach(log => {
         let color = 'var(--text-muted)';
-        let cardClickAttr = '';
-        let hoverStyle = '';
         let badgeInfo = '';
 
         if (log.status === 'menunggu') {
           color = 'var(--warning)';
         } else if (log.status === 'disetujui') {
           color = 'var(--success)';
-          cardClickAttr = `onclick="switchTab('view-wizard')" title="Klik untuk membuka Wizard Penanganan Kasus"`;
-          hoverStyle = `style="border: 1px solid #BBF7D0; cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='var(--success)'" onmouseout="this.style.transform='none'; this.style.borderColor='#BBF7D0'"`;
           badgeInfo = `
             <div style="margin-top:6px; font-size:11px; color:var(--success); font-weight:600; display:flex; align-items:center; gap:4px;">
-              <span>✓ Disetujui oleh Atasan</span> • <span style="color:var(--primary); text-decoration:underline;">Lihat Wizard Kasus →</span>
+              <span>✓ Disetujui oleh Atasan</span> • <span style="color:var(--primary); text-decoration:underline; cursor:pointer;" onclick="event.stopPropagation(); switchTab('view-wizard')">Lihat Wizard Kasus →</span>
             </div>
           `;
         } else if (log.status === 'ditolak') {
           color = 'var(--danger)';
-          hoverStyle = `style="border: 1px solid #FECACA; transition:transform 0.2s;"`;
           badgeInfo = `
             <div style="margin-top:8px; background:#FEF2F2; border-left:3px solid var(--danger); padding:8px 10px; border-radius:4px; font-size:11px; color:#991B1B; line-height:1.4;">
               <strong>⚠️ Catatan Penolakan:</strong> ${log.alasanTolak || 'Laporan perlu direvisi oleh personel.'}
@@ -1428,18 +1719,17 @@
           color = '#047857';
         }
 
-        let btns = '';
+        let cardFooter = '';
         if (log.status === 'menunggu') {
-          btns = `
-            <div class="val-btns" style="margin-top:10px;">
-              <button class="btn-acc" onclick="event.stopPropagation(); setujuiLog(${log.id})">✓ Setujui</button>
-              <button class="btn-rej" onclick="event.stopPropagation(); bukaHalamanTolak(${log.id})">✕ Tolak</button>
+          cardFooter = `
+            <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>🔍</span> Klik untuk tinjau foto bukti & validasi ➔
             </div>
           `;
         }
 
         html += `
-          <div class="val-card" ${cardClickAttr} ${hoverStyle} onmouseenter="previewLogDetail(${log.id})">
+          <div class="val-card" id="card-log-${log.id}" onclick="selectLogCard(${log.id})" onmouseenter="displayLogDetail(${log.id})">
             <div class="val-user">
               <img src="${log.avatar}">
               <div style="flex:1;">
@@ -1451,9 +1741,9 @@
               </div>
             </div>
             <div style="font-weight:700; font-size:12px; color:var(--text); margin-bottom:4px;">${log.title}</div>
-            <div class="val-text" style="margin-bottom:6px;">${log.deskripsi}</div>
+            <div class="val-text" style="margin-bottom:4px;">${log.deskripsi}</div>
             ${badgeInfo}
-            ${btns}
+            ${cardFooter}
           </div>
         `;
       });
@@ -1461,13 +1751,13 @@
 
     if (listContainer) listContainer.innerHTML = html;
 
-    // Update detail preview foto/deskripsi dengan data pertama
+    // Otomatis pilih kartu pertama saat membuka tab
     if (filteredLogs.length > 0) {
-      previewLogDetail(filteredLogs[0].id);
+      selectLogCard(filteredLogs[0].id);
     }
 
-    // Ubah judul sesuai filter
-    const subtitle = document.querySelector('#view-validasi .page-subtitle');
+    // 3. Update judul/subtitle dengan ID eksplisit
+    const subtitle = document.getElementById('val-subtitle-text') || document.querySelector('#view-validasi .page-subtitle');
     if (subtitle) {
       const titles = {
         'semua': 'Semua Pengaduan',
@@ -1479,6 +1769,9 @@
       };
       subtitle.innerText = 'Menampilkan: ' + filteredLogs.length + ' Data ' + (titles[filter] || '');
     }
+
+    // Sinkronkan seluruh badge angka
+    updateRekapCounts();
 
     // Pindah ke tab validasi
     switchTab('view-validasi');
@@ -1644,6 +1937,7 @@
   // ROLE-BASED UI LOGIC
   // ==================================
   window.addEventListener('DOMContentLoaded', () => {
+    updateRekapCounts();
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role');
     
