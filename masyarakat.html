@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cek Status Laporan - E-Tribrata</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #153E75;
+      --primary-hover: #1e549c;
+      --secondary: #FBBF24;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --bg: #F8FAFC;
+      --card-bg: #FFFFFF;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation / Header */
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 4px 12px rgba(21, 62, 117, 0.15);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border-radius: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .brand-logo-inner {
+      width: 24px;
+      height: 24px;
+      background: var(--secondary);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+
+    .header-titles h1 {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 2px;
+    }
+    
+    .header-titles p {
+      font-size: 13px;
+      color: #93C5FD;
+      font-weight: 500;
+    }
+
+    /* Main Container */
+    .container {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 24px;
+      flex: 1;
+    }
+
+    /* Search Card */
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+
+    .card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+
+    .card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 16px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .input-group input:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(21, 62, 117, 0.1);
+    }
+
+    .input-group input::placeholder {
+      color: #94A3B8;
+      font-weight: 500;
+    }
+
+    .btn-search {
+      width: 100%;
+      padding: 16px;
+      background: var(--primary);
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-search:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(21, 62, 117, 0.2);
+    }
+
+    .btn-search:active {
+      transform: translateY(0);
+    }
+
+    /* Tracking Result Section */
+    #tracking-result {
+      display: none;
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ticket-header {
+      background: var(--bg);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 24px;
+      border: 1px dashed #CBD5E1;
+    }
+
+    .ticket-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .ticket-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .ticket-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .ticket-value {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 700;
+      text-align: right;
+    }
+
+    /* Vertical Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+      margin-top: 10px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      bottom: 0;
+      left: 11px;
+      width: 2px;
+      background: #E2E8F0;
+      z-index: 1;
+    }
+
+    .step {
+      position: relative;
+      margin-bottom: 28px;
+    }
+
+    .step:last-child {
+      margin-bottom: 0;
+    }
+
+    .step-icon {
+      position: absolute;
+      left: -28px;
+      top: 2px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #CBD5E1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .step.completed .step-icon {
+      background: var(--success);
+      border-color: var(--success);
+    }
+    
+    .step.completed .step-icon::after {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .step.active .step-icon {
+      background: white;
+      border-color: var(--primary);
+      border-width: 4px;
+      box-shadow: 0 0 0 4px rgba(21, 62, 117, 0.1);
+    }
+
+    /* Pulse animation for active step */
+    .step.active .step-icon::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse 1.5s infinite;
+      z-index: -1;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+
+    .step-content {
+      padding-top: 4px;
+    }
+
+    .step-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .step.inactive .step-title {
+      color: var(--text-muted);
+    }
+
+    .step-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .step-time {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--bg);
+      color: var(--text-muted);
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-top: 8px;
+    }
+
+    .step.active .step-time {
+      background: #DBEAFE;
+      color: var(--primary);
+    }
+
+    /* Map Box for active personnel tracking */
+    .tracking-map {
+      width: 100%;
+      height: 150px;
+      background: #E2E8F0;
+      border-radius: 12px;
+      margin-top: 12px;
+      position: relative;
+      overflow: hidden;
+      display: none; /* Only show in active step */
+    }
+
+    .step.active .tracking-map {
+      display: block;
+    }
+
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.8;
+    }
+
+    .map-overlay {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(4px);
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .police-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .police-info h4 {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .police-info p {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand-logo">
+      <div class="brand-logo-inner"></div>
+    </div>
+    <div class="header-titles">
+      <h1>Layanan 110</h1>
+      <p>Portal Pelacakan Masyarakat</p>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- Input Card -->
+    <div class="card" id="search-card">
+      <h2>Lacak Status Laporan Anda</h2>
+      <p>Masukkan Nomor Tiket / ID Laporan 110 yang Anda terima via SMS/WhatsApp untuk memantau respons kepolisian secara real-time.</p>
+      
+      <div class="input-group">
+        <input type="text" id="ticket-input" placeholder="Contoh: TIKET-110-8X2F" value="TIKET-110-8X2F">
+      </div>
+      
+      <button class="btn-search" onclick="lacakLaporan()">
+        🔍 Lacak Sekarang
+      </button>
+    </div>
+
+    <!-- Tracking Result (Hidden initially) -->
+    <div class="card" id="tracking-result">
+      <h2>Hasil Pelacakan</h2>
+      
+      <div class="ticket-header">
+        <div class="ticket-row">
+          <span class="ticket-label">Nomor Laporan</span>
+          <span class="ticket-value" style="color: var(--primary);">TIKET-110-8X2F</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">Jenis Insiden</span>
+          <span class="ticket-value">Kecelakaan Lalu Lintas</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">Waktu Dilaporkan</span>
+          <span class="ticket-value">Hari ini, 10:45 WIB</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">Lokasi Kejadian</span>
+          <span class="ticket-value">Jl. Jend. Sudirman, Jakarta</span>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <!-- Step 1: Diterima -->
+        <div class="step completed">
+          <div class="step-icon"></div>
+          <div class="step-content">
+            <div class="step-title">Laporan Diterima (SPKT)</div>
+            <div class="step-desc">Laporan Anda telah divalidasi oleh operator 110 dan diteruskan ke komando wilayah.</div>
+            <div class="step-time">10:45 WIB</div>
+          </div>
+        </div>
+
+        <!-- Step 2: Disposisi -->
+        <div class="step completed">
+          <div class="step-icon"></div>
+          <div class="step-content">
+            <div class="step-title">Disposisi Personel</div>
+            <div class="step-desc">Tugas penanganan telah diserahkan kepada unit terdekat dari lokasi kejadian.</div>
+            <div class="step-time">10:48 WIB</div>
+          </div>
+        </div>
+
+        <!-- Step 3: Menuju Lokasi (ACTIVE) -->
+        <div class="step active">
+          <div class="step-icon"></div>
+          <div class="step-content">
+            <div class="step-title">Personel Menuju Lokasi</div>
+            <div class="step-desc">Tim sedang meluncur ke lokasi kejadian. Harap tetap tenang dan amankan lokasi.</div>
+            <div class="step-time">Update: 10:50 WIB</div>
+            
+            <!-- Live Map Mockup -->
+            <div class="tracking-map">
+              <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80" alt="Map" class="map-placeholder">
+              <div class="map-overlay">
+                <img src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80" alt="Police" class="police-avatar">
+                <div class="police-info">
+                  <h4>Bripka Ahmad</h4>
+                  <p>Estimasi Tiba: 5 Menit</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Penanganan -->
+        <div class="step inactive">
+          <div class="step-icon"></div>
+          <div class="step-content">
+            <div class="step-title">Penanganan di Lokasi</div>
+            <div class="step-desc">Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.</div>
+          </div>
+        </div>
+
+        <!-- Step 5: Selesai -->
+        <div class="step inactive">
+          <div class="step-icon"></div>
+          <div class="step-content">
+            <div class="step-title">Kasus Selesai Ditangani</div>
+            <div class="step-desc">Penanganan selesai dan log telah disetujui oleh pimpinan.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    &copy; 2026 Kepolisian Negara Republik Indonesia.<br>Aplikasi E-Tribrata Log.
+  </footer>
+
+  <script>
+    function lacakLaporan() {
+      const input = document.getElementById('ticket-input').value;
+      if (!input) {
+        alert('Mohon masukkan Nomor Tiket terlebih dahulu!');
+        return;
+      }
+      
+      // Simulate loading button
+      const btn = document.querySelector('.btn-search');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '⏳ Mencari...';
+      btn.style.opacity = '0.8';
+      
+      // Simulate network request
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        
+        // Show tracking result
+        document.getElementById('tracking-result').style.display = 'block';
+        
+        // Scroll to result smoothly
+        document.getElementById('tracking-result').scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }, 800);
+    }
+  </script>
+</body>
+</html>

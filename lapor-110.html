@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lapor 110 - E TRIBRATA</title>
+  <style>
+    :root {
+      --primary: #153E75;
+      --danger: #EF4444;
+      --danger-dark: #DC2626;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #1E293B;
+      --border: #E2E8F0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 50px; }
+    
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 18px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 24px 20px;
+    }
+    
+    /* SOS Button */
+    .sos-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 30px 0;
+    }
+    .sos-button {
+      width: 150px;
+      height: 150px;
+      background: var(--danger);
+      color: white;
+      border: 6px solid #FCA5A5;
+      border-radius: 50%;
+      font-size: 32px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .sos-button:active {
+      transform: scale(0.95);
+      box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+    }
+    .sos-text {
+      margin-top: 16px;
+      color: var(--danger-dark);
+      font-weight: 700;
+      text-align: center;
+    }
+    
+    /* Form */
+    .card {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--primary);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 8px;
+    }
+    
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #475569; }
+    .form-control {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #F8FAFC;
+    }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    
+    /* Status Tracker */
+    .status-box {
+      background: #ECFDF5;
+      border: 1px solid #6EE7B7;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    LAPOR POLISI 110
+  </div>
+
+  <div class="container">
+    
+    <!-- Panic Button -->
+    <div class="sos-container">
+      <div class="sos-button" onclick="kirimSOS()">SOS</div>
+      <div class="sos-text">Tekan untuk Kondisi Darurat (Lokasi Anda akan dilacak)</div>
+    </div>
+
+    <!-- Tracking Status (Hidden by default) -->
+    <div id="status-tracker" class="status-box">
+      <div style="font-size:12px; font-weight:700; color:#059669;">Laporan #110-2026-X123</div>
+      <div style="font-size:16px; font-weight:700; color:var(--text); margin-top:4px;">STATUS: Polisi Sedang Menuju Lokasi Anda</div>
+      <div style="font-size:13px; color:#475569; margin-top:4px; margin-bottom:12px;">Estimasi tiba: 5 Menit (Bripka Ahmad)</div>
+      <button onclick="window.location.href='masyarakat.html'" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:700; cursor:pointer;">Lihat Detail Pelacakan ➔</button>
+    </div>
+
+    <!-- Quick Link to Tracker -->
+    <div style="text-align:center; margin-bottom: 24px;">
+      <a href="masyarakat.html" style="color:var(--primary); font-size:14px; font-weight:700; text-decoration:none;">Sudah punya tiket? Lacak Laporan Anda di sini ➔</a>
+    </div>
+
+    <!-- Manual Report Form -->
+    <div class="card">
+      <div class="card-title">Buat Laporan Baru</div>
+      
+      <div class="form-group">
+        <label class="form-label">Kategori Laporan</label>
+        <select class="form-control">
+          <option>Kecelakaan Lalu Lintas</option>
+          <option>Tindak Kriminal (Pencurian/Perampokan)</option>
+          <option>Gangguan Kamtibmas (Tawuran, dll)</option>
+          <option>Bencana Alam / Kebakaran</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Lokasi Kejadian</label>
+        <div style="position:relative">
+          <input type="text" class="form-control" value="Gunakan Lokasi Saat Ini (GPS)" readonly>
+          <span style="position:absolute; right:12px; top:12px; font-size:16px; cursor:pointer;">📍</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Keterangan / Detail</label>
+        <textarea class="form-control" placeholder="Jelaskan secara singkat apa yang terjadi..."></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Lampirkan Foto (Opsional)</label>
+        <input type="file" class="form-control" style="background:white;">
+      </div>
+      
+      <button class="btn-submit" onclick="kirimManual()">Kirim Laporan 110</button>
+    </div>
+
+  </div>
+
+  <script>
+    function kirimSOS() {
+      alert("⚠️ Laporan Darurat 110 Terkirim!\n\nKoordinat GPS Anda telah dikirim ke Puskodal (Pusat Komando). Personil terdekat sedang dikerahkan.");
+      document.getElementById('status-tracker').style.display = 'block';
+    }
+
+    function kirimManual() {
+      alert("Laporan berhasil dibuat. Puskodal akan segera menugaskan personil terdekat.");
+      document.getElementById('status-tracker').style.display = 'block';
+    }
+  </script>
+</body>
+</html>

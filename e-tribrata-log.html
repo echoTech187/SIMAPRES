@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>E-TRIBRATA LOG</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Maps JavaScript API without Key (Development Mode fallback) -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry&loading=async&v=quarterly"></script>
+  <style>
+    :root {
+      --primary: #153E75; /* Deep Police Blue */
+      --primary-dark: #0B2447;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --text: #1E293B;
+      --text-muted: #64748B;
+      --border: #E2E8F0;
+      --accent: #EAB308; /* Police Gold */
+      --success: #10B981;
+      --danger: #EF4444;
+      --danger-light: #FEE2E2;
+      --warning: #F59E0B;
+      --gray-bg: #f3f4f6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    /* Tablet Device Container */
+    .app-container {
+      width: 100%;
+      max-width: 1000px;
+      height: 100vh;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    }
+
+    /* Top App Bar */
+    .top-bar {
+      background-color: var(--primary);
+      color: white;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 18px;
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .user-info {
+      text-align: right;
+      line-height: 1.2;
+    }
+
+    .user-name { font-size: 15px; font-weight: 600; }
+    .user-nrp { font-size: 12px; color: #94A3B8; }
+    .user-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 2px solid white; object-fit: cover;
+    }
+    .bell-icon { font-size: 22px; position: relative; }
+    .bell-dot {
+      position: absolute; top: 0; right: 0;
+      width: 6px; height: 6px; background: red;
+      border-radius: 50%; border: 1px solid var(--primary);
+    }
+
+    /* Views */
+    .view-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      background: var(--card);
+    }
+
+    .view {
+      display: none;
+      animation: fadeIn 0.2s ease;
+      min-height: 100%;
+      background: white;
+    }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    /* Screen 1: Beranda (Dashboard) */
+    .dashboard-header {
+      padding: 20px 24px;
+      font-weight: 800;
+      font-size: 20px;
+      color: var(--primary-dark);
+      text-transform: uppercase;
+    }
+    .status-text {
+      color: var(--success);
+      font-weight: 700;
+      font-size: 15px;
+      margin-top: 6px;
+    }
+    .beranda-grid {
+      display: flex;
+      gap: 20px;
+      padding: 0 24px 30px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      text-transform: uppercase;
+    }
+    .card-panel {
+      background: white;
+      border: 1px solid #f1f5f9;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+    /* Mini Map */
+    #map-beranda {
+      width: 100%;
+      height: 350px;
+      border-radius: 8px;
+      background: var(--gray-bg);
+      position: relative;
+    }
+    .map-legend-mini {
+      position: absolute;
+      bottom: 12px; left: 12px;
+      background: white;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+    }
+    /* Rekapitulasi */
+    .rekap-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .rekap-box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .rekap-label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; }
+    .rekap-val { font-size: 28px; font-weight: 800; color: var(--primary); }
+    .rekap-val.green { color: var(--success); }
+    .rekap-val.red { color: var(--danger); }
+    /* Timeline */
+    .timeline { padding-left: 16px; border-left: 2px solid var(--border); margin-top: 16px; margin-left: 4px; }
+    .tl-item { position: relative; margin-bottom: 16px; }
+    .tl-dot { position: absolute; left: -22px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--success); border: 2px solid white; }
+    .tl-dot.yellow { background: var(--warning); }
+    .tl-dot.red { background: var(--danger); }
+    .tl-time { font-size: 13px; font-weight: 700; color: var(--text); }
+    .tl-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    
+    /* Input Log Buttons (Right Col) */
+    .btn-log {
+      display: block; width: 100%; background: var(--primary); color: white;
+      border: none; border-radius: 24px; padding: 12px 20px; font-size: 14px; font-weight: 700;
+      margin-bottom: 10px; cursor: pointer; text-align: center;
+      box-shadow: 0 2px 4px rgba(21,62,117,0.2);
+    }
+    .btn-log-row { display: flex; gap: 12px; margin-top: 16px; justify-content: flex-start; padding-left: 4px; }
+    .btn-icon-box {
+      width: 40px; height: 40px; border: none; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      color: white;
+    }
+    .btn-yellow { background: var(--warning); }
+    .btn-blue-outline { background: var(--primary); font-family: serif; font-style: italic; }
+    
+    /* Gauge Chart */
+    .gauge-container { 
+      position: relative; 
+      width: 100%; 
+      height: 120px;
+      display: flex; justify-content: center; align-items: flex-end; 
+    }
+    .gauge-text { position: absolute; bottom: 10px; font-size: 36px; font-weight: 800; color: var(--text); }
+
+    /* Screen 2: Peta Fullscreen */
+    #view-peta {
+      position: relative;
+      height: 100%;
+    }
+    #map-fullscreen {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0; left: 0;
+    }
+    .floating-header {
+      position: absolute;
+      top: 16px; left: 16px;
+      background: white;
+      padding: 10px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-weight: 700;
+      font-size: 14px;
+      z-index: 10;
+      display: inline-block;
+    }
+    .map-legend {
+      position: absolute;
+      bottom: 24px; left: 16px;
+      background: white;
+      padding: 8px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+    }
+
+    /* Shared Typography */
+    .page-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 16px;
+      color: var(--text);
+    }
+    .page-subtitle {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 16px 16px;
+      color: var(--text);
+    }
+
+    /* Screen 2: Form Input */
+    .form-group {
+      margin: 0 16px 16px;
+    }
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .form-control {
+      width: 100%;
+      padding: 14px 12px;
+      background: var(--gray-bg);
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 500;
+      outline: none;
+    }
+    textarea.form-control { resize: none; height: 100px; }
+    .btn-blue {
+      background: var(--primary);
+      color: white;
+      width: calc(100% - 32px);
+      margin: 8px 16px 16px;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .photo-thumb {
+      width: 80px; height: 80px;
+      border-radius: 8px;
+      object-fit: cover;
+      margin: 0 16px 24px;
+    }
+
+    /* Screen 3: Validasi (Split Card Layout) */
+    .split-layout {
+      display: flex;
+      gap: 12px;
+      padding: 0 16px 24px;
+      align-items: flex-start;
+    }
+    .val-list { flex: 1.2; display: flex; flex-direction: column; gap: 12px; }
+    .val-detail { flex: 0.8; }
+    
+    .val-card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .val-user { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .val-user img { width: 36px; height: 36px; border-radius: 50%; }
+    .val-text { font-size: 11px; color: var(--text-muted); line-height: 1.4; margin-bottom: 12px; }
+    .val-btns { display: flex; gap: 8px; }
+    .val-btns button {
+      flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: 600; font-size: 12px; color: white; cursor: pointer;
+      display: flex; justify-content: center; align-items: center; gap: 4px;
+    }
+    .btn-acc { background: var(--success); }
+    .btn-rej { background: var(--danger); }
+    
+    .detail-img { width: 100%; height: 180px; border-radius: 12px; object-fit: cover; margin-bottom: 12px; }
+    .detail-text { font-size: 11px; line-height: 1.6; font-weight: 600; }
+    .detail-text span { font-weight: 400; color: var(--text-muted); }
+
+    /* Screen 4: Laporan (Kinerja) */
+    .tabs-segmented {
+      display: flex; background: var(--gray-bg); border-radius: 8px; margin: 0 16px 16px; padding: 4px;
+    }
+    .tab-seg {
+      flex: 1; text-align: center; padding: 8px 0; font-size: 12px; font-weight: 600; color: var(--text-muted); border-radius: 6px;
+    }
+    .tab-seg.active { background: white; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    
+    .charts-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 16px 16px;
+    }
+    .chart-card {
+      border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: white;
+    }
+    .chart-title { font-size: 11px; font-weight: 700; margin-bottom: 12px; text-align: center; }
+    .chart-canvas { width: 100%; height: 100px; }
+    
+    .stats-row {
+      display: flex; justify-content: space-between; padding: 0 16px 16px;
+    }
+    .stats-col { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+    .stat-item { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; padding-right: 24px; }
+    
+    /* Bottom Navigation */
+    .bottom-nav {
+      background: white;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 10px 0 12px;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .nav-item.active {
+      color: var(--primary);
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  
+  <!-- TOP APP BAR -->
+  <header class="top-bar">
+    <div class="brand">
+      <div class="brand-logo">
+        <div style="width: 24px; height: 24px; background: #FBBF24; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); margin-right: 8px;"></div>
+      </div>
+      E TRIBRATA LOG
+    </div>
+    <div class="user-profile">
+      <div id="bell-notif" class="bell-icon" onclick="switchTab('view-validasi')" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Lihat Log Menunggu">
+        🔔<div class="bell-dot"></div>
+      </div>
+      <div class="user-info">
+        <div id="user-name" class="user-name">Bripka Ahmad</div>
+        <div id="user-role" class="user-nrp">NRP: 50123456</div>
+      </div>
+      <img src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80" alt="User" class="user-avatar">
+    </div>
+  </header>
+
+  <main class="view-container">
+    
+    <!-- SCREEN 1: BERANDA -->
+    <section id="view-beranda" class="view active">
+      <div class="dashboard-header">
+        DASHBOARD OPERASIONAL
+        <div class="status-text">STATUS: DINAS (Patroli Wilayah)</div>
+      </div>
+      
+      <div class="beranda-grid">
+        <!-- Left Column -->
+        <div style="width: 75%;">
+          <!-- Peta Card -->
+          <div class="card-panel">
+            <div class="card-title">Peta Rute Patroli</div>
+            <div id="map-beranda">
+              <div class="map-legend-mini"><span style="color:#EF4444; font-size:14px;">●</span> Titik Rawan</div>
+            </div>
+          </div>
+          
+          <!-- Rekapitulasi -->
+          <div id="rekap-card" class="card-panel">
+            <div class="card-title">Rekapitulasi Hari Ini</div>
+            <div class="rekap-grid">
+              <div class="rekap-box" onclick="openValidasiList('semua')" style="cursor: pointer; transition: transform 0.2s; background: white;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Semua Log Terkirim">
+                <div class="rekap-label">TOTAL PENGADUAN</div>
+                <div class="rekap-val" id="rekap-total-val">28</div>
+              </div>
+              <div class="rekap-box" onclick="openValidasiList('menunggu')" style="cursor: pointer; background: #fffdfa; border-color: #f0e1c9; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Menunggu Tindakan">
+                <div class="rekap-label" style="color:var(--warning)">MENUNGGU TINDAKAN</div>
+                <div class="rekap-val orange" id="rekap-menunggu-val">3</div>
+              </div>
+              <div class="rekap-box" onclick="openValidasiList('disetujui')" style="cursor: pointer; transition: transform 0.2s; background: #F0FDF4; border-color: #BBF7D0;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Disetujui">
+                <div class="rekap-label" style="color:var(--success)">DISETUJUI</div>
+                <div class="rekap-val green" id="rekap-disetujui-val">10</div>
+              </div>
+              <div class="rekap-box" onclick="openValidasiList('ditolak')" style="cursor: pointer; background: #FEF2F2; border-color: #FECACA; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Ditolak">
+                <div class="rekap-label" style="color:var(--danger)">DITOLAK</div>
+                <div class="rekap-val red" id="rekap-ditolak-val">2</div>
+              </div>
+              <div class="rekap-box" onclick="openValidasiList('diproses')" style="cursor: pointer; background: #d0ccea; border-color: #d0ccea; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Diproses">
+                <div class="rekap-label" style="color:var(--primary)">DIPROSES</div>
+                <div class="rekap-val primary" id="rekap-diproses-val">1</div>
+              </div>
+              <div class="rekap-box" onclick="openValidasiList('selesai')" style="cursor: pointer; background: #d0e2cf; border-color: #d0e2cf; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Selesai">
+                <div class="rekap-label" style="color:var(--secondary)">SELESAI</div>
+                <div class="rekap-val secondary" id="rekap-selesai-val">12</div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Aktivitas -->
+          <div class="card-panel">
+            <div class="card-title">Aktivitas Terkini</div>
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="tl-dot"></div>
+                <div class="tl-time">09:30 - Patroli Pasar Jaya</div>
+                <div class="tl-desc">- Disetujui</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot yellow"></div>
+                <div class="tl-time">11:15 - Penanganan Laka Lantas</div>
+                <div class="tl-desc">- Menunggu</div>
+              </div>
+              <div class="tl-item" style="margin-bottom:0;">
+                <div class="tl-dot red"></div>
+                <div class="tl-time">13:45 - Sambang Tokoh Warga</div>
+                <div class="tl-desc" style="color:var(--danger); font-weight:600;">- Ditolak: Foto kurang jelas</div>
+                <button onclick="switchTab('view-log')" style="margin-top:8px; background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️ Perbaiki Log</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Right Column -->
+        <div style="width: 25%;">
+          <!-- Input Log Buttons -->
+          <div id="tindak-lanjut-card" class="card-panel">
+            <div class="card-title">Input Log Kegiatan</div>
+            <button class="btn-log" onclick="openRespon('PATROLI')">PATROLI</button>
+            <button class="btn-log" onclick="openRespon('TPTKP')">TPTKP</button>
+            <button class="btn-log" onclick="openRespon('SAMBANG')">SAMBANG</button>
+            <button class="btn-log" onclick="openRespon('PENGAMANAN')">PENGAMANAN</button>
+          </div>
+          
+          <!-- KPI -->
+          <div id="kpi-card" class="card-panel">
+            <div class="card-title">KPI PERFORMANCE</div>
+            <div class="gauge-container">
+              <canvas id="gauge1"></canvas>
+              <div class="gauge-text" style="color:var(--primary);">92%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: PETA -->
+    <section id="view-peta" class="view" style="position:relative; height:100%;">
+      <div class="floating-header" style="position:absolute; top:16px; left:16px; z-index:10; background:rgba(21,62,117,0.9); color:white; padding:12px 16px; border-radius:8px; font-weight:800; display:flex; flex-direction:column; gap:8px;">
+        PETA RUTE PATROLI
+        <label style="font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer; background:rgba(255,255,255,0.2); padding:6px 10px; border-radius:4px;">
+          <input type="checkbox" id="toggle-personel" onchange="toggleSebaranPersonel()" style="cursor:pointer;"> 
+          Lihat Sebaran Personel Lain
+        </label>
+      </div>
+      <div id="map-fullscreen" style="width:100%; height:100%; position:absolute; top:0; left:0;"></div>
+      <div class="map-legend" style="position:absolute; bottom:16px; left:16px; z-index:10; background:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);"><span style="color:#EF4444; font-size:16px;">●</span> Titik Rawan</div>
+    </section>
+
+    <!-- SCREEN 2: BUAT LOG -->
+    <section id="view-log" class="view">
+      <h2 class="page-title">Input Log Kegiatan</h2>
+      
+      <div class="form-group">
+        <label class="form-label">Waktu Mulai</label>
+        <div style="position:relative">
+          <input type="text" class="form-control" value="09:00 - 2:30 PM" readonly>
+          <span style="position:absolute; right:14px; top:14px; font-size:16px;">📅</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Sektor Patroli</label>
+        <input type="text" class="form-control" value="Sektor Patroli">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Jenis Kegiatan</label>
+        <div style="position:relative">
+          <select id="log-jenis" class="form-control" style="appearance:none;">
+            <option value="PATROLI">Patroli</option>
+            <option value="SAMBANG">Sambang</option>
+            <option value="TPTKP">TPTKP</option>
+            <option value="PENGAMANAN">Pengamanan</option>
+          </select>
+          <span style="position:absolute; right:14px; top:16px; font-size:12px;">▼</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Deskripsi Kejadian</label>
+        <textarea class="form-control">Deskripsi Kejadian, Deskripsi Kejadian</textarea>
+      </div>
+      
+      <button class="btn-blue" onclick="alert('Membuka kamera/galeri untuk upload foto...')">Lampirkan Foto</button>
+      <img src="https://placehold.co/200x200/153E75/FFFFFF?text=Foto" class="photo-thumb">
+    </section>
+
+    <!-- SCREEN 3: VALIDASI -->
+    <section id="view-validasi" class="view">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 4px;">
+        <h2 class="page-title" style="margin:0;">Validasi Atasan</h2>
+        <div onclick="switchTab('view-beranda')" style="font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; background:#EFF6FF; padding:6px 12px; border-radius:6px; transition:0.2s; display:flex; align-items:center; gap:4px;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
+          <span>←</span> Kembali ke Beranda
+        </div>
+      </div>
+      <div class="page-subtitle" style="margin-top:6px;">Menunggu Validasi</div>
+      
+      <div class="split-layout">
+        <div class="val-list" id="val-list-container">
+          <!-- Cards will be generated dynamically by JavaScript -->
+        </div>
+        
+        <div class="val-detail">
+          <div style="font-size:14px; font-weight:800; margin-bottom:12px;">Lampirkan Foto</div>
+          <img id="detail-val-img" src="https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran" class="detail-img">
+          <div class="detail-text">
+            Deskripsi:<br><span id="detail-val-desc">Patroli rutin</span><br><br>
+            Sektor:<br><span id="detail-val-sektor">Sektor Selatan</span><br><br>
+            Petugas:<br><span id="detail-val-petugas">Bripka Ahmad</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 4: LAPORAN (KINERJA) -->
+    <section id="view-laporan" class="view">
+      <h2 class="page-title">Laporan Akhir Tugas</h2>
+      
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <div class="tabs-segmented" style="margin-bottom:0; flex-grow:1; margin-right:12px;">
+          <div class="tab-seg active" onclick="updateKinerjaTab('harian', this)">Harian</div>
+          <div class="tab-seg" onclick="updateKinerjaTab('mingguan', this)">Mingguan</div>
+          <div class="tab-seg" onclick="updateKinerjaTab('bulanan', this)">Bulanan</div>
+        </div>
+        <input type="date" id="kinerja-date" class="form-control" style="width:140px; padding:8px; font-size:12px; background:white; font-weight:bold; color:var(--primary);" value="2026-10-10">
+      </div>
+      
+      <div class="charts-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+        <div class="chart-card">
+          <div class="chart-title">Distribusi Jenis Kegiatan</div>
+          <div class="chart-canvas"><canvas id="chart1"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Status Validasi Log</div>
+          <div class="chart-canvas"><canvas id="chart2"></canvas></div>
+        </div>
+      </div>
+      
+      <div class="chart-card" style="margin-top: 16px; margin-bottom: 16px;">
+        <div class="chart-title">Tren Volume Kegiatan</div>
+        <div class="chart-canvas" style="height: 180px;"><canvas id="chart3"></canvas></div>
+      </div>
+      
+      <div class="stats-row">
+        <div class="stats-col">
+          <div class="stat-item"><span>Total Log Kirim</span> <span id="stat-total" style="color:var(--primary); font-weight:800;">45</span></div>
+          <div class="stat-item"><span>Log Disetujui</span> <span id="stat-acc" style="color:var(--success); font-weight:800;">38</span></div>
+        </div>
+        <div class="stats-col">
+          <div class="stat-item"><span>Log Menunggu</span> <span id="stat-wait" style="color:var(--warning); font-weight:800;">5</span></div>
+          <div class="stat-item"><span>Log Ditolak</span> <span id="stat-rej" style="color:var(--danger); font-weight:800;">2</span></div>
+        </div>
+      </div>
+      
+      <button class="btn-blue" onclick="alert('Mengekspor laporan akhir tugas ke PDF...')">Print / Export</button>
+    </section>
+
+    <!-- SCREEN 5: PROFIL -->
+    <section id="view-profil" class="view">
+      <h2 class="page-title">Profil Pengguna</h2>
+      <div style="display: flex; flex-direction: column; align-items: center; padding: 40px 20px;">
+        <img src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=150&q=80" style="width:100px; height:100px; border-radius:50%; margin-bottom:16px; object-fit:cover;">
+        <h3 style="font-size:20px; color:var(--primary-dark);">Bripka Ahmad</h3>
+        <p style="color:var(--text-muted); font-weight:600; margin-bottom: 24px;">NRP: 50123456</p>
+        
+        <div style="width:100%; max-width:400px; display:flex; gap:12px; margin-bottom:24px;">
+          <button style="flex:1; padding:12px; background:var(--success); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="alert('Presensi Masuk Berhasil')">✅ Masuk</button>
+          <button style="flex:1; padding:12px; background:var(--danger); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;" onclick="alert('Presensi Pulang Berhasil')">❌ Pulang</button>
+        </div>
+
+        <div style="width:100%; max-width:400px; background:white; border:1px solid #f1f5f9; border-radius:12px; padding:16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+          <div style="padding:16px 8px; border-bottom:1px solid #f1f5f9; font-weight:600; color:var(--text); cursor:pointer;">📋 Riwayat Log Lengkap</div>
+          <div style="padding:16px 8px; border-bottom:1px solid #f1f5f9; font-weight:600; color:var(--text); cursor:pointer;">⚙️ Pengaturan Akun</div>
+          <div style="padding:16px 8px; border-bottom:1px solid #f1f5f9; font-weight:600; color:var(--text); cursor:pointer;">🔒 Ganti Password</div>
+          <div style="padding:16px 8px; font-weight:700; color:var(--danger); cursor:pointer;" onclick="alert('Berhasil Logout')">🚪 Logout Aplikasi</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 6: RESPON 110 / LOG KEGIATAN -->
+    <section id="view-respon" class="view">
+      <h2 class="page-title">Formulir Input Log</h2>
+      <div class="page-subtitle">Presensi dan Pencatatan Kegiatan Patroli</div>
+      
+      <div class="form-group">
+        <label class="form-label">Waktu Perekaman</label>
+        <input type="text" class="form-control" value="09:41 WIB (Otomatis)" readonly style="background:#e2e8f0;">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Jenis Kegiatan</label>
+        <input type="text" id="respon-jenis" class="form-control" value="PATROLI" readonly style="background:#e2e8f0; font-weight:bold; color:var(--primary);">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Koordinat Lokasi GPS</label>
+        <div style="position:relative">
+          <input type="text" class="form-control" value="-6.2345, 106.8423 (Live)" readonly>
+          <span style="position:absolute; right:14px; top:14px; font-size:16px;">📍</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label" style="color:var(--primary);">Update Tahap Penanganan</label>
+        <div style="position:relative">
+          <select id="status-penanganan" class="form-control" style="appearance:none; border-color:var(--primary); font-weight:700;">
+            <option value="menuju">🚓 Menuju Lokasi TKP</option>
+            <option value="penanganan">🚧 Penanganan di Lokasi</option>
+            <option value="selesai">✅ Kasus Selesai Ditangani</option>
+          </select>
+          <span style="position:absolute; right:14px; top:16px; font-size:12px;">▼</span>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Tindakan / Uraian Kegiatan</label>
+        <textarea class="form-control" style="min-height: 100px;">Melaksanakan patroli dialogis di wilayah pasar. Terpantau aman dan kondusif...</textarea>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Lampiran Foto (Live Camera)</label>
+        <div style="width: 100%; height: 120px; border: 2px dashed #94a3b8; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f8fafc; cursor: pointer; font-weight: 600; color: var(--primary);" onclick="alert('Membuka Kamera Utama...')">
+          📸 Ambil Foto Kegiatan
+        </div>
+      </div>
+      
+      <button class="btn-blue" style="background:var(--success); font-size:16px; margin-top:16px;" onclick="alert('Log Kegiatan berhasil dikirim dan menunggu validasi Atasan!')">Kirim Log Kegiatan</button>
+    </section>
+    <!-- SCREEN 7: RESPON 110 / WIZARD LOG -->
+    <section id="view-wizard" class="view">
+      <h2 class="page-title">Wizard Penanganan Kasus</h2>
+      <div class="page-subtitle" style="margin-bottom:8px;">ID Kasus: #110-2026-X123</div>
+      
+      <div class="form-group">
+        <input type="text" id="respon-jenis" class="form-control" value="PATROLI" readonly style="background:var(--primary); color:white; font-weight:bold; border:none; text-align:center;">
+      </div>
+
+      <style>
+        .wiz-card { background: white; border: 1px solid var(--border); border-radius: 12px; margin: 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .wiz-header { padding: 16px; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .wiz-body { padding: 16px; }
+        .wiz-header.active { background: #EFF6FF; color: var(--primary); border-bottom-color: #BFDBFE; }
+        .wiz-header.locked { background: var(--gray-bg); color: var(--text-muted); }
+        .wiz-header.completed { background: #ECFDF5; color: var(--success); }
+        .wiz-cam { width: 100%; height: 100px; border: 2px dashed #CBD5E1; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #F8FAFC; cursor: pointer; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; }
+        .wiz-cam.active { border-color: var(--primary); color: var(--primary); }
+      </style>
+
+      <!-- Step 1 -->
+      <div class="wiz-card" id="step1-card">
+        <div class="wiz-header active" id="step1-head">
+          <span>1. Menuju Lokasi (Meluncur)</span>
+          <span id="step1-icon">⏳</span>
+        </div>
+        <div class="wiz-body" id="step1-body">
+          <input type="hidden" id="koordinat-gps" name="koordinat-gps" value="-6.2345, 106.8423">
+          
+          <!-- Detail Laporan / Pengaduan -->
+          <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px; margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Detail Laporan 110</div>
+            <div style="margin-bottom:6px;">
+              <div style="font-size:11px; color:var(--text-muted);">Jenis Insiden</div>
+              <div style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
+            </div>
+            <div style="margin-bottom:6px;">
+              <div style="font-size:11px; color:var(--text-muted);">Lokasi Kejadian</div>
+              <div style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--text-muted);">Keterangan Pelapor</div>
+              <div style="font-size:12px; color:var(--text); line-height:1.4; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px; margin-top:4px;">"Ada kecelakaan beruntun melibatkan 3 mobil, macet parah. Mohon segera dikirim bantuan."</div>
+            </div>
+          </div>
+          
+          <div class="form-label">Bukti Foto Persiapan <span style="color:red;">*</span></div>
+          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Persiapan</div>
+          
+          <div class="form-label">Keterangan Persiapan <span style="color:red;">*</span></div>
+          <textarea class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Personel lengkap, peralatan disiapkan, sedang meluncur ke TKP..."></textarea>
+          
+          <button class="btn-blue" style="width:100%; margin:0;" onclick="nextStep(1)">Mulai Meluncur ➔</button>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="wiz-card" id="step2-card">
+        <div class="wiz-header locked" id="step2-head">
+          <span>2. Tiba & Penanganan di TKP</span>
+          <span id="step2-icon">🔒</span>
+        </div>
+        <div class="wiz-body" id="step2-body" style="display:none;">
+          <!-- Detail Laporan / Pengaduan -->
+          <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px; margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Detail Laporan 110</div>
+            <div style="margin-bottom:6px;">
+              <div style="font-size:11px; color:var(--text-muted);">Jenis Insiden</div>
+              <div style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
+            </div>
+            <div style="margin-bottom:6px;">
+              <div style="font-size:11px; color:var(--text-muted);">Lokasi Kejadian</div>
+              <div style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--text-muted);">Keterangan Pelapor</div>
+              <div style="font-size:12px; color:var(--text); line-height:1.4; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px; margin-top:4px;">"Ada kecelakaan beruntun melibatkan 3 mobil, macet parah. Mohon segera dikirim bantuan."</div>
+            </div>
+          </div>
+          <div class="form-label">Keterangan Tindakan <span style="color:red;">*</span></div>
+          <textarea class="form-control" style="min-height: 80px; margin-bottom:12px;" placeholder="Jelaskan tindakan yang dilakukan..."></textarea>
+          
+          <div class="form-label">Bukti Foto Penanganan <span style="color:red;">*</span></div>
+          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Kondisi TKP</div>
+          
+          <button class="btn-blue" style="width:100%; margin:0; background:var(--warning);" onclick="nextStep(2)">Kirim Laporan Penanganan ➔</button>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="wiz-card" id="step3-card">
+        <div class="wiz-header locked" id="step3-head">
+          <span>3. Kasus Selesai</span>
+          <span id="step3-icon">🔒</span>
+        </div>
+        <div class="wiz-body" id="step3-body" style="display:none;">
+          <div class="form-label">Bukti Foto Selesai / Kondusif <span style="color:red;">*</span></div>
+          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Selesai</div>
+          
+          <div class="form-label">Keterangan Penyelesaian <span style="color:red;">*</span></div>
+          <textarea class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Lalu lintas sudah kembali lancar, korban luka ringan sudah dievakuasi..."></textarea>
+          
+          <button class="btn-blue" style="width:100%; margin:0; background:var(--success);" onclick="nextStep(3)">✅ Tutup Kasus</button>
+        </div>
+      </div>
+
+      <script>
+        // Mengambil koordinat GPS Live perangkat
+        function getLiveGPS() {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+              const lat = position.coords.latitude;
+              const lng = position.coords.longitude;
+              document.getElementById('koordinat-gps').value = lat + ", " + lng;
+              console.log("GPS Terkunci: ", lat, lng);
+            }, function(error) {
+              console.log("Gagal mengambil GPS: ", error.message);
+            });
+          }
+        }
+        
+        // Eksekusi segera untuk mengunci lokasi
+        getLiveGPS();
+
+        function nextStep(currentStep) {
+          // Tutup step sekarang, tandai selesai
+          document.getElementById('step' + currentStep + '-body').style.display = 'none';
+          document.getElementById('step' + currentStep + '-head').className = 'wiz-header completed';
+          document.getElementById('step' + currentStep + '-icon').innerText = '✅';
+          
+          if (currentStep === 3) {
+            alert('Kasus berhasil ditutup! Data telah sinkron dengan Portal Masyarakat dan Dashboard Pimpinan.');
+            switchTab('view-beranda');
+            return;
+          }
+          
+          // Buka step selanjutnya
+          let next = currentStep + 1;
+          document.getElementById('step' + next + '-body').style.display = 'block';
+          document.getElementById('step' + next + '-head').className = 'wiz-header active';
+          document.getElementById('step' + next + '-icon').innerText = '⏳';
+          
+          alert('Tahap ' + currentStep + ' berhasil disimpan. Status Anda di Portal Publik telah diperbarui!');
+        }
+      </script>
+    </section>
+
+    <!-- SCREEN 8: FORM ALASAN PENOLAKAN -->
+    <section id="view-tolak" class="view">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px;">
+        <div onclick="openValidasiList('menunggu')" style="font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <span>←</span> Kembali ke Validasi
+        </div>
+        <span style="font-size:11px; background:#FEE2E2; color:var(--danger); font-weight:700; padding:4px 10px; border-radius:20px;">Revisi Laporan</span>
+      </div>
+
+      <h2 class="page-title" style="margin-top:4px; margin-bottom:4px;">Alasan Penolakan Log</h2>
+      <div class="page-subtitle" style="color:var(--text-muted); font-size:12px; margin-bottom:16px;">
+        Silakan isi alasan penolakan dan arahan revisi yang akan dikirimkan kepada personel.
+      </div>
+
+      <!-- Ringkasan Log yang akan ditolak -->
+      <div style="background:white; border:1px solid var(--border); border-radius:12px; margin:0 16px 16px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <img id="tolak-preview-avatar" src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80" style="width:38px; height:38px; border-radius:50%; object-fit:cover;">
+          <div>
+            <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Bripka Ahmad (NRP: 50123456)</div>
+            <div id="tolak-preview-waktu" style="font-size:11px; color:var(--text-muted);">Terkirim: Hari ini, 10:15 WIB</div>
+          </div>
+        </div>
+        <div id="tolak-preview-title" style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:4px;">Laporan Pengamanan belum direview #1</div>
+        <div id="tolak-preview-desc" style="font-size:12px; color:var(--text-muted); line-height:1.4;">Patroli rutin pengamanan obvit dan sentra ekonomi di wilayah Sektor Selatan.</div>
+      </div>
+
+      <!-- Form Pengisian Alasan -->
+      <div style="background:white; border:1px solid var(--border); border-radius:12px; margin:0 16px 20px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <input type="hidden" id="tolak-log-id" value="">
+        
+        <div class="form-group" style="margin:0 0 14px;">
+          <label class="form-label">Kategori Alasan Penolakan <span style="color:red;">*</span></label>
+          <div style="position:relative;">
+            <select id="tolak-kategori" class="form-control" style="appearance:none; font-weight:600; padding-right:32px;">
+              <option value="Foto Bukti Tidak Jelas / Buram">📸 Foto Bukti Tidak Jelas / Buram</option>
+              <option value="Uraian Kegiatan Belum Lengkap">📝 Uraian Kegiatan Belum Lengkap</option>
+              <option value="Lokasi GPS Tidak Sesuai">📍 Lokasi GPS Tidak Sesuai</option>
+              <option value="Laporan Terindikasi Duplikat">📑 Laporan Terindikasi Duplikat</option>
+              <option value="Tidak Memenuhi Standar Operasional (SOP)">⚠️ Tidak Memenuhi Standar Operasional (SOP)</option>
+              <option value="Lainnya">✏️ Alasan Lainnya</option>
+            </select>
+            <span style="position:absolute; right:14px; top:14px; pointer-events:none; font-size:12px; color:var(--text-muted);">▼</span>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin:0 0 14px;">
+          <label class="form-label">Catatan & Arahan Revisi untuk Personel <span style="color:red;">*</span></label>
+          <textarea id="tolak-alasan-text" class="form-control" style="min-height:110px; line-height:1.5;" placeholder="Tuliskan catatan perbaikan secara spesifik, misalnya: Foto lampiran kurang jelas dan titik lokasi tidak terlihat. Mohon ambil foto ulang dengan GPS aktif dan lengkapi uraian situasi di lapangan."></textarea>
+        </div>
+
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 12px; margin-bottom:14px;">
+          <label style="display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text); cursor:pointer; font-weight:600;">
+            <input type="checkbox" id="tolak-notif-push" checked style="accent-color:var(--primary); width:16px; height:16px;">
+            Kirim pemberitahuan revisi langsung ke HP Personel (E-Tribrata Mobile)
+          </label>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="button" class="btn-blue" style="background:#E2E8F0; color:var(--text); width:auto; flex:1; margin:0;" onclick="openValidasiList('menunggu')">Batal</button>
+          <button type="button" class="btn-blue" style="background:var(--danger); width:auto; flex:2; margin:0; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="submitPenolakan()">
+            <span>✕</span> Konfirmasi Tolak & Minta Revisi
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('view-beranda', this)">
+      <span class="nav-icon">🏠</span>
+      <span>Beranda</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('view-peta', this)">
+      <span class="nav-icon">🗺️</span>
+      <span>Peta</span>
+    </div>
+    <div id="nav-log" class="nav-item" onclick="switchTab('view-log', this)">
+      <span class="nav-icon">➕</span>
+      <span>Buat Log (+)</span>
+    </div>
+    <!-- User mockup has Kinerja as 4th, and Profil as 5th. Validasi is probably a sub-page, but let's map Kinerja to view-laporan -->
+    <div id="nav-kinerja" class="nav-item" onclick="switchTab('view-laporan', this)">
+      <span class="nav-icon">📊</span>
+      <span>Kinerja</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('view-profil', this)">
+      <span class="nav-icon">👤</span>
+      <span>Profil</span>
+    </div>
+  </nav>
+
+</div>
+
+<script>
+  // ==================================
+  // NATIVE GOOGLE MAPS INITIALIZATION
+  // ==================================
+  let mapFullscreen;
+  let mapBeranda;
+
+  function initMaps() {
+    if (typeof google === 'undefined') {
+      setTimeout(initMaps, 500);
+      return;
+    }
+
+    const mapOptions = {
+      zoom: 13,
+      center: { lat: -6.1950, lng: 106.8200 },
+      disableDefaultUI: true, // Clean interface like the mockup
+      mapTypeId: 'roadmap',
+      styles: [
+        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+        { featureType: 'transit', stylers: [{ visibility: 'off' }] }
+      ]
+    };
+
+    mapFullscreen = new google.maps.Map(document.getElementById('map-fullscreen'), mapOptions);
+    mapBeranda = new google.maps.Map(document.getElementById('map-beranda'), Object.assign({}, mapOptions, { zoom: 11, draggable: false, scrollwheel: false }));
+
+    // 1:1 Map Elements based on mockup:
+    // Green line, Yellow line, Red line, Red pins, Big Police Car
+    
+    // Hardcoded Coordinates to match Central Jakarta outline
+    const p1 = { lat: -6.1800, lng: 106.8200 };
+    const p2 = { lat: -6.1950, lng: 106.8150 };
+    const p3 = { lat: -6.2100, lng: 106.8180 };
+    const p4 = { lat: -6.2150, lng: 106.8300 };
+    const p5 = { lat: -6.1950, lng: 106.8350 };
+    const p6 = { lat: -6.1850, lng: 106.8300 };
+
+    // Function to fetch road-snapped route from OSRM and draw on both maps
+    async function fetchRouteAndDraw(waypoints, color) {
+      const coords = waypoints.map(p => `${p.lng},${p.lat}`).join(';');
+      const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=polyline`;
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.routes && data.routes.length > 0) {
+          const decodedPath = google.maps.geometry.encoding.decodePath(data.routes[0].geometry);
+          new google.maps.Polyline({ path: decodedPath, strokeColor: color, strokeWeight: 6, strokeOpacity: 1.0, map: mapFullscreen });
+          new google.maps.Polyline({ path: decodedPath, strokeColor: color, strokeWeight: 4, strokeOpacity: 1.0, map: mapBeranda });
+        }
+      } catch (err) {
+        console.error('OSRM fetch error:', err);
+        // Fallback to straight lines if API fails
+        new google.maps.Polyline({ path: waypoints, strokeColor: color, strokeWeight: 6, strokeOpacity: 1.0, map: mapFullscreen });
+        new google.maps.Polyline({ path: waypoints, strokeColor: color, strokeWeight: 4, strokeOpacity: 1.0, map: mapBeranda });
+      }
+    }
+
+    fetchRouteAndDraw([p1, p2, p3], '#10B981'); // Green
+    fetchRouteAndDraw([p3, p4], '#EF4444');     // Red
+    fetchRouteAndDraw([p4, p5, p6], '#F59E0B'); // Orange
+    
+    // Draw classic Red Pins
+    const redPin = {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: '#EF4444',
+      fillOpacity: 1,
+      strokeColor: '#FFFFFF',
+      strokeWeight: 2,
+      scale: 8
+    };
+    new google.maps.Marker({ position: p1, map: mapFullscreen }); 
+    new google.maps.Marker({ position: p3, map: mapFullscreen }); 
+    new google.maps.Marker({ position: p6, map: mapFullscreen }); 
+    
+    new google.maps.Marker({ position: p1, map: mapBeranda, icon: redPin }); 
+    
+    // Big Police Car Icon with "POLISI" text
+    const policeIcon = {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
+          <path d="M10,30 L20,15 L70,15 L85,30 L95,30 L95,45 L5,45 L5,30 Z" fill="#153E75"/>
+          <path d="M25,18 L65,18 L75,28 L20,28 Z" fill="#60A5FA"/>
+          <circle cx="25" cy="45" r="8" fill="#1E293B"/>
+          <circle cx="75" cy="45" r="8" fill="#1E293B"/>
+          <text x="50" y="38" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle">SAYA</text>
+        </svg>
+      `),
+      anchor: new google.maps.Point(50, 25)
+    };
+    new google.maps.Marker({ position: p4, map: mapFullscreen, icon: policeIcon, title: "Posisi Saya" });
+    new google.maps.Marker({ position: p4, map: mapBeranda, icon: policeIcon, title: "Posisi Saya" });
+    
+    // Create markers for other personnel (hidden by default)
+    const otherIcon = {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
+          <path d="M10,30 L20,15 L70,15 L85,30 L95,30 L95,45 L5,45 L5,30 Z" fill="#64748B"/>
+          <path d="M25,18 L65,18 L75,28 L20,28 Z" fill="#CBD5E1"/>
+          <circle cx="25" cy="45" r="8" fill="#1E293B"/>
+          <circle cx="75" cy="45" r="8" fill="#1E293B"/>
+          <text x="50" y="38" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle">REKAN</text>
+        </svg>
+      `),
+      anchor: new google.maps.Point(50, 25)
+    };
+    
+    window.otherMarkers = [
+      new google.maps.Marker({ position: { lat: -6.2050, lng: 106.8250 }, map: null, icon: otherIcon, title: "Bripka Joko" }),
+      new google.maps.Marker({ position: { lat: -6.1850, lng: 106.8100 }, map: null, icon: otherIcon, title: "Aiptu Setiawan" }),
+      new google.maps.Marker({ position: { lat: -6.2200, lng: 106.8150 }, map: null, icon: otherIcon, title: "Briptu Andi" })
+    ];
+  }
+  
+  function toggleSebaranPersonel() {
+    const isChecked = document.getElementById('toggle-personel').checked;
+    if (window.otherMarkers) {
+      window.otherMarkers.forEach(m => {
+        m.setMap(isChecked ? mapFullscreen : null);
+      });
+    }
+  }
+
+  window.onload = () => {
+    initMaps();
+    initCharts();
+  };
+
+  function switchTab(viewId, navElement) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.getElementById(viewId).classList.add('active');
+    
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    
+    if (navElement) {
+      navElement.classList.add('active');
+    } else {
+      // Find corresponding bottom nav item to highlight if clicked from elsewhere
+      let targetIndex = -1;
+      if (viewId === 'view-beranda') targetIndex = 0;
+      else if (viewId === 'view-peta') targetIndex = 1;
+      else if (viewId === 'view-log') targetIndex = 2;
+      else if (viewId === 'view-laporan') targetIndex = 3;
+      else if (viewId === 'view-profil') targetIndex = 4;
+      
+      if (targetIndex >= 0) {
+        document.querySelectorAll('.nav-item')[targetIndex].classList.add('active');
+      }
+    }
+
+    // Resize map if needed
+    if (viewId === 'view-beranda' && mapBeranda && typeof google !== 'undefined') {
+      google.maps.event.trigger(mapBeranda, 'resize');
+      mapBeranda.setCenter({ lat: -6.1950, lng: 106.8200 });
+    }
+    if (viewId === 'view-peta' && mapFullscreen && typeof google !== 'undefined') {
+      google.maps.event.trigger(mapFullscreen, 'resize');
+      mapFullscreen.setCenter({ lat: -6.1950, lng: 106.8200 });
+    }
+  }
+  
+  function openRespon(jenis) {
+    // Set field jenis kegiatan di Screen 6
+    const jenisEl = document.getElementById('respon-jenis');
+    if (jenisEl) {
+      jenisEl.value = jenis;
+    }
+    // Buka halaman formulir respon
+    switchTab('view-respon');
+  }
+
+  // ==========================================
+  // CENTRALIZED DATA MODEL FOR LOGS
+  // ==========================================
+  let appLogs = [
+    // 3 Menunggu Tindakan (ID 1 - 3)
+    {
+      id: 1,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'menunggu',
+      statusText: 'Menunggu Validasi',
+      title: 'Laporan Pengamanan belum direview #1',
+      deskripsi: 'Patroli rutin pengamanan objek vital dan pertokoan di wilayah Sektor Selatan.',
+      sektor: 'Sektor Selatan',
+      waktu: '10:15 WIB',
+      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+1',
+      alasanTolak: ''
+    },
+    {
+      id: 2,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'menunggu',
+      statusText: 'Menunggu Validasi',
+      title: 'Laporan Pengamanan belum direview #2',
+      deskripsi: 'Sambang pos ronda dan penyuluhan kamtibmas warga RT 04/RW 02.',
+      sektor: 'Sektor Barat',
+      waktu: '11:40 WIB',
+      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+2',
+      alasanTolak: ''
+    },
+    {
+      id: 3,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'menunggu',
+      statusText: 'Menunggu Validasi',
+      title: 'Laporan Pengamanan belum direview #3',
+      deskripsi: 'Pengaturan arus lalu lintas di titik rawan macet simpang empat protokol.',
+      sektor: 'Sektor Utara',
+      waktu: '12:20 WIB',
+      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+3',
+      alasanTolak: ''
+    },
+    // 2 Ditolak (ID 14, 15)
+    {
+      id: 14,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'ditolak',
+      statusText: 'Ditolak / Revisi',
+      title: 'Laporan Patroli. Foto buram, mohon perbaiki #1',
+      deskripsi: 'Patroli pengawasan batas kota pada malam hari.',
+      sektor: 'Sektor Timur',
+      waktu: '08:10 WIB',
+      fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+1',
+      alasanTolak: 'Foto Bukti Tidak Jelas / Buram - Dokumentasi minim cahaya dan plat kendaraan sasaran tidak terbaca.'
+    },
+    {
+      id: 15,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'ditolak',
+      statusText: 'Ditolak / Revisi',
+      title: 'Laporan Patroli. Foto buram, mohon perbaiki #2',
+      deskripsi: 'Pemeriksaan kendaraan mencurigakan di area pergudangan.',
+      sektor: 'Sektor Barat',
+      waktu: '09:00 WIB',
+      fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+2',
+      alasanTolak: 'Uraian Kegiatan Belum Lengkap - Hasil pemeriksaan identitas pengemudi belum dicantumkan pada deskripsi.'
+    },
+    // 1 Diproses (ID 16)
+    {
+      id: 16,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'diproses',
+      statusText: 'Sedang Diproses',
+      title: 'Tindak lanjut laporan masyarakat 110 #1',
+      deskripsi: 'Personel sedang bergerak menindaklanjuti informasi kerumunan remaja.',
+      sektor: 'Sektor Selatan',
+      waktu: '13:05 WIB',
+      fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Diproses',
+      alasanTolak: ''
+    }
+  ];
+
+  // Inisialisasi 10 Disetujui (ID 4 - 13)
+  for (let i = 1; i <= 10; i++) {
+    appLogs.push({
+      id: 3 + i,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'disetujui',
+      statusText: 'Disetujui',
+      title: 'Patroli Dialogis Pasar Jaya #' + i,
+      deskripsi: 'Patroli dialogis pembinaan pedagang kaki lima dan pengunjung pasar, situasi tertib dan kondusif.',
+      sektor: 'Sektor Selatan',
+      waktu: '07:' + (10 + i * 4) + ' WIB',
+      fotoLampiran: 'https://placehold.co/300x400/10B981/FFFFFF?text=Disetujui+#' + i,
+      alasanTolak: ''
+    });
+  }
+
+  // Inisialisasi 12 Selesai (ID 17 - 28)
+  for (let i = 1; i <= 12; i++) {
+    appLogs.push({
+      id: 16 + i,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'selesai',
+      statusText: 'Kasus Selesai',
+      title: 'Penyelesaian insiden lalu lintas #' + i,
+      deskripsi: 'Mediasi damai laka lantas ringan di pos polantas, kedua belah pihak sepakat damai.',
+      sektor: 'Sektor Pusat',
+      waktu: '06:' + (15 + i * 3) + ' WIB',
+      fotoLampiran: 'https://placehold.co/300x400/047857/FFFFFF?text=Selesai+#' + i,
+      alasanTolak: ''
+    });
+  }
+
+  let currentValidasiFilter = 'semua';
+
+  function updateRekapCounts() {
+    const cTotal = appLogs.length;
+    const cMenunggu = appLogs.filter(l => l.status === 'menunggu').length;
+    const cDisetujui = appLogs.filter(l => l.status === 'disetujui').length;
+    const cDitolak = appLogs.filter(l => l.status === 'ditolak').length;
+    const cDiproses = appLogs.filter(l => l.status === 'diproses').length;
+    const cSelesai = appLogs.filter(l => l.status === 'selesai').length;
+
+    const elTotal = document.getElementById('rekap-total-val');
+    if (elTotal) elTotal.innerText = cTotal;
+    const elMenunggu = document.getElementById('rekap-menunggu-val');
+    if (elMenunggu) elMenunggu.innerText = cMenunggu;
+    const elDisetujui = document.getElementById('rekap-disetujui-val');
+    if (elDisetujui) elDisetujui.innerText = cDisetujui;
+    const elDitolak = document.getElementById('rekap-ditolak-val');
+    if (elDitolak) elDitolak.innerText = cDitolak;
+    const elDiproses = document.getElementById('rekap-diproses-val');
+    if (elDiproses) elDiproses.innerText = cDiproses;
+    const elSelesai = document.getElementById('rekap-selesai-val');
+    if (elSelesai) elSelesai.innerText = cSelesai;
+  }
+
+  function setujuiLog(id) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+
+    log.status = 'disetujui';
+    log.statusText = 'Disetujui';
+    updateRekapCounts();
+
+    alert('✓ Laporan #' + log.id + ' ("' + log.title + '") berhasil disetujui!\n\nLaporan telah masuk ke LOG DISETUJUI.');
+    openValidasiList('disetujui');
+  }
+
+  function bukaHalamanTolak(id) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+
+    document.getElementById('tolak-log-id').value = log.id;
+    const titleEl = document.getElementById('tolak-preview-title');
+    if (titleEl) titleEl.innerText = log.title;
+    const descEl = document.getElementById('tolak-preview-desc');
+    if (descEl) descEl.innerText = log.deskripsi;
+    const petugasEl = document.getElementById('tolak-preview-petugas');
+    if (petugasEl) petugasEl.innerText = log.nama + ' (NRP: ' + log.nrp + ')';
+    const waktuEl = document.getElementById('tolak-preview-waktu');
+    if (waktuEl) waktuEl.innerText = 'Terkirim: Hari ini, ' + log.waktu;
+    const avatarEl = document.getElementById('tolak-preview-avatar');
+    if (avatarEl) avatarEl.src = log.avatar;
+
+    // Reset form
+    const alasanEl = document.getElementById('tolak-alasan-text');
+    if (alasanEl) alasanEl.value = '';
+    const katEl = document.getElementById('tolak-kategori');
+    if (katEl) katEl.selectedIndex = 0;
+
+    switchTab('view-tolak');
+  }
+
+  function submitPenolakan() {
+    const logId = parseInt(document.getElementById('tolak-log-id').value);
+    const log = appLogs.find(l => l.id === logId);
+    if (!log) {
+      alert('Data laporan tidak ditemukan!');
+      return;
+    }
+
+    const kategori = document.getElementById('tolak-kategori').value;
+    const alasan = document.getElementById('tolak-alasan-text').value.trim();
+
+    if (!alasan) {
+      alert('Mohon isi catatan atau alasan penolakan untuk personel!');
+      document.getElementById('tolak-alasan-text').focus();
+      return;
+    }
+
+    log.status = 'ditolak';
+    log.statusText = 'Ditolak / Revisi';
+    log.alasanTolak = kategori + ' - ' + alasan;
+    updateRekapCounts();
+
+    alert('✕ Laporan #' + log.id + ' telah ditolak dengan catatan:\n"' + log.alasanTolak + '"\n\nNotifikasi revisi terkirim ke personel dan laporan telah masuk ke LOG DITOLAK.');
+    openValidasiList('ditolak');
+  }
+
+  function previewLogDetail(id) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+    const imgEl = document.getElementById('detail-val-img');
+    const descEl = document.getElementById('detail-val-desc');
+    const sektorEl = document.getElementById('detail-val-sektor');
+    const petugasEl = document.getElementById('detail-val-petugas');
+    if (imgEl && log.fotoLampiran) imgEl.src = log.fotoLampiran;
+    if (descEl) descEl.innerText = log.deskripsi;
+    if (sektorEl) sektorEl.innerText = log.sektor;
+    if (petugasEl) petugasEl.innerText = log.nama;
+  }
+
+  function openValidasiList(filter) {
+    currentValidasiFilter = filter;
+    const listContainer = document.getElementById('val-list-container');
+    let html = '';
+
+    // Filter log data
+    const filteredLogs = (filter === 'semua') 
+      ? appLogs 
+      : appLogs.filter(l => l.status === filter);
+
+    if (filteredLogs.length === 0) {
+      html = `
+        <div style="text-align:center; padding:40px 16px; background:white; border-radius:12px; border:1px solid var(--border);">
+          <div style="font-size:36px; margin-bottom:8px;">📭</div>
+          <div style="font-weight:700; color:var(--text); font-size:14px;">Tidak Ada Data</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Saat ini tidak ada laporan dengan kategori ini.</div>
+        </div>
+      `;
+    } else {
+      filteredLogs.forEach(log => {
+        let color = 'var(--text-muted)';
+        let cardClickAttr = '';
+        let hoverStyle = '';
+        let badgeInfo = '';
+
+        if (log.status === 'menunggu') {
+          color = 'var(--warning)';
+        } else if (log.status === 'disetujui') {
+          color = 'var(--success)';
+          cardClickAttr = `onclick="switchTab('view-wizard')" title="Klik untuk membuka Wizard Penanganan Kasus"`;
+          hoverStyle = `style="border: 1px solid #BBF7D0; cursor:pointer; transition:transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='var(--success)'" onmouseout="this.style.transform='none'; this.style.borderColor='#BBF7D0'"`;
+          badgeInfo = `
+            <div style="margin-top:6px; font-size:11px; color:var(--success); font-weight:600; display:flex; align-items:center; gap:4px;">
+              <span>✓ Disetujui oleh Atasan</span> • <span style="color:var(--primary); text-decoration:underline;">Lihat Wizard Kasus →</span>
+            </div>
+          `;
+        } else if (log.status === 'ditolak') {
+          color = 'var(--danger)';
+          hoverStyle = `style="border: 1px solid #FECACA; transition:transform 0.2s;"`;
+          badgeInfo = `
+            <div style="margin-top:8px; background:#FEF2F2; border-left:3px solid var(--danger); padding:8px 10px; border-radius:4px; font-size:11px; color:#991B1B; line-height:1.4;">
+              <strong>⚠️ Catatan Penolakan:</strong> ${log.alasanTolak || 'Laporan perlu direvisi oleh personel.'}
+            </div>
+          `;
+        } else if (log.status === 'diproses') {
+          color = 'var(--primary)';
+        } else if (log.status === 'selesai') {
+          color = '#047857';
+        }
+
+        let btns = '';
+        if (log.status === 'menunggu') {
+          btns = `
+            <div class="val-btns" style="margin-top:10px;">
+              <button class="btn-acc" onclick="event.stopPropagation(); setujuiLog(${log.id})">✓ Setujui</button>
+              <button class="btn-rej" onclick="event.stopPropagation(); bukaHalamanTolak(${log.id})">✕ Tolak</button>
+            </div>
+          `;
+        }
+
+        html += `
+          <div class="val-card" ${cardClickAttr} ${hoverStyle} onmouseenter="previewLogDetail(${log.id})">
+            <div class="val-user">
+              <img src="${log.avatar}">
+              <div style="flex:1;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div style="font-weight:700; font-size:13px; color:var(--text);">${log.nama}</div>
+                  <div style="font-size:10px; color:var(--text-muted);">${log.waktu}</div>
+                </div>
+                <div style="font-size:11px; color:${color}; font-weight:bold;">Status: ${log.statusText}</div>
+              </div>
+            </div>
+            <div style="font-weight:700; font-size:12px; color:var(--text); margin-bottom:4px;">${log.title}</div>
+            <div class="val-text" style="margin-bottom:6px;">${log.deskripsi}</div>
+            ${badgeInfo}
+            ${btns}
+          </div>
+        `;
+      });
+    }
+
+    if (listContainer) listContainer.innerHTML = html;
+
+    // Update detail preview foto/deskripsi dengan data pertama
+    if (filteredLogs.length > 0) {
+      previewLogDetail(filteredLogs[0].id);
+    }
+
+    // Ubah judul sesuai filter
+    const subtitle = document.querySelector('#view-validasi .page-subtitle');
+    if (subtitle) {
+      const titles = {
+        'semua': 'Semua Pengaduan',
+        'menunggu': 'Menunggu Tindakan',
+        'disetujui': 'Log Disetujui',
+        'ditolak': 'Log Ditolak',
+        'diproses': 'Sedang Diproses',
+        'selesai': 'Kasus Selesai'
+      };
+      subtitle.innerText = 'Menampilkan: ' + filteredLogs.length + ' Data ' + (titles[filter] || '');
+    }
+
+    // Pindah ke tab validasi
+    switchTab('view-validasi');
+  }
+
+  let myChart1, myChart2, myChart3;
+
+  // ==================================
+  // CHART.JS INITIALIZATION (Screen 4 & Beranda)
+  // ==================================
+  function initCharts() {
+    Chart.defaults.font.family = 'Inter';
+    Chart.defaults.font.size = 10;
+    Chart.defaults.plugins.legend.display = false;
+    
+    // Half-circle Gauges for Beranda
+    const gaugeOpts = {
+      type: 'doughnut',
+      data: { datasets: [{ data: [92, 8], backgroundColor: ['#10B981', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
+      options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
+    };
+    new Chart(document.getElementById('gauge1'), gaugeOpts);
+    
+    const gaugeOpts2 = {
+      type: 'doughnut',
+      data: { datasets: [{ data: [92, 8], backgroundColor: ['#EF4444', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
+      options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
+    };
+    new Chart(document.getElementById('gauge2'), gaugeOpts2);
+
+    // Chart 1: Distribusi Jenis Kegiatan (Pie)
+    myChart1 = new Chart(document.getElementById('chart1'), {
+      type: 'pie',
+      data: {
+        labels: ['Patroli', 'TPTKP', 'Sambang', 'Pengamanan'],
+        datasets: [{ data: [40, 10, 30, 20], backgroundColor: ['#1D4ED8', '#EF4444', '#F59E0B', '#10B981'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+    });
+
+    // Chart 2: Status Validasi (Doughnut)
+    myChart2 = new Chart(document.getElementById('chart2'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Disetujui', 'Menunggu', 'Ditolak'],
+        datasets: [{ data: [38, 5, 2], backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+    });
+
+    // Chart 3: Tren Volume Kegiatan (Bar)
+    myChart3 = new Chart(document.getElementById('chart3'), {
+      type: 'bar',
+      data: {
+        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+        datasets: [{ label: 'Jumlah Log', data: [8, 10, 5, 12, 15, 6, 4], backgroundColor: '#153E75', borderRadius: 4 }]
+      },
+      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+    });
+  }
+
+  // ==================================
+  // KINERJA TAB LOGIC
+  // ==================================
+  function updateKinerjaTab(period, el) {
+    // Update active tab styling
+    document.querySelectorAll('#view-laporan .tab-seg').forEach(tab => tab.classList.remove('active'));
+    el.classList.add('active');
+    
+    // Update date picker type based on period
+    const dateInput = document.getElementById('kinerja-date');
+
+    if (period === 'harian') {
+      dateInput.type = 'date';
+      
+      // Calculate 6 days before + today for dynamic labels
+      const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+      const today = new Date();
+      const labelsHarian = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i);
+        labelsHarian.push(days[d.getDay()]);
+      }
+      
+      // Update charts for Harian (7 Hari Terakhir)
+      myChart1.data.datasets[0].data = [4, 1, 3, 2];
+      myChart2.data.datasets[0].data = [8, 2, 0];
+      myChart3.data.labels = labelsHarian;
+      myChart3.data.datasets[0].data = [8, 10, 5, 12, 15, 6, 4];
+      
+      // Update text stats
+      document.getElementById('stat-total').innerText = '10';
+      document.getElementById('stat-acc').innerText = '8';
+      document.getElementById('stat-wait').innerText = '2';
+      document.getElementById('stat-rej').innerText = '0';
+      
+    } else if (period === 'mingguan') {
+      dateInput.type = 'week';
+      
+      // Calculate 11 weeks before + this week for dynamic labels
+      const today = new Date();
+      const getISOWeek = (date) => {
+        const d = new Date(date.getTime());
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+        const w1 = new Date(d.getFullYear(), 0, 4);
+        return 1 + Math.round(((d.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7);
+      };
+      
+      const labelsMingguan = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - (i * 7));
+        labelsMingguan.push('W' + getISOWeek(d));
+      }
+      
+      // Update charts for Mingguan (12 Minggu Terakhir)
+      myChart1.data.datasets[0].data = [28, 5, 15, 12];
+      myChart2.data.datasets[0].data = [50, 8, 2];
+      myChart3.data.labels = labelsMingguan;
+      myChart3.data.datasets[0].data = [45, 50, 42, 60, 55, 65, 58, 62, 70, 68, 75, 80];
+      
+      // Update text stats
+      document.getElementById('stat-total').innerText = '60';
+      document.getElementById('stat-acc').innerText = '50';
+      document.getElementById('stat-wait').innerText = '8';
+      document.getElementById('stat-rej').innerText = '2';
+      
+    } else if (period === 'bulanan') {
+      dateInput.type = 'month';
+      
+      // Calculate 11 months before + this month for dynamic labels
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+      const today = new Date();
+      const labelsBulanan = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const yearSuffix = d.getFullYear().toString().slice(-2);
+        labelsBulanan.push(`${months[d.getMonth()]} '${yearSuffix}`);
+      }
+      
+      // Update charts for Bulanan (12 Bulan Terakhir)
+      myChart1.data.datasets[0].data = [120, 20, 60, 50];
+      myChart2.data.datasets[0].data = [220, 15, 15];
+      myChart3.data.labels = labelsBulanan;
+      myChart3.data.datasets[0].data = [200, 210, 190, 240, 260, 250, 270, 280, 300, 310, 320, 330];
+      
+      // Update text stats
+      document.getElementById('stat-total').innerText = '250';
+      document.getElementById('stat-acc').innerText = '220';
+      document.getElementById('stat-wait').innerText = '15';
+      document.getElementById('stat-rej').innerText = '15';
+    }
+    
+    // Animate charts update
+    myChart1.update();
+    myChart2.update();
+    myChart3.update();
+  }
+
+  // ==================================
+  // ROLE-BASED UI LOGIC
+  // ==================================
+  window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const role = urlParams.get('role');
+    
+    if (role === 'pimpinan') {
+      // Pimpinan: Monitor, don't create logs.
+      const tl = document.getElementById('tindak-lanjut-card'); if (tl) tl.style.display = 'none';
+      const navLog = document.getElementById('nav-log'); if (navLog) navLog.style.display = 'none';
+      
+      const un = document.getElementById('user-name'); if (un) un.innerText = 'Kombes Pol Budi';
+      const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Kapolres';
+      const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MENGAWASI';
+    } else {
+      // Anggota (default)
+      // They SHOULD see their own KPI and Rekapitulasi (as per PRD)
+      // But they don't see the validasi page icon
+      const bell = document.getElementById('bell-notif'); if (bell) bell.style.display = 'none';
+    }
+  });
+</script>
+</body>
+</html>
