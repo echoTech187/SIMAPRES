@@ -80,17 +80,8 @@
     
     <form id="login-form" onsubmit="handleInternalLogin(event)">
       <div class="form-group">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <label class="form-label" for="login-nrp" style="margin-bottom:0;">NRP / ID Petugas</label>
-          <span style="font-size:11px; color:#64748B;">Role terdeteksi otomatis via NRP</span>
-        </div>
-        <input type="text" id="login-nrp" class="form-control" placeholder="Masukkan NRP Petugas" value="98040112" oninput="detectRoleFromNRP(this.value)">
-        
-        <!-- Indikator Deteksi Otomatis dari Database NRP -->
-        <div id="nrp-role-indicator" style="margin-top: 8px; padding: 7px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; transition: all 0.2s;">
-          <span id="indicator-icon" style="font-size:14px;">🎧</span>
-          <span id="indicator-text">Role Terverifikasi: Briptu Dian Lestari (Operator SPKT 110)</span>
-        </div>
+        <label class="form-label" for="login-nrp">NRP / ID Petugas</label>
+        <input type="text" id="login-nrp" class="form-control" placeholder="Masukkan NRP Petugas" value="98040112">
       </div>
 
       <div class="form-group" style="margin-top: 14px;">
@@ -138,30 +129,12 @@
   <script>
     function detectRoleFromNRP(nrpValue) {
       const nrp = (nrpValue || '').toLowerCase().trim();
-      const indicator = document.getElementById('nrp-role-indicator');
-      const icon = document.getElementById('indicator-icon');
-      const text = document.getElementById('indicator-text');
 
       if (nrp.includes('operator') || nrp.includes('dian') || nrp.includes('98040112') || nrp.includes('spkt') || nrp.includes('110')) {
-        indicator.style.background = '#EFF6FF';
-        indicator.style.color = '#1D4ED8';
-        indicator.style.borderColor = '#BFDBFE';
-        icon.innerText = '🎧';
-        text.innerText = 'Role Terverifikasi: Briptu Dian Lestari (Operator SPKT 110)';
         return 'operator';
       } else if (nrp.includes('pimpinan') || nrp.includes('pawas') || nrp.includes('budi') || nrp.includes('kapolres') || nrp.includes('88010234')) {
-        indicator.style.background = '#FFFBEB';
-        indicator.style.color = '#B45309';
-        indicator.style.borderColor = '#FDE68A';
-        icon.innerText = '👨‍✈️';
-        text.innerText = 'Role Terverifikasi: Kombes Pol Budi (Pawas / Pimpinan Validasi)';
         return 'pimpinan';
       } else {
-        indicator.style.background = '#F8FAFC';
-        indicator.style.color = '#334155';
-        indicator.style.borderColor = '#CBD5E1';
-        icon.innerText = '👮';
-        text.innerText = 'Role Terverifikasi: Bripka Ahmad (Personel Lapangan / Anggota)';
         return 'anggota';
       }
     }
@@ -169,7 +142,6 @@
     function quickLoginRole(nrp, role) {
       const input = document.getElementById('login-nrp');
       if (input) input.value = nrp;
-      detectRoleFromNRP(nrp);
       setTimeout(() => {
         window.location.href = `e-tribrata-log.html?role=${role}`;
       }, 150);
@@ -181,12 +153,6 @@
       const targetRole = detectRoleFromNRP(nrp);
       window.location.href = `e-tribrata-log.html?role=${targetRole}`;
     }
-
-    // Inisialisasi awal
-    window.addEventListener('DOMContentLoaded', () => {
-      const input = document.getElementById('login-nrp');
-      if (input) detectRoleFromNRP(input.value);
-    });
   </script>
 </body>
 </html>
