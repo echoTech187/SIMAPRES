@@ -1382,7 +1382,8 @@
       // Step 2: Disposisi
       const s2 = document.getElementById('step-2-el');
       s2.className = 'step completed';
-      document.getElementById('step-2-desc').innerText = 'Tugas penanganan telah diserahkan kepada unit patroli ' + (log.nama || 'Bripka Ahmad') + '.';
+      const dispInfoExtra = log.disposisi?.estimasiJarak ? ` (${log.disposisi.unit || 'Samapta'} • Jarak: ${log.disposisi.estimasiJarak})` : '';
+      document.getElementById('step-2-desc').innerText = 'Tugas penanganan telah diserahkan kepada ' + (log.disposisi?.komandan || log.nama || 'Bripka Ahmad') + dispInfoExtra + '.';
 
       // Step 3: Menuju Lokasi (Meluncur)
       const s3 = document.getElementById('step-3-el');
@@ -1393,8 +1394,10 @@
       if (tahap === 3 && !isSelesai) {
         s3.className = 'step active';
         if (s3Map) s3Map.style.display = 'block';
-        document.getElementById('map-police-name').innerText = log.nama || 'Bripka Ahmad';
-        document.getElementById('map-police-eta').innerText = '⚡ Status: Menuju Lokasi (Estimasi Tiba: 4-5 Menit)';
+        document.getElementById('map-police-name').innerText = log.disposisi?.komandan || log.nama || 'Bripka Ahmad';
+        const etaTeks = log.disposisi?.estimasiEta ? log.disposisi.estimasiEta : '4-5 Menit';
+        const jarakTeks = log.disposisi?.estimasiJarak ? ` • Jarak: ${log.disposisi.estimasiJarak}` : '';
+        document.getElementById('map-police-eta').innerText = `⚡ Status: Menuju Lokasi (Estimasi Tiba: ${etaTeks}${jarakTeks})`;
       } else if (tahap > 3 || isSelesai) {
         s3.className = 'step completed';
         if (s3Map) s3Map.style.display = 'none';
@@ -1670,8 +1673,78 @@
       if (modal) modal.classList.remove('active');
     }
 
+    // ==========================================
+    // MODERN ALERT OVERRIDE UNTUK WARGA
+    // ==========================================
+    function tampilkanModalAlertWarga(pesan) {
+      const modal = document.getElementById('modal-alert-warga');
+      if (!modal) {
+        window._nativeAlert ? window._nativeAlert(pesan) : console.log(pesan);
+        return;
+      }
+      const titleEl = document.getElementById('alert-warga-title');
+      const bodyEl = document.getElementById('alert-warga-body');
+      const iconEl = document.getElementById('alert-warga-icon');
+      const headerEl = document.getElementById('alert-warga-header');
+
+      const teks = String(pesan || '');
+      let icon = 'ℹ️';
+      let title = 'Pemberitahuan Layanan';
+      let bg = 'linear-gradient(135deg, #1E3A8A 0%, #172554 100%)';
+
+      if (teks.includes('⭐') || teks.includes('✓') || teks.toLowerCase().includes('terima kasih')) {
+        icon = '⭐';
+        title = 'Apresiasi & Ulasan Diterima';
+        bg = 'linear-gradient(135deg, #065F46 0%, #047857 100%)';
+      } else if (teks.includes('⚠️') || teks.toLowerCase().includes('mohon') || teks.toLowerCase().includes('tidak ditemukan')) {
+        icon = '⚠️';
+        title = 'Pencarian Tiket';
+        bg = 'linear-gradient(135deg, #92400E 0%, #B45309 100%)';
+      }
+
+      if (headerEl) headerEl.style.background = bg;
+      if (iconEl) iconEl.innerText = icon;
+      if (titleEl) titleEl.innerText = title;
+      if (bodyEl) bodyEl.innerText = teks.replace(/^[⭐✓⚠️ℹ️\s]+/, '');
+
+      modal.style.display = 'flex';
+    }
+
+    function tutupModalAlertWarga() {
+      const modal = document.getElementById('modal-alert-warga');
+      if (modal) modal.style.display = 'none';
+    }
+
+    if (!window._nativeAlert) {
+      window._nativeAlert = window.alert;
+    }
+    window.alert = function(pesan) {
+      tampilkanModalAlertWarga(pesan);
+    };
+
     // Inisialisasi saat DOM siap
     document.addEventListener('DOMContentLoaded', initApp);
   </script>
+
+  <!-- MODAL ALERT WARGA -->
+  <div id="modal-alert-warga"
+    style="display:none; position:fixed; inset:0; z-index:9999999; background:rgba(15,23,42,0.8); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; width:100%; max-width:440px; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.45); overflow:hidden; border:1px solid #CBD5E1; display:flex; flex-direction:column; text-align:center;">
+      <div id="alert-warga-header" style="background:linear-gradient(135deg, #1E3A8A 0%, #172554 100%); color:white; padding:22px 20px 18px 20px;">
+        <div style="width:52px; height:52px; background:rgba(255,255,255,0.2); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:8px;">
+          <span id="alert-warga-icon">ℹ️</span>
+        </div>
+        <div id="alert-warga-title" style="font-size:16px; font-weight:800; text-transform:uppercase;">Pemberitahuan</div>
+        <div style="font-size:11px; opacity:0.85; margin-top:2px;">Portal Pelayanan Masyarakat Presisi 110</div>
+      </div>
+      <div style="padding:18px 20px; font-size:13px; color:#334155; line-height:1.55; white-space:pre-line;" id="alert-warga-body"></div>
+      <div style="padding:12px 20px; border-top:1px solid #E2E8F0; background:#F8FAFC;">
+        <button type="button" onclick="tutupModalAlertWarga()"
+          style="width:100%; padding:10px 16px; background:#1E3A8A; color:white; font-size:13px; font-weight:700; border:none; border-radius:8px; cursor:pointer;">
+          Mengerti &amp; Tutup
+        </button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
