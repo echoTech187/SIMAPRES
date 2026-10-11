@@ -2191,50 +2191,279 @@
       </section>
 
       <!-- SCREEN 5: PROFIL PENGGUNA (SESUAI ROLE AKTIF) -->
-      <section id="view-profil" class="view">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px 0;">
-          <h2 class="page-title" style="margin:0;">Profil Pengguna</h2>
+      <section id="view-profil" class="view" style="padding-bottom: 95px;">
+        <!-- TOP BAR HEADER -->
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid #E2E8F0; background:#FFFFFF; flex-wrap:wrap; gap:12px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h2 class="page-title" style="margin:0; font-size:18px;">Profil Personel Presisi</h2>
+              <span id="profil-badge-role" style="background:#EFF6FF; color:#1D4ED8; font-size:11px; font-weight:800; padding:3px 10px; border-radius:12px; border:1px solid #DBEAFE;">PIMPINAN / PAWAS</span>
+            </div>
+            <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Sistem Informasi Manajemen Presisi (SIMAPRES) • Terintegrasi SIPP Polri</div>
+          </div>
           <div onclick="kembaliDariProfil()"
-            style="font-size:12.5px; font-weight:700; color:var(--primary); cursor:pointer; background:#EFF6FF; padding:6px 14px; border-radius:8px; display:flex; align-items:center; gap:6px; border:1px solid #BFDBFE; transition:0.2s;"
+            style="font-size:12.5px; font-weight:700; color:var(--primary); cursor:pointer; background:#EFF6FF; padding:8px 16px; border-radius:8px; display:flex; align-items:center; gap:6px; border:1px solid #BFDBFE; transition:0.2s;"
             onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
-            <span>←</span> Kembali
+            <span>←</span> Kembali ke Dashboard
           </div>
         </div>
-        <div style="display: flex; flex-direction: column; align-items: center; padding: 24px 20px 40px;">
-          <img id="profil-user-avatar"
-            src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=150&q=80"
-            style="width:100px; height:100px; border-radius:50%; margin-bottom:16px; object-fit:cover; border:3px solid var(--primary); box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-          <h3 id="profil-user-nama"
-            style="font-size:20px; color:var(--primary-dark); font-weight:800; margin-bottom:4px;">Bripka Ahmad</h3>
-          <p id="profil-user-nrp"
-            style="color:var(--text-muted); font-weight:600; margin-bottom: 24px; font-size:13.5px;">NRP: 50123456</p>
 
-          <div style="width:100%; max-width:400px; display:flex; gap:12px; margin-bottom:24px;">
-            <button type="button"
-              style="flex:1; padding:12px; background:var(--success); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;"
-              onclick="alert('✓ Presensi Masuk Berhasil')">✅ Masuk</button>
-            <button type="button"
-              style="flex:1; padding:12px; background:var(--danger); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;"
-              onclick="alert('✓ Presensi Pulang Berhasil')">❌ Pulang</button>
-          </div>
+        <div style="max-width:1150px; margin:20px auto; padding:0 16px;">
+          <!-- RESPONSIVE 2-COLUMN GRID -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:20px; align-items:start;">
+            
+            <!-- KOLOM KIRI: KTA DIGITAL & PRESENSI -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              
+              <!-- KARTU TANDA ANGGOTA DIGITAL POLRI (E-KTA) -->
+              <div style="background: linear-gradient(135deg, #0F2D56 0%, #153E75 60%, #1E3A8A 100%); border-radius:16px; padding:22px; color:white; box-shadow:0 12px 24px -4px rgba(21,62,117,0.3); position:relative; overflow:hidden; border:1px solid rgba(255,255,255,0.15);">
+                <!-- Watermark Background -->
+                <div style="position:absolute; right:-20px; bottom:-25px; opacity:0.07; pointer-events:none;">
+                  <svg width="210" height="210" viewBox="0 0 100 100" fill="none"><path d="M50 6 L88 22 V50 C88 74 50 94 50 94 C50 94 12 74 12 50 V22 L50 6 Z" fill="white"/></svg>
+                </div>
 
-          <div
-            style="width:100%; max-width:400px; background:white; border:1px solid #e2e8f0; border-radius:12px; padding:8px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
-            <div
-              style="padding:14px 8px; border-bottom:1px solid #f1f5f9; font-weight:600; color:var(--text); cursor:pointer;"
-              onclick="alert('Membuka riwayat log lengkap...')">📋 Riwayat Log Lengkap</div>
-            <div
-              style="padding:14px 8px; border-bottom:1px solid #f1f5f9; font-weight:600; color:var(--text); cursor:pointer;"
-              onclick="alert('Fitur Pengaturan Akun')">⚙️ Pengaturan Akun</div>
-            <div
-              style="padding:14px 8px; border-bottom:1px solid #f1f5f9; font-weight:600; color:var(--text); cursor:pointer;"
-              onclick="alert('Fitur Ganti Password')">🔒 Ganti Password</div>
-            <div
-              style="padding:14px 8px; font-weight:800; color:var(--danger); cursor:pointer; display:flex; align-items:center; gap:8px;"
-              onclick="konfirmasiLogout()">
-              <span>🚪</span>
-              <span>Logout Aplikasi</span>
+                <!-- KTA Header -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid rgba(255,255,255,0.15); padding-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:34px; height:34px; background:#FBBF24; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#78350F; font-size:18px; font-weight:900;">🛡️</div>
+                    <div>
+                      <div style="font-size:9.5px; font-weight:800; letter-spacing:1px; color:#FDE68A;">KEPOLISIAN NEGARA REPUBLIK INDONESIA</div>
+                      <div style="font-size:12px; font-weight:800; letter-spacing:0.5px;">KARTU TANDA ANGGOTA DIGITAL (E-KTA)</div>
+                    </div>
+                  </div>
+                  <span style="font-size:9px; font-weight:800; background:rgba(16,185,129,0.25); color:#6EE7B7; border:1px solid rgba(110,231,183,0.3); padding:2px 8px; border-radius:12px;">TERVERIFIKASI</span>
+                </div>
+
+                <!-- Photo & Core ID -->
+                <div style="display:flex; gap:16px; align-items:center; margin-bottom:18px;">
+                  <div style="position:relative; flex-shrink:0;">
+                    <img id="profil-user-avatar"
+                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
+                      style="width:84px; height:84px; border-radius:12px; object-fit:cover; border:2.5px solid #FBBF24; box-shadow:0 6px 14px rgba(0,0,0,0.35);">
+                    <div style="position:absolute; bottom:-3px; right:-3px; background:#10B981; width:15px; height:15px; border-radius:50%; border:2px solid #0F2D56;" title="Aktif Bertugas"></div>
+                  </div>
+                  <div style="flex:1;">
+                    <div id="profil-user-pangkat" style="font-size:11px; font-weight:700; color:#93C5FD; text-transform:uppercase; letter-spacing:0.5px;">KOMISARIS BESAR POLISI</div>
+                    <h3 id="profil-user-nama" style="font-size:19px; color:#FFFFFF; font-weight:800; margin:2px 0 4px; line-height:1.2;">Kombes Pol Budi</h3>
+                    <div id="profil-user-nrp" style="font-size:12.5px; font-weight:700; color:#FDE68A; font-family:monospace; letter-spacing:1px;">NRP: 88010234</div>
+                    <div id="profil-user-jabatan" style="font-size:11px; color:#E2E8F0; margin-top:4px;">Perwira Pengawas (PAWAS) • Pusat Kendali 110</div>
+                  </div>
+                </div>
+
+                <!-- KTA Details Grid -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; background:rgba(0,0,0,0.22); padding:10px 12px; border-radius:10px; font-size:11px; border:1px solid rgba(255,255,255,0.08);">
+                  <div>
+                    <span style="color:#94A3B8; display:block; font-size:9.5px; margin-bottom:1px;">KESATUAN INDUK</span>
+                    <span id="profil-user-kesatuan" style="font-weight:700; color:white;">Polres Metro Jakpus</span>
+                  </div>
+                  <div>
+                    <span style="color:#94A3B8; display:block; font-size:9.5px; margin-bottom:1px;">GOLONGAN / RUANG</span>
+                    <span id="profil-user-golongan" style="font-weight:700; color:white;">Pamen (IV/b)</span>
+                  </div>
+                  <div>
+                    <span style="color:#94A3B8; display:block; font-size:9.5px; margin-bottom:1px;">STATUS PENUGASAN</span>
+                    <span style="font-weight:700; color:#34D399;">● Dinas Siaga 1x24 Jam</span>
+                  </div>
+                  <div>
+                    <span style="color:#94A3B8; display:block; font-size:9.5px; margin-bottom:1px;">MASA BERLAKU KTA</span>
+                    <span style="font-weight:700; color:white;">Oktober 2029</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- KARTU PRESENSI CERDAS & STATUS SHIFT -->
+              <div style="background:white; border:1px solid #E2E8F0; border-radius:14px; padding:18px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">⏱️</span>
+                    <h4 style="margin:0; font-size:13.5px; font-weight:800; color:var(--text);">Presensi & Kesiapsiagaan Piket</h4>
+                  </div>
+                  <span style="font-size:10px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 8px; border-radius:6px;">Geofence Mako Aktif</span>
+                </div>
+
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px; margin-bottom:14px;">
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
+                    <span style="color:var(--text-muted);">Jadwal Piket:</span>
+                    <span style="font-weight:700; color:var(--text);">1x24 Jam (08.00 - 08.00 WIB)</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
+                    <span style="color:var(--text-muted);">Waktu Masuk:</span>
+                    <span style="font-weight:700; color:#15803D;">07:48 WIB (Tervalidasi Biometrik)</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; font-size:11.5px;">
+                    <span style="color:var(--text-muted);">Lokasi Presensi:</span>
+                    <span style="font-weight:700; color:var(--primary);">📍 Mako Polres Metro Jakpus (Radius 50m)</span>
+                  </div>
+                </div>
+
+                <div style="display:flex; gap:10px;">
+                  <button type="button"
+                    style="flex:1; padding:11px 14px; background:#10B981; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.25); transition:0.2s;"
+                    onclick="alert('✓ Status: Presensi Piket Anda hari ini telah tervalidasi resmi di sistem presensi terpadu SIPP Mabes Polri.')">
+                    <span>✅</span> Presensi Masuk
+                  </button>
+                  <button type="button"
+                    style="flex:1; padding:11px 14px; background:#EF4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.25); transition:0.2s;"
+                    onclick="if(confirm('Lakukan serah terima dan presensi apel pulang tugas piket?')) alert('✓ Presensi apel serah terima tercatat. Terima kasih atas dedikasi pengawasan Presisi!');">
+                    <span>✕</span> Apel Pulang
+                  </button>
+                </div>
+              </div>
+
             </div>
+
+            <!-- KOLOM KANAN: STATISTIK KINERJA, INVENTARIS SARPRAS, PENGATURAN -->
+            <div style="display:flex; flex-direction:column; gap:16px;">
+              
+              <!-- 4 STAT CARD REKOR KINERJA PERSONEL -->
+              <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Total Jam Dinas</div>
+                  <div style="font-size:20px; font-weight:900; color:var(--primary);">168 <span style="font-size:12px; font-weight:600; color:#64748B;">Jam</span></div>
+                  <div style="font-size:10px; color:#10B981; font-weight:700; margin-top:2px;">● 100% Hadir Tepat Waktu</div>
+                </div>
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Kepatuhan SLA 110</div>
+                  <div style="font-size:20px; font-weight:900; color:#10B981;">96.4%</div>
+                  <div style="font-size:10px; color:#10B981; font-weight:700; margin-top:2px;">⚡ Respon Rata-rata 7.2m</div>
+                </div>
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Kasus Tuntas</div>
+                  <div style="font-size:20px; font-weight:900; color:#D97706;">142</div>
+                  <div style="font-size:10px; color:#D97706; font-weight:700; margin-top:2px;">★ Bulan Berjalan</div>
+                </div>
+                <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.02);">
+                  <div style="font-size:11px; color:var(--text-muted); font-weight:600; margin-bottom:4px;">Penghargaan</div>
+                  <div style="font-size:20px; font-weight:900; color:#7C3AED;">Presisi</div>
+                  <div style="font-size:10px; color:#7C3AED; font-weight:700; margin-top:2px;">🏆 Pin Emas Pelayanan</div>
+                </div>
+              </div>
+
+              <!-- ARMADA REAKSI CEPAT 110 BAWAH KENDALI (BKO) -->
+              <div style="background:white; border:1px solid #E2E8F0; border-radius:14px; padding:18px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:16px;">🚔</span>
+                    <h4 style="margin:0; font-size:13.5px; font-weight:800; color:var(--text);">Armada Reaksi Cepat 110 Bawah Kendali (BKO)</h4>
+                  </div>
+                  <span style="font-size:10px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 8px; border-radius:6px;">14 Unit Siaga GPS</span>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-bottom:12px;">
+                  <!-- Unit 1 -->
+                  <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="font-size:22px;">🚔</span>
+                      <div>
+                        <div style="font-size:12px; font-weight:800; color:var(--primary);">Patroli Samapta 110-D</div>
+                        <div style="font-size:10.5px; color:var(--text-muted);">Sektor Senen • Radio Ch 110</div>
+                      </div>
+                    </div>
+                    <span style="font-size:9.5px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 6px; border-radius:4px;">● Patroli</span>
+                  </div>
+
+                  <!-- Unit 2 -->
+                  <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="font-size:22px;">🚔</span>
+                      <div>
+                        <div style="font-size:12px; font-weight:800; color:var(--primary);">Patroli Samapta 110-B</div>
+                        <div style="font-size:10.5px; color:var(--text-muted);">Sektor Menteng • Radio Ch 110</div>
+                      </div>
+                    </div>
+                    <span style="font-size:9.5px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 6px; border-radius:4px;">● Standby</span>
+                  </div>
+
+                  <!-- Unit 3 -->
+                  <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="font-size:22px;">🏍️</span>
+                      <div>
+                        <div style="font-size:12px; font-weight:800; color:#B45309;">Perintis Presisi R-2</div>
+                        <div style="font-size:10.5px; color:var(--text-muted);">Hotspot Panglima Polim</div>
+                      </div>
+                    </div>
+                    <span style="font-size:9.5px; font-weight:700; color:#D97706; background:#FEF3C7; padding:2px 6px; border-radius:4px;">⚡ Respon TKP</span>
+                  </div>
+
+                  <!-- Unit 4 -->
+                  <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                      <span style="font-size:22px;">🚓</span>
+                      <div>
+                        <div style="font-size:12px; font-weight:800; color:#1D4ED8;">Turjawali Lantas 01</div>
+                        <div style="font-size:10.5px; color:var(--text-muted);">Flyover Semanggi • Ch Lantas</div>
+                      </div>
+                    </div>
+                    <span style="font-size:9.5px; font-weight:700; color:#15803D; background:#DCFCE7; padding:2px 6px; border-radius:4px;">● Lancar</span>
+                  </div>
+                </div>
+
+                <!-- Action Shortcut ke Peta Live -->
+                <div onclick="switchTab('view-peta')"
+                  style="background:#EFF6FF; border:1px dashed #BFDBFE; border-radius:8px; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; transition:0.2s;"
+                  onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span style="font-size:14px;">🗺️</span>
+                    <span style="font-size:11.5px; font-weight:700; color:var(--primary);">Pantau Posisi & Rute Seluruh Armada di Peta Presisi Live</span>
+                  </div>
+                  <span style="font-size:12px; font-weight:800; color:var(--primary);">Buka Peta ➔</span>
+                </div>
+              </div>
+
+              <!-- MENU PENGATURAN & KEAMANAN AKUN -->
+              <div style="background:white; border:1px solid #E2E8F0; border-radius:14px; padding:6px 14px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 6px; border-bottom:1px solid #F1F5F9; cursor:pointer;"
+                  onclick="switchTab('view-laporan')">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:16px;">📊</span>
+                    <div>
+                      <div style="font-size:13px; font-weight:700; color:var(--text);">Laporan Akuntabilitas & Kinerja</div>
+                      <div style="font-size:11px; color:var(--text-muted);">Lihat rekapitulasi SLA penanganan 110 dan berkas kedinasan</div>
+                    </div>
+                  </div>
+                  <span style="color:#94A3B8; font-size:13px;">➔</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 6px; border-bottom:1px solid #F1F5F9; cursor:pointer;"
+                  onclick="bukaModalKeamananProfil()">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:16px;">🔒</span>
+                    <div>
+                      <div style="font-size:13px; font-weight:700; color:var(--text);">Keamanan Akun & PIN Komando</div>
+                      <div style="font-size:11px; color:var(--text-muted);">Pengaturan kata sandi dan autentikasi token digital</div>
+                    </div>
+                  </div>
+                  <span style="color:#94A3B8; font-size:13px;">➔</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 6px; border-bottom:1px solid #F1F5F9; cursor:pointer;"
+                  onclick="bukaModalNotifikasiProfil()">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:16px;">🔔</span>
+                    <div>
+                      <div style="font-size:13px; font-weight:700; color:var(--text);">Notifikasi Suara & Sirine 110</div>
+                      <div style="font-size:11px; color:var(--text-muted);">Kustomisasi volume sirine darurat dan nada peringatan tiket</div>
+                    </div>
+                  </div>
+                  <span style="color:#94A3B8; font-size:13px;">➔</span>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 6px; cursor:pointer;"
+                  onclick="konfirmasiLogout()">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:16px;">🚪</span>
+                    <div>
+                      <div style="font-size:13px; font-weight:800; color:var(--danger);">Logout / Keluar dari Aplikasi</div>
+                      <div style="font-size:11px; color:#F87171;">Tutup sesi dinas aktif dan kunci sistem</div>
+                    </div>
+                  </div>
+                  <span style="color:var(--danger); font-size:13px;">➔</span>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </div>
       </section>
@@ -6153,19 +6382,51 @@
       const elNama = document.getElementById('profil-user-nama');
       const elNrp = document.getElementById('profil-user-nrp');
       const elAvatar = document.getElementById('profil-user-avatar');
+      const elPangkat = document.getElementById('profil-user-pangkat');
+      const elJabatan = document.getElementById('profil-user-jabatan');
+      const elBadge = document.getElementById('profil-badge-role');
+      const elGolongan = document.getElementById('profil-user-golongan');
+      const elAlkom = document.getElementById('profil-inv-alkom');
+      const elRanmor = document.getElementById('profil-inv-ranmor');
+      const elGadget = document.getElementById('profil-inv-gadget');
+      const elSenpi = document.getElementById('profil-inv-senpi');
 
       if (targetRole === 'operator') {
         if (elNama) elNama.innerText = 'Briptu Dian Lestari';
         if (elNrp) elNrp.innerText = 'NRP: 98040112';
         if (elAvatar) elAvatar.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80';
-      } else if (targetRole === 'pimpinan' || targetRole === 'atasan') {
+        if (elPangkat) elPangkat.innerText = 'BRIGADIR POLISI SATU (BRIPTU)';
+        if (elJabatan) elJabatan.innerText = 'Operator Call Center 110 • Sentra Pelayanan Kepolisian (SPKT)';
+        if (elBadge) { elBadge.innerText = 'OPERATOR 110'; elBadge.style.background = '#EFF6FF'; elBadge.style.color = '#1D4ED8'; }
+        if (elGolongan) elGolongan.innerText = 'Bintara (II/b)';
+        if (elAlkom) elAlkom.innerText = 'Headset Konsol CAD 110';
+        if (elRanmor) elRanmor.innerText = 'Stasiun Kerja Call Center 110';
+        if (elGadget) elGadget.innerText = 'Workstation CAD Dispatcher #02';
+        if (elSenpi) elSenpi.innerText = 'ID Token & Akses PBX 110 Aktif';
+      } else if (targetRole === 'pimpinan' || targetRole === 'atasan' || targetRole === 'pawas') {
         if (elNama) elNama.innerText = 'Kombes Pol Budi';
         if (elNrp) elNrp.innerText = 'NRP: 88010234';
         if (elAvatar) elAvatar.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80';
+        if (elPangkat) elPangkat.innerText = 'KOMISARIS BESAR POLISI (KOMBES POL)';
+        if (elJabatan) elJabatan.innerText = 'Perwira Pengawas (PAWAS) • Pusat Kendali Operasi 110';
+        if (elBadge) { elBadge.innerText = 'PIMPINAN / PAWAS'; elBadge.style.background = '#FFFBEB'; elBadge.style.color = '#B45309'; }
+        if (elGolongan) elGolongan.innerText = 'Pamen (IV/b)';
+        if (elAlkom) elAlkom.innerText = 'HT Motorola APX 8000';
+        if (elRanmor) elRanmor.innerText = 'Ranmor Komando Supervisi';
+        if (elGadget) elGadget.innerText = 'Tablet Supervisi CAD 110';
+        if (elSenpi) elSenpi.innerText = 'Senpi & Rompi Level III-A';
       } else {
         if (elNama) elNama.innerText = 'Bripka Ahmad';
         if (elNrp) elNrp.innerText = 'NRP: 50123456';
         if (elAvatar) elAvatar.src = 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=150&q=80';
+        if (elPangkat) elPangkat.innerText = 'BRIGADIR POLISI KEPALA (BRIPKA)';
+        if (elJabatan) elJabatan.innerText = 'Unit Patroli Reaksi Cepat • Satuan Samapta';
+        if (elBadge) { elBadge.innerText = 'ANGGOTA PATROLI'; elBadge.style.background = '#F0FDF4'; elBadge.style.color = '#15803D'; }
+        if (elGolongan) elGolongan.innerText = 'Bintara (II/d)';
+        if (elAlkom) elAlkom.innerText = 'HT Motorola GP338 Plus';
+        if (elRanmor) elRanmor.innerText = 'Ranmor Patroli Samapta 110-D';
+        if (elGadget) elGadget.innerText = 'Bodycam Presisi Live #04';
+        if (elSenpi) elSenpi.innerText = 'Revolver Cal 38 & Rompi III-A';
       }
     }
 
@@ -6590,6 +6851,94 @@
     function closeFotoModal() {
       const modal = document.getElementById('lightbox-modal');
       if (modal) modal.style.display = 'none';
+    }
+
+    // ==================================
+    // MODAL KEAMANAN & PIN KOMANDO
+    // ==================================
+    function bukaModalKeamananProfil() {
+      const m = document.getElementById('modal-keamanan-profil');
+      if (m) m.style.display = 'flex';
+    }
+
+    function tutupModalKeamananProfil() {
+      const m = document.getElementById('modal-keamanan-profil');
+      if (m) m.style.display = 'none';
+    }
+
+    function simpanKeamananProfil(e) {
+      if (e) e.preventDefault();
+      const pNew = document.getElementById('sec-new-pass')?.value;
+      const pConf = document.getElementById('sec-conf-pass')?.value;
+
+      if (pNew && pNew !== pConf) {
+        alert('⚠️ Konfirmasi kata sandi baru tidak cocok. Silakan periksa kembali.');
+        return;
+      }
+
+      tutupModalKeamananProfil();
+      alert('✅ Kredensial Keamanan Berhasil Diperbarui!\n\n• PIN Komando 6-digit aktif.\n• Sinkronisasi 2FA Token SIPP Polri tersimpan secara aman.');
+    }
+
+    // ==================================
+    // MODAL NOTIFIKASI SUARA & SIRINE 110
+    // ==================================
+    function bukaModalNotifikasiProfil() {
+      const m = document.getElementById('modal-notifikasi-profil');
+      if (m) m.style.display = 'flex';
+    }
+
+    function tutupModalNotifikasiProfil() {
+      const m = document.getElementById('modal-notifikasi-profil');
+      if (m) m.style.display = 'none';
+    }
+
+    function simpanNotifikasiProfil(e) {
+      if (e) e.preventDefault();
+      tutupModalNotifikasiProfil();
+      alert('✅ Pengaturan Audio & Sirine 110 Tersimpan!\n\n• Volume sirine dan frekuensi radio HT berhasil disesuaikan.');
+    }
+
+    // Uji coba bunyi sirine realistis via Web Audio API
+    function testAudioSirine() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) {
+          alert('🔊 Uji Sirine 110 Berbunyi (Web Audio API tidak didukung browser ini)');
+          return;
+        }
+
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        const btn = document.getElementById('btn-test-sirine');
+        if (btn) btn.innerText = '🚨 Membunyikan Sirine (2s)...';
+
+        osc.type = 'sawtooth';
+        const now = ctx.currentTime;
+        osc.frequency.setValueAtTime(750, now);
+        osc.frequency.linearRampToValueAtTime(1250, now + 0.4);
+        osc.frequency.linearRampToValueAtTime(750, now + 0.8);
+        osc.frequency.linearRampToValueAtTime(1250, now + 1.2);
+        osc.frequency.linearRampToValueAtTime(750, now + 1.6);
+        osc.frequency.linearRampToValueAtTime(1000, now + 2.0);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 2.1);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 2.1);
+
+        setTimeout(() => {
+          if (btn) btn.innerText = '🔊 Uji Bunyi Sirine 110 (2 Detik)';
+        }, 2200);
+      } catch (err) {
+        console.warn('Audio test fallback:', err);
+      }
     }
   </script>
 
@@ -7068,6 +7417,192 @@
 
       </div>
 
+    </div>
+  </div>
+  <!-- MODAL 1: KEAMANAN AKUN & PIN KOMANDO -->
+  <div id="modal-keamanan-profil"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; border-radius:14px; max-width:500px; width:100%; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); border:1px solid #CBD5E1; display:flex; flex-direction:column; max-height:92vh;"
+      onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div style="background:#153E75; color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">🔒</span>
+          <div>
+            <h3 style="font-size:15px; font-weight:800; margin:0;">Keamanan Akun & PIN Komando</h3>
+            <div style="font-size:11px; opacity:0.85;">Kredensial SIPP Mabes Polri & Otorisasi Dinas</div>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalKeamananProfil()"
+          style="background:rgba(255,255,255,0.15); color:white; border:none; width:30px; height:30px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+
+      <!-- Form Body -->
+      <form onsubmit="simpanKeamananProfil(event)" style="padding:20px; overflow-y:auto; flex:1;">
+        <!-- Card 2FA Status -->
+        <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:22px;">🛡️</span>
+            <div>
+              <div style="font-size:12px; font-weight:800; color:#166534;">Autentikasi 2-Faktor (2FA) Aktif</div>
+              <div style="font-size:11px; color:#15803D;">Token Terverifikasi • ID Perangkat: CAD-METRO-01</div>
+            </div>
+          </div>
+          <span style="background:#15803D; color:white; font-size:10px; font-weight:800; padding:2px 8px; border-radius:10px;">SIAP</span>
+        </div>
+
+        <!-- Section: Ubah Password -->
+        <div style="font-size:12px; font-weight:800; color:#1E293B; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+          <span>🔑</span> KATA SANDI AKUN INTERNAL
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:11.5px; font-weight:600; color:#475569; margin-bottom:4px;">Kata Sandi Saat Ini</label>
+          <input type="password" id="sec-old-pass" placeholder="••••••••" value="polripresisi2026"
+            style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:13px; box-sizing:border-box;">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+          <div>
+            <label style="display:block; font-size:11.5px; font-weight:600; color:#475569; margin-bottom:4px;">Kata Sandi Baru</label>
+            <input type="password" id="sec-new-pass" placeholder="Minimal 8 karakter"
+              style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:13px; box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block; font-size:11.5px; font-weight:600; color:#475569; margin-bottom:4px;">Konfirmasi Baru</label>
+            <input type="password" id="sec-conf-pass" placeholder="Ulangi kata sandi"
+              style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:13px; box-sizing:border-box;">
+          </div>
+        </div>
+
+        <!-- Section: PIN Komando (6 Digit) -->
+        <div style="font-size:12px; font-weight:800; color:#1E293B; margin-bottom:6px; display:flex; align-items:center; gap:6px; border-top:1px dashed #E2E8F0; padding-top:14px;">
+          <span>🎖️</span> PIN OTORISASI DISPOSISI KOMANDO (6-DIGIT)
+        </div>
+        <div style="font-size:11px; color:#64748B; margin-bottom:10px;">
+          PIN rahasia ini digunakan untuk memvalidasi disposisi darurat, persetujuan penindakan, dan pembatalan status insiden.
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:14px; justify-content:center;">
+          <input type="password" maxlength="1" value="8" style="width:40px; height:45px; text-align:center; font-size:18px; font-weight:800; border:2px solid #CBD5E1; border-radius:8px; background:#F8FAFC;">
+          <input type="password" maxlength="1" value="8" style="width:40px; height:45px; text-align:center; font-size:18px; font-weight:800; border:2px solid #CBD5E1; border-radius:8px; background:#F8FAFC;">
+          <input type="password" maxlength="1" value="0" style="width:40px; height:45px; text-align:center; font-size:18px; font-weight:800; border:2px solid #CBD5E1; border-radius:8px; background:#F8FAFC;">
+          <input type="password" maxlength="1" value="1" style="width:40px; height:45px; text-align:center; font-size:18px; font-weight:800; border:2px solid #CBD5E1; border-radius:8px; background:#F8FAFC;">
+          <input type="password" maxlength="1" value="2" style="width:40px; height:45px; text-align:center; font-size:18px; font-weight:800; border:2px solid #CBD5E1; border-radius:8px; background:#F8FAFC;">
+          <input type="password" maxlength="1" value="3" style="width:40px; height:45px; text-align:center; font-size:18px; font-weight:800; border:2px solid #CBD5E1; border-radius:8px; background:#F8FAFC;">
+        </div>
+
+        <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:8px; padding:10px; font-size:11px; color:#92400E; display:flex; align-items:center; gap:8px; margin-bottom:18px;">
+          <span>ℹ️</span> Biometrik Face-ID / Touch-ID pada perangkat ini otomatis mengaktifkan otorisasi PIN 6-digit.
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="button" onclick="tutupModalKeamananProfil()"
+            style="flex:1; padding:10px; background:#F1F5F9; color:#475569; border:none; border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer;">Batal</button>
+          <button type="submit"
+            style="flex:2; padding:10px; background:#153E75; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span>💾</span> Simpan Perubahan Kredensial
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: NOTIFIKASI SUARA & SIRINE 110 -->
+  <div id="modal-notifikasi-profil"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; border-radius:14px; max-width:520px; width:100%; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); border:1px solid #CBD5E1; display:flex; flex-direction:column; max-height:92vh;"
+      onclick="event.stopPropagation()">
+      <!-- Header -->
+      <div style="background:#B45309; color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:20px;">🔔</span>
+          <div>
+            <h3 style="font-size:15px; font-weight:800; margin:0;">Pengaturan Notifikasi & Audio Sirine 110</h3>
+            <div style="font-size:11px; opacity:0.85;">Peringatan Insiden Darurat & Audio Dispatch</div>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalNotifikasiProfil()"
+          style="background:rgba(255,255,255,0.15); color:white; border:none; width:30px; height:30px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+
+      <!-- Form Body -->
+      <form onsubmit="simpanNotifikasiProfil(event)" style="padding:20px; overflow-y:auto; flex:1;">
+        <!-- Section: Volume Slider -->
+        <div style="background:#FFFBEB; border:1px solid #FDE68A; border-radius:10px; padding:14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12.5px; font-weight:800; color:#92400E;">🔊 Volume Peringatan Sirine 110</span>
+            <span id="label-volume-val" style="font-size:12px; font-weight:800; color:#B45309; background:white; padding:2px 8px; border-radius:6px; border:1px solid #FDE68A;">85%</span>
+          </div>
+          <input type="range" min="0" max="100" value="85" style="width:100%; accent-color:#B45309; cursor:pointer;"
+            oninput="document.getElementById('label-volume-val').innerText = this.value + '%'">
+          <div style="display:flex; justify-content:space-between; font-size:10px; color:#92400E; margin-top:4px;">
+            <span>0% (Hening)</span>
+            <span>50%</span>
+            <span>100% (Maksimal)</span>
+          </div>
+          
+          <button type="button" id="btn-test-sirine" onclick="testAudioSirine()"
+            style="width:100%; margin-top:10px; padding:8px 14px; background:#DC2626; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(220,38,38,0.25);">
+            <span>🚨</span> Uji Bunyi Sirine 110 (2 Detik)
+          </button>
+        </div>
+
+        <!-- Section: Pilihan Nada Peringatan -->
+        <div style="margin-bottom:16px;">
+          <label style="display:block; font-size:12px; font-weight:800; color:#1E293B; margin-bottom:8px;">PILIHAN TONE AUDIO INSIDEN</label>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label style="display:flex; align-items:center; gap:10px; font-size:12px; padding:8px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; cursor:pointer;">
+              <input type="radio" name="siren-type" value="standar" checked style="accent-color:#B45309;">
+              <div>
+                <strong style="color:var(--text);">Sirine Presisi Quick Response (Standar Mabes)</strong>
+                <div style="font-size:10.5px; color:#64748B;">Frekuensi dinamis 750Hz – 1250Hz bergantian</div>
+              </div>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; font-size:12px; padding:8px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; cursor:pointer;">
+              <input type="radio" name="siren-type" value="strobo" style="accent-color:#B45309;">
+              <div>
+                <strong style="color:var(--text);">Nada Strobo Cepat (High Priority Emergency)</strong>
+                <div style="font-size:10.5px; color:#64748B;">Khusus panggilan kekerasan fisik & tawuran bersenjata</div>
+              </div>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; font-size:12px; padding:8px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; cursor:pointer;">
+              <input type="radio" name="siren-type" value="radio" style="accent-color:#B45309;">
+              <div>
+                <strong style="color:var(--text);">Bip Sandi HT Metro 110 (Chirp Radio)</strong>
+                <div style="font-size:10.5px; color:#64748B;">Bip radio khas komunikasi sentral piket</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Section: Pengaturan Toggles Visual & Popup -->
+        <div style="border-top:1px dashed #E2E8F0; padding-top:12px; margin-bottom:18px;">
+          <label style="display:block; font-size:12px; font-weight:800; color:#1E293B; margin-bottom:8px;">NOTIFIKASI VISUAL & POPUP</label>
+          <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+            <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+              <span>🚨 Banner Merah Otomatis Saat Ada Insiden Darurat Baru</span>
+              <input type="checkbox" checked style="accent-color:#10B981; width:16px; height:16px;">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+              <span>⚡ Peringatan Suara Kritis Bila SLA Mendekati 10 Menit</span>
+              <input type="checkbox" checked style="accent-color:#10B981; width:16px; height:16px;">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+              <span>📱 Push Notification ke Ponsel Android / iOS Pawas</span>
+              <input type="checkbox" checked style="accent-color:#10B981; width:16px; height:16px;">
+            </label>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="button" onclick="tutupModalNotifikasiProfil()"
+            style="flex:1; padding:10px; background:#F1F5F9; color:#475569; border:none; border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer;">Batal</button>
+          <button type="submit"
+            style="flex:2; padding:10px; background:#B45309; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span>💾</span> Terapkan Pengaturan Audio
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </body>
