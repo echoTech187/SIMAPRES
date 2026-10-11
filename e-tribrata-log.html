@@ -2325,11 +2325,30 @@
         `;
       } else if (s.step === 5 && (log.catatanSelesai || log.status === 'selesai')) {
         const teksSelesai = log.catatanSelesai || 'Situasi telah aman dan kondusif. Kasus selesai ditangani dan disahkan oleh pimpinan.';
+        let ratingBoxHtml = '';
+        if (log.ratingKepuasan) {
+          const r = log.ratingKepuasan;
+          const skor = r.skor || 5;
+          const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
+          const tagsStr = (r.tags && r.tags.length) ? `<div style="display:flex; flex-wrap:wrap; gap:3px; margin:4px 0;">${r.tags.map(t => `<span style="font-size:9.5px; background:#FEF3C7; color:#92400E; padding:1px 6px; border-radius:4px; font-weight:600;">${t}</span>`).join('')}</div>` : '';
+          ratingBoxHtml = `
+            <div style="background:#FFFBEB; border-left:3px solid #F59E0B; border-radius:0 6px 6px 0; padding:6px 10px; margin-top:6px; line-height:1.4;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:700; color:#B45309;">⭐ SURVEI KEPUASAN WARGA (110):</span>
+                <span style="font-size:11px; font-weight:800; color:#D97706;">${starsStr} (${skor}/5)</span>
+              </div>
+              ${tagsStr}
+              <div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${r.ulasan || 'Penanganan kepolisian sangat cepat dan memuaskan.'}"</div>
+            </div>
+          `;
+        }
+
         detailSnippetHtml = `
           <div style="background:#ECFDF5; border-left:3px solid #10B981; border-radius:0 6px 6px 0; padding:6px 10px; margin-top:8px; line-height:1.4;">
             <div style="font-size:10px; font-weight:700; color:#047857; margin-bottom:2px;">✓ PENYELESAIAN AKHIR:</div>
             <div style="font-size:11px; color:#1E293B;">"${teksSelesai}"</div>
           </div>
+          ${ratingBoxHtml}
         `;
       }
 
@@ -3028,13 +3047,43 @@
                   <span>✓</span> Kasus Selesai (Pindahkan ke Log Selesai) ➔
                 </button>
               `}
+              <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; font-size:11px; font-weight:700; color:#153E75; background:#EFF6FF; border:1px dashed #93C5FD; border-radius:8px; margin-top:2px; transition:background 0.15s;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
+                <span>🌐</span> Pantau di Portal Warga 110 (masyarakat.html) ➔
+              </a>
             </div>
           `;
         } else {
+          const rating = log.ratingKepuasan;
+          const skor = rating ? (rating.skor || 5) : 5;
+          const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
+          const tagsHtml = (rating && rating.tags && rating.tags.length)
+            ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">${rating.tags.map(t => `<span style="font-size:10px; background:#FEF3C7; color:#92400E; padding:2px 7px; border-radius:10px; font-weight:600;">${t}</span>`).join('')}</div>`
+            : '';
+          const ulasanStr = rating ? (rating.ulasan || 'Penanganan kepolisian sangat cepat dan memuaskan.') : 'Penanganan cepat dan memuaskan.';
+          const waktuStr = rating ? (rating.waktu || 'Hari ini') : 'Hari ini';
+
           tlActions.innerHTML = `
             <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:8px; padding:12px; text-align:center;">
               <div style="color:var(--success); font-weight:700; font-size:13px;">✓ Kasus Selesai Ditangani & Telah Ditutup</div>
               <div style="color:var(--text-muted); font-size:11px; margin-top:4px;">Berita acara penanganan telah disahkan oleh pimpinan.</div>
+            </div>
+
+            <!-- Card Survei Kepuasan Warga (Item 12 - Roadmap Tahap 4) -->
+            <div style="margin-top:10px; background:#FFFBEB; border:1.5px solid #FDE68A; border-radius:8px; padding:12px; text-align:left; box-shadow:0 2px 6px rgba(245,158,11,0.08);">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:11px; font-weight:800; color:#B45309; text-transform:uppercase; letter-spacing:0.5px;">⭐ Evaluasi Kepuasan Warga (110)</span>
+                <span style="font-size:13px; font-weight:800; color:#D97706;">${starsStr} (${skor}/5)</span>
+              </div>
+              ${tagsHtml}
+              <div style="font-size:12px; font-style:italic; color:#78350F; background:white; padding:8px 10px; border-radius:6px; border:1px dashed #FCD34D; margin-top:4px;">
+                "${ulasanStr}"
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                <span style="font-size:10px; color:#92400E; font-weight:600;">🕒 ${waktuStr}</span>
+                <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; font-size:11px; font-weight:700; color:#153E75; background:#EFF6FF; padding:4px 9px; border-radius:6px; border:1px solid #BFDBFE;">
+                  🌐 Buka di Portal Warga ➔
+                </a>
+              </div>
             </div>
           `;
         }

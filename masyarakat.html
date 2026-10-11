@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Cek Status Laporan - E-Tribrata</title>
+  <title>Cek Status Laporan & Survei Kepuasan - E-Tribrata 110</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,14 +44,21 @@
     .header {
       background: var(--primary);
       color: white;
-      padding: 20px 24px;
+      padding: 18px 24px;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 16px;
       box-shadow: 0 4px 12px rgba(21, 62, 117, 0.15);
       position: sticky;
       top: 0;
       z-index: 100;
+    }
+
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
     }
 
     .brand-logo {
@@ -85,12 +92,32 @@
       font-weight: 500;
     }
 
+    .header-link-btn {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .header-link-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+      border-color: white;
+    }
+
     /* Main Container */
     .container {
       width: 100%;
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 24px 16px;
       flex: 1;
     }
 
@@ -109,18 +136,21 @@
       font-weight: 700;
       margin-bottom: 8px;
       color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
 
-    .card p {
+    .card p.desc {
       font-size: 14px;
       color: var(--text-muted);
-      margin-bottom: 20px;
+      margin-bottom: 18px;
       line-height: 1.5;
     }
 
     .input-group {
       position: relative;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
     .input-group input {
@@ -147,12 +177,61 @@
       font-weight: 500;
     }
 
+    /* Quick Ticket Pills */
+    .quick-pills-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .quick-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .quick-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      background: #EFF6FF;
+      color: var(--primary);
+      border: 1px solid #BFDBFE;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .quick-pill:hover {
+      background: #DBEAFE;
+      border-color: #93C5FD;
+      transform: translateY(-1px);
+    }
+
+    .quick-pill.done {
+      background: #ECFDF5;
+      color: #065F46;
+      border-color: #A7F3D0;
+    }
+
+    .quick-pill.done:hover {
+      background: #D1FAE5;
+    }
+
     .btn-search {
       width: 100%;
-      padding: 16px;
+      padding: 15px;
       background: var(--primary);
       color: white;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
       border: none;
       border-radius: 12px;
@@ -186,17 +265,19 @@
     }
 
     .ticket-header {
-      background: var(--bg);
-      padding: 16px;
-      border-radius: 12px;
+      background: #F1F5F9;
+      padding: 18px;
+      border-radius: 14px;
       margin-bottom: 24px;
-      border: 1px dashed #CBD5E1;
+      border: 1px solid #CBD5E1;
+      position: relative;
     }
 
     .ticket-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      align-items: center;
+      margin-bottom: 10px;
     }
 
     .ticket-row:last-child {
@@ -216,18 +297,40 @@
       text-align: right;
     }
 
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .status-badge.selesai {
+      background: #DCFCE7;
+      color: #16A34A;
+      border: 1px solid #86EFAC;
+    }
+
+    .status-badge.diproses {
+      background: #EDE9FE;
+      color: #6D28D9;
+      border: 1px solid #DDD6FE;
+    }
+
     /* Vertical Timeline */
     .timeline {
       position: relative;
       padding-left: 28px;
-      margin-top: 10px;
+      margin-top: 14px;
     }
 
     .timeline::before {
       content: '';
       position: absolute;
-      top: 8px;
-      bottom: 0;
+      top: 10px;
+      bottom: 10px;
       left: 11px;
       width: 2px;
       background: #E2E8F0;
@@ -256,11 +359,14 @@
       justify-content: center;
       align-items: center;
       z-index: 2;
+      font-size: 11px;
     }
 
     .step.completed .step-icon {
       background: var(--success);
       border-color: var(--success);
+      color: white;
+      font-weight: bold;
     }
     
     .step.completed .step-icon::after {
@@ -277,7 +383,6 @@
       box-shadow: 0 0 0 4px rgba(21, 62, 117, 0.1);
     }
 
-    /* Pulse animation for active step */
     .step.active .step-icon::before {
       content: '';
       position: absolute;
@@ -295,7 +400,7 @@
     }
 
     .step-content {
-      padding-top: 4px;
+      padding-top: 2px;
     }
 
     .step-title {
@@ -303,6 +408,9 @@
       font-weight: 700;
       color: var(--text);
       margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .step.inactive .step-title {
@@ -321,71 +429,493 @@
       font-weight: 700;
       background: var(--bg);
       color: var(--text-muted);
-      padding: 4px 8px;
-      border-radius: 4px;
-      margin-top: 8px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-top: 6px;
+      border: 1px solid #E2E8F0;
     }
 
     .step.active .step-time {
       background: #DBEAFE;
       color: var(--primary);
+      border-color: #BFDBFE;
     }
 
-    /* Map Box for active personnel tracking */
+    .step.completed .step-time {
+      background: #F0FDF4;
+      color: #166534;
+      border-color: #BBF7D0;
+    }
+
+    /* Live Map Box for Step 3 */
     .tracking-map {
       width: 100%;
-      height: 150px;
+      height: 160px;
       background: #E2E8F0;
       border-radius: 12px;
       margin-top: 12px;
       position: relative;
       overflow: hidden;
-      display: none; /* Only show in active step */
-    }
-
-    .step.active .tracking-map {
-      display: block;
+      border: 1px solid #CBD5E1;
     }
 
     .map-placeholder {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      opacity: 0.8;
+      opacity: 0.85;
     }
 
     .map-overlay {
       position: absolute;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
       background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(4px);
-      padding: 10px;
-      border-radius: 8px;
+      backdrop-filter: blur(6px);
+      padding: 10px 14px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       gap: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+      border: 1px solid rgba(255,255,255,0.8);
     }
 
     .police-avatar {
-      width: 32px;
-      height: 32px;
+      width: 38px;
+      height: 38px;
       border-radius: 50%;
       object-fit: cover;
+      border: 2px solid var(--primary);
     }
 
     .police-info h4 {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--text);
     }
 
     .police-info p {
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--primary);
+    }
+
+    .info-chip-box {
+      margin-top: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      color: #475569;
+    }
+
+    .quote-box {
+      margin-top: 10px;
+      background: #F8FAFC;
+      border-left: 3px solid var(--primary);
+      padding: 10px 14px;
+      border-radius: 0 8px 8px 0;
+      font-size: 12px;
+      color: #334155;
+      font-style: italic;
+    }
+
+    .btn-photo-link {
+      background: none;
+      border: 1px solid #CBD5E1;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+      background: white;
+      transition: all 0.15s;
+    }
+
+    .btn-photo-link:hover {
+      background: #EFF6FF;
+      border-color: var(--primary);
+    }
+
+    /* ========================================================
+       SURVEY & RATING CARD (ROADMAP TAHAP 4 - ITEM 12)
+       ======================================================== */
+    .survey-card {
+      background: #FFFFFF;
+      border: 2px solid #FDE68A;
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.12), 0 4px 12px rgba(0,0,0,0.03);
+      margin-top: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .survey-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #F59E0B, #FBBF24, #10B981);
+    }
+
+    .survey-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #FEF3C7;
+      color: #B45309;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .survey-card h3 {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .survey-card p.survey-intro {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    /* Star Rating Buttons */
+    .star-rating-box {
+      text-align: center;
+      margin-bottom: 18px;
+      padding: 12px;
+      background: #FFFBEB;
+      border-radius: 12px;
+      border: 1px dashed #FDE68A;
+    }
+
+    .star-rating-box .stars-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      font-size: 36px;
+      cursor: pointer;
+      color: #D1D5DB;
+      transition: transform 0.15s ease, color 0.15s ease;
+      outline: none;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .star-btn:hover {
+      transform: scale(1.22);
+      color: #F59E0B;
+    }
+
+    .star-btn.active {
+      color: #F59E0B;
+      text-shadow: 0 2px 10px rgba(245, 158, 11, 0.45);
+    }
+
+    .star-score-label {
+      font-size: 13px;
+      font-weight: 800;
+      color: #B45309;
+      min-height: 20px;
+      transition: all 0.2s;
+    }
+
+    /* Quick Tags */
+    .tags-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tag-chip {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 7px 13px;
+      background: #F1F5F9;
+      color: #475569;
+      border: 1px solid #CBD5E1;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .tag-chip:hover {
+      background: #E2E8F0;
+      border-color: #94A3B8;
+    }
+
+    .tag-chip.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(21, 62, 117, 0.25);
+    }
+
+    /* Textarea */
+    .survey-textarea {
+      width: 100%;
+      min-height: 85px;
+      padding: 12px;
+      font-size: 13px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      font-family: inherit;
+      resize: vertical;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .survey-textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(21, 62, 117, 0.1);
+    }
+
+    /* Submit Button */
+    .btn-submit-rating {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+      color: white;
+      font-weight: 800;
+      font-size: 15px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.35);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-submit-rating:hover {
+      filter: brightness(1.06);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(217, 119, 6, 0.4);
+    }
+
+    .btn-submit-rating:active {
+      transform: translateY(0);
+    }
+
+    /* Completed / Confirmed Feedback State */
+    .confirmed-box {
+      background: #ECFDF5;
+      border: 1.5px solid #A7F3D0;
+      border-radius: 14px;
+      padding: 20px;
+      text-align: center;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .confirmed-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #10B981;
+      color: white;
+      font-size: 26px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 12px auto;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .confirmed-box h4 {
+      font-size: 16px;
+      font-weight: 800;
+      color: #065F46;
+      margin-bottom: 6px;
+    }
+
+    .confirmed-box p.c-sub {
+      font-size: 12px;
+      color: #047857;
+      margin-bottom: 14px;
+    }
+
+    .confirmed-stars {
+      font-size: 24px;
+      color: #F59E0B;
+      margin-bottom: 8px;
+    }
+
+    .confirmed-review-quote {
+      background: white;
+      border: 1px dashed #6EE7B7;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-style: italic;
+      color: #1F2937;
+      margin-bottom: 12px;
+    }
+
+    .confirmed-meta {
+      font-size: 11px;
+      color: #059669;
+      font-weight: 600;
+    }
+
+    .btn-reedit-rating {
+      background: none;
+      border: 1px solid #10B981;
+      color: #065F46;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 14px;
+      transition: all 0.15s;
+    }
+
+    .btn-reedit-rating:hover {
+      background: #D1FAE5;
+    }
+
+    .pending-survey-banner {
+      background: #EFF6FF;
+      border: 1px dashed #93C5FD;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 24px;
+      line-height: 1.5;
+    }
+
+    /* Lightbox Modal */
+    .modal-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.88);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-lightbox.active {
+      display: flex;
+    }
+
+    .lightbox-content {
+      background: white;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3);
+      position: relative;
+      animation: popIn 0.25s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .lightbox-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid #E2E8F0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .lightbox-header h4 {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+
+    .lightbox-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: #64748B;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .lightbox-img-wrap {
+      width: 100%;
+      height: 280px;
+      background: #0F172A;
+      position: relative;
+    }
+
+    .lightbox-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .lightbox-watermark {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.65);
+      color: #F8FAFC;
+      font-size: 10px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .lightbox-footer {
+      padding: 12px 18px;
+      background: #F8FAFC;
+      font-size: 12px;
+      color: var(--text-muted);
     }
 
     /* Footer */
@@ -395,6 +925,8 @@
       font-size: 12px;
       color: var(--text-muted);
       font-weight: 500;
+      border-top: 1px solid #E2E8F0;
+      background: white;
     }
   </style>
 </head>
@@ -402,153 +934,744 @@
 
   <!-- Header -->
   <header class="header">
-    <div class="brand-logo">
-      <div class="brand-logo-inner"></div>
+    <div class="header-brand">
+      <div class="brand-logo">
+        <div class="brand-logo-inner"></div>
+      </div>
+      <div class="header-titles">
+        <h1>Layanan 110 Presisi</h1>
+        <p>Portal Pelacakan & Evaluasi Masyarakat</p>
+      </div>
     </div>
-    <div class="header-titles">
-      <h1>Layanan 110</h1>
-      <p>Portal Pelacakan Masyarakat</p>
-    </div>
+    <a href="e-tribrata-log.html" class="header-link-btn" title="Buka Dashboard Internal">
+      <span>🏢 Dashboard Petugas</span>
+    </a>
   </header>
 
   <main class="container">
     
     <!-- Input Card -->
     <div class="card" id="search-card">
-      <h2>Lacak Status Laporan Anda</h2>
-      <p>Masukkan Nomor Tiket / ID Laporan 110 yang Anda terima via SMS/WhatsApp untuk memantau respons kepolisian secara real-time.</p>
+      <h2>Lacak Status Penanganan Laporan</h2>
+      <p class="desc">Masukkan Nomor Tiket 110 resmi yang Anda terima via SMS/WhatsApp untuk memantau pergerakan personel kepolisian secara real-time dan memberikan penilaian kinerja.</p>
       
       <div class="input-group">
-        <input type="text" id="ticket-input" placeholder="Contoh: TIKET-110-8X2F" value="TIKET-110-8X2F">
+        <input type="text" id="ticket-input" placeholder="Contoh: TIKET-110-18X2F atau TIKET-110-15X2F" value="TIKET-110-18X2F" onkeypress="if(event.key === 'Enter') lacakLaporan()">
+      </div>
+
+      <!-- Quick Suggestion Pills -->
+      <div class="quick-pills-label">
+        <span>⚡ Tiket Contoh Cepat:</span>
+      </div>
+      <div class="quick-pills" id="quick-pills-container">
+        <!-- Rendered by JS -->
       </div>
       
       <button class="btn-search" onclick="lacakLaporan()">
-        🔍 Lacak Sekarang
+        <span>🔍</span> Lacak Sekarang
       </button>
     </div>
 
-    <!-- Tracking Result (Hidden initially) -->
+    <!-- Tracking Result Container -->
     <div class="card" id="tracking-result">
-      <h2>Hasil Pelacakan</h2>
+      <h2>
+        <span>Hasil Pelacakan Laporan</span>
+        <span id="badge-header-status" class="status-badge selesai">✓ Selesai</span>
+      </h2>
       
-      <div class="ticket-header">
+      <!-- Ticket Metadata Header -->
+      <div class="ticket-header" id="ticket-header-content">
         <div class="ticket-row">
-          <span class="ticket-label">Nomor Laporan</span>
-          <span class="ticket-value" style="color: var(--primary);">TIKET-110-8X2F</span>
+          <span class="ticket-label">Nomor Laporan Resmi</span>
+          <span class="ticket-value" id="th-nomor" style="color: var(--primary); font-size:14px;">TIKET-110-18X2F</span>
         </div>
         <div class="ticket-row">
           <span class="ticket-label">Jenis Insiden</span>
-          <span class="ticket-value">Kecelakaan Lalu Lintas</span>
+          <span class="ticket-value" id="th-jenis">Kecelakaan Lalu Lintas</span>
         </div>
         <div class="ticket-row">
           <span class="ticket-label">Waktu Dilaporkan</span>
-          <span class="ticket-value">Hari ini, 10:45 WIB</span>
+          <span class="ticket-value" id="th-waktu">Hari ini, 10:45 WIB</span>
         </div>
         <div class="ticket-row">
           <span class="ticket-label">Lokasi Kejadian</span>
-          <span class="ticket-value">Jl. Jend. Sudirman, Jakarta</span>
+          <span class="ticket-value" id="th-lokasi">Jl. Jend. Sudirman, Jakarta</span>
+        </div>
+        <div class="ticket-row">
+          <span class="ticket-label">Personel Ditugaskan</span>
+          <span class="ticket-value" id="th-petugas">Bripka Ahmad (Unit Patroli Presisi)</span>
         </div>
       </div>
 
-      <div class="timeline">
-        <!-- Step 1: Diterima -->
-        <div class="step completed">
+      <!-- 5-Step Vertical Timeline -->
+      <div class="timeline" id="timeline-container">
+        <!-- Step 1: Diterima SPKT -->
+        <div class="step completed" id="step-1-el">
           <div class="step-icon"></div>
           <div class="step-content">
-            <div class="step-title">Laporan Diterima (SPKT)</div>
-            <div class="step-desc">Laporan Anda telah divalidasi oleh operator 110 dan diteruskan ke komando wilayah.</div>
-            <div class="step-time">10:45 WIB</div>
+            <div class="step-title">1. Laporan Diterima (SPKT 110)</div>
+            <div class="step-desc" id="step-1-desc">Laporan Anda telah divalidasi oleh operator 110 dan berkas diteruskan ke komando wilayah.</div>
+            <div class="step-time" id="step-1-time">10:45 WIB</div>
+            <div>
+              <button type="button" class="btn-photo-link" id="btn-foto-1" onclick="openPhotoModal('pengaduan')">
+                <span>📷</span> Lihat Bukti Pengaduan ➔
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Step 2: Disposisi -->
-        <div class="step completed">
+        <div class="step completed" id="step-2-el">
           <div class="step-icon"></div>
           <div class="step-content">
-            <div class="step-title">Disposisi Personel</div>
-            <div class="step-desc">Tugas penanganan telah diserahkan kepada unit terdekat dari lokasi kejadian.</div>
-            <div class="step-time">10:48 WIB</div>
+            <div class="step-title">2. Disposisi Personel Patroli</div>
+            <div class="step-desc" id="step-2-desc">Tugas penanganan telah diserahkan kepada unit patroli terdekat dari sektor lokasi kejadian.</div>
+            <div class="step-time" id="step-2-time">10:48 WIB</div>
           </div>
         </div>
 
-        <!-- Step 3: Menuju Lokasi (ACTIVE) -->
-        <div class="step active">
+        <!-- Step 3: Menuju Lokasi -->
+        <div class="step completed" id="step-3-el">
           <div class="step-icon"></div>
           <div class="step-content">
-            <div class="step-title">Personel Menuju Lokasi</div>
-            <div class="step-desc">Tim sedang meluncur ke lokasi kejadian. Harap tetap tenang dan amankan lokasi.</div>
-            <div class="step-time">Update: 10:50 WIB</div>
+            <div class="step-title">3. Personel Menuju Lokasi (Meluncur)</div>
+            <div class="step-desc" id="step-3-desc">Personel bergerak menuju lokasi dengan kelengkapan dinas siaga.</div>
+            <div class="step-time" id="step-3-time">10:50 WIB</div>
+            <div id="step-3-chip-wrap">
+              <span class="info-chip-box" id="step-3-gps-chip">📍 GPS: -6.2345, 106.8423</span>
+              <button type="button" class="btn-photo-link" id="btn-foto-persiapan" onclick="openPhotoModal('persiapan')">
+                <span>📸</span> Bukti Keberangkatan & GPS ➔
+              </button>
+            </div>
             
-            <!-- Live Map Mockup -->
-            <div class="tracking-map">
+            <!-- Live Map (Only shown if active) -->
+            <div class="tracking-map" id="step-3-map">
               <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80" alt="Map" class="map-placeholder">
               <div class="map-overlay">
                 <img src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80" alt="Police" class="police-avatar">
                 <div class="police-info">
-                  <h4>Bripka Ahmad</h4>
-                  <p>Estimasi Tiba: 5 Menit</p>
+                  <h4 id="map-police-name">Bripka Ahmad</h4>
+                  <p id="map-police-eta">⚡ Status: Menuju Lokasi (ETA: 4-5 Menit)</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Step 4: Penanganan -->
-        <div class="step inactive">
+        <!-- Step 4: Penanganan di Lokasi -->
+        <div class="step completed" id="step-4-el">
           <div class="step-icon"></div>
           <div class="step-content">
-            <div class="step-title">Penanganan di Lokasi</div>
-            <div class="step-desc">Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.</div>
+            <div class="step-title">4. Penanganan Kepolisian di TKP</div>
+            <div class="step-desc" id="step-4-desc">Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.</div>
+            <div class="step-time" id="step-4-time">11:15 WIB</div>
+            <div class="quote-box" id="step-4-quote">
+              <strong>Berita Acara Tindakan:</strong><br>
+              <span id="step-4-quote-text">Telah tiba di TKP, mengamankan perimeter lokasi kejadian, pendataan saksi dan situasi terkendali aman.</span>
+            </div>
+            <div style="margin-top:6px;">
+              <button type="button" class="btn-photo-link" id="btn-foto-tindakan" onclick="openPhotoModal('tindakan')">
+                <span>📸</span> Dokumentasi Penanganan TKP ➔
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Step 5: Selesai -->
-        <div class="step inactive">
+        <div class="step completed" id="step-5-el">
           <div class="step-icon"></div>
           <div class="step-content">
-            <div class="step-title">Kasus Selesai Ditangani</div>
-            <div class="step-desc">Penanganan selesai dan log telah disetujui oleh pimpinan.</div>
+            <div class="step-title">5. Kasus Selesai Ditangani</div>
+            <div class="step-desc" id="step-5-desc">Penanganan selesai, situasi wilayah telah kondusif, dan berita acara telah disahkan oleh pimpinan.</div>
+            <div class="step-time" id="step-5-time">11:45 WIB</div>
           </div>
         </div>
-
       </div>
+
+      <!-- ITEM 12: SURVEI & RATING KEPUASAN MASYARAKAT -->
+      <div id="rating-section-container">
+        <!-- Rendered dynamically depending on ticket completion & existing rating -->
+      </div>
+
     </div>
 
   </main>
 
+  <!-- Photo Lightbox Modal -->
+  <div class="modal-lightbox" id="photo-modal" onclick="if(event.target === this) closePhotoModal()">
+    <div class="lightbox-content">
+      <div class="lightbox-header">
+        <h4 id="modal-title">Foto Dokumentasi</h4>
+        <button class="lightbox-close" onclick="closePhotoModal()">&times;</button>
+      </div>
+      <div class="lightbox-img-wrap">
+        <img id="modal-img" src="" alt="Bukti Foto">
+        <div class="lightbox-watermark" id="modal-watermark">
+          SIMAPRES 110 • WATERMARK RESMI POLRI
+        </div>
+      </div>
+      <div class="lightbox-footer" id="modal-desc">
+        Dokumentasi resmi tersimpan di server Command Center E-Tribrata.
+      </div>
+    </div>
+  </div>
+
   <footer class="footer">
-    &copy; 2026 Kepolisian Negara Republik Indonesia.<br>Aplikasi E-Tribrata Log.
+    &copy; 2026 Kepolisian Negara Republik Indonesia.<br>
+    Sistem Informasi Manajemen Presisi (SIMAPRES) • Layanan 110 Terintegrasi.
   </footer>
 
   <script>
-    function lacakLaporan() {
-      const input = document.getElementById('ticket-input').value;
-      if (!input) {
+    // ==========================================
+    // DATA LAYER & STORAGE SYNCHRONIZATION
+    // ==========================================
+    const DEFAULT_LOGS = [
+      {
+        id: 18,
+        nomorTiket: 'TIKET-110-18X2F',
+        title: 'Kecelakaan Lalu Lintas',
+        jenisInsiden: 'Kecelakaan Lalu Lintas',
+        nama: 'Bripka Ahmad',
+        nrp: '89100123',
+        status: 'selesai',
+        statusText: 'Kasus Selesai',
+        tahap: 5,
+        waktu: '10:45 WIB',
+        waktuTiba: '11:15 WIB',
+        waktuSelesai: '11:45 WIB',
+        sektor: 'Jakarta Pusat',
+        lokasiKejadian: 'Jl. Jend. Sudirman No. 45, Jakarta',
+        sumberLaporan: '📞 Panggilan 110 (Call Center)',
+        deskripsi: 'Tabrakan antara minibus dan sepeda motor, arus lalin sempat tersendat.',
+        deskripsiTindakan: 'Telah tiba di TKP, mengamankan korban ke RS terdekat, mengatur arus lalu lintas, dan mediasi ganti rugi secara kekeluargaan.',
+        catatanSelesai: 'Situasi lalu lintas kembali lancar normal, kedua belah pihak sepakat damai.',
+        koordinatGps: '-6.2088, 106.8456',
+        fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+        fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        fotoTindakan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+        fotoSelesai: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+        ratingKepuasan: {
+          skor: 5,
+          tags: ['⚡ Respon Sangat Cepat', '👮 Petugas Ramah & Humanis', '✓ Masalah Tuntas 100%'],
+          ulasan: 'Petugas datang hanya dalam 6 menit setelah saya menelepon 110. Sangat sigap dan menenangkan situasi!',
+          waktu: 'Hari ini, 11:50 WIB',
+          sudahDinilai: true
+        }
+      },
+      {
+        id: 15,
+        nomorTiket: 'TIKET-110-15X2F',
+        title: 'Tawuran Pelajar Remaja',
+        jenisInsiden: 'Tawuran Pelajar Remaja',
+        nama: 'Aipda Rudi Hartono',
+        nrp: '87050321',
+        status: 'diproses',
+        statusText: 'Sedang Diproses',
+        tahap: 3,
+        waktu: '11:15 WIB',
+        sektor: 'Jakarta Selatan',
+        lokasiKejadian: 'Jl. Raya Ciputat, Kebayoran Lama, Jakarta',
+        sumberLaporan: '📞 Panggilan 110 (Call Center)',
+        deskripsi: 'Sekelompok pemuda berkumpul membawa balok kayu di dekat halte bus.',
+        koordinatGps: '-6.2415, 106.8021',
+        fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+        fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        ratingKepuasan: null
+      },
+      {
+        id: 14,
+        nomorTiket: 'TIKET-110-14X2F',
+        title: 'Pohon Tumbang Hambat Jalan',
+        jenisInsiden: 'Pohon Tumbang Hambat Jalan',
+        nama: 'Briptu Doni Pratama',
+        nrp: '92030455',
+        status: 'diproses',
+        statusText: 'Sedang Diproses',
+        tahap: 4,
+        waktu: '10:20 WIB',
+        waktuTiba: '10:40 WIB',
+        sektor: 'Jakarta Barat',
+        lokasiKejadian: 'Jl. Gatot Subroto Kav. 32, Jakarta',
+        sumberLaporan: '👮 Patroli Mandiri Personel',
+        deskripsi: 'Pohon tumbang menutup jalur lambat akibat hujan lebat.',
+        deskripsiTindakan: 'Personel berkoordinasi dengan petugas Damkar dan Dishub untuk pemotongan dahan pohon serta pengalihan arus sementara.',
+        koordinatGps: '-6.2301, 106.8173',
+        fotoPengaduan: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+        fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        fotoTindakan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        ratingKepuasan: null
+      }
+    ];
+
+    let appLogs = [];
+    let currentActiveLog = null;
+    let selectedRatingScore = 5;
+
+    function loadLogs() {
+      try {
+        const saved = localStorage.getItem('simapres_app_logs_v1');
+        if (saved) {
+          appLogs = JSON.parse(saved);
+        } else {
+          appLogs = DEFAULT_LOGS;
+          saveLogs();
+        }
+      } catch (e) {
+        console.warn('Gagal membaca storage, menggunakan default', e);
+        appLogs = DEFAULT_LOGS;
+      }
+    }
+
+    function saveLogs() {
+      try {
+        localStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+        sessionStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+        if (currentActiveLog) {
+          sessionStorage.setItem('active_pengaduan', JSON.stringify(currentActiveLog));
+          sessionStorage.setItem('active_tiket', currentActiveLog.nomorTiket || ('TIKET-110-' + currentActiveLog.id));
+        }
+      } catch (e) {
+        console.warn('Storage gagal ditulis', e);
+      }
+    }
+
+    // ==========================================
+    // INITIALIZATION & QUICK PILLS
+    // ==========================================
+    function initApp() {
+      loadLogs();
+      renderQuickPills();
+
+      // Periksa URL Parameter: ?tiket=...
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlTiket = urlParams.get('tiket');
+
+      if (urlTiket) {
+        document.getElementById('ticket-input').value = urlTiket;
+        lacakLaporan(urlTiket);
+        return;
+      }
+
+      // Periksa sessionStorage active_tiket
+      const sessionTiket = sessionStorage.getItem('active_tiket');
+      if (sessionTiket) {
+        document.getElementById('ticket-input').value = sessionTiket;
+        lacakLaporan(sessionTiket);
+        return;
+      }
+
+      // Default: lacak tiket pertama (TIKET-110-18X2F) agar pengguna langsung melihat contoh
+      lacakLaporan('TIKET-110-18X2F');
+    }
+
+    function renderQuickPills() {
+      const container = document.getElementById('quick-pills-container');
+      if (!container) return;
+
+      // Ambil beberapa tiket representatif dari appLogs
+      const pills = [
+        { tiket: 'TIKET-110-18X2F', label: '⭐ TIKET-110-18X2F (Selesai - Evaluasi)', done: true },
+        { tiket: 'TIKET-110-15X2F', label: '🚓 TIKET-110-15X2F (Tahap 3 - Meluncur)', done: false },
+        { tiket: 'TIKET-110-14X2F', label: '🛡️ TIKET-110-14X2F (Tahap 4 - Di TKP)', done: false }
+      ];
+
+      // Tambahkan tiket aktif dari sessionStorage jika ada dan belum terdaftar
+      const activeTiket = sessionStorage.getItem('active_tiket');
+      if (activeTiket && !pills.some(p => p.tiket === activeTiket)) {
+        pills.unshift({ tiket: activeTiket, label: '📍 ' + activeTiket + ' (Aktif Terkini)', done: false });
+      }
+
+      container.innerHTML = pills.map(p => `
+        <button type="button" class="quick-pill ${p.done ? 'done' : ''}" onclick="selectQuickTicket('${p.tiket}')">
+          ${p.label}
+        </button>
+      `).join('');
+    }
+
+    function selectQuickTicket(tiket) {
+      document.getElementById('ticket-input').value = tiket;
+      lacakLaporan(tiket);
+    }
+
+    // ==========================================
+    // TRACKING SEARCH & TIMELINE RENDERING
+    // ==========================================
+    function lacakLaporan(overrideTiket) {
+      const query = (overrideTiket || document.getElementById('ticket-input').value || '').trim();
+      if (!query) {
         alert('Mohon masukkan Nomor Tiket terlebih dahulu!');
         return;
       }
-      
-      // Simulate loading button
+
+      // Refresh data dari storage untuk memastikan sinkronisasi termutakhir
+      loadLogs();
+
+      // Normalisasi pencarian: cocokkan dengan nomorTiket atau ID log
+      const cleanQ = query.toUpperCase().replace(/\s+/g, '');
+      let foundLog = appLogs.find(l => {
+        if (!l) return false;
+        const nt = (l.nomorTiket || '').toUpperCase().replace(/\s+/g, '');
+        const idStr = String(l.id);
+        return nt === cleanQ || cleanQ.includes(nt) || nt.includes(cleanQ) || cleanQ === idStr;
+      });
+
+      // Fallback jika tidak ditemukan
+      if (!foundLog) {
+        // Ambil tiket default 18
+        foundLog = appLogs.find(l => l.id === 18) || DEFAULT_LOGS[0];
+        alert('ℹ️ Nomor Tiket "' + query + '" tidak ditemukan di database aktif.\nMenampilkan contoh simulasi resmi presisi: #' + foundLog.nomorTiket);
+        document.getElementById('ticket-input').value = foundLog.nomorTiket;
+      }
+
+      currentActiveLog = foundLog;
+
+      // Simulasi feedback tombol cari
       const btn = document.querySelector('.btn-search');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '⏳ Mencari...';
-      btn.style.opacity = '0.8';
-      
-      // Simulate network request
+      const origText = btn.innerHTML;
+      btn.innerHTML = '<span>⏳</span> Memproses Data Real-Time...';
+      btn.style.opacity = '0.85';
+
       setTimeout(() => {
-        btn.innerHTML = originalText;
+        btn.innerHTML = origText;
         btn.style.opacity = '1';
-        
-        // Show tracking result
-        document.getElementById('tracking-result').style.display = 'block';
-        
-        // Scroll to result smoothly
-        document.getElementById('tracking-result').scrollIntoView({ 
-          behavior: 'smooth',
-          block: 'nearest'
-        });
-      }, 800);
+
+        // Render hasil
+        renderTicketDetails(foundLog);
+        renderTimelineSteps(foundLog);
+        renderRatingSection(foundLog);
+
+        const resultCard = document.getElementById('tracking-result');
+        resultCard.style.display = 'block';
+        resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 350);
     }
+
+    function renderTicketDetails(log) {
+      const isSelesai = (log.status === 'selesai' || log.tahap >= 5);
+
+      // Header Badge Status
+      const badge = document.getElementById('badge-header-status');
+      if (badge) {
+        if (isSelesai) {
+          badge.className = 'status-badge selesai';
+          badge.innerText = '✓ Selesai Ditangani';
+        } else {
+          badge.className = 'status-badge diproses';
+          const tNames = ['', 'SPKT', 'Disposisi', 'Menuju Lokasi', 'Tindakan TKP', 'Selesai'];
+          badge.innerText = '⚡ Tahap ' + (log.tahap || 3) + ' • ' + (tNames[log.tahap || 3] || 'Diproses');
+        }
+      }
+
+      // Ticket Header Data
+      document.getElementById('th-nomor').innerText = log.nomorTiket || ('TIKET-110-' + log.id + 'X2F');
+      document.getElementById('th-jenis').innerText = log.jenisInsiden || log.title || 'Laporan Pengaduan Masyarakat';
+      document.getElementById('th-waktu').innerText = 'Hari ini, ' + (log.waktu || '10:45 WIB');
+      document.getElementById('th-lokasi').innerText = log.lokasiKejadian || (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
+      document.getElementById('th-petugas').innerText = (log.nama || 'Bripka Ahmad') + ' (' + (log.nrp ? 'NRP: ' + log.nrp : 'Unit Reaksi Cepat') + ')';
+    }
+
+    function renderTimelineSteps(log) {
+      const tahap = parseInt(log.tahap) || (log.status === 'selesai' ? 5 : 3);
+      const isSelesai = (log.status === 'selesai' || tahap >= 5);
+
+      // Step 1: SPKT
+      const s1 = document.getElementById('step-1-el');
+      s1.className = 'step completed';
+      document.getElementById('step-1-time').innerText = log.waktu || '10:45 WIB';
+
+      // Step 2: Disposisi
+      const s2 = document.getElementById('step-2-el');
+      s2.className = 'step completed';
+      document.getElementById('step-2-desc').innerText = 'Tugas penanganan telah diserahkan kepada unit patroli ' + (log.nama || 'Bripka Ahmad') + '.';
+
+      // Step 3: Menuju Lokasi (Meluncur)
+      const s3 = document.getElementById('step-3-el');
+      const s3Map = document.getElementById('step-3-map');
+      const s3Gps = document.getElementById('step-3-gps-chip');
+      if (s3Gps) s3Gps.innerText = '📍 Koordinat GPS: ' + (log.koordinatGps || '-6.2345, 106.8423');
+
+      if (tahap === 3 && !isSelesai) {
+        s3.className = 'step active';
+        if (s3Map) s3Map.style.display = 'block';
+        document.getElementById('map-police-name').innerText = log.nama || 'Bripka Ahmad';
+        document.getElementById('map-police-eta').innerText = '⚡ Status: Menuju Lokasi (Estimasi Tiba: 4-5 Menit)';
+      } else if (tahap > 3 || isSelesai) {
+        s3.className = 'step completed';
+        if (s3Map) s3Map.style.display = 'none';
+      } else {
+        s3.className = 'step inactive';
+        if (s3Map) s3Map.style.display = 'none';
+      }
+
+      // Step 4: Tindakan TKP
+      const s4 = document.getElementById('step-4-el');
+      const s4Quote = document.getElementById('step-4-quote');
+      const s4QuoteText = document.getElementById('step-4-quote-text');
+      const s4Btn = document.getElementById('btn-foto-tindakan');
+
+      if (tahap === 4 && !isSelesai) {
+        s4.className = 'step active';
+        if (s4Quote) s4Quote.style.display = 'none';
+        if (s4Btn) s4Btn.style.display = 'none';
+        document.getElementById('step-4-desc').innerText = 'Petugas telah tiba di TKP dan sedang melakukan tindakan penanganan cepat serta pengamanan situasi.';
+      } else if (tahap >= 5 || isSelesai) {
+        s4.className = 'step completed';
+        if (s4Quote) {
+          s4Quote.style.display = 'block';
+          s4QuoteText.innerText = log.deskripsiTindakan || 'Telah tiba di TKP, mengamankan perimeter lokasi kejadian, pendataan saksi dan mediasi situasi hingga kondusif.';
+        }
+        if (s4Btn) s4Btn.style.display = 'inline-flex';
+        document.getElementById('step-4-time').innerText = log.waktuTiba || '11:15 WIB';
+      } else {
+        s4.className = 'step inactive';
+        if (s4Quote) s4Quote.style.display = 'none';
+        if (s4Btn) s4Btn.style.display = 'none';
+      }
+
+      // Step 5: Kasus Selesai
+      const s5 = document.getElementById('step-5-el');
+      if (isSelesai) {
+        s5.className = 'step completed';
+        document.getElementById('step-5-time').innerText = log.waktuSelesai || '11:45 WIB';
+        document.getElementById('step-5-desc').innerText = log.catatanSelesai || 'Penanganan selesai tuntas, situasi telah kembali aman kondusif, dan berita acara telah disahkan oleh pimpinan.';
+      } else {
+        s5.className = 'step inactive';
+      }
+    }
+
+    // ==========================================
+    // ROADMAP TAHAP 4: SURVEI & RATING KEPUASAN
+    // ==========================================
+    function renderRatingSection(log) {
+      const container = document.getElementById('rating-section-container');
+      if (!container) return;
+
+      const isSelesai = (log.status === 'selesai' || log.tahap >= 5);
+
+      if (!isSelesai) {
+        // Tampilkan banner pending jika kasus masih berjalan
+        container.innerHTML = `
+          <div class="pending-survey-banner">
+            <span>⏳</span> <strong>Survei Kepuasan Warga Belum Tersedia</strong><br>
+            Formulir penilaian kepuasan akan terbuka secara otomatis segera setelah personel kepolisian menyelesaikan seluruh tindakan di lapangan (Tahap 5). Saat ini proses berada di <strong>Tahap ${log.tahap || 3}/5</strong>.
+          </div>
+        `;
+        return;
+      }
+
+      // Kasus telah selesai: Periksa apakah sudah pernah dinilai
+      if (log.ratingKepuasan && log.ratingKepuasan.sudahDinilai) {
+        renderConfirmedRating(container, log);
+      } else {
+        renderInteractiveSurveyForm(container, log);
+      }
+    }
+
+    function renderConfirmedRating(container, log) {
+      const r = log.ratingKepuasan;
+      const skor = r.skor || 5;
+      const starsHtml = '★'.repeat(skor) + '☆'.repeat(5 - skor);
+      const tagPills = (r.tags && r.tags.length) ? r.tags.map(t => `<span class="quick-pill done" style="font-size:11px; margin:2px;">${t}</span>`).join('') : '';
+
+      container.innerHTML = `
+        <div class="survey-card" style="border-color:#A7F3D0; background:#F0FDF4;">
+          <div class="confirmed-box">
+            <div class="confirmed-icon">✓</div>
+            <h4>Terima Kasih! Penilaian Anda Telah Diterima</h4>
+            <p class="c-sub">Apresiasi dan masukan Anda telah terkirim langsung ke Command Center 110 & Pimpinan Pengawas Polri.</p>
+            
+            <div class="confirmed-stars">${starsHtml}</div>
+            <div style="font-size:13px; font-weight:800; color:#065F46; margin-bottom:12px;">
+              Skor: ${skor}/5 • ${getScoreTitle(skor)}
+            </div>
+
+            ${tagPills ? `<div style="display:flex; flex-wrap:wrap; justify-content:center; gap:4px; margin-bottom:14px;">${tagPills}</div>` : ''}
+
+            <div class="confirmed-review-quote">
+              "${r.ulasan || 'Pelayanan kepolisian sangat cepat, profesional, dan humanis.'}"
+            </div>
+
+            <div class="confirmed-meta">
+              🕒 Dinilai pada: ${r.waktu || 'Hari ini'} • Status: Terverifikasi Presisi
+            </div>
+
+            <button type="button" class="btn-reedit-rating" onclick="enableEditRating(${log.id})">
+              ✏️ Ubah / Perbarui Penilaian Anda
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderInteractiveSurveyForm(container, log) {
+      selectedRatingScore = 5;
+
+      container.innerHTML = `
+        <div class="survey-card">
+          <span class="survey-badge">⭐ SURVEI KEPUASAN MASYARAKAT (LAYANAN 110)</span>
+          <h3>Bagaimana Pelayanan Petugas Kami?</h3>
+          <p class="survey-intro">
+            Kasus Anda telah dinyatakan selesai ditangani. Bantu kami meningkatkan transparansi dan mutu pelayanan Polri dengan memberikan ulasan objektif terhadap respons serta tindakan personel di lapangan.
+          </p>
+
+          <!-- Interactive Star Rating -->
+          <div class="star-rating-box">
+            <div class="stars-row" id="stars-row">
+              <button type="button" class="star-btn active" data-score="1" onclick="setStarScore(1)">★</button>
+              <button type="button" class="star-btn active" data-score="2" onclick="setStarScore(2)">★</button>
+              <button type="button" class="star-btn active" data-score="3" onclick="setStarScore(3)">★</button>
+              <button type="button" class="star-btn active" data-score="4" onclick="setStarScore(4)">★</button>
+              <button type="button" class="star-btn active" data-score="5" onclick="setStarScore(5)">★</button>
+            </div>
+            <div class="star-score-label" id="star-score-text">⭐⭐⭐⭐⭐ 5/5 - Luar Biasa & Sangat Memuaskan</div>
+          </div>
+
+          <!-- Quick Tags -->
+          <label class="tags-label">Pilih Aspek Pelayanan yang Paling Menonjol (Bisa lebih dari satu):</label>
+          <div class="tags-container" id="tags-selector">
+            <span class="tag-chip active" onclick="toggleTagChip(this)">⚡ Respon Sangat Cepat</span>
+            <span class="tag-chip active" onclick="toggleTagChip(this)">👮 Petugas Ramah & Humanis</span>
+            <span class="tag-chip active" onclick="toggleTagChip(this)">🛡️ Wilayah Kembali Aman</span>
+            <span class="tag-chip" onclick="toggleTagChip(this)">✓ Masalah Tuntas 100%</span>
+            <span class="tag-chip" onclick="toggleTagChip(this)">📢 Komunikasi Jelas & Sopan</span>
+            <span class="tag-chip" onclick="toggleTagChip(this)">⏱️ Tiba Tepat Waktu</span>
+          </div>
+
+          <!-- Feedback Textarea -->
+          <label class="tags-label" for="survey-ulasan">Pesan Apresiasi atau Saran untuk Personel di Lokasi:</label>
+          <textarea id="survey-ulasan" class="survey-textarea" placeholder="Contoh: Petugas Bripka Ahmad sangat cepat datang ke lokasi dan membantu menyelesaikan musyawarah dengan damai. Terima kasih Presisi!"></textarea>
+
+          <!-- Submit Button -->
+          <button type="button" class="btn-submit-rating" onclick="submitRating(${log.id})">
+            <span>⭐</span> Kirim Penilaian & Ulasan Kepuasan
+          </button>
+          
+          <div style="text-align:center; margin-top:10px; font-size:11px; color:var(--text-muted);">
+            🔒 Data evaluasi Anda terenkripsi dan langsung diteruskan ke Sistem Pengawasan Presisi SPKT.
+          </div>
+        </div>
+      `;
+    }
+
+    function setStarScore(score) {
+      selectedRatingScore = score;
+      const buttons = document.querySelectorAll('#stars-row .star-btn');
+      buttons.forEach(btn => {
+        const s = parseInt(btn.getAttribute('data-score'));
+        if (s <= score) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      const label = document.getElementById('star-score-text');
+      if (label) {
+        label.innerText = '⭐'.repeat(score) + ' ' + score + '/5 - ' + getScoreTitle(score);
+      }
+    }
+
+    function getScoreTitle(score) {
+      switch (score) {
+        case 5: return 'Luar Biasa & Sangat Memuaskan';
+        case 4: return 'Sangat Baik & Cepat';
+        case 3: return 'Cukup Memuaskan';
+        case 2: return 'Kurang Memuaskan';
+        case 1: return 'Sangat Kecewa';
+        default: return 'Memuaskan';
+      }
+    }
+
+    function toggleTagChip(el) {
+      el.classList.toggle('active');
+    }
+
+    function enableEditRating(id) {
+      const container = document.getElementById('rating-section-container');
+      const log = appLogs.find(l => l.id === id);
+      if (!log || !container) return;
+      renderInteractiveSurveyForm(container, log);
+    }
+
+    function submitRating(id) {
+      const log = appLogs.find(l => l.id === id);
+      if (!log) return;
+
+      const score = selectedRatingScore || 5;
+      const tagEls = document.querySelectorAll('#tags-selector .tag-chip.active');
+      const selectedTags = Array.from(tagEls).map(el => el.innerText.trim());
+      const ulasanText = document.getElementById('survey-ulasan')?.value.trim() || 'Penanganan kepolisian sangat memuaskan, cepat, dan profesional.';
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
+      // Simpan objek rating ke model log
+      log.ratingKepuasan = {
+        skor: score,
+        tags: selectedTags.length ? selectedTags : ['⚡ Respon Sangat Cepat', '👮 Petugas Ramah & Humanis'],
+        ulasan: ulasanText,
+        waktu: 'Hari ini, ' + waktuSekarang,
+        sudahDinilai: true
+      };
+
+      // Catat ke riwayat validasi untuk jejak audit
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: waktuSekarang,
+        aktor: 'Pelapor (Masyarakat)',
+        aksi: 'Survei Kepuasan Warga (' + score + '/5 Bintang)',
+        catatan: ulasanText + (selectedTags.length ? ' • Tag: ' + selectedTags.join(', ') : '')
+      });
+
+      // Simpan ke storage dan sinkronkan antar modul
+      saveLogs();
+
+      // Render ulang kartu evaluasi ke kondisi confirmed
+      renderRatingSection(log);
+
+      // Notifikasi sukses
+      alert('⭐ Terima kasih atas apresiasi dan penilaian Anda!\n\nEvaluasi bintang ' + score + '/5 berhasil dikirimkan dan tersinkronisasi langsung dengan Dashboard Pimpinan E-Tribrata Log.');
+    }
+
+    // ==========================================
+    // LIGHTBOX PHOTO MODAL
+    // ==========================================
+    function openPhotoModal(type) {
+      if (!currentActiveLog) return;
+      const modal = document.getElementById('photo-modal');
+      const modalImg = document.getElementById('modal-img');
+      const modalTitle = document.getElementById('modal-title');
+      const modalDesc = document.getElementById('modal-desc');
+      const modalWatermark = document.getElementById('modal-watermark');
+
+      const log = currentActiveLog;
+      const gps = log.koordinatGps || '-6.2345, 106.8423';
+
+      if (type === 'pengaduan') {
+        modalTitle.innerText = 'Foto Bukti Laporan Warga 110';
+        modalImg.src = log.fotoPengaduan || 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+        modalWatermark.innerText = 'CALL CENTER 110 • ' + (log.waktu || '10:45 WIB') + ' • LOKASI: ' + (log.lokasiKejadian || 'Sudirman');
+        modalDesc.innerText = 'Foto dokumentasi laporan awal yang diunggah oleh masyarakat melalui portal 110.';
+      } else if (type === 'persiapan') {
+        modalTitle.innerText = 'Bukti Persiapan Meluncur & Watermark GPS';
+        modalImg.src = log.fotoPersiapan || 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
+        modalWatermark.innerText = 'DISPOSISI PRESISI • GPS: ' + gps + ' • ' + (log.waktu || '10:50 WIB') + ' • ' + (log.nama || 'Bripka Ahmad');
+        modalDesc.innerText = 'Dokumentasi kesiapan personel dan verifikasi koordinat satelit sebelum meluncur ke TKP.';
+      } else if (type === 'tindakan') {
+        modalTitle.innerText = 'Dokumentasi Penanganan di TKP';
+        modalImg.src = log.fotoTindakan || 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
+        modalWatermark.innerText = 'TKP POLRI • GPS: ' + gps + ' • TIBA: ' + (log.waktuTiba || '11:15 WIB') + ' • ' + (log.nama || 'Bripka Ahmad');
+        modalDesc.innerText = 'Dokumentasi tindakan kepolisian langsung di tempat kejadian perkara.';
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closePhotoModal() {
+      const modal = document.getElementById('photo-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    // Inisialisasi saat DOM siap
+    document.addEventListener('DOMContentLoaded', initApp);
   </script>
 </body>
 </html>
