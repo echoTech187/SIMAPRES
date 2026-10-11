@@ -1517,6 +1517,24 @@
     openValidasiList(currentValidasiFilter || 'menunggu');
   }
 
+  function prosesKasusLog(id) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+
+    log.status = 'diproses';
+    log.statusText = 'Sedang Diproses';
+    saveLogsToStorage();
+    updateRekapCounts();
+
+    const remainingDisetujui = appLogs.filter(l => l.status === 'disetujui').length;
+    const totalDiproses = appLogs.filter(l => l.status === 'diproses').length;
+
+    alert('⚡ Laporan #' + log.id + ' ("' + log.title + '") sekarang dialihkan ke status DIPROSES!\n\n• Dikeluarkan dari Log Disetujui (sisa: ' + remainingDisetujui + ' data)\n• Dimasukkan ke Log Diproses (total: ' + totalDiproses + ' data)');
+
+    // Refresh daftar pada filter saat ini agar langsung hilang dari log disetujui
+    openValidasiList(currentValidasiFilter || 'disetujui');
+  }
+
   function bukaHalamanTolak(id) {
     const log = appLogs.find(l => l.id === id);
     if (!log) return;
@@ -1655,6 +1673,12 @@
         `;
       } else if (log.status === 'disetujui') {
         actionsBox.innerHTML = `
+          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="prosesKasusLog(${log.id})">
+            <span>⚡</span> Proses Kasus ➔
+          </button>
+        `;
+      } else if (log.status === 'diproses') {
+        actionsBox.innerHTML = `
           <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="switchTab('view-wizard')">
             <span>🚀</span> Buka Wizard Penanganan Kasus ➔
           </button>
@@ -1703,7 +1727,7 @@
           color = 'var(--success)';
           badgeInfo = `
             <div style="margin-top:6px; font-size:11px; color:var(--success); font-weight:600; display:flex; align-items:center; gap:4px;">
-              <span>✓ Disetujui oleh Atasan</span> • <span style="color:var(--primary); text-decoration:underline; cursor:pointer;" onclick="event.stopPropagation(); switchTab('view-wizard')">Lihat Wizard Kasus →</span>
+              <span>✓ Disetujui oleh Atasan</span>
             </div>
           `;
         } else if (log.status === 'ditolak') {
@@ -1715,6 +1739,11 @@
           `;
         } else if (log.status === 'diproses') {
           color = 'var(--primary)';
+          badgeInfo = `
+            <div style="margin-top:6px; font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px;">
+              <span>⚡ Status: Sedang Diproses</span>
+            </div>
+          `;
         } else if (log.status === 'selesai') {
           color = '#047857';
         }
@@ -1724,6 +1753,18 @@
           cardFooter = `
             <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
               <span>🔍</span> Klik untuk tinjau foto bukti & validasi ➔
+            </div>
+          `;
+        } else if (log.status === 'disetujui') {
+          cardFooter = `
+            <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>⚡</span> Klik untuk proses kasus ➔
+            </div>
+          `;
+        } else if (log.status === 'diproses') {
+          cardFooter = `
+            <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>🔍</span> Klik untuk tinjau progress penanganan ➔
             </div>
           `;
         }
@@ -1751,9 +1792,25 @@
 
     if (listContainer) listContainer.innerHTML = html;
 
-    // Otomatis pilih kartu pertama saat membuka tab
+    // Otomatis pilih kartu pertama saat membuka tab jika ada data
     if (filteredLogs.length > 0) {
       selectLogCard(filteredLogs[0].id);
+    } else {
+      // Bersihkan panel detail jika tidak ada data pada kategori ini
+      const titleEl = document.getElementById('detail-val-title');
+      if (titleEl) titleEl.innerText = 'Tidak Ada Laporan Dipilih';
+      const deskEl = document.getElementById('detail-val-deskripsi');
+      if (deskEl) deskEl.innerText = 'Tidak ada laporan dalam kategori status ini.';
+      const badgeEl = document.getElementById('detail-val-status-badge');
+      if (badgeEl) {
+        badgeEl.innerText = '-';
+        badgeEl.style.background = '#F1F5F9';
+        badgeEl.style.color = '#64748B';
+      }
+      const actionsEl = document.getElementById('detail-val-actions');
+      if (actionsEl) actionsEl.innerHTML = '';
+      const fotoEl = document.getElementById('detail-val-foto');
+      if (fotoEl) fotoEl.src = 'https://placehold.co/300x400/CBD5E1/FFFFFF?text=Tidak+Ada+Data';
     }
 
     // 3. Update judul/subtitle dengan ID eksplisit
