@@ -1202,19 +1202,27 @@
     </section>
     <!-- SCREEN 7: RESPON 110 / WIZARD LOG -->
     <section id="view-wizard" class="view">
-      <h2 class="page-title">Wizard Penanganan Kasus</h2>
-      <div class="page-subtitle" style="margin-bottom:8px;">ID Kasus: #110-2026-X123</div>
+      <!-- Back Navigation Header -->
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px;">
+        <div onclick="kembaliDariWizard()" style="font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; display:flex; align-items:center; gap:6px; padding:6px 10px; border-radius:6px; background:#EFF6FF; border:1px solid #BFDBFE;">
+          <span>←</span> Kembali ke Timeline Pelacakan
+        </div>
+        <span id="wiz-status-badge" style="font-size:11px; background:#EDE9FE; color:#6D28D9; font-weight:700; padding:5px 12px; border-radius:20px;">⚡ Diproses</span>
+      </div>
+
+      <h2 class="page-title" style="margin-top:6px; margin-bottom:4px;">Wizard Penanganan Kasus</h2>
+      <div id="wiz-id-kasus" class="page-subtitle" style="margin-bottom:8px;">ID Kasus: #110-2026-X123</div>
       
-      <div class="form-group">
-        <input type="text" id="respon-jenis" class="form-control" value="PATROLI" readonly style="background:var(--primary); color:white; font-weight:bold; border:none; text-align:center;">
+      <div class="form-group" style="margin: 0 16px 16px;">
+        <input type="text" id="wiz-respon-jenis" class="form-control" value="PATROLI" readonly style="background:var(--primary); color:white; font-weight:bold; border:none; text-align:center;">
       </div>
 
       <style>
         .wiz-card { background: white; border: 1px solid var(--border); border-radius: 12px; margin: 0 16px 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        .wiz-header { padding: 16px; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .wiz-header { padding: 16px; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
         .wiz-body { padding: 16px; }
         .wiz-header.active { background: #EFF6FF; color: var(--primary); border-bottom-color: #BFDBFE; }
-        .wiz-header.locked { background: var(--gray-bg); color: var(--text-muted); }
+        .wiz-header.locked { background: var(--gray-bg); color: var(--text-muted); cursor: not-allowed; }
         .wiz-header.completed { background: #ECFDF5; color: var(--success); }
         .wiz-cam { width: 100%; height: 100px; border: 2px dashed #CBD5E1; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #F8FAFC; cursor: pointer; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; }
         .wiz-cam.active { border-color: var(--primary); color: var(--primary); }
@@ -1222,27 +1230,34 @@
 
       <!-- Step 1 -->
       <div class="wiz-card" id="step1-card">
-        <div class="wiz-header active" id="step1-head">
+        <div class="wiz-header active" id="step1-head" onclick="toggleWizStep(1)">
           <span>1. Menuju Lokasi (Meluncur)</span>
           <span id="step1-icon">⏳</span>
         </div>
         <div class="wiz-body" id="step1-body">
           <input type="hidden" id="koordinat-gps" name="koordinat-gps" value="-6.2345, 106.8423">
           
-          <!-- Detail Laporan / Pengaduan -->
+          <!-- Detail Laporan / Pengaduan Dinamis -->
           <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px; margin-bottom:16px;">
             <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Detail Laporan 110</div>
             <div style="margin-bottom:6px;">
               <div style="font-size:11px; color:var(--text-muted);">Jenis Insiden</div>
-              <div style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
+              <div id="wiz-step1-jenis" style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
             </div>
             <div style="margin-bottom:6px;">
               <div style="font-size:11px; color:var(--text-muted);">Lokasi Kejadian</div>
-              <div style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
+              <div id="wiz-step1-lokasi" style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
             </div>
-            <div>
+            <div style="margin-bottom:8px;">
               <div style="font-size:11px; color:var(--text-muted);">Keterangan Pelapor</div>
-              <div style="font-size:12px; color:var(--text); line-height:1.4; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px; margin-top:4px;">"Ada kecelakaan beruntun melibatkan 3 mobil, macet parah. Mohon segera dikirim bantuan."</div>
+              <div id="wiz-step1-ket" style="font-size:12px; color:var(--text); line-height:1.4; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px; margin-top:4px;">"Ada kecelakaan beruntun..."</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px;">
+              <img id="wiz-step1-foto" src="" style="width:48px; height:48px; border-radius:6px; object-fit:cover; border:1px solid #CBD5E1; flex-shrink:0;">
+              <div style="font-size:11px; color:var(--text-muted); line-height:1.4;">
+                <span style="font-weight:700; color:var(--text);">Dokumentasi Laporan 110</span><br>
+                <span id="wiz-step1-fotometa">Terverifikasi Call Center</span>
+              </div>
             </div>
           </div>
           
@@ -1250,39 +1265,46 @@
           <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Persiapan</div>
           
           <div class="form-label">Keterangan Persiapan <span style="color:red;">*</span></div>
-          <textarea class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Personel lengkap, peralatan disiapkan, sedang meluncur ke TKP..."></textarea>
+          <textarea id="wiz-step1-catatan" class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP..."></textarea>
           
-          <button class="btn-blue" style="width:100%; margin:0;" onclick="nextStep(1)">Mulai Meluncur ➔</button>
+          <button class="btn-blue" style="width:100%; margin:0;" onclick="nextStep(1)">Meluncur ke Lokasi ➔</button>
         </div>
       </div>
 
       <!-- Step 2 -->
       <div class="wiz-card" id="step2-card">
-        <div class="wiz-header locked" id="step2-head">
+        <div class="wiz-header locked" id="step2-head" onclick="toggleWizStep(2)">
           <span>2. Tiba & Penanganan di TKP</span>
           <span id="step2-icon">🔒</span>
         </div>
         <div class="wiz-body" id="step2-body" style="display:none;">
-          <!-- Detail Laporan / Pengaduan -->
+          <!-- Detail Laporan / Pengaduan Dinamis -->
           <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px; margin-bottom:16px;">
             <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Detail Laporan 110</div>
             <div style="margin-bottom:6px;">
               <div style="font-size:11px; color:var(--text-muted);">Jenis Insiden</div>
-              <div style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
+              <div id="wiz-step2-jenis" style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
             </div>
             <div style="margin-bottom:6px;">
               <div style="font-size:11px; color:var(--text-muted);">Lokasi Kejadian</div>
-              <div style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
+              <div id="wiz-step2-lokasi" style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
             </div>
-            <div>
+            <div style="margin-bottom:8px;">
               <div style="font-size:11px; color:var(--text-muted);">Keterangan Pelapor</div>
-              <div style="font-size:12px; color:var(--text); line-height:1.4; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px; margin-top:4px;">"Ada kecelakaan beruntun melibatkan 3 mobil, macet parah. Mohon segera dikirim bantuan."</div>
+              <div id="wiz-step2-ket" style="font-size:12px; color:var(--text); line-height:1.4; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px; margin-top:4px;">"Ada kecelakaan beruntun..."</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; background:white; padding:8px; border:1px solid #E2E8F0; border-radius:6px;">
+              <img id="wiz-step2-foto" src="" style="width:48px; height:48px; border-radius:6px; object-fit:cover; border:1px solid #CBD5E1; flex-shrink:0;">
+              <div style="font-size:11px; color:var(--text-muted); line-height:1.4;">
+                <span style="font-weight:700; color:var(--text);">Dokumentasi Laporan 110</span><br>
+                <span id="wiz-step2-fotometa">Terverifikasi Call Center</span>
+              </div>
             </div>
           </div>
-          <div class="form-label">Keterangan Tindakan <span style="color:red;">*</span></div>
-          <textarea class="form-control" style="min-height: 80px; margin-bottom:12px;" placeholder="Jelaskan tindakan yang dilakukan..."></textarea>
+          <div class="form-label">Keterangan Tindakan Kepolisian <span style="color:red;">*</span></div>
+          <textarea id="wiz-step2-catatan" class="form-control" style="min-height: 80px; margin-bottom:12px;" placeholder="Jelaskan tindakan pengamanan, pengaturan lalu lintas, atau pembinaan yang dilakukan..."></textarea>
           
-          <div class="form-label">Bukti Foto Penanganan <span style="color:red;">*</span></div>
+          <div class="form-label">Bukti Foto Penanganan Petugas di TKP <span style="color:red;">*</span></div>
           <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Kondisi TKP</div>
           
           <button class="btn-blue" style="width:100%; margin:0; background:var(--warning);" onclick="nextStep(2)">Kirim Laporan Penanganan ➔</button>
@@ -1291,60 +1313,32 @@
 
       <!-- Step 3 -->
       <div class="wiz-card" id="step3-card">
-        <div class="wiz-header locked" id="step3-head">
-          <span>3. Kasus Selesai</span>
+        <div class="wiz-header locked" id="step3-head" onclick="toggleWizStep(3)">
+          <span>3. Kasus Selesai Ditangani</span>
           <span id="step3-icon">🔒</span>
         </div>
         <div class="wiz-body" id="step3-body" style="display:none;">
-          <div class="form-label">Bukti Foto Selesai / Kondusif <span style="color:red;">*</span></div>
-          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Selesai</div>
+          <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:12px; margin-bottom:16px;">
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase;">Ringkasan Kasus Yang Diselesaikan</div>
+            <div style="margin-bottom:6px;">
+              <div style="font-size:11px; color:var(--text-muted);">Jenis Insiden</div>
+              <div id="wiz-step3-jenis" style="font-size:13px; font-weight:600; color:var(--primary);">Kecelakaan Lalu Lintas</div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--text-muted);">Lokasi Kejadian</div>
+              <div id="wiz-step3-lokasi" style="font-size:13px; font-weight:600; color:var(--text);">Jl. Jend. Sudirman, Jakarta Selatan</div>
+            </div>
+          </div>
+
+          <div class="form-label">Bukti Foto Selesai / Situasi Kondusif <span style="color:red;">*</span></div>
+          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Situasi Akhir</div>
           
           <div class="form-label">Keterangan Penyelesaian <span style="color:red;">*</span></div>
-          <textarea class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Lalu lintas sudah kembali lancar, korban luka ringan sudah dievakuasi..."></textarea>
+          <textarea id="wiz-step3-catatan" class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal..."></textarea>
           
           <button class="btn-blue" style="width:100%; margin:0; background:var(--success);" onclick="nextStep(3)">✅ Tutup Kasus</button>
         </div>
       </div>
-
-      <script>
-        // Mengambil koordinat GPS Live perangkat
-        function getLiveGPS() {
-          if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function(position) {
-              const lat = position.coords.latitude;
-              const lng = position.coords.longitude;
-              document.getElementById('koordinat-gps').value = lat + ", " + lng;
-              console.log("GPS Terkunci: ", lat, lng);
-            }, function(error) {
-              console.log("Gagal mengambil GPS: ", error.message);
-            });
-          }
-        }
-        
-        // Eksekusi segera untuk mengunci lokasi
-        getLiveGPS();
-
-        function nextStep(currentStep) {
-          // Tutup step sekarang, tandai selesai
-          document.getElementById('step' + currentStep + '-body').style.display = 'none';
-          document.getElementById('step' + currentStep + '-head').className = 'wiz-header completed';
-          document.getElementById('step' + currentStep + '-icon').innerText = '✅';
-          
-          if (currentStep === 3) {
-            alert('Kasus berhasil ditutup! Data telah sinkron dengan Portal Masyarakat dan Dashboard Pimpinan.');
-            switchTab('view-beranda');
-            return;
-          }
-          
-          // Buka step selanjutnya
-          let next = currentStep + 1;
-          document.getElementById('step' + next + '-body').style.display = 'block';
-          document.getElementById('step' + next + '-head').className = 'wiz-header active';
-          document.getElementById('step' + next + '-icon').innerText = '⏳';
-          
-          alert('Tahap ' + currentStep + ' berhasil disimpan. Status Anda di Portal Publik telah diperbarui!');
-        }
-      </script>
     </section>
 
     <!-- SCREEN 8: FORM ALASAN PENOLAKAN -->
@@ -1847,6 +1841,19 @@
   function saveLogsToStorage() {
     try {
       localStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+      sessionStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+
+      // Sinkronkan pengaduan aktif secara spesifik ke sessionStorage
+      const currentId = (typeof activeWizardLogId !== 'undefined' && activeWizardLogId) || selectedLogId;
+      if (currentId) {
+        const activeLog = appLogs.find(l => l.id === currentId);
+        if (activeLog) {
+          sessionStorage.setItem('active_pengaduan', JSON.stringify(activeLog));
+          sessionStorage.setItem('active_tiket', activeLog.nomorTiket || ('TIKET-110-' + activeLog.id));
+          sessionStorage.setItem('active_tahap', String(activeLog.tahap || 3));
+          sessionStorage.setItem('active_status', activeLog.status);
+        }
+      }
     } catch (e) {
       console.warn('Storage tidak tersedia', e);
     }
@@ -2198,6 +2205,226 @@
     alert('✓ Kasus #' + log.id + ' telah selesai ditangani dan dipindahkan ke Log Selesai!');
   }
 
+  // ==========================================
+  // WIZARD PENANGANAN KASUS (DYNAMIC INTEGRATION)
+  // ==========================================
+  let activeWizardLogId = null;
+
+  function getLiveGPS() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const el = document.getElementById('koordinat-gps');
+        if (el) el.value = lat + ", " + lng;
+        console.log("GPS Terkunci: ", lat, lng);
+      }, function(error) {
+        console.log("Gagal mengambil GPS: ", error.message);
+      });
+    }
+  }
+
+  function openWizardForLog(id) {
+    if (!id) id = selectedLogId;
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+    activeWizardLogId = id;
+
+    // Pastikan data tiket & insiden terisi
+    if (!log.tahap) log.tahap = (log.status === 'selesai' ? 5 : 3);
+    if (!log.nomorTiket) log.nomorTiket = 'TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F';
+    if (!log.jenisInsiden) log.jenisInsiden = log.title;
+    if (!log.lokasiKejadian) log.lokasiKejadian = (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
+
+    // Simpan ke storage (localStorage & sessionStorage)
+    saveLogsToStorage();
+
+    // 1. Subtitle ID Kasus
+    const idKasusEl = document.getElementById('wiz-id-kasus');
+    if (idKasusEl) idKasusEl.innerText = 'ID Kasus: #' + log.nomorTiket;
+
+    // 2. Status Badge Header
+    const badgeEl = document.getElementById('wiz-status-badge');
+    if (badgeEl) {
+      if (log.status === 'selesai') {
+        badgeEl.innerText = '✓ Selesai Ditangani';
+        badgeEl.style.background = '#DCFCE7';
+        badgeEl.style.color = '#16A34A';
+      } else {
+        const tNames = ['', 'SPKT', 'Disposisi', 'Menuju Lokasi', 'Tindakan di TKP', 'Selesai'];
+        badgeEl.innerText = '⚡ Tahap ' + (log.tahap || 3) + ' • ' + (tNames[log.tahap || 3] || 'Diproses');
+        badgeEl.style.background = '#EDE9FE';
+        badgeEl.style.color = '#6D28D9';
+      }
+    }
+
+    // 3. Jenis Kegiatan / Header Input
+    const respJenis = document.getElementById('wiz-respon-jenis');
+    if (respJenis) {
+      respJenis.value = (log.jenisInsiden || log.title).toUpperCase();
+    }
+
+    // 4. Detail Kasus di masing-masing Step (Jenis, Lokasi, Keterangan Pelapor)
+    const jenisText = log.jenisInsiden || log.title;
+    const lokasiText = log.lokasiKejadian || (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
+    const ketText = `"${log.deskripsi || log.title}"`;
+
+    ['wiz-step1-jenis', 'wiz-step2-jenis', 'wiz-step3-jenis'].forEach(elId => {
+      const el = document.getElementById(elId);
+      if (el) el.innerText = jenisText;
+    });
+
+    ['wiz-step1-lokasi', 'wiz-step2-lokasi', 'wiz-step3-lokasi'].forEach(elId => {
+      const el = document.getElementById(elId);
+      if (el) el.innerText = lokasiText;
+    });
+
+    ['wiz-step1-ket', 'wiz-step2-ket'].forEach(elId => {
+      const el = document.getElementById(elId);
+      if (el) el.innerText = ketText;
+    });
+
+    // 5. Preview Foto Bukti Pengaduan 110 Warga
+    const defaultFotoPengaduan = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+    let imgSrc = log.fotoPengaduan || defaultFotoPengaduan;
+    if (imgSrc.includes('placehold.co') || imgSrc.includes('549399542')) imgSrc = defaultFotoPengaduan;
+
+    ['wiz-step1-foto', 'wiz-step2-foto'].forEach(elId => {
+      const el = document.getElementById(elId);
+      if (el) {
+        el.onerror = function() {
+          this.onerror = null;
+          this.src = SVG_FALLBACK_PENGADUAN;
+        };
+        el.src = imgSrc;
+      }
+    });
+
+    const metaStr = 'Laporan: ' + (log.waktu || '10:45 WIB') + ' • ' + (log.sektor || 'Wilayah Terverifikasi');
+    ['wiz-step1-fotometa', 'wiz-step2-fotometa'].forEach(elId => {
+      const el = document.getElementById(elId);
+      if (el) el.innerText = metaStr;
+    });
+
+    // 6. Sinkronkan Step Accordion sesuai tahap saat ini
+    const tahap = parseInt(log.tahap) || (log.status === 'selesai' ? 5 : 3);
+    syncWizardStepsWithTahap(tahap);
+
+    // Refresh GPS
+    getLiveGPS();
+
+    // 7. Buka halaman wizard
+    switchTab('view-wizard');
+  }
+
+  function kembaliDariWizard() {
+    switchTab('view-validasi');
+    if (activeWizardLogId) {
+      selectLogCard(activeWizardLogId);
+    }
+  }
+
+  function syncWizardStepsWithTahap(tahap) {
+    const s1Head = document.getElementById('step1-head');
+    const s1Body = document.getElementById('step1-body');
+    const s1Icon = document.getElementById('step1-icon');
+
+    const s2Head = document.getElementById('step2-head');
+    const s2Body = document.getElementById('step2-body');
+    const s2Icon = document.getElementById('step2-icon');
+
+    const s3Head = document.getElementById('step3-head');
+    const s3Body = document.getElementById('step3-body');
+    const s3Icon = document.getElementById('step3-icon');
+
+    if (tahap <= 3) {
+      // Tahap 3 (Menuju Lokasi): Step 1 aktif, Step 2 & 3 terkunci
+      if (s1Head) s1Head.className = 'wiz-header active';
+      if (s1Body) s1Body.style.display = 'block';
+      if (s1Icon) s1Icon.innerText = '⏳';
+
+      if (s2Head) s2Head.className = 'wiz-header locked';
+      if (s2Body) s2Body.style.display = 'none';
+      if (s2Icon) s2Icon.innerText = '🔒';
+
+      if (s3Head) s3Head.className = 'wiz-header locked';
+      if (s3Body) s3Body.style.display = 'none';
+      if (s3Icon) s3Icon.innerText = '🔒';
+    } else if (tahap === 4) {
+      // Tahap 4 (Tindakan di TKP): Step 1 selesai, Step 2 aktif, Step 3 terkunci
+      if (s1Head) s1Head.className = 'wiz-header completed';
+      if (s1Body) s1Body.style.display = 'none';
+      if (s1Icon) s1Icon.innerText = '✅';
+
+      if (s2Head) s2Head.className = 'wiz-header active';
+      if (s2Body) s2Body.style.display = 'block';
+      if (s2Icon) s2Icon.innerText = '⏳';
+
+      if (s3Head) s3Head.className = 'wiz-header locked';
+      if (s3Body) s3Body.style.display = 'none';
+      if (s3Icon) s3Icon.innerText = '🔒';
+    } else {
+      // Tahap >= 5: Step 1 & 2 selesai, Step 3 aktif
+      if (s1Head) s1Head.className = 'wiz-header completed';
+      if (s1Body) s1Body.style.display = 'none';
+      if (s1Icon) s1Icon.innerText = '✅';
+
+      if (s2Head) s2Head.className = 'wiz-header completed';
+      if (s2Body) s2Body.style.display = 'none';
+      if (s2Icon) s2Icon.innerText = '✅';
+
+      if (s3Head) s3Head.className = 'wiz-header active';
+      if (s3Body) s3Body.style.display = 'block';
+      if (s3Icon) s3Icon.innerText = '⏳';
+    }
+  }
+
+  function toggleWizStep(step) {
+    const head = document.getElementById('step' + step + '-head');
+    const body = document.getElementById('step' + step + '-body');
+    if (!head || !body) return;
+
+    if (head.classList.contains('locked')) {
+      alert('🔒 Tahap ' + step + ' masih terkunci! Penanganan kasus wajib diselesaikan secara berurutan.');
+      return;
+    }
+    body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  }
+
+  function nextStep(currentStep) {
+    if (!activeWizardLogId) activeWizardLogId = selectedLogId;
+    const log = appLogs.find(l => l.id === activeWizardLogId);
+    if (!log) return;
+
+    if (currentStep === 1) {
+      // Maju ke Tahap 4 (Tiba di TKP)
+      updateTahapPenanganan(activeWizardLogId, 4);
+      syncWizardStepsWithTahap(4);
+      const badge = document.getElementById('wiz-status-badge');
+      if (badge) {
+        badge.innerText = '⚡ Tahap 4 • Tindakan di TKP';
+        badge.style.background = '#EDE9FE';
+        badge.style.color = '#6D28D9';
+      }
+      alert('✓ Tahap 1 (Meluncur ke Lokasi) berhasil!\n\nStatus personel sedang bergerak meluncur ke TKP. Status di Timeline & Portal Publik telah diperbarui.');
+    } else if (currentStep === 2) {
+      // Maju ke Tahap 5 (Kasus Selesai)
+      updateTahapPenanganan(activeWizardLogId, 5);
+      syncWizardStepsWithTahap(5);
+      const badge = document.getElementById('wiz-status-badge');
+      if (badge) {
+        badge.innerText = '✓ Kasus Selesai Ditangani';
+        badge.style.background = '#DCFCE7';
+        badge.style.color = '#16A34A';
+      }
+      alert('✓ Tahap 2 (Tindakan di TKP) selesai!\n\nLaporan penanganan kepolisian tersimpan. Silakan konfirmasi dokumentasi akhir untuk menutup kasus.');
+    } else if (currentStep === 3) {
+      // Tutup Kasus
+      selesaikanKasus(activeWizardLogId);
+      kembaliDariWizard();
+    }
+  }
+
   function displayLogDetail(id) {
     const log = appLogs.find(l => l.id === id);
     if (!log) return;
@@ -2281,8 +2508,8 @@
         if (log.status === 'diproses') {
           tlActions.innerHTML = `
             <div style="display:flex; flex-direction:column; gap:8px;">
-              <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="switchTab('view-wizard')">
-                <span>🚀</span> Buka Wizard Penanganan Kasus ➔
+              <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                <span>🚀</span> Lanjutkan Penanganan ➔
               </button>
               ${log.tahap < 5 ? `
                 <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:#F8FAFC; color:var(--primary); border:1px solid #CBD5E1; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="updateTahapPenanganan(${log.id}, ${(log.tahap || 3) + 1})">
@@ -2523,8 +2750,11 @@
     // Sinkronkan seluruh badge angka
     updateRekapCounts();
 
-    // Pindah ke tab validasi
-    switchTab('view-validasi');
+    // Pindah ke tab validasi (hanya jika wizard tidak sedang aktif)
+    const wizSec = document.getElementById('view-wizard');
+    if (!wizSec || !wizSec.classList.contains('active')) {
+      switchTab('view-validasi');
+    }
   }
 
   let myChart1, myChart2, myChart3;
