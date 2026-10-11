@@ -191,14 +191,137 @@
   </div>
 
   <script>
+    function getAppLogs() {
+      try {
+        const s = localStorage.getItem('simapres_app_logs_v1');
+        return s ? JSON.parse(s) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveAppLogs(logs) {
+      try {
+        localStorage.setItem('simapres_app_logs_v1', JSON.stringify(logs));
+        sessionStorage.setItem('simapres_app_logs_v1', JSON.stringify(logs));
+      } catch (e) {
+        console.warn('Gagal menyimpan storage:', e);
+      }
+    }
+
     function kirimSOS() {
-      alert("⚠️ Laporan Darurat 110 Terkirim!\n\nKoordinat GPS Anda telah dikirim ke Puskodal (Pusat Komando). Personil terdekat sedang dikerahkan.");
-      document.getElementById('status-tracker').style.display = 'block';
+      const logs = getAppLogs();
+      const maxId = logs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
+      const newId = maxId + 1;
+      const waktu = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
+      const newLog = {
+        id: newId,
+        nama: 'Pelapor Warga (Panggilan SOS 110)',
+        nrp: '-',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
+        status: 'menunggu',
+        statusText: 'Menunggu Validasi',
+        title: '🚨 Panggilan Darurat SOS Warga 110',
+        jenisInsiden: 'Panggilan Darurat SOS 110',
+        deskripsi: 'Warga mengaktifkan sinyal SOS darurat dari aplikasi mobile. Lokasi koordinat satelit terkunci, memerlukan respon segera.',
+        sektor: 'Sektor Pusat',
+        lokasiKejadian: 'Jl. Jend. Sudirman (Satelit Live GPS)',
+        koordinatGps: '-6.2088, 106.8456',
+        waktu: waktu,
+        sumberLaporan: '🚨 Tombol Darurat SOS (Warga)',
+        fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+        fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+        alasanTolak: '',
+        riwayatValidasi: [
+          {
+            waktu: waktu,
+            aktor: 'Warga Pelapor',
+            aksi: 'Aktivasi Tombol Darurat SOS 110',
+            catatan: 'Sinyal darurat dikirimkan dari perangkat warga dengan GPS terkunci.'
+          }
+        ],
+        ratingKepuasan: null
+      };
+
+      logs.unshift(newLog);
+      saveAppLogs(logs);
+
+      sessionStorage.setItem('active_tiket', 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F');
+
+      alert("⚠️ Laporan Darurat SOS Terkirim ke Command Center SPKT 110!\n\n• ID Laporan: #" + newId + "\n• Titik GPS Anda telah terkunci di sistem Puskodal.\n• Laporan kini menunggu verifikasi pimpinan untuk pengerahan armada patroli terdekat.");
+      
+      const tracker = document.getElementById('status-tracker');
+      tracker.innerHTML = `
+        <div style="font-size:12px; font-weight:700; color:#059669;">Laporan SOS Terdaftar: #${newId}</div>
+        <div style="font-size:15px; font-weight:800; color:var(--text); margin-top:4px;">STATUS: Menunggu Verifikasi Operator SPKT & Pawas</div>
+        <div style="font-size:12px; color:#475569; margin-top:4px; margin-bottom:12px;">Sinyal koordinat GPS aktif dipantau oleh Command Center.</div>
+        <button onclick="window.location.href='masyarakat.html?tiket=TIKET-110-${newId < 10 ? '0' + newId : newId}X2F'" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:700; cursor:pointer;">
+          Pantau Status di Portal Pelacakan ➔
+        </button>
+      `;
+      tracker.style.display = 'block';
+      tracker.scrollIntoView({ behavior: 'smooth' });
     }
 
     function kirimManual() {
-      alert("Laporan berhasil dibuat. Puskodal akan segera menugaskan personil terdekat.");
-      document.getElementById('status-tracker').style.display = 'block';
+      const kategoriEl = document.querySelector('.card select');
+      const detailEl = document.querySelector('.card textarea');
+      const kategori = kategoriEl ? kategoriEl.value : 'Pengaduan Kamtibmas';
+      const detail = (detailEl && detailEl.value.trim()) ? detailEl.value.trim() : 'Warga melaporkan kejadian ' + kategori + ' melalui formulir lapor 110.';
+
+      const logs = getAppLogs();
+      const maxId = logs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
+      const newId = maxId + 1;
+      const waktu = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
+      const newLog = {
+        id: newId,
+        nama: 'Warga Pelapor Online',
+        nrp: '-',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80',
+        status: 'menunggu',
+        statusText: 'Menunggu Validasi',
+        title: kategori + ' (Lapor Warga Online)',
+        jenisInsiden: kategori,
+        deskripsi: detail,
+        sektor: 'Sektor Barat',
+        lokasiKejadian: 'Jl. Palmerah Barat No. 18, Jakarta',
+        koordinatGps: '-6.2088, 106.8456',
+        waktu: waktu,
+        sumberLaporan: '📱 Form Lapor Online (Warga)',
+        fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+        fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+        alasanTolak: '',
+        riwayatValidasi: [
+          {
+            waktu: waktu,
+            aktor: 'Warga Pelapor Online',
+            aksi: 'Pengisian Formulir Lapor 110',
+            catatan: 'Pengaduan dikirim via portal web warga.'
+          }
+        ],
+        ratingKepuasan: null
+      };
+
+      logs.unshift(newLog);
+      saveAppLogs(logs);
+
+      sessionStorage.setItem('active_tiket', 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F');
+
+      alert("✓ Laporan Berhasil Dikirimkan ke SPKT 110!\n\n• ID Pengaduan: #" + newId + "\n• Laporan Anda telah masuk ke antrean verifikasi petugas.");
+      
+      const tracker = document.getElementById('status-tracker');
+      tracker.innerHTML = `
+        <div style="font-size:12px; font-weight:700; color:#059669;">Laporan Terkirim: #${newId}</div>
+        <div style="font-size:15px; font-weight:800; color:var(--text); margin-top:4px;">STATUS: Menunggu Validasi Operator SPKT</div>
+        <div style="font-size:12px; color:#475569; margin-top:4px; margin-bottom:12px;">Puskodal sedang meninjau kelengkapan laporan Anda.</div>
+        <button onclick="window.location.href='masyarakat.html?tiket=TIKET-110-${newId < 10 ? '0' + newId : newId}X2F'" style="width:100%; padding:10px; background:var(--primary); color:white; border:none; border-radius:6px; font-weight:700; cursor:pointer;">
+          Pantau Status di Portal Pelacakan ➔
+        </button>
+      `;
+      tracker.style.display = 'block';
+      tracker.scrollIntoView({ behavior: 'smooth' });
     }
   </script>
 </body>

@@ -783,6 +783,9 @@
       E TRIBRATA LOG
     </div>
     <div class="user-profile">
+      <button type="button" onclick="switchTab('view-operator')" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:white; font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'" title="Buka Konsol Penerimaan Panggilan 110">
+        <span>🎧</span> Operator 110
+      </button>
       <div id="bell-notif" class="bell-icon" onclick="switchTab('view-validasi')" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Lihat Log Menunggu">
         🔔<div class="bell-dot"></div>
       </div>
@@ -842,6 +845,25 @@
                 <div class="rekap-label" style="color:var(--secondary)">SELESAI</div>
                 <div class="rekap-val secondary" id="rekap-selesai-val">12</div>
               </div>
+            </div>
+          </div>
+
+          <!-- Pemicu Masuk FASE 0: Operator SPKT & Lapor Warga -->
+          <div class="card-panel" style="background:linear-gradient(135deg, #1E3A8A 0%, #153E75 100%); color:white; border-color:#2563EB; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div style="font-size:11px; font-weight:800; color:#FBBF24; letter-spacing:0.5px;">⚡ FASE 0: INISIASI LAPORAN (PRA-TIKET)</div>
+              <span style="font-size:10px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:4px; font-weight:700;">3 Jalur Pemicu</span>
+            </div>
+            <div style="font-size:12px; font-weight:600; margin-bottom:10px; line-height:1.4;">
+              Terima & rekam panggilan darurat 110 sebelum tiket diterbitkan:
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+              <button type="button" onclick="switchTab('view-operator')" style="padding:9px; background:rgba(255,255,255,0.95); color:var(--primary); font-weight:800; font-size:11px; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+                <span>🎧</span> Konsol Operator SPKT
+              </button>
+              <button type="button" onclick="window.open('operator-110.html', '_blank')" style="padding:9px; background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.4); color:white; font-weight:700; font-size:11px; border-radius:6px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;">
+                <span>🖥️</span> Workstation 110 ➔
+              </button>
             </div>
           </div>
           
@@ -1238,7 +1260,7 @@
         </div>
       </div>
       
-      <button class="btn-blue" style="background:var(--success); font-size:16px; margin-top:16px;" onclick="alert('Log Kegiatan berhasil dikirim dan menunggu validasi Atasan!')">Kirim Log Kegiatan</button>
+      <button class="btn-blue" style="background:var(--success); font-size:16px; margin-top:16px;" onclick="kirimLogMandiriPersonel()">Kirim Log Kegiatan</button>
     </section>
     <!-- SCREEN 7: RESPON 110 / WIZARD LOG -->
     <section id="view-wizard" class="view">
@@ -1464,6 +1486,85 @@
           <button type="button" class="btn-blue" style="background:#E2E8F0; color:var(--text); width:auto; flex:1; margin:0;" onclick="openValidasiList('menunggu')">Batal</button>
           <button type="button" class="btn-blue" style="background:var(--danger); width:auto; flex:2; margin:0; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="submitPenolakan()">
             <span>✕</span> Konfirmasi Tolak & Minta Revisi
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCREEN 9: KONSOL OPERATOR SPKT (CALL CENTER 110) -->
+    <section id="view-operator" class="view">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px;">
+        <div onclick="switchTab('view-beranda')" style="font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; display:flex; align-items:center; gap:6px;">
+          <span>←</span> Kembali ke Beranda
+        </div>
+        <a href="operator-110.html" target="_blank" style="font-size:11px; background:#EFF6FF; color:var(--primary); font-weight:700; padding:5px 12px; border-radius:20px; text-decoration:none; border:1px solid #BFDBFE;">
+          🖥️ Buka Layar Penuh Workstation ➔
+        </a>
+      </div>
+
+      <div style="margin: 0 16px 20px;">
+        <h2 class="page-title" style="margin:0 0 4px 0;">Konsol Operator SPKT 110</h2>
+        <div class="page-subtitle" style="margin:0 0 14px 0; color:var(--text-muted); font-size:12px;">Perekaman Telepon Darurat Masuk (FASE 0: Inisiasi Sebelum Tiket Dibuat)</div>
+
+        <!-- Incoming Call Simulation Box -->
+        <div style="background: linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%); border: 2px solid #EF4444; border-radius: 12px; padding: 16px; text-align: center; color: white; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);">
+          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: #FCA5A5; margin-bottom: 4px;">📞 SIMULASI PANGGILAN 110 MASUK</div>
+          <div style="font-size: 19px; font-weight: 900; font-family: monospace; color: #FEF08A; margin-bottom: 2px;" id="eb-sim-caller">+62 812-9844-3210</div>
+          <div style="font-size: 11px; color: #FECACA; margin-bottom: 12px;">Pelapor: Ibu Ratna Dewi • Kebayoran Baru, Jakarta Selatan</div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" style="flex:1; padding:10px; background:#10B981; color:white; font-weight:800; font-size:12px; border:none; border-radius:8px; cursor:pointer;" onclick="ebJawabPanggilan()">
+              📞 Angkat & Muat ke Form
+            </button>
+            <button type="button" style="padding:10px 14px; background:rgba(255,255,255,0.2); color:white; font-weight:700; font-size:12px; border:1px solid rgba(255,255,255,0.4); border-radius:8px; cursor:pointer;" onclick="ebAcakPanggilan()">
+              🔄 Ganti Skenario
+            </button>
+          </div>
+        </div>
+
+        <!-- Operator Recording Form -->
+        <div style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="font-size:13px; font-weight:800; color:var(--primary); margin-bottom:12px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
+            Form Input Operator SPKT (Penerimaan Panggilan Telepon)
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:11px;">Nomor Telepon Penelepon <span style="color:red;">*</span></label>
+            <input type="text" id="eb-op-telepon" class="form-control" value="+62 812-9844-3210" placeholder="0812xxxx">
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:11px;">Nama Warga Pelapor <span style="color:red;">*</span></label>
+            <input type="text" id="eb-op-nama" class="form-control" value="Ibu Ratna Dewi (Warga)" placeholder="Nama pelapor">
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:11px;">Jenis Insiden / Kejadian <span style="color:red;">*</span></label>
+            <select id="eb-op-jenis" class="form-control" style="font-weight:600;">
+              <option value="Kecelakaan Lalu Lintas">🚗 Kecelakaan Lalu Lintas</option>
+              <option value="Tawuran Pelajar / Remaja" selected>⚔️ Tawuran Pelajar / Kerumunan Remaja</option>
+              <option value="Tindak Pidana / Pencurian">🚨 Tindak Pidana (Pencurian / Curas)</option>
+              <option value="Bencana Alam / Pohon Tumbang">🌳 Bencana Alam / Pohon Tumbang</option>
+              <option value="Gangguan Ketertiban Umum">📢 Gangguan Kamtibmas / Keributan</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:11px;">Lokasi Kejadian (TKP) & Sektor <span style="color:red;">*</span></label>
+            <input type="text" id="eb-op-lokasi" class="form-control" value="Jl. Panglima Polim Raya No. 42, Kebayoran Baru, Jakarta Selatan">
+          </div>
+
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:11px;">Koordinat GPS Satelit</label>
+            <input type="text" id="eb-op-gps" class="form-control" value="-6.2415, 106.8021" readonly style="background:#F8FAFC; color:#2563EB; font-family:monospace;">
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px;">
+            <label class="form-label" style="font-size:11px;">Ringkasan Uraian Kejadian Dari Penelepon <span style="color:red;">*</span></label>
+            <textarea id="eb-op-uraian" class="form-control" style="min-height:75px;" placeholder="Tuliskan keterangan pelapor...">Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok antar kelompok. Mohon penanganan unit patroli segera.</textarea>
+          </div>
+
+          <button type="button" class="btn-blue" style="width:100%; margin:0; background:var(--primary); padding:12px; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="ebSubmitLaporanOperator()">
+            <span>🚀</span> Simpan & Teruskan ke Meja Pawas (FASE 1) ➔
           </button>
         </div>
       </div>
@@ -3484,21 +3585,150 @@
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role');
     
-    if (role === 'pimpinan') {
-      // Pimpinan: Monitor, don't create logs.
+    if (role === 'pimpinan' || role === 'atasan') {
+      // Pimpinan / Pawas: Monitor & Validasi
       const tl = document.getElementById('tindak-lanjut-card'); if (tl) tl.style.display = 'none';
       const navLog = document.getElementById('nav-log'); if (navLog) navLog.style.display = 'none';
       
       const un = document.getElementById('user-name'); if (un) un.innerText = 'Kombes Pol Budi';
-      const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Kapolres';
-      const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MENGAWASI';
+      const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Kapolres (Pawas)';
+      const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MENGAWASI (Pawas)';
+    } else if (role === 'operator') {
+      // Operator SPKT 110 (Call Center Konsol)
+      const un = document.getElementById('user-name'); if (un) un.innerText = 'Briptu Dian Lestari';
+      const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Operator SPKT 110';
+      const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MEJA OPERATOR (Siaga 110)';
+      // Switch langsung ke view-operator
+      switchTab('view-operator');
     } else {
       // Anggota (default)
-      // They SHOULD see their own KPI and Rekapitulasi (as per PRD)
-      // But they don't see the validasi page icon
       const bell = document.getElementById('bell-notif'); if (bell) bell.style.display = 'none';
     }
   });
+
+  // ==================================
+  // FASE 0 LOGIC: JALUR OPERATOR SPKT & MANDIRI PERSONEL
+  // ==================================
+  function kirimLogMandiriPersonel() {
+    const jenis = document.getElementById('respon-jenis')?.value || 'PATROLI';
+    const descEl = document.querySelector('#view-respon textarea');
+    const desc = (descEl && descEl.value.trim()) ? descEl.value.trim() : 'Melaksanakan patroli dialogis kewilayahan, situasi aman dan kondusif.';
+    const waktu = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
+    const maxId = appLogs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
+    const newId = maxId + 1;
+
+    const newLog = {
+      id: newId,
+      nama: 'Bripka Ahmad',
+      nrp: '50123456',
+      avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+      status: 'menunggu',
+      statusText: 'Menunggu Validasi',
+      title: 'Laporan Kegiatan ' + jenis + ' (Mandiri)',
+      jenisInsiden: jenis,
+      deskripsi: desc,
+      sektor: 'Sektor Selatan',
+      lokasiKejadian: 'Jl. Fatmawati Raya No. 12, Jakarta Selatan',
+      koordinatGps: '-6.2345, 106.8423',
+      waktu: waktu,
+      sumberLaporan: '👮 Patroli Mandiri Personel',
+      fotoLampiran: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+      fotoPengaduan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+      alasanTolak: '',
+      riwayatValidasi: [
+        {
+          waktu: waktu,
+          aktor: 'Bripka Ahmad (Personel Lapangan)',
+          aksi: 'Input Log Mandiri Personel',
+          catatan: 'Penginputan formulir kegiatan ' + jenis + ' dari aplikasi mobile.'
+        }
+      ],
+      ratingKepuasan: null
+    };
+
+    appLogs.unshift(newLog);
+    saveLogsToStorage();
+    updateRekapCounts();
+
+    alert('✓ Log Kegiatan Mandiri #' + newId + ' berhasil dikirim!\n\nLaporan telah masuk ke antrean "Menunggu Validasi" untuk diverifikasi oleh Pawas/Atasan (FASE 1).');
+    switchTab('view-beranda');
+  }
+
+  function ebSubmitLaporanOperator() {
+    const notelp = document.getElementById('eb-op-telepon')?.value.trim() || '+62 812-9844-3210';
+    const namaPelapor = document.getElementById('eb-op-nama')?.value.trim() || 'Ibu Ratna Dewi';
+    const jenis = document.getElementById('eb-op-jenis')?.value || 'Tawuran Pelajar / Remaja';
+    const lokasi = document.getElementById('eb-op-lokasi')?.value.trim() || 'Kebayoran Baru, Jakarta Selatan';
+    const gps = document.getElementById('eb-op-gps')?.value.trim() || '-6.2415, 106.8021';
+    const uraian = document.getElementById('eb-op-uraian')?.value.trim() || 'Panggilan telepon 110 diterima dari pelapor terkait situasi darurat di TKP.';
+
+    const maxId = appLogs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
+    const newId = maxId + 1;
+    const waktu = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
+    let sampleFoto = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80';
+    if (jenis.includes('Kecelakaan')) sampleFoto = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+
+    const newLog = {
+      id: newId,
+      nama: 'Operator SPKT (Briptu Dian)',
+      nrp: '94050811',
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80',
+      status: 'menunggu',
+      statusText: 'Menunggu Validasi',
+      title: jenis + ' - ' + lokasi.split(',')[0],
+      jenisInsiden: jenis,
+      deskripsi: uraian,
+      sektor: 'Jakarta Selatan',
+      lokasiKejadian: lokasi,
+      koordinatGps: gps,
+      waktu: waktu,
+      sumberLaporan: '📞 Panggilan 110 (Call Center SPKT)',
+      pelapor: { nama: namaPelapor, telepon: notelp },
+      fotoPengaduan: sampleFoto,
+      fotoLampiran: sampleFoto,
+      alasanTolak: '',
+      riwayatValidasi: [
+        {
+          waktu: waktu,
+          aktor: 'Operator SPKT (Briptu Dian)',
+          aksi: 'Penerimaan Panggilan Telepon 110',
+          catatan: 'Panggilan darurat 110 diterima dari ' + namaPelapor + ' (' + notelp + '). Disalurkan ke antrean validasi Pawas.'
+        }
+      ],
+      ratingKepuasan: null
+    };
+
+    appLogs.unshift(newLog);
+    saveLogsToStorage();
+    updateRekapCounts();
+
+    alert('✓ Panggilan 110 #' + newId + ' Berhasil Dicatat oleh Operator SPKT!\n\n• Sumber: Panggilan 110 (Call Center SPKT)\n• Status: Menunggu Validasi Pawas (FASE 1)\n• Data langsung masuk ke antrean validasi atasan.');
+    openValidasiList('menunggu');
+  }
+
+  function ebJawabPanggilan() {
+    alert('📞 Panggilan 110 dijawab! Data penelepon telah dimuat ke formulir operator.');
+    const tel = document.getElementById('eb-op-telepon');
+    if (tel) tel.focus();
+  }
+
+  function ebAcakPanggilan() {
+    const list = [
+      { tel: '+62 813-7722-1109', nama: 'Bapak Hendra Gunawan', jenis: 'Kecelakaan Lalu Lintas', loc: 'Jl. Jend. Sudirman Kav. 28, Jakarta Pusat', gps: '-6.2150, 106.8200', ket: 'Tabrakan antara sedan dan sepeda motor di jalur cepat, arus lalu lintas padat.' },
+      { tel: '+62 856-1199-8833', nama: 'Ibu Maya Suryani', jenis: 'Tindak Pidana / Pencurian', loc: 'Jl. Tomang Asri Blok C No. 12, Jakarta Barat', gps: '-6.1750, 106.7900', ket: 'Percobaan pencurian sepeda motor di halaman rumah warga, pelaku melarikan diri.' },
+      { tel: '+62 812-9844-3210', nama: 'Ibu Ratna Dewi', jenis: 'Tawuran Pelajar / Remaja', loc: 'Jl. Panglima Polim Raya No. 42, Jakarta Selatan', gps: '-6.2415, 106.8021', ket: 'Sekelompok pemuda berkumpul membawa balok kayu di dekat pertokoan.' }
+    ];
+    const item = list[Math.floor(Math.random() * list.length)];
+    const elCaller = document.getElementById('eb-sim-caller'); if (elCaller) elCaller.innerText = item.tel;
+    const elTel = document.getElementById('eb-op-telepon'); if (elTel) elTel.value = item.tel;
+    const elNama = document.getElementById('eb-op-nama'); if (elNama) elNama.value = item.nama;
+    const elJenis = document.getElementById('eb-op-jenis'); if (elJenis) elJenis.value = item.jenis;
+    const elLoc = document.getElementById('eb-op-lokasi'); if (elLoc) elLoc.value = item.loc;
+    const elGps = document.getElementById('eb-op-gps'); if (elGps) elGps.value = item.gps;
+    const elKet = document.getElementById('eb-op-uraian'); if (elKet) elKet.value = item.ket;
+  }
 
   // ==================================
   // MODAL PREVIEW BUKTI PENGADUAN & TINDAKAN

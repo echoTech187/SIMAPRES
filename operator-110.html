@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Konsol Operator SPKT 110 - E-Tribrata Command Center</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #153E75;
+      --primary-dark: #0D264A;
+      --secondary: #FBBF24;
+      --success: #10B981;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      --bg: #0F172A;
+      --surface: #1E293B;
+      --surface-card: #243248;
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Command Header */
+    .top-header {
+      background: var(--primary-dark);
+      border-bottom: 2px solid #1E3A8A;
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      background: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .brand-badge {
+      width: 26px;
+      height: 26px;
+      background: var(--secondary);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+
+    .brand-titles h1 {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+      color: white;
+    }
+
+    .brand-titles p {
+      font-size: 11px;
+      color: #93C5FD;
+      font-weight: 600;
+    }
+
+    .operator-profile {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .call-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 800;
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid var(--success);
+      color: #34D399;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10B981;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.6); opacity: 0.4; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .nav-links-wrap {
+      display: flex;
+      gap: 8px;
+    }
+
+    .nav-btn {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #E2E8F0;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.18);
+      border-color: white;
+      color: white;
+    }
+
+    /* Main Grid Layout */
+    .main-layout {
+      flex: 1;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 992px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Card Containers */
+    .console-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #E2E8F0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Incoming Call Simulator Box */
+    .incoming-call-box {
+      background: linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%);
+      border: 2px solid #EF4444;
+      border-radius: 14px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
+      animation: alertGlow 2s infinite alternate;
+    }
+
+    @keyframes alertGlow {
+      from { box-shadow: 0 0 15px rgba(239, 68, 68, 0.25); }
+      to { box-shadow: 0 0 35px rgba(239, 68, 68, 0.6); }
+    }
+
+    .incoming-icon-ring {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #DC2626;
+      border: 3px solid #FCA5A5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin: 0 auto 10px auto;
+      animation: ringShake 0.6s infinite ease-in-out;
+    }
+
+    @keyframes ringShake {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(-15deg); }
+      50% { transform: rotate(15deg); }
+      75% { transform: rotate(-10deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .incoming-call-box h3 {
+      font-size: 16px;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .caller-number-display {
+      font-family: monospace;
+      font-size: 20px;
+      font-weight: 800;
+      color: #FEF08A;
+      margin-bottom: 6px;
+    }
+
+    .caller-location-desc {
+      font-size: 12px;
+      color: #FECACA;
+      margin-bottom: 14px;
+    }
+
+    .call-action-btns {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-answer {
+      flex: 1;
+      padding: 12px;
+      background: #10B981;
+      color: white;
+      font-weight: 800;
+      font-size: 13px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+
+    .btn-answer:hover {
+      background: #059669;
+      transform: translateY(-1px);
+    }
+
+    .btn-sim-next {
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-sim-next:hover {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* Active Call Connected Box */
+    .call-connected-bar {
+      display: none;
+      background: #064E3B;
+      border: 1px solid #059669;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 18px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .call-timer {
+      font-family: monospace;
+      font-size: 16px;
+      font-weight: 800;
+      color: #34D399;
+    }
+
+    /* Live Queue List */
+    .queue-item {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .queue-item:hover {
+      border-color: #3B82F6;
+      transform: translateX(3px);
+    }
+
+    .queue-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+
+    .queue-source {
+      font-size: 10px;
+      font-weight: 700;
+      color: #60A5FA;
+      background: rgba(59, 130, 246, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .queue-time {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .queue-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #F8FAFC;
+      margin-bottom: 2px;
+    }
+
+    .queue-loc {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Operator Entry Form */
+    .form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 640px) {
+      .form-grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #CBD5E1;
+      margin-bottom: 6px;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 11px 14px;
+      background: #0F172A;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: white;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-control:focus {
+      border-color: #3B82F6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    textarea.form-control {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    /* Urgency Radio Buttons */
+    .urgency-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .urgency-btn {
+      padding: 10px 8px;
+      background: #0F172A;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      font-size: 11.5px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      user-select: none;
+    }
+
+    .urgency-btn:hover {
+      border-color: #64748B;
+    }
+
+    .urgency-btn.active.darurat {
+      background: #7F1D1D;
+      border-color: #EF4444;
+      color: #FECACA;
+    }
+
+    .urgency-btn.active.sedang {
+      background: #78350F;
+      border-color: #F59E0B;
+      color: #FEF08A;
+    }
+
+    .urgency-btn.active.normal {
+      background: #064E3B;
+      border-color: #10B981;
+      color: #A7F3D0;
+    }
+
+    /* Submit Button */
+    .btn-submit-spkt {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #1D4ED8 0%, #1E40AF 100%);
+      border: 1.5px solid #3B82F6;
+      border-radius: 12px;
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 6px 20px rgba(29, 78, 216, 0.4);
+      transition: all 0.2s;
+      margin-top: 10px;
+    }
+
+    .btn-submit-spkt:hover {
+      background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(29, 78, 216, 0.5);
+    }
+
+    .btn-submit-spkt:active {
+      transform: translateY(0);
+    }
+
+    /* Modal Success */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: #1E293B;
+      border: 1.5px solid #3B82F6;
+      border-radius: 16px;
+      max-width: 500px;
+      width: 100%;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 20px 30px rgba(0,0,0,0.5);
+    }
+
+    .success-badge-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #10B981;
+      color: white;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px auto;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+
+    .modal-card h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: white;
+      margin-bottom: 6px;
+    }
+
+    .modal-card p {
+      font-size: 13px;
+      color: #94A3B8;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .modal-details {
+      background: #0F172A;
+      border: 1px dashed #334155;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+      text-align: left;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .modal-btn.primary {
+      background: #10B981;
+      color: white;
+      border: none;
+    }
+
+    .modal-btn.secondary {
+      background: #334155;
+      color: white;
+      border: 1px solid #475569;
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 11px;
+      color: #64748B;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Command Bar -->
+  <header class="top-header">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <div class="brand-badge"></div>
+      </div>
+      <div class="brand-titles">
+        <h1>SPKT 110 COMMAND CONSOLE</h1>
+        <p>Sentra Pelayanan Kepolisian Terpadu • Meja Operator Call Center</p>
+      </div>
+    </div>
+
+    <div class="operator-profile">
+      <div class="call-status-pill">
+        <span class="pulse-dot"></span>
+        <span>LINE 110 SIAGA</span>
+      </div>
+      <div class="nav-links-wrap">
+        <a href="e-tribrata-log.html?role=atasan" class="nav-btn" title="Meja Validasi Pawas">👮 Meja Pawas (Validasi)</a>
+        <a href="lapor-110.html" class="nav-btn" target="_blank" title="Simulasi Warga">🚨 Portal Lapor Warga</a>
+        <a href="masyarakat.html" class="nav-btn" target="_blank" title="Portal Lacak Publik">🌐 Portal Warga</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workstation Layout -->
+  <main class="main-layout">
+    
+    <!-- Left Column: Incoming Calls & Queue -->
+    <aside>
+      <!-- Incoming Call Simulator -->
+      <div class="incoming-call-box" id="incoming-call-box">
+        <div class="incoming-icon-ring">📞</div>
+        <h3>PANGGILAN DARURAT 110 MASUK</h3>
+        <div class="caller-number-display" id="sim-caller-number">+62 812-9844-3210</div>
+        <div class="caller-location-desc" id="sim-caller-location">Sektor Jakarta Selatan • Area Kebayoran Baru</div>
+        
+        <div class="call-action-btns">
+          <button type="button" class="btn-answer" onclick="jawabPanggilan()">
+            <span>📞</span> ANGKAT PANGGILAN
+          </button>
+          <button type="button" class="btn-sim-next" onclick="generateSimulasiPanggilan()" title="Ganti Skenario Panggilan">
+            <span>🔄</span> Acak
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Call Connected Banner -->
+      <div class="call-connected-bar" id="call-connected-bar">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">🎙️</span>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:#6EE7B7;">PANGGILAN AKTIF TERHUBUNG</div>
+            <div style="font-size:10px; color:#A7F3D0;" id="connected-caller-info">+62 812-9844-3210 (Warga)</div>
+          </div>
+        </div>
+        <div class="call-timer" id="call-timer-text">00:15</div>
+      </div>
+
+      <!-- Live Antrean Laporan Menunggu -->
+      <div class="console-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span>📋</span> Antrean Menunggu Pawas
+          </div>
+          <span style="font-size:11px; font-weight:800; background:#D97706; color:white; padding:2px 8px; border-radius:10px;" id="queue-badge-count">3</span>
+        </div>
+        
+        <div id="live-queue-list">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <button type="button" onclick="window.location.href='e-tribrata-log.html?role=atasan'" style="width:100%; margin-top:8px; padding:10px; background:rgba(255,255,255,0.06); border:1px solid #475569; border-radius:8px; color:#93C5FD; font-size:12px; font-weight:700; cursor:pointer;">
+          Lihat Meja Validasi Atasan ➔
+        </button>
+      </div>
+    </aside>
+
+    <!-- Right Column: Operator SPKT Recording Console -->
+    <section class="console-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span>📝</span> Formulir Penerimaan Laporan Panggilan 110
+        </div>
+        <div style="font-size:11px; color:var(--text-muted);">
+          Operator Meja 02: <strong style="color:#60A5FA;">Briptu Dian Lestari (NRP: 94050811)</strong>
+        </div>
+      </div>
+
+      <form id="spkt-entry-form" onsubmit="event.preventDefault(); submitLaporanSPKT();">
+        
+        <div class="form-grid-2">
+          <!-- Caller Phone Number -->
+          <div class="form-group">
+            <label class="form-label" for="inp-notelp">Nomor Telepon Penelepon (Pelapor) <span style="color:#EF4444;">*</span></label>
+            <div style="position:relative;">
+              <input type="text" id="inp-notelp" class="form-control" placeholder="Contoh: 081298443210" value="+62 812-9844-3210" required>
+              <button type="button" onclick="validasiCallerID()" style="position:absolute; right:6px; top:6px; bottom:6px; background:#1E3A8A; color:#BFDBFE; border:none; border-radius:6px; font-size:10px; font-weight:700; padding:0 8px; cursor:pointer;">
+                ✓ Terverifikasi
+              </button>
+            </div>
+          </div>
+
+          <!-- Caller Name -->
+          <div class="form-group">
+            <label class="form-label" for="inp-nama-pelapor">Nama Pelapor <span style="color:#EF4444;">*</span></label>
+            <input type="text" id="inp-nama-pelapor" class="form-control" placeholder="Nama warga penelepon" value="Ibu Ratna Dewi (Warga)" required>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <!-- Incident Category -->
+          <div class="form-group">
+            <label class="form-label" for="inp-jenis-insiden">Kategori / Jenis Kejadian <span style="color:#EF4444;">*</span></label>
+            <select id="inp-jenis-insiden" class="form-control" style="font-weight:700;" onchange="updateDefaultSummary()">
+              <option value="Kecelakaan Lalu Lintas">🚗 Kecelakaan Lalu Lintas</option>
+              <option value="Tawuran Pelajar / Remaja" selected>⚔️ Tawuran Pelajar / Kerumunan Remaja</option>
+              <option value="Tindak Pidana / Pencurian">🚨 Tindak Pidana (Pencurian / Curas)</option>
+              <option value="Bencana Alam / Pohon Tumbang">🌳 Bencana Alam / Pohon Tumbang / Banjir</option>
+              <option value="Gangguan Ketertiban Umum">📢 Gangguan Kamtibmas / Keributan Warga</option>
+              <option value="Pengamanan Objek Vital">🛡️ Pengamanan & Permintaan Bantuan Mediasi</option>
+            </select>
+          </div>
+
+          <!-- Legal Sector / Territory -->
+          <div class="form-group">
+            <label class="form-label" for="inp-sektor">Sektor Wilayah Hukum <span style="color:#EF4444;">*</span></label>
+            <select id="inp-sektor" class="form-control">
+              <option value="Jakarta Selatan" selected>Polres Metro Jakarta Selatan</option>
+              <option value="Jakarta Pusat">Polres Metro Jakarta Pusat</option>
+              <option value="Jakarta Barat">Polres Metro Jakarta Barat</option>
+              <option value="Jakarta Timur">Polres Metro Jakarta Timur</option>
+              <option value="Jakarta Utara">Polres Metro Jakarta Utara</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Urgency Level -->
+        <div class="form-group">
+          <label class="form-label">Tingkat Urgensi Penanganan:</label>
+          <div class="urgency-grid">
+            <div class="urgency-btn active darurat" data-level="darurat" onclick="setUrgency(this, 'darurat')">
+              🚨 PRIORITAS TINGGI<br><span style="font-size:9.5px; font-weight:normal;">Darurat (Perlu Reaksi Cepat)</span>
+            </div>
+            <div class="urgency-btn sedang" data-level="sedang" onclick="setUrgency(this, 'sedang')">
+              ⚠️ PRIORITAS SEDANG<br><span style="font-size:9.5px; font-weight:normal;">Patroli Terdekat Disiagakan</span>
+            </div>
+            <div class="urgency-btn normal" data-level="normal" onclick="setUrgency(this, 'normal')">
+              ℹ️ NORMAL / REGULER<br><span style="font-size:9.5px; font-weight:normal;">Pembinaan / Sambang Pos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Location Description -->
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label class="form-label" for="inp-lokasi">Alamat / Lokasi Kejadian (TKP) <span style="color:#EF4444;">*</span></label>
+            <input type="text" id="inp-lokasi" class="form-control" placeholder="Nama jalan, nomor, patokan dekat lokasi" value="Jl. Panglima Polim Raya No. 42, Melawai, Kebayoran Baru" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inp-gps">Koordinat GPS TKP (Otomatis Satelit)</label>
+            <div style="position:relative;">
+              <input type="text" id="inp-gps" class="form-control" value="-6.2415, 106.8021" readonly style="color:#60A5FA; font-family:monospace;">
+              <span style="position:absolute; right:12px; top:11px; font-size:14px; cursor:pointer;" onclick="kunciGpsBaru()" title="Kunci GPS Saat Ini">📍</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Incident Summary / Interview Notes -->
+        <div class="form-group">
+          <label class="form-label" for="inp-uraian">Ringkasan Keterangan Pelapor (Hasil Wawancara Telepon) <span style="color:#EF4444;">*</span></label>
+          <textarea id="inp-uraian" class="form-control" placeholder="Tuliskan keterangan pelapor, kronologi singkat, ciri-ciri pelaku/kondisi korban..." required>Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok antar kelompok. Mohon penanganan unit patroli segera.</textarea>
+        </div>
+
+        <!-- Action Submit -->
+        <button type="submit" class="btn-submit-spkt" id="btn-submit-laporan">
+          <span>🚀</span> TERUSKAN KE MEJA VALIDASI PAWAS / ATASAN (FASE 1) ➔
+        </button>
+
+        <div style="text-align:center; font-size:11px; color:#64748B; margin-top:12px;">
+          🔒 Laporan yang diteruskan akan berstatus <strong>"Menunggu Validasi"</strong> dan langsung muncul di Meja Pengawas SPKT.
+        </div>
+
+      </form>
+    </section>
+
+  </main>
+
+  <!-- Success Confirmation Modal -->
+  <div class="modal-overlay" id="success-modal">
+    <div class="modal-card">
+      <div class="success-badge-icon">✓</div>
+      <h3>Laporan Berhasil Diteruskan!</h3>
+      <p>Draft laporan darurat 110 telah tercatat secara resmi di server SIMAPRES dan diteruskan ke Meja Validasi Perwira Pengawas (Pawas).</p>
+      
+      <div class="modal-details" id="modal-summary-content">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="modal-actions">
+        <a href="e-tribrata-log.html?role=atasan" class="modal-btn primary">
+          <span>👮</span> Buka Meja Validasi Pawas ➔
+        </a>
+        <button type="button" class="modal-btn secondary" onclick="tutupModalDanLaporLagi()">
+          <span>➕</span> Input Panggilan Baru
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    &copy; 2026 Kepolisian Negara Republik Indonesia • SIMAPRES 110 Presisi Call Center Service Workstation.
+  </footer>
+
+  <script>
+    // ==========================================
+    // SIMULATION SCENARIO DATA
+    // ==========================================
+    const SIMULASI_PANGGILAN_DATA = [
+      {
+        nomor: '+62 812-9844-3210',
+        nama: 'Ibu Ratna Dewi (Warga)',
+        lokasiDesc: 'Sektor Jakarta Selatan • Area Kebayoran Baru',
+        jenis: 'Tawuran Pelajar / Remaja',
+        sektor: 'Jakarta Selatan',
+        lokasi: 'Jl. Panglima Polim Raya No. 42, Melawai, Kebayoran Baru',
+        gps: '-6.2415, 106.8021',
+        urgensi: 'darurat',
+        uraian: 'Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok antar kelompok. Mohon penanganan unit patroli segera.'
+      },
+      {
+        nomor: '+62 813-7722-1109',
+        nama: 'Bapak Hendra Gunawan',
+        lokasiDesc: 'Sektor Jakarta Pusat • Sudirman - Thamrin',
+        jenis: 'Kecelakaan Lalu Lintas',
+        sektor: 'Jakarta Pusat',
+        lokasi: 'Jl. Jend. Sudirman Kav. 28, Karet Semanggi, Jakarta',
+        gps: '-6.2150, 106.8200',
+        urgensi: 'darurat',
+        uraian: 'Terjadi tabrakan antara mobil sedan dan sepeda motor di jalur cepat. Korban luka ringan di tepi jalan, arus lalu lintas mulai tersendat padat. Butuh unit laka lantas dan ambulance.'
+      },
+      {
+        nomor: '+62 856-1199-8833',
+        nama: 'Ibu Maya Suryani (Pengurus RW)',
+        lokasiDesc: 'Sektor Jakarta Barat • Tomang / Grogol',
+        jenis: 'Tindak Pidana / Pencurian',
+        sektor: 'Jakarta Barat',
+        lokasi: 'Jl. Tomang Asri Blok C No. 12, Grogol Petamburan',
+        gps: '-6.1750, 106.7900',
+        urgensi: 'darurat',
+        uraian: 'Terjadi dugaan percobaan pencurian kendaraan bermotor (Curanmor). Terduga pelaku melarikan diri meninggalkan sepeda motor yang dirusak kuncinya. Warga sedang mengamankan lokasi.'
+      },
+      {
+        nomor: '+62 878-5544-2211',
+        nama: 'Bapak Suryo Prasetyo',
+        lokasiDesc: 'Sektor Jakarta Timur • Matraman Raya',
+        jenis: 'Bencana Alam / Pohon Tumbang',
+        sektor: 'Jakarta Timur',
+        lokasi: 'Jl. Matraman Raya No. 105, dekat flyover Pramuka',
+        gps: '-6.1980, 106.8550',
+        urgensi: 'sedang',
+        uraian: 'Dahan pohon trembesi besar patah menutup separuh lajur jalan akibat angin kencang. Mengakibatkan kemacetan kendaraan mengular sekitar 500 meter.'
+      }
+    ];
+
+    let currentSimIndex = 0;
+    let callTimerInterval = null;
+    let callSeconds = 0;
+    let currentSelectedUrgency = 'darurat';
+    let appLogs = [];
+
+    // ==========================================
+    // STORAGE LOADING
+    // ==========================================
+    function loadLogs() {
+      try {
+        const saved = localStorage.getItem('simapres_app_logs_v1');
+        if (saved) {
+          appLogs = JSON.parse(saved);
+        } else {
+          appLogs = [];
+        }
+      } catch (e) {
+        console.warn('Gagal membaca storage', e);
+        appLogs = [];
+      }
+      renderQueueList();
+    }
+
+    function saveLogs() {
+      try {
+        localStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+        sessionStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+      } catch (e) {
+        console.warn('Storage gagal ditulis', e);
+      }
+    }
+
+    function renderQueueList() {
+      const container = document.getElementById('live-queue-list');
+      const badgeCount = document.getElementById('queue-badge-count');
+      if (!container) return;
+
+      const waitingLogs = appLogs.filter(l => l.status === 'menunggu');
+      if (badgeCount) badgeCount.innerText = waitingLogs.length;
+
+      if (waitingLogs.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:18px 10px; color:#64748B; font-size:12px;">
+            ✓ Tidak ada antrean panggilan tertunda. Semua telah divalidasi.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = waitingLogs.slice(0, 4).map(l => `
+        <div class="queue-item" onclick="window.location.href='e-tribrata-log.html?role=atasan'">
+          <div class="queue-top">
+            <span class="queue-source">${l.sumberLaporan || '📞 110 Call Center'}</span>
+            <span class="queue-time">${l.waktu || 'Baru Saja'}</span>
+          </div>
+          <div class="queue-title">${l.title || l.jenisInsiden}</div>
+          <div class="queue-loc">📍 ${l.lokasiKejadian || l.sektor || 'Wilayah Terdaftar'}</div>
+        </div>
+      `).join('');
+    }
+
+    // ==========================================
+    // CALL SIMULATOR FUNCTIONS
+    // ==========================================
+    function generateSimulasiPanggilan() {
+      currentSimIndex = (currentSimIndex + 1) % SIMULASI_PANGGILAN_DATA.length;
+      const data = SIMULASI_PANGGILAN_DATA[currentSimIndex];
+
+      document.getElementById('sim-caller-number').innerText = data.nomor;
+      document.getElementById('sim-caller-location').innerText = data.lokasiDesc;
+
+      // Reset connected state jika sedang bicara
+      stopCallTimer();
+      document.getElementById('call-connected-bar').style.display = 'none';
+      document.getElementById('incoming-call-box').style.display = 'block';
+    }
+
+    function jawabPanggilan() {
+      const data = SIMULASI_PANGGILAN_DATA[currentSimIndex];
+
+      // Auto-populate form
+      document.getElementById('inp-notelp').value = data.nomor;
+      document.getElementById('inp-nama-pelapor').value = data.nama;
+      document.getElementById('inp-jenis-insiden').value = data.jenis;
+      document.getElementById('inp-sektor').value = data.sektor;
+      document.getElementById('inp-lokasi').value = data.lokasi;
+      document.getElementById('inp-gps').value = data.gps;
+      document.getElementById('inp-uraian').value = data.uraian;
+
+      // Set Urgency
+      const urgencyBtns = document.querySelectorAll('.urgency-btn');
+      urgencyBtns.forEach(btn => {
+        if (btn.getAttribute('data-level') === data.urgensi) {
+          setUrgency(btn, data.urgensi);
+        }
+      });
+
+      // Tampilkan status panggilan terhubung
+      document.getElementById('incoming-call-box').style.display = 'none';
+      const connBar = document.getElementById('call-connected-bar');
+      connBar.style.display = 'flex';
+      document.getElementById('connected-caller-info').innerText = data.nomor + ' (' + data.nama + ')';
+
+      startCallTimer();
+
+      // Focus ke uraian
+      document.getElementById('inp-uraian').focus();
+    }
+
+    function startCallTimer() {
+      callSeconds = 12;
+      updateTimerText();
+      if (callTimerInterval) clearInterval(callTimerInterval);
+      callTimerInterval = setInterval(() => {
+        callSeconds++;
+        updateTimerText();
+      }, 1000);
+    }
+
+    function stopCallTimer() {
+      if (callTimerInterval) clearInterval(callTimerInterval);
+      callTimerInterval = null;
+    }
+
+    function updateTimerText() {
+      const m = Math.floor(callSeconds / 60);
+      const s = callSeconds % 60;
+      const str = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+      const el = document.getElementById('call-timer-text');
+      if (el) el.innerText = str;
+    }
+
+    function setUrgency(el, level) {
+      currentSelectedUrgency = level;
+      document.querySelectorAll('.urgency-btn').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function validasiCallerID() {
+      alert('✓ Nomor Pelapor ' + document.getElementById('inp-notelp').value + ' Terverifikasi Aktif pada Provider Satelit Polri.');
+    }
+
+    function kunciGpsBaru() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition((pos) => {
+          const lat = pos.coords.latitude.toFixed(4);
+          const lng = pos.coords.longitude.toFixed(4);
+          document.getElementById('inp-gps').value = lat + ', ' + lng;
+          alert('📍 Titik Koordinat GPS Terkunci: ' + lat + ', ' + lng);
+        }, () => {
+          document.getElementById('inp-gps').value = '-6.2088, 106.8456';
+          alert('📍 Titik Koordinat GPS Default Satelit Terkunci: -6.2088, 106.8456');
+        });
+      }
+    }
+
+    function updateDefaultSummary() {
+      const jenis = document.getElementById('inp-jenis-insiden').value;
+      const uraianEl = document.getElementById('inp-uraian');
+      if (uraianEl && uraianEl.value.includes('Pelapor melaporkan')) {
+        uraianEl.value = 'Warga melaporkan kejadian ' + jenis + ' yang membutuhkan respon segera dari unit patroli kepolisian wilayah terdekat.';
+      }
+    }
+
+    // ==========================================
+    // SUBMISSION (FASE 0 -> FASE 1 TRANSITION)
+    // ==========================================
+    function submitLaporanSPKT() {
+      const notelp = document.getElementById('inp-notelp').value.trim();
+      const namaPelapor = document.getElementById('inp-nama-pelapor').value.trim();
+      const jenis = document.getElementById('inp-jenis-insiden').value;
+      const sektor = document.getElementById('inp-sektor').value;
+      const lokasi = document.getElementById('inp-lokasi').value.trim();
+      const gps = document.getElementById('inp-gps').value.trim();
+      const uraian = document.getElementById('inp-uraian').value.trim();
+
+      if (!notelp || !namaPelapor || !lokasi || !uraian) {
+        alert('Mohon lengkapi semua data wajib pada formulir!');
+        return;
+      }
+
+      loadLogs();
+
+      // Buat ID baru
+      const maxId = appLogs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
+      const newId = maxId + 1;
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
+      // Pool foto representatif berdasarkan kategori
+      let sampleFoto = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+      if (jenis.includes('Tawuran')) {
+        sampleFoto = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80';
+      } else if (jenis.includes('Pencurian')) {
+        sampleFoto = 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80';
+      } else if (jenis.includes('Bencana')) {
+        sampleFoto = 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
+      }
+
+      const newLog = {
+        id: newId,
+        nama: 'Operator SPKT (Briptu Dian Lestari)',
+        nrp: '94050811',
+        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80',
+        status: 'menunggu',
+        statusText: 'Menunggu Validasi',
+        title: jenis + ' - ' + lokasi.split(',')[0],
+        jenisInsiden: jenis,
+        deskripsi: uraian,
+        sektor: sektor,
+        lokasiKejadian: lokasi,
+        koordinatGps: gps || '-6.2088, 106.8456',
+        waktu: waktuSekarang,
+        sumberLaporan: '📞 Panggilan 110 (Call Center SPKT)',
+        pelapor: {
+          nama: namaPelapor,
+          telepon: notelp
+        },
+        urgensi: currentSelectedUrgency,
+        fotoPengaduan: sampleFoto,
+        fotoLampiran: sampleFoto,
+        alasanTolak: '',
+        riwayatValidasi: [
+          {
+            waktu: waktuSekarang,
+            aktor: 'Operator SPKT (Briptu Dian)',
+            aksi: 'Penerimaan Panggilan Telepon 110',
+            catatan: 'Panggilan darurat 110 diterima dari pelapor ' + namaPelapor + ' (' + notelp + '). Disalurkan ke antrean validasi Pawas.'
+          }
+        ],
+        ratingKepuasan: null
+      };
+
+      // Tambahkan ke daftar log (di posisi terdepan antrean)
+      appLogs.unshift(newLog);
+      saveLogs();
+
+      // Hentikan timer panggilan
+      stopCallTimer();
+
+      // Render Modal Summary
+      document.getElementById('modal-summary-content').innerHTML = `
+        <div style="margin-bottom:6px;"><strong style="color:#60A5FA;">ID Draft Laporan:</strong> #${newLog.id} (Tiket resmi terbit pasca validasi)</div>
+        <div style="margin-bottom:6px;"><strong>Sumber Laporan:</strong> 📞 Panggilan 110 (Call Center SPKT)</div>
+        <div style="margin-bottom:6px;"><strong>Pelapor:</strong> ${namaPelapor} (${notelp})</div>
+        <div style="margin-bottom:6px;"><strong>Jenis Insiden:</strong> ${jenis}</div>
+        <div style="margin-bottom:6px;"><strong>Lokasi TKP:</strong> ${lokasi}</div>
+        <div><strong>Waktu Diterima:</strong> ${waktuSekarang}</div>
+      `;
+
+      document.getElementById('success-modal').classList.add('active');
+      renderQueueList();
+    }
+
+    function tutupModalDanLaporLagi() {
+      document.getElementById('success-modal').classList.remove('active');
+      generateSimulasiPanggilan();
+    }
+
+    // Inisialisasi awal
+    document.addEventListener('DOMContentLoaded', () => {
+      loadLogs();
+      updateTimerText();
+    });
+  </script>
+</body>
+</html>
