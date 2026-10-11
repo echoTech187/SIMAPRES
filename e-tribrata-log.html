@@ -783,7 +783,7 @@
       E TRIBRATA LOG
     </div>
     <div class="user-profile">
-      <button type="button" onclick="switchTab('view-operator')" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:white; font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'" title="Buka Konsol Penerimaan Panggilan 110">
+      <button type="button" onclick="switchTab('view-operator')" style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:white; font-size:11px; font-weight:700; padding:5px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'" title="Buka Meja Operator SPKT 110">
         <span>🎧</span> Operator 110
       </button>
       <div id="bell-notif" class="bell-icon" onclick="switchTab('view-validasi')" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'" title="Lihat Log Menunggu">
@@ -1497,48 +1497,75 @@
         <div onclick="switchTab('view-beranda')" style="font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; display:flex; align-items:center; gap:6px;">
           <span>←</span> Kembali ke Beranda
         </div>
-        <a href="operator-110.html" target="_blank" style="font-size:11px; background:#EFF6FF; color:var(--primary); font-weight:700; padding:5px 12px; border-radius:20px; text-decoration:none; border:1px solid #BFDBFE;">
-          🖥️ Buka Layar Penuh Workstation ➔
-        </a>
+        <span style="font-size:11px; background:#EFF6FF; color:var(--primary); font-weight:700; padding:4px 10px; border-radius:20px; border:1px solid #BFDBFE;">
+          🎧 Siaga Line 110 (Meja Piket SPKT)
+        </span>
       </div>
 
       <div style="margin: 0 16px 20px;">
         <h2 class="page-title" style="margin:0 0 4px 0;">Konsol Operator SPKT 110</h2>
-        <div class="page-subtitle" style="margin:0 0 14px 0; color:var(--text-muted); font-size:12px;">Perekaman Telepon Darurat Masuk (FASE 0: Inisiasi Sebelum Tiket Dibuat)</div>
+        <div class="page-subtitle" style="margin:0 0 14px 0; color:var(--text-muted); font-size:12px;">Perekaman Telepon Darurat Masuk (FASE 0: Pra-Tiket Sesuai SOP 110)</div>
 
-        <!-- Incoming Call Simulation Box -->
-        <div style="background: linear-gradient(135deg, #7F1D1D 0%, #991B1B 100%); border: 2px solid #EF4444; border-radius: 12px; padding: 16px; text-align: center; color: white; margin-bottom: 16px; box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);">
-          <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.5px; color: #FCA5A5; margin-bottom: 4px;">📞 SIMULASI PANGGILAN 110 MASUK</div>
-          <div style="font-size: 19px; font-weight: 900; font-family: monospace; color: #FEF08A; margin-bottom: 2px;" id="eb-sim-caller">+62 812-9844-3210</div>
-          <div style="font-size: 11px; color: #FECACA; margin-bottom: 12px;">Pelapor: Ibu Ratna Dewi • Kebayoran Baru, Jakarta Selatan</div>
+        <!-- 1. KOTAK SIMULASI PANGGILAN 110 MASUK (TEMA TERANG POLRI PRESISI) -->
+        <div style="background: #FEF2F2; border: 1.5px solid #FECACA; border-left: 5px solid #EF4444; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; background: #FEE2E2; color: #DC2626; padding: 2px 8px; border-radius: 4px; display:inline-flex; align-items:center; gap:4px;">
+              <span style="width:6px; height:6px; border-radius:50%; background:#EF4444; display:inline-block; animation:pulse 1s infinite;"></span>
+              PANGGILAN 110 MASUK
+            </span>
+            <span style="font-size: 11px; font-weight: 600; color: #991B1B;" id="eb-call-duration">Siap Menerima</span>
+          </div>
+
+          <div style="font-size: 20px; font-weight: 900; font-family: monospace; color: #991B1B; margin: 4px 0 2px;" id="eb-sim-caller">+62 812-9844-3210</div>
+          <div style="font-size: 11.5px; color: #7F1D1D; margin-bottom: 12px;" id="eb-sim-caller-meta">Pelapor: Ibu Ratna Dewi • Kebayoran Baru, Jakarta Selatan</div>
+          
           <div style="display:flex; gap:8px;">
-            <button type="button" style="flex:1; padding:10px; background:#10B981; color:white; font-weight:800; font-size:12px; border:none; border-radius:8px; cursor:pointer;" onclick="ebJawabPanggilan()">
-              📞 Angkat & Muat ke Form
+            <button type="button" style="flex:1; padding:10px 14px; background:#10B981; color:white; font-weight:800; font-size:12.5px; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.25);" onclick="ebJawabPanggilan()">
+              <span>📞</span> Angkat & Muat ke Form
             </button>
-            <button type="button" style="padding:10px 14px; background:rgba(255,255,255,0.2); color:white; font-weight:700; font-size:12px; border:1px solid rgba(255,255,255,0.4); border-radius:8px; cursor:pointer;" onclick="ebAcakPanggilan()">
-              🔄 Ganti Skenario
+            <button type="button" style="padding:10px 14px; background:white; color:#475569; font-weight:700; font-size:12px; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:5px;" onclick="ebAcakPanggilan()">
+              <span>🔄</span> Acak Skenario
             </button>
+          </div>
+
+          <!-- Banner Telepon Terhubung -->
+          <div id="eb-call-connected-bar" style="display:none; margin-top:10px; padding:8px 12px; background:#DCFCE7; border:1px solid #86EFAC; border-radius:8px; font-size:11.5px; font-weight:700; color:#166534; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span>🎙️</span>
+              <span>Panggilan Terhubung Aktif</span>
+            </div>
+            <span id="eb-live-timer" style="font-family:monospace; font-size:12px; background:#BBF7D0; padding:2px 8px; border-radius:4px;">00:15</span>
           </div>
         </div>
 
-        <!-- Operator Recording Form -->
-        <div style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="font-size:13px; font-weight:800; color:var(--primary); margin-bottom:12px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
-            Form Input Operator SPKT (Penerimaan Panggilan Telepon)
+        <!-- 2. FORMULIR INPUT OPERATOR SPKT (TEMA TERANG PUTIH BERSIH) -->
+        <div style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+            <div style="font-size:13px; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:6px;">
+              <span>📝</span> Formulir Penerimaan Laporan 110
+            </div>
+            <span style="font-size:11px; color:var(--text-muted); font-weight:600;">
+              Petugas: <strong style="color:var(--primary);">Briptu Dian Lestari</strong>
+            </span>
           </div>
 
-          <div class="form-group" style="margin-bottom:10px;">
-            <label class="form-label" style="font-size:11px;">Nomor Telepon Penelepon <span style="color:red;">*</span></label>
-            <input type="text" id="eb-op-telepon" class="form-control" value="+62 812-9844-3210" placeholder="0812xxxx">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11.5px;">Nomor Telepon Penelepon (Pelapor) <span style="color:red;">*</span></label>
+            <div style="position:relative;">
+              <input type="text" id="eb-op-telepon" class="form-control" value="+62 812-9844-3210" placeholder="0812xxxx">
+              <span style="position:absolute; right:8px; top:8px; bottom:8px; background:#EFF6FF; color:#1D4ED8; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; display:flex; align-items:center;">
+                ✓ Terverifikasi
+              </span>
+            </div>
           </div>
 
-          <div class="form-group" style="margin-bottom:10px;">
-            <label class="form-label" style="font-size:11px;">Nama Warga Pelapor <span style="color:red;">*</span></label>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11.5px;">Nama Warga Pelapor <span style="color:red;">*</span></label>
             <input type="text" id="eb-op-nama" class="form-control" value="Ibu Ratna Dewi (Warga)" placeholder="Nama pelapor">
           </div>
 
-          <div class="form-group" style="margin-bottom:10px;">
-            <label class="form-label" style="font-size:11px;">Jenis Insiden / Kejadian <span style="color:red;">*</span></label>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11.5px;">Kategori / Jenis Insiden <span style="color:red;">*</span></label>
             <select id="eb-op-jenis" class="form-control" style="font-weight:600;">
               <option value="Kecelakaan Lalu Lintas">🚗 Kecelakaan Lalu Lintas</option>
               <option value="Tawuran Pelajar / Remaja" selected>⚔️ Tawuran Pelajar / Kerumunan Remaja</option>
@@ -1548,25 +1575,61 @@
             </select>
           </div>
 
-          <div class="form-group" style="margin-bottom:10px;">
-            <label class="form-label" style="font-size:11px;">Lokasi Kejadian (TKP) & Sektor <span style="color:red;">*</span></label>
+          <!-- Tingkat Urgensi Presisi -->
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11.5px;">Tingkat Urgensi Penanganan <span style="color:red;">*</span></label>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">
+              <button type="button" id="eb-urg-darurat" onclick="setEbUrgensi('darurat')" style="padding:8px 4px; border-radius:6px; font-size:11px; font-weight:700; border:1.5px solid #EF4444; background:#FEF2F2; color:#DC2626; cursor:pointer;">
+                🚨 DARURAT
+              </button>
+              <button type="button" id="eb-urg-sedang" onclick="setEbUrgensi('sedang')" style="padding:8px 4px; border-radius:6px; font-size:11px; font-weight:700; border:1px solid #CBD5E1; background:white; color:#64748B; cursor:pointer;">
+                ⚠️ SEDANG
+              </button>
+              <button type="button" id="eb-urg-normal" onclick="setEbUrgensi('normal')" style="padding:8px 4px; border-radius:6px; font-size:11px; font-weight:700; border:1px solid #CBD5E1; background:white; color:#64748B; cursor:pointer;">
+                ℹ️ NORMAL
+              </button>
+            </div>
+            <input type="hidden" id="eb-op-urgensi" value="Prioritas Tinggi (Darurat)">
+          </div>
+
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11.5px;">Lokasi Kejadian (TKP) & Sektor <span style="color:red;">*</span></label>
             <input type="text" id="eb-op-lokasi" class="form-control" value="Jl. Panglima Polim Raya No. 42, Kebayoran Baru, Jakarta Selatan">
           </div>
 
-          <div class="form-group" style="margin-bottom:10px;">
-            <label class="form-label" style="font-size:11px;">Koordinat GPS Satelit</label>
-            <input type="text" id="eb-op-gps" class="form-control" value="-6.2415, 106.8021" readonly style="background:#F8FAFC; color:#2563EB; font-family:monospace;">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:11.5px;">Koordinat GPS Satelit (Terkunci Otomatis)</label>
+            <input type="text" id="eb-op-gps" class="form-control" value="-6.2415, 106.8021" readonly style="background:#F8FAFC; color:#2563EB; font-family:monospace; font-weight:600;">
           </div>
 
-          <div class="form-group" style="margin-bottom:14px;">
-            <label class="form-label" style="font-size:11px;">Ringkasan Uraian Kejadian Dari Penelepon <span style="color:red;">*</span></label>
-            <textarea id="eb-op-uraian" class="form-control" style="min-height:75px;" placeholder="Tuliskan keterangan pelapor...">Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok antar kelompok. Mohon penanganan unit patroli segera.</textarea>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label class="form-label" style="font-size:11.5px;">Ringkasan Uraian Kejadian Dari Penelepon <span style="color:red;">*</span></label>
+            <textarea id="eb-op-uraian" class="form-control" style="min-height:85px; font-size:12.5px; line-height:1.5;" placeholder="Tuliskan keterangan pelapor...">Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok antar kelompok. Mohon penanganan unit patroli segera.</textarea>
           </div>
 
-          <button type="button" class="btn-blue" style="width:100%; margin:0; background:var(--primary); padding:12px; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="ebSubmitLaporanOperator()">
+          <button type="button" class="btn-blue" style="width:100%; margin:0; background:var(--primary); padding:13px; font-weight:800; font-size:13.5px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 3px 10px rgba(21, 62, 117, 0.25);" onclick="ebSubmitLaporanOperator()">
             <span>🚀</span> Simpan & Teruskan ke Meja Pawas (FASE 1) ➔
           </button>
         </div>
+
+        <!-- 3. KARTU ANTREAN LIVE MENUNGGU VALIDASI PAWAS -->
+        <div style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
+            <div style="font-size:13px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:6px;">
+              <span>📋</span> Antrean Menunggu Validasi Pawas
+            </div>
+            <span style="font-size:11px; font-weight:800; background:#F59E0B; color:white; padding:2px 8px; border-radius:10px;" id="eb-op-queue-count">3</span>
+          </div>
+
+          <div id="eb-op-queue-list">
+            <!-- List antrean dirender dinamis -->
+          </div>
+
+          <button type="button" onclick="openValidasiList('menunggu')" style="width:100%; margin-top:10px; padding:10px; background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; color:var(--primary); font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+            <span>👨‍✈️</span> Lihat Meja Validasi Pawas ➔
+          </button>
+        </div>
+
       </div>
     </section>
   </main>
@@ -1764,6 +1827,9 @@
     if (viewId === 'view-peta' && mapFullscreen && typeof google !== 'undefined') {
       google.maps.event.trigger(mapFullscreen, 'resize');
       mapFullscreen.setCenter({ lat: -6.1950, lng: 106.8200 });
+    }
+    if (viewId === 'view-operator') {
+      renderEbOperatorQueue();
     }
   }
   
@@ -3594,11 +3660,13 @@
       const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Kapolres (Pawas)';
       const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MENGAWASI (Pawas)';
     } else if (role === 'operator') {
-      // Operator SPKT 110 (Call Center Konsol)
+      // Operator SPKT 110: Tampil seragam di dalam E-Tribrata Log
       const un = document.getElementById('user-name'); if (un) un.innerText = 'Briptu Dian Lestari';
-      const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Operator SPKT 110';
+      const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Operator SPKT 110 (Call Center)';
       const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MEJA OPERATOR (Siaga 110)';
-      // Switch langsung ke view-operator
+      
+      const tl = document.getElementById('tindak-lanjut-card'); if (tl) tl.style.display = 'none';
+      const navLog = document.getElementById('nav-log'); if (navLog) navLog.style.display = 'none';
       switchTab('view-operator');
     } else {
       // Anggota (default)
@@ -3703,15 +3771,91 @@
     appLogs.unshift(newLog);
     saveLogsToStorage();
     updateRekapCounts();
+    renderEbOperatorQueue();
 
     alert('✓ Panggilan 110 #' + newId + ' Berhasil Dicatat oleh Operator SPKT!\n\n• Sumber: Panggilan 110 (Call Center SPKT)\n• Status: Menunggu Validasi Pawas (FASE 1)\n• Data langsung masuk ke antrean validasi atasan.');
     openValidasiList('menunggu');
   }
 
+  let ebCallInterval = null;
+  let ebCallSeconds = 0;
+
   function ebJawabPanggilan() {
-    alert('📞 Panggilan 110 dijawab! Data penelepon telah dimuat ke formulir operator.');
+    const banner = document.getElementById('eb-call-connected-bar');
+    const timerText = document.getElementById('eb-live-timer');
+    const durLabel = document.getElementById('eb-call-duration');
+    
+    if (banner) banner.style.display = 'flex';
+    if (durLabel) durLabel.innerText = '📞 Tersambung';
+    
+    // Start Timer
+    if (ebCallInterval) clearInterval(ebCallInterval);
+    ebCallSeconds = 0;
+    ebCallInterval = setInterval(() => {
+      ebCallSeconds++;
+      const mins = String(Math.floor(ebCallSeconds / 60)).padStart(2, '0');
+      const secs = String(ebCallSeconds % 60).padStart(2, '0');
+      if (timerText) timerText.innerText = `${mins}:${secs}`;
+    }, 1000);
+
     const tel = document.getElementById('eb-op-telepon');
-    if (tel) tel.focus();
+    if (tel) {
+      tel.focus();
+      tel.style.borderColor = '#10B981';
+      setTimeout(() => tel.style.borderColor = '#CBD5E1', 1200);
+    }
+  }
+
+  function setEbUrgensi(level) {
+    const btnD = document.getElementById('eb-urg-darurat');
+    const btnS = document.getElementById('eb-urg-sedang');
+    const btnN = document.getElementById('eb-urg-normal');
+    const input = document.getElementById('eb-op-urgensi');
+    
+    [btnD, btnS, btnN].forEach(b => {
+      if (!b) return;
+      b.style.border = '1px solid #CBD5E1';
+      b.style.background = 'white';
+      b.style.color = '#64748B';
+    });
+
+    if (level === 'darurat') {
+      if (btnD) { btnD.style.border = '1.5px solid #EF4444'; btnD.style.background = '#FEF2F2'; btnD.style.color = '#DC2626'; }
+      if (input) input.value = 'Prioritas Tinggi (Darurat)';
+    } else if (level === 'sedang') {
+      if (btnS) { btnS.style.border = '1.5px solid #F59E0B'; btnS.style.background = '#FFFBEB'; btnS.style.color = '#D97706'; }
+      if (input) input.value = 'Prioritas Sedang (Disiagakan)';
+    } else {
+      if (btnN) { btnN.style.border = '1.5px solid #3B82F6'; btnN.style.background = '#EFF6FF'; btnN.style.color = '#1D4ED8'; }
+      if (input) input.value = 'Normal / Reguler';
+    }
+  }
+
+  function renderEbOperatorQueue() {
+    const listEl = document.getElementById('eb-op-queue-list');
+    const countEl = document.getElementById('eb-op-queue-count');
+    if (!listEl) return;
+    
+    const pendingLogs = appLogs.filter(l => l.status === 'menunggu');
+    if (countEl) countEl.innerText = pendingLogs.length;
+
+    if (pendingLogs.length === 0) {
+      listEl.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Tidak ada antrean laporan menunggu.</div>';
+      return;
+    }
+
+    listEl.innerHTML = pendingLogs.slice(0, 4).map(l => `
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px 10px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+          <span style="font-size:10px; font-weight:700; background:#EFF6FF; color:#1D4ED8; padding:1px 6px; border-radius:4px;">
+            ${l.sumberLaporan || '📞 Panggilan 110'}
+          </span>
+          <span style="font-size:10px; color:var(--text-muted);">${l.waktu || '10:45 WIB'}</span>
+        </div>
+        <div style="font-size:12px; font-weight:700; color:var(--text);">${l.title}</div>
+        <div style="font-size:11px; color:var(--text-muted);">${l.lokasiKejadian || l.sektor || 'Jakarta'}</div>
+      </div>
+    `).join('');
   }
 
   function ebAcakPanggilan() {

@@ -123,18 +123,15 @@
         <div style="font-size:11px; font-weight:500; color:#D97706;">NRP: 88010234 • Kombes Pol Budi (Validasi & Supervisi)</div>
       </button>
 
-      <div class="demo-title" style="margin-top:16px;">🌐 Portal Eksternal & Workstation Khusus</div>
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
-        <button class="btn-demo" style="border-color:#DC2626; color:#DC2626; background:#FEF2F2; font-size:11px; padding:8px 6px; margin:0;" onclick="window.location.href='lapor-110.html'">
-          🚨 Portal Warga (SOS)
+      <div class="demo-title" style="margin-top:16px;">🌐 Portal Publik Warga (Masyarakat)</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <button class="btn-demo" style="border-color:#DC2626; color:#DC2626; background:#FEF2F2; font-size:11.5px; padding:10px 8px; margin:0;" onclick="window.location.href='lapor-110.html'">
+          🚨 Portal Warga (SOS 110)
         </button>
-        <button class="btn-demo" style="border-color:#10B981; color:#047857; background:#F0FDF4; font-size:11px; padding:8px 6px; margin:0;" onclick="window.location.href='masyarakat.html'">
-          ⭐ Lacak & Rating
+        <button class="btn-demo" style="border-color:#10B981; color:#047857; background:#F0FDF4; font-size:11.5px; padding:10px 8px; margin:0;" onclick="window.location.href='masyarakat.html'">
+          ⭐ Lacak Tiket & Rating
         </button>
       </div>
-      <button class="btn-demo" style="border-color:#475569; color:#334155; background:#F1F5F9; font-size:11px; padding:8px; margin-top:6px; margin-bottom:0;" onclick="window.location.href='operator-110.html'">
-        🖥️ Workstation Dedicated SPKT (Command Center Fullscreen)
-      </button>
     </div>
   </div>
 
@@ -174,11 +171,7 @@
       if (input) input.value = nrp;
       detectRoleFromNRP(nrp);
       setTimeout(() => {
-        if (role === 'operator') {
-          window.location.href = 'operator-110.html';
-        } else {
-          window.location.href = `e-tribrata-log.html?role=${role}`;
-        }
+        window.location.href = `e-tribrata-log.html?role=${role}`;
       }, 150);
     }
 
@@ -186,11 +179,7 @@
       e.preventDefault();
       const nrp = document.getElementById('login-nrp').value;
       const targetRole = detectRoleFromNRP(nrp);
-      if (targetRole === 'operator') {
-        window.location.href = 'operator-110.html';
-      } else {
-        window.location.href = `e-tribrata-log.html?role=${targetRole}`;
-      }
+      window.location.href = `e-tribrata-log.html?role=${targetRole}`;
     }
 
     // Inisialisasi awal
