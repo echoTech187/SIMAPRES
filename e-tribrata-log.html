@@ -208,12 +208,17 @@
     }
 
     /* Mini Map */
-    #map-beranda {
+    #map-beranda-wrapper {
       width: 100%;
       height: 350px;
       border-radius: 8px;
       background: var(--gray-bg);
       position: relative;
+    }
+    #map-beranda {
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
     }
 
     .map-legend-mini {
@@ -1118,14 +1123,112 @@
           <div class="status-text">STATUS: DINAS (Patroli Wilayah)</div>
         </div>
 
+        <!-- Banner Alert Insiden Menonjol Khusus Pimpinan/Pawas -->
+        <div id="pimpinan-breaking-alert" style="display:none; margin: 0 24px 20px; background: linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%); border: 1.5px solid #FCA5A5; border-left: 6px solid #DC2626; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
+            <div style="display:flex; gap:12px; align-items:flex-start;">
+              <div style="width:42px; height:42px; border-radius:10px; background:#FEE2E2; border:1px solid #FECACA; display:flex; align-items:center; justify-content:center; font-size:22px; flex-shrink:0;">
+                🚨
+              </div>
+              <div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
+                  <span style="background:#DC2626; color:white; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; letter-spacing:0.5px;">INSIDEN MENONJOL (SIAGA 110)</span>
+                  <span style="font-size:11px; color:#991B1B; font-weight:700;">⏱️ Live Respon: 06:40 / 10:00 (Sisa 03:20)</span>
+                </div>
+                <div style="font-size:13.5px; font-weight:800; color:#991B1B; margin-bottom:4px;">
+                  Tawuran Pelajar Membawa Senjata Tajam di Jl. Panglima Polim Raya
+                </div>
+                <div style="font-size:11.5px; color:#475569; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <span>📍 Sektor Kebayoran Baru</span>
+                  <span>•</span>
+                  <span>🚔 Unit Dikerahkan: Patroli Samapta Presisi R-4 (Aiptu Herman)</span>
+                  <span>•</span>
+                  <span style="color:#2563EB; font-weight:700;">Status: Meluncur ke TKP (Tahap 3)</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-shrink:0;">
+              <button onclick="switchTab('view-validasi'); openValidasiList('diproses'); selectLogCard(2);" style="background:#153E75; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:700; font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(21,62,117,0.25);">
+                <span>👨‍✈️ Meja Komando Pawas</span> ➔
+              </button>
+              <button onclick="switchTab('view-peta')" style="background:white; color:#1E293B; border:1px solid #CBD5E1; padding:8px 12px; border-radius:8px; font-weight:700; font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:4px;">
+                <span>🗺️ Plotting Peta</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div class="beranda-grid">
           <!-- Left Column -->
-          <div style="width: 75%;">
+          <div id="beranda-col-left" style="flex: 1; min-width: 0;">
             <!-- Peta Card -->
-            <div class="card-panel">
-              <div class="card-title">Peta Rute Patroli</div>
-              <div id="map-beranda">
-                <div class="map-legend-mini"><span style="color:#EF4444; font-size:14px;">●</span> Titik Rawan</div>
+            <div class="card-panel" id="card-map-beranda">
+              <div style="display:flex; justify-content:space-between; flex-direction: column; align-items:flex-start; margin-bottom:12px;">
+                <div class="card-title" id="map-card-title" style="margin-bottom:12px;">Peta Rute Patroli</div>
+                <!-- Fleet Badges Khusus Pimpinan -->
+                <div id="pimpinan-map-badges" style="display:none; gap:6px; flex-wrap:wrap;">
+                  <span onclick="fokusUnitMap('samapta')" style="background:#EFF6FF; color:#1D4ED8; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; border:1px solid #BFDBFE; cursor:pointer; transition:0.2s; user-select:none;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'" title="Klik untuk fokus & detail Armada Samapta R-4">🚔 4 Samapta R-4</span>
+                  <span onclick="fokusUnitMap('perintis')" style="background:#FEF3C7; color:#B45309; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; border:1px solid #FDE68A; cursor:pointer; transition:0.2s; user-select:none;" onmouseover="this.style.background='#FDE68A'" onmouseout="this.style.background='#FEF3C7'" title="Klik untuk fokus & detail Tim Perintis Presisi R-2">🏍️ 6 Perintis R-2</span>
+                  <span onclick="fokusUnitMap('lantas')" style="background:#F0FDF4; color:#15803D; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; border:1px solid #BBF7D0; cursor:pointer; transition:0.2s; user-select:none;" onmouseover="this.style.background='#DCFCE7'" onmouseout="this.style.background='#F0FDF4'" title="Klik untuk fokus & detail Patroli Turjawali Satlantas">🚓 4 Lantas R-4</span>
+                  <span onclick="fokusUnitMap('hotspot')" style="background:#FEF2F2; color:#DC2626; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; border:1px solid #FECACA; cursor:pointer; transition:0.2s; user-select:none;" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'" title="Klik untuk fokus & detail Titik Hotspot Rawan">🔴 3 Titik Hotspot</span>
+                </div>
+              </div>
+              <div id="map-beranda-wrapper" style="position:relative; width:100%; height:350px; border-radius:8px; overflow:hidden;">
+                <!-- Container Google Maps murni (isi canvas digenerate oleh Google Maps) -->
+                <div id="map-beranda" style="width:100%; height:100%;"></div>
+
+                <!-- Floating Map Controls (Zoom In, Zoom Out, Reset Center, Fullscreen) -->
+                <div style="position:absolute; top:12px; right:12px; z-index:999; display:flex; flex-direction:column; gap:6px;">
+                  <button type="button" onclick="zoomMapBeranda(1)" title="Perbesar (Zoom In)"
+                    style="width:34px; height:34px; background:white; border:1px solid #CBD5E1; border-radius:8px; font-weight:800; font-size:18px; color:#1E293B; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; transition:0.2s;"
+                    onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='white'">
+                    +
+                  </button>
+                  <button type="button" onclick="zoomMapBeranda(-1)" title="Perkecil (Zoom Out)"
+                    style="width:34px; height:34px; background:white; border:1px solid #CBD5E1; border-radius:8px; font-weight:800; font-size:18px; color:#1E293B; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; transition:0.2s;"
+                    onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='white'">
+                    −
+                  </button>
+                  <button type="button" onclick="resetCenterMapBeranda()" title="Pusatkan Ulang Wilayah"
+                    style="width:34px; height:34px; background:white; border:1px solid #CBD5E1; border-radius:8px; font-weight:700; font-size:14px; color:#1E293B; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; transition:0.2s;"
+                    onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='white'">
+                    🎯
+                  </button>
+                  <button type="button" onclick="switchTab('view-peta')" title="Buka Peta Layar Penuh"
+                    style="width:34px; height:34px; background:#153E75; border:none; border-radius:8px; font-weight:700; font-size:13px; color:white; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.2); display:flex; align-items:center; justify-content:center; transition:0.2s;"
+                    onmouseover="this.style.background='#1E40AF'" onmouseout="this.style.background='#153E75'">
+                    ⛶
+                  </button>
+                </div>
+
+                <!-- Floating Unit Detail Modal (Sesuai Mockup Gambar 2) -->
+                <div id="modal-map-unit-detail" style="display:none; position:absolute; top:12px; left:12px; z-index:9999; background:#FFFFFF; border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,0.25), 0 4px 10px rgba(0,0,0,0.15); border:1px solid #CBD5E1; padding:15px 17px; width:330px; max-width:calc(100% - 70px); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; pointer-events:auto;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                    <div style="font-size:15px; font-weight:800; color:#0284C7; display:flex; align-items:center; gap:7px;">
+                      <span id="mud-icon" style="font-size:16px;">🚔</span>
+                      <span id="mud-title">Patroli Samapta 110-A</span>
+                    </div>
+                    <button type="button" onclick="tutupModalMapUnit()" style="background:none; border:none; color:#94A3B8; font-size:16px; font-weight:700; cursor:pointer; line-height:1; padding:2px 4px; border-radius:4px;" onmouseover="this.style.color='#1E293B'" onmouseout="this.style.color='#94A3B8'" title="Tutup Detail">✕</button>
+                  </div>
+                  <div id="mud-petugas" style="font-size:13.5px; font-weight:700; color:#1E293B; line-height:1.3; margin-top:4px;">
+                    Bripka Ahmad Subagyo (NRP 88123456)
+                  </div>
+                  <div id="mud-sub" style="font-size:11.5px; color:#64748B; margin-top:2px; line-height:1.4;">
+                    Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81
+                  </div>
+                  <div style="border-top:1px solid #E2E8F0; margin:10px 0 8px 0;"></div>
+                  <div id="mud-status" style="font-size:13px; font-weight:800; color:#10B981;">
+                    Status: SIAGA
+                  </div>
+                  <div id="mud-tugas" style="font-size:12px; color:#475569; margin-top:3px; line-height:1.4;">
+                    Tugas: Patroli Rute Beat 1 (Pasar & Bank)
+                  </div>
+                  <div id="mud-telemetri" style="font-size:11.5px; color:#64748B; margin-top:2px;">
+                    Kecepatan: 35 km/jam • Sinyal GPS Prima
+                  </div>
+                </div>
+
+                <div class="map-legend-mini" id="map-legend-mini"><span style="color:#EF4444; font-size:14px;">●</span> Titik Rawan</div>
               </div>
             </div>
 
@@ -1180,9 +1283,8 @@
               </div>
             </div>
 
-
-            <!-- Aktivitas -->
-            <div class="card-panel">
+            <!-- Aktivitas Personel Lapangan (Tampil saat akun Anggota) -->
+            <div id="aktivitas-personel-card" class="card-panel">
               <div class="card-title">Aktivitas Terkini</div>
               <div class="timeline">
                 <div class="tl-item">
@@ -1205,11 +1307,54 @@
                 </div>
               </div>
             </div>
+
+            <!-- Feed Komando & Respon Personel Terkini (Khusus Pimpinan/Pawas) -->
+            <div id="aktivitas-pimpinan-card" class="card-panel" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <div>
+                  <div class="card-title" style="margin-bottom:2px;">FEED KOMANDO & SITUASI LAPANGAN (REAL-TIME)</div>
+                  <div style="font-size:11.5px; color:var(--text-muted);">Pemantauan tindakan seluruh personel dan unit reaksi cepat di wilayah hukum Polres</div>
+                </div>
+                <span style="background:#EFF6FF; color:#1D4ED8; font-weight:700; font-size:11px; padding:4px 10px; border-radius:12px; border:1px solid #BFDBFE;">● Siaga Aktif 24 Jam</span>
+              </div>
+              <div class="timeline" id="pimpinan-ops-timeline">
+                <div class="tl-item">
+                  <div class="tl-dot red"></div>
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <div>
+                      <div style="font-weight:800; font-size:13px; color:var(--text);">12:20 WIB - Respon Cepat Tawuran Pelajar (Panglima Polim)</div>
+                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Unit Samapta Presisi R-4 (Aiptu Herman) meluncur ke TKP. Estimasi tiba 3 menit.</div>
+                    </div>
+                    <span style="font-size:10px; font-weight:800; background:#FEF2F2; color:#DC2626; padding:3px 8px; border-radius:6px; border:1px solid #FECACA; white-space:nowrap;">🚨 DARURAT (TAHAP 3)</span>
+                  </div>
+                </div>
+                <div class="tl-item">
+                  <div class="tl-dot yellow"></div>
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <div>
+                      <div style="font-weight:800; font-size:13px; color:var(--text);">11:40 WIB - Pengamanan Sambang Pos Kamling & Warga RT 04 (Sektor Barat)</div>
+                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Bripka Ahmad menyelesaikan penyuluhan kamtibmas. Menunggu review lembar laporan.</div>
+                    </div>
+                    <span style="font-size:10px; font-weight:800; background:#FFFBEB; color:#D97706; padding:3px 8px; border-radius:6px; border:1px solid #FDE68A; white-space:nowrap;">⏳ REVIEW PAWAS</span>
+                  </div>
+                </div>
+                <div class="tl-item" style="margin-bottom:0;">
+                  <div class="tl-dot"></div>
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+                    <div>
+                      <div style="font-weight:800; font-size:13px; color:var(--text);">10:15 WIB - Pengaturan Arus Lalu Lintas & Patroli Simpang Protokol</div>
+                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Turjawali Satlantas telah menuntaskan tugas penguraian kemacetan. Situasi kembali lancar.</div>
+                    </div>
+                    <span style="font-size:10px; font-weight:800; background:#F0FDF4; color:#16A34A; padding:3px 8px; border-radius:6px; border:1px solid #BBF7D0; white-space:nowrap;">✓ TUNTAS (IKM ⭐ 5.0)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Right Column -->
-          <div style="width: 25%;">
-            <!-- Input Log Buttons -->
+          <div id="beranda-col-right" style="width: 330px; flex-shrink: 0;">
+            <!-- Input Log Buttons (Khusus Personel Lapangan) -->
             <div id="tindak-lanjut-card" class="card-panel">
               <div class="card-title">Input Log Kegiatan</div>
               <button class="btn-log" onclick="openRespon('PATROLI')">PATROLI</button>
@@ -1218,12 +1363,106 @@
               <button class="btn-log" onclick="openRespon('PENGAMANAN')">PENGAMANAN</button>
             </div>
 
-            <!-- KPI -->
+            <!-- KPI (Khusus Personel Lapangan) -->
             <div id="kpi-card" class="card-panel">
               <div class="card-title">KPI PERFORMANCE</div>
               <div class="gauge-container">
                 <canvas id="gauge1"></canvas>
                 <div class="gauge-text" style="color:var(--primary);">92%</div>
+              </div>
+            </div>
+
+            <!-- Executive Command Sidebar (Khusus Pimpinan/Pawas) -->
+            <div id="pimpinan-executive-sidebar" style="display:none;">
+              <!-- Widget 1: SLA Response Time 110 -->
+              <div class="card-panel" style="padding:16px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <div class="card-title" style="margin-bottom:0; font-size:12.5px;">SLA QUICK RESPONSE 110</div>
+                  <span style="background:#F0FDF4; color:#15803D; font-weight:800; font-size:10px; padding:2px 8px; border-radius:6px; border:1px solid #BBF7D0;">TARGET < 10m</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px;">
+                  <div style="width:75px; height:75px; position:relative; flex-shrink:0;">
+                    <canvas id="gauge-sla-pimpinan" width="75" height="75"></canvas>
+                    <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+                      <span style="font-size:17px; font-weight:900; color:#153E75; line-height:1;">7.4</span>
+                      <span style="font-size:9px; color:#64748B; font-weight:700;">MENIT</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size:12px; font-weight:800; color:#15803D; display:flex; align-items:center; gap:4px;">
+                      <span>✓</span> Kepatuhan: 94.8%
+                    </div>
+                    <div style="font-size:11px; color:#64748B; line-height:1.4; margin-top:2px;">
+                      Rata-rata kedatangan unit patroli sejak panggilan 110 diterima operator.
+                    </div>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; background:#F8FAFC; padding:8px; border-radius:8px; border:1px solid #E2E8F0; text-align:center;">
+                  <div>
+                    <div style="font-size:9.5px; color:#64748B; font-weight:700;">< 5 Menit</div>
+                    <div style="font-size:12px; font-weight:800; color:#16A34A;">18 (65%)</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9.5px; color:#64748B; font-weight:700;">5-10 Menit</div>
+                    <div style="font-size:12px; font-weight:800; color:#2563EB;">9 (30%)</div>
+                  </div>
+                  <div>
+                    <div style="font-size:9.5px; color:#64748B; font-weight:700;">> 10 Menit</div>
+                    <div style="font-size:12px; font-weight:800; color:#DC2626;">2 (5%)</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Widget 2: Kuat Pers & Armada Polres -->
+              <div class="card-panel" style="padding:16px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <div class="card-title" style="margin-bottom:0; font-size:12.5px;">KUAT PERS & ARMADA POLRES</div>
+                  <span style="background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:10px; padding:2px 8px; border-radius:6px; border:1px solid #BFDBFE;">TOTAL 46 PERS</span>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#F0FDF4; padding:8px 10px; border-radius:6px; border-left:3px solid #16A34A;">
+                    <span style="font-size:11.5px; font-weight:700; color:#166534;">🟢 Siaga di Mako Induk</span>
+                    <span style="font-size:12px; font-weight:800; color:#166534;">24 Pers</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#EFF6FF; padding:8px 10px; border-radius:6px; border-left:3px solid #2563EB;">
+                    <span style="font-size:11.5px; font-weight:700; color:#1E40AF;">🔵 Bergerak / Di TKP</span>
+                    <span style="font-size:12px; font-weight:800; color:#1E40AF;">10 Pers</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center; background:#FFFBEB; padding:8px 10px; border-radius:6px; border-left:3px solid #D97706;">
+                    <span style="font-size:11.5px; font-weight:700; color:#92400E;">🟡 Cadangan Piket Ops</span>
+                    <span style="font-size:12px; font-weight:800; color:#92400E;">12 Pers</span>
+                  </div>
+                </div>
+                <div style="border-top:1px dashed #CBD5E1; padding-top:10px;">
+                  <div style="font-size:10.5px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">Armada Dinas Tergelar:</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    <span style="font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; padding:3px 8px; border-radius:4px; border:1px solid #E2E8F0;">🚔 Samapta R-4: 4 Unit</span>
+                    <span style="font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; padding:3px 8px; border-radius:4px; border:1px solid #E2E8F0;">🏍️ Perintis R-2: 6 Unit</span>
+                    <span style="font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; padding:3px 8px; border-radius:4px; border:1px solid #E2E8F0;">🚓 Lantas R-4: 4 Unit</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Widget 3: Indeks Kepuasan Masyarakat 110 -->
+              <div class="card-panel" style="padding:16px; margin-bottom:0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <div class="card-title" style="margin-bottom:0; font-size:12.5px;">INDEKS KEPUASAN WARGA (IKM)</div>
+                  <span style="color:#F59E0B; font-weight:800; font-size:12px;">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                  <div>
+                    <div style="font-size:24px; font-weight:900; color:#1E293B; line-height:1;">4.8 <span style="font-size:13px; color:#64748B; font-weight:600;">/ 5.0</span></div>
+                    <div style="font-size:11px; color:#16A34A; font-weight:700; margin-top:2px;">96.2% Warga Menyatakan Puas</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-size:13px; font-weight:800; color:#153E75;">28 Ulasan</div>
+                    <div style="font-size:10px; color:#64748B;">Layanan 110 Hari Ini</div>
+                  </div>
+                </div>
+                <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px; font-size:11px; color:#475569; line-height:1.4; font-style:italic;">
+                  "Unit Patroli Samapta tiba hanya 6 menit setelah kami hubungi 110. Petugas ramah, situasi cepat terkendali."
+                  <div style="font-style:normal; font-weight:700; color:#1E293B; margin-top:4px; font-size:10px; text-align:right;">— Bpk. Hendra (Pelapor Panglima Polim)</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1241,6 +1480,34 @@
             Lihat Sebaran Personel Lain
           </label>
         </div>
+
+        <!-- Floating Unit Detail Modal untuk Tab Peta Layar Penuh (Sesuai Mockup Gambar 2) -->
+        <div id="modal-map-unit-detail-fs" style="display:none; position:absolute; top:86px; left:16px; z-index:9999; background:#FFFFFF; border-radius:12px; box-shadow:0 12px 30px rgba(0,0,0,0.25), 0 4px 10px rgba(0,0,0,0.15); border:1px solid #CBD5E1; padding:15px 17px; width:340px; max-width:calc(100% - 32px); font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; pointer-events:auto;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+            <div style="font-size:15px; font-weight:800; color:#0284C7; display:flex; align-items:center; gap:7px;">
+              <span id="mud-icon-fs" style="font-size:16px;">🚔</span>
+              <span id="mud-title-fs">Patroli Samapta 110-A</span>
+            </div>
+            <button type="button" onclick="tutupModalMapUnit()" style="background:none; border:none; color:#94A3B8; font-size:16px; font-weight:700; cursor:pointer; line-height:1; padding:2px 4px; border-radius:4px;" onmouseover="this.style.color='#1E293B'" onmouseout="this.style.color='#94A3B8'" title="Tutup Detail">✕</button>
+          </div>
+          <div id="mud-petugas-fs" style="font-size:13.5px; font-weight:700; color:#1E293B; line-height:1.3; margin-top:4px;">
+            Bripka Ahmad Subagyo (NRP 88123456)
+          </div>
+          <div id="mud-sub-fs" style="font-size:11.5px; color:#64748B; margin-top:2px; line-height:1.4;">
+            Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81
+          </div>
+          <div style="border-top:1px solid #E2E8F0; margin:10px 0 8px 0;"></div>
+          <div id="mud-status-fs" style="font-size:13px; font-weight:800; color:#10B981;">
+            Status: SIAGA
+          </div>
+          <div id="mud-tugas-fs" style="font-size:12px; color:#475569; margin-top:3px; line-height:1.4;">
+            Tugas: Patroli Rute Beat 1 (Pasar & Bank)
+          </div>
+          <div id="mud-telemetri-fs" style="font-size:11.5px; color:#64748B; margin-top:2px;">
+            Kecepatan: 35 km/jam • Sinyal GPS Prima
+          </div>
+        </div>
+
         <div id="map-fullscreen" style="width:100%; height:100%; position:absolute; top:0; left:0;"></div>
         <div class="map-legend"
           style="position:absolute; bottom:16px; left:16px; z-index:10; background:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
@@ -1286,18 +1553,25 @@
         <img src="https://placehold.co/200x200/153E75/FFFFFF?text=Foto" class="photo-thumb">
       </section>
 
-      <!-- SCREEN 3: VALIDASI -->
+      <!-- SCREEN 3: VALIDASI & MONITORING PAWAS -->
       <section id="view-validasi" class="view">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px; flex-wrap:wrap; gap:10px;">
           <div>
-            <h2 class="page-title" style="margin:0;">Validasi Atasan</h2>
-            <div class="page-subtitle" style="margin:2px 0 0; color:var(--text-muted); font-size:12px;">Pilih kategori
-              status di bawah untuk memfilter log:</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h2 class="page-title" style="margin:0;" id="val-page-title">Konsol Monitoring & Komando Pawas</h2>
+              <span style="font-size:10px; font-weight:800; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; padding:2px 8px; border-radius:12px;">PRESISI 110</span>
+            </div>
+            <div class="page-subtitle" style="margin:2px 0 0; color:var(--text-muted); font-size:12px;" id="val-page-desc">Pusat Kendali 110 & Supervisi Operasional: Validasi, Disposisi Satuan Lapangan & Otorisasi Penutupan Kasus</div>
           </div>
-          <div onclick="switchTab('view-beranda')"
-            style="font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; background:#EFF6FF; padding:6px 12px; border-radius:6px; transition:0.2s; display:flex; align-items:center; gap:4px;"
-            onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
-            <span>←</span> Kembali ke Beranda
+          <div id="val-header-right-action" style="display:flex; align-items:center; gap:8px;">
+            <div style="font-size:11.5px; font-weight:700; color:#1E40AF; background:#EFF6FF; padding:6px 12px; border-radius:6px; border:1px solid #BFDBFE; display:flex; align-items:center; gap:5px;">
+              <span>👮</span> <span id="val-header-badge-text">Piket Pawas Siaga 24 Jam</span>
+            </div>
+            <div onclick="switchTab('view-beranda')" id="val-btn-beranda-kembali"
+              style="font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; background:#F1F5F9; padding:6px 12px; border-radius:6px; transition:0.2s; display:flex; align-items:center; gap:4px;"
+              onmouseover="this.style.background='#E2E8F0'" onmouseout="this.style.background='#F1F5F9'">
+              <span>🏠</span> Beranda
+            </div>
           </div>
         </div>
 
@@ -2264,8 +2538,18 @@
           ]
         };
 
-        mapFullscreen = new google.maps.Map(elFs, mapOptions);
-        mapBeranda = new google.maps.Map(elBeranda, Object.assign({}, mapOptions, { zoom: 11, draggable: false, scrollwheel: false }));
+        mapFullscreen = new google.maps.Map(elFs, Object.assign({}, mapOptions, {
+          zoom: 13,
+          draggable: true,
+          scrollwheel: true,
+          gestureHandling: 'greedy'
+        }));
+        mapBeranda = new google.maps.Map(elBeranda, Object.assign({}, mapOptions, {
+          zoom: 11,
+          draggable: true,
+          scrollwheel: true,
+          gestureHandling: 'greedy'
+        }));
 
         // 1:1 Map Elements based on mockup:
         // Green line, Yellow line, Red line, Red pins, Big Police Car
@@ -2315,9 +2599,7 @@
         new google.maps.Marker({ position: p3, map: mapFullscreen });
         new google.maps.Marker({ position: p6, map: mapFullscreen });
 
-        new google.maps.Marker({ position: p1, map: mapBeranda, icon: redPin });
-
-        // Big Police Car Icon with "POLISI" text
+        // Big Police Car Icon with "POLISI" text untuk anggota lapangan
         const policeIcon = {
           url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
         <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
@@ -2330,8 +2612,180 @@
       `),
           anchor: new google.maps.Point(50, 25)
         };
-        new google.maps.Marker({ position: p4, map: mapFullscreen, icon: policeIcon, title: "Posisi Saya" });
-        new google.maps.Marker({ position: p4, map: mapBeranda, icon: policeIcon, title: "Posisi Saya" });
+        const urlParams = new URLSearchParams(window.location.search);
+        const role = urlParams.get('role');
+        const isPimpinan = (role === 'pimpinan' || role === 'atasan' || role === 'pawas');
+
+        if (isPimpinan) {
+          // Circular Badge Pin dengan Glowing Halo Ring Sesuai Mockup Gambar 2
+          const makeHaloBadgeIcon = (emoji, strokeColor, haloColor) => ({
+            url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+              <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
+                <!-- Outer Pulsing Halo Ring -->
+                <circle cx="26" cy="26" r="23" fill="${haloColor}" fill-opacity="0.32" stroke="${strokeColor}" stroke-width="1.5" stroke-dasharray="4,2"/>
+                <!-- Inner Solid White Circle -->
+                <circle cx="26" cy="26" r="16.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2.5"/>
+                <!-- Centered Emoji/Icon -->
+                <text x="26" y="32" font-size="18" text-anchor="middle" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif">${emoji}</text>
+              </svg>
+            `),
+            scaledSize: new google.maps.Size(52, 52),
+            anchor: new google.maps.Point(26, 26)
+          });
+
+          // Data Detail Telemetri Unit & Hotspot (Persis Sesuai Mockup Gambar 2)
+          window.markerDataMap = {
+            samapta1: {
+              iconEmoji: '🚔',
+              title: 'Patroli Samapta 110-A',
+              petugas: 'Bripka Ahmad Subagyo (NRP 88123456)',
+              sub: 'Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81',
+              status: 'Status: SIAGA',
+              statusColor: '#10B981',
+              tugas: 'Tugas: Patroli Rute Beat 1 (Pasar & Bank)',
+              telemetri: 'Kecepatan: 35 km/jam • Sinyal GPS Prima',
+              pos: p4
+            },
+            samapta2: {
+              iconEmoji: '🚔',
+              title: 'Patroli Samapta 110-B',
+              petugas: 'Aipda Eko Prasetyo (NRP 82040512)',
+              sub: 'Sat Samapta (Sektor Pusat) • Double Cabin R4-Samapta-12',
+              status: 'Status: PATROLI KOTA',
+              statusColor: '#2563EB',
+              tugas: 'Tugas: Patroli Jalur Protokol & Objek Vital Perbankan',
+              telemetri: 'Kecepatan: 40 km/jam • Sinyal GPS Prima',
+              pos: { lat: -6.2050, lng: 106.8250 }
+            },
+            perintis: {
+              iconEmoji: '🏍️',
+              title: 'Tim Perintis Presisi R-2',
+              petugas: 'Briptu Dian Wicaksono (NRP 95020123)',
+              sub: 'Tim Perintis Presisi (Sektor Barat) • Sepeda Motor R2-Trail-06',
+              status: 'Status: MERESPON TKP (DARURAT 110)',
+              statusColor: '#D97706',
+              tugas: 'Tugas: Respon Cepat Kerumunan Pelajar Jl. Panglima Polim',
+              telemetri: 'Kecepatan: 50 km/jam • Sinyal GPS Prima',
+              pos: { lat: -6.2200, lng: 106.8150 }
+            },
+            lantas: {
+              iconEmoji: '🚓',
+              title: 'Patroli Turjawali Satlantas',
+              petugas: 'Aiptu Bambang Irawan (NRP 78050321)',
+              sub: 'Satlantas Polres (Sektor Protokol) • Sedan Lantas-01',
+              status: 'Status: PENJAGAAN & PENGATURAN',
+              statusColor: '#0284C7',
+              tugas: 'Tugas: Penguraian Arus Lalu Lintas Simpang Protokol',
+              telemetri: 'Kecepatan: 15 km/jam • Sinyal GPS Prima',
+              pos: { lat: -6.1850, lng: 106.8100 }
+            },
+            mako: {
+              iconEmoji: '🏢',
+              title: 'Mako Polres Metro Jakarta Pusat',
+              petugas: 'Komando & Pengendalian Operasi (KODAL)',
+              sub: 'Jl. Kramat Raya No.61, Senen',
+              status: 'Status: MAKO SIAGA 1',
+              statusColor: '#10B981',
+              tugas: 'Pusat Komando & SPKT Pelayanan 110 Terpadu',
+              telemetri: '46 Personel Piket Aktif • 14 Armada Operasional',
+              pos: { lat: -6.2220, lng: 106.8020 }
+            },
+            hotspot1: {
+              iconEmoji: '🔴',
+              title: 'Titik Hotspot 1 (Manggarai)',
+              petugas: 'Wilayah Polsek Tebet / Sektor Timur',
+              sub: 'Kategori: Rawan Tawuran Warga & Gesekan Kelompok',
+              status: 'Status: PENGAWASAN PRIORITAS (RAWAN)',
+              statusColor: '#DC2626',
+              tugas: 'Jadwal Rawan: 23.00 - 04.30 WIB',
+              telemetri: 'Unit Terdekat: Patroli Samapta 110-A (600m)',
+              pos: p1
+            },
+            hotspot2: {
+              iconEmoji: '🔴',
+              title: 'Titik Hotspot 2 (Sudirman)',
+              petugas: 'Wilayah Polsek Setiabudi / Sektor Pusat',
+              sub: 'Kategori: Rawan Balap Liar',
+              status: 'Status: SIAGA PATROLI BLUE LIGHT',
+              statusColor: '#D97706',
+              tugas: 'Jadwal Rawan: 00.30 - 05.00 WIB',
+              telemetri: 'Unit Terdekat: Patroli Samapta 110-B (450m)',
+              pos: p3
+            },
+            hotspot3: {
+              iconEmoji: '🔴',
+              title: 'Titik Hotspot 3 (Panglima Polim)',
+              petugas: 'Wilayah Polsek Kebayoran Baru / Sektor Selatan',
+              sub: 'Kategori: Rawan Tawuran Pelajar Ber-sajam',
+              status: 'Status: INSIDEN DARURAT AKTIF (SIAGA 110)',
+              statusColor: '#DC2626',
+              tugas: 'Laporan Masuk: 12:20 WIB',
+              telemetri: 'Unit Terdekat: Tim Perintis Presisi R-2 (3 Menit)',
+              pos: p6
+            }
+          };
+
+          const addInteractiveMarker = (targetMap, pos, icon, data, title) => {
+            const marker = new google.maps.Marker({
+              position: pos,
+              map: targetMap,
+              icon: icon,
+              title: title,
+              cursor: 'pointer'
+            });
+            google.maps.event.addListener(marker, 'click', () => {
+              bukaModalMapUnit(data);
+            });
+            return marker;
+          };
+
+          // Render Armada Samapta R-4 (Icon Halo Biru Muda + Mobil Polisi 🚔)
+          const iconSamapta = makeHaloBadgeIcon('🚔', '#0284C7', '#38BDF8');
+          addInteractiveMarker(mapBeranda, p4, iconSamapta, window.markerDataMap.samapta1, "Patroli Samapta 110-A");
+          addInteractiveMarker(mapBeranda, { lat: -6.2050, lng: 106.8250 }, iconSamapta, window.markerDataMap.samapta2, "Patroli Samapta 110-B");
+
+          // Render Armada Perintis R-2 (Icon Halo Emas/Oranye + Motor Trail 🏍️)
+          const iconPerintis = makeHaloBadgeIcon('🏍️', '#D97706', '#FBBF24');
+          addInteractiveMarker(mapBeranda, { lat: -6.2200, lng: 106.8150 }, iconPerintis, window.markerDataMap.perintis, "Tim Perintis Presisi R-2");
+
+          // Render Armada Lantas R-4 (Icon Halo Biru Tua + Sedan Patroli 🚓)
+          const iconLantas = makeHaloBadgeIcon('🚓', '#1D4ED8', '#60A5FA');
+          addInteractiveMarker(mapBeranda, { lat: -6.1850, lng: 106.8100 }, iconLantas, window.markerDataMap.lantas, "Patroli Turjawali Satlantas");
+
+          // Render Mako Polres Metro (Icon Halo Gedung 🏢)
+          const iconMako = makeHaloBadgeIcon('🏢', '#1E3A8A', '#93C5FD');
+          addInteractiveMarker(mapBeranda, { lat: -6.2220, lng: 106.8020 }, iconMako, window.markerDataMap.mako, "Mako Polres Metro Jakarta Pusat");
+
+          // Render 3 Titik Hotspot Rawan (Icon Halo Merah Bahaya 🔴)
+          const iconHotspot = makeHaloBadgeIcon('🔴', '#DC2626', '#F87171');
+          addInteractiveMarker(mapBeranda, p1, iconHotspot, window.markerDataMap.hotspot1, "Hotspot 1 (Manggarai)");
+          addInteractiveMarker(mapBeranda, p3, iconHotspot, window.markerDataMap.hotspot2, "Hotspot 2 (Sudirman)");
+          addInteractiveMarker(mapBeranda, p6, iconHotspot, window.markerDataMap.hotspot3, "Hotspot 3 (Panglima Polim)");
+
+          // Tutup modal ketika mengklik area peta
+          google.maps.event.addListener(mapBeranda, 'click', () => {
+            tutupModalMapUnit();
+          });
+
+          // Sinkronkan ke Fullscreen Map (Tab Peta)
+          addInteractiveMarker(mapFullscreen, p4, iconSamapta, window.markerDataMap.samapta1, "Patroli Samapta 110-A");
+          addInteractiveMarker(mapFullscreen, { lat: -6.2050, lng: 106.8250 }, iconSamapta, window.markerDataMap.samapta2, "Patroli Samapta 110-B");
+          addInteractiveMarker(mapFullscreen, { lat: -6.2200, lng: 106.8150 }, iconPerintis, window.markerDataMap.perintis, "Tim Perintis Presisi R-2");
+          addInteractiveMarker(mapFullscreen, { lat: -6.1850, lng: 106.8100 }, iconLantas, window.markerDataMap.lantas, "Patroli Turjawali Satlantas");
+          addInteractiveMarker(mapFullscreen, { lat: -6.2220, lng: 106.8020 }, iconMako, window.markerDataMap.mako, "Mako Polres");
+          addInteractiveMarker(mapFullscreen, p1, iconHotspot, window.markerDataMap.hotspot1, "Hotspot 1");
+          addInteractiveMarker(mapFullscreen, p3, iconHotspot, window.markerDataMap.hotspot2, "Hotspot 2");
+          addInteractiveMarker(mapFullscreen, p6, iconHotspot, window.markerDataMap.hotspot3, "Hotspot 3");
+
+          // Tutup modal ketika mengklik area peta fullscreen
+          google.maps.event.addListener(mapFullscreen, 'click', () => {
+            tutupModalMapUnit();
+          });
+        } else {
+          new google.maps.Marker({ position: p1, map: mapBeranda, icon: redPin });
+          new google.maps.Marker({ position: p4, map: mapFullscreen, icon: policeIcon, title: "Posisi Saya" });
+          new google.maps.Marker({ position: p4, map: mapBeranda, icon: policeIcon, title: "Posisi Saya" });
+        }
 
         // Create markers for other personnel (hidden by default)
         const otherIcon = {
@@ -2366,6 +2820,85 @@
       }
     }
 
+    function zoomMapBeranda(delta) {
+      if (mapBeranda) {
+        const curZoom = mapBeranda.getZoom() || 11;
+        mapBeranda.setZoom(curZoom + delta);
+      }
+    }
+
+    function resetCenterMapBeranda() {
+      if (mapBeranda) {
+        mapBeranda.setZoom(11);
+        mapBeranda.setCenter({ lat: -6.1950, lng: 106.8200 });
+      }
+    }
+
+    function bukaModalMapUnit(data) {
+      if (!data) return;
+      // 1. Update modal di Beranda
+      const modalB = document.getElementById('modal-map-unit-detail');
+      if (modalB) {
+        const elIcon = document.getElementById('mud-icon'); if (elIcon) elIcon.innerText = data.iconEmoji || '🚔';
+        const elTitle = document.getElementById('mud-title'); if (elTitle) elTitle.innerText = data.title || 'Patroli Unit';
+        const elPetugas = document.getElementById('mud-petugas'); if (elPetugas) elPetugas.innerText = data.petugas || '-';
+        const elSub = document.getElementById('mud-sub'); if (elSub) elSub.innerText = data.sub || '-';
+        const elStatus = document.getElementById('mud-status');
+        if (elStatus) {
+          elStatus.innerText = data.status || 'Status: SIAGA';
+          elStatus.style.color = data.statusColor || '#10B981';
+        }
+        const elTugas = document.getElementById('mud-tugas'); if (elTugas) elTugas.innerText = data.tugas || '-';
+        const elTele = document.getElementById('mud-telemetri'); if (elTele) elTele.innerText = data.telemetri || '-';
+        modalB.style.display = 'block';
+      }
+
+      // 2. Update modal di Tab Peta (Fullscreen)
+      const modalFs = document.getElementById('modal-map-unit-detail-fs');
+      if (modalFs) {
+        const elIconFs = document.getElementById('mud-icon-fs'); if (elIconFs) elIconFs.innerText = data.iconEmoji || '🚔';
+        const elTitleFs = document.getElementById('mud-title-fs'); if (elTitleFs) elTitleFs.innerText = data.title || 'Patroli Unit';
+        const elPetugasFs = document.getElementById('mud-petugas-fs'); if (elPetugasFs) elPetugasFs.innerText = data.petugas || '-';
+        const elSubFs = document.getElementById('mud-sub-fs'); if (elSubFs) elSubFs.innerText = data.sub || '-';
+        const elStatusFs = document.getElementById('mud-status-fs');
+        if (elStatusFs) {
+          elStatusFs.innerText = data.status || 'Status: SIAGA';
+          elStatusFs.style.color = data.statusColor || '#10B981';
+        }
+        const elTugasFs = document.getElementById('mud-tugas-fs'); if (elTugasFs) elTugasFs.innerText = data.tugas || '-';
+        const elTeleFs = document.getElementById('mud-telemetri-fs'); if (elTeleFs) elTeleFs.innerText = data.telemetri || '-';
+        modalFs.style.display = 'block';
+      }
+
+      // 3. Pan peta yang sedang aktif
+      const viewPeta = document.getElementById('view-peta');
+      if (viewPeta && viewPeta.classList.contains('active') && mapFullscreen && data.pos) {
+        mapFullscreen.panTo(data.pos);
+      } else if (mapBeranda && data.pos) {
+        mapBeranda.panTo(data.pos);
+      }
+    }
+
+    function tutupModalMapUnit() {
+      const modalB = document.getElementById('modal-map-unit-detail');
+      if (modalB) modalB.style.display = 'none';
+      const modalFs = document.getElementById('modal-map-unit-detail-fs');
+      if (modalFs) modalFs.style.display = 'none';
+    }
+
+    function fokusUnitMap(tipe) {
+      if (!window.markerDataMap) return;
+      if (tipe === 'samapta' && window.markerDataMap.samapta1) {
+        bukaModalMapUnit(window.markerDataMap.samapta1);
+      } else if (tipe === 'perintis' && window.markerDataMap.perintis) {
+        bukaModalMapUnit(window.markerDataMap.perintis);
+      } else if (tipe === 'lantas' && window.markerDataMap.lantas) {
+        bukaModalMapUnit(window.markerDataMap.lantas);
+      } else if (tipe === 'hotspot' && window.markerDataMap.hotspot3) {
+        bukaModalMapUnit(window.markerDataMap.hotspot3);
+      }
+    }
+
     window.onload = () => {
       initMaps();
       initCharts();
@@ -2392,12 +2925,13 @@
         let targetIndex = -1;
         if (viewId === 'view-beranda') targetIndex = 0;
         else if (viewId === 'view-peta') targetIndex = 1;
-        else if (viewId === 'view-log') targetIndex = 2;
+        else if (viewId === 'view-log' || viewId === 'view-validasi') targetIndex = 2;
         else if (viewId === 'view-laporan') targetIndex = 3;
         else if (viewId === 'view-profil') targetIndex = 4;
 
         if (targetIndex >= 0) {
-          document.querySelectorAll('.nav-item')[targetIndex].classList.add('active');
+          const navItems = document.querySelectorAll('.nav-item');
+          if (navItems[targetIndex]) navItems[targetIndex].classList.add('active');
         }
       }
 
@@ -2784,7 +3318,199 @@
       if (bSelesai) bSelesai.innerText = cSelesai;
     }
 
+    function isUserPawas() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const role = urlParams.get('role');
+      return (role === 'pimpinan' || role === 'pawas' || role === 'atasan');
+    }
+
+    let selectedPawasDisposisiLogId = null;
+
+    function bukaModalDisposisiPawas(id) {
+      const log = appLogs.find(l => l.id === id);
+      if (!log) return;
+      selectedPawasDisposisiLogId = id;
+
+      const nomorTiket = log.nomorTiket || ('TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F');
+      log.nomorTiket = nomorTiket;
+
+      const noTiketEl = document.getElementById('pawas-disp-nomor-tiket');
+      if (noTiketEl) noTiketEl.innerText = nomorTiket;
+
+      const judulEl = document.getElementById('pawas-disp-judul-kasus');
+      if (judulEl) judulEl.innerText = log.title;
+
+      const lokasiEl = document.getElementById('pawas-disp-lokasi-tkp');
+      if (lokasiEl) lokasiEl.innerText = '📍 ' + (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
+
+      const modal = document.getElementById('modal-disposisi-pawas');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function tutupModalDisposisiPawas() {
+      const modal = document.getElementById('modal-disposisi-pawas');
+      if (modal) modal.style.display = 'none';
+      selectedPawasDisposisiLogId = null;
+    }
+
+    function konfirmasiDisposisiPawas() {
+      if (!selectedPawasDisposisiLogId) return;
+      const log = appLogs.find(l => l.id === selectedPawasDisposisiLogId);
+      if (!log) return;
+
+      const unitVal = document.getElementById('pawas-disp-unit').value;
+      const personelVal = document.getElementById('pawas-disp-personel').value.trim() || 'Bripka Ahmad (Samapta)';
+      const arahanVal = document.getElementById('pawas-disp-arahan').value.trim() || 'Segera datangi TKP, amankan perimeter & prioritaskan keselamatan warga.';
+
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+
+      log.status = 'diproses';
+      log.statusText = 'Sedang Diproses';
+      log.tahap = 3; // Meluncur ke TKP
+      log.waktuMeluncur = waktuSekarang;
+      log.disposisi = {
+        unit: unitVal,
+        komandan: personelVal,
+        arahan: arahanVal,
+        waktuDisposisi: waktuSekarang,
+        pawasNama: 'Kombes Pol Budi (Pawas / Kapolres)',
+        targetSlaMenit: 10
+      };
+
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: waktuSekarang,
+        aktor: 'Kombes Pol Budi (Pawas)',
+        aksi: 'Disposisi Taktis Diterbitkan',
+        catatan: 'Dikerahkan: ' + unitVal + ' (' + personelVal + '). Arahan: "' + arahanVal + '"'
+      });
+
+      saveLogsToStorage();
+      updateRekapCounts();
+      tutupModalDisposisiPawas();
+
+      alert('✓ PERINTAH DISPOSISI TAKTIS BERHASIL DITERBITKAN!\n\n• Nomor Tiket Resmi: ' + log.nomorTiket + '\n• Satuan Dikerahkan: ' + unitVal + '\n• Komandan Regu: ' + personelVal + '\n• Target Quick Response (SLA): < 10 Menit Tiba di TKP\n• Status Kasus: DIPROSES (Tahap 3 - Meluncur)\n\nPerintah telah diteruskan ke perangkat petugas lapangan & portal masyarakat.');
+
+      openValidasiList('diproses');
+      selectLogCard(log.id);
+    }
+
+    function pawasKirimArahan(id) {
+      const log = appLogs.find(l => l.id === id);
+      if (!log) return;
+      const defaultTeks = 'Perketat penjagaan perimeter timur dan koordinasikan dengan pihak RT/RW setempat.';
+      const arahanBaru = prompt('📢 INSTRUKSI TAKTIS TAMBAHAN DARI PAWAS:\nMasukkan arahan komando untuk disiarkan ke petugas lapangan:', defaultTeks);
+      if (arahanBaru === null || !arahanBaru.trim()) return;
+
+      if (!log.disposisi) log.disposisi = {};
+      log.disposisi.arahanTambahan = arahanBaru.trim();
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: waktuSekarang,
+        aktor: 'Kombes Pol Budi (Pawas)',
+        aksi: 'Arahan Taktis Komando',
+        catatan: arahanBaru.trim()
+      });
+
+      saveLogsToStorage();
+      alert('✓ Arahan taktis komando berhasil disiarkan ke radio panggil & konsol petugas ' + (log.disposisi.komandan || log.nama) + '!');
+      displayLogDetail(id);
+    }
+
+    function pawasKirimBackup(id) {
+      const log = appLogs.find(l => l.id === id);
+      if (!log) return;
+
+      const unitBackup = prompt('🚔 PENGERAHAN UNIT BACK-UP TAMBAHAN:\nPilih unit bantuan yang ingin dikerahkan ke lokasi TKP:', 'Unit Cadangan Reaksi Cepat Samapta (Regu Charlie) & Turjawali Lantas');
+      if (unitBackup === null || !unitBackup.trim()) return;
+
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      if (!log.disposisi) log.disposisi = {};
+      log.disposisi.unitBackup = unitBackup.trim();
+
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: waktuSekarang,
+        aktor: 'Kombes Pol Budi (Pawas)',
+        aksi: 'Pengerahan Unit Back-Up',
+        catatan: 'Dikerahkan bantuan perkuatan: ' + unitBackup.trim()
+      });
+
+      saveLogsToStorage();
+      alert('✓ UNIT BACK-UP TELAH DIKERAHKAN!\n\nUnit "' + unitBackup.trim() + '" bergerak menuju lokasi TKP untuk memperkuat regu utama.');
+      displayLogDetail(id);
+    }
+
+    function pawasRadioCall(namaPetugas) {
+      alert('📻 PANGGILAN RADIO HT PAWAS (FREKUENSI CHANNEL 110 METRO):\n\n"Pawas memanggil ' + (namaPetugas || 'Petugas Lapangan') + '... Harap monitor Channel 110 Metro, laporkan perkembangan situasi TKP! Ganti."\n\n[Status: Saluran Audio Terkoneksi ke HT Lapangan]');
+    }
+
+    function simulasiPersonelKirimBeritaAcara(id) {
+      const log = appLogs.find(l => l.id === id);
+      if (!log) return;
+
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      log.tahap = 5;
+      log.waktuTiba = log.waktuTiba || '10:52 WIB';
+      log.waktuSelesai = waktuSekarang;
+      log.deskripsiTindakan = 'Petugas tiba di TKP, mengamankan situasi, mensterilkan perimeter, dan membubarkan kerumunan massa secara humanis dan terukur.';
+      log.fotoTindakan = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+      log.catatanSelesai = 'Situasi TKP telah kondusif, barang bukti diamankan, berita acara lapangan lengkap. Siap disahkan oleh Pawas.';
+
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: waktuSekarang,
+        aktor: (log.disposisi?.komandan || log.nama || 'Bripka Ahmad') + ' (Lapangan)',
+        aksi: 'Penyerahan Berita Acara TKP',
+        catatan: 'Tindakan lapangan rampung. Menunggu pengesahan resmi Pawas.'
+      });
+
+      saveLogsToStorage();
+      alert('✓ [SIMULASI PERSONEL LAPANGAN BERHASIL]\n\nPetugas lapangan (' + (log.disposisi?.komandan || log.nama) + ') telah menyerahkan dokumentasi foto TKP dan Berita Acara Tindakan!\n\nStatus laporan kini berada di Tahap 5 dan siap disahkan oleh Pawas.');
+      displayLogDetail(id);
+    }
+
+    function pawasSahkanDanTutupKasus(id) {
+      const log = appLogs.find(l => l.id === id);
+      if (!log) return;
+
+      const confirmSah = confirm('⚖️ OTORISASI PENUTUPAN KASUS (PAWAS)\n\nApakah Anda yakin ingin mengesahkan Berita Acara Penanganan kasus #' + (log.nomorTiket || log.id) + ' dan menutup kasus ini secara resmi?');
+      if (!confirmSah) return;
+
+      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      log.status = 'selesai';
+      log.statusText = 'Kasus Selesai (Disahkan Pawas)';
+      log.tahap = 5;
+      log.pengesahanPawas = {
+        aktor: 'Kombes Pol Budi (Pawas / Kapolres)',
+        waktu: waktuSekarang,
+        catatan: 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi 110.'
+      };
+
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: waktuSekarang,
+        aktor: 'Kombes Pol Budi (Pawas)',
+        aksi: 'Otorisasi Penutupan Kasus',
+        catatan: 'Berita acara penanganan disahkan secara sah, tiket resmi ditutup.'
+      });
+
+      saveLogsToStorage();
+      updateRekapCounts();
+
+      alert('🏆 KASUS RESMI DISAHKAN & DITUTUP OLEH PAWAS!\n\n• Nomor Tiket: ' + (log.nomorTiket || log.id) + '\n• Otoritas Pengesah: Kombes Pol Budi (Pawas)\n• Berita Acara: Lengkap & Sah secara Hukum\n• Status Akhir: SELESAI (Masuk ke Arsip Log Selesai)\n\nTerima kasih atas kepemimpinan & pengawasan Presisi!');
+
+      openValidasiList('selesai');
+      selectLogCard(log.id);
+    }
+
     function setujuiLog(id) {
+      if (isUserPawas()) {
+        bukaModalDisposisiPawas(id);
+        return;
+      }
       const log = appLogs.find(l => l.id === id);
       if (!log) return;
 
@@ -2808,6 +3534,10 @@
     }
 
     function prosesKasusLog(id) {
+      if (isUserPawas()) {
+        bukaModalDisposisiPawas(id);
+        return;
+      }
       const log = appLogs.find(l => l.id === id);
       if (!log) return;
 
@@ -3782,25 +4512,110 @@
         const tlActions = document.getElementById('tl-actions-box');
         if (tlActions) {
           if (log.status === 'diproses') {
-            tlActions.innerHTML = `
-            <div style="display:flex; flex-direction:column; gap:8px;">
-              <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
-                <span>🚀</span> Lanjutkan Penanganan ➔
-              </button>
-              ${log.tahap < 5 ? `
-                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:#F8FAFC; color:var(--primary); border:1px solid #CBD5E1; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="updateTahapPenanganan(${log.id}, ${(log.tahap || 3) + 1})">
-                  <span>⏩</span> Update ke Tahap Berikutnya (${(log.tahap || 3) + 1}/5)
+            if (isUserPawas()) {
+              const disp = log.disposisi || {};
+              const unitNama = disp.unit || 'Patroli Samapta Presisi (Unit Roda 4)';
+              const komandanNama = disp.komandan || log.nama || 'Bripka Ahmad (NRP: 50123456)';
+              const arahanTeks = disp.arahan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.';
+              const waktuDisp = disp.waktuDisposisi || (log.waktu || '10:45 WIB');
+
+              tlActions.innerHTML = `
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <!-- 1. Indikator Live SLA Quick Response 110 -->
+                <div style="background:#0F172A; color:white; border-radius:10px; padding:12px 14px; border-left:4px solid #10B981; box-shadow:0 3px 10px rgba(0,0,0,0.15);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:10px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px;">⏱️ MONITORING SLA QUICK RESPONSE 110</span>
+                    <span style="font-size:10px; font-weight:700; background:#065F46; color:#34D399; padding:2px 8px; border-radius:4px;">● TEPAT WAKTU (< 10 MENIT)</span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                    <div>
+                      <div style="font-size:11px; color:#94A3B8;">Target Tiba di TKP:</div>
+                      <div style="font-size:13px; font-weight:800; color:#F8FAFC;">Maksimal 10 Menit sejak Disposisi</div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div style="font-size:10px; color:#94A3B8;">Waktu Tempuh Berjalan:</div>
+                      <div style="font-family:monospace; font-size:18px; font-weight:900; color:#38BDF8;">04:32</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. Unit Satuan & Komandan Terdisposisi -->
+                <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px 14px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:11px; font-weight:800; color:#1E293B;">🚔 DISPOSISI PASUKAN OLEH PAWAS</span>
+                    <span style="font-size:10px; font-weight:700; background:#DBEAFE; color:#1E40AF; padding:2px 6px; border-radius:4px;">Tahap ${log.tahap || 3}/5</span>
+                  </div>
+                  <div style="font-size:12px; color:#334155; line-height:1.55;">
+                    <div>• <strong>Satuan Bertugas:</strong> ${unitNama}</div>
+                    <div>• <strong>Pimpinan Regu:</strong> ${komandanNama}</div>
+                    <div>• <strong>Waktu Disposisi:</strong> ${waktuDisp}</div>
+                    <div style="margin-top:4px; background:white; border-left:3px solid #3B82F6; padding:6px 8px; border-radius:0 6px 6px 0; font-size:11.5px; font-style:italic;">
+                      "${arahanTeks}"
+                    </div>
+                    ${disp.arahanTambahan ? `<div style="margin-top:4px; background:#FEF3C7; border-left:3px solid #D97706; padding:6px 8px; border-radius:0 6px 6px 0; font-size:11.5px; color:#92400E;"><strong>📢 Arahan Tambahan:</strong> "${disp.arahanTambahan}"</div>` : ''}
+                    ${disp.unitBackup ? `<div style="margin-top:4px; background:#EFF6FF; border-left:3px solid #0284C7; padding:6px 8px; border-radius:0 6px 6px 0; font-size:11.5px; color:#0369A1;"><strong>🚔 Back-Up Aktif:</strong> ${disp.unitBackup}</div>` : ''}
+                  </div>
+                </div>
+
+                <!-- 3. Tombol Aksi Taktis Komando Pawas -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                  <button type="button" onclick="pawasKirimArahan(${log.id})" style="padding:10px 8px; background:#1E293B; color:white; border:none; border-radius:7px; font-size:11.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    <span>📢</span> Beri Arahan Taktis
+                  </button>
+                  <button type="button" onclick="pawasKirimBackup(${log.id})" style="padding:10px 8px; background:#0284C7; color:white; border:none; border-radius:7px; font-size:11.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    <span>🚔</span> Kerahkan Back-Up
+                  </button>
+                </div>
+                <button type="button" onclick="pawasRadioCall('${komandanNama.replace(/'/g, "\\'")}')" style="width:100%; padding:10px; background:#0F766E; color:white; border:none; border-radius:7px; font-size:11.5px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                  <span>📻</span> Panggil Radio HT (Channel 110 Metro)
                 </button>
-              ` : `
-                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:var(--success); color:white; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="selesaikanKasus(${log.id})">
-                  <span>✓</span> Kasus Selesai (Pindahkan ke Log Selesai) ➔
+
+                <!-- 4. Pengesahan Resmi Penutupan Kasus vs Simulasi -->
+                ${log.tahap >= 5 ? `
+                  <button type="button" onclick="pawasSahkanDanTutupKasus(${log.id})" style="width:100%; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; border:none; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(16,185,129,0.35); transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
+                    <span>✍️</span> Sahkan Berita Acara & Tutup Kasus Resmi (Pawas) ➔
+                  </button>
+                ` : `
+                  <div style="background:#EFF6FF; border:1px dashed #93C5FD; border-radius:8px; padding:10px 12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                      <div style="font-size:11px; font-weight:700; color:#1E40AF;">⏳ Menunggu Berita Acara TKP</div>
+                      <button type="button" onclick="simulasiPersonelKirimBeritaAcara(${log.id})" style="font-size:10px; font-weight:700; background:#2563EB; color:white; border:none; padding:4px 9px; border-radius:5px; cursor:pointer;" title="Simulasikan personel menyelesaikan TKP untuk pengujian pengesahan Pawas">
+                        🔄 Simulasi Personel Selesai TKP
+                      </button>
+                    </div>
+                    <div style="font-size:10.5px; color:#475569; margin-top:4px;">
+                      Setelah personel mengunggah hasil tindakan TKP, tombol pengesahan resmi Pawas akan otomatis terbuka.
+                    </div>
+                  </div>
+                `}
+
+                <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; font-size:11px; font-weight:700; color:#153E75; background:white; border:1px solid #CBD5E1; border-radius:7px; transition:background 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='white'">
+                  <span>🌐</span> Pantau di Portal Warga 110 (masyarakat.html) ➔
+                </a>
+              </div>
+            `;
+            } else {
+              // Field Officer View (Bripka Ahmad)
+              tlActions.innerHTML = `
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                  <span>🚀</span> Lanjutkan Penanganan ➔
                 </button>
-              `}
-              <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; font-size:11px; font-weight:700; color:#153E75; background:#EFF6FF; border:1px dashed #93C5FD; border-radius:8px; margin-top:2px; transition:background 0.15s;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
-                <span>🌐</span> Pantau di Portal Warga 110 (masyarakat.html) ➔
-              </a>
-            </div>
-          `;
+                ${log.tahap < 5 ? `
+                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:#F8FAFC; color:var(--primary); border:1px solid #CBD5E1; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="updateTahapPenanganan(${log.id}, ${(log.tahap || 3) + 1})">
+                    <span>⏩</span> Update ke Tahap Berikutnya (${(log.tahap || 3) + 1}/5)
+                  </button>
+                ` : `
+                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:var(--success); color:white; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="selesaikanKasus(${log.id})">
+                    <span>✓</span> Kasus Selesai (Pindahkan ke Log Selesai) ➔
+                  </button>
+                `}
+                <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; font-size:11px; font-weight:700; color:#153E75; background:#EFF6FF; border:1px dashed #93C5FD; border-radius:8px; margin-top:2px; transition:background 0.15s;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
+                  <span>🌐</span> Pantau di Portal Warga 110 (masyarakat.html) ➔
+                </a>
+              </div>
+            `;
+            }
           } else {
             const rating = log.ratingKepuasan;
             const skor = rating ? (rating.skor || 5) : 5;
@@ -3899,18 +4714,29 @@
       // Tombol aksi di panel kanan sesuai status
       if (actionsBox) {
         if (log.status === 'menunggu') {
-          actionsBox.innerHTML = `
-          <button type="button" class="btn-acc" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="setujuiLog(${log.id})">
-            <span>✓</span> Setujui
-          </button>
-          <button type="button" class="btn-rej" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--danger); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="bukaHalamanTolak(${log.id})">
-            <span>✕</span> Tolak
-          </button>
-        `;
+          if (isUserPawas()) {
+            actionsBox.innerHTML = `
+            <button type="button" class="btn-blue" style="flex:1.6; margin:0; padding:12px 14px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; border:none; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="bukaModalDisposisiPawas(${log.id})">
+              <span>⚡</span> Disposisi & Terbitkan Perintah Tugas ➔
+            </button>
+            <button type="button" class="btn-rej" style="flex:0.8; padding:12px 10px; border-radius:8px; border:1px solid #FCA5A5; background:#FEF2F2; color:#DC2626; font-weight:700; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; transition:background 0.15s;" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'" onclick="bukaHalamanTolak(${log.id})">
+              <span>✕</span> Tolak / Revisi
+            </button>
+          `;
+          } else {
+            actionsBox.innerHTML = `
+            <button type="button" class="btn-acc" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="setujuiLog(${log.id})">
+              <span>✓</span> Setujui
+            </button>
+            <button type="button" class="btn-rej" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--danger); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="bukaHalamanTolak(${log.id})">
+              <span>✕</span> Tolak
+            </button>
+          `;
+          }
         } else if (log.status === 'disetujui') {
           actionsBox.innerHTML = `
-          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="prosesKasusLog(${log.id})">
-            <span>⚡</span> Proses Kasus ➔
+          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; border:none; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="bukaModalDisposisiPawas(${log.id})">
+            <span>⚡</span> Terbitkan Tiket & Perintahkan Disposisi Lapangan ➔
           </button>
         `;
         } else if (log.status === 'ditolak') {
@@ -3929,7 +4755,7 @@
       displayLogDetail(id);
     }
 
-    function openValidasiList(filter) {
+    function openValidasiList(filter, doSwitch = true) {
       currentValidasiFilter = filter;
       const listContainer = document.getElementById('val-list-container');
       let html = '';
@@ -3992,19 +4818,37 @@
 
           let cardFooter = '';
           if (log.status === 'menunggu') {
-            cardFooter = `
+            cardFooter = isUserPawas() ? `
+            <div style="font-size:11px; color:#1E40AF; font-weight:700; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>⚡</span> Klik untuk Disposisi Satuan & Terbitkan Tiket ➔
+            </div>
+          ` : `
             <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
               <span>🔍</span> Klik untuk tinjau foto bukti & validasi ➔
             </div>
           `;
           } else if (log.status === 'disetujui') {
-            cardFooter = `
+            cardFooter = isUserPawas() ? `
+            <div style="font-size:11px; color:#1E40AF; font-weight:700; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>⚡</span> Klik untuk Terbitkan Tiket & Perintahkan Disposisi ➔
+            </div>
+          ` : `
             <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
               <span>⚡</span> Klik untuk proses kasus ➔
             </div>
           `;
           } else if (log.status === 'diproses' || log.status === 'selesai') {
-            cardFooter = `
+            cardFooter = isUserPawas() ? (
+              log.status === 'selesai' ? `
+              <div style="font-size:11px; color:#047857; font-weight:700; display:flex; align-items:center; gap:4px; margin-top:8px;">
+                <span>✓</span> Berita Acara Disahkan & Ditutup Resmi (Pawas) ➔
+              </div>
+            ` : `
+              <div style="font-size:11px; color:#1E40AF; font-weight:700; display:flex; align-items:center; gap:4px; margin-top:8px;">
+                <span>⏱️</span> Konsol Kendali Pawas & Monitor Live SLA (< 10m) ➔
+              </div>
+            `
+            ) : `
             <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
               <span>📍</span> Klik untuk lihat & update timeline pelacakan ➔
             </div>
@@ -4062,9 +4906,9 @@
       // Sinkronkan seluruh badge angka
       updateRekapCounts();
 
-      // Pindah ke tab validasi (hanya jika wizard tidak sedang aktif)
+      // Pindah ke tab validasi (hanya jika wizard tidak sedang aktif dan doSwitch bernilai true)
       const wizSec = document.getElementById('view-wizard');
-      if (!wizSec || !wizSec.classList.contains('active')) {
+      if (doSwitch && (!wizSec || !wizSec.classList.contains('active'))) {
         switchTab('view-validasi');
       }
     }
@@ -4085,7 +4929,28 @@
         data: { datasets: [{ data: [92, 8], backgroundColor: ['#10B981', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
         options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
       };
-      new Chart(document.getElementById('gauge1'), gaugeOpts);
+      const g1 = document.getElementById('gauge1');
+      if (g1) new Chart(g1, gaugeOpts);
+
+      const gSla = document.getElementById('gauge-sla-pimpinan');
+      if (gSla) {
+        new Chart(gSla, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [94.8, 5.2],
+              backgroundColor: ['#15803D', '#E2E8F0'],
+              borderWidth: 0,
+              circumference: 360
+            }]
+          },
+          options: {
+            maintainAspectRatio: false,
+            cutout: '75%',
+            plugins: { tooltip: { enabled: false } }
+          }
+        });
+      }
 
       const gaugeOpts2 = {
         type: 'doughnut',
@@ -4233,15 +5098,62 @@
       const urlParams = new URLSearchParams(window.location.search);
       const role = urlParams.get('role');
 
-      if (role === 'pimpinan' || role === 'atasan') {
-        // Pimpinan / Pawas: Monitor & Validasi
+      if (role === 'pimpinan' || role === 'atasan' || role === 'pawas') {
+        // Pimpinan / Pawas: Konsol Eksekutif & Komando Pawas
         const tl = document.getElementById('tindak-lanjut-card'); if (tl) tl.style.display = 'none';
-        const navLog = document.getElementById('nav-log'); if (navLog) navLog.style.display = 'none';
+        const kpi = document.getElementById('kpi-card'); if (kpi) kpi.style.display = 'none';
+        const actPers = document.getElementById('aktivitas-personel-card'); if (actPers) actPers.style.display = 'none';
+
+        // Tampilkan elemen-elemen eksklusif Pimpinan di Beranda
+        const alertInc = document.getElementById('pimpinan-breaking-alert'); if (alertInc) alertInc.style.display = 'block';
+        const actPim = document.getElementById('aktivitas-pimpinan-card'); if (actPim) actPim.style.display = 'block';
+        const execSide = document.getElementById('pimpinan-executive-sidebar'); if (execSide) execSide.style.display = 'block';
+        const mapBadges = document.getElementById('pimpinan-map-badges'); if (mapBadges) mapBadges.style.display = 'flex';
+        const mapTitle = document.getElementById('map-card-title'); if (mapTitle) mapTitle.innerText = 'Peta Sebaran Armada Presisi & Titik Hotspot (Fleet Tracking)';
+        const mapLeg = document.getElementById('map-legend-mini');
+        if (mapLeg) {
+          mapLeg.innerHTML = `
+            <span style="font-size:11px; font-weight:700; color:#153E75;">🚔 Samapta R-4</span>
+            <span style="color:#CBD5E1; margin:0 2px;">•</span>
+            <span style="font-size:11px; font-weight:700; color:#B45309;">🏍️ Perintis R-2</span>
+            <span style="color:#CBD5E1; margin:0 2px;">•</span>
+            <span style="font-size:11px; font-weight:700; color:#1D4ED8;">🚓 Lantas R-4</span>
+            <span style="color:#CBD5E1; margin:0 2px;">•</span>
+            <span style="font-size:11px; font-weight:700; color:#DC2626;">🔴 3 Hotspot</span>
+          `;
+        }
 
         const un = document.getElementById('user-name'); if (un) un.innerText = 'Kombes Pol Budi';
-        const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Kapolres (Pawas)';
+        const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Perwira Pengawas (PAWAS)';
         const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80';
-        const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: MENGAWASI (Pawas)';
+        const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: KONSOL EKSEKUTIF PIMPINAN (Pusat Kendali 110)';
+
+        // 1. Pastikan tab 1 tetap Beranda (Executive Overview Pimpinan)
+        const bottomNavItems = document.querySelectorAll('.bottom-nav .nav-item');
+        if (bottomNavItems.length > 0) {
+          const firstNav = bottomNavItems[0];
+          firstNav.setAttribute('onclick', "switchTab('view-beranda', this)");
+          const iconSpan = firstNav.querySelector('.nav-icon');
+          if (iconSpan) iconSpan.innerText = '🏠';
+          const textSpan = firstNav.querySelector('span:not(.nav-icon)');
+          if (textSpan) textSpan.innerText = 'Beranda';
+        }
+
+        // 2. Alihfungsikan slot tombol ke-3 (#nav-log) menjadi tab khusus Komando Pawas (Pusat Kendali 110)
+        const navLog = document.getElementById('nav-log');
+        if (navLog) {
+          navLog.style.display = '';
+          navLog.setAttribute('onclick', "switchTab('view-validasi', this)");
+          const iconSpan = navLog.querySelector('.nav-icon');
+          if (iconSpan) iconSpan.innerText = '👨‍✈️';
+          const textSpan = navLog.querySelector('span:not(.nav-icon)');
+          if (textSpan) textSpan.innerText = 'Komando Pawas';
+        }
+
+        // Inisialisasi daftar antrean Komando Pawas di latar belakang tanpa langsung memindahkan tab
+        openValidasiList('menunggu', false);
+        // Default pendaratan Pimpinan / Pawas di Beranda (Executive Overview Pimpinan)
+        switchTab('view-beranda');
       } else if (role === 'operator') {
         // Operator SPKT 110: Tampil seragam di dalam E-Tribrata Log
         const un = document.getElementById('user-name'); if (un) un.innerText = 'Briptu Dian Lestari';
@@ -4869,6 +5781,100 @@
         <button type="button" onclick="tutupDetailLaporanOperator()"
           style="padding:8px 18px; background:var(--primary); color:white; font-size:12px; font-weight:700; border:none; border-radius:6px; cursor:pointer;">
           Tutup Rincian
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL DISPOSISI TAKTIS PAWAS (KOMANDO PENGENDALIAN OPERASI PRESISI 110) -->
+  <div id="modal-disposisi-pawas"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.75); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; width:100%; max-width:620px; border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,0.3); overflow:hidden; border:1px solid #CBD5E1; display:flex; flex-direction:column; max-height:90vh;">
+      
+      <!-- Modal Header -->
+      <div style="background:linear-gradient(135deg, #153E75 0%, #0F2A52 100%); color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #F59E0B;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:38px; height:38px; border-radius:8px; background:rgba(255,255,255,0.15); display:flex; align-items:center; justify-content:center; font-size:18px;">
+            👮
+          </div>
+          <div>
+            <div style="font-size:15px; font-weight:800; letter-spacing:0.3px;">LEMBAR DISPOSISI TAKTIS PAWAS</div>
+            <div style="font-size:11px; opacity:0.85;">Pusat Komando & Pengendalian Operasi Presisi 110</div>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalDisposisiPawas()"
+          style="background:rgba(255,255,255,0.1); border:none; color:white; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;"
+          onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.1)'">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div style="padding:18px 20px; overflow-y:auto; flex:1;">
+        <!-- Ringkasan Tiket & SLA Alert -->
+        <div style="background:#FEF3C7; border:1px solid #FCD34D; border-radius:10px; padding:12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:10px; font-weight:800; color:#B45309; text-transform:uppercase;">NOMOR TIKET RESMI</div>
+            <div id="pawas-disp-nomor-tiket" style="font-size:15px; font-weight:900; font-family:monospace; color:#92400E;">TIKET-110-01X2F</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; font-weight:800; color:#B45309; text-transform:uppercase;">TARGET SLA RESPON</div>
+            <div style="font-size:13px; font-weight:800; color:#B45309;">⚡ &lt; 10 Menit Tiba di TKP</div>
+          </div>
+        </div>
+
+        <!-- Detail Kasus Singkat -->
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px; margin-bottom:14px;">
+          <div style="font-size:11px; font-weight:700; color:#64748B; margin-bottom:4px;">Kasus / Lokasi TKP:</div>
+          <div id="pawas-disp-judul-kasus" style="font-size:13px; font-weight:800; color:#0F172A; margin-bottom:2px;">Tawuran Pelajar Remaja</div>
+          <div id="pawas-disp-lokasi-tkp" style="font-size:11.5px; color:#475569;">📍 Sektor Selatan, Jakarta</div>
+        </div>
+
+        <!-- Form Pemilihan Satuan & Arahan -->
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:5px;">
+            1. Pilihan Satuan / Regu Reaksi Cepat yang Dikerahkan: <span style="color:#DC2626;">*</span>
+          </label>
+          <select id="pawas-disp-unit" style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:12.5px; font-weight:600; color:#0F172A; background:#FFFFFF; outline:none;">
+            <option value="Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)">🚔 Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)</option>
+            <option value="Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)">🏍️ Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)</option>
+            <option value="Turjawali Satlantas (Unit Patroli Jalan Raya)">🚓 Turjawali Satlantas (Unit Patroli Jalan Raya)</option>
+            <option value="Tim Opsnal &amp; Resmob Satreskrim">🕵️ Tim Opsnal &amp; Resmob Satreskrim</option>
+            <option value="Bhabinkamtibmas &amp; Polsek Wilayah Setempat">👮 Bhabinkamtibmas &amp; Polsek Wilayah Setempat</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:5px;">
+            2. Pimpinan Regu / Personel Bertugas: <span style="color:#DC2626;">*</span>
+          </label>
+          <input type="text" id="pawas-disp-personel" value="Bripka Ahmad &amp; Regu Alpha (NRP: 50123456)" style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:12.5px; font-weight:600; color:#0F172A; outline:none; box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:14px;">
+          <label style="display:block; font-size:11.5px; font-weight:800; color:#1E293B; margin-bottom:5px;">
+            3. Instruksi Taktis &amp; Petunjuk Khusus Pawas: <span style="color:#DC2626;">*</span>
+          </label>
+          <textarea id="pawas-disp-arahan" rows="3" style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:12px; color:#0F172A; outline:none; line-height:1.5; box-sizing:border-box;">Segera meluncur ke TKP dengan lampu sirine biru. Prioritaskan keselamatan warga/korban, amankan perimeter TKP, dokumentasikan temuan awal, dan laporkan berkala via HT ke Pawas.</textarea>
+        </div>
+
+        <div style="background:#EFF6FF; border-left:3px solid #3B82F6; padding:10px 12px; border-radius:0 8px 8px 0; font-size:11px; color:#1E40AF; line-height:1.45;">
+          <strong>⚖️ SOP Rantai Komando Presisi:</strong> Setelah disposisi diteken, tiket langsung diterbitkan, status berpindah ke <em>Tahap 3 (Personel Bergerak Menuju TKP)</em>, jam hitung mundur SLA (&lt; 10 menit) aktif otomatis, dan petugas lapangan menerima notifikasi penugasan.
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding:12px 20px; border-top:1px solid #E2E8F0; background:#F8FAFC; display:flex; justify-content:space-between; align-items:center;">
+        <button type="button" onclick="tutupModalDisposisiPawas()"
+          style="padding:10px 16px; background:#F1F5F9; color:#475569; font-size:12px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer;">
+          Batalkan
+        </button>
+        <button type="button" onclick="konfirmasiDisposisiPawas()"
+          style="padding:10px 20px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); transition:transform 0.15s;"
+          onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
+          <span>🚀</span> Terbitkan Tiket &amp; Perintahkan Disposisi Lapangan ➔
         </button>
       </div>
 
