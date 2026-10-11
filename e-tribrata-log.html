@@ -504,6 +504,210 @@
       line-height: 1;
     }
 
+    /* ==========================================
+       TRACKING TIMELINE STYLES (DIPROSES & SELESAI)
+       ========================================== */
+    .ticket-header {
+      background: #F8FAFC;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 18px;
+      border: 1px dashed #CBD5E1;
+    }
+
+    .ticket-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .ticket-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .ticket-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .ticket-value {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 700;
+      text-align: right;
+    }
+
+    /* Vertical Timeline */
+    .timeline {
+      position: relative;
+      padding-left: 28px;
+      margin-top: 10px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 10px;
+      bottom: 10px;
+      left: 11px;
+      width: 2px;
+      background: #E2E8F0;
+      z-index: 1;
+    }
+
+    .step {
+      position: relative;
+      margin-bottom: 22px;
+      cursor: pointer;
+      border-radius: 8px;
+      padding: 4px 6px;
+      transition: background 0.15s ease;
+    }
+
+    .step:hover {
+      background: #F8FAFC;
+    }
+
+    .step:last-child {
+      margin-bottom: 0;
+    }
+
+    .step-icon {
+      position: absolute;
+      left: -28px;
+      top: 4px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: white;
+      border: 2px solid #CBD5E1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 2;
+      transition: all 0.2s ease;
+    }
+
+    .step.completed .step-icon {
+      background: var(--success);
+      border-color: var(--success);
+    }
+    
+    .step.completed .step-icon::after {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .step.active .step-icon {
+      background: white;
+      border-color: var(--primary);
+      border-width: 4px;
+      box-shadow: 0 0 0 3px rgba(21, 62, 117, 0.15);
+    }
+
+    .step-content {
+      padding-left: 4px;
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .step.inactive .step-title {
+      color: var(--text-muted);
+    }
+
+    .step-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+
+    .step.inactive .step-desc {
+      color: #94A3B8;
+    }
+
+    .step-time {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      background: #F1F5F9;
+      color: var(--text-muted);
+      padding: 3px 6px;
+      border-radius: 4px;
+      margin-top: 6px;
+    }
+
+    .step.active .step-time {
+      background: #DBEAFE;
+      color: var(--primary);
+    }
+
+    /* Map Box for active personnel tracking */
+    .tracking-map {
+      width: 100%;
+      height: 120px;
+      background: #E2E8F0;
+      border-radius: 10px;
+      margin-top: 10px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #CBD5E1;
+    }
+
+    .map-placeholder {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.85;
+    }
+
+    .map-overlay {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(4px);
+      padding: 8px 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+
+    .police-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .police-info h4 {
+      font-size: 12px;
+      margin: 0;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .police-info p {
+      font-size: 10px;
+      margin: 2px 0 0;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
   </style>
 </head>
 <body>
@@ -721,46 +925,131 @@
           <!-- Cards will be generated dynamically by JavaScript -->
         </div>
         
-        <div class="val-detail" style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:sticky; top:16px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-size:14px; font-weight:800; color:var(--text);">Detail Laporan</div>
-            <span id="detail-val-status-badge" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; background:#FEF3C7; color:#D97706;">Menunggu Validasi</span>
+        <div class="val-detail" id="val-detail-box" style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:sticky; top:16px; max-height: calc(100vh - 120px); overflow-y: auto;">
+          <!-- 1. STANDARD DETAIL VIEW (Menunggu, Disetujui, Ditolak) -->
+          <div id="detail-standard-view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="font-size:14px; font-weight:800; color:var(--text);">Detail Laporan</div>
+              <span id="detail-val-status-badge" style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:12px; background:#FEF3C7; color:#D97706;">Menunggu Validasi</span>
+            </div>
+
+            <div id="detail-val-title" style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:12px; line-height:1.4;">Laporan Pengamanan belum direview #1</div>
+
+            <div style="position:relative; margin-bottom:12px;">
+              <img id="detail-val-img" src="https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran" class="detail-img" style="width:100%; height:180px; border-radius:8px; object-fit:cover; margin:0;">
+              <div style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.65); color:white; font-size:10px; padding:3px 8px; border-radius:4px; font-weight:600;">📷 Foto Lampiran</div>
+            </div>
+
+            <div class="detail-text" style="font-size:12px; line-height:1.6;">
+              <div style="margin-bottom:6px;">
+                <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Waktu Pengiriman:</div>
+                <span id="detail-val-waktu" style="color:var(--text); font-weight:700;">10:15 WIB</span>
+              </div>
+              <div style="margin-bottom:6px;">
+                <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Sektor / Wilayah:</div>
+                <span id="detail-val-sektor" style="color:var(--text); font-weight:700;">Sektor Selatan</span>
+              </div>
+              <div style="margin-bottom:6px;">
+                <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Personel Pelapor:</div>
+                <span id="detail-val-petugas" style="color:var(--text); font-weight:700;">Bripka Ahmad</span>
+              </div>
+              <div style="margin-bottom:6px;">
+                <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Deskripsi Kejadian:</div>
+                <span id="detail-val-desc" style="color:var(--text); line-height:1.4; display:block; margin-top:2px;">Patroli rutin</span>
+              </div>
+            </div>
+
+            <!-- Alert jika ditolak -->
+            <div id="detail-val-alasan-box" style="display:none; background:#FEF2F2; border-left:3px solid var(--danger); padding:8px 10px; border-radius:4px; font-size:11px; color:#991B1B; margin-top:10px; line-height:1.4;">
+              <strong>⚠️ Catatan Penolakan:</strong>
+              <div id="detail-val-alasan-text" style="margin-top:2px;"></div>
+            </div>
+
+            <!-- Action buttons inside right detail panel -->
+            <div id="detail-val-actions" style="margin-top:14px; display:flex; gap:8px;"></div>
           </div>
 
-          <div id="detail-val-title" style="font-size:13px; font-weight:700; color:var(--primary); margin-bottom:12px; line-height:1.4;">Laporan Pengamanan belum direview #1</div>
+          <!-- 2. TIMELINE TRACKING VIEW (Khusus Diproses & Selesai) -->
+          <div id="detail-timeline-view" style="display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div>
+                <h3 style="font-size:15px; font-weight:800; color:var(--text); margin:0;">Hasil Pelacakan</h3>
+                <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">Timeline Progress Penanganan Kasus</div>
+              </div>
+              <span id="tl-status-badge" style="font-size:11px; font-weight:700; padding:4px 10px; border-radius:12px; background:#EDE9FE; color:#6D28D9;">Sedang Ditangani</span>
+            </div>
 
-          <div style="position:relative; margin-bottom:12px;">
-            <img id="detail-val-img" src="https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran" class="detail-img" style="width:100%; height:180px; border-radius:8px; object-fit:cover; margin:0;">
-            <div style="position:absolute; bottom:8px; right:8px; background:rgba(0,0,0,0.65); color:white; font-size:10px; padding:3px 8px; border-radius:4px; font-weight:600;">📷 Foto Lampiran</div>
+            <!-- Ticket Header Info Box -->
+            <div class="ticket-header" style="margin-bottom:14px;">
+              <div class="ticket-row">
+                <span class="ticket-label">Nomor Laporan</span>
+                <span class="ticket-value" id="tl-nomor-laporan" style="color:var(--primary);">TIKET-110-8X2F</span>
+              </div>
+              <div class="ticket-row">
+                <span class="ticket-label">Jenis Insiden</span>
+                <span class="ticket-value" id="tl-jenis-insiden">Kecelakaan Lalu Lintas</span>
+              </div>
+              <div class="ticket-row">
+                <span class="ticket-label">Waktu Dilaporkan</span>
+                <span class="ticket-value" id="tl-waktu">Hari ini, 10:45 WIB</span>
+              </div>
+              <div class="ticket-row">
+                <span class="ticket-label">Lokasi Kejadian</span>
+                <span class="ticket-value" id="tl-lokasi">Jl. Jend. Sudirman, Jakarta</span>
+              </div>
+            </div>
+
+            <!-- DOKUMENTASI BUKTI PENGADUAN & BUKTI TINDAKAN -->
+            <div style="margin-bottom:18px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px;">
+              <div style="font-size:11px; font-weight:800; color:var(--text); text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between;">
+                <span style="display:flex; align-items:center; gap:6px;"><span>📁</span> Bukti Pengaduan & Tindakan</span>
+                <span style="font-size:10px; color:var(--text-muted); font-weight:500;">Klik foto untuk perbesar</span>
+              </div>
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                <!-- 1. Bukti Pengaduan -->
+                <div style="background:white; border:1px solid #CBD5E1; border-radius:8px; padding:8px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:11px; font-weight:700; color:var(--primary);">📷 Bukti Pengaduan</span>
+                    <span style="font-size:9px; background:#EFF6FF; color:var(--primary); padding:2px 6px; border-radius:4px; font-weight:700;">110</span>
+                  </div>
+                  <div style="position:relative; height:105px; border-radius:6px; overflow:hidden; background:#E2E8F0; cursor:pointer;" onclick="previewFotoModal('pengaduan')" title="Klik untuk lihat foto penuh">
+                    <img id="tl-foto-pengaduan" src="https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80" style="width:100%; height:100%; object-fit:cover; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+                    <div style="position:absolute; bottom:4px; left:4px; right:4px; background:rgba(0,0,0,0.7); backdrop-filter:blur(2px); color:white; font-size:9px; padding:2px 6px; border-radius:4px; display:flex; justify-content:space-between;">
+                      <span>Laporan Warga</span>
+                      <span id="tl-meta-pengaduan">10:45 WIB</span>
+                    </div>
+                  </div>
+                  <div style="font-size:10px; color:var(--text-muted); margin-top:5px; line-height:1.3;" id="tl-desc-pengaduan">
+                    Foto kondisi awal saat dilaporkan masyarakat ke call center 110.
+                  </div>
+                </div>
+
+                <!-- 2. Bukti Tindakan -->
+                <div style="background:white; border:1px solid #CBD5E1; border-radius:8px; padding:8px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <span style="font-size:11px; font-weight:700; color:var(--success);">📸 Bukti Tindakan</span>
+                    <span style="font-size:9px; background:#ECFDF5; color:var(--success); padding:2px 6px; border-radius:4px; font-weight:700;">TKP</span>
+                  </div>
+                  <div style="position:relative; height:105px; border-radius:6px; overflow:hidden; background:#E2E8F0; cursor:pointer;" onclick="previewFotoModal('tindakan')" title="Klik untuk lihat foto penuh">
+                    <img id="tl-foto-tindakan" src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80" style="width:100%; height:100%; object-fit:cover; transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.04)'" onmouseout="this.style.transform='scale(1)'">
+                    <div style="position:absolute; bottom:4px; left:4px; right:4px; background:rgba(0,0,0,0.7); backdrop-filter:blur(2px); color:white; font-size:9px; padding:2px 6px; border-radius:4px; display:flex; justify-content:space-between;">
+                      <span>Tindakan Petugas</span>
+                      <span id="tl-meta-tindakan">Bripka Ahmad</span>
+                    </div>
+                  </div>
+                  <div style="font-size:10px; color:var(--text-muted); margin-top:5px; line-height:1.3;" id="tl-desc-tindakan">
+                    Foto penanganan & tindakan kepolisian oleh petugas di lokasi.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Steps Container -->
+            <div class="timeline" id="tl-steps-container"></div>
+
+            <!-- Action button footer for timeline -->
+            <div id="tl-actions-box" style="margin-top:16px;"></div>
           </div>
-
-          <div class="detail-text" style="font-size:12px; line-height:1.6;">
-            <div style="margin-bottom:6px;">
-              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Waktu Pengiriman:</div>
-              <span id="detail-val-waktu" style="color:var(--text); font-weight:700;">10:15 WIB</span>
-            </div>
-            <div style="margin-bottom:6px;">
-              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Sektor / Wilayah:</div>
-              <span id="detail-val-sektor" style="color:var(--text); font-weight:700;">Sektor Selatan</span>
-            </div>
-            <div style="margin-bottom:6px;">
-              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Personel Pelapor:</div>
-              <span id="detail-val-petugas" style="color:var(--text); font-weight:700;">Bripka Ahmad</span>
-            </div>
-            <div style="margin-bottom:6px;">
-              <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Deskripsi Kejadian:</div>
-              <span id="detail-val-desc" style="color:var(--text); line-height:1.4; display:block; margin-top:2px;">Patroli rutin</span>
-            </div>
-          </div>
-
-          <!-- Alert jika ditolak -->
-          <div id="detail-val-alasan-box" style="display:none; background:#FEF2F2; border-left:3px solid var(--danger); padding:8px 10px; border-radius:4px; font-size:11px; color:#991B1B; margin-top:10px; line-height:1.4;">
-            <strong>⚠️ Catatan Penolakan:</strong>
-            <div id="detail-val-alasan-text" style="margin-top:2px;"></div>
-          </div>
-
-          <!-- Action buttons inside right detail panel -->
-          <div id="detail-val-actions" style="margin-top:14px; display:flex; gap:8px;"></div>
         </div>
       </div>
     </section>
@@ -1431,6 +1720,14 @@
       const saved = localStorage.getItem('simapres_app_logs_v1');
       if (saved) {
         appLogs = JSON.parse(saved);
+        // Ensure defaults for tracking timeline
+        appLogs.forEach(l => {
+          if (l.status === 'diproses' && !l.tahap) l.tahap = 3;
+          if (l.status === 'selesai' && !l.tahap) l.tahap = 5;
+          if (!l.nomorTiket) l.nomorTiket = 'TIKET-110-' + (l.id < 10 ? '0' + l.id : l.id) + 'X2F';
+          if (!l.jenisInsiden) l.jenisInsiden = l.title;
+          if (!l.lokasiKejadian) l.lokasiKejadian = l.sektor ? l.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta';
+        });
       } else {
         appLogs = getDefaultLogs();
         saveLogsToStorage();
@@ -1523,13 +1820,18 @@
 
     log.status = 'diproses';
     log.statusText = 'Sedang Diproses';
+    log.tahap = 3; // Default tahap 3: Personel Menuju Lokasi
+    if (!log.nomorTiket) log.nomorTiket = 'TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F';
+    if (!log.jenisInsiden) log.jenisInsiden = log.title;
+    if (!log.lokasiKejadian) log.lokasiKejadian = log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta';
+
     saveLogsToStorage();
     updateRekapCounts();
 
     const remainingDisetujui = appLogs.filter(l => l.status === 'disetujui').length;
     const totalDiproses = appLogs.filter(l => l.status === 'diproses').length;
 
-    alert('⚡ Laporan #' + log.id + ' ("' + log.title + '") sekarang dialihkan ke status DIPROSES!\n\n• Dikeluarkan dari Log Disetujui (sisa: ' + remainingDisetujui + ' data)\n• Dimasukkan ke Log Diproses (total: ' + totalDiproses + ' data)');
+    alert('⚡ Laporan #' + log.id + ' ("' + log.title + '") sekarang dialihkan ke status DIPROSES!\n\n• Dikeluarkan dari Log Disetujui (sisa: ' + remainingDisetujui + ' data)\n• Dimasukkan ke Log Diproses (total: ' + totalDiproses + ' data)\n• Timeline pelacakan penanganan kasus telah diaktifkan!');
 
     // Refresh daftar pada filter saat ini agar langsung hilang dari log disetujui
     openValidasiList(currentValidasiFilter || 'disetujui');
@@ -1605,11 +1907,191 @@
     displayLogDetail(id);
   }
 
+  const TIMELINE_STEPS_DATA = [
+    {
+      step: 1,
+      title: 'Laporan Diterima (SPKT)',
+      desc: 'Laporan Anda telah divalidasi oleh operator 110 dan diteruskan ke komando wilayah.',
+      time: '10:45 WIB'
+    },
+    {
+      step: 2,
+      title: 'Disposisi Personel',
+      desc: 'Tugas penanganan telah diserahkan kepada unit terdekat dari lokasi kejadian.',
+      time: '10:48 WIB'
+    },
+    {
+      step: 3,
+      title: 'Personel Menuju Lokasi',
+      desc: 'Tim sedang meluncur ke lokasi kejadian. Harap tetap tenang dan amankan lokasi.',
+      time: 'Update: 10:50 WIB',
+      hasMap: true
+    },
+    {
+      step: 4,
+      title: 'Penanganan di Lokasi',
+      desc: 'Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.',
+      time: '11:15 WIB'
+    },
+    {
+      step: 5,
+      title: 'Kasus Selesai Ditangani',
+      desc: 'Penanganan selesai dan log telah disetujui oleh pimpinan.',
+      time: '11:45 WIB'
+    }
+  ];
+
+  function renderTimelineSteps(log) {
+    const container = document.getElementById('tl-steps-container');
+    if (!container) return;
+
+    const currentTahap = parseInt(log.tahap) || (log.status === 'selesai' ? 5 : 3);
+    let html = '';
+
+    TIMELINE_STEPS_DATA.forEach(s => {
+      let stateClass = 'inactive';
+      let titleExtra = '';
+      if (s.step < currentTahap) {
+        stateClass = 'completed';
+      } else if (s.step === currentTahap) {
+        stateClass = 'active';
+        titleExtra = '<span style="font-size:10px; background:#DBEAFE; color:var(--primary); padding:2px 6px; border-radius:4px; font-weight:700;">● TAHAP AKTIF</span>';
+      }
+
+      let mapHtml = '';
+      if (s.step === 3 && currentTahap >= 3) {
+        mapHtml = `
+          <div class="tracking-map">
+            <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80" alt="Map" class="map-placeholder">
+            <div class="map-overlay">
+              <img src="${log.avatar || 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80'}" alt="Police" class="police-avatar">
+              <div class="police-info">
+                <h4>${log.nama || 'Bripka Ahmad'}</h4>
+                <p>Estimasi Tiba: 5 Menit</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="step ${stateClass}" onclick="updateTahapPenanganan(${log.id}, ${s.step})" title="Klik untuk ubah status penanganan ke Tahap ${s.step}">
+          <div class="step-icon"></div>
+          <div class="step-content">
+            <div class="step-title">
+              <span>${s.step}. ${s.title}</span>
+              ${titleExtra}
+            </div>
+            <div class="step-desc">${s.desc}</div>
+            <div class="step-time">${s.step === currentTahap ? 'Status Terkini: ' + s.time : s.time}</div>
+            ${mapHtml}
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function updateTahapPenanganan(id, newTahap) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+
+    newTahap = parseInt(newTahap);
+    log.tahap = newTahap;
+
+    if (newTahap === 5) {
+      log.status = 'selesai';
+      log.statusText = 'Kasus Selesai';
+    } else if (log.status === 'selesai' && newTahap < 5) {
+      log.status = 'diproses';
+      log.statusText = 'Sedang Diproses';
+    }
+
+    saveLogsToStorage();
+    updateRekapCounts();
+
+    // Re-render detail view
+    displayLogDetail(id);
+
+    // Refresh list jika filter saat ini berubah
+    openValidasiList(currentValidasiFilter || 'diproses');
+  }
+
+  function selesaikanKasus(id) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+    updateTahapPenanganan(id, 5);
+    alert('✓ Kasus #' + log.id + ' telah selesai ditangani dan dipindahkan ke Log Selesai!');
+  }
+
   function displayLogDetail(id) {
     const log = appLogs.find(l => l.id === id);
     if (!log) return;
 
     selectedLogId = id;
+
+    const isTimelineMode = (log.status === 'diproses' || log.status === 'selesai');
+    const stdView = document.getElementById('detail-standard-view');
+    const tlView = document.getElementById('detail-timeline-view');
+
+    if (isTimelineMode) {
+      if (stdView) stdView.style.display = 'none';
+      if (tlView) tlView.style.display = 'block';
+
+      if (!log.tahap) log.tahap = (log.status === 'selesai' ? 5 : 3);
+      if (!log.nomorTiket) log.nomorTiket = 'TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F';
+      if (!log.jenisInsiden) log.jenisInsiden = log.title;
+      if (!log.lokasiKejadian) log.lokasiKejadian = (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
+
+      const tlNomor = document.getElementById('tl-nomor-laporan');
+      if (tlNomor) tlNomor.innerText = log.nomorTiket;
+      const tlJenis = document.getElementById('tl-jenis-insiden');
+      if (tlJenis) tlJenis.innerText = log.jenisInsiden;
+      const tlWaktu = document.getElementById('tl-waktu');
+      if (tlWaktu) tlWaktu.innerText = 'Hari ini, ' + (log.waktu || '10:45 WIB');
+      const tlLokasi = document.getElementById('tl-lokasi');
+      if (tlLokasi) tlLokasi.innerText = log.lokasiKejadian;
+
+      const selTahap = document.getElementById('tl-select-tahap');
+      if (selTahap) selTahap.value = log.tahap;
+
+      renderTimelineSteps(log);
+
+      const tlActions = document.getElementById('tl-actions-box');
+      if (tlActions) {
+        if (log.status === 'diproses') {
+          tlActions.innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="switchTab('view-wizard')">
+                <span>🚀</span> Buka Wizard Penanganan Kasus ➔
+              </button>
+              ${log.tahap < 5 ? `
+                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:#F8FAFC; color:var(--primary); border:1px solid #CBD5E1; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="updateTahapPenanganan(${log.id}, ${(log.tahap || 3) + 1})">
+                  <span>⏩</span> Update ke Tahap Berikutnya (${(log.tahap || 3) + 1}/5)
+                </button>
+              ` : `
+                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:var(--success); color:white; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="selesaikanKasus(${log.id})">
+                  <span>✓</span> Kasus Selesai (Pindahkan ke Log Selesai) ➔
+                </button>
+              `}
+            </div>
+          `;
+        } else {
+          tlActions.innerHTML = `
+            <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:8px; padding:12px; text-align:center;">
+              <div style="color:var(--success); font-weight:700; font-size:13px;">✓ Kasus Selesai Ditangani & Telah Ditutup</div>
+              <div style="color:var(--text-muted); font-size:11px; margin-top:4px;">Berita acara penanganan telah disahkan oleh pimpinan.</div>
+            </div>
+          `;
+        }
+      }
+      return;
+    }
+
+    // Standard View (Menunggu, Disetujui, Ditolak)
+    if (stdView) stdView.style.display = 'block';
+    if (tlView) tlView.style.display = 'none';
 
     const imgEl = document.getElementById('detail-val-img');
     const titleEl = document.getElementById('detail-val-title');
@@ -1641,12 +2123,9 @@
       } else if (log.status === 'ditolak') {
         statusBadgeEl.style.background = '#FEE2E2';
         statusBadgeEl.style.color = '#DC2626';
-      } else if (log.status === 'diproses') {
+      } else {
         statusBadgeEl.style.background = '#EDE9FE';
         statusBadgeEl.style.color = '#6D28D9';
-      } else {
-        statusBadgeEl.style.background = '#D1FAE5';
-        statusBadgeEl.style.color = '#059669';
       }
     }
 
@@ -1675,12 +2154,6 @@
         actionsBox.innerHTML = `
           <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="prosesKasusLog(${log.id})">
             <span>⚡</span> Proses Kasus ➔
-          </button>
-        `;
-      } else if (log.status === 'diproses') {
-        actionsBox.innerHTML = `
-          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="switchTab('view-wizard')">
-            <span>🚀</span> Buka Wizard Penanganan Kasus ➔
           </button>
         `;
       } else {
@@ -1739,13 +2212,19 @@
           `;
         } else if (log.status === 'diproses') {
           color = 'var(--primary)';
+          const tNames = ['', 'SPKT', 'Disposisi', 'Menuju Lokasi', 'Di TKP', 'Selesai'];
           badgeInfo = `
             <div style="margin-top:6px; font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px;">
-              <span>⚡ Status: Sedang Diproses</span>
+              <span>⚡ Status: Diproses (${tNames[log.tahap || 3] || 'Sedang Ditangani'})</span>
             </div>
           `;
         } else if (log.status === 'selesai') {
           color = '#047857';
+          badgeInfo = `
+            <div style="margin-top:6px; font-size:11px; color:var(--success); font-weight:600; display:flex; align-items:center; gap:4px;">
+              <span>✓ Kasus Selesai Ditangani</span>
+            </div>
+          `;
         }
 
         let cardFooter = '';
@@ -1761,10 +2240,10 @@
               <span>⚡</span> Klik untuk proses kasus ➔
             </div>
           `;
-        } else if (log.status === 'diproses') {
+        } else if (log.status === 'diproses' || log.status === 'selesai') {
           cardFooter = `
             <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
-              <span>🔍</span> Klik untuk tinjau progress penanganan ➔
+              <span>📍</span> Klik untuk lihat & update timeline pelacakan ➔
             </div>
           `;
         }
@@ -1796,21 +2275,11 @@
     if (filteredLogs.length > 0) {
       selectLogCard(filteredLogs[0].id);
     } else {
-      // Bersihkan panel detail jika tidak ada data pada kategori ini
-      const titleEl = document.getElementById('detail-val-title');
-      if (titleEl) titleEl.innerText = 'Tidak Ada Laporan Dipilih';
-      const deskEl = document.getElementById('detail-val-deskripsi');
-      if (deskEl) deskEl.innerText = 'Tidak ada laporan dalam kategori status ini.';
-      const badgeEl = document.getElementById('detail-val-status-badge');
-      if (badgeEl) {
-        badgeEl.innerText = '-';
-        badgeEl.style.background = '#F1F5F9';
-        badgeEl.style.color = '#64748B';
-      }
-      const actionsEl = document.getElementById('detail-val-actions');
-      if (actionsEl) actionsEl.innerHTML = '';
-      const fotoEl = document.getElementById('detail-val-foto');
-      if (fotoEl) fotoEl.src = 'https://placehold.co/300x400/CBD5E1/FFFFFF?text=Tidak+Ada+Data';
+      // Sembunyikan panel detail jika kosong
+      const stdView = document.getElementById('detail-standard-view');
+      const tlView = document.getElementById('detail-timeline-view');
+      if (stdView) stdView.style.display = 'none';
+      if (tlView) tlView.style.display = 'none';
     }
 
     // 3. Update judul/subtitle dengan ID eksplisit
