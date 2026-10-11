@@ -986,6 +986,46 @@
         </div>
         
         <div class="val-detail" id="val-detail-box" style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:sticky; top:16px; max-height: calc(100vh - 120px); overflow-y: auto;">
+          <!-- GLOBAL MACRO MILESTONE STEPPER (Siklus Hidup Lengkap Laporan End-to-End) -->
+          <div id="macro-milestone-box" style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-size:10px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:5px;">
+                <span>🌐</span> SIKLUS HIDUP LAPORAN
+              </div>
+              <div id="macro-source-badge" style="font-size:10px; font-weight:700; color:var(--primary); background:#EFF6FF; padding:2px 8px; border-radius:4px; border:1px solid #BFDBFE;">📞 Panggilan 110</div>
+            </div>
+            <div class="macro-stepper" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px;">
+              <!-- Step 1: Inisiasi -->
+              <div class="m-step" id="mstep-1" style="text-align:center; padding:6px 4px; border-radius:6px; background:#FFFFFF; border:1px solid #E2E8F0; transition:all 0.2s;">
+                <div class="m-icon" id="micon-1" style="font-size:11px; font-weight:800; color:#10B981;">✓</div>
+                <div style="font-size:9.5px; font-weight:700; color:#1E293B; margin-top:2px;">1. Lapor 110</div>
+                <div class="m-status" id="mstat-1" style="font-size:8.5px; color:#10B981; font-weight:600;">Tercatat</div>
+              </div>
+              <!-- Step 2: Validasi -->
+              <div class="m-step" id="mstep-2" style="text-align:center; padding:6px 4px; border-radius:6px; background:#FFFFFF; border:1px solid #E2E8F0; transition:all 0.2s;">
+                <div class="m-icon" id="micon-2" style="font-size:11px; font-weight:800; color:#D97706;">⏳</div>
+                <div style="font-size:9.5px; font-weight:700; color:#1E293B; margin-top:2px;">2. Validasi</div>
+                <div class="m-status" id="mstat-2" style="font-size:8.5px; color:#D97706; font-weight:600;">Review</div>
+              </div>
+              <!-- Step 3: Operasional -->
+              <div class="m-step" id="mstep-3" style="text-align:center; padding:6px 4px; border-radius:6px; background:#FFFFFF; border:1px solid #E2E8F0; transition:all 0.2s;">
+                <div class="m-icon" id="micon-3" style="font-size:11px; font-weight:800; color:#94A3B8;">🚔</div>
+                <div style="font-size:9.5px; font-weight:700; color:#1E293B; margin-top:2px;">3. Lapangan</div>
+                <div class="m-status" id="mstat-3" style="font-size:8.5px; color:#94A3B8; font-weight:600;">Pending</div>
+              </div>
+              <!-- Step 4: Selesai -->
+              <div class="m-step" id="mstep-4" style="text-align:center; padding:6px 4px; border-radius:6px; background:#FFFFFF; border:1px solid #E2E8F0; transition:all 0.2s;">
+                <div class="m-icon" id="micon-4" style="font-size:11px; font-weight:800; color:#94A3B8;">📋</div>
+                <div style="font-size:9.5px; font-weight:700; color:#1E293B; margin-top:2px;">4. Selesai</div>
+                <div class="m-status" id="mstat-4" style="font-size:8.5px; color:#94A3B8; font-weight:600;">Arsip</div>
+              </div>
+            </div>
+            <!-- Audit Log Terakhir -->
+            <div id="macro-audit-drawer" style="margin-top:8px; padding-top:6px; border-top:1px dashed #CBD5E1; font-size:10px; color:#64748B;">
+              <span id="macro-last-log" style="font-weight:600;">Status Terakhir: -</span>
+            </div>
+          </div>
+
           <!-- 1. STANDARD DETAIL VIEW (Menunggu, Disetujui, Ditolak) -->
           <div id="detail-standard-view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -1262,7 +1302,14 @@
           </div>
           
           <div class="form-label">Bukti Foto Persiapan <span style="color:red;">*</span></div>
-          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Persiapan</div>
+          <div id="wiz-step1-preview-wrap" style="display:none; margin-bottom:10px; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; position:relative; background:#0F172A;">
+            <img id="wiz-step1-preview-img" src="" style="width:100%; height:130px; object-fit:cover; display:block;">
+            <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent, rgba(0,0,0,0.85)); padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span id="wiz-step1-preview-meta" style="color:#93C5FD; font-size:10px; font-weight:700;">📍 GPS: -6.2345, 106.8423</span>
+              <span style="color:white; font-size:10px; background:rgba(30,64,175,0.8); padding:2px 6px; border-radius:4px;">✓ Siap Meluncur</span>
+            </div>
+          </div>
+          <div class="wiz-cam active" id="wiz-step1-cam-btn" onclick="ambilFotoWizard(1)">📸 Ambil / Ganti Foto Persiapan (Watermark GPS)</div>
           
           <div class="form-label">Keterangan Persiapan <span style="color:red;">*</span></div>
           <textarea id="wiz-step1-catatan" class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP..."></textarea>
@@ -1301,11 +1348,18 @@
               </div>
             </div>
           </div>
-          <div class="form-label">Keterangan Tindakan Kepolisian <span style="color:red;">*</span></div>
+          <div class="form-label">Keterangan Tindakan Kepolisian (Berita Acara) <span style="color:red;">*</span></div>
           <textarea id="wiz-step2-catatan" class="form-control" style="min-height: 80px; margin-bottom:12px;" placeholder="Jelaskan tindakan pengamanan, pengaturan lalu lintas, atau pembinaan yang dilakukan..."></textarea>
           
           <div class="form-label">Bukti Foto Penanganan Petugas di TKP <span style="color:red;">*</span></div>
-          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Kondisi TKP</div>
+          <div id="wiz-step2-preview-wrap" style="display:none; margin-bottom:10px; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; position:relative; background:#0F172A;">
+            <img id="wiz-step2-preview-img" src="" style="width:100%; height:130px; object-fit:cover; display:block;">
+            <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent, rgba(0,0,0,0.85)); padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span id="wiz-step2-preview-meta" style="color:#A7F3D0; font-size:10px; font-weight:700;">📍 TKP Terverifikasi</span>
+              <span style="color:white; font-size:10px; background:rgba(6,78,59,0.8); padding:2px 6px; border-radius:4px;">✓ Dokumentasi Tindakan</span>
+            </div>
+          </div>
+          <div class="wiz-cam active" id="wiz-step2-cam-btn" onclick="ambilFotoWizard(2)">📸 Ambil / Ganti Foto Kondisi TKP (Watermark GPS)</div>
           
           <button class="btn-blue" style="width:100%; margin:0; background:var(--warning);" onclick="nextStep(2)">Kirim Laporan Penanganan ➔</button>
         </div>
@@ -1331,7 +1385,14 @@
           </div>
 
           <div class="form-label">Bukti Foto Selesai / Situasi Kondusif <span style="color:red;">*</span></div>
-          <div class="wiz-cam active" onclick="alert('Kamera Utama Terbuka (Watermark GPS Aktif)')">📸 Ambil Foto Situasi Akhir</div>
+          <div id="wiz-step3-preview-wrap" style="display:none; margin-bottom:10px; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; position:relative; background:#0F172A;">
+            <img id="wiz-step3-preview-img" src="" style="width:100%; height:130px; object-fit:cover; display:block;">
+            <div style="position:absolute; bottom:0; left:0; right:0; background:linear-gradient(transparent, rgba(0,0,0,0.85)); padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:#A7F3D0; font-size:10px; font-weight:700;">📍 Lokasi Kondusif</span>
+              <span style="color:white; font-size:10px; background:rgba(6,78,59,0.8); padding:2px 6px; border-radius:4px;">✓ Selesai</span>
+            </div>
+          </div>
+          <div class="wiz-cam active" id="wiz-step3-cam-btn" onclick="ambilFotoWizard(3)">📸 Ambil / Ganti Foto Situasi Akhir (Watermark GPS)</div>
           
           <div class="form-label">Keterangan Penyelesaian <span style="color:red;">*</span></div>
           <textarea id="wiz-step3-catatan" class="form-control" style="min-height: 80px; margin-bottom:16px;" placeholder="Cth: Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal..."></textarea>
@@ -1444,24 +1505,29 @@
   let mapBeranda;
 
   function initMaps() {
-    if (typeof google === 'undefined') {
+    if (typeof google === 'undefined' || !google.maps || typeof google.maps.Map !== 'function') {
       setTimeout(initMaps, 500);
       return;
     }
 
-    const mapOptions = {
-      zoom: 13,
-      center: { lat: -6.1950, lng: 106.8200 },
-      disableDefaultUI: true, // Clean interface like the mockup
-      mapTypeId: 'roadmap',
-      styles: [
-        { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-        { featureType: 'transit', stylers: [{ visibility: 'off' }] }
-      ]
-    };
+    const elFs = document.getElementById('map-fullscreen');
+    const elBeranda = document.getElementById('map-beranda');
+    if (!elFs || !elBeranda) return;
 
-    mapFullscreen = new google.maps.Map(document.getElementById('map-fullscreen'), mapOptions);
-    mapBeranda = new google.maps.Map(document.getElementById('map-beranda'), Object.assign({}, mapOptions, { zoom: 11, draggable: false, scrollwheel: false }));
+    try {
+      const mapOptions = {
+        zoom: 13,
+        center: { lat: -6.1950, lng: 106.8200 },
+        disableDefaultUI: true, // Clean interface like the mockup
+        mapTypeId: 'roadmap',
+        styles: [
+          { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+          { featureType: 'transit', stylers: [{ visibility: 'off' }] }
+        ]
+      };
+
+      mapFullscreen = new google.maps.Map(elFs, mapOptions);
+      mapBeranda = new google.maps.Map(elBeranda, Object.assign({}, mapOptions, { zoom: 11, draggable: false, scrollwheel: false }));
 
     // 1:1 Map Elements based on mockup:
     // Green line, Yellow line, Red line, Red pins, Big Police Car
@@ -1543,11 +1609,14 @@
       anchor: new google.maps.Point(50, 25)
     };
     
-    window.otherMarkers = [
-      new google.maps.Marker({ position: { lat: -6.2050, lng: 106.8250 }, map: null, icon: otherIcon, title: "Bripka Joko" }),
-      new google.maps.Marker({ position: { lat: -6.1850, lng: 106.8100 }, map: null, icon: otherIcon, title: "Aiptu Setiawan" }),
-      new google.maps.Marker({ position: { lat: -6.2200, lng: 106.8150 }, map: null, icon: otherIcon, title: "Briptu Andi" })
-    ];
+      window.otherMarkers = [
+        new google.maps.Marker({ position: { lat: -6.2050, lng: 106.8250 }, map: null, icon: otherIcon, title: "Bripka Joko" }),
+        new google.maps.Marker({ position: { lat: -6.1850, lng: 106.8100 }, map: null, icon: otherIcon, title: "Aiptu Setiawan" }),
+        new google.maps.Marker({ position: { lat: -6.2200, lng: 106.8150 }, map: null, icon: otherIcon, title: "Briptu Andi" })
+      ];
+    } catch (e) {
+      console.warn('Inisialisasi peta ditunda/gagal:', e);
+    }
   }
   
   function toggleSebaranPersonel() {
@@ -1740,6 +1809,8 @@
   }
 
   let appLogs = [];
+  let selectedLogId = null;
+  let activeWizardLogId = null;
 
   const SVG_FALLBACK_PENGADUAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
@@ -1777,12 +1848,36 @@
 </svg>
 `)}`;
 
+  const SVG_FALLBACK_PERSIAPAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
+  <defs>
+    <linearGradient id="gradP" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="240" fill="url(#gradP)"/>
+  <circle cx="200" cy="85" r="32" fill="#1E40AF"/>
+  <path d="M190 85 L200 70 L210 85 L203 85 L203 100 L197 100 L197 85 Z" fill="#93C5FD"/>
+  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">PERSIAPAN & MELUNCUR</text>
+  <text x="200" y="168" fill="#93C5FD" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Personel & GPS Terkunci</text>
+  <rect x="120" y="186" width="160" height="24" rx="12" fill="rgba(59,130,246,0.2)"/>
+  <text x="200" y="202" fill="#93C5FD" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ GPS & ARMADA SIAGA</text>
+</svg>
+`)}`;
+
   function loadLogsFromStorage() {
     const sampleBuktiPengaduan = [
       'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
       'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80'
+    ];
+    const sampleBuktiPersiapan = [
+      'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80'
     ];
     const sampleBuktiTindakan = [
       'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
@@ -1806,7 +1901,33 @@
         if (!l.nomorTiket) l.nomorTiket = 'TIKET-110-' + (l.id < 10 ? '0' + l.id : l.id) + 'X2F';
         if (!l.jenisInsiden) l.jenisInsiden = l.title;
         if (!l.lokasiKejadian) l.lokasiKejadian = l.sektor ? l.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta';
+        if (!l.sumberLaporan) l.sumberLaporan = (l.id % 2 === 0 ? '📞 Panggilan 110 (Call Center)' : '👮 Patroli Mandiri Personel');
         
+        if (!l.riwayatValidasi) {
+          l.riwayatValidasi = [
+            { waktu: l.waktu || '10:00 WIB', aktor: 'Operator SPKT', aksi: 'Perekaman Laporan', catatan: 'Laporan terdata dari ' + l.sumberLaporan }
+          ];
+          if (l.status === 'disetujui' || l.status === 'diproses' || l.status === 'selesai') {
+            l.riwayatValidasi.push({ waktu: l.waktu || '10:15 WIB', aktor: 'Kompol Hendra (Pawas)', aksi: 'Disetujui', catatan: 'Berkas lengkap dan sesuai SOP' });
+          }
+          if (l.status === 'ditolak') {
+            l.riwayatValidasi.push({ waktu: l.waktu || '10:15 WIB', aktor: 'Kompol Hendra (Pawas)', aksi: 'Ditolak / Revisi', catatan: l.alasanTolak || 'Dokumentasi belum memenuhi standar' });
+          }
+        }
+        if (!l.ratingKepuasan && l.status === 'selesai') {
+          l.ratingKepuasan = { skor: 5, ulasan: 'Respon cepat dan penanganan kepolisian profesional', waktu: l.waktu || '11:45 WIB' };
+        }
+        
+        if (!l.koordinatGps) l.koordinatGps = '-6.2345, 106.8423';
+        if (!l.catatanPersiapan) l.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap siaga, meluncur menuju TKP.';
+        if (!l.fotoPersiapan) l.fotoPersiapan = sampleBuktiPersiapan[l.id % sampleBuktiPersiapan.length];
+        if (!l.deskripsiTindakan && (l.status === 'selesai' || l.tahap >= 5)) {
+          l.deskripsiTindakan = 'Telah tiba di TKP, mengamankan perimeter lokasi kejadian, pendataan saksi dan mediasi situasi hingga kondusif.';
+        }
+        if (!l.catatanSelesai && l.status === 'selesai') {
+          l.catatanSelesai = 'Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal.';
+        }
+
         // Bersihkan foto dari URL rusak lama
         const isBadPengaduan = !l.fotoPengaduan || 
           l.fotoPengaduan.includes('517649763962') || 
@@ -1833,7 +1954,10 @@
       appLogs = getDefaultLogs();
       appLogs.forEach(l => {
         l.fotoPengaduan = sampleBuktiPengaduan[l.id % sampleBuktiPengaduan.length];
+        l.fotoPersiapan = sampleBuktiPersiapan[l.id % sampleBuktiPersiapan.length];
         l.fotoTindakan = sampleBuktiTindakan[l.id % sampleBuktiTindakan.length];
+        l.koordinatGps = '-6.2345, 106.8423';
+        l.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap siaga, meluncur menuju TKP.';
       });
     }
   }
@@ -1917,6 +2041,13 @@
 
     log.status = 'disetujui';
     log.statusText = 'Disetujui';
+    if (!log.riwayatValidasi) log.riwayatValidasi = [];
+    log.riwayatValidasi.push({
+      waktu: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB',
+      aktor: 'Kompol Hendra (Pawas)',
+      aksi: 'Disetujui',
+      catatan: 'Berkas lengkap dan sesuai SOP'
+    });
     saveLogsToStorage();
     updateRekapCounts();
 
@@ -1937,6 +2068,14 @@
     if (!log.nomorTiket) log.nomorTiket = 'TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F';
     if (!log.jenisInsiden) log.jenisInsiden = log.title;
     if (!log.lokasiKejadian) log.lokasiKejadian = log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta';
+
+    if (!log.riwayatValidasi) log.riwayatValidasi = [];
+    log.riwayatValidasi.push({
+      waktu: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB',
+      aktor: 'Sistem SPKT',
+      aksi: 'Tiket Diterbitkan',
+      catatan: 'Kasus dialihkan ke status DIPROSES (Tahap 3)'
+    });
 
     saveLogsToStorage();
     updateRekapCounts();
@@ -2004,8 +2143,6 @@
     // Buka tampilan Log Ditolak agar user dapat langsung melihat log yang baru ditolak
     openValidasiList('ditolak');
   }
-
-  let selectedLogId = null;
 
   function selectLogCard(id) {
     selectedLogId = id;
@@ -2080,10 +2217,12 @@
       let titleTooltip = '';
       let clickHandler = '';
 
-      if (s.step < currentTahap) {
+      const isCaseFinished = (log.status === 'selesai');
+
+      if (isCaseFinished || s.step < currentTahap) {
         stateClass = 'completed';
         titleExtra = '<span style="font-size:10px; color:var(--success); font-weight:700; background:#ECFDF5; padding:2px 6px; border-radius:4px;">✓ SELESAI</span>';
-        titleTooltip = `Tahap ${s.step} sudah selesai (tidak dapat diubah)`;
+        titleTooltip = `Tahap ${s.step} sudah selesai (kasus telah tuntas)`;
         clickHandler = `onclick="peringatanStepDisabled(${s.step}, ${currentTahap}, 'completed')"`;
       } else if (s.step === currentTahap) {
         stateClass = 'active';
@@ -2099,7 +2238,7 @@
       }
 
       let mapHtml = '';
-      if (s.step === 3 && currentTahap >= 3) {
+      if (s.step === 3 && currentTahap >= 3 && !isCaseFinished) {
         mapHtml = `
           <div class="tracking-map">
             <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80" alt="Map" class="map-placeholder">
@@ -2119,25 +2258,77 @@
       if (s.step === 1) {
         metaRowHtml = `
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time">${s.step === currentTahap ? 'Status Terkini: ' + s.time : s.time}</span>
+            <span class="step-time">${s.time}</span>
             <span style="font-size:10px; font-weight:700; color:var(--primary); background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('pengaduan')" title="Klik untuk lihat bukti foto 110">
               📷 Bukti Laporan 110 ➔
             </span>
           </div>
         `;
-      } else if (s.step === 4 || (s.step === 5 && currentTahap >= 4)) {
+      } else if (s.step === 3) {
+        const timeDisplay = log.waktuMeluncur ? 'Meluncur: ' + log.waktuMeluncur : (s.step === currentTahap && !isCaseFinished ? 'Status Terkini: ' + s.time : s.time);
         metaRowHtml = `
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time">${s.step === currentTahap ? 'Status Terkini: ' + s.time : s.time}</span>
+            <span class="step-time">${timeDisplay}</span>
+            <span style="font-size:10px; font-weight:700; color:#1E40AF; background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('persiapan')" title="Klik untuk lihat bukti foto persiapan & GPS">
+              📷 Bukti Persiapan & GPS ➔
+            </span>
+          </div>
+        `;
+      } else if (s.step === 4) {
+        const timeDisplay = log.waktuTiba ? 'Tiba: ' + log.waktuTiba : (s.step === currentTahap && !isCaseFinished ? 'Status Terkini: ' + s.time : s.time);
+        metaRowHtml = `
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+            <span class="step-time">${timeDisplay}</span>
             <span style="font-size:10px; font-weight:700; color:var(--success); background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('tindakan')" title="Klik untuk lihat bukti foto tindakan">
               📸 Bukti Tindakan TKP ➔
+            </span>
+          </div>
+        `;
+      } else if (s.step === 5) {
+        const timeDisplay = log.waktuSelesai ? 'Selesai: ' + log.waktuSelesai : (isCaseFinished ? 'Selesai: ' + (log.waktu || s.time) : (s.step === currentTahap ? 'Status Terkini: ' + s.time : s.time));
+        metaRowHtml = `
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+            <span class="step-time">${timeDisplay}</span>
+            <span style="font-size:10px; font-weight:700; color:#16A34A; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('selesai')" title="Klik untuk lihat bukti foto penyelesaian akhir">
+              ✅ Bukti Situasi Akhir ➔
             </span>
           </div>
         `;
       } else {
         metaRowHtml = `
           <div style="margin-top:6px;">
-            <span class="step-time">${s.step === currentTahap ? 'Status Terkini: ' + s.time : s.time}</span>
+            <span class="step-time">${s.step === currentTahap && !isCaseFinished ? 'Status Terkini: ' + s.time : s.time}</span>
+          </div>
+        `;
+      }
+
+      // Cuplikan data reaktif dari Wizard (Item 8: GPS Persiapan, Item 10: Berita Acara TKP)
+      let detailSnippetHtml = '';
+      if (s.step === 3 && (log.koordinatGps || log.catatanPersiapan)) {
+        detailSnippetHtml = `
+          <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:6px; padding:6px 10px; margin-top:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+              <span style="font-size:10px; font-weight:700; color:#166534;">📍 GPS KEBERANGKATAN:</span>
+              <span style="font-size:9.5px; background:#DCFCE7; color:#15803D; font-weight:700; padding:1px 5px; border-radius:3px;">TERKUNCI</span>
+            </div>
+            <div style="font-size:11px; font-weight:600; color:#1E293B; font-family:monospace;">${log.koordinatGps || '-6.2345, 106.8423'}</div>
+            ${log.catatanPersiapan ? `<div style="font-size:10.5px; color:#475569; font-style:italic; margin-top:3px;">"${log.catatanPersiapan}"</div>` : ''}
+          </div>
+        `;
+      } else if (s.step === 4 && (log.deskripsiTindakan || currentTahap >= 5)) {
+        const teksTindakan = log.deskripsiTindakan || 'Petugas telah tiba di TKP dan melakukan sterilisasi lokasi kejadian sesuai SOP kepolisian.';
+        detailSnippetHtml = `
+          <div style="background:#FEFCE8; border-left:3px solid #EAB308; border-radius:0 6px 6px 0; padding:6px 10px; margin-top:8px; line-height:1.4;">
+            <div style="font-size:10px; font-weight:700; color:#854D0E; margin-bottom:2px;">📝 BERITA ACARA TINDAKAN TKP:</div>
+            <div style="font-size:11px; color:#1E293B;">"${teksTindakan}"</div>
+          </div>
+        `;
+      } else if (s.step === 5 && (log.catatanSelesai || log.status === 'selesai')) {
+        const teksSelesai = log.catatanSelesai || 'Situasi telah aman dan kondusif. Kasus selesai ditangani dan disahkan oleh pimpinan.';
+        detailSnippetHtml = `
+          <div style="background:#ECFDF5; border-left:3px solid #10B981; border-radius:0 6px 6px 0; padding:6px 10px; margin-top:8px; line-height:1.4;">
+            <div style="font-size:10px; font-weight:700; color:#047857; margin-bottom:2px;">✓ PENYELESAIAN AKHIR:</div>
+            <div style="font-size:11px; color:#1E293B;">"${teksSelesai}"</div>
           </div>
         `;
       }
@@ -2153,6 +2344,7 @@
             <div class="step-desc">${s.desc}</div>
             ${metaRowHtml}
             ${mapHtml}
+            ${detailSnippetHtml}
           </div>
         </div>
       `;
@@ -2208,7 +2400,6 @@
   // ==========================================
   // WIZARD PENANGANAN KASUS (DYNAMIC INTEGRATION)
   // ==========================================
-  let activeWizardLogId = null;
 
   function getLiveGPS() {
     if (navigator.geolocation) {
@@ -2306,6 +2497,86 @@
       if (el) el.innerText = metaStr;
     });
 
+    // 5.b Sinkronisasi form wizard dengan data log yang tersimpan (Item 8 & Item 10)
+    const step1Catatan = document.getElementById('wiz-step1-catatan');
+    if (step1Catatan) step1Catatan.value = log.catatanPersiapan || '';
+
+    if (log.fotoPersiapan) {
+      const w1 = document.getElementById('wiz-step1-preview-wrap');
+      const i1 = document.getElementById('wiz-step1-preview-img');
+      const m1 = document.getElementById('wiz-step1-preview-meta');
+      const b1 = document.getElementById('wiz-step1-cam-btn');
+      if (w1) w1.style.display = 'block';
+      if (i1) i1.src = log.fotoPersiapan;
+      if (m1) m1.innerText = `📍 GPS: ${log.koordinatGps || '-6.2345, 106.8423'} • ${log.waktuMeluncur || log.waktu || 'Siap'}`;
+      if (b1) {
+        b1.innerText = '✓ Foto Persiapan Terambil (Klik untuk Ganti)';
+        b1.style.borderColor = '#16A34A';
+        b1.style.color = '#15803D';
+      }
+    } else {
+      const w1 = document.getElementById('wiz-step1-preview-wrap');
+      if (w1) w1.style.display = 'none';
+      const b1 = document.getElementById('wiz-step1-cam-btn');
+      if (b1) {
+        b1.innerText = '📸 Ambil / Ganti Foto Persiapan (Watermark GPS)';
+        b1.style.borderColor = '';
+        b1.style.color = '';
+      }
+    }
+
+    const step2Catatan = document.getElementById('wiz-step2-catatan');
+    if (step2Catatan) step2Catatan.value = log.deskripsiTindakan || '';
+
+    if (log.fotoTindakan) {
+      const w2 = document.getElementById('wiz-step2-preview-wrap');
+      const i2 = document.getElementById('wiz-step2-preview-img');
+      const m2 = document.getElementById('wiz-step2-preview-meta');
+      const b2 = document.getElementById('wiz-step2-cam-btn');
+      if (w2) w2.style.display = 'block';
+      if (i2) i2.src = log.fotoTindakan;
+      if (m2) m2.innerText = `📍 TKP Terverifikasi • ${log.waktuTiba || log.waktu || 'Penanganan'}`;
+      if (b2) {
+        b2.innerText = '✓ Foto Tindakan TKP Terambil (Klik untuk Ganti)';
+        b2.style.borderColor = '#16A34A';
+        b2.style.color = '#15803D';
+      }
+    } else {
+      const w2 = document.getElementById('wiz-step2-preview-wrap');
+      if (w2) w2.style.display = 'none';
+      const b2 = document.getElementById('wiz-step2-cam-btn');
+      if (b2) {
+        b2.innerText = '📸 Ambil / Ganti Foto Kondisi TKP (Watermark GPS)';
+        b2.style.borderColor = '';
+        b2.style.color = '';
+      }
+    }
+
+    const step3Catatan = document.getElementById('wiz-step3-catatan');
+    if (step3Catatan) step3Catatan.value = log.catatanSelesai || '';
+
+    if (log.fotoSelesai) {
+      const w3 = document.getElementById('wiz-step3-preview-wrap');
+      const i3 = document.getElementById('wiz-step3-preview-img');
+      const b3 = document.getElementById('wiz-step3-cam-btn');
+      if (w3) w3.style.display = 'block';
+      if (i3) i3.src = log.fotoSelesai;
+      if (b3) {
+        b3.innerText = '✓ Foto Situasi Akhir Terambil (Klik untuk Ganti)';
+        b3.style.borderColor = '#16A34A';
+        b3.style.color = '#15803D';
+      }
+    } else {
+      const w3 = document.getElementById('wiz-step3-preview-wrap');
+      if (w3) w3.style.display = 'none';
+      const b3 = document.getElementById('wiz-step3-cam-btn');
+      if (b3) {
+        b3.innerText = '📸 Ambil / Ganti Foto Situasi Akhir (Watermark GPS)';
+        b3.style.borderColor = '';
+        b3.style.color = '';
+      }
+    }
+
     // 6. Sinkronkan Step Accordion sesuai tahap saat ini
     const tahap = parseInt(log.tahap) || (log.status === 'selesai' ? 5 : 3);
     syncWizardStepsWithTahap(tahap);
@@ -2322,6 +2593,81 @@
     if (activeWizardLogId) {
       selectLogCard(activeWizardLogId);
     }
+  }
+
+  function ambilFotoWizard(step) {
+    if (!activeWizardLogId) activeWizardLogId = selectedLogId;
+    const log = appLogs.find(l => l.id === activeWizardLogId);
+    if (!log) return;
+
+    const waktuSekarang = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+    const gpsVal = (document.getElementById('koordinat-gps')?.value) || log.koordinatGps || '-6.2345, 106.8423';
+
+    const poolPersiapan = [
+      'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80'
+    ];
+    const poolTindakan = [
+      'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80'
+    ];
+    const poolSelesai = [
+      'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+      'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80'
+    ];
+
+    if (step === 1) {
+      log.fotoPersiapan = poolPersiapan[log.id % poolPersiapan.length];
+      log.koordinatGps = gpsVal;
+      
+      const wrap = document.getElementById('wiz-step1-preview-wrap');
+      const img = document.getElementById('wiz-step1-preview-img');
+      const meta = document.getElementById('wiz-step1-preview-meta');
+      const btn = document.getElementById('wiz-step1-cam-btn');
+      if (wrap) wrap.style.display = 'block';
+      if (img) img.src = log.fotoPersiapan;
+      if (meta) meta.innerText = `📍 GPS: ${gpsVal} • ${waktuSekarang}`;
+      if (btn) {
+        btn.innerText = '✓ Foto Persiapan Terambil (Klik untuk Ganti)';
+        btn.style.borderColor = '#16A34A';
+        btn.style.color = '#15803D';
+      }
+      alert(`📸 Foto Persiapan Berhasil Diambil!\n\n• Koordinat GPS: ${gpsVal}\n• Waktu: ${waktuSekarang}\n• Watermark: Terverifikasi Satuan Patroli Presisi`);
+    } else if (step === 2) {
+      log.fotoTindakan = poolTindakan[log.id % poolTindakan.length];
+      
+      const wrap = document.getElementById('wiz-step2-preview-wrap');
+      const img = document.getElementById('wiz-step2-preview-img');
+      const meta = document.getElementById('wiz-step2-preview-meta');
+      const btn = document.getElementById('wiz-step2-cam-btn');
+      if (wrap) wrap.style.display = 'block';
+      if (img) img.src = log.fotoTindakan;
+      if (meta) meta.innerText = `📍 TKP Terverifikasi • ${waktuSekarang}`;
+      if (btn) {
+        btn.innerText = '✓ Foto Tindakan TKP Terambil (Klik untuk Ganti)';
+        btn.style.borderColor = '#16A34A';
+        btn.style.color = '#15803D';
+      }
+      alert(`📸 Foto Kondisi TKP Berhasil Diambil!\n\n• Lokasi: ${log.lokasiKejadian || 'TKP Sektor'}\n• Waktu: ${waktuSekarang}\n• Watermark: Dokumentasi Resmi Kepolisian`);
+    } else if (step === 3) {
+      log.fotoSelesai = poolSelesai[log.id % poolSelesai.length];
+      
+      const wrap = document.getElementById('wiz-step3-preview-wrap');
+      const img = document.getElementById('wiz-step3-preview-img');
+      const btn = document.getElementById('wiz-step3-cam-btn');
+      if (wrap) wrap.style.display = 'block';
+      if (img) img.src = log.fotoSelesai;
+      if (btn) {
+        btn.innerText = '✓ Foto Situasi Akhir Terambil (Klik untuk Ganti)';
+        btn.style.borderColor = '#16A34A';
+        btn.style.color = '#15803D';
+      }
+      alert(`📸 Foto Situasi Akhir Selesai Diambil!\n\n• Status: Aman & Kondusif\n• Waktu: ${waktuSekarang}`);
+    }
+    saveLogsToStorage();
   }
 
   function syncWizardStepsWithTahap(tahap) {
@@ -2396,33 +2742,194 @@
     const log = appLogs.find(l => l.id === activeWizardLogId);
     if (!log) return;
 
+    const waktuSekarang = new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB';
+
     if (currentStep === 1) {
+      // 1. Ekstraksi Input Wizard Step 1 (Item 8: Kamera GPS & Persiapan)
+      const inputGps = document.getElementById('koordinat-gps')?.value || '-6.2345, 106.8423';
+      const inputCatatan = document.getElementById('wiz-step1-catatan')?.value.trim() || 'Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP.';
+      
+      log.koordinatGps = inputGps;
+      log.catatanPersiapan = inputCatatan;
+      log.waktuMeluncur = waktuSekarang;
+      if (!log.fotoPersiapan) {
+        log.fotoPersiapan = 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
+      }
+
+      // Catat ke Riwayat Validasi
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: log.waktuMeluncur,
+        aktor: log.nama || 'Bripka Ahmad (Personel Lapangan)',
+        aksi: 'Persiapan & Meluncur',
+        catatan: log.catatanPersiapan + ' [GPS: ' + log.koordinatGps + ']'
+      });
+
       // Maju ke Tahap 4 (Tiba di TKP)
       updateTahapPenanganan(activeWizardLogId, 4);
       syncWizardStepsWithTahap(4);
+      saveLogsToStorage();
+
       const badge = document.getElementById('wiz-status-badge');
       if (badge) {
         badge.innerText = '⚡ Tahap 4 • Tindakan di TKP';
         badge.style.background = '#EDE9FE';
         badge.style.color = '#6D28D9';
       }
-      alert('✓ Tahap 1 (Meluncur ke Lokasi) berhasil!\n\nStatus personel sedang bergerak meluncur ke TKP. Status di Timeline & Portal Publik telah diperbarui.');
+      alert('✓ Tahap 1 (Meluncur ke Lokasi) berhasil!\n\n• Koordinat GPS: ' + log.koordinatGps + '\n• Status personel bergerak meluncur ke TKP.\n• Data foto persiapan & GPS otomatis tersinkronisasi ke Step 3 Timeline!');
+      
+      // Auto-scroll ke Step 2
+      const s2 = document.getElementById('step2-card');
+      if (s2) s2.scrollIntoView({ behavior: 'smooth' });
+
     } else if (currentStep === 2) {
+      // 2. Ekstraksi Input Wizard Step 2 (Item 10: Berita Acara & Tindakan di TKP)
+      const inputTindakan = document.getElementById('wiz-step2-catatan')?.value.trim() || 'Petugas telah tiba di TKP. Melakukan pengamanan dan tindakan kepolisian presisi sesuai SOP.';
+      
+      log.deskripsiTindakan = inputTindakan;
+      log.waktuTiba = waktuSekarang;
+      if (!log.fotoTindakan) {
+        log.fotoTindakan = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
+      }
+
+      // Catat ke Riwayat Validasi
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: log.waktuTiba,
+        aktor: log.nama || 'Bripka Ahmad (Personel Lapangan)',
+        aksi: 'Tindakan di TKP',
+        catatan: log.deskripsiTindakan
+      });
+
       // Maju ke Tahap 5 (Kasus Selesai)
       updateTahapPenanganan(activeWizardLogId, 5);
       syncWizardStepsWithTahap(5);
+      saveLogsToStorage();
+
       const badge = document.getElementById('wiz-status-badge');
       if (badge) {
         badge.innerText = '✓ Kasus Selesai Ditangani';
         badge.style.background = '#DCFCE7';
         badge.style.color = '#16A34A';
       }
-      alert('✓ Tahap 2 (Tindakan di TKP) selesai!\n\nLaporan penanganan kepolisian tersimpan. Silakan konfirmasi dokumentasi akhir untuk menutup kasus.');
+      alert('✓ Tahap 2 (Tindakan di TKP) selesai!\n\n• Berita Acara: "' + (log.deskripsiTindakan.length > 50 ? log.deskripsiTindakan.substring(0, 50) + '...' : log.deskripsiTindakan) + '"\n• Data tindakan otomatis tersinkronisasi ke Step 4 Timeline!\n• Silakan konfirmasi dokumentasi akhir untuk menutup kasus.');
+
+      // Auto-scroll ke Step 3
+      const s3 = document.getElementById('step3-card');
+      if (s3) s3.scrollIntoView({ behavior: 'smooth' });
+
     } else if (currentStep === 3) {
+      // 3. Ekstraksi Input Wizard Step 3 (Penutupan Kasus)
+      const inputSelesai = document.getElementById('wiz-step3-catatan')?.value.trim() || 'Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal.';
+      log.catatanSelesai = inputSelesai;
+      log.waktuSelesai = waktuSekarang;
+      if (!log.fotoSelesai) {
+        log.fotoSelesai = 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80';
+      }
+
+      if (!log.riwayatValidasi) log.riwayatValidasi = [];
+      log.riwayatValidasi.push({
+        waktu: log.waktuSelesai,
+        aktor: log.nama || 'Bripka Ahmad (Personel Lapangan)',
+        aksi: 'Kasus Ditutup',
+        catatan: log.catatanSelesai
+      });
+
       // Tutup Kasus
       selesaikanKasus(activeWizardLogId);
       kembaliDariWizard();
     }
+  }
+
+  function updateMacroStepper(log) {
+    if (!log) return;
+    const badge = document.getElementById('macro-source-badge');
+    if (badge) badge.innerText = log.sumberLaporan || '📞 Panggilan 110';
+
+    const s1 = document.getElementById('mstep-1');
+    const s2 = document.getElementById('mstep-2');
+    const s3 = document.getElementById('mstep-3');
+    const s4 = document.getElementById('mstep-4');
+
+    const i1 = document.getElementById('micon-1');
+    const i2 = document.getElementById('micon-2');
+    const i3 = document.getElementById('micon-3');
+    const i4 = document.getElementById('micon-4');
+
+    const t1 = document.getElementById('mstat-1');
+    const t2 = document.getElementById('mstat-2');
+    const t3 = document.getElementById('mstat-3');
+    const t4 = document.getElementById('mstat-4');
+
+    const lastLog = document.getElementById('macro-last-log');
+
+    const setStep = (el, iconEl, statEl, icon, text, bg, border, textColor, statColor, opacity = 1) => {
+      if (!el) return;
+      el.style.background = bg;
+      el.style.borderColor = border;
+      el.style.opacity = opacity;
+      if (iconEl) {
+        iconEl.innerText = icon;
+        iconEl.style.color = textColor;
+      }
+      if (statEl) {
+        statEl.innerText = text;
+        statEl.style.color = statColor;
+      }
+    };
+
+    // Step 1: Lapor 110 selalu selesai (inisiasi berhasil)
+    setStep(s1, i1, t1, '✓', 'Tercatat', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+
+    if (log.status === 'menunggu') {
+      setStep(s2, i2, t2, '⏳', 'Review Pawas', '#FEF3C7', '#F59E0B', '#D97706', '#B45309');
+      setStep(s3, i3, t3, '🔒', 'Menunggu Acc', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
+      setStep(s4, i4, t4, '🔒', 'Menunggu', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
+      if (lastLog) lastLog.innerHTML = '🕒 <strong>Menunggu Validasi:</strong> Laporan masuk dalam antrean audit pimpinan pengawas.';
+    } else if (log.status === 'ditolak') {
+      setStep(s2, i2, t2, '✕', 'Ditolak/Revisi', '#FEE2E2', '#EF4444', '#DC2626', '#B91C1C');
+      setStep(s3, i3, t3, '⛔', 'Terkunci', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.5);
+      setStep(s4, i4, t4, '⛔', 'Terkunci', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.5);
+      if (lastLog) lastLog.innerHTML = '⚠️ <strong>Catatan Revisi:</strong> "' + (log.alasanTolak || 'Dokumentasi belum lengkap') + '"';
+    } else if (log.status === 'disetujui') {
+      setStep(s2, i2, t2, '✓', 'Disetujui', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+      setStep(s3, i3, t3, '⚡', 'Siap Diproses', '#EFF6FF', '#93C5FD', '#2563EB', '#1D4ED8');
+      setStep(s4, i4, t4, '🔒', 'Menunggu', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
+      if (lastLog) lastLog.innerHTML = '✓ <strong>Laporan Disetujui:</strong> Siap diterbitkan tiket penanganan oleh operator.';
+    } else if (log.status === 'diproses') {
+      setStep(s2, i2, t2, '✓', 'Disetujui', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+      const tahapNames = ['', 'SPKT', 'Disposisi', 'Meluncur', 'Di TKP', 'Selesai'];
+      setStep(s3, i3, t3, '●', 'Tahap ' + (log.tahap || 3) + ' (' + (tahapNames[log.tahap || 3] || 'Aktif') + ')', '#EFF6FF', '#3B82F6', '#1D4ED8', '#1E40AF');
+      setStep(s4, i4, t4, '🔒', 'Menunggu', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
+      if (lastLog) lastLog.innerHTML = '🚀 <strong>Sedang Ditangani:</strong> Personel aktif dalam koordinasi 5-Tahap Pelacakan.';
+    } else if (log.status === 'selesai') {
+      setStep(s2, i2, t2, '✓', 'Disetujui', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+      setStep(s3, i3, t3, '✓', 'Tuntas (5/5)', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+      setStep(s4, i4, t4, '✓', 'Selesai 100%', '#ECFDF5', '#10B981', '#059669', '#047857');
+      const stars = log.ratingKepuasan ? ' ⭐⭐⭐⭐⭐' : '';
+      if (lastLog) lastLog.innerHTML = '🏆 <strong>Kasus Ditutup:</strong> Berita acara lengkap & disahkan pimpinan.' + stars;
+    }
+  }
+
+  function koreksiLogDitolak(id) {
+    const log = appLogs.find(l => l.id === id);
+    if (!log) return;
+    const catatanBaru = prompt('Masukkan catatan perbaikan dokumen / klarifikasi revisi:\n(Alasan penolakan sebelumnya: ' + log.alasanTolak + ')', 'Foto bukti dan uraian kronologi telah diperbarui sesuai arahan SOP.');
+    if (catatanBaru === null) return;
+    log.status = 'menunggu';
+    log.statusText = 'Menunggu Validasi Ulang';
+    if (!log.riwayatValidasi) log.riwayatValidasi = [];
+    log.riwayatValidasi.push({
+      waktu: new Date().toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}) + ' WIB',
+      aktor: log.nama + ' (Personel)',
+      aksi: 'Pengajuan Revisi',
+      catatan: catatanBaru.trim() || 'Perbaikan berkas diajukan ulang'
+    });
+    saveLogsToStorage();
+    updateRekapCounts();
+    alert('✓ Laporan #' + log.id + ' telah diajukan ulang ke Atasan untuk divalidasi kembali!\n\nStatus laporan kembali menjadi MENUNGGU VALIDASI.');
+    openValidasiList('menunggu');
+    selectLogCard(log.id);
   }
 
   function displayLogDetail(id) {
@@ -2430,6 +2937,7 @@
     if (!log) return;
 
     selectedLogId = id;
+    updateMacroStepper(log);
 
     const isTimelineMode = (log.status === 'diproses' || log.status === 'selesai');
     const stdView = document.getElementById('detail-standard-view');
@@ -2595,16 +3103,22 @@
       if (log.status === 'menunggu') {
         actionsBox.innerHTML = `
           <button type="button" class="btn-acc" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--success); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(16,185,129,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="setujuiLog(${log.id})">
-            <span>✓</span> Setujui Laporan
+            <span>✓</span> Setujui
           </button>
           <button type="button" class="btn-rej" style="flex:1; padding:12px; border-radius:8px; border:none; background:var(--danger); color:white; font-weight:700; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.3); transition:transform 0.15s, opacity 0.15s;" onmouseover="this.style.opacity='0.9'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='none'" onclick="bukaHalamanTolak(${log.id})">
-            <span>✕</span> Tolak Laporan
+            <span>✕</span> Tolak
           </button>
         `;
       } else if (log.status === 'disetujui') {
         actionsBox.innerHTML = `
           <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="prosesKasusLog(${log.id})">
             <span>⚡</span> Proses Kasus ➔
+          </button>
+        `;
+      } else if (log.status === 'ditolak') {
+        actionsBox.innerHTML = `
+          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:#D97706; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; border:none; color:white; cursor:pointer; box-shadow:0 2px 6px rgba(217,119,6,0.3); transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="koreksiLogDitolak(${log.id})">
+            <span>✏️</span> Ajukan Revisi & Kirim Ulang ke Atasan ➔
           </button>
         `;
       } else {
@@ -2953,6 +3467,7 @@
     if (!log) return;
 
     const defaultFotoPengaduan = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80';
+    const defaultFotoPersiapan = 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
     const defaultFotoTindakan = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
 
     if (type === 'pengaduan') {
@@ -2967,6 +3482,30 @@
       imgEl.src = src;
       descEl.innerText = 'Foto dokumentasi awal saat warga menghubungi call center 110 terkait "' + log.title + '". Lokasi: ' + (log.lokasiKejadian || log.sektor || 'Jakarta');
       metaEl.innerText = 'Pelapor: Masyarakat (Terverifikasi Call Center 110)';
+    } else if (type === 'persiapan') {
+      titleEl.innerHTML = '📷 Bukti Persiapan Keberangkatan (GPS)';
+      subEl.innerText = (log.nama || 'Bripka Ahmad') + ' • Koordinat GPS Terkunci';
+      let src = log.fotoPersiapan || defaultFotoPersiapan;
+      if (src.includes('placehold.co')) src = defaultFotoPersiapan;
+      imgEl.onerror = function() {
+        this.onerror = null;
+        this.src = SVG_FALLBACK_PERSIAPAN;
+      };
+      imgEl.src = src;
+      descEl.innerText = 'Foto kesiapan personel dan armada patroli dinas sebelum meluncur. Koordinat: ' + (log.koordinatGps || '-6.2345, 106.8423') + '. Keterangan: "' + (log.catatanPersiapan || 'Personel dan armada siap siaga') + '"';
+      metaEl.innerText = 'Petugas: ' + (log.nama || 'Bripka Ahmad') + ' • GPS: ' + (log.koordinatGps || '-6.2345, 106.8423') + ' (Waktu: ' + (log.waktuMeluncur || log.waktu || '10:50 WIB') + ')';
+    } else if (type === 'selesai') {
+      titleEl.innerHTML = '✅ Bukti Situasi Akhir & Kasus Selesai';
+      subEl.innerText = (log.nomorTiket || 'TIKET-110') + ' • Selesai Ditangani';
+      let src = log.fotoSelesai || log.fotoTindakan || defaultFotoTindakan;
+      if (src.includes('placehold.co')) src = defaultFotoTindakan;
+      imgEl.onerror = function() {
+        this.onerror = null;
+        this.src = SVG_FALLBACK_TINDAKAN;
+      };
+      imgEl.src = src;
+      descEl.innerText = 'Foto dokumentasi penutupan kasus dan pemulihan ketertiban umum oleh personel. Catatan: "' + (log.catatanSelesai || 'Situasi telah aman dan kondusif, kasus tuntas ditangani.') + '"';
+      metaEl.innerText = 'Petugas Penindak: ' + (log.nama || 'Bripka Ahmad') + ' • Waktu Selesai: ' + (log.waktuSelesai || log.waktu || '11:45 WIB');
     } else {
       titleEl.innerHTML = '📸 Bukti Tindakan & Respon Petugas di TKP';
       subEl.innerText = (log.nama || 'Bripka Ahmad') + ' • Tahap ' + (log.tahap || 3) + '/5';
@@ -2977,7 +3516,7 @@
         this.src = SVG_FALLBACK_TINDAKAN;
       };
       imgEl.src = src;
-      descEl.innerText = 'Foto respon penanganan lapangan oleh ' + (log.nama || 'personel') + ' di TKP. Meliputi sterilisasi tempat kejadian, penertiban, dan pemulihan ketertiban umum.';
+      descEl.innerText = 'Foto respon penanganan lapangan oleh ' + (log.nama || 'personel') + ' di TKP. Meliputi sterilisasi tempat kejadian, penertiban, dan pemulihan ketertiban umum. Catatan: "' + (log.deskripsiTindakan || 'Tindakan penertiban selesai sesuai SOP') + '"';
       metaEl.innerText = 'Petugas Penindak: ' + (log.nama || 'Bripka Ahmad') + ' (NRP: ' + (log.nrp || '50123456') + ')';
     }
 
