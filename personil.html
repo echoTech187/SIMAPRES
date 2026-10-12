@@ -38,8 +38,8 @@
           onmouseover="this.style.background='rgba(255,255,255,0.2)'"
           onmouseout="this.style.background='rgba(255,255,255,0.1)'" title="Klik untuk lihat Profil Lengkap & Logout">
           <div class="user-info">
-            <div id="user-name" class="user-name">Bripka Ahmad</div>
-            <div id="user-role" class="user-nrp">NRP: 50123456</div>
+            <div id="user-name" class="user-name">Memuat Sesi...</div>
+            <div id="user-role" class="user-nrp">NRP: -</div>
           </div>
           <img id="user-avatar-top" src="assets/images/avatar_polisi.jpg" alt="User" class="user-avatar">
         </div>
@@ -130,7 +130,7 @@
                   </div>
                   <div id="mud-petugas"
                     style="font-size:13.5px; font-weight:700; color:#1E293B; line-height:1.3; margin-top:4px;">
-                    Bripka Ahmad Subagyo (NRP 88123456)
+                    Petugas Patroli Lapangan
                   </div>
                   <div id="mud-sub" style="font-size:11.5px; color:#64748B; margin-top:2px; line-height:1.4;">
                     Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81
@@ -238,7 +238,7 @@
                     <div>
                       <div style="font-weight:800; font-size:13px; color:var(--text);">11:40 WIB - Pengamanan Sambang
                         Pos Kamling & Warga RT 04 (Sektor Barat)</div>
-                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Bripka Ahmad menyelesaikan
+                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Petugas lapangan menyelesaikan
                         penyuluhan kamtibmas. Menunggu review lembar laporan.</div>
                     </div>
                     <span
@@ -314,7 +314,7 @@
           </div>
           <div id="mud-petugas-fs"
             style="font-size:13.5px; font-weight:700; color:#1E293B; line-height:1.3; margin-top:4px;">
-            Bripka Ahmad Subagyo (NRP 88123456)
+            Petugas Patroli Lapangan
           </div>
           <div id="mud-sub-fs" style="font-size:11.5px; color:#64748B; margin-top:2px; line-height:1.4;">
             Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81
@@ -953,15 +953,13 @@
                   <div style="flex:1;">
                     <div id="profil-user-pangkat"
                       style="font-size:10.5px; font-weight:700; color:#93C5FD; text-transform:uppercase; letter-spacing:0.5px;">
-                      KOMISARIS BESAR POLISI</div>
+                      -</div>
                     <h3 id="profil-user-nama"
-                      style="font-size:17px; color:#FFFFFF; font-weight:800; margin:2px 0 3px; line-height:1.2;">Kombes
-                      Pol Budi</h3>
+                      style="font-size:17px; color:#FFFFFF; font-weight:800; margin:2px 0 3px; line-height:1.2;">Memuat Personel...</h3>
                     <div id="profil-user-nrp"
                       style="font-size:12px; font-weight:700; color:#FDE68A; font-family:monospace; letter-spacing:1px;">
-                      NRP: 88010234</div>
-                    <div id="profil-user-jabatan" style="font-size:10.5px; color:#E2E8F0; margin-top:3px;">Perwira
-                      Pengawas (PAWAS) • Posko Pengendalian</div>
+                      NRP: -</div>
+                    <div id="profil-user-jabatan" style="font-size:10.5px; color:#E2E8F0; margin-top:3px;">Unit Operasional Presisi</div>
                   </div>
                 </div>
 
@@ -970,15 +968,15 @@
                   style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; background:rgba(0,0,0,0.25); padding:10px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.08);">
                   <div>
                     <div style="font-size:9.5px; color:#94A3B8; font-weight:600;">Total Laporan</div>
-                    <div style="font-size:15px; font-weight:900; color:#FBBF24;">142</div>
+                    <div id="profil-stat-total" style="font-size:15px; font-weight:900; color:#FBBF24;">142</div>
                   </div>
                   <div>
                     <div style="font-size:9.5px; color:#94A3B8; font-weight:600;">Respon Tepat Waktu</div>
-                    <div style="font-size:15px; font-weight:900; color:#34D399;">96.4%</div>
+                    <div id="profil-stat-sla" style="font-size:15px; font-weight:900; color:#34D399;">96.4%</div>
                   </div>
                   <div>
                     <div style="font-size:9.5px; color:#94A3B8; font-weight:600;">Laporan Selesai</div>
-                    <div style="font-size:15px; font-weight:900; color:#60A5FA;">138</div>
+                    <div id="profil-stat-selesai" style="font-size:15px; font-weight:900; color:#60A5FA;">138</div>
                   </div>
                 </div>
               </div>
@@ -1011,7 +1009,7 @@
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
                     <span style="color:var(--text-muted);">Jam Masuk Piket:</span>
-                    <span id="profil-presensi-jam-masuk" style="font-weight:700; color:var(--text);">07:48 WIB
+                    <span id="profil-presensi-jam-masuk" style="font-weight:700; color:var(--text);">- (Belum Masuk Dinas)
                       (Tervalidasi)</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
@@ -1117,18 +1115,18 @@
                 <div
                   style="display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid #F1F5F9; padding-bottom:10px; flex-wrap:wrap;"
                   id="profil-filter-buttons-container">
-                  <button type="button" class="btn-log-filter active" onclick="setFilterLogProfil('semua', this)"
+                  <button type="button" id="profil-btn-semua" class="btn-log-filter active" onclick="setFilterLogProfil('semua', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #BFDBFE; background:#EFF6FF; color:var(--primary); cursor:pointer;">Semua
-                    (6)</button>
-                  <button type="button" class="btn-log-filter" onclick="setFilterLogProfil('menunggu', this)"
+                    (0)</button>
+                  <button type="button" id="profil-btn-menunggu" class="btn-log-filter" onclick="setFilterLogProfil('menunggu', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Menunggu
-                    Tindakan (1)</button>
-                  <button type="button" class="btn-log-filter" onclick="setFilterLogProfil('diproses', this)"
+                    Tindakan (0)</button>
+                  <button type="button" id="profil-btn-diproses" class="btn-log-filter" onclick="setFilterLogProfil('diproses', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Sedang
-                    Ditangani (1)</button>
-                  <button type="button" class="btn-log-filter" onclick="setFilterLogProfil('selesai', this)"
+                    Ditangani (0)</button>
+                  <button type="button" id="profil-btn-selesai" class="btn-log-filter" onclick="setFilterLogProfil('selesai', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Selesai
-                    (4)</button>
+                    (0)</button>
                 </div>
 
                 <!-- Container List Log Riwayat Lengkap -->
@@ -1151,7 +1149,7 @@
 
         <div class="form-group">
           <label class="form-label">Waktu Perekaman</label>
-          <input type="text" class="form-control" value="09:41 WIB (Otomatis)" readonly style="background:#e2e8f0;">
+          <input type="text" id="respon-waktu-perekaman" class="form-control" value="" readonly style="background:#e2e8f0;">
         </div>
 
         <div class="form-group">
@@ -1163,7 +1161,7 @@
         <div class="form-group">
           <label class="form-label">Koordinat Lokasi GPS</label>
           <div style="position:relative">
-            <input type="text" class="form-control" value="-6.2345, 106.8423 (Live)" readonly>
+            <input type="text" id="respon-koordinat-gps" class="form-control" value="" readonly>
             <span style="position:absolute; right:14px; top:14px; font-size:16px;">📍</span>
           </div>
         </div>
@@ -1490,8 +1488,7 @@
             <img id="tolak-preview-avatar" src="assets/images/avatar_polisi.jpg"
               style="width:38px; height:38px; border-radius:50%; object-fit:cover;">
             <div>
-              <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Bripka Ahmad
-                (NRP: 50123456)</div>
+              <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Petugas Lapangan</div>
               <div id="tolak-preview-waktu" style="font-size:11px; color:var(--text-muted);">Terkirim: Hari ini, 10:15
                 WIB</div>
             </div>
@@ -1625,7 +1622,7 @@
                     <span>📝</span> Formulir Penerimaan Laporan
                   </div>
                   <span style="font-size:11px; color:var(--text-muted); font-weight:600;">
-                    Petugas: <strong style="color:var(--primary);">Briptu Dian Lestari</strong>
+                    Petugas: <strong id="eb-operator-petugas-label" style="color:var(--primary);"></strong>
                   </span>
                 </div>
 
@@ -1927,7 +1924,7 @@
         <div
           style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; padding:8px 4px;">
           <div>
-            Petugas Pencatat: <strong style="color:#0F172A;" id="op-modal-petugas">Briptu Dian Lestari</strong>
+            Petugas Pencatat: <strong style="color:#0F172A;" id="op-modal-petugas"></strong>
             (Operator SPKT 110)
           </div>
           <div id="op-modal-waktu-catat" style="font-weight:600;">
@@ -2088,7 +2085,7 @@
               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
                   <span style="color:#64748B; font-weight:600;">👤 Pimpinan Regu:</span>
-                  <strong id="pawas-card-komandan" style="color:#0F172A; margin-left:4px;">Bripka Ahmad &amp; Regu Alpha
+                  <strong id="pawas-card-komandan" style="color:#0F172A; margin-left:4px;">-
                     (NRP: 50123456)</strong>
                 </div>
                 <button type="button" onclick="toggleEditPersonelPawas()"
@@ -2099,7 +2096,7 @@
 
               <!-- Input Override Personel (Tersinkronisasi Otomatis) -->
               <div id="pawas-edit-personel-wrap" style="display:none; margin:4px 0 6px 0;">
-                <input type="text" id="pawas-disp-personel" value="Bripka Ahmad &amp; Regu Alpha (NRP: 50123456)"
+                <input type="text" id="pawas-disp-personel" value=""
                   style="width:100%; padding:8px 10px; border:1px solid #94A3B8; border-radius:6px; font-size:12px; font-weight:600; color:#0F172A; outline:none; box-sizing:border-box; background:#FFFFFF;"
                   placeholder="Ketik nama pimpinan regu atau personel penanggung jawab...">
                 <div style="font-size:10px; color:#64748B; margin-top:2px;">*Nama otomatis terisi dari regu. Edit hanya
@@ -2246,7 +2243,7 @@
             style="display:flex; justify-content:space-between; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
             <div style="font-size:11.5px; color:#64748B; font-weight:600;">👤 Pimpinan Regu:</div>
             <div id="sukses-disp-komandan" style="font-size:12px; font-weight:800; color:#1E40AF; text-align:right;">
-              Bripka Ahmad &amp; Regu Alpha
+              -
             </div>
           </div>
 
@@ -2746,7 +2743,7 @@
             <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); margin-bottom:2px;">TINDAKAN & REGIS
               PETUGAS</div>
             <div style="font-weight:700; color:var(--text);"><span id="mdl-log-tindakan"
-                style="color:#B91C1C;">TPTKP</span> • <span id="mdl-log-petugas">Bripka Ahmad</span></div>
+                style="color:#B91C1C;">TPTKP</span> • <span id="mdl-log-petugas">Petugas Lapangan</span></div>
           </div>
         </div>
 

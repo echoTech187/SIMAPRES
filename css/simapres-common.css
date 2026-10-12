@@ -1,4 +1,4 @@
-﻿    :root {
+    :root {
       --primary: #153E75;
       /* Deep Police Blue */
       --primary-dark: #0B2447;
@@ -355,6 +355,14 @@
 
     .tl-dot.red {
       background: var(--danger);
+    }
+
+    .tl-dot.blue {
+      background: var(--primary);
+    }
+
+    .tl-dot.purple {
+      background: #7C3AED;
     }
 
     .tl-time {

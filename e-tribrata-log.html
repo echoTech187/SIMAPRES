@@ -38,8 +38,8 @@
           onmouseover="this.style.background='rgba(255,255,255,0.2)'"
           onmouseout="this.style.background='rgba(255,255,255,0.1)'" title="Klik untuk lihat Profil Lengkap & Logout">
           <div class="user-info">
-            <div id="user-name" class="user-name">Bripka Ahmad</div>
-            <div id="user-role" class="user-nrp">NRP: 50123456</div>
+            <div id="user-name" class="user-name">Memuat Sesi...</div>
+            <div id="user-role" class="user-nrp">NRP: -</div>
           </div>
           <img id="user-avatar-top" src="assets/images/avatar_polisi.jpg" alt="User" class="user-avatar">
         </div>
@@ -69,24 +69,24 @@
                   <span
                     style="background:#DC2626; color:white; font-size:10px; font-weight:800; padding:2px 8px; border-radius:6px; letter-spacing:0.5px;">INSIDEN
                     MENONJOL</span>
-                  <span style="font-size:11px; color:#991B1B; font-weight:700;">⏱️ Waktu Respon: 06:40 / 10:00 (Sisa
+                  <span id="pimpinan-alert-waktu" style="font-size:11px; color:#991B1B; font-weight:700;">⏱️ Waktu Respon: 06:40 / 10:00 (Sisa
                     03:20)</span>
                 </div>
-                <div style="font-size:13.5px; font-weight:800; color:#991B1B; margin-bottom:4px;">
+                <div id="pimpinan-alert-judul" style="font-size:13.5px; font-weight:800; color:#991B1B; margin-bottom:4px;">
                   Tawuran Pelajar Membawa Senjata Tajam di Jl. Panglima Polim Raya
                 </div>
                 <div
                   style="font-size:11.5px; color:#475569; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                  <span>📍 Sektor Kebayoran Baru</span>
+                  <span id="pimpinan-alert-sektor">📍 Sektor Kebayoran Baru</span>
                   <span>•</span>
-                  <span>🚔 Unit Dikerahkan: Patroli Samapta Presisi R-4 (Aiptu Herman)</span>
+                  <span id="pimpinan-alert-unit">🚔 Unit Dikerahkan: Patroli Samapta Presisi R-4 (Aiptu Herman)</span>
                   <span>•</span>
-                  <span style="color:#2563EB; font-weight:700;">Status: Meluncur ke TKP (Tahap 3)</span>
+                  <span id="pimpinan-alert-status" style="color:#2563EB; font-weight:700;">Status: Meluncur ke TKP (Tahap 3)</span>
                 </div>
               </div>
             </div>
             <div style="display:flex; gap:8px; flex-shrink:0;">
-              <button onclick="switchTab('view-validasi'); openValidasiList('diproses'); selectLogCard(2);"
+              <button id="pimpinan-alert-btn-tindak" onclick="switchTab('view-validasi'); openValidasiList('diproses'); selectLogCard(2);"
                 style="background:#153E75; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:700; font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(21,62,117,0.25);">
                 <span>👨‍✈️ Tindak Lanjut Insiden</span> ➔
               </button>
@@ -172,7 +172,7 @@
                   </div>
                   <div id="mud-petugas"
                     style="font-size:13.5px; font-weight:700; color:#1E293B; line-height:1.3; margin-top:4px;">
-                    Bripka Ahmad Subagyo (NRP 88123456)
+                    Petugas Patroli Lapangan
                   </div>
                   <div id="mud-sub" style="font-size:11.5px; color:#64748B; margin-top:2px; line-height:1.4;">
                     Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81
@@ -339,7 +339,7 @@
                     <div>
                       <div style="font-weight:800; font-size:13px; color:var(--text);">11:40 WIB - Pengamanan Sambang
                         Pos Kamling & Warga RT 04 (Sektor Barat)</div>
-                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Bripka Ahmad menyelesaikan
+                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Petugas lapangan menyelesaikan
                         penyuluhan kamtibmas. Menunggu review lembar laporan.</div>
                     </div>
                     <span
@@ -400,12 +400,12 @@
                     <canvas id="gauge-sla-pimpinan" width="75" height="75"></canvas>
                     <div
                       style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                      <span style="font-size:17px; font-weight:900; color:#153E75; line-height:1;">7.4</span>
+                      <span id="pimpinan-sla-avg-menit" style="font-size:17px; font-weight:900; color:#153E75; line-height:1;">7.4</span>
                       <span style="font-size:9px; color:#64748B; font-weight:700;">MENIT</span>
                     </div>
                   </div>
                   <div>
-                    <div
+                    <div id="pimpinan-sla-on-time-text"
                       style="font-size:12px; font-weight:800; color:#15803D; display:flex; align-items:center; gap:4px;">
                       <span>✓</span> Tepat Waktu: 94.8%
                     </div>
@@ -419,15 +419,15 @@
                   <div>
                     <div style="font-size:9.5px; color:#64748B; font-weight:700;">
                       < 5 Menit</div>
-                        <div style="font-size:12px; font-weight:800; color:#16A34A;">18 (65%)</div>
+                        <div id="pimpinan-sla-lt5" style="font-size:12px; font-weight:800; color:#16A34A;">18 (65%)</div>
                     </div>
                     <div>
                       <div style="font-size:9.5px; color:#64748B; font-weight:700;">5-10 Menit</div>
-                      <div style="font-size:12px; font-weight:800; color:#2563EB;">9 (30%)</div>
+                      <div id="pimpinan-sla-5to10" style="font-size:12px; font-weight:800; color:#2563EB;">9 (30%)</div>
                     </div>
                     <div>
                       <div style="font-size:9.5px; color:#64748B; font-weight:700;">> 10 Menit</div>
-                      <div style="font-size:12px; font-weight:800; color:#DC2626;">2 (5%)</div>
+                      <div id="pimpinan-sla-gt10" style="font-size:12px; font-weight:800; color:#DC2626;">2 (5%)</div>
                     </div>
                   </div>
                 </div>
@@ -437,7 +437,7 @@
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                     <div class="card-title" style="margin-bottom:0; font-size:12.5px;">KUAT PERSONEL & KENDARAAN PATROLI
                     </div>
-                    <span
+                    <span id="pimpinan-total-personel-badge"
                       style="background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:10px; padding:2px 8px; border-radius:6px; border:1px solid #BFDBFE;">TOTAL
                       46 PERSONEL</span>
                   </div>
@@ -445,17 +445,17 @@
                     <div
                       style="display:flex; justify-content:space-between; align-items:center; background:#F0FDF4; padding:8px 10px; border-radius:6px; border-left:3px solid #16A34A;">
                       <span style="font-size:11.5px; font-weight:700; color:#166534;">🟢 Siaga di Mako Polres</span>
-                      <span style="font-size:12px; font-weight:800; color:#166534;">24 Pers</span>
+                      <span id="pimpinan-pers-siaga" style="font-size:12px; font-weight:800; color:#166534;">24 Pers</span>
                     </div>
                     <div
                       style="display:flex; justify-content:space-between; align-items:center; background:#EFF6FF; padding:8px 10px; border-radius:6px; border-left:3px solid #2563EB;">
                       <span style="font-size:11.5px; font-weight:700; color:#1E40AF;">🔵 Meluncur / Di TKP</span>
-                      <span style="font-size:12px; font-weight:800; color:#1E40AF;">10 Pers</span>
+                      <span id="pimpinan-pers-tugas" style="font-size:12px; font-weight:800; color:#1E40AF;">10 Pers</span>
                     </div>
                     <div
                       style="display:flex; justify-content:space-between; align-items:center; background:#FFFBEB; padding:8px 10px; border-radius:6px; border-left:3px solid #D97706;">
                       <span style="font-size:11.5px; font-weight:700; color:#92400E;">🟡 Cadangan Siaga Piket</span>
-                      <span style="font-size:12px; font-weight:800; color:#92400E;">12 Pers</span>
+                      <span id="pimpinan-pers-cadangan" style="font-size:12px; font-weight:800; color:#92400E;">12 Pers</span>
                     </div>
                   </div>
                   <div style="border-top:1px dashed #CBD5E1; padding-top:10px;">
@@ -463,13 +463,13 @@
                       style="font-size:10.5px; font-weight:800; color:#475569; text-transform:uppercase; margin-bottom:6px;">
                       Kendaraan Dinas Patroli Tergelar:</div>
                     <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                      <span
+                      <span id="pimpinan-ranmor-samapta"
                         style="font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; padding:3px 8px; border-radius:4px; border:1px solid #E2E8F0;">🚔
                         Samapta R-4: 4 Unit</span>
-                      <span
+                      <span id="pimpinan-ranmor-perintis"
                         style="font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; padding:3px 8px; border-radius:4px; border:1px solid #E2E8F0;">🏍️
                         Perintis R-2: 6 Unit</span>
-                      <span
+                      <span id="pimpinan-ranmor-lantas"
                         style="font-size:10.5px; font-weight:700; background:#F1F5F9; color:#334155; padding:3px 8px; border-radius:4px; border:1px solid #E2E8F0;">🚓
                         Lantas R-4: 4 Unit</span>
                     </div>
@@ -484,23 +484,38 @@
                   </div>
                   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                     <div>
-                      <div style="font-size:24px; font-weight:900; color:#1E293B; line-height:1;">4.8 <span
+                      <div style="font-size:24px; font-weight:900; color:#1E293B; line-height:1;"><span id="pimpinan-ikm-score">4.8</span> <span
                           style="font-size:13px; color:#64748B; font-weight:600;">/ 5.0</span></div>
-                      <div style="font-size:11px; color:#16A34A; font-weight:700; margin-top:2px;">96.2% Warga
+                      <div id="pimpinan-ikm-percent" style="font-size:11px; color:#16A34A; font-weight:700; margin-top:2px;">96.2% Warga
                         Menyatakan Puas</div>
                     </div>
                     <div style="text-align:right;">
-                      <div style="font-size:13px; font-weight:800; color:#153E75;">28 Ulasan</div>
+                      <div id="pimpinan-ikm-count" style="font-size:13px; font-weight:800; color:#153E75;">28 Ulasan</div>
                       <div style="font-size:10px; color:#64748B;">Laporan Masuk Hari Ini</div>
                     </div>
                   </div>
                   <div
                     style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px; font-size:11px; color:#475569; line-height:1.4; font-style:italic;">
-                    "Unit Patroli Samapta tiba hanya 6 menit setelah laporan dikirimkan. Petugas ramah, situasi cepat
-                    terkendali."
-                    <div
+                    <span id="pimpinan-ikm-quote">"Unit Patroli Samapta tiba hanya 6 menit setelah laporan dikirimkan. Petugas ramah, situasi cepat terkendali."</span>
+                    <div id="pimpinan-ikm-author"
                       style="font-style:normal; font-weight:700; color:#1E293B; margin-top:4px; font-size:10px; text-align:right;">
                       — Bpk. Hendra (Pelapor Panglima Polim)</div>
+                  </div>
+                </div>
+
+                <!-- Widget 4: Log Aktivitas Personel Lapangan (Real-Time Timeline) -->
+                <div class="card-panel" style="padding:16px; margin-top:16px; margin-bottom:0;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div>
+                      <div class="card-title" style="margin-bottom:2px; font-size:12.5px;">AKTIVITAS PERSONEL TERBARU</div>
+                      <div style="font-size:10.5px; color:var(--text-muted);">Log pergerakan regu patroli di lapangan</div>
+                    </div>
+                    <span style="background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:9.5px; padding:2px 7px; border-radius:4px; border:1px solid #BFDBFE;">
+                      ● REAL-TIME
+                    </span>
+                  </div>
+                  <div class="timeline" id="pimpinan-personel-activity-timeline" style="margin-top:6px;">
+                    <!-- Di-render dinamis oleh renderPimpinanPersonelActivityTimeline() -->
                   </div>
                 </div>
               </div>
@@ -535,7 +550,7 @@
           </div>
           <div id="mud-petugas-fs"
             style="font-size:13.5px; font-weight:700; color:#1E293B; line-height:1.3; margin-top:4px;">
-            Bripka Ahmad Subagyo (NRP 88123456)
+            Petugas Patroli Lapangan
           </div>
           <div id="mud-sub-fs" style="font-size:11.5px; color:#64748B; margin-top:2px; line-height:1.4;">
             Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81
@@ -960,7 +975,7 @@
                   1X24 JAM</span>
               </div>
               <div style="font-size:12px; color:var(--text-muted); margin-top:3px;">
-                Posko Pengendalian • <strong>Kombes Pol Budi (NRP 88010234)</strong>
+                Posko Pengendalian • <strong id="kinerja-pawas-nama-nrp">Kombes Pol Budi Santoso (NRP: 88010234)</strong>
               </div>
             </div>
             <button class="btn-blue" onclick="bukaModalCetakLaporanPawas()"
@@ -1200,15 +1215,15 @@
                   style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; background:rgba(0,0,0,0.25); padding:10px; border-radius:10px; text-align:center; border:1px solid rgba(255,255,255,0.08);">
                   <div>
                     <div style="font-size:9.5px; color:#94A3B8; font-weight:600;">Total Laporan</div>
-                    <div style="font-size:15px; font-weight:900; color:#FBBF24;">142</div>
+                    <div id="profil-stat-total" style="font-size:15px; font-weight:900; color:#FBBF24;">142</div>
                   </div>
                   <div>
                     <div style="font-size:9.5px; color:#94A3B8; font-weight:600;">Respon Tepat Waktu</div>
-                    <div style="font-size:15px; font-weight:900; color:#34D399;">96.4%</div>
+                    <div id="profil-stat-sla" style="font-size:15px; font-weight:900; color:#34D399;">96.4%</div>
                   </div>
                   <div>
                     <div style="font-size:9.5px; color:#94A3B8; font-weight:600;">Laporan Selesai</div>
-                    <div style="font-size:15px; font-weight:900; color:#60A5FA;">138</div>
+                    <div id="profil-stat-selesai" style="font-size:15px; font-weight:900; color:#60A5FA;">138</div>
                   </div>
                 </div>
               </div>
@@ -1241,7 +1256,7 @@
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
                     <span style="color:var(--text-muted);">Jam Masuk Piket:</span>
-                    <span id="profil-presensi-jam-masuk" style="font-weight:700; color:var(--text);">07:48 WIB
+                    <span id="profil-presensi-jam-masuk" style="font-weight:700; color:var(--text);">- (Belum Masuk Dinas)
                       (Tervalidasi)</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
@@ -1347,18 +1362,18 @@
                 <div
                   style="display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid #F1F5F9; padding-bottom:10px; flex-wrap:wrap;"
                   id="profil-filter-buttons-container">
-                  <button type="button" class="btn-log-filter active" onclick="setFilterLogProfil('semua', this)"
+                  <button type="button" id="profil-btn-semua" class="btn-log-filter active" onclick="setFilterLogProfil('semua', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #BFDBFE; background:#EFF6FF; color:var(--primary); cursor:pointer;">Semua
-                    (6)</button>
-                  <button type="button" class="btn-log-filter" onclick="setFilterLogProfil('menunggu', this)"
+                    (0)</button>
+                  <button type="button" id="profil-btn-menunggu" class="btn-log-filter" onclick="setFilterLogProfil('menunggu', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Menunggu
-                    Tindakan (1)</button>
-                  <button type="button" class="btn-log-filter" onclick="setFilterLogProfil('diproses', this)"
+                    Tindakan (0)</button>
+                  <button type="button" id="profil-btn-diproses" class="btn-log-filter" onclick="setFilterLogProfil('diproses', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Sedang
-                    Ditangani (1)</button>
-                  <button type="button" class="btn-log-filter" onclick="setFilterLogProfil('selesai', this)"
+                    Ditangani (0)</button>
+                  <button type="button" id="profil-btn-selesai" class="btn-log-filter" onclick="setFilterLogProfil('selesai', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Selesai
-                    (4)</button>
+                    (0)</button>
                 </div>
 
                 <!-- Container List Log Riwayat Lengkap -->
@@ -1381,7 +1396,7 @@
 
         <div class="form-group">
           <label class="form-label">Waktu Perekaman</label>
-          <input type="text" class="form-control" value="09:41 WIB (Otomatis)" readonly style="background:#e2e8f0;">
+          <input type="text" id="respon-waktu-perekaman" class="form-control" value="" readonly style="background:#e2e8f0;">
         </div>
 
         <div class="form-group">
@@ -1393,7 +1408,7 @@
         <div class="form-group">
           <label class="form-label">Koordinat Lokasi GPS</label>
           <div style="position:relative">
-            <input type="text" class="form-control" value="-6.2345, 106.8423 (Live)" readonly>
+            <input type="text" id="respon-koordinat-gps" class="form-control" value="" readonly>
             <span style="position:absolute; right:14px; top:14px; font-size:16px;">📍</span>
           </div>
         </div>
@@ -1720,8 +1735,7 @@
             <img id="tolak-preview-avatar" src="assets/images/avatar_polisi.jpg"
               style="width:38px; height:38px; border-radius:50%; object-fit:cover;">
             <div>
-              <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Bripka Ahmad
-                (NRP: 50123456)</div>
+              <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Petugas Lapangan</div>
               <div id="tolak-preview-waktu" style="font-size:11px; color:var(--text-muted);">Terkirim: Hari ini, 10:15
                 WIB</div>
             </div>
@@ -1855,7 +1869,7 @@
                     <span>📝</span> Formulir Penerimaan Laporan
                   </div>
                   <span style="font-size:11px; color:var(--text-muted); font-weight:600;">
-                    Petugas: <strong style="color:var(--primary);">Briptu Dian Lestari</strong>
+                    Petugas: <strong id="eb-operator-petugas-label" style="color:var(--primary);"></strong>
                   </span>
                 </div>
 
@@ -2157,7 +2171,7 @@
         <div
           style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; padding:8px 4px;">
           <div>
-            Petugas Pencatat: <strong style="color:#0F172A;" id="op-modal-petugas">Briptu Dian Lestari</strong>
+            Petugas Pencatat: <strong style="color:#0F172A;" id="op-modal-petugas"></strong>
             (Operator SPKT 110)
           </div>
           <div id="op-modal-waktu-catat" style="font-weight:600;">
@@ -2318,7 +2332,7 @@
               <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
                   <span style="color:#64748B; font-weight:600;">👤 Pimpinan Regu:</span>
-                  <strong id="pawas-card-komandan" style="color:#0F172A; margin-left:4px;">Bripka Ahmad &amp; Regu Alpha
+                  <strong id="pawas-card-komandan" style="color:#0F172A; margin-left:4px;">-
                     (NRP: 50123456)</strong>
                 </div>
                 <button type="button" onclick="toggleEditPersonelPawas()"
@@ -2329,7 +2343,7 @@
 
               <!-- Input Override Personel (Tersinkronisasi Otomatis) -->
               <div id="pawas-edit-personel-wrap" style="display:none; margin:4px 0 6px 0;">
-                <input type="text" id="pawas-disp-personel" value="Bripka Ahmad &amp; Regu Alpha (NRP: 50123456)"
+                <input type="text" id="pawas-disp-personel" value=""
                   style="width:100%; padding:8px 10px; border:1px solid #94A3B8; border-radius:6px; font-size:12px; font-weight:600; color:#0F172A; outline:none; box-sizing:border-box; background:#FFFFFF;"
                   placeholder="Ketik nama pimpinan regu atau personel penanggung jawab...">
                 <div style="font-size:10px; color:#64748B; margin-top:2px;">*Nama otomatis terisi dari regu. Edit hanya
@@ -2476,7 +2490,7 @@
             style="display:flex; justify-content:space-between; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
             <div style="font-size:11.5px; color:#64748B; font-weight:600;">👤 Pimpinan Regu:</div>
             <div id="sukses-disp-komandan" style="font-size:12px; font-weight:800; color:#1E40AF; text-align:right;">
-              Bripka Ahmad &amp; Regu Alpha
+              -
             </div>
           </div>
 
@@ -2803,14 +2817,14 @@
             4. Kasi Propam Polres Metro Jakarta Pusat
           </div>
           <div class="sig-box" style="text-align:center; min-width:240px;">
-            <div>Jakarta, 11 Oktober 2026</div>
+            <div id="doc-pawas-tgl-cetak">Jakarta, 11 Oktober 2026</div>
             <div style="font-weight:bold; margin-top:2px;">PERWIRA PENGAWAS (PAWAS),</div>
-            <div class="stamp-badge"
+            <div id="doc-pawas-stamp-text" class="stamp-badge"
               style="height:55px; display:flex; align-items:center; justify-content:center; color:#153E75; font-size:11px; font-weight:bold; border:1px dashed #94A3B8; margin:8px auto; width:180px; border-radius:6px; background:#F8FAFC;">
-              [ TERVERIFIKASI DIGITAL ]<br>KOMBES POL BUDI
+              [ TERVERIFIKASI DIGITAL ]
             </div>
-            <div style="font-weight:bold; text-decoration:underline;">KOMBES POL BUDI, S.I.K., M.Si.</div>
-            <div style="font-size:10pt;">AJUN KOMISARIS BESAR POLISI NRP 88010234</div>
+            <div id="doc-pawas-pejabat-nama" style="font-weight:bold; text-decoration:underline;"></div>
+            <div id="doc-pawas-pejabat-pangkat-nrp" style="font-size:10pt;"></div>
           </div>
         </div>
 
@@ -2976,7 +2990,7 @@
             <div style="font-size:10.5px; font-weight:700; color:var(--text-muted); margin-bottom:2px;">TINDAKAN & REGIS
               PETUGAS</div>
             <div style="font-weight:700; color:var(--text);"><span id="mdl-log-tindakan"
-                style="color:#B91C1C;">TPTKP</span> • <span id="mdl-log-petugas">Bripka Ahmad</span></div>
+                style="color:#B91C1C;">TPTKP</span> • <span id="mdl-log-petugas">Petugas Lapangan</span></div>
           </div>
         </div>
 
