@@ -4761,16 +4761,22 @@
             appLogs = getDefaultLogs();
           }
 
-          // Pemulihan Kasus ID 16: Kasus ini adalah kasus aktif lapangan yang sedang berjalan.
-          // Jika statusnya terlanjur selesai otomatis tanpa otorisasi sah dari Pawas (pengesahanPawas),
-          // kembalikan statusnya ke 'diproses' (Sedang Ditangani) dengan BAP terkirim di Tahap 4.
+          // Sinkronisasi Kasus ID 16: Kasus penanganan aktif di lapangan
           const log16 = appLogs.find(l => l.id === 16);
-          if (log16 && log16.status === 'selesai' && !log16.pengesahanPawas) {
-            log16.status = 'diproses';
-            log16.statusText = 'Menunggu Pengesahan Pawas';
-            log16.tahap = 4;
-            log16.bapTerkirim = true;
-            delete log16.waktuSelesai;
+          if (log16) {
+            // Jika personel lapangan sudah menyelesaikan penanganan (laporan selesai/waktu selesai terisi):
+            if (log16.catatanSelesai || log16.waktuSelesai) {
+              log16.tahap = 5;
+              log16.bapTerkirim = true;
+              if (!log16.waktuSelesai) log16.waktuSelesai = log16.waktuTiba || '20:06 WIB';
+              if (!log16.pengesahanPawas) {
+                log16.status = 'diproses';
+                log16.statusText = 'Menunggu Pengesahan Pawas';
+              }
+            } else if (log16.deskripsiTindakan || log16.waktuTiba) {
+              log16.tahap = Math.max(log16.tahap || 4, 4);
+              log16.bapTerkirim = true;
+            }
           }
         } else {
           appLogs = getDefaultLogs();
@@ -5845,9 +5851,9 @@
         let titleTooltip = '';
         let clickHandler = '';
 
-        const isCaseFinished = (log.status === 'selesai');
+        const isCaseFinished = (log.status === 'selesai' || Boolean(log.pengesahanPawas));
 
-        if (isCaseFinished || s.step < currentTahap) {
+        if (isCaseFinished || s.step < currentTahap || (s.step === 5 && (log.waktuSelesai || log.catatanSelesai))) {
           stateClass = 'completed';
           titleExtra = '<span style="font-size:10px; color:var(--success); font-weight:700; background:#ECFDF5; padding:2px 6px; border-radius:4px;">✓ SELESAI</span>';
           titleTooltip = `${s.title} sudah selesai`;
@@ -5938,7 +5944,7 @@
           </div>
         `;
         } else if (s.step === 5) {
-          const sudahSelesai = Boolean(log.waktuSelesai || log.status === 'selesai');
+          const sudahSelesai = Boolean(log.waktuSelesai || log.catatanSelesai || log.status === 'selesai');
           const waktuSelesaiFinal = log.pengesahanPawas?.waktu || log.waktuSelesai || log.waktu || s.time;
           const labelSelesai = log.pengesahanPawas ? 'Disahkan' : 'Selesai';
           metaRowHtml = sudahSelesai ? `
@@ -5982,26 +5988,8 @@
             <div style="font-size:11px; color:#1E293B;">"${teksTindakan}"</div>
           </div>
         `;
-        } else if (s.step === 5 && (log.waktuSelesai || log.status === 'selesai')) {
+        } else if (s.step === 5 && (log.waktuSelesai || log.catatanSelesai || log.status === 'selesai')) {
           const teksSelesai = log.catatanSelesai || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.';
-          let ratingBoxHtml = '';
-          if (log.ratingKepuasan) {
-            const r = log.ratingKepuasan;
-            const skor = r.skor;
-            const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
-            const tagsStr = (r.tags && r.tags.length) ? `<div style="display:flex; flex-wrap:wrap; gap:3px; margin:4px 0;">${r.tags.map(t => `<span style="font-size:9.5px; background:#FEF3C7; color:#92400E; padding:1px 6px; border-radius:4px; font-weight:600;">${t}</span>`).join('')}</div>` : '';
-            ratingBoxHtml = `
-            <div style="background:#FFFBEB; border-left:3px solid #F59E0B; border-radius:0 6px 6px 0; padding:6px 10px; margin-top:6px; line-height:1.4;">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:10px; font-weight:700; color:#B45309;">⭐ SURVEI KEPUASAN WARGA (110):</span>
-                <span style="font-size:11px; font-weight:800; color:#D97706;">${starsStr} (${skor}/5)</span>
-              </div>
-              ${tagsStr}
-              ${r.ulasan ? `<div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${r.ulasan}"</div>` : ''}
-              ${r.waktu ? `<div style="font-size:10px; color:#92400E; margin-top:3px;">🕒 ${r.waktu}</div>` : ''}
-            </div>
-          `;
-          }
 
           let pawasApprovalHtml = '';
           if (log.pengesahanPawas) {
@@ -6012,7 +6000,7 @@
                 <span style="font-size:9.5px; font-weight:700; background:#DCFCE7; color:#166534; padding:1px 6px; border-radius:3px;">SAH &amp; VALID</span>
               </div>
               <div style="font-size:10.5px; color:#166534; margin-top:2px;">
-                <strong>Pengesah:</strong> ${log.pengesahanPawas.aktor || 'Kombes Pol Budi (Pawas)'} • <strong>Waktu:</strong> ${log.pengesahanPawas.waktu}
+                <strong>Pengesah:</strong> ${log.pengesahanPawas.aktor || log.pengesahanPawas.nama || 'Kombes Pol Budi (Pawas)'} • <strong>Waktu:</strong> ${log.pengesahanPawas.waktu}
               </div>
               <div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${log.pengesahanPawas.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}"</div>
             </div>
@@ -6025,7 +6013,6 @@
             <div style="font-size:11px; color:#1E293B;">"${teksSelesai}"</div>
           </div>
           ${pawasApprovalHtml}
-          ${ratingBoxHtml}
         `;
         }
 
@@ -6140,9 +6127,15 @@
       }
 
       if (newTahap === 5) {
-        log.status = 'selesai';
-        log.statusText = 'Kasus Selesai';
+        log.bapTerkirim = true;
         if (!log.waktuSelesai) log.waktuSelesai = waktuSekarang;
+        if (!log.pengesahanPawas) {
+          log.status = 'diproses';
+          log.statusText = 'Menunggu Pengesahan Pawas';
+        } else {
+          log.status = 'selesai';
+          log.statusText = 'Kasus Selesai';
+        }
       } else if (log.status === 'selesai' && newTahap < 5) {
         log.status = 'diproses';
         log.statusText = 'Sedang Diproses';
@@ -6161,8 +6154,21 @@
     function selesaikanKasus(id) {
       const log = appLogs.find(l => l.id === id);
       if (!log) return;
-      updateTahapPenanganan(id, 5);
-      alert('✓ Kasus #' + log.id + ' telah selesai ditangani dan dipindahkan ke Log Selesai!');
+      log.tahap = 5;
+      log.bapTerkirim = true;
+      if (!log.waktuSelesai) log.waktuSelesai = formatWaktuHhMmWib();
+      if (!log.pengesahanPawas) {
+        log.status = 'diproses';
+        log.statusText = 'Menunggu Pengesahan Pawas';
+      } else {
+        log.status = 'selesai';
+        log.statusText = 'Kasus Selesai';
+      }
+      saveLogsToStorage();
+      updateRekapCounts();
+      displayLogDetail(id);
+      openValidasiList('diproses');
+      alert('✓ Laporan Akhir Penanganan Kasus Berhasil Dikirim!\n\n• Seluruh tindakan lapangan di TKP telah rampung dilaporkan.\n• Berita Acara telah diteruskan ke meja Pawas untuk pengesahan resmi dan penutupan kasus.');
     }
 
     // ==========================================
@@ -7009,7 +7015,15 @@
                 ${slaDisplayHtml('TARGET & EVALUASI WAKTU TANGGAP (SLA)')}
 
                 <!-- 2. Tombol Eksekusi Operasional Utama (Bripka Ahmad Sesuai Diagram Alur) -->
-                ${log.tahap >= 5 && log.status !== 'selesai' ? `
+                ${(log.tahap >= 5 && (log.catatanSelesai || log.waktuSelesai)) ? `
+                  <div style="background:#FEF9C3; border:1.5px solid #FDE047; border-radius:10px; padding:13px; display:flex; align-items:flex-start; gap:10px;">
+                    <span style="font-size:20px; line-height:1;">⏳</span>
+                    <div>
+                      <div style="color:#854D0E; font-weight:800; font-size:13px;">Laporan Lapangan Terkirim</div>
+                      <div style="color:#92400E; font-size:11px; margin-top:3px;">Personel telah menyelesaikan penanganan. Menunggu pengesahan resmi Berita Acara oleh Pawas (Pengawas Pimpinan).</div>
+                    </div>
+                  </div>
+                ` : (log.tahap >= 5 && log.status !== 'selesai' ? `
                   <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
                     <span>✅</span> Lanjutkan ke Step 3: Tutup Kasus ➔
                   </button>
@@ -7017,7 +7031,7 @@
                   <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
                     <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
                   </button>
-                `}
+                `)}
               </div>
             `;
             }
@@ -7071,9 +7085,9 @@
             }
           } else {
             const rating = log.ratingKepuasan;
-            // Survei hanya dari input nyata warga - tidak ada fallback default
-            const ratingCardHtml = rating ? (() => {
-              const skor = rating.skor;
+            // Survei hanya dari input nyata warga yang telah mengisi di portal (sudahDinilai)
+            const ratingCardHtml = (rating && rating.sudahDinilai) ? (() => {
+              const skor = rating.skor || 5;
               const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
               const tagsHtml = (rating.tags && rating.tags.length)
                 ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">${rating.tags.map(t => `<span style="font-size:10px; background:#FEF3C7; color:#92400E; padding:2px 7px; border-radius:10px; font-weight:600;">${t}</span>`).join('')}</div>`
@@ -7106,7 +7120,7 @@
                   </div>
                 </div>
                 <div style="background:#D1FAE5; border-radius:6px; padding:7px 10px; font-size:11px; color:#065F46;">
-                  <strong>Disahkan oleh:</strong> ${log.pengesahanPawas.nama || 'Kompol Hendra (Pawas)'}
+                  <strong>Disahkan oleh:</strong> ${log.pengesahanPawas.aktor || log.pengesahanPawas.nama || 'Kombes Pol Budi (Pawas)'}
                   &nbsp;|&nbsp; <strong>Pukul:</strong> ${log.pengesahanPawas.waktu || '-'}
                   ${log.pengesahanPawas.catatan ? `<div style="margin-top:4px; font-style:italic;">"${log.pengesahanPawas.catatan}"</div>` : ''}
                 </div>
@@ -8339,11 +8353,17 @@
       syncProfileData(role);
     });
 
-    // Sinkronisasi data log standar lintas tab
+    // Sinkronisasi data log standar lintas tab secara real-time
     window.addEventListener('storage', (e) => {
       if (e.key === 'simapres_app_logs_v1') {
         loadLogsFromStorage();
         updateRekapCounts();
+        if (selectedLogId) {
+          displayLogDetail(selectedLogId);
+        }
+        if (typeof currentValidasiFilter !== 'undefined') {
+          openValidasiList(currentValidasiFilter, false);
+        }
       }
     });
 
