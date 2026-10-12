@@ -2871,7 +2871,7 @@
           </div>
         </div>
 
-        <!-- Step 3 -->
+        <!-- Step 3: Kasus Selesai Ditangani -->
         <div class="wiz-card" id="step3-card">
           <div class="wiz-header locked" id="step3-head" onclick="toggleWizStep(3)">
             <span>3. Kasus Selesai Ditangani</span>
@@ -2895,7 +2895,7 @@
               </div>
             </div>
 
-            <div class="form-label">Bukti Foto Selesai / Situasi Kondusif <span style="color:red;">*</span></div>
+            <div class="form-label">Bukti Foto Situasi Kondusif / Akhir <span style="color:red;">*</span></div>
             <div id="wiz-step3-preview-wrap"
               style="display:none; margin-bottom:10px; border:1px solid #CBD5E1; border-radius:8px; overflow:hidden; position:relative; background:#0F172A;">
               <img id="wiz-step3-preview-img" src="" style="width:100%; height:130px; object-fit:cover; display:block;">
@@ -2904,7 +2904,7 @@
                 <span style="color:#A7F3D0; font-size:10px; font-weight:700;">📍 Lokasi Kondusif</span>
                 <span
                   style="color:white; font-size:10px; background:rgba(6,78,59,0.8); padding:2px 6px; border-radius:4px;">✓
-                  Selesai</span>
+                  Dokumentasi Akhir</span>
               </div>
             </div>
             <div class="wiz-cam active" id="wiz-step3-cam-btn" onclick="ambilFotoWizard(3)">📸 Ambil / Ganti Foto
@@ -4760,6 +4760,18 @@
           if (hasLegacyDummy) {
             appLogs = getDefaultLogs();
           }
+
+          // Pemulihan Kasus ID 16: Kasus ini adalah kasus aktif lapangan yang sedang berjalan.
+          // Jika statusnya terlanjur selesai otomatis tanpa otorisasi sah dari Pawas (pengesahanPawas),
+          // kembalikan statusnya ke 'diproses' (Sedang Ditangani) dengan BAP terkirim di Tahap 4.
+          const log16 = appLogs.find(l => l.id === 16);
+          if (log16 && log16.status === 'selesai' && !log16.pengesahanPawas) {
+            log16.status = 'diproses';
+            log16.statusText = 'Menunggu Pengesahan Pawas';
+            log16.tahap = 4;
+            log16.bapTerkirim = true;
+            delete log16.waktuSelesai;
+          }
         } else {
           appLogs = getDefaultLogs();
         }
@@ -4788,8 +4800,15 @@
               l.riwayatValidasi.push({ waktu: l.waktu || '10:15 WIB', aktor: 'Kompol Hendra (Pawas)', aksi: 'Ditolak / Revisi', catatan: l.alasanTolak || 'Dokumentasi belum memenuhi standar' });
             }
           }
-          if (!l.ratingKepuasan && l.status === 'selesai') {
-            l.ratingKepuasan = { skor: 5, ulasan: 'Respon cepat dan penanganan kepolisian profesional', waktu: l.waktu || '11:45 WIB' };
+          // MIGRASI: Hapus data ratingKepuasan yang sebelumnya di-auto-assign (data palsu)
+          // ratingKepuasan hanya valid jika diisi langsung oleh warga di portal warga (masyarakat.html)
+          const TEKS_RATING_PALSU = [
+            'Respon cepat dan penanganan kepolisian profesional',
+            'Penanganan kepolisian sangat cepat dan memuaskan.',
+            'Penanganan cepat dan memuaskan.'
+          ];
+          if (l.ratingKepuasan && TEKS_RATING_PALSU.includes(l.ratingKepuasan.ulasan)) {
+            l.ratingKepuasan = null;
           }
 
           if (l.status === 'diproses') {
@@ -5865,70 +5884,79 @@
         `;
         }
 
-        // Baris waktu & indikator berkas yang rapi dan presisi (Hanya muncul jika tahap SUDAH disubmit)
+        // Baris tanggal & waktu (flex column: atas tanggal, bawah waktu) serta indikator berkas
         let metaRowHtml = '';
+        const tanggalKasus = log.tanggal || formatTanggalIndo();
+
         if (s.step === 1) {
-          // Waktu Laporan Masuk diambil dari log.waktu atau s.time
           const waktuLaporanMasuk = log.waktu || s.time;
           metaRowHtml = `
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time">${waktuLaporanMasuk}</span>
-            <span style="font-size:10px; font-weight:700; color:var(--primary); background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('pengaduan')" title="Klik untuk lihat bukti foto 110">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:8px;">
+            ${renderDateColumn('Laporan Masuk', waktuLaporanMasuk, tanggalKasus)}
+            <span style="font-size:10px; font-weight:700; color:var(--primary); background:#EFF6FF; border:1px solid #BFDBFE; padding:3px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('pengaduan')" title="Klik untuk lihat bukti foto 110">
               📷 Bukti Laporan 110 ➔
             </span>
           </div>
         `;
         } else if (s.step === 2) {
-          // Waktu Disposisi diambil dari data disposisi riil pimpinan (log.disposisi.waktuDisposisi)
           const waktuDisposisiRiil = (log.disposisi && log.disposisi.waktuDisposisi) ? log.disposisi.waktuDisposisi : (log.waktu || s.time);
           metaRowHtml = `
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time">${waktuDisposisiRiil}</span>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:8px;">
+            ${renderDateColumn('Disposisi Pawas', waktuDisposisiRiil, tanggalKasus)}
           </div>
         `;
         } else if (s.step === 3) {
-          // Hanya tampilkan tombol Bukti Persiapan & Waktu Meluncur jika personel SUDAH submit step 1 di Wizard
           const sudahMeluncur = Boolean(log.waktuMeluncur);
           metaRowHtml = `
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time">${sudahMeluncur ? 'Meluncur: ' + log.waktuMeluncur : 'Menunggu Konfirmasi Keberangkatan'}</span>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:8px;">
+            ${sudahMeluncur ? renderDateColumn('Meluncur', log.waktuMeluncur, tanggalKasus) : `
+              <div style="display:flex; flex-direction:column; gap:2px; line-height:1.2;">
+                <span style="font-size:10px; color:#94A3B8; font-weight:600;">📅 ${tanggalKasus}</span>
+                <span class="step-time" style="color:#94A3B8; font-style:italic;">Menunggu Konfirmasi Keberangkatan</span>
+              </div>
+            `}
             ${sudahMeluncur ? `
-            <span style="font-size:10px; font-weight:700; color:#1E40AF; background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('persiapan')" title="Klik untuk lihat bukti foto persiapan & GPS">
+            <span style="font-size:10px; font-weight:700; color:#1E40AF; background:#EFF6FF; border:1px solid #BFDBFE; padding:3px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('persiapan')" title="Klik untuk lihat bukti foto persiapan & GPS">
               📷 Bukti Persiapan & GPS ➔
             </span>` : ''}
           </div>
         `;
         } else if (s.step === 4) {
-          // Hanya tampilkan tombol Bukti Tindakan & Waktu Tiba jika personel SUDAH submit step 2 di Wizard
           const sudahTiba = Boolean(log.waktuTiba);
           metaRowHtml = `
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time" style="${!sudahTiba ? 'color:#94A3B8; font-style:italic;' : ''}">${sudahTiba ? 'Tiba di TKP: ' + log.waktuTiba : 'Menunggu Personel Tiba di TKP'}</span>
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:8px;">
+            ${sudahTiba ? renderDateColumn('Tiba di TKP', log.waktuTiba, tanggalKasus) : `
+              <div style="display:flex; flex-direction:column; gap:2px; line-height:1.2;">
+                <span style="font-size:10px; color:#94A3B8; font-weight:600;">📅 ${tanggalKasus}</span>
+                <span class="step-time" style="color:#94A3B8; font-style:italic;">Menunggu Personel Tiba di TKP</span>
+              </div>
+            `}
             ${sudahTiba ? `
-            <span style="font-size:10px; font-weight:700; color:var(--success); background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('tindakan')" title="Klik untuk lihat bukti foto tindakan">
+            <span style="font-size:10px; font-weight:700; color:var(--success); background:#ECFDF5; border:1px solid #A7F3D0; padding:3px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('tindakan')" title="Klik untuk lihat bukti foto tindakan">
               📸 Bukti Tindakan TKP ➔
             </span>` : ''}
           </div>
         `;
         } else if (s.step === 5) {
-          // Hanya tampilkan tombol Bukti Selesai jika kasus SUDAH ditutup/disubmit step 3 atau disahkan Pawas
           const sudahSelesai = Boolean(log.waktuSelesai || log.status === 'selesai');
           const waktuSelesaiFinal = log.pengesahanPawas?.waktu || log.waktuSelesai || log.waktu || s.time;
-          metaRowHtml = `
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time" style="${!sudahSelesai ? 'color:#94A3B8; font-style:italic;' : ''}">
-              ${sudahSelesai ? (log.pengesahanPawas ? 'Disahkan: ' + waktuSelesaiFinal : 'Selesai: ' + waktuSelesaiFinal) : 'Menunggu Otorisasi Penutupan Kasus'}
-            </span>
-            ${sudahSelesai ? `
-            <span style="font-size:10px; font-weight:700; color:#16A34A; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('selesai')" title="Klik untuk lihat bukti foto penyelesaian akhir">
+          const labelSelesai = log.pengesahanPawas ? 'Disahkan' : 'Selesai';
+          metaRowHtml = sudahSelesai ? `
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; margin-top:8px;">
+            ${renderDateColumn(labelSelesai, waktuSelesaiFinal, tanggalKasus)}
+            <span style="font-size:10px; font-weight:700; color:#16A34A; background:#ECFDF5; border:1px solid #A7F3D0; padding:3px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('selesai')" title="Klik untuk lihat bukti foto penyelesaian akhir">
               ✅ Bukti Situasi Akhir ➔
-            </span>` : ''}
+            </span>
+          </div>
+        ` : `
+          <div style="margin-top:8px;">
+            <span class="step-time" style="color:#94A3B8; font-style:italic;">Menunggu Otorisasi Penutupan Kasus</span>
           </div>
         `;
         } else {
           metaRowHtml = `
-          <div style="margin-top:6px;">
-            <span class="step-time">${s.step === currentTahap && !isCaseFinished ? 'Status Terkini: ' + s.time : s.time}</span>
+          <div style="margin-top:8px;">
+            ${renderDateColumn('Waktu', s.time, tanggalKasus)}
           </div>
         `;
         }
@@ -5959,7 +5987,7 @@
           let ratingBoxHtml = '';
           if (log.ratingKepuasan) {
             const r = log.ratingKepuasan;
-            const skor = r.skor || 5;
+            const skor = r.skor;
             const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
             const tagsStr = (r.tags && r.tags.length) ? `<div style="display:flex; flex-wrap:wrap; gap:3px; margin:4px 0;">${r.tags.map(t => `<span style="font-size:9.5px; background:#FEF3C7; color:#92400E; padding:1px 6px; border-radius:4px; font-weight:600;">${t}</span>`).join('')}</div>` : '';
             ratingBoxHtml = `
@@ -5969,7 +5997,8 @@
                 <span style="font-size:11px; font-weight:800; color:#D97706;">${starsStr} (${skor}/5)</span>
               </div>
               ${tagsStr}
-              <div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${r.ulasan || 'Penanganan kepolisian sangat cepat dan memuaskan.'}"</div>
+              ${r.ulasan ? `<div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${r.ulasan}"</div>` : ''}
+              ${r.waktu ? `<div style="font-size:10px; color:#92400E; margin-top:3px;">🕒 ${r.waktu}</div>` : ''}
             </div>
           `;
           }
@@ -6024,6 +6053,25 @@
       const h = String(d.getHours()).padStart(2, '0');
       const m = String(d.getMinutes()).padStart(2, '0');
       return `${h}:${m} WIB`;
+    }
+
+    function formatTanggalIndo(d = new Date()) {
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    function renderDateColumn(label, waktuStr, tanggalStr) {
+      const tgl = tanggalStr || formatTanggalIndo();
+      return `
+        <div style="display:flex; flex-direction:column; gap:2px; line-height:1.2;">
+          <span style="font-size:10px; color:#64748B; font-weight:600; display:flex; align-items:center; gap:3px;">
+            <span>📅</span> ${tgl}
+          </span>
+          <span class="step-time" style="font-size:11px; font-weight:700; color:#1E293B;">
+            ${label ? label + ': ' : ''}${waktuStr}
+          </span>
+        </div>
+      `;
     }
 
     function hitungSelisihMenitTeks(t1, t2) {
@@ -6320,7 +6368,7 @@
       const log = appLogs.find(l => l.id === activeWizardLogId);
       if (!log) return;
 
-      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      const waktuSekarang = formatWaktuHhMmWib();
       const gpsVal = (document.getElementById('koordinat-gps')?.value) || log.koordinatGps || '-6.2345, 106.8423';
 
       const poolPersiapan = [
@@ -6328,9 +6376,6 @@
       ];
       const poolTindakan = [
         'assets/images/polri_tindakan_tkp.jpg'
-      ];
-      const poolSelesai = [
-        'assets/images/polri_situasi_selesai.jpg'
       ];
 
       if (step === 1) {
@@ -6367,7 +6412,7 @@
         }
         alert(`📸 Foto Kondisi TKP Berhasil Diambil!\n\n• Lokasi: ${log.lokasiKejadian || 'TKP Sektor'}\n• Waktu: ${waktuSekarang}\n• Watermark: Dokumentasi Resmi Kepolisian`);
       } else if (step === 3) {
-        log.fotoSelesai = poolSelesai[log.id % poolSelesai.length];
+        log.fotoSelesai = 'assets/images/polri_situasi_selesai.jpg';
 
         const wrap = document.getElementById('wiz-step3-preview-wrap');
         const img = document.getElementById('wiz-step3-preview-img');
@@ -6379,7 +6424,7 @@
           btn.style.borderColor = '#16A34A';
           btn.style.color = '#15803D';
         }
-        alert(`📸 Foto Situasi Akhir Selesai Diambil!\n\n• Status: Aman & Kondusif\n• Waktu: ${waktuSekarang}`);
+        alert(`📸 Foto Situasi Akhir Kondusif Berhasil Diambil!\n\n• Waktu: ${waktuSekarang}\n• Watermark: Dokumentasi Resmi Kepolisian Selesai Penanganan`);
       }
       saveLogsToStorage();
     }
@@ -6399,15 +6444,24 @@
 
       if (tahap <= 3) {
         // Tahap 3 (Menuju Lokasi): Step 1 aktif, Step 2 & 3 terkunci
-        if (s1Head) s1Head.className = 'wiz-header active';
+        if (s1Head) {
+          s1Head.className = 'wiz-header active';
+          s1Head.title = 'Tahap 1 sedang aktif';
+        }
         if (s1Body) s1Body.style.display = 'block';
         if (s1Icon) s1Icon.innerText = '⏳';
 
-        if (s2Head) s2Head.className = 'wiz-header locked';
+        if (s2Head) {
+          s2Head.className = 'wiz-header locked';
+          s2Head.title = '🔒 Tahap 2 masih terkunci';
+        }
         if (s2Body) s2Body.style.display = 'none';
         if (s2Icon) s2Icon.innerText = '🔒';
 
-        if (s3Head) s3Head.className = 'wiz-header locked';
+        if (s3Head) {
+          s3Head.className = 'wiz-header locked';
+          s3Head.title = '🔒 Tahap 3 masih terkunci';
+        }
         if (s3Body) s3Body.style.display = 'none';
         if (s3Icon) s3Icon.innerText = '🔒';
       } else if (tahap === 4) {
@@ -6433,7 +6487,7 @@
         if (s3Body) s3Body.style.display = 'none';
         if (s3Icon) s3Icon.innerText = '🔒';
       } else {
-        // Tahap >= 5: Step 1 & 2 selesai & dikunci, Step 3 aktif
+        // Tahap >= 5: Step 1 & 2 selesai & dikunci, Step 3 aktif (Penyelesaian Kasus)
         if (s1Head) {
           s1Head.className = 'wiz-header completed';
           s1Head.title = '✓ Tahap 1 telah selesai & dikunci permanen';
@@ -6481,7 +6535,7 @@
       const waktuSekarang = formatWaktuHhMmWib();
 
       if (currentStep === 1) {
-        // 1. Ekstraksi Input Wizard Step 1 (Item 8: Kamera GPS & Persiapan)
+        // Sesuai Diagram: Step 1: Menuju Lokasi (Meluncur) -> Update otomatis: log.tahap = 4
         const inputGps = document.getElementById('koordinat-gps')?.value || '-6.2345, 106.8423';
         const inputCatatan = document.getElementById('wiz-step1-catatan')?.value.trim() || 'Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP.';
 
@@ -6501,7 +6555,7 @@
           catatan: log.catatanPersiapan + ' [GPS: ' + log.koordinatGps + ']'
         });
 
-        // Maju ke Tindakan di TKP
+        // Maju ke Tindakan di TKP (Tahap 4)
         updateTahapPenanganan(activeWizardLogId, 4);
         syncWizardStepsWithTahap(4);
         saveLogsToStorage();
@@ -6519,7 +6573,7 @@
         if (s2) s2.scrollIntoView({ behavior: 'smooth' });
 
       } else if (currentStep === 2) {
-        // 2. Ekstraksi Input Wizard Step 2 (Item 10: Berita Acara & Tindakan di TKP)
+        // Sesuai Diagram: Step 2: Tiba & Penanganan di TKP -> Klik 'Kirim Laporan Penanganan ➔' -> log.tahap = 5
         const inputTindakan = document.getElementById('wiz-step2-catatan')?.value.trim() || 'Petugas telah tiba di TKP. Melakukan pengamanan dan tindakan kepolisian presisi sesuai SOP.';
 
         log.deskripsiTindakan = inputTindakan;
@@ -6540,25 +6594,31 @@
           catatan: log.deskripsiTindakan
         });
 
-        // Maju ke Kasus Selesai
-        updateTahapPenanganan(activeWizardLogId, 5);
+        // Sesuai Diagram: Maju ke Tahap 5 (Step 3: Kasus Selesai Ditangani aktif), status tetap 'diproses'
+        log.tahap = 5;
+        log.status = 'diproses';
+        log.statusText = 'Tindakan TKP Selesai Dilaporkan';
+
         syncWizardStepsWithTahap(5);
         saveLogsToStorage();
+        updateRekapCounts();
+        displayLogDetail(activeWizardLogId);
 
         const badge = document.getElementById('wiz-status-badge');
         if (badge) {
-          badge.innerText = '✓ Kasus Selesai Ditangani';
-          badge.style.background = '#DCFCE7';
-          badge.style.color = '#16A34A';
+          badge.innerText = '✓ Laporan TKP Terkirim';
+          badge.style.background = '#FEF3C7';
+          badge.style.color = '#B45309';
         }
-        alert('✓ Tindakan di TKP selesai dicatat!\n\n• Berita Acara: "' + (log.deskripsiTindakan.length > 50 ? log.deskripsiTindakan.substring(0, 50) + '...' : log.deskripsiTindakan) + '"\n• Data tindakan otomatis tersinkronisasi ke Timeline!\n• Silakan konfirmasi dokumentasi akhir untuk menutup kasus.');
+
+        alert('✓ Laporan Tindakan di TKP Selesai Dikirim!\n\n• Sesuai Alur: Kasus berlanjut ke Step 3 (Kasus Selesai Ditangani).\n• Silakan lengkapi dokumentasi situasi akhir kondusif untuk menutup kasus.');
 
         // Auto-scroll ke Step 3
         const s3 = document.getElementById('step3-card');
         if (s3) s3.scrollIntoView({ behavior: 'smooth' });
 
       } else if (currentStep === 3) {
-        // 3. Ekstraksi Input Wizard Step 3 (Penutupan Kasus)
+        // Sesuai Diagram: Step 3: Kasus Selesai Ditangani -> Klik '✅ Tutup Kasus' -> selesaikanKasus()
         const inputSelesai = document.getElementById('wiz-step3-catatan')?.value.trim() || 'Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal.';
         log.catatanSelesai = inputSelesai;
         log.waktuSelesai = waktuSekarang;
@@ -6574,7 +6634,7 @@
           catatan: log.catatanSelesai
         });
 
-        // Tutup Kasus
+        // Sesuai Diagram Fase 4: Penutupan Kasus
         selesaikanKasus(activeWizardLogId);
         kembaliDariWizard();
       }
@@ -6774,123 +6834,133 @@
 
         const tlActions = document.getElementById('tl-actions-box');
         if (tlActions) {
-          if (log.status === 'diproses') {
-            const disp = log.disposisi || {};
-            const unitNama = disp.unit || 'Patroli Samapta Presisi (Unit Roda 4)';
-            const komandanNama = disp.komandan || log.personelDitugaskan || log.petugasPenangan || (log.tipePelapor === 'personel' ? log.nama : 'Bripka Ahmad & Regu Alpha (Unit Samapta Presisi)');
-            const arahanTeks = disp.arahan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.';
-            const waktuDisp = disp.waktuDisposisi || (log.waktu || '10:45 WIB');
+          const disp = log.disposisi || {};
+          const unitNama = disp.unit || 'Patroli Samapta Presisi (Unit Roda 4)';
+          const komandanNama = disp.komandan || log.personelDitugaskan || log.petugasPenangan || (log.tipePelapor === 'personel' ? log.nama : 'Bripka Ahmad & Regu Alpha (Unit Samapta Presisi)');
+          const arahanTeks = disp.arahan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.';
+          const waktuDisp = disp.waktuDisposisi || (log.waktu || '10:45 WIB');
 
-            // =========================================================================
-            // PEMISAHAN 3 TAHAPAN SLA RESMI PRESISI POLRI:
-            // SLA 1: Respon Pimpinan/Pawas (Laporan Masuk ➔ Disposisi ke Anggota) [Target <= 5 Menit]
-            // SLA 2: Waktu Tanggap Lapangan (Disposisi Diterima ➔ Anggota Siaga/Mulai Tangani) [Target <= 3 Menit]
-            // SLA 3: Waktu Tempuh Patroli (Meluncur ➔ Tiba di TKP) [Target <= 10 Menit]
-            // =========================================================================
-            const waktuMasuk = log.waktu || '13:00 WIB';
-            const waktuMeluncur = log.waktuMeluncur;
-            const waktuTiba = log.waktuTiba;
+          // =========================================================================
+          // EVALUASI 3 TAHAPAN SLA RESMI PRESISI POLRI:
+          // SLA 1: Respon Pimpinan/Pawas (Laporan Masuk ➔ Disposisi ke Anggota) [Target <= 5 Menit]
+          // SLA 2: Waktu Tanggap Lapangan (Disposisi Diterima ➔ Anggota Siaga/Mulai Tangani) [Target <= 3 Menit]
+          // SLA 3: Waktu Tempuh Patroli (Meluncur ➔ Tiba di TKP) [Target <= 10 Menit]
+          // =========================================================================
+          const waktuMasuk = log.waktu || '13:00 WIB';
+          const waktuMeluncur = log.waktuMeluncur;
+          const waktuTiba = log.waktuTiba;
 
-            // 1. Hitung SLA 1: Laporan Masuk -> Disposisi Pawas
-            let durasiSla1 = hitungSelisihMenitTeks(waktuMasuk, waktuDisp);
-            // Jika masuk dan disposisi pada menit yang sama, durasi respon di bawah 1 menit (< 1m)
-            const teksDurasiSla1 = durasiSla1 === 0 ? '< 1m' : `${durasiSla1}m`;
-            const sla1Tepat = durasiSla1 <= 5;
+          // 1. Hitung SLA 1: Laporan Masuk -> Disposisi Pawas
+          let durasiSla1 = hitungSelisihMenitTeks(waktuMasuk, waktuDisp);
+          const teksDurasiSla1 = durasiSla1 === 0 ? '< 1m' : `${durasiSla1}m`;
+          const sla1Tepat = durasiSla1 <= 5;
 
-            // 2. Hitung SLA 2: Disposisi -> Anggota Mulai Tangani (Klik Meluncur)
-            let durasiSla2 = 0;
-            let teksDurasiSla2 = '';
-            let sla2Tepat = true;
-            if (waktuMeluncur) {
-              durasiSla2 = hitungSelisihMenitTeks(waktuDisp, waktuMeluncur);
-              if (durasiSla2 >= 60) {
-                const jam = Math.floor(durasiSla2 / 60);
-                const sisaMenit = durasiSla2 % 60;
-                teksDurasiSla2 = `${jam}j ${sisaMenit}m`;
-              } else if (durasiSla2 === 0) {
-                teksDurasiSla2 = '< 1m';
-              } else {
-                teksDurasiSla2 = `${durasiSla2}m`;
-              }
-              sla2Tepat = durasiSla2 <= 3;
+          // 2. Hitung SLA 2: Disposisi -> Anggota Mulai Tangani (Klik Meluncur)
+          let durasiSla2 = 0;
+          let teksDurasiSla2 = '';
+          let sla2Tepat = true;
+          if (waktuMeluncur) {
+            durasiSla2 = hitungSelisihMenitTeks(waktuDisp, waktuMeluncur);
+            if (durasiSla2 >= 60) {
+              const jam = Math.floor(durasiSla2 / 60);
+              const sisaMenit = durasiSla2 % 60;
+              teksDurasiSla2 = `${jam}j ${sisaMenit}m`;
+            } else if (durasiSla2 === 0) {
+              teksDurasiSla2 = '< 1m';
+            } else {
+              teksDurasiSla2 = `${durasiSla2}m`;
             }
+            sla2Tepat = durasiSla2 <= 3;
+          }
 
-            // 3. Hitung SLA 3: Waktu Tempuh Meluncur -> Tiba di TKP (Target < 10 Menit)
-            const isSudahTibaTkp = (log.tahap >= 4 && waktuTiba);
-            let durasiSla3 = log.slaDurasiMenit || 0;
-            if (isSudahTibaTkp && waktuMeluncur && waktuTiba) {
-              durasiSla3 = hitungSelisihMenitTeks(waktuMeluncur, waktuTiba);
-              if (durasiSla3 > 60 || durasiSla3 <= 0) durasiSla3 = 5;
-              log.slaDurasiMenit = durasiSla3;
-            }
+          // 3. Hitung SLA 3: Waktu Tempuh Meluncur -> Tiba di TKP (Target <= 10 Menit)
+          const isSudahTibaTkp = (log.tahap >= 4 && waktuTiba);
+          let durasiSla3 = log.slaDurasiMenit || 0;
+          if (isSudahTibaTkp && waktuMeluncur && waktuTiba) {
+            durasiSla3 = hitungSelisihMenitTeks(waktuMeluncur, waktuTiba);
+            log.slaDurasiMenit = durasiSla3;
+          }
 
-            const slaDisplayHtml = (roleTitle) => `
-              <div style="background:#0F172A; color:#F8FAFC; border-radius:10px; padding:12px; border-left:4px solid #38BDF8; box-shadow:0 4px 14px rgba(0,0,0,0.2);">
-                <!-- Header Card Ringkas -->
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.08);">
-                  <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="font-size:12px;">⏱️</span>
-                    <span style="font-size:10.5px; font-weight:800; color:#E2E8F0; letter-spacing:0.4px; text-transform:uppercase;">${roleTitle}</span>
-                  </div>
-                  <span style="font-size:9.5px; font-weight:700; color:#38BDF8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:1px 7px; border-radius:4px;">STANDAR PRESISI</span>
+          let teksDurasiSla3 = '';
+          if (durasiSla3 >= 60) {
+            const j = Math.floor(durasiSla3 / 60);
+            const m = durasiSla3 % 60;
+            teksDurasiSla3 = `${j}j ${m}m`;
+          } else if (durasiSla3 === 0) {
+            teksDurasiSla3 = '< 1m';
+          } else {
+            teksDurasiSla3 = `${durasiSla3}m`;
+          }
+
+          const slaDisplayHtml = (roleTitle) => `
+            <div style="background:#0F172A; color:#F8FAFC; border-radius:10px; padding:12px; border-left:4px solid #38BDF8; box-shadow:0 4px 14px rgba(0,0,0,0.2);">
+              <!-- Header Card Ringkas -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span style="font-size:12px;">⏱️</span>
+                  <span style="font-size:10.5px; font-weight:800; color:#E2E8F0; letter-spacing:0.4px; text-transform:uppercase;">${roleTitle}</span>
                 </div>
-
-                <!-- 3 Baris SLA Ringkas & Rapi -->
-                <div style="display:flex; flex-direction:column; gap:6px;">
-                  
-                  <!-- SLA 1: Respon Pawas -->
-                  <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                      <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">1. Respon Pawas (Disposisi)</div>
-                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 5 Menit (${waktuMasuk} ➔ ${waktuDisp})</div>
-                    </div>
-                    <div>
-                      <span style="font-size:9.5px; font-weight:700; background:${sla1Tepat ? '#065F46' : '#78350F'}; color:${sla1Tepat ? '#34D399' : '#FDE68A'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
-                        ${sla1Tepat ? '✓ Respon Cepat (' + teksDurasiSla1 + ')' : '⚠️ Toleransi (' + teksDurasiSla1 + ')'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- SLA 2: Waktu Tanggap Anggota -->
-                  <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                      <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">2. Respon Anggota (Tanggap)</div>
-                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 3 Menit (${waktuDisp} ➔ ${waktuMeluncur || 'Belum Berangkat'})</div>
-                    </div>
-                    <div>
-                      ${waktuMeluncur ? `
-                        <span style="font-size:9.5px; font-weight:700; background:${sla2Tepat ? '#065F46' : '#7F1D1D'}; color:${sla2Tepat ? '#34D399' : '#FCA5A5'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
-                          ${sla2Tepat ? '✓ Tanggap Cepat (' + teksDurasiSla2 + ')' : '🚨 Melebihi Batas (' + teksDurasiSla2 + ')'}
-                        </span>
-                      ` : `
-                        <span style="font-size:9.5px; font-weight:700; background:#1E3A8A; color:#93C5FD; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
-                          ⏳ Menunggu Tindakan
-                        </span>
-                      `}
-                    </div>
-                  </div>
-
-                  <!-- SLA 3: Waktu Tempuh ke TKP -->
-                  <div style="background:rgba(255,255,255,0.05); border:1px solid ${isSudahTibaTkp ? '#059669' : '#0284C7'}; border-radius:6px; padding:7px 9px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                      <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">3. Tempuh ke TKP (Target &le; 10m)</div>
-                      <span id="sla3-badge-indicator" style="font-size:9px; font-weight:700; background:${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#065F46' : '#78350F') : '#0C4A6E'}; color:${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#34D399' : '#FDE68A') : '#38BDF8'}; padding:2px 6px; border-radius:4px; white-space:nowrap;">
-                        ${isSudahTibaTkp ? (durasiSla3 <= 10 ? '● Tepat di TKP' : '⚠️ Batas Waktu') : (waktuMeluncur ? '● Sedang Meluncur' : 'Belum Berangkat')}
-                      </span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                      <div style="font-size:9.5px; color:#94A3B8;">
-                        ${waktuMeluncur ? (waktuTiba ? 'Tiba: ' + waktuTiba : 'Berangkat: ' + waktuMeluncur) : 'Menunggu klik Meluncur'}
-                      </div>
-                      <div id="sla-live-clock" style="font-family:monospace; font-size:15px; font-weight:900; color:#38BDF8; letter-spacing:0.5px;">
-                        ${waktuMeluncur ? (String(durasiSla3).padStart(2, '0') + ':00') : '--:--'}
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
+                <span style="font-size:9.5px; font-weight:700; color:#38BDF8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:1px 7px; border-radius:4px;">STANDAR PRESISI</span>
               </div>
-            `;
+
+              <!-- 3 Baris SLA Ringkas & Rapi -->
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                
+                <!-- SLA 1: Respon Pawas -->
+                <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">1. Respon Pawas (Disposisi)</div>
+                    <div style="font-size:9.5px; color:#94A3B8;">Target &le; 5 Menit (${waktuMasuk} ➔ ${waktuDisp})</div>
+                  </div>
+                  <div>
+                    <span style="font-size:9.5px; font-weight:700; background:${sla1Tepat ? '#065F46' : '#78350F'}; color:${sla1Tepat ? '#34D399' : '#FDE68A'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                      ${sla1Tepat ? '✓ Respon Cepat (' + teksDurasiSla1 + ')' : '⚠️ Toleransi (' + teksDurasiSla1 + ')'}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- SLA 2: Waktu Tanggap Anggota -->
+                <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">2. Respon Anggota (Tanggap)</div>
+                    <div style="font-size:9.5px; color:#94A3B8;">Target &le; 3 Menit (${waktuDisp} ➔ ${waktuMeluncur || 'Belum Berangkat'})</div>
+                  </div>
+                  <div>
+                    ${waktuMeluncur ? `
+                      <span style="font-size:9.5px; font-weight:700; background:${sla2Tepat ? '#065F46' : '#7F1D1D'}; color:${sla2Tepat ? '#34D399' : '#FCA5A5'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                        ${sla2Tepat ? '✓ Tanggap Cepat (' + teksDurasiSla2 + ')' : '🚨 Melebihi Batas (' + teksDurasiSla2 + ')'}
+                      </span>
+                    ` : `
+                      <span style="font-size:9.5px; font-weight:700; background:#1E3A8A; color:#93C5FD; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                        ⏳ Menunggu Tindakan
+                      </span>
+                    `}
+                  </div>
+                </div>
+
+                <!-- SLA 3: Waktu Tempuh ke TKP -->
+                <div style="background:rgba(255,255,255,0.05); border:1px solid ${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#059669' : '#DC2626') : '#0284C7'}; border-radius:6px; padding:7px 9px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">3. Tempuh ke TKP (Target &le; 10m)</div>
+                    <span id="sla3-badge-indicator" style="font-size:9px; font-weight:700; background:${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#065F46' : '#7F1D1D') : '#0C4A6E'}; color:${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#34D399' : '#FCA5A5') : '#38BDF8'}; padding:2px 6px; border-radius:4px; white-space:nowrap;">
+                      ${isSudahTibaTkp ? (durasiSla3 <= 10 ? '● Tepat di TKP' : '🚨 Melebihi Batas (' + teksDurasiSla3 + ')') : (waktuMeluncur ? '● Sedang Meluncur' : 'Belum Berangkat')}
+                    </span>
+                  </div>
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-size:9.5px; color:#94A3B8;">
+                      ${waktuMeluncur ? (waktuTiba ? 'Tiba: ' + waktuTiba : 'Berangkat: ' + waktuMeluncur) : 'Menunggu klik Meluncur'}
+                    </div>
+                    <div id="sla-live-clock" style="font-family:inherit; font-size:14px; font-weight:800; color:${isSudahTibaTkp && durasiSla3 > 10 ? '#FCA5A5' : '#38BDF8'}; letter-spacing:0.3px;">
+                      ${waktuMeluncur ? (isSudahTibaTkp ? teksDurasiSla3 : (String(Math.floor(durasiSla3 / 60)).padStart(2, '0') + ':' + String(durasiSla3 % 60).padStart(2, '0'))) : '--:--'}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          `;
+
+          if (log.status === 'diproses') {
 
             if (isUserPawas()) {
               tlActions.innerHTML = `
@@ -6923,8 +6993,8 @@
                   <span>🚔</span> Kerahkan Unit Cadangan / Back-Up Tambahan
                 </button>
 
-                <!-- 4. Pengesahan Resmi Penutupan Kasus -->
-                ${log.tahap >= 5 ? `
+                <!-- 4. Pengesahan Resmi Penutupan Kasus (Pawas) -->
+                ${(log.bapTerkirim || (log.tahap >= 4 && log.deskripsiTindakan) || log.tahap >= 5) && log.status !== 'selesai' ? `
                   <button type="button" onclick="pawasSahkanDanTutupKasus(${log.id})" style="width:100%; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; border:none; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(16,185,129,0.35); transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
                     <span>✍️</span> Sahkan Berita Acara & Tutup Kasus Resmi (Pawas) ➔
                   </button>
@@ -6938,10 +7008,16 @@
                 <!-- 1. Indikator Evaluasi 3 Lapis SLA Presisi (Petugas) -->
                 ${slaDisplayHtml('TARGET & EVALUASI WAKTU TANGGAP (SLA)')}
 
-                <!-- 2. Tombol Eksekusi Operasional Utama (Bripka Ahmad) -->
-                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
-                  <span>🚀</span> Tangani Laporan ➔
-                </button>
+                <!-- 2. Tombol Eksekusi Operasional Utama (Bripka Ahmad Sesuai Diagram Alur) -->
+                ${log.tahap >= 5 && log.status !== 'selesai' ? `
+                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                    <span>✅</span> Lanjutkan ke Step 3: Tutup Kasus ➔
+                  </button>
+                ` : `
+                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                    <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
+                  </button>
+                `}
               </div>
             `;
             }
@@ -6995,36 +7071,57 @@
             }
           } else {
             const rating = log.ratingKepuasan;
-            const skor = rating ? (rating.skor || 5) : 5;
-            const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
-            const tagsHtml = (rating && rating.tags && rating.tags.length)
-              ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">${rating.tags.map(t => `<span style="font-size:10px; background:#FEF3C7; color:#92400E; padding:2px 7px; border-radius:10px; font-weight:600;">${t}</span>`).join('')}</div>`
-              : '';
-            const ulasanStr = rating ? (rating.ulasan || 'Penanganan kepolisian sangat cepat dan memuaskan.') : 'Penanganan cepat dan memuaskan.';
-            const waktuStr = rating ? (rating.waktu || 'Hari ini') : 'Hari ini';
+            // Survei hanya dari input nyata warga - tidak ada fallback default
+            const ratingCardHtml = rating ? (() => {
+              const skor = rating.skor;
+              const starsStr = '★'.repeat(skor) + '☆'.repeat(5 - skor);
+              const tagsHtml = (rating.tags && rating.tags.length)
+                ? `<div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">${rating.tags.map(t => `<span style="font-size:10px; background:#FEF3C7; color:#92400E; padding:2px 7px; border-radius:10px; font-weight:600;">${t}</span>`).join('')}</div>`
+                : '';
+              return `
+              <div style="background:#FFFBEB; border:1.5px solid #FDE68A; border-radius:8px; padding:12px; box-shadow:0 2px 6px rgba(245,158,11,0.08);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-size:11px; font-weight:800; color:#B45309; text-transform:uppercase; letter-spacing:0.5px;">⭐ Penilaian Warga (Portal 110)</span>
+                  <span style="font-size:13px; font-weight:800; color:#D97706;">${starsStr} (${skor}/5)</span>
+                </div>
+                ${tagsHtml}
+                ${rating.ulasan ? `<div style="font-size:12px; font-style:italic; color:#78350F; background:white; padding:8px 10px; border-radius:6px; border:1px dashed #FCD34D; margin-top:4px;">"${rating.ulasan}"</div>` : ''}
+                ${rating.waktu ? `<div style="margin-top:8px; font-size:10px; color:#92400E; font-weight:600;">🕒 ${rating.waktu}</div>` : ''}
+              </div>`;
+            })() : '';
 
             tlActions.innerHTML = `
-            <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:8px; padding:12px; text-align:center;">
-              <div style="color:var(--success); font-weight:700; font-size:13px;">✓ Kasus Selesai Ditangani & Telah Ditutup</div>
-              <div style="color:var(--text-muted); font-size:11px; margin-top:4px;">Berita acara penanganan telah disahkan oleh pimpinan.</div>
-            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <!-- 1. Evaluasi Resmi 3 Tahapan SLA Presisi (Riwayat Permanen) -->
+              ${slaDisplayHtml('EVALUASI AKHIR WAKTU TANGGAP (SLA)')}
 
-            <!-- Card Survei Kepuasan Warga (Item 12 - Roadmap Tahap 4) -->
-            <div style="margin-top:10px; background:#FFFBEB; border:1.5px solid #FDE68A; border-radius:8px; padding:12px; text-align:left; box-shadow:0 2px 6px rgba(245,158,11,0.08);">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:11px; font-weight:800; color:#B45309; text-transform:uppercase; letter-spacing:0.5px;">⭐ Evaluasi Kepuasan Warga</span>
-                <span style="font-size:13px; font-weight:800; color:#D97706;">${starsStr} (${skor}/5)</span>
+              <!-- 2. Status Penutupan Kasus (Sesuai Diagram Fase 4) -->
+              ${log.pengesahanPawas ? `
+              <div style="background:#ECFDF5; border:1.5px solid #34D399; border-radius:10px; padding:13px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:18px;">✅</span>
+                  <div>
+                    <div style="color:#065F46; font-weight:800; font-size:13px;">Kasus Selesai Ditangani & Telah Ditutup</div>
+                    <div style="color:#047857; font-size:11px; margin-top:2px;">Berita acara penanganan telah disahkan secara resmi oleh pimpinan.</div>
+                  </div>
+                </div>
+                <div style="background:#D1FAE5; border-radius:6px; padding:7px 10px; font-size:11px; color:#065F46;">
+                  <strong>Disahkan oleh:</strong> ${log.pengesahanPawas.nama || 'Kompol Hendra (Pawas)'}
+                  &nbsp;|&nbsp; <strong>Pukul:</strong> ${log.pengesahanPawas.waktu || '-'}
+                  ${log.pengesahanPawas.catatan ? `<div style="margin-top:4px; font-style:italic;">"${log.pengesahanPawas.catatan}"</div>` : ''}
+                </div>
               </div>
-              ${tagsHtml}
-              <div style="font-size:12px; font-style:italic; color:#78350F; background:white; padding:8px 10px; border-radius:6px; border:1px dashed #FCD34D; margin-top:4px;">
-                "${ulasanStr}"
+              ` : `
+              <div style="background:#FEF9C3; border:1.5px solid #FDE047; border-radius:10px; padding:13px; display:flex; align-items:flex-start; gap:10px;">
+                <span style="font-size:20px; line-height:1;">⏳</span>
+                <div>
+                  <div style="color:#854D0E; font-weight:800; font-size:13px;">Laporan Lapangan Terkirim</div>
+                  <div style="color:#92400E; font-size:11px; margin-top:3px;">Personel telah menyelesaikan penanganan. Menunggu pengesahan resmi Berita Acara oleh Pawas (Pengawas Pimpinan).</div>
+                </div>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-                <span style="font-size:10px; color:#92400E; font-weight:600;">🕒 ${waktuStr}</span>
-                <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; font-size:11px; font-weight:700; color:#153E75; background:#EFF6FF; padding:4px 9px; border-radius:6px; border:1px solid #BFDBFE;">
-                  🌐 Buka di Portal Warga ➔
-                </a>
-              </div>
+              `}
+              <!-- 3. Survei Kepuasan Warga (hanya jika sudah diisi warga di portal) -->
+              ${ratingCardHtml}
             </div>
           `;
           }
