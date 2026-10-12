@@ -2720,6 +2720,7 @@
           .wiz-header.completed {
             background: #ECFDF5;
             color: var(--success);
+            cursor: not-allowed;
           }
 
           .wiz-cam {
@@ -5841,14 +5842,16 @@
 
         let mapHtml = '';
         if (s.step === 3 && currentTahap >= 3 && !isCaseFinished) {
+          const fotoPersiapanSrc = log.fotoPersiapan || 'assets/images/polri_patrol_car.jpg';
+          const avatarPetugasSrc = log.avatar || 'assets/images/avatar_polisi.jpg';
           mapHtml = `
-          <div class="tracking-map">
-            <img src="assets/images/polri_pengaduan_tkp.jpg" alt="Map" class="map-placeholder">
+          <div class="tracking-map" onclick="event.stopPropagation(); previewFotoModal('persiapan')" title="Klik untuk memperbesar Bukti Persiapan & GPS" style="cursor:pointer;">
+            <img src="${fotoPersiapanSrc}" alt="Bukti Persiapan & GPS" class="map-placeholder" onerror="this.onerror=null; this.src='assets/images/polri_patrol_car.jpg';">
             <div class="map-overlay">
-              <img src="assets/images/polri_pengaduan_tkp.jpg" alt="Police" class="police-avatar">
+              <img src="${avatarPetugasSrc}" alt="Police" class="police-avatar" onerror="this.onerror=null; this.src='assets/images/avatar_polisi.jpg';">
               <div class="police-info">
                 <h4>${log.personelDitugaskan || log.petugasPenangan || 'Bripka Ahmad (Unit Samapta)'}</h4>
-                <p>Estimasi Tiba: 5 Menit</p>
+                <p>Estimasi Tiba: 5 Menit • 🔍 Klik perbesar foto</p>
               </div>
             </div>
           </div>
@@ -6318,29 +6321,47 @@
         if (s3Body) s3Body.style.display = 'none';
         if (s3Icon) s3Icon.innerText = '🔒';
       } else if (tahap === 4) {
-        // Tahap 4 (Tindakan di TKP): Step 1 selesai, Step 2 aktif, Step 3 terkunci
-        if (s1Head) s1Head.className = 'wiz-header completed';
+        // Tahap 4 (Tindakan di TKP): Step 1 selesai & dikunci, Step 2 aktif, Step 3 terkunci
+        if (s1Head) {
+          s1Head.className = 'wiz-header completed';
+          s1Head.title = '✓ Tahap 1 telah selesai & dikunci permanen';
+        }
         if (s1Body) s1Body.style.display = 'none';
         if (s1Icon) s1Icon.innerText = '✅';
 
-        if (s2Head) s2Head.className = 'wiz-header active';
+        if (s2Head) {
+          s2Head.className = 'wiz-header active';
+          s2Head.title = 'Tahap 2 sedang aktif';
+        }
         if (s2Body) s2Body.style.display = 'block';
         if (s2Icon) s2Icon.innerText = '⏳';
 
-        if (s3Head) s3Head.className = 'wiz-header locked';
+        if (s3Head) {
+          s3Head.className = 'wiz-header locked';
+          s3Head.title = '🔒 Tahap 3 masih terkunci';
+        }
         if (s3Body) s3Body.style.display = 'none';
         if (s3Icon) s3Icon.innerText = '🔒';
       } else {
-        // Tahap >= 5: Step 1 & 2 selesai, Step 3 aktif
-        if (s1Head) s1Head.className = 'wiz-header completed';
+        // Tahap >= 5: Step 1 & 2 selesai & dikunci, Step 3 aktif
+        if (s1Head) {
+          s1Head.className = 'wiz-header completed';
+          s1Head.title = '✓ Tahap 1 telah selesai & dikunci permanen';
+        }
         if (s1Body) s1Body.style.display = 'none';
         if (s1Icon) s1Icon.innerText = '✅';
 
-        if (s2Head) s2Head.className = 'wiz-header completed';
+        if (s2Head) {
+          s2Head.className = 'wiz-header completed';
+          s2Head.title = '✓ Tahap 2 telah selesai & dikunci permanen';
+        }
         if (s2Body) s2Body.style.display = 'none';
         if (s2Icon) s2Icon.innerText = '✅';
 
-        if (s3Head) s3Head.className = 'wiz-header active';
+        if (s3Head) {
+          s3Head.className = 'wiz-header active';
+          s3Head.title = 'Tahap 3 sedang aktif';
+        }
         if (s3Body) s3Body.style.display = 'block';
         if (s3Icon) s3Icon.innerText = '⏳';
       }
@@ -6353,6 +6374,10 @@
 
       if (head.classList.contains('locked')) {
         alert('🔒 Langkah ini masih terkunci! Penanganan kasus wajib diselesaikan secara berurutan.');
+        return;
+      }
+      if (head.classList.contains('completed')) {
+        alert('✓ Tahap ini telah selesai diverifikasi & dikunci permanen. Anda tidak dapat mengubah data pada tahap ini lagi.');
         return;
       }
       body.style.display = body.style.display === 'none' ? 'block' : 'none';
