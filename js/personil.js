@@ -1550,16 +1550,37 @@ function loadLogsFromStorage() {
 
       // Sinkronisasi Kasus ID 16: Kasus penanganan aktif di lapangan (TIKET-110-16X2F)
       const log16 = appLogs.find(l => l.id === 16);
-      if (log16 && !log16.pengesahanPawas) {
-        log16.tahap = 5;
-        log16.bapTerkirim = true;
-        log16.status = 'menunggu_pengesahan';
-        log16.statusText = 'Menunggu Pengesahan Pawas';
-        if (!log16.waktuSelesai) log16.waktuSelesai = '20:06 WIB';
-        if (!log16.catatanSelesai) log16.catatanSelesai = 'Pelaku dan barang bukti motor telah berhasil diamankan';
+      if (log16) {
+        if (!log16.pengesahanPawas && log16.status !== 'selesai') {
+          log16.tahap = 5;
+          log16.bapTerkirim = true;
+          log16.status = 'menunggu_pengesahan';
+          log16.statusText = 'Menunggu Pengesahan Pawas';
+          if (!log16.waktuSelesai) log16.waktuSelesai = '20:06 WIB';
+          if (!log16.catatanSelesai) log16.catatanSelesai = 'Pelaku dan barang bukti motor telah berhasil diamankan';
+        }
         if (!log16.waktuTiba) log16.waktuTiba = '20:06 WIB';
         if (!log16.deskripsiTindakan) log16.deskripsiTindakan = 'Mengamankan lokasi kejadian dan melakukan pengejaran pelaku';
         if (!log16.waktuMeluncur) log16.waktuMeluncur = '18:14 WIB';
+        if (!log16.catatanPersiapan) log16.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP.';
+        if (!log16.disposisi) {
+          log16.disposisi = {
+            unit: 'Unit Patroli Samapta Presisi (Unit Roda 4)',
+            unitId: 'samapta-r4-selatan',
+            komandan: 'Bripka Ahmad & Regu Alpha (Unit Samapta Presisi)',
+            nrpKomandan: '95020123',
+            arahan: 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.',
+            waktuDisposisi: '13:05 WIB'
+          };
+        } else if (!log16.disposisi.waktuDisposisi) {
+          log16.disposisi.waktuDisposisi = '13:05 WIB';
+        }
+      }
+
+      const log28 = appLogs.find(l => l.id === 28);
+      if (log28) {
+        if (!log28.waktuTiba) log28.waktuTiba = '08:48 WIB';
+        if (!log28.waktuSelesai) log28.waktuSelesai = '09:00 WIB';
       }
     } else {
       appLogs = getDefaultLogs();
@@ -1603,6 +1624,9 @@ function loadLogsFromStorage() {
       ];
       if (l.ratingKepuasan && TEKS_RATING_PALSU.includes(l.ratingKepuasan.ulasan)) {
         l.ratingKepuasan = null;
+      }
+      if (typeof enrichLogsWithCitizenReviews === 'function') {
+        enrichLogsWithCitizenReviews([l]);
       }
 
       if (l.status === 'diproses') {
@@ -1675,6 +1699,9 @@ function loadLogsFromStorage() {
         l.avatar = 'assets/images/avatar_polisi.jpg';
       } else if (!l.avatar || l.avatar.includes('unsplash.com')) {
         l.avatar = SVG_AVATAR_WARGA;
+      }
+      if (typeof enrichLogsWithCitizenReviews === 'function') {
+        enrichLogsWithCitizenReviews([l]);
       }
     });
     saveLogsToStorage();
@@ -2271,8 +2298,12 @@ function konfirmasiDisposisiPawas() {
     catatan: 'Dikerahkan: ' + unitVal + ' (' + personelVal + ') • Estimasi Jarak: ' + jarakVal + ' (' + etaVal + ' ke TKP). Arahan: "' + arahanVal + '"'
   });
 
+  log._updatedAt = Date.now();
   saveLogsToStorage();
   updateRekapCounts();
+  if (typeof renderPimpinanExecutiveDashboard === 'function') {
+    renderPimpinanExecutiveDashboard();
+  }
   tutupModalDisposisiPawas();
 
   openValidasiList('diproses');
@@ -2595,8 +2626,12 @@ function pawasSahkanDanTutupKasus(id) {
     catatan: 'Berita acara penanganan disahkan secara sah, tiket resmi ditutup.'
   });
 
+  log._updatedAt = Date.now();
   saveLogsToStorage();
   updateRekapCounts();
+  if (typeof renderPimpinanExecutiveDashboard === 'function') {
+    renderPimpinanExecutiveDashboard();
+  }
 
   alert('🏆 KASUS RESMI DISAHKAN & DITUTUP OLEH PAWAS!\n\n• Nomor Tiket: ' + (log.nomorTiket || log.id) + '\n• Otoritas Pengesah: ' + namaPawas + ' (Pawas)\n• Berita Acara: Lengkap & Sah secara Hukum\n• Status Akhir: SELESAI (Masuk ke Arsip Log Selesai)\n\nTerima kasih atas kepemimpinan & pengawasan Presisi!');
 
@@ -6387,6 +6422,23 @@ function renderPimpinanExecutiveDashboard() {
   renderPimpinanPersonelActivityTimeline();
 }
 
+function parseWaktuToMinutes(waktuStr) {
+  if (!waktuStr) return 0;
+  const match = String(waktuStr).match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    const hours = parseInt(match[1], 10);
+    const mins = parseInt(match[2], 10);
+    return (hours * 60) + mins;
+  }
+  return 0;
+}
+
+function formatMinutesToWib(mins) {
+  const h = Math.floor(((mins % 1440) + 1440) % 1440 / 60);
+  const m = Math.floor(((mins % 1440) + 1440) % 1440 % 60);
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ' WIB';
+}
+
 function renderPimpinanPersonelActivityTimeline() {
   const container = document.getElementById('pimpinan-personel-activity-timeline');
   if (!container) return;
@@ -6396,61 +6448,135 @@ function renderPimpinanPersonelActivityTimeline() {
     return;
   }
 
-  // Ekstrak aktivitas riil dari log penugasan yang memiliki petugas / pergerakan operasional
-  const activities = [];
+  // Helper resolusi identitas personel dan kesatuan resmi
+  const resolvePetugas = (l) => {
+    if (l.assignedNama) {
+      const armada = (typeof DAFTAR_ARMADA_PRESISI !== 'undefined' && l.assignedUnitId)
+        ? DAFTAR_ARMADA_PRESISI.find(a => a.id === l.assignedUnitId)
+        : null;
+      return { nama: l.assignedNama, unit: armada?.namaSingkat || l.disposisi?.unit || 'Samapta R-4' };
+    }
+    if (l.disposisi?.komandan) {
+      return { nama: l.disposisi.komandan.split('(')[0].trim(), unit: l.disposisi.unit || 'Unit Presisi' };
+    }
+    if (l.tipePelapor === 'personel' && l.nama) {
+      return { nama: l.nama, unit: l.kesatuan || 'Patroli Personel' };
+    }
+    if (l.sektor?.includes('Selatan')) return { nama: 'Bripka Ahmad Subagyo', unit: 'Samapta R-4 Selatan' };
+    if (l.sektor?.includes('Barat')) return { nama: 'Aipda Rudi Hartono', unit: 'Tim Raimas R-2 Barat' };
+    if (l.sektor?.includes('Pusat')) return { nama: 'Aiptu Bambang Sudrajat', unit: 'Turjawali Satlantas' };
+    if (l.sektor?.includes('Timur')) return { nama: 'Aiptu Herman', unit: 'Samapta R-4 Timur' };
+    if (l.sektor?.includes('Utara')) return { nama: 'Bripka Wahyu', unit: 'Tim Raimas R-2 Utara' };
+    return { nama: 'Bripka Ahmad Subagyo', unit: 'Samapta R-4' };
+  };
 
+  // Pastikan log tiket 16 memiliki waktu operasional presisi sesuai alur
+  const t16 = appLogs.find(l => String(l.id) === '16');
+  if (t16) {
+    t16.waktuMeluncur = '18:14 WIB';
+    t16.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP.';
+    t16.waktuTiba = '20:06 WIB';
+    if (!t16.disposisi) {
+      t16.disposisi = { waktuDisposisi: '13:05 WIB', arahan: 'Datangi TKP dengan sirine biru, amankan perimeter.' };
+    } else {
+      t16.disposisi.waktuDisposisi = '13:05 WIB';
+      if (!t16.disposisi.arahan) t16.disposisi.arahan = 'Datangi TKP dengan sirine biru, amankan perimeter.';
+    }
+  }
+
+  const t28 = appLogs.find(l => String(l.id) === '28');
+  if (t28) {
+    t28.waktuTiba = '08:48 WIB';
+    t28.waktuSelesai = '09:00 WIB';
+  }
+
+  // Pastikan log yang berstatus selesai memiliki riwayat operasional lengkap jika belum ada
   appLogs.forEach(l => {
-    const namaPetugas = l.assignedNama || l.disposisi?.komandan || (l.tipePelapor === 'personel' ? l.nama : '');
-    const armadaData = (typeof DAFTAR_ARMADA_PRESISI !== 'undefined' && l.assignedUnitId)
-      ? DAFTAR_ARMADA_PRESISI.find(a => a.id === l.assignedUnitId)
-      : null;
-    const unitPetugas = armadaData?.namaSingkat || l.disposisi?.unit || l.kesatuan || 'Unit Presisi';
-    const judulLog = l.title || l.jenisInsiden || 'Laporan Kamtibmas';
+    if (l.status === 'selesai') {
+      const waktuSelesaiStr = l.pengesahanPawas?.waktu || l.waktuSelesai || l.waktu || '09:00 WIB';
+      const totalMins = parseWaktuToMinutes(waktuSelesaiStr);
+      const petugasInfo = resolvePetugas(l);
 
-    // 1. Kasus Selesai Ditangani
-    if (l.status === 'selesai' && (l.waktuSelesai || l.catatanSelesai)) {
-      activities.push({
-        id: l.id,
-        nama: namaPetugas || 'Regu Patroli',
-        unit: unitPetugas,
-        status: 'selesai',
-        aksi: '✓ Penanganan Tuntas di TKP',
-        keterangan: l.catatanSelesai || `Tindakan kepolisian pada "${judulLog}" tuntas terkendali.`,
-        waktu: l.waktuSelesai || l.waktu || '',
-        badgeText: '✓ TUNTAS',
-        badgeBg: '#F0FDF4',
-        badgeColor: '#16A34A',
-        badgeBorder: '#BBF7D0',
-        dotClass: 'green'
-      });
+      if (!l.waktuSelesai) l.waktuSelesai = waktuSelesaiStr;
+      if (!l.waktuTiba) l.waktuTiba = formatMinutesToWib(totalMins - 12);
+      if (!l.waktuMeluncur) l.waktuMeluncur = formatMinutesToWib(totalMins - 20);
+
+      if (!l.disposisi) {
+        l.disposisi = {
+          unit: petugasInfo.unit,
+          unitId: l.assignedUnitId || 'patroli-presisi',
+          komandan: petugasInfo.nama,
+          waktuDisposisi: formatMinutesToWib(totalMins - 25),
+          arahan: 'Respon cepat laporan "' + (l.title || l.jenisInsiden || 'Kamtibmas') + '", amankan lokasi.'
+        };
+      } else if (!l.disposisi.waktuDisposisi) {
+        l.disposisi.waktuDisposisi = formatMinutesToWib(totalMins - 25);
+      }
+
+      if (!l.catatanPersiapan) {
+        l.catatanPersiapan = 'Armada ' + (l.disposisi?.unit || petugasInfo.unit) + ' bergegas meluncur menuju TKP.';
+      }
+      if (!l.deskripsiTindakan) {
+        l.deskripsiTindakan = 'Petugas tiba di lokasi "' + (l.lokasiKejadian || 'TKP') + '" melaksanakan tindakan kepolisian pertama.';
+      }
+      if (!l.catatanSelesai) {
+        l.catatanSelesai = 'Situasi telah aman dan kondusif, tugas penanganan rampung sesuai SOP Polri Presisi 110.';
+      }
     }
-    // 2. Berkas Menunggu Pengesahan Pawas
-    else if (l.status === 'menunggu_pengesahan' || (l.tahap === 5 && !l.pengesahanPawas)) {
-      activities.push({
-        id: l.id,
-        nama: namaPetugas || 'Regu Patroli',
-        unit: unitPetugas,
-        status: 'pengesahan',
-        aksi: '⚖️ BAP Selesai • Menunggu Pengesahan',
-        keterangan: l.catatanSelesai || `Personel telah menyelesaikan tindakan "${judulLog}", mengajukan verifikasi berkas.`,
-        waktu: l.waktuSelesai || l.waktu || '',
-        badgeText: '⏳ VERIFIKASI',
-        badgeBg: '#FAF5FF',
-        badgeColor: '#7C3AED',
-        badgeBorder: '#E9D5FF',
-        dotClass: 'purple'
-      });
+  });
+
+  const allEvents = [];
+
+  // =========================================================================
+  // EKSTRAKSI RIWAYAT OPERASIONAL LENGKAP PER-TIKET
+  // =========================================================================
+  appLogs.forEach(l => {
+    const petugasInfo = resolvePetugas(l);
+    const namaPetugas = petugasInfo.nama;
+    const unitPetugas = petugasInfo.unit;
+    const judulLog = l.title || l.jenisInsiden || 'Laporan Kamtibmas';
+    const tglTeks = l.tanggal || (typeof formatTanggalIndo === 'function' ? formatTanggalIndo() : 'Hari ini');
+
+        // 1. TAHAP 5: Kasus Selesai Ditangani (atau Menunggu Pengesahan)
+    if (l.status === 'selesai' || l.status === 'menunggu_pengesahan' || l.waktuSelesai || l.pengesahanPawas) {
+      const isSelesai = l.status === 'selesai';
+      const waktuEvent = l.pengesahanPawas?.waktu || l.waktuSelesai || l.waktu;
+      if (waktuEvent) {
+        allEvents.push({
+          id: l.id,
+          nama: namaPetugas,
+          unit: unitPetugas,
+          status: isSelesai ? 'selesai' : 'pengesahan',
+          aksi: isSelesai ? '✓ Kasus Selesai Ditangani' : '⏳ Menunggu Pengesahan Pawas',
+          keterangan: l.pengesahanPawas?.catatan || l.catatanSelesai || (isSelesai ? ('Penanganan kasus "' + judulLog + '" tuntas sesuai SOP Polri Presisi.') : 'Laporan penanganan dikirim, menunggu pengesahan Pawas.'),
+          waktu: waktuEvent,
+          tanggalTeks: tglTeks,
+          waktuMinutes: parseWaktuToMinutes(waktuEvent),
+          tahapSort: 5,
+          timestamp: l._updatedAt || 0,
+          badgeText: isSelesai ? '✓ TUNTAS' : '⏳ PENGESAHAN',
+          badgeBg: isSelesai ? '#F0FDF4' : '#FAF5FF',
+          badgeColor: isSelesai ? '#16A34A' : '#7C3AED',
+          badgeBorder: isSelesai ? '#BBF7D0' : '#E9D5FF',
+          dotClass: isSelesai ? 'green' : 'purple'
+        });
+      }
     }
-    // 3. Sedang Tindakan di TKP (Tahap 4)
-    else if (l.status === 'diproses' && (l.tahap === 4 || l.waktuTiba)) {
-      activities.push({
+
+    // 2. TAHAP 4: Penanganan di TKP (Waktu Tiba)
+    if (l.waktuTiba) {
+      allEvents.push({
         id: l.id,
-        nama: namaPetugas || 'Regu Patroli',
+        nama: namaPetugas,
         unit: unitPetugas,
         status: 'tkp',
-        aksi: '📍 Tiba di TKP & Penanganan Aktif',
-        keterangan: l.deskripsiTindakan || `Petugas berada di lokasi "${l.lokasiKejadian || l.sektor || 'TKP'}" melakukan tindakan pertama.`,
-        waktu: l.waktuTiba || l.waktuMeluncur || l.waktu || '',
+        aksi: '📍 Penanganan di TKP',
+        keterangan: l.deskripsiTindakan || ('Petugas tiba di lokasi "' + (l.lokasiKejadian || 'TKP') + '" melaksanakan tindakan kepolisian pertama.'),
+        waktu: l.waktuTiba,
+        tanggalTeks: tglTeks,
+        waktuMinutes: parseWaktuToMinutes(l.waktuTiba),
+        tahapSort: 4,
+        timestamp: l._updatedAt || 0,
         badgeText: '📍 DI TKP',
         badgeBg: '#EFF6FF',
         badgeColor: '#1D4ED8',
@@ -6458,16 +6584,21 @@ function renderPimpinanPersonelActivityTimeline() {
         dotClass: 'blue'
       });
     }
-    // 4. Sedang Meluncur ke Lokasi (Tahap 3)
-    else if (l.status === 'diproses' && (l.tahap === 3 || l.waktuMeluncur)) {
-      activities.push({
+
+    // 3. TAHAP 3: Personel Menuju Lokasi (Waktu Meluncur)
+    if (l.waktuMeluncur) {
+      allEvents.push({
         id: l.id,
-        nama: namaPetugas || 'Regu Patroli',
+        nama: namaPetugas,
         unit: unitPetugas,
         status: 'meluncur',
-        aksi: '⚡ Meluncur Menuju Lokasi TKP',
-        keterangan: `Armada bergerak cepat ke lokasi "${l.lokasiKejadian || l.sektor || 'TKP'}".`,
-        waktu: l.waktuMeluncur || l.disposisi?.waktuDisposisi || l.waktu || '',
+        aksi: '⚡ Personel Menuju Lokasi',
+        keterangan: l.catatanPersiapan || ('Armada ' + unitPetugas + ' meluncur cepat menuju lokasi "' + (l.lokasiKejadian || 'TKP') + '".'),
+        waktu: l.waktuMeluncur,
+        tanggalTeks: tglTeks,
+        waktuMinutes: parseWaktuToMinutes(l.waktuMeluncur),
+        tahapSort: 3,
+        timestamp: l._updatedAt || 0,
         badgeText: '⚡ MELUNCUR',
         badgeBg: '#FFFBEB',
         badgeColor: '#D97706',
@@ -6475,16 +6606,21 @@ function renderPimpinanPersonelActivityTimeline() {
         dotClass: 'yellow'
       });
     }
-    // 5. Baru Didisposisikan oleh Pawas
-    else if (l.disposisi && l.disposisi.waktuDisposisi) {
-      activities.push({
+
+    // 4. TAHAP 2: Disposisi Unit Terdekat
+    if (l.disposisi && l.disposisi.waktuDisposisi) {
+      allEvents.push({
         id: l.id,
-        nama: namaPetugas || 'Regu Terpilih',
+        nama: namaPetugas,
         unit: unitPetugas,
         status: 'disposisi',
-        aksi: '📋 Menerima Perintah Tugas Pawas',
-        keterangan: l.disposisi.arahan ? `Arahan: "${l.disposisi.arahan}"` : `Menerima perintah respon cepat pada insiden "${judulLog}".`,
-        waktu: l.disposisi.waktuDisposisi || l.waktu || '',
+        aksi: '📋 Disposisi Unit Terdekat',
+        keterangan: l.disposisi.arahan ? ('Arahan Pawas: "' + l.disposisi.arahan + '"') : ('Penugasan penanganan insiden "' + judulLog + '".'),
+        waktu: l.disposisi.waktuDisposisi,
+        tanggalTeks: tglTeks,
+        waktuMinutes: parseWaktuToMinutes(l.disposisi.waktuDisposisi),
+        tahapSort: 2,
+        timestamp: l._updatedAt || 0,
         badgeText: '📋 DISPOSISI',
         badgeBg: '#F1F5F9',
         badgeColor: '#475569',
@@ -6492,52 +6628,41 @@ function renderPimpinanPersonelActivityTimeline() {
         dotClass: 'blue'
       });
     }
+
   });
 
-  // Urutkan prioritas: aksi aktif (tkp/meluncur) -> pengesahan -> disposisi -> selesai
-  const priorityOrder = { 'tkp': 1, 'meluncur': 2, 'pengesahan': 3, 'disposisi': 4, 'selesai': 5 };
-  activities.sort((a, b) => {
-    const diff = (priorityOrder[a.status] || 9) - (priorityOrder[b.status] || 9);
-    if (diff !== 0) return diff;
+  // =========================================================================
+  // PENGURUTAN KRONOLOGIS MENYELURUH (TANGGAL & WAKTU TERBARU PALING ATAS)
+  // =========================================================================
+  allEvents.sort((a, b) => {
+    if (b.timestamp !== a.timestamp && (b.timestamp > 0 || a.timestamp > 0)) {
+      return b.timestamp - a.timestamp;
+    }
+    if (b.waktuMinutes !== a.waktuMinutes) {
+      return b.waktuMinutes - a.waktuMinutes;
+    }
+    if (b.tahapSort !== a.tahapSort) {
+      return b.tahapSort - a.tahapSort;
+    }
     return (b.id || 0) - (a.id || 0);
   });
 
-  // Jika belum ada pergerakan spesifik, buat dari log penugasan yang ada
-  if (activities.length === 0) {
-    appLogs.slice(0, 4).forEach(l => {
-      activities.push({
-        id: l.id,
-        nama: l.assignedNama || l.nama || 'Regu Patroli',
-        unit: l.kesatuan || 'Satuan Samapta',
-        status: l.status,
-        aksi: l.status === 'selesai' ? '✓ Kasus Selesai' : '● Status Siaga',
-        keterangan: l.title || 'Patroli Kamtibmas',
-        waktu: l.waktu || '',
-        badgeText: l.status === 'selesai' ? '✓ SELESAI' : '● SIAGA',
-        badgeBg: l.status === 'selesai' ? '#F0FDF4' : '#EFF6FF',
-        badgeColor: l.status === 'selesai' ? '#16A34A' : '#1D4ED8',
-        badgeBorder: l.status === 'selesai' ? '#BBF7D0' : '#BFDBFE',
-        dotClass: l.status === 'selesai' ? 'green' : 'blue'
-      });
-    });
-  }
-
-  // Ambil 4 entri teratas untuk sidebar kanan agar tidak terlalu panjang
-  const displayActivities = activities.slice(0, 4);
+  // Tampilkan top 6 riwayat operasional terkini
+  const displayActivities = allEvents.slice(0, 6);
 
   let html = '';
   displayActivities.forEach((act, idx) => {
     const isLast = idx === displayActivities.length - 1;
     html += `
-      <div class="tl-item" style="${isLast ? 'margin-bottom:0;' : 'margin-bottom:12px;'} cursor:pointer;" onclick="switchTab('view-validasi'); selectLogCard(${act.id});" title="Klik untuk lihat detail tugas #${act.id}">
+      <div class="tl-item" style="${isLast ? 'margin-bottom:0;' : 'margin-bottom:12px;'} cursor:pointer;" onclick="switchTab('view-validasi'); selectLogCard(${act.id});" title="Klik untuk lihat detail tiket #${act.id}">
         <div class="tl-dot ${act.dotClass}"></div>
         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
           <div style="min-width:0; flex:1;">
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              <span style="font-weight:800; font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${act.nama}</span>
-              ${act.waktu ? `<span style="font-size:10px; color:#64748B; font-weight:600;">• ${act.waktu}</span>` : ''}
+            <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+              <span style="font-weight:800; font-size:12px; color:var(--text); white-space:normal;">${act.nama}</span>
+              <span style="font-size:10px; color:#64748B; font-weight:700;">• 📅 ${act.tanggalTeks}, ${act.waktu}</span>
             </div>
-            <div style="font-size:11px; font-weight:700; color:#1E40AF; margin-top:1px;">
+            <div style="font-size:11px; font-weight:700; color:#1E40AF; margin-top:2px;">
               ${act.aksi}
             </div>
             <div style="font-size:10.5px; color:#475569; margin-top:2px; line-height:1.35; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
@@ -6564,13 +6689,15 @@ function renderFeedKomandoPimpinan() {
     return;
   }
 
-  // Ambil 4 insiden paling relevan / terbaru
-  // Prioritaskan: diproses (sedang berlangsung) -> menunggu -> selesai
+  // Ambil 4 insiden paling relevan / prioritas
+  // Prioritaskan: diproses (sedang berlangsung) -> menunggu_pengesahan -> menunggu -> selesai
   const activeOrRecentLogs = [...appLogs].sort((a, b) => {
     const score = (item) => {
-      if (item.status === 'diproses') return 3;
+      if (item.status === 'diproses') return 4;
+      if (item.status === 'menunggu_pengesahan') return 3;
       if (item.status === 'menunggu') return 2;
-      return 1;
+      if (item.status === 'selesai') return 1;
+      return 0;
     };
     const diff = score(b) - score(a);
     if (diff !== 0) return diff;
@@ -6584,7 +6711,7 @@ function renderFeedKomandoPimpinan() {
     let badgeText = 'STATUS SIAGA';
     let subtext = '';
 
-    const namaAktor = log.assignedNama || log.disposisi?.komandan || log.nama || '';
+    const namaAktor = log.assignedNama || log.disposisi?.komandan || log.nama || 'Petugas';
     const judul = log.title || (log.jenisInsiden ? ('Penanganan ' + log.jenisInsiden) : '');
     const waktuTeks = log.waktu || '';
 
@@ -6592,19 +6719,26 @@ function renderFeedKomandoPimpinan() {
       dotClass = 'red';
       badgeStyle = 'background:#FEF2F2; color:#DC2626; border:1px solid #FECACA;';
       badgeText = '🚨 BUTUH DISPOSISI';
-      subtext = `Laporan dari ${log.pelapor?.nama || log.nama || 'Warga'} di ${log.lokasiKejadian || 'TKP'}. Menunggu disposisi Pawas.`;
+      subtext = `Laporan masuk dari ${log.pelapor?.nama || log.nama || 'Warga'} di ${log.lokasiKejadian || 'TKP'}. Menunggu arahan & disposisi armada dari Pawas.`;
     } else if (log.status === 'diproses') {
       dotClass = 'yellow';
       badgeStyle = 'background:#FFFBEB; color:#D97706; border:1px solid #FDE68A;';
-      badgeText = log.tahap === 3 ? '⚡ MELUNCUR' : (log.tahap === 4 ? '📍 TINDAKAN TKP' : '⏳ VERIFIKASI');
-      const arahan = log.disposisi?.arahan ? ` Arahan: "${log.disposisi.arahan}"` : '';
-      subtext = `${namaAktor} sedang menangani di lokasi.${arahan}`;
+      badgeText = log.tahap === 3 ? '⚡ UNIT MELUNCUR' : (log.tahap === 4 ? '📍 TINDAKAN TKP' : '⏳ VERIFIKASI');
+      const unitNama = log.disposisi?.unit || log.assignedUnitId || 'Unit Reaksi Cepat';
+      const arahan = log.disposisi?.arahan ? ` • Arahan: "${log.disposisi.arahan}"` : '';
+      subtext = `Armada: ${unitNama} (${namaAktor}) merespon di lokasi kejadian.${arahan}`;
+    } else if (log.status === 'menunggu_pengesahan') {
+      dotClass = 'purple';
+      badgeStyle = 'background:#FAF5FF; color:#7E22CE; border:1px solid #E9D5FF;';
+      badgeText = '📝 BAP TERKIRIM';
+      const unitNama = log.disposisi?.unit || log.assignedUnitId || 'Unit Lapangan';
+      subtext = `Armada: ${unitNama} (${namaAktor}) telah menyelesaikan tindakan TKP & mengirim BAP. Menunggu pengesahan akhir Pawas.`;
     } else if (log.status === 'selesai') {
       dotClass = 'green';
       badgeStyle = 'background:#F0FDF4; color:#16A34A; border:1px solid #BBF7D0;';
       const bintang = log.ratingKepuasan?.bintang ? ` (⭐ ${log.ratingKepuasan.bintang}.0)` : '';
-      badgeText = `✓ TUNTAS${bintang}`;
-      subtext = `${namaAktor} telah menuntaskan penanganan. ${log.catatanSelesai || 'Situasi aman terkendali.'}`;
+      badgeText = `✓ KASUS TUNTAS${bintang}`;
+      subtext = `Penanganan diselesaikan oleh ${namaAktor}. ${log.catatanSelesai || 'Situasi aman terkendali.'}`;
     } else if (log.status === 'ditolak') {
       dotClass = 'gray';
       badgeStyle = 'background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1;';
@@ -6726,40 +6860,62 @@ function renderPimpinanExecutiveKpi() {
   const elPersCadangan = document.getElementById('pimpinan-pers-cadangan');
   if (elPersCadangan) elPersCadangan.innerText = `${persCadangan} Pers`;
 
-  // 3. HITUNG INDEKS KEPUASAN WARGA (IKM) DARI LOGS YANG MEMILIKI RATING
-  const ratedLogs = appLogs.filter(l => l.ratingKepuasan && l.ratingKepuasan.bintang);
+  // 3. HITUNG INDEKS KEPUASAN WARGA (IKM) SECARA DINAMIS DARI SELURUH PERSONEL & VOTING MASYARAKAT
+  // Menyaring seluruh log kasus yang telah memiliki penilaian rating/voting dari warga
+  const ratedLogs = appLogs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
   let sumStars = 0;
   let ulasanTerbaru = null;
 
-  ratedLogs.forEach(l => {
-    sumStars += l.ratingKepuasan.bintang;
+  // Urutkan rating dari yang paling mutakhir (berdasarkan id tiket terbesar / waktu)
+  const sortedRatedLogs = [...ratedLogs].sort((a, b) => (b.id || 0) - (a.id || 0));
+
+  sortedRatedLogs.forEach(l => {
+    const starVal = Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
+    sumStars += starVal;
     if (!ulasanTerbaru && l.ratingKepuasan.ulasan) {
       ulasanTerbaru = {
         ulasan: l.ratingKepuasan.ulasan,
         penulis: l.ratingKepuasan.nama || l.pelapor?.nama || l.nama || 'Warga Masyarakat',
-        lokasi: l.lokasiKejadian ? l.lokasiKejadian.split(',')[0] : 'Wilayah Hukum'
+        lokasi: l.lokasiKejadian ? l.lokasiKejadian.split(',')[0] : 'Wilayah Hukum',
+        petugas: l.assignedNama || l.disposisi?.komandan || 'Personel Presisi'
       };
     }
   });
 
-  const totalReviews = ratedLogs.length > 0 ? ratedLogs.length : 28;
-  const ikmScore = ratedLogs.length > 0 ? (sumStars / ratedLogs.length).toFixed(1) : '4.8';
-  const ikmPercent = ((parseFloat(ikmScore) / 5) * 100).toFixed(1);
+  const totalReviews = ratedLogs.length; // Jumlah voting riil masyarakat
+  const ikmScore = totalReviews > 0 ? (sumStars / totalReviews).toFixed(1) : '0.0';
+  const ikmPercent = totalReviews > 0 ? ((parseFloat(ikmScore) / 5) * 100).toFixed(1) : '0.0';
 
   const elIkmScore = document.getElementById('pimpinan-ikm-score');
   if (elIkmScore) elIkmScore.innerText = ikmScore;
 
   const elIkmPercent = document.getElementById('pimpinan-ikm-percent');
-  if (elIkmPercent) elIkmPercent.innerText = `${ikmPercent}% Warga Menyatakan Puas`;
+  if (elIkmPercent) {
+    elIkmPercent.innerText = totalReviews > 0 ? `${ikmPercent}% Warga Menyatakan Puas` : 'Belum Ada Penilaian Warga';
+  }
 
   const elIkmCount = document.getElementById('pimpinan-ikm-count');
-  if (elIkmCount) elIkmCount.innerText = `${totalReviews} Ulasan`;
+  if (elIkmCount) {
+    elIkmCount.innerText = `${totalReviews} Ulasan (Voting)`;
+  }
 
+  const elIkmStars = document.getElementById('pimpinan-ikm-stars');
+  if (elIkmStars) {
+    const roundedStars = Math.round(parseFloat(ikmScore)) || 5;
+    elIkmStars.innerText = '⭐'.repeat(Math.max(1, Math.min(5, roundedStars)));
+  }
+
+  const elQuote = document.getElementById('pimpinan-ikm-quote');
+  const elAuthor = document.getElementById('pimpinan-ikm-author');
   if (ulasanTerbaru) {
-    const elQuote = document.getElementById('pimpinan-ikm-quote');
     if (elQuote) elQuote.innerText = `"${ulasanTerbaru.ulasan}"`;
-    const elAuthor = document.getElementById('pimpinan-ikm-author');
-    if (elAuthor) elAuthor.innerText = `— ${ulasanTerbaru.penulis} (${ulasanTerbaru.lokasi})`;
+    if (elAuthor) {
+      const aktorInfo = ulasanTerbaru.petugas ? ` • Penangan: ${ulasanTerbaru.petugas}` : '';
+      elAuthor.innerText = `— ${ulasanTerbaru.penulis} (${ulasanTerbaru.lokasi})${aktorInfo}`;
+    }
+  } else {
+    if (elQuote) elQuote.innerText = `"Menunggu masukan & survei kepuasan masyarakat dari penanganan kasus yang telah tuntas."`;
+    if (elAuthor) elAuthor.innerText = `— Sistem Survei Presisi 110 (Command Center)`;
   }
 }
 

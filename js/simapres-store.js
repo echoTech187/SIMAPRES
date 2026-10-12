@@ -196,6 +196,68 @@ function hitungEstimasiArmadaUntukLog(log) {
   }).sort((a, b) => a.jarakKm - b.jarakKm);
 }
 
+
+function enrichLogOperationalHistory(l) {
+  if (!l) return;
+  const parseMin = (str) => {
+    if (!str) return 0;
+    const m = String(str).match(/(\d{1,2}):(\d{2})/);
+    return m ? (parseInt(m[1], 10) * 60 + parseInt(m[2], 10)) : 0;
+  };
+  const formatMin = (mins) => {
+    const h = Math.floor(((mins % 1440) + 1440) % 1440 / 60);
+    const m = Math.floor(((mins % 1440) + 1440) % 1440 % 60);
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ' WIB';
+  };
+
+  const resolvePetugasDefault = (logItem) => {
+    if (logItem.assignedNama) {
+      return { nama: logItem.assignedNama, unit: logItem.assignedUnitId || 'Samapta R-4' };
+    }
+    if (logItem.disposisi?.komandan) {
+      return { nama: logItem.disposisi.komandan.split('(')[0].trim(), unit: logItem.disposisi.unit || 'Unit Presisi' };
+    }
+    if (logItem.sektor?.includes('Selatan')) return { nama: 'Bripka Ahmad Subagyo', unit: 'Samapta R-4 Selatan' };
+    if (logItem.sektor?.includes('Barat')) return { nama: 'Aipda Rudi Hartono', unit: 'Tim Raimas R-2 Barat' };
+    if (logItem.sektor?.includes('Pusat')) return { nama: 'Aiptu Bambang Sudrajat', unit: 'Turjawali Satlantas' };
+    if (logItem.sektor?.includes('Timur')) return { nama: 'Aiptu Herman', unit: 'Samapta R-4 Timur' };
+    if (logItem.sektor?.includes('Utara')) return { nama: 'Bripka Wahyu', unit: 'Tim Raimas R-2 Utara' };
+    return { nama: 'Bripka Ahmad Subagyo', unit: 'Samapta R-4' };
+  };
+
+  if (l.status === 'selesai') {
+    const waktuSelesaiStr = l.pengesahanPawas?.waktu || l.waktuSelesai || l.waktu || '09:00 WIB';
+    const totalMins = parseMin(waktuSelesaiStr);
+    const petugasInfo = resolvePetugasDefault(l);
+
+    if (!l.waktuSelesai) l.waktuSelesai = waktuSelesaiStr;
+    if (!l.waktuTiba) l.waktuTiba = formatMin(totalMins - 12);
+    if (!l.waktuMeluncur) l.waktuMeluncur = formatMin(totalMins - 20);
+
+    if (!l.disposisi) {
+      l.disposisi = {
+        unit: petugasInfo.unit,
+        unitId: l.assignedUnitId || 'patroli-presisi',
+        komandan: petugasInfo.nama,
+        waktuDisposisi: formatMin(totalMins - 25),
+        arahan: 'Respon cepat laporan "' + (l.title || l.jenisInsiden || 'Kamtibmas') + '", amankan lokasi.'
+      };
+    } else if (!l.disposisi.waktuDisposisi) {
+      l.disposisi.waktuDisposisi = formatMin(totalMins - 25);
+    }
+
+    if (!l.catatanPersiapan) {
+      l.catatanPersiapan = 'Armada ' + (l.disposisi?.unit || petugasInfo.unit) + ' beranggotakan personel lengkap segera meluncur menuju lokasi.';
+    }
+    if (!l.deskripsiTindakan) {
+      l.deskripsiTindakan = 'Petugas tiba di lokasi "' + (l.lokasiKejadian || 'TKP') + '" melaksanakan tindakan pertama dan sterilisasi situasi.';
+    }
+    if (!l.catatanSelesai) {
+      l.catatanSelesai = 'Situasi telah aman dan kondusif, tugas penanganan rampung sesuai SOP Polri Presisi 110.';
+    }
+  }
+}
+
 function getDefaultLogs() {
   const defaultList = [
     {
@@ -502,6 +564,7 @@ function getDefaultLogs() {
   ];
 
   defaultList.forEach(l => {
+    enrichLogOperationalHistory(l);
     l.fotoPengaduan = getFotoPengaduanByKategori(l);
     l.fotoLampiran = l.fotoPengaduan;
     l.fotoPersiapan = 'assets/images/polri_patrol_car.jpg';
@@ -538,19 +601,41 @@ function loadLogsFromStore() {
 
       // Sinkronisasi Kasus ID 16
       const log16 = storeLogs.find(l => l.id === 16);
-      if (log16 && !log16.pengesahanPawas) {
-        log16.tahap = 5;
-        log16.bapTerkirim = true;
-        log16.status = 'menunggu_pengesahan';
-        log16.statusText = 'Menunggu Pengesahan Pawas';
-        if (!log16.waktuSelesai) log16.waktuSelesai = '20:06 WIB';
-        if (!log16.catatanSelesai) log16.catatanSelesai = 'Pelaku dan barang bukti motor telah berhasil diamankan';
+      if (log16) {
+        if (!log16.pengesahanPawas && log16.status !== 'selesai') {
+          log16.tahap = 5;
+          log16.bapTerkirim = true;
+          log16.status = 'menunggu_pengesahan';
+          log16.statusText = 'Menunggu Pengesahan Pawas';
+          if (!log16.waktuSelesai) log16.waktuSelesai = '20:06 WIB';
+          if (!log16.catatanSelesai) log16.catatanSelesai = 'Pelaku dan barang bukti motor telah berhasil diamankan';
+        }
         if (!log16.waktuTiba) log16.waktuTiba = '20:06 WIB';
         if (!log16.deskripsiTindakan) log16.deskripsiTindakan = 'Mengamankan lokasi kejadian dan melakukan pengejaran pelaku';
         if (!log16.waktuMeluncur) log16.waktuMeluncur = '18:14 WIB';
+        if (!log16.catatanPersiapan) log16.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP.';
         if (!log16.assignedNrp) log16.assignedNrp = '95020123';
         if (!log16.assignedNama) log16.assignedNama = 'Bripka Ahmad Subagyo';
         if (!log16.assignedUnitId) log16.assignedUnitId = 'samapta-r4-selatan';
+        if (!log16.disposisi) {
+          log16.disposisi = {
+            unit: 'Unit Patroli Samapta Presisi (Unit Roda 4)',
+            unitId: 'samapta-r4-selatan',
+            komandan: 'Bripka Ahmad & Regu Alpha (Unit Samapta Presisi)',
+            nrpKomandan: '95020123',
+            arahan: 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.',
+            waktuDisposisi: '13:05 WIB'
+          };
+        } else if (!log16.disposisi.waktuDisposisi) {
+          log16.disposisi.waktuDisposisi = '13:05 WIB';
+        }
+      }
+
+      // Sinkronisasi Kasus ID 28 (Aiptu Bambang Sudrajat)
+      const log28 = storeLogs.find(l => l.id === 28);
+      if (log28) {
+        if (!log28.waktuTiba) log28.waktuTiba = '08:48 WIB';
+        if (!log28.waktuSelesai) log28.waktuSelesai = '09:00 WIB';
       }
     } else {
       storeLogs = getDefaultLogs();
@@ -604,6 +689,9 @@ function loadLogsFromStore() {
       }
       if (!l.catatanSelesai && l.status === 'selesai') {
         l.catatanSelesai = 'Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal.';
+      }
+      if (typeof enrichLogsWithCitizenReviews === 'function') {
+        enrichLogsWithCitizenReviews([l]);
       }
     });
 

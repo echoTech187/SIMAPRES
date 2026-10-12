@@ -1609,8 +1609,10 @@
       // Simpan objek rating ke model log
       log.ratingKepuasan = {
         skor: score,
+        bintang: score,
         tags: selectedTags.length ? selectedTags : ['⚡ Respon Sangat Cepat', '👮 Petugas Ramah & Humanis'],
         ulasan: ulasanText,
+        nama: log.nama || 'Warga Masyarakat',
         waktu: 'Hari ini, ' + waktuSekarang,
         sudahDinilai: true
       };

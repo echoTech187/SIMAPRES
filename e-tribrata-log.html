@@ -314,8 +314,7 @@
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
                 <div>
                   <div class="card-title" style="margin-bottom:2px;">FEED KOMANDO & SITUASI LAPANGAN (REAL-TIME)</div>
-                  <div style="font-size:11.5px; color:var(--text-muted);">Pemantauan tindakan seluruh personel dan unit
-                    reaksi cepat di wilayah hukum Polres</div>
+                  <div style="font-size:11.5px; color:var(--text-muted);">Pantauan eskalasi insiden darurat, panggilan 110, dan status penanganan kasus di wilayah hukum Polres</div>
                 </div>
               </div>
               <div class="timeline" id="pimpinan-ops-timeline">
@@ -388,9 +387,16 @@
             <!-- Executive Command Sidebar (Khusus Pimpinan/Pawas) -->
             <div id="pimpinan-executive-sidebar" style="display:none;">
               <!-- Widget 1: SLA Response Time 110 -->
-              <div class="card-panel" style="padding:16px; margin-bottom:16px;">
+              <div id="card-pimpinan-sla" class="card-panel" onclick="bukaModalDetailSlaPimpinan()"
+                style="padding:16px; margin-bottom:16px; cursor:pointer; transition:all 0.2s ease; border:1px solid #E2E8F0; position:relative;"
+                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(21,62,117,0.12)'; this.style.borderColor='#93C5FD';"
+                onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.borderColor='#E2E8F0';"
+                title="Klik untuk melihat audit rincian waktu tanggap seluruh kasus">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                  <div class="card-title" style="margin-bottom:0; font-size:12.5px;">WAKTU TANGGAP PATROLI</div>
+                  <div class="card-title" style="margin-bottom:0; font-size:12.5px; display:flex; align-items:center; gap:6px;">
+                    <span>WAKTU TANGGAP PATROLI</span>
+                    <span style="font-size:9.5px; font-weight:700; color:#2563EB; background:#EFF6FF; border:1px solid #BFDBFE; padding:1px 6px; border-radius:10px;">🔍 DETAIL</span>
+                  </div>
                   <span
                     style="background:#F0FDF4; color:#15803D; font-weight:800; font-size:10px; padding:2px 8px; border-radius:6px; border:1px solid #BBF7D0;">TARGET
                     < 10 MENIT</span>
@@ -433,9 +439,15 @@
                 </div>
 
                 <!-- Widget 2: Kuat Pers & Kendaraan Dinas Polres -->
-                <div class="card-panel" style="padding:16px; margin-bottom:16px;">
+                <div id="card-pimpinan-personel" class="card-panel" onclick="bukaModalDetailKuatPersonel()"
+                  style="padding:16px; margin-bottom:16px; cursor:pointer; transition:all 0.2s ease; border:1px solid #E2E8F0; position:relative;"
+                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(21,62,117,0.12)'; this.style.borderColor='#93C5FD';"
+                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.borderColor='#E2E8F0';"
+                  title="Klik untuk melihat gelar kekuatan riil 46 personel & armada patroli">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <div class="card-title" style="margin-bottom:0; font-size:12.5px;">KUAT PERSONEL & KENDARAAN PATROLI
+                    <div class="card-title" style="margin-bottom:0; font-size:12.5px; display:flex; align-items:center; gap:6px;">
+                      <span>KUAT PERSONEL & KENDARAAN</span>
+                      <span style="font-size:9.5px; font-weight:700; color:#2563EB; background:#EFF6FF; border:1px solid #BFDBFE; padding:1px 6px; border-radius:10px;">🔍 DETAIL</span>
                     </div>
                     <span id="pimpinan-total-personel-badge"
                       style="background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:10px; padding:2px 8px; border-radius:6px; border:1px solid #BFDBFE;">TOTAL
@@ -477,35 +489,41 @@
                 </div>
 
                 <!-- Widget 3: Indeks Kepuasan Masyarakat -->
-                <div class="card-panel" style="padding:16px; margin-bottom:0;">
+                <div id="card-pimpinan-ikm" class="card-panel" onclick="bukaModalDetailIkmWarga()"
+                  style="padding:16px; margin-bottom:0; cursor:pointer; transition:all 0.2s ease; border:1px solid #E2E8F0; position:relative;"
+                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px -4px rgba(21,62,117,0.12)'; this.style.borderColor='#93C5FD';"
+                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'; this.style.borderColor='#E2E8F0';"
+                  title="Klik untuk melihat audit transparansi ulasan dan voting warga">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <div class="card-title" style="margin-bottom:0; font-size:12.5px;">INDEKS KEPUASAN WARGA (IKM)</div>
-                    <span style="color:#F59E0B; font-weight:800; font-size:12px;">⭐⭐⭐⭐⭐</span>
+                    <div class="card-title" style="margin-bottom:0; font-size:12.5px; display:flex; align-items:center; gap:6px;">
+                      <span>INDEKS KEPUASAN WARGA (IKM)</span>
+                      <span style="font-size:9.5px; font-weight:700; color:#2563EB; background:#EFF6FF; border:1px solid #BFDBFE; padding:1px 6px; border-radius:10px;">🔍 DETAIL</span>
+                    </div>
+                    <span id="pimpinan-ikm-stars" style="color:#F59E0B; font-weight:800; font-size:12px;">⭐⭐⭐⭐⭐</span>
                   </div>
                   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
                     <div>
-                      <div style="font-size:24px; font-weight:900; color:#1E293B; line-height:1;"><span id="pimpinan-ikm-score">4.8</span> <span
+                      <div style="font-size:24px; font-weight:900; color:#1E293B; line-height:1;"><span id="pimpinan-ikm-score">-</span> <span
                           style="font-size:13px; color:#64748B; font-weight:600;">/ 5.0</span></div>
-                      <div id="pimpinan-ikm-percent" style="font-size:11px; color:#16A34A; font-weight:700; margin-top:2px;">96.2% Warga
-                        Menyatakan Puas</div>
+                      <div id="pimpinan-ikm-percent" style="font-size:11px; color:#16A34A; font-weight:700; margin-top:2px;">Memuat Data...</div>
                     </div>
                     <div style="text-align:right;">
-                      <div id="pimpinan-ikm-count" style="font-size:13px; font-weight:800; color:#153E75;">28 Ulasan</div>
-                      <div style="font-size:10px; color:#64748B;">Laporan Masuk Hari Ini</div>
+                      <div id="pimpinan-ikm-count" style="font-size:13px; font-weight:800; color:#153E75;">- Ulasan</div>
+                      <div style="font-size:10px; color:#64748B;">Survei Warga Terverifikasi</div>
                     </div>
                   </div>
                   <div
                     style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px; font-size:11px; color:#475569; line-height:1.4; font-style:italic;">
-                    <span id="pimpinan-ikm-quote">"Unit Patroli Samapta tiba hanya 6 menit setelah laporan dikirimkan. Petugas ramah, situasi cepat terkendali."</span>
+                    <span id="pimpinan-ikm-quote">Memuat evaluasi kepuasan warga dari seluruh unit...</span>
                     <div id="pimpinan-ikm-author"
                       style="font-style:normal; font-weight:700; color:#1E293B; margin-top:4px; font-size:10px; text-align:right;">
-                      — Bpk. Hendra (Pelapor Panglima Polim)</div>
+                      — Sistem Survei Presisi 110</div>
                   </div>
                 </div>
 
                 <!-- Widget 4: Log Aktivitas Personel Lapangan (Real-Time Timeline) -->
                 <div class="card-panel" style="padding:16px; margin-top:16px; margin-bottom:0;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <div>
                       <div class="card-title" style="margin-bottom:2px; font-size:12.5px;">AKTIVITAS PERSONEL TERBARU</div>
                       <div style="font-size:10.5px; color:var(--text-muted);">Log pergerakan regu patroli di lapangan</div>
@@ -514,7 +532,8 @@
                       ● REAL-TIME
                     </span>
                   </div>
-                  <div class="timeline" id="pimpinan-personel-activity-timeline" style="margin-top:6px;">
+
+                  <div class="timeline" id="pimpinan-personel-activity-timeline" style="margin-top:8px;">
                     <!-- Di-render dinamis oleh renderPimpinanPersonelActivityTimeline() -->
                   </div>
                 </div>
@@ -3105,8 +3124,8 @@
   </div>
 
   <!-- LOGIKA & SESI EKSTERNAL -->
-  <script src="js/simapres-roster.js"></script>
-  <script src="js/e-tribrata-log.js"></script>
+  <script src="js/simapres-roster.js?v=20261013_0348"></script>
+  <script src="js/e-tribrata-log.js?v=20261013_0348"></script>
 </body>
 
 </html>
