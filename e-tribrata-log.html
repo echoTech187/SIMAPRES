@@ -636,6 +636,11 @@
       color: #6D28D9;
     }
 
+    .val-tab-badge.purple {
+      background: #EDE9FE;
+      color: #7C3AED;
+    }
+
     .val-tab-badge.secondary {
       background: #D1FAE5;
       color: #059669;
@@ -645,6 +650,7 @@
     .val-tab-btn.active .val-tab-badge.green,
     .val-tab-btn.active .val-tab-badge.red,
     .val-tab-btn.active .val-tab-badge.primary,
+    .val-tab-btn.active .val-tab-badge.purple,
     .val-tab-btn.active .val-tab-badge.secondary {
       background: rgba(255, 255, 255, 0.3);
       color: white;
@@ -1464,6 +1470,14 @@
                   <div class="rekap-label" style="color:var(--primary)">SEDANG DITANGANI</div>
                   <div class="rekap-val primary" id="rekap-diproses-val">1</div>
                 </div>
+                <div class="rekap-box" onclick="openValidasiList('menunggu_pengesahan')"
+                  style="cursor: pointer; background: #EDE9FE; border-color: #DDD6FE; transition: transform 0.2s;"
+                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'"
+                  title="Lihat Log Menunggu Pengesahan Pawas">
+                  <div class="rekap-label" style="color:#7C3AED">PENGESAHAN PAWAS</div>
+                  <div class="rekap-val purple" style="color:#7C3AED;" id="rekap-pengesahan-val">0</div>
+                </div>
                 <div class="rekap-box" onclick="openValidasiList('selesai')"
                   style="cursor: pointer; background: #d0e2cf; border-color: #d0e2cf; transition: transform 0.2s;"
                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
@@ -1866,6 +1880,9 @@
           </button>
           <button type="button" class="val-tab-btn" id="val-tab-diproses" onclick="openValidasiList('diproses')">
             Sedang Ditangani <span class="val-tab-badge primary" id="val-badge-diproses">1</span>
+          </button>
+          <button type="button" class="val-tab-btn" id="val-tab-menunggu_pengesahan" onclick="openValidasiList('menunggu_pengesahan')">
+            Menunggu Pengesahan <span class="val-tab-badge purple" id="val-badge-menunggu_pengesahan">0</span>
           </button>
           <button type="button" class="val-tab-btn" id="val-tab-selesai" onclick="openValidasiList('selesai')">
             Selesai <span class="val-tab-badge secondary" id="val-badge-selesai">12</span>
@@ -4272,11 +4289,21 @@
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
           avatar: SVG_AVATAR_WARGA,
-          status: 'diproses',
-          statusText: 'Sedang Diproses',
-          tahap: 3,
+          status: 'menunggu_pengesahan',
+          statusText: 'Menunggu Pengesahan Pawas',
+          tahap: 5,
+          bapTerkirim: true,
+          waktuSelesai: '20:06 WIB',
+          catatanSelesai: 'Pelaku dan barang bukti motor telah berhasil diamankan',
+          waktuTiba: '20:06 WIB',
+          deskripsiTindakan: 'Mengamankan lokasi kejadian dan melakukan pengejaran pelaku',
+          waktuMeluncur: '18:14 WIB',
+          catatanPersiapan: 'Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP.',
+          fotoPersiapan: 'assets/images/polri_patrol_car.jpg',
+          fotoTindakan: 'assets/images/polri_tindakan_tkp.jpg',
+          fotoSelesai: 'assets/images/polri_situasi_selesai.jpg',
           title: '🚨 Peringatan SOS: Upaya Pencegatan Curas oleh 4 OTK di Simprug',
-          deskripsi: 'Aktivasi SOS Darurat: Pengemudi mobil merasa dipepet 2 motor berboncengan saat melintas di jalanan sepi. Unit Patroli Samapta Presisi sedang meluncur ke TKP dengan SLA < 7 menit.',
+          deskripsi: 'Aktivasi SOS Darurat: Pengemudi mobil merasa dipepet 2 motor berboncengan saat melintas di jalanan sepi. Unit Patroli Samapta Presisi telah tuntas melakukan penanganan di TKP.',
           jenisInsiden: 'Percobaan Curas & Kejahatan Jalanan',
           sektor: 'Sektor Selatan',
           waktu: '13:05 WIB',
@@ -4761,22 +4788,18 @@
             appLogs = getDefaultLogs();
           }
 
-          // Sinkronisasi Kasus ID 16: Kasus penanganan aktif di lapangan
+          // Sinkronisasi Kasus ID 16: Kasus penanganan aktif di lapangan (TIKET-110-16X2F)
           const log16 = appLogs.find(l => l.id === 16);
-          if (log16) {
-            // Jika personel lapangan sudah menyelesaikan penanganan (laporan selesai/waktu selesai terisi):
-            if (log16.catatanSelesai || log16.waktuSelesai) {
-              log16.tahap = 5;
-              log16.bapTerkirim = true;
-              if (!log16.waktuSelesai) log16.waktuSelesai = log16.waktuTiba || '20:06 WIB';
-              if (!log16.pengesahanPawas) {
-                log16.status = 'diproses';
-                log16.statusText = 'Menunggu Pengesahan Pawas';
-              }
-            } else if (log16.deskripsiTindakan || log16.waktuTiba) {
-              log16.tahap = Math.max(log16.tahap || 4, 4);
-              log16.bapTerkirim = true;
-            }
+          if (log16 && !log16.pengesahanPawas) {
+            log16.tahap = 5;
+            log16.bapTerkirim = true;
+            log16.status = 'menunggu_pengesahan';
+            log16.statusText = 'Menunggu Pengesahan Pawas';
+            if (!log16.waktuSelesai) log16.waktuSelesai = '20:06 WIB';
+            if (!log16.catatanSelesai) log16.catatanSelesai = 'Pelaku dan barang bukti motor telah berhasil diamankan';
+            if (!log16.waktuTiba) log16.waktuTiba = '20:06 WIB';
+            if (!log16.deskripsiTindakan) log16.deskripsiTindakan = 'Mengamankan lokasi kejadian dan melakukan pengejaran pelaku';
+            if (!log16.waktuMeluncur) log16.waktuMeluncur = '18:14 WIB';
           }
         } else {
           appLogs = getDefaultLogs();
@@ -4788,7 +4811,12 @@
             l.status = 'menunggu';
             l.statusText = 'Menunggu Tindakan';
           }
+          if ((l.tahap >= 5 || l.statusText === 'Menunggu Pengesahan Pawas' || l.bapTerkirim) && !l.pengesahanPawas && l.status !== 'selesai') {
+            l.status = 'menunggu_pengesahan';
+            l.statusText = 'Menunggu Pengesahan Pawas';
+          }
           if (l.status === 'diproses' && !l.tahap) l.tahap = 3;
+          if (l.status === 'menunggu_pengesahan' && !l.tahap) l.tahap = 5;
           if (l.status === 'selesai' && !l.tahap) l.tahap = 5;
           if (!l.nomorTiket) l.nomorTiket = 'TIKET-110-' + (l.id < 10 ? '0' + l.id : l.id) + 'X2F';
           if (!l.jenisInsiden) l.jenisInsiden = l.title;
@@ -4937,6 +4965,7 @@
       const cMenunggu = appLogs.filter(l => l.status === 'menunggu').length;
       const cDitolak = appLogs.filter(l => l.status === 'ditolak').length;
       const cDiproses = appLogs.filter(l => l.status === 'diproses').length;
+      const cPengesahan = appLogs.filter(l => l.status === 'menunggu_pengesahan').length;
       const cSelesai = appLogs.filter(l => l.status === 'selesai').length;
 
       const cSos = appLogs.filter(l => l.platform === 'sos').length;
@@ -4955,6 +4984,8 @@
       if (elDitolak) elDitolak.innerText = cDitolak;
       const elDiproses = document.getElementById('rekap-diproses-val');
       if (elDiproses) elDiproses.innerText = cDiproses;
+      const elPengesahan = document.getElementById('rekap-pengesahan-val');
+      if (elPengesahan) elPengesahan.innerText = cPengesahan;
       const elSelesai = document.getElementById('rekap-selesai-val');
       if (elSelesai) elSelesai.innerText = cSelesai;
 
@@ -4985,6 +5016,8 @@
       if (bDitolak) bDitolak.innerText = logsForStatusTabs.filter(l => l.status === 'ditolak').length;
       const bDiproses = document.getElementById('val-badge-diproses');
       if (bDiproses) bDiproses.innerText = logsForStatusTabs.filter(l => l.status === 'diproses').length;
+      const bPengesahan = document.getElementById('val-badge-menunggu_pengesahan');
+      if (bPengesahan) bPengesahan.innerText = logsForStatusTabs.filter(l => l.status === 'menunggu_pengesahan').length;
       const bSelesai = document.getElementById('val-badge-selesai');
       if (bSelesai) bSelesai.innerText = logsForStatusTabs.filter(l => l.status === 'selesai').length;
 
@@ -6005,6 +6038,18 @@
               <div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${log.pengesahanPawas.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}"</div>
             </div>
             `;
+          } else if (log.status === 'menunggu_pengesahan') {
+            pawasApprovalHtml = `
+            <div style="background:#FAF5FF; border:1px solid #DDD6FE; border-left:4px solid #7C3AED; border-radius:6px; padding:7px 10px; margin-top:8px; line-height:1.4;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:800; color:#6D28D9;">⚖️ STATUS BERKAS PERKARA:</span>
+                <span style="font-size:9.5px; font-weight:700; background:#EDE9FE; color:#6D28D9; padding:1px 6px; border-radius:3px;">MENUNGGU PENGESAHAN PAWAS</span>
+              </div>
+              <div style="font-size:10.5px; color:#6D28D9; margin-top:2px;">
+                Tindakan lapangan di TKP telah rampung dilaporkan. Menunggu verifikasi &amp; tanda tangan pengesahan resmi oleh Pawas.
+              </div>
+            </div>
+            `;
           }
 
           detailSnippetHtml = `
@@ -6130,13 +6175,13 @@
         log.bapTerkirim = true;
         if (!log.waktuSelesai) log.waktuSelesai = waktuSekarang;
         if (!log.pengesahanPawas) {
-          log.status = 'diproses';
+          log.status = 'menunggu_pengesahan';
           log.statusText = 'Menunggu Pengesahan Pawas';
         } else {
           log.status = 'selesai';
           log.statusText = 'Kasus Selesai';
         }
-      } else if (log.status === 'selesai' && newTahap < 5) {
+      } else if ((log.status === 'selesai' || log.status === 'menunggu_pengesahan') && newTahap < 5) {
         log.status = 'diproses';
         log.statusText = 'Sedang Diproses';
       }
@@ -6158,7 +6203,7 @@
       log.bapTerkirim = true;
       if (!log.waktuSelesai) log.waktuSelesai = formatWaktuHhMmWib();
       if (!log.pengesahanPawas) {
-        log.status = 'diproses';
+        log.status = 'menunggu_pengesahan';
         log.statusText = 'Menunggu Pengesahan Pawas';
       } else {
         log.status = 'selesai';
@@ -6167,8 +6212,8 @@
       saveLogsToStorage();
       updateRekapCounts();
       displayLogDetail(id);
-      openValidasiList('diproses');
-      alert('✓ Laporan Akhir Penanganan Kasus Berhasil Dikirim!\n\n• Seluruh tindakan lapangan di TKP telah rampung dilaporkan.\n• Berita Acara telah diteruskan ke meja Pawas untuk pengesahan resmi dan penutupan kasus.');
+      openValidasiList('menunggu_pengesahan');
+      alert('✓ Kasus Berhasil Ditutup di Lapangan!\n\n• Seluruh tindakan di TKP telah tuntas dilaporkan oleh petugas.\n• Berita Acara Pemeriksaan (BAP) diteruskan ke meja Pawas.\n• Status kasus beralih ke: [Menunggu Pengesahan].\n• Kasus siap disahkan & ditutup resmi oleh Perwira Pengawas (Pawas).');
     }
 
     // ==========================================
@@ -6215,6 +6260,10 @@
           badgeEl.innerText = '✓ Selesai Ditangani';
           badgeEl.style.background = '#DCFCE7';
           badgeEl.style.color = '#16A34A';
+        } else if (log.status === 'menunggu_pengesahan') {
+          badgeEl.innerText = '⚖️ Menunggu Pengesahan Pawas';
+          badgeEl.style.background = '#F3E8FF';
+          badgeEl.style.color = '#7C3AED';
         } else {
           const tNames = ['', 'SPKT', 'Disposisi', 'Menuju Lokasi', 'Tindakan di TKP', 'Selesai'];
           badgeEl.innerText = '⚡ Tahap ' + (log.tahap || 3) + ' • ' + (tNames[log.tahap || 3] || 'Diproses');
@@ -6636,7 +6685,7 @@
         log.riwayatValidasi.push({
           waktu: log.waktuSelesai,
           aktor: log.nama || 'Bripka Ahmad (Personel Lapangan)',
-          aksi: 'Kasus Ditutup',
+          aksi: 'Kasus Ditutup di Lapangan (BAP Terkirim)',
           catatan: log.catatanSelesai
         });
 
@@ -6719,6 +6768,11 @@
         setStep(s3, i3, t3, '●', (tahapNames[log.tahap || 3] || 'Di Lapangan'), '#EFF6FF', '#3B82F6', '#1D4ED8', '#1E40AF');
         setStep(s4, i4, t4, '🔒', 'Menunggu', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
         if (lastLog) lastLog.innerHTML = '🚀 <strong>Sedang Ditangani:</strong> Personel sedang melakukan penanganan di lapangan.';
+      } else if (log.status === 'menunggu_pengesahan') {
+        setStep(s2, i2, t2, '✓', 'Disetujui', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+        setStep(s3, i3, t3, '✓', 'TKP Selesai', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+        setStep(s4, i4, t4, '⏳', 'Pengesahan Pawas', '#F3E8FF', '#C084FC', '#7C3AED', '#6D28D9');
+        if (lastLog) lastLog.innerHTML = '⚖️ <strong>Menunggu Pengesahan:</strong> Penanganan di TKP selesai, menunggu otorisasi penutupan kasus resmi dari Pawas.';
       } else if (log.status === 'selesai') {
         setStep(s2, i2, t2, '✓', 'Disetujui', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
         setStep(s3, i3, t3, '✓', 'Tuntas', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
@@ -6773,7 +6827,7 @@
 
       updateMacroStepper(log);
 
-      const isTimelineMode = (log.status === 'diproses' || log.status === 'selesai');
+      const isTimelineMode = (log.status === 'diproses' || log.status === 'menunggu_pengesahan' || log.status === 'selesai');
       const stdView = document.getElementById('detail-standard-view');
       const tlView = document.getElementById('detail-timeline-view');
 
@@ -6781,7 +6835,7 @@
         if (stdView) stdView.style.display = 'none';
         if (tlView) tlView.style.display = 'block';
 
-        if (!log.tahap) log.tahap = (log.status === 'selesai' ? 5 : 3);
+        if (!log.tahap) log.tahap = (log.status === 'selesai' || log.status === 'menunggu_pengesahan' ? 5 : 3);
         if (!log.nomorTiket) log.nomorTiket = 'TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F';
         if (!log.jenisInsiden) log.jenisInsiden = log.title;
         if (!log.lokasiKejadian) log.lokasiKejadian = (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
@@ -6803,6 +6857,10 @@
             tlStatusBadge.innerText = '✓ Selesai Ditangani';
             tlStatusBadge.style.background = '#DCFCE7';
             tlStatusBadge.style.color = '#16A34A';
+          } else if (log.status === 'menunggu_pengesahan') {
+            tlStatusBadge.innerText = '⚖️ Menunggu Pengesahan Pawas';
+            tlStatusBadge.style.background = '#F3E8FF';
+            tlStatusBadge.style.color = '#7C3AED';
           } else {
             tlStatusBadge.innerText = '⚡ ' + (tNames[log.tahap || 3] || 'Sedang Ditangani');
             tlStatusBadge.style.background = '#EDE9FE';
@@ -6966,9 +7024,13 @@
             </div>
           `;
 
-          if (log.status === 'diproses') {
+          if (log.status === 'diproses' || log.status === 'menunggu_pengesahan') {
 
             if (isUserPawas()) {
+              const dispStatusBadge = (log.status === 'menunggu_pengesahan')
+                ? `<span style="font-size:10px; font-weight:700; background:#EDE9FE; color:#7C3AED; padding:2px 6px; border-radius:4px;">Menunggu Pengesahan</span>`
+                : `<span style="font-size:10px; font-weight:700; background:#DBEAFE; color:#1E40AF; padding:2px 6px; border-radius:4px;">Sedang Ditangani</span>`;
+
               tlActions.innerHTML = `
               <div style="display:flex; flex-direction:column; gap:10px;">
                 <!-- 1. Indikator Evaluasi 3 Lapis SLA Presisi (Pawas) -->
@@ -6978,7 +7040,7 @@
                 <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px 14px;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                     <span style="font-size:11px; font-weight:800; color:#1E293B;">🚔 DISPOSISI PASUKAN OLEH PAWAS</span>
-                    <span style="font-size:10px; font-weight:700; background:#DBEAFE; color:#1E40AF; padding:2px 6px; border-radius:4px;">Sedang Ditangani</span>
+                    ${dispStatusBadge}
                   </div>
                   <div style="font-size:12px; color:#334155; line-height:1.55;">
                     <div>• <strong>Satuan Bertugas:</strong> ${unitNama}</div>
@@ -6994,15 +7056,17 @@
                   </div>
                 </div>
 
-                <!-- 3. Pengerahan Bantuan Armada / Unit Cadangan -->
+                <!-- 3. Pengerahan Bantuan Armada / Unit Cadangan (Hanya tampil jika penanganan lapangan masih aktif) -->
+                ${(log.status !== 'menunggu_pengesahan' && log.status !== 'selesai' && !log.bapTerkirim && log.tahap < 5) ? `
                 <button type="button" onclick="pawasKirimBackup(${log.id})" style="width:100%; padding:11px 12px; background:#0284C7; color:white; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:opacity 0.15s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                   <span>🚔</span> Kerahkan Unit Cadangan / Back-Up Tambahan
                 </button>
+                ` : ''}
 
                 <!-- 4. Pengesahan Resmi Penutupan Kasus (Pawas) -->
-                ${(log.bapTerkirim || (log.tahap >= 4 && log.deskripsiTindakan) || log.tahap >= 5) && log.status !== 'selesai' ? `
+                ${(log.status === 'menunggu_pengesahan' || log.bapTerkirim || log.tahap >= 5) && log.status !== 'selesai' ? `
                   <button type="button" onclick="pawasSahkanDanTutupKasus(${log.id})" style="width:100%; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; border:none; border-radius:8px; font-size:13px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(16,185,129,0.35); transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
-                    <span>✍️</span> Sahkan Berita Acara & Tutup Kasus Resmi (Pawas) ➔
+                    <span>✍️</span> Sahkan & Tutup Kasus ➔
                   </button>
                 ` : ''}
               </div>
@@ -7015,12 +7079,12 @@
                 ${slaDisplayHtml('TARGET & EVALUASI WAKTU TANGGAP (SLA)')}
 
                 <!-- 2. Tombol Eksekusi Operasional Utama (Bripka Ahmad Sesuai Diagram Alur) -->
-                ${(log.tahap >= 5 && (log.catatanSelesai || log.waktuSelesai)) ? `
+                ${(log.status === 'menunggu_pengesahan' || (log.tahap >= 5 && (log.catatanSelesai || log.waktuSelesai))) ? `
                   <div style="background:#FEF9C3; border:1.5px solid #FDE047; border-radius:10px; padding:13px; display:flex; align-items:flex-start; gap:10px;">
                     <span style="font-size:20px; line-height:1;">⏳</span>
                     <div>
-                      <div style="color:#854D0E; font-weight:800; font-size:13px;">Laporan Lapangan Terkirim</div>
-                      <div style="color:#92400E; font-size:11px; margin-top:3px;">Personel telah menyelesaikan penanganan. Menunggu pengesahan resmi Berita Acara oleh Pawas (Pengawas Pimpinan).</div>
+                      <div style="color:#854D0E; font-weight:800; font-size:13px;">Laporan Lapangan Terkirim (Menunggu Pengesahan Pawas)</div>
+                      <div style="color:#92400E; font-size:11px; margin-top:3px;">Personel telah menyelesaikan penanganan di TKP dan menutup laporan. Menunggu pengesahan resmi Berita Acara oleh Perwira Pengawas (Pawas).</div>
                     </div>
                   </div>
                 ` : (log.tahap >= 5 && log.status !== 'selesai' ? `
@@ -7415,6 +7479,13 @@
               <span>⚡ Status: Diproses (${tNames[log.tahap || 3] || 'Sedang Ditangani'})</span>
             </div>
           `;
+          } else if (log.status === 'menunggu_pengesahan') {
+            color = '#7C3AED';
+            badgeInfo = `
+            <div style="margin-top:6px; font-size:11px; color:#7C3AED; font-weight:700; display:flex; align-items:center; gap:4px;">
+              <span>⏳ Status: Menunggu Pengesahan Pawas</span>
+            </div>
+          `;
           } else if (log.status === 'selesai') {
             color = '#047857';
             badgeInfo = `
@@ -7433,6 +7504,16 @@
           ` : `
             <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
               <span>🔍</span> Klik untuk tinjau foto bukti & validasi ➔
+            </div>
+          `;
+          } else if (log.status === 'menunggu_pengesahan') {
+            cardFooter = isUserPawas() ? `
+            <div style="font-size:11px; color:#7C3AED; font-weight:800; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>✍️</span> Tinjau & Sahkan Kasus ➔
+            </div>
+          ` : `
+            <div style="font-size:11px; color:#7C3AED; font-weight:700; display:flex; align-items:center; gap:4px; margin-top:8px;">
+              <span>⏳</span> Menunggu Pengesahan Pawas ➔
             </div>
           `;
           } else if (log.status === 'diproses' || log.status === 'selesai') {
