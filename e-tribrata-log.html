@@ -1277,7 +1277,7 @@
             <div id="user-role" class="user-nrp">NRP: 50123456</div>
           </div>
           <img id="user-avatar-top"
-            src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80"
+            src="assets/images/avatar_polisi.jpg"
             alt="User" class="user-avatar">
         </div>
       </div>
@@ -2137,7 +2137,7 @@
                   style="position:relative; margin-top:8px; border-radius:8px; overflow:hidden; background:#0F172A; cursor:pointer;"
                   onclick="previewFotoModal('pengaduan')" title="Klik untuk perbesar foto laporan">
                   <img id="tl-foto-pengaduan"
-                    src="https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80"
+                    src="assets/images/polri_pengaduan_tkp.jpg"
                     onerror="this.onerror=null; this.src=SVG_FALLBACK_PENGADUAN;"
                     style="width:100%; height:140px; object-fit:cover; display:block; transition:transform 0.25s;"
                     onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
@@ -2402,7 +2402,7 @@
                 <div style="display:flex; gap:14px; align-items:center; margin-bottom:16px;">
                   <div style="position:relative; flex-shrink:0;">
                     <img id="profil-user-avatar"
-                      src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80"
+                      src="assets/images/avatar_polisi.jpg"
                       style="width:76px; height:76px; border-radius:12px; object-fit:cover; border:2.5px solid #FBBF24; box-shadow:0 6px 14px rgba(0,0,0,0.35);">
                     <div id="profil-avatar-dot"
                       style="position:absolute; bottom:-2px; right:-2px; background:#10B981; width:14px; height:14px; border-radius:50%; border:2px solid #0F2D56;"
@@ -2945,7 +2945,7 @@
           style="background:white; border:1px solid var(--border); border-radius:12px; margin:0 16px 16px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
             <img id="tolak-preview-avatar"
-              src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80"
+              src="assets/images/avatar_polisi.jpg"
               style="width:38px; height:38px; border-radius:50%; object-fit:cover;">
             <div>
               <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Bripka Ahmad
@@ -3834,8 +3834,16 @@
     // ==========================================
     // CENTRALIZED DATA MODEL & LOCAL STORAGE
     // ==========================================
+    const SVG_AVATAR_WARGA = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <circle cx="50" cy="50" r="50" fill="#E2E8F0"/>
+  <circle cx="50" cy="38" r="20" fill="#64748B"/>
+  <path d="M18 86 C18 64 32 58 50 58 C68 58 82 64 82 86 Z" fill="#64748B"/>
+</svg>
+`)}`;
+
     function getDefaultLogs() {
-      return [
+      const defaultList = [
         // =========================================================================
         // 13 DATA MENUNGGU TINDAKAN (ID 1 - 13)
         // Komposisi: 4 SOS Panic + 4 Layanan 110 + 4 Portal Warga + 1 Personel Polri
@@ -3853,7 +3861,7 @@
           gpsCoords: '-6.2421, 106.7982',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: '🚨 Peringatan SOS: Tawuran Remaja Bawa Senjata Tajam di Halte',
@@ -3862,8 +3870,8 @@
           sektor: 'Sektor Selatan',
           waktu: '07:14 WIB',
           urgensi: '🚨 Darurat',
-          fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Jl. Panglima Polim Raya No. 42 (Dekat Halte Bus), Kebayoran Baru',
           alasanTolak: ''
         },
@@ -3880,7 +3888,7 @@
           gpsCoords: '-6.2398, 106.8245',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Truk Kontainer Mogok Patah As Roda di Jalur Underpass',
@@ -3889,8 +3897,8 @@
           sektor: 'Sektor Selatan',
           waktu: '07:22 WIB',
           urgensi: '⚠️ Sedang',
-          fotoLampiran: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_lakalantas.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_lakalantas.jpg',
           lokasiKejadian: 'Underpass Mampang Prapatan, Jakarta Selatan',
           alasanTolak: ''
         },
@@ -3907,7 +3915,7 @@
           gpsCoords: '-6.2812, 106.7924',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Panggilan 110: Percobaan Curanmor Roda-2 di Parkiran Toko',
@@ -3916,8 +3924,8 @@
           sektor: 'Sektor Selatan',
           waktu: '07:35 WIB',
           urgensi: '🚨 Darurat',
-          fotoLampiran: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_curanmor.jpg',
           lokasiKejadian: 'Komplek Ruko Grand Fatmawati Blok B No. 7',
           alasanTolak: ''
         },
@@ -3933,7 +3941,7 @@
           kesatuan: 'Unit Patroli Samapta Presisi R-4',
           sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
           sumberSingkat: 'PATROLI POLRI',
-          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
+          avatar: 'assets/images/avatar_polisi.jpg',
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Patroli Dialogis Perbankan & Gerai ATM 24 Jam',
@@ -3942,8 +3950,8 @@
           sektor: 'Sektor Pusat',
           waktu: '07:48 WIB',
           urgensi: 'ℹ️ Normal',
-          fotoLampiran: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Kawasan Bisnis Sudirman Kav. 24-26, Senayan',
           alasanTolak: ''
         },
@@ -3960,7 +3968,7 @@
           gpsCoords: '-6.1732, 106.7915',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Panggilan 110: Cekcok Warga Mengenai Parkir Liar Akses Rumah',
@@ -3969,8 +3977,8 @@
           sektor: 'Sektor Barat',
           waktu: '08:05 WIB',
           urgensi: 'ℹ️ Normal',
-          fotoLampiran: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Jl. Tomang Asri Blok C RT 03/RW 05, Grogol',
           alasanTolak: ''
         },
@@ -3987,7 +3995,7 @@
           gpsCoords: '-6.1668, 106.7891',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: '🚨 Peringatan SOS: Dugaan Penguntitan & Percobaan Begal Jalanan',
@@ -3996,8 +4004,8 @@
           sektor: 'Sektor Barat',
           waktu: '08:18 WIB',
           urgensi: '🚨 Darurat',
-          fotoLampiran: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_curanmor.jpg',
           lokasiKejadian: 'Flyover Roxy Mas Arah Grogol, Jakarta Barat',
           alasanTolak: ''
         },
@@ -4014,7 +4022,7 @@
           gpsCoords: '-6.1954, 106.8832',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Laporan Warga: Pohon Rindang Tumbang Timpa Jaringan Kabel Listrik',
@@ -4023,8 +4031,8 @@
           sektor: 'Sektor Timur',
           waktu: '08:32 WIB',
           urgensi: '⚠️ Sedang',
-          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pohontumbang.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pohontumbang.jpg',
           lokasiKejadian: 'Jl. Pemuda No. 88, Rawamangun, Pulo Gadung',
           alasanTolak: ''
         },
@@ -4041,7 +4049,7 @@
           gpsCoords: '-6.2341, 106.8762',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: '🚨 Peringatan SOS: Temuan Sepeda Motor Ditinggal di Semak Bantaran Kali',
@@ -4050,8 +4058,8 @@
           sektor: 'Sektor Timur',
           waktu: '08:45 WIB',
           urgensi: '⚠️ Sedang',
-          fotoLampiran: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_curanmor.jpg',
           lokasiKejadian: 'Bantaran Saluran Kalimalang KM 3.5, Cipinang',
           alasanTolak: ''
         },
@@ -4068,7 +4076,7 @@
           gpsCoords: '-6.2731, 106.8681',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Panggilan 110: Premanisme & Dugaan Pungli Bongkar Muat Pasar',
@@ -4077,8 +4085,8 @@
           sektor: 'Sektor Timur',
           waktu: '09:05 WIB',
           urgensi: '⚠️ Sedang',
-          fotoLampiran: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Pintu Masuk Barat Pasar Induk Kramat Jati',
           alasanTolak: ''
         },
@@ -4095,7 +4103,7 @@
           gpsCoords: '-6.1389, 106.8691',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Aduan Warga: Gangguan Musik Kafe Bising Melebihi Batas Waktu',
@@ -4104,8 +4112,8 @@
           sektor: 'Sektor Utara',
           waktu: '09:22 WIB',
           urgensi: 'ℹ️ Normal',
-          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Kawasan Danau Sunter Utara, Tanjung Priok',
           alasanTolak: ''
         },
@@ -4122,7 +4130,7 @@
           gpsCoords: '-6.1845, 106.8423',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Laporan Warga: Tabrakan Beruntun 3 Minibus di TL Lampu Merah',
@@ -4131,8 +4139,8 @@
           sektor: 'Sektor Pusat',
           waktu: '09:38 WIB',
           urgensi: '⚠️ Sedang',
-          fotoLampiran: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_lakalantas.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_lakalantas.jpg',
           lokasiKejadian: 'Simpang Lima Senen / TL Coca Cola, Jakarta Pusat',
           alasanTolak: ''
         },
@@ -4149,7 +4157,7 @@
           gpsCoords: '-6.1754, 106.8272',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: '🚨 Peringatan SOS: Anak Balita Terpisah dari Ibu di Keramaian Monas',
@@ -4158,8 +4166,8 @@
           sektor: 'Sektor Pusat',
           waktu: '09:55 WIB',
           urgensi: '🚨 Darurat',
-          fotoLampiran: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pelayanan_publik.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pelayanan_publik.jpg',
           lokasiKejadian: 'Plaza Monumen Nasional Pintu Barat Daya',
           alasanTolak: ''
         },
@@ -4176,7 +4184,7 @@
           gpsCoords: '-6.2345, 106.7821',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'menunggu',
           statusText: 'Menunggu Tindakan',
           title: 'Panggilan 110: Sekelompok Pemuda Pesta Miras Oplosan di Pos Ronda',
@@ -4185,8 +4193,8 @@
           sektor: 'Sektor Selatan',
           waktu: '10:15 WIB',
           urgensi: '⚠️ Sedang',
-          fotoLampiran: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Pos Kamling RW 08 Permata Hijau, Kebayoran Lama',
           alasanTolak: ''
         },
@@ -4208,7 +4216,7 @@
           gpsCoords: '-6.2112, 106.8431',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'ditolak',
           statusText: 'Ditolak / Revisi',
           title: '🚨 Peringatan SOS: Tombol Panik Tertekan Tidak Sengaja di Rumah',
@@ -4217,8 +4225,8 @@
           sektor: 'Sektor Timur',
           waktu: '08:10 WIB',
           urgensi: 'ℹ️ Normal',
-          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pelayanan_publik.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pelayanan_publik.jpg',
           lokasiKejadian: 'Komplek Perumahan Jatinegara Baru Blok A, Jakarta Timur',
           alasanTolak: 'Aktivasi Palsu / Tidak Disengaja - Konfirmasi telepon menyatakan tombol tertekan anak kecil, situasi rumah tangga aman dan kondusif.'
         },
@@ -4235,7 +4243,7 @@
           gpsCoords: '-6.1523, 106.7214',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'ditolak',
           statusText: 'Ditolak / Revisi',
           title: 'Pengaduan Portal: Kehilangan Helm di Parkiran Swalayan Tanpa Saksi',
@@ -4244,8 +4252,8 @@
           sektor: 'Sektor Barat',
           waktu: '09:00 WIB',
           urgensi: 'ℹ️ Normal',
-          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_curanmor.jpg',
           lokasiKejadian: 'Parkiran Swalayan Daan Mogot KM 12',
           alasanTolak: 'Informasi Tidak Lengkap - Mohon lampirkan rekaman CCTV atau nomor saksi sekuriti yang bertugas saat kejadian berlangsung.'
         },
@@ -4267,7 +4275,7 @@
           gpsCoords: '-6.2289, 106.7892',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'diproses',
           statusText: 'Sedang Diproses',
           tahap: 3,
@@ -4277,9 +4285,9 @@
           sektor: 'Sektor Selatan',
           waktu: '13:05 WIB',
           urgensi: '🚨 Darurat',
-          fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-          fotoPersiapan: 'polri_patrol_car.jpg',
+          fotoLampiran: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPersiapan: 'assets/images/polri_patrol_car.jpg',
           lokasiKejadian: 'Jl. Simprug Golf Raya No. 15, Kebayoran Lama',
           alasanTolak: ''
         },
@@ -4301,7 +4309,7 @@
           gpsCoords: '-6.1951, 106.8231',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4310,9 +4318,9 @@
           jenisInsiden: 'Penyelesaian Laka Lantas',
           sektor: 'Sektor Pusat',
           waktu: '06:15 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
-          fotoTindakan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_lakalantas.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_lakalantas.jpg',
+          fotoTindakan: 'assets/images/polri_tindakan_tkp.jpg',
           lokasiKejadian: 'Pos Polantas Bundaran HI, Jakarta Pusat',
           alasanTolak: ''
         },
@@ -4329,7 +4337,7 @@
           gpsCoords: '-6.2442, 106.7971',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4338,8 +4346,8 @@
           jenisInsiden: 'Penertiban Miras & Kamtibmas',
           sektor: 'Sektor Selatan',
           waktu: '06:30 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Taman Ayodya Barito, Kebayoran Baru',
           alasanTolak: ''
         },
@@ -4356,7 +4364,7 @@
           gpsCoords: '-6.2391, 106.7981',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4365,8 +4373,8 @@
           jenisInsiden: 'Pelayanan Temuan Barang Warga',
           sektor: 'Sektor Selatan',
           waktu: '06:45 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pelayanan_publik.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pelayanan_publik.jpg',
           lokasiKejadian: 'Halte CSW ASEAN, Kebayoran Baru',
           alasanTolak: ''
         },
@@ -4383,7 +4391,7 @@
           gpsCoords: '-6.2078, 106.7972',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4392,8 +4400,8 @@
           jenisInsiden: 'Penertiban Lalu Lintas',
           sektor: 'Sektor Barat',
           waktu: '07:00 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_lakalantas.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_lakalantas.jpg',
           lokasiKejadian: 'Pintu Keluar Stasiun Palmerah, Jakarta Barat',
           alasanTolak: ''
         },
@@ -4410,7 +4418,7 @@
           gpsCoords: '-6.1751, 106.7812',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4419,8 +4427,8 @@
           jenisInsiden: 'Problem Solving Kamtibmas',
           sektor: 'Sektor Barat',
           waktu: '07:15 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Balai Warga RW 04 Tanjung Duren Utara',
           alasanTolak: ''
         },
@@ -4437,7 +4445,7 @@
           gpsCoords: '-6.1582, 106.9081',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4446,8 +4454,8 @@
           jenisInsiden: 'Pengamanan Objek Wisata & Niaga',
           sektor: 'Sektor Utara',
           waktu: '07:30 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_patroli_obvit.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_patroli_obvit.jpg',
           lokasiKejadian: 'Mall Kelapa Gading 3, Jakarta Utara',
           alasanTolak: ''
         },
@@ -4464,7 +4472,7 @@
           gpsCoords: '-6.1421, 106.8712',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4473,8 +4481,8 @@
           jenisInsiden: 'Bantuan Kemanusiaan & Pelayanan',
           sektor: 'Sektor Utara',
           waktu: '07:45 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pelayanan_publik.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pelayanan_publik.jpg',
           lokasiKejadian: 'JPO Halte Sunter Karya, Tanjung Priok',
           alasanTolak: ''
         },
@@ -4490,7 +4498,7 @@
           kesatuan: 'Tim Perintis Presisi R-2',
           sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
           sumberSingkat: 'PATROLI POLRI',
-          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          avatar: 'assets/images/avatar_polisi.jpg',
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4499,8 +4507,8 @@
           jenisInsiden: 'Penyuluhan Hukum & Kamtibmas',
           sektor: 'Sektor Timur',
           waktu: '08:00 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Sekretariat Karang Taruna Kelurahan Cipinang Cempedak',
           alasanTolak: ''
         },
@@ -4517,7 +4525,7 @@
           gpsCoords: '-6.2312, 106.9012',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4526,8 +4534,8 @@
           jenisInsiden: 'Tindak Pidana Pencurian',
           sektor: 'Sektor Timur',
           waktu: '08:15 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_curanmor.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_curanmor.jpg',
           lokasiKejadian: 'Masjid Jami Al-Hidayah, Duren Sawit',
           alasanTolak: ''
         },
@@ -4544,7 +4552,7 @@
           gpsCoords: '-6.2512, 106.7845',
           sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
           sumberSingkat: 'PORTAL WARGA',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4553,8 +4561,8 @@
           jenisInsiden: 'Pengamanan Bantuan Sosial',
           sektor: 'Sektor Selatan',
           waktu: '08:30 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pelayanan_publik.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pelayanan_publik.jpg',
           lokasiKejadian: 'Kantor Kelurahan Kebayoran Lama Selatan',
           alasanTolak: ''
         },
@@ -4571,7 +4579,7 @@
           gpsCoords: '-6.1892, 106.8521',
           sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
           sumberSingkat: 'SOS PANIC',
-          avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4580,8 +4588,8 @@
           jenisInsiden: 'Evakuasi Gangguan Pohon Tumbang',
           sektor: 'Sektor Pusat',
           waktu: '08:45 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_pohontumbang.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_pohontumbang.jpg',
           lokasiKejadian: 'Jl. Percetakan Negara IX No. 12, Johar Baru',
           alasanTolak: ''
         },
@@ -4598,7 +4606,7 @@
           gpsCoords: '-6.1724, 106.8482',
           sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
           sumberSingkat: 'LAYANAN 110',
-          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          avatar: SVG_AVATAR_WARGA,
           status: 'selesai',
           statusText: 'Kasus Selesai',
           tahap: 5,
@@ -4607,12 +4615,27 @@
           jenisInsiden: 'Pengamanan Objek Vital Perkeretaapian',
           sektor: 'Sektor Pusat',
           waktu: '09:00 WIB',
-          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoLampiran: 'assets/images/polri_insiden_tawuran.jpg',
+          fotoPengaduan: 'assets/images/polri_insiden_tawuran.jpg',
           lokasiKejadian: 'Perlintasan Sebidang PJL 24 Pasar Senen',
           alasanTolak: ''
         }
       ];
+
+      defaultList.forEach(l => {
+        l.fotoPengaduan = getFotoPengaduanByKategori(l);
+        l.fotoLampiran = l.fotoPengaduan;
+        l.fotoPersiapan = 'assets/images/polri_patrol_car.jpg';
+        l.fotoTindakan = 'assets/images/polri_tindakan_tkp.jpg';
+        l.fotoSelesai = 'assets/images/polri_situasi_selesai.jpg';
+        if (l.tipePelapor === 'personel' || l.kesatuan || l.nrp) {
+          l.avatar = 'assets/images/avatar_polisi.jpg';
+        } else {
+          l.avatar = SVG_AVATAR_WARGA;
+        }
+      });
+
+      return defaultList;
     }
 
     let appLogs = [];
@@ -4673,24 +4696,57 @@
 </svg>
 `)}`;
 
+    function getFotoPengaduanByKategori(log) {
+      if (!log) return 'assets/images/polri_pengaduan_tkp.jpg';
+      const t = ((log.title || '') + ' ' + (log.jenisInsiden || '') + ' ' + (log.kategoriInsiden || '') + ' ' + (log.deskripsi || '') + ' ' + (log.lokasiKejadian || '')).toLowerCase();
+      
+      // 1. Tawuran Remaja, Sajam, Premanisme, Pungli, Rel Kereta
+      if (t.includes('tawuran') || t.includes('sajam') || t.includes('senjata') || t.includes('preman') || t.includes('pungli') || t.includes('kerumunan') || t.includes('rel kereta') || t.includes('karang taruna')) {
+        return 'assets/images/polri_insiden_tawuran.jpg';
+      }
+      // 2. Curanmor, Kunci Kontak Rusak, Pencurian, Helm, Kotak Amal
+      if (t.includes('curanmor') || t.includes('motor') || t.includes('helm') || t.includes('curian') || t.includes('kotak amal') || t.includes('pencurian') || t.includes('kriminalitas')) {
+        return 'assets/images/polri_insiden_curanmor.jpg';
+      }
+      // 3. Darurat Bencana & Pohon Tumbang Timpa Kabel/Jalan
+      if (t.includes('pohon') || t.includes('tumbang') || t.includes('bencana') || t.includes('kabel') || t.includes('banjir')) {
+        return 'assets/images/polri_insiden_pohontumbang.jpg';
+      }
+      // 4. Laka Lantas, Senggolan, Truk Mogok, Tabrakan, Angkot
+      if (t.includes('laka') || t.includes('tabrakan') || t.includes('truk') || t.includes('angkot') || t.includes('senggolan') || t.includes('rem blong') || t.includes('lalu lintas')) {
+        return 'assets/images/polri_insiden_lakalantas.jpg';
+      }
+      // 5. Patroli Objek Vital Perbankan, ATM, Kawasan Mall
+      if (t.includes('atm') || t.includes('bank') || t.includes('mall') || t.includes('perbankan') || t.includes('vital') || t.includes('skimming')) {
+        return 'assets/images/polri_insiden_patroli_obvit.jpg';
+      }
+      // 6. Penertiban Miras Oplosan, Parkir Liar, Musik Bising, Cekcok
+      if (t.includes('miras') || t.includes('oplosan') || t.includes('parkir') || t.includes('kafe') || t.includes('bising') || t.includes('cekcok')) {
+        return 'assets/images/polri_insiden_miras_oplosan.jpg';
+      }
+      // 7. Pelayanan Kemanusiaan, Anak Hilang Monas, Dompet Temuan, Bansos
+      if (t.includes('anak') || t.includes('balita') || t.includes('dompet') || t.includes('hewan') || t.includes('bansos') || t.includes('sosial') || t.includes('hilang') || t.includes('kemanusiaan')) {
+        return 'assets/images/polri_insiden_pelayanan_publik.jpg';
+      }
+      // 8. Begal, Percobaan Curas, Penguntitan, SOS Darurat Malam Hari
+      return 'assets/images/polri_pengaduan_tkp.jpg';
+    }
+
     function loadLogsFromStorage() {
       const sampleBuktiPengaduan = [
-        'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80'
+        'assets/images/polri_pengaduan_tkp.jpg',
+        'assets/images/polri_insiden_lakalantas.jpg',
+        'assets/images/polri_insiden_curanmor.jpg',
+        'assets/images/polri_insiden_tawuran.jpg'
       ];
       const sampleBuktiPersiapan = [
-        'assets/images/polri_patrol_car.jpg',
-        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80'
+        'assets/images/polri_patrol_car.jpg'
       ];
       const sampleBuktiTindakan = [
-        'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80'
+        'assets/images/polri_tindakan_tkp.jpg'
+      ];
+      const sampleBuktiSelesai = [
+        'assets/images/polri_situasi_selesai.jpg'
       ];
 
       try {
@@ -4762,41 +4818,25 @@
 
           if (!l.koordinatGps) l.koordinatGps = '-6.2345, 106.8423';
           if (!l.catatanPersiapan) l.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap siaga, meluncur menuju TKP.';
-          if (!l.fotoPersiapan || l.fotoPersiapan.includes('photo-1549965408869') || l.fotoPersiapan.includes('photo-1449965408869')) {
-            l.fotoPersiapan = 'polri_patrol_car.jpg';
+          
+          // Migrasi foto ke aset lokal resmi Polri di assets/images/ disesuaikan kategori & lokasi
+          l.fotoPengaduan = getFotoPengaduanByKategori(l);
+          l.fotoLampiran = l.fotoPengaduan;
+          l.fotoPersiapan = 'assets/images/polri_patrol_car.jpg';
+          l.fotoTindakan = 'assets/images/polri_tindakan_tkp.jpg';
+          l.fotoSelesai = 'assets/images/polri_situasi_selesai.jpg';
+
+          if (l.tipePelapor === 'personel' || l.kesatuan || l.nrp) {
+            l.avatar = 'assets/images/avatar_polisi.jpg';
+          } else if (!l.avatar || l.avatar.includes('unsplash.com')) {
+            l.avatar = SVG_AVATAR_WARGA;
           }
+
           if (!l.deskripsiTindakan && (l.status === 'selesai' || l.tahap >= 5)) {
             l.deskripsiTindakan = 'Telah tiba di TKP, mengamankan perimeter lokasi kejadian, pendataan saksi dan mediasi situasi hingga kondusif.';
           }
           if (!l.catatanSelesai && l.status === 'selesai') {
             l.catatanSelesai = 'Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal.';
-          }
-
-          // Bersihkan foto dari URL rusak atau dummy placeholder 'Disetujui'
-          const isBadLampiran = !l.fotoLampiran ||
-            l.fotoLampiran.includes('placehold.co') ||
-            l.fotoLampiran.includes('Disetujui');
-          if (isBadLampiran) {
-            l.fotoLampiran = l.fotoPengaduan || sampleBuktiPengaduan[l.id % sampleBuktiPengaduan.length];
-          }
-
-          const isBadPengaduan = !l.fotoPengaduan ||
-            l.fotoPengaduan.includes('517649763962') ||
-            l.fotoPengaduan.includes('506521781263') ||
-            l.fotoPengaduan.includes('1494526585095') ||
-            l.fotoPengaduan.includes('549399542') ||
-            l.fotoPengaduan.includes('placehold.co');
-
-          if (isBadPengaduan) {
-            l.fotoPengaduan = sampleBuktiPengaduan[l.id % sampleBuktiPengaduan.length];
-          }
-
-          const isBadTindakan = !l.fotoTindakan ||
-            l.fotoTindakan.includes('517649763962') ||
-            l.fotoTindakan.includes('placehold.co');
-
-          if (isBadTindakan) {
-            l.fotoTindakan = sampleBuktiTindakan[l.id % sampleBuktiTindakan.length];
           }
         });
         saveLogsToStorage();
@@ -4804,12 +4844,20 @@
         console.warn('Gagal memuat dari storage, menggunakan data default', e);
         appLogs = getDefaultLogs();
         appLogs.forEach(l => {
-          l.fotoPengaduan = sampleBuktiPengaduan[l.id % sampleBuktiPengaduan.length];
-          l.fotoPersiapan = sampleBuktiPersiapan[l.id % sampleBuktiPersiapan.length];
-          l.fotoTindakan = sampleBuktiTindakan[l.id % sampleBuktiTindakan.length];
+          l.fotoPengaduan = getFotoPengaduanByKategori(l);
+          l.fotoLampiran = l.fotoPengaduan;
+          l.fotoPersiapan = 'assets/images/polri_patrol_car.jpg';
+          l.fotoTindakan = 'assets/images/polri_tindakan_tkp.jpg';
+          l.fotoSelesai = 'assets/images/polri_situasi_selesai.jpg';
           l.koordinatGps = '-6.2345, 106.8423';
           l.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap siaga, meluncur menuju TKP.';
+          if (l.tipePelapor === 'personel' || l.kesatuan || l.nrp) {
+            l.avatar = 'assets/images/avatar_polisi.jpg';
+          } else if (!l.avatar || l.avatar.includes('unsplash.com')) {
+            l.avatar = SVG_AVATAR_WARGA;
+          }
         });
+        saveLogsToStorage();
       }
     }
 
@@ -5584,7 +5632,7 @@
       log.waktuTiba = log.waktuTiba || '10:52 WIB';
       log.waktuSelesai = waktuSekarang;
       log.deskripsiTindakan = 'Petugas tiba di TKP, mengamankan situasi, mensterilkan perimeter, dan membubarkan kerumunan massa secara humanis dan terukur.';
-      log.fotoTindakan = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+      log.fotoTindakan = 'assets/images/polri_pengaduan_tkp.jpg';
       log.catatanSelesai = 'Situasi TKP telah kondusif, barang bukti diamankan, berita acara lapangan lengkap. Siap disahkan oleh Pawas.';
 
       if (!log.riwayatValidasi) log.riwayatValidasi = [];
@@ -5762,8 +5810,8 @@
       const currentTahap = parseInt(log.tahap) || (log.status === 'selesai' ? 5 : 3);
       let html = '';
 
-      const imgPengaduan = log.fotoPengaduan || log.fotoLampiran || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80';
-      const imgTindakan = log.fotoTindakan || 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
+      const imgPengaduan = log.fotoPengaduan || log.fotoLampiran || 'assets/images/polri_pengaduan_tkp.jpg';
+      const imgTindakan = log.fotoTindakan || 'assets/images/polri_pengaduan_tkp.jpg';
 
       TIMELINE_STEPS_DATA.forEach(s => {
         let stateClass = 'inactive';
@@ -5795,9 +5843,9 @@
         if (s.step === 3 && currentTahap >= 3 && !isCaseFinished) {
           mapHtml = `
           <div class="tracking-map">
-            <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80" alt="Map" class="map-placeholder">
+            <img src="assets/images/polri_pengaduan_tkp.jpg" alt="Map" class="map-placeholder">
             <div class="map-overlay">
-              <img src="https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80" alt="Police" class="police-avatar">
+              <img src="assets/images/polri_pengaduan_tkp.jpg" alt="Police" class="police-avatar">
               <div class="police-info">
                 <h4>${log.personelDitugaskan || log.petugasPenangan || 'Bripka Ahmad (Unit Samapta)'}</h4>
                 <p>Estimasi Tiba: 5 Menit</p>
@@ -6055,7 +6103,7 @@
       });
 
       // 5. Preview Foto Bukti Pengaduan 110 Warga
-      const defaultFotoPengaduan = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+      const defaultFotoPengaduan = 'assets/images/polri_pengaduan_tkp.jpg';
       let imgSrc = log.fotoPengaduan || defaultFotoPengaduan;
       if (imgSrc.includes('placehold.co') || imgSrc.includes('549399542')) imgSrc = defaultFotoPengaduan;
 
@@ -6183,19 +6231,13 @@
       const gpsVal = (document.getElementById('koordinat-gps')?.value) || log.koordinatGps || '-6.2345, 106.8423';
 
       const poolPersiapan = [
-        'polri_patrol_car.jpg',
-        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80'
+        'assets/images/polri_patrol_car.jpg'
       ];
       const poolTindakan = [
-        'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80'
+        'assets/images/polri_tindakan_tkp.jpg'
       ];
       const poolSelesai = [
-        'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
-        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80'
+        'assets/images/polri_situasi_selesai.jpg'
       ];
 
       if (step === 1) {
@@ -6332,7 +6374,7 @@
         log.catatanPersiapan = inputCatatan;
         log.waktuMeluncur = waktuSekarang;
         if (!log.fotoPersiapan) {
-          log.fotoPersiapan = 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
+          log.fotoPersiapan = 'assets/images/polri_pengaduan_tkp.jpg';
         }
 
         // Catat ke Riwayat Validasi
@@ -6368,7 +6410,7 @@
         log.deskripsiTindakan = inputTindakan;
         log.waktuTiba = waktuSekarang;
         if (!log.fotoTindakan) {
-          log.fotoTindakan = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
+          log.fotoTindakan = 'assets/images/polri_pengaduan_tkp.jpg';
         }
 
         // Catat ke Riwayat Validasi
@@ -6403,7 +6445,7 @@
         log.catatanSelesai = inputSelesai;
         log.waktuSelesai = waktuSekarang;
         if (!log.fotoSelesai) {
-          log.fotoSelesai = 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80';
+          log.fotoSelesai = 'assets/images/polri_pengaduan_tkp.jpg';
         }
 
         if (!log.riwayatValidasi) log.riwayatValidasi = [];
@@ -6589,17 +6631,10 @@
         const metaPengaduan = document.getElementById('tl-meta-pengaduan');
         const descPengaduan = document.getElementById('tl-desc-pengaduan');
 
-        const defaultFotoPengaduan = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+        const defaultFotoPengaduan = getFotoPengaduanByKategori(log);
         let imgPengaduanSrc = log.fotoPengaduan || defaultFotoPengaduan;
 
-        const isBadPengaduanSrc = !imgPengaduanSrc ||
-          imgPengaduanSrc.includes('517649763962') ||
-          imgPengaduanSrc.includes('506521781263') ||
-          imgPengaduanSrc.includes('1494526585095') ||
-          imgPengaduanSrc.includes('549399542') ||
-          imgPengaduanSrc.includes('placehold.co');
-
-        if (isBadPengaduanSrc) {
+        if (!imgPengaduanSrc || imgPengaduanSrc.includes('unsplash.com') || imgPengaduanSrc.includes('placehold.co')) {
           imgPengaduanSrc = defaultFotoPengaduan;
           log.fotoPengaduan = defaultFotoPengaduan;
         }
@@ -6784,7 +6819,7 @@
         };
         let srcLampiran = log.fotoLampiran || log.fotoPengaduan;
         if (!srcLampiran || srcLampiran.includes('placehold.co') || srcLampiran.includes('Disetujui')) {
-          srcLampiran = log.fotoPengaduan || 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+          srcLampiran = log.fotoPengaduan || 'assets/images/polri_pengaduan_tkp.jpg';
         }
         imgEl.src = srcLampiran;
       }
@@ -7904,7 +7939,7 @@
 
         const un = document.getElementById('user-name'); if (un) un.innerText = 'Kombes Pol Budi';
         const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Perwira Pengawas (PAWAS)';
-        const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80';
+        const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'assets/images/polri_pengaduan_tkp.jpg';
         const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: POSKO PENGENDALIAN PIKET PAWAS';
 
         // 1. Pastikan tab 1 tetap Beranda (Posko Kendali Pawas)
@@ -7946,7 +7981,7 @@
         // Operator SPKT: Tampil seragam di dalam E-Tribrata Log
         const un = document.getElementById('user-name'); if (un) un.innerText = 'Briptu Dian Lestari';
         const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Operator SPKT';
-        const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80';
+        const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'assets/images/polri_pengaduan_tkp.jpg';
         const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: KONSOL OPERATOR SPKT (SIAGA)';
 
         const tl = document.getElementById('tindak-lanjut-card'); if (tl) tl.style.display = 'none';
@@ -7965,7 +8000,7 @@
       } else {
         // Anggota (default)
         const bell = document.getElementById('bell-notif'); if (bell) bell.style.display = 'none';
-        const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80';
+        const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'assets/images/polri_pengaduan_tkp.jpg';
       }
 
       // Inisialisasi profil pengguna sesuai role aktif
@@ -8001,7 +8036,7 @@
       if (targetRole === 'operator') {
         if (elNama) elNama.innerText = 'Briptu Dian Lestari';
         if (elNrp) elNrp.innerText = 'NRP: 98040112';
-        if (elAvatar) elAvatar.src = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80';
+        if (elAvatar) elAvatar.src = 'assets/images/polri_pengaduan_tkp.jpg';
         if (elPangkat) elPangkat.innerText = 'BRIGADIR POLISI SATU (BRIPTU)';
         if (elJabatan) elJabatan.innerText = 'Operator Sentra Pelayanan Kepolisian (SPKT)';
         if (elBadge) { elBadge.innerText = 'OPERATOR SPKT'; elBadge.style.background = '#EFF6FF'; elBadge.style.color = '#1D4ED8'; }
@@ -8013,7 +8048,7 @@
       } else if (targetRole === 'pimpinan' || targetRole === 'atasan' || targetRole === 'pawas') {
         if (elNama) elNama.innerText = 'Kombes Pol Budi';
         if (elNrp) elNrp.innerText = 'NRP: 88010234';
-        if (elAvatar) elAvatar.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80';
+        if (elAvatar) elAvatar.src = 'assets/images/polri_pengaduan_tkp.jpg';
         if (elPangkat) elPangkat.innerText = 'KOMISARIS BESAR POLISI (KOMBES POL)';
         if (elJabatan) elJabatan.innerText = 'Perwira Pengawas (PAWAS) • Posko Pengendalian Operasi';
         if (elBadge) { elBadge.innerText = 'PIMPINAN / PAWAS'; elBadge.style.background = '#FFFBEB'; elBadge.style.color = '#B45309'; }
@@ -8025,7 +8060,7 @@
       } else {
         if (elNama) elNama.innerText = 'Bripka Ahmad';
         if (elNrp) elNrp.innerText = 'NRP: 50123456';
-        if (elAvatar) elAvatar.src = 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=150&q=80';
+        if (elAvatar) elAvatar.src = 'assets/images/polri_pengaduan_tkp.jpg';
         if (elPangkat) elPangkat.innerText = 'BRIGADIR POLISI KEPALA (BRIPKA)';
         if (elJabatan) elJabatan.innerText = 'Unit Patroli Reaksi Cepat • Satuan Samapta';
         if (elBadge) { elBadge.innerText = 'ANGGOTA PATROLI'; elBadge.style.background = '#F0FDF4'; elBadge.style.color = '#15803D'; }
@@ -8214,7 +8249,7 @@
         sla: '6.8 Menit',
         slaStatus: 'Tepat Waktu (< 10 Menit)',
         kronologi: 'Laporan warga masuk pukul 21:15 WIB perihal sekelompok remaja berkerumun membawa sajam. Regu Samapta tiba di TKP pukul 21:21 WIB (Respon 6.8 Menit). Kerumunan berhasil dibubarkan, 2 orang diamankan beserta 1 celurit untuk dimintai keterangan di Mapolres.',
-        foto: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=600&q=80',
+        foto: 'assets/images/polri_pengaduan_tkp.jpg',
         catatan: 'Situasi aman terkendali. Laporan Polisi Model-A nomor LP/A/0891/X/2026/SPKT telah diterbitkan dan diserahkan ke Satreskrim.'
       },
       {
@@ -8236,7 +8271,7 @@
         sla: '5.2 Menit',
         slaStatus: 'Tepat Waktu (< 10 Menit)',
         kronologi: 'Korban melapor sepeda motor Honda Beat B 4123 TKL hilang saat ditinggal belanja 10 menit. Petugas tiba di TKP pukul 20:35 WIB, mengamankan rekaman CCTV toko dan mengarahkan korban membuat laporan resmi ke SPKT.',
-        foto: 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=600&q=80',
+        foto: 'assets/images/polri_pengaduan_tkp.jpg',
         catatan: 'Rekaman CCTV memperlihatkan 2 pelaku. Berkas dan bukti flashdisk diserahkan ke piket Reskrim.'
       },
       {
@@ -8258,7 +8293,7 @@
         sla: '7.5 Menit',
         slaStatus: 'Tepat Waktu (< 10 Menit)',
         kronologi: 'Perselisihan batas parkir antar tetangga yang memicu adu mulut. Petugas tiba di lokasi pukul 19:47 WIB bersama Ketua RT melakukan mediasi musyawarah mufakat.',
-        foto: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?auto=format&fit=crop&w=600&q=80',
+        foto: 'assets/images/polri_pengaduan_tkp.jpg',
         catatan: 'Kedua belah pihak saling memaafkan dan menandatangani surat kesepakatan damai tanpa tuntutan hukum.'
       },
       {
@@ -8280,7 +8315,7 @@
         sla: '6.0 Menit',
         slaStatus: 'Tepat Waktu (< 10 Menit)',
         kronologi: 'Pohon angsana tumbang akibat angin kencang menutup 1 lajur arah Tugu Tani. Personel Samapta melakukan pengalihan arus dan membantu tim Damkar memotong batang pohon.',
-        foto: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=600&q=80',
+        foto: 'assets/images/polri_pengaduan_tkp.jpg',
         catatan: 'Lalu lintas normal kembali pukul 19:05 WIB. Tidak ada korban jiwa maupun kerusakan ranmor.'
       },
       {
@@ -8302,7 +8337,7 @@
         sla: '8.4 Menit',
         slaStatus: 'Tepat Waktu (< 10 Menit)',
         kronologi: 'Sepeda motor disenggol minibus yang melarikan diri ke arah Pulogadung. Korban luka lecet pada lutut dan tangan dievakuasi ke RS Islam Cempaka Putih. Petugas memeriksa saksi mata di sekitar lokasi.',
-        foto: 'https://images.unsplash.com/photo-1584483766114-2cea6facdf57?auto=format&fit=crop&w=600&q=80',
+        foto: 'assets/images/polri_pengaduan_tkp.jpg',
         catatan: 'Korban dalam penanganan medis. Ciri-ciri nopol mobil sedang dilacak oleh Satlantas melalui rekaman ETLE.'
       },
       {
@@ -8324,7 +8359,7 @@
         sla: 'Dalam Antrean',
         slaStatus: 'Prioritas Siaga',
         kronologi: 'Laporan sekelompok pemuda nongkrong menyalakan musik keras dan konsumsi miras jenis oplosan di fasilitas umum taman warga.',
-        foto: 'https://images.unsplash.com/photo-1517457373958-b7bdd4587205?auto=format&fit=crop&w=600&q=80',
+        foto: 'assets/images/polri_pengaduan_tkp.jpg',
         catatan: 'Tiket telah diteruskan ke regu patroli Samapta shift malam untuk dilakukan penertiban sasaran patroli blue light.'
       }
     ];
@@ -8472,7 +8507,7 @@
         id: newId,
         nama: 'Bripka Ahmad',
         nrp: '50123456',
-        avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+        avatar: 'assets/images/polri_pengaduan_tkp.jpg',
         status: 'menunggu',
         statusText: 'Menunggu Validasi',
         title: 'Laporan Kegiatan ' + jenis + ' (Mandiri)',
@@ -8483,8 +8518,8 @@
         koordinatGps: '-6.2345, 106.8423',
         waktu: waktu,
         sumberLaporan: '👮 Patroli Mandiri Personel',
-        fotoLampiran: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
-        fotoPengaduan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        fotoLampiran: 'assets/images/polri_pengaduan_tkp.jpg',
+        fotoPengaduan: 'assets/images/polri_pengaduan_tkp.jpg',
         alasanTolak: '',
         riwayatValidasi: [
           {
@@ -8517,14 +8552,14 @@
       const newId = maxId + 1;
       const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
-      let sampleFoto = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80';
-      if (jenis.includes('Kecelakaan')) sampleFoto = 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+      let sampleFoto = 'assets/images/polri_pengaduan_tkp.jpg';
+      if (jenis.includes('Kecelakaan')) sampleFoto = 'assets/images/polri_pengaduan_tkp.jpg';
 
       const newLog = {
         id: newId,
         nama: 'Operator SPKT (Briptu Dian)',
         nrp: '94050811',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=100&q=80',
+        avatar: 'assets/images/polri_pengaduan_tkp.jpg',
         status: 'menunggu',
         statusText: 'Menunggu Validasi',
         title: jenis + ' - ' + lokasi.split(',')[0],
@@ -8787,9 +8822,10 @@
       const log = appLogs.find(l => l.id === selectedLogId);
       if (!log) return;
 
-      const defaultFotoPengaduan = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80';
-      const defaultFotoPersiapan = 'polri_patrol_car.jpg';
-      const defaultFotoTindakan = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
+      const defaultFotoPengaduan = 'assets/images/polri_pengaduan_tkp.jpg';
+      const defaultFotoPersiapan = 'assets/images/polri_patrol_car.jpg';
+      const defaultFotoTindakan = 'assets/images/polri_tindakan_tkp.jpg';
+      const defaultFotoSelesai = 'assets/images/polri_situasi_selesai.jpg';
 
       // Identifikasi Nama Petugas Lapangan (Bukan Nama Pelapor Warga/Sipil)
       const namaPetugas = log.disposisi?.komandan
@@ -8811,8 +8847,8 @@
       if (type === 'pengaduan') {
         titleEl.innerHTML = '📷 Bukti Pengaduan Masyarakat (110)';
         subEl.innerText = (log.nomorTiket || 'TIKET-110') + ' • Laporan: ' + (log.waktu || '10:45 WIB');
-        let src = log.fotoPengaduan || defaultFotoPengaduan;
-        if (src.includes('549399542') || src.includes('placehold.co')) src = defaultFotoPengaduan;
+        let src = log.fotoPengaduan || getFotoPengaduanByKategori(log);
+        if (src.includes('placehold.co') || src.includes('unsplash.com')) src = getFotoPengaduanByKategori(log);
         imgEl.onerror = function () {
           this.onerror = null;
           this.src = SVG_FALLBACK_PENGADUAN;
@@ -8824,9 +8860,7 @@
         titleEl.innerHTML = '📷 Bukti Persiapan Keberangkatan (GPS)';
         subEl.innerText = pimpinanSingkat + ' • Koordinat GPS Terkunci';
         let src = log.fotoPersiapan || defaultFotoPersiapan;
-        if (src.includes('placehold.co') || src.includes('photo-1549965408869') || src.includes('photo-1449965408869')) {
-          src = defaultFotoPersiapan;
-        }
+        if (src.includes('placehold.co') || src.includes('unsplash.com')) src = defaultFotoPersiapan;
         imgEl.onerror = function () {
           this.onerror = null;
           this.src = SVG_FALLBACK_PERSIAPAN;
@@ -8837,8 +8871,8 @@
       } else if (type === 'selesai') {
         titleEl.innerHTML = '✅ Bukti Situasi Akhir & Kasus Selesai';
         subEl.innerText = (log.nomorTiket || 'TIKET-110') + ' • Selesai Ditangani';
-        let src = log.fotoSelesai || log.fotoTindakan || defaultFotoTindakan;
-        if (src.includes('placehold.co')) src = defaultFotoTindakan;
+        let src = log.fotoSelesai || defaultFotoSelesai;
+        if (src.includes('placehold.co') || src.includes('unsplash.com')) src = defaultFotoSelesai;
         imgEl.onerror = function () {
           this.onerror = null;
           this.src = SVG_FALLBACK_TINDAKAN;
@@ -8850,7 +8884,7 @@
         titleEl.innerHTML = '📸 Bukti Tindakan & Respon Petugas di TKP';
         subEl.innerText = pimpinanSingkat + ' • Tahap ' + (log.tahap || 3) + '/5';
         let src = log.fotoTindakan || defaultFotoTindakan;
-        if (src.includes('placehold.co')) src = defaultFotoTindakan;
+        if (src.includes('placehold.co') || src.includes('unsplash.com')) src = defaultFotoTindakan;
         imgEl.onerror = function () {
           this.onerror = null;
           this.src = SVG_FALLBACK_TINDAKAN;
