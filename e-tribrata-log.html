@@ -5868,12 +5868,22 @@
         // Baris waktu & indikator berkas yang rapi dan presisi (Hanya muncul jika tahap SUDAH disubmit)
         let metaRowHtml = '';
         if (s.step === 1) {
+          // Waktu Laporan Masuk diambil dari log.waktu atau s.time
+          const waktuLaporanMasuk = log.waktu || s.time;
           metaRowHtml = `
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time">${s.time}</span>
+            <span class="step-time">${waktuLaporanMasuk}</span>
             <span style="font-size:10px; font-weight:700; color:var(--primary); background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('pengaduan')" title="Klik untuk lihat bukti foto 110">
               📷 Bukti Laporan 110 ➔
             </span>
+          </div>
+        `;
+        } else if (s.step === 2) {
+          // Waktu Disposisi diambil dari data disposisi riil pimpinan (log.disposisi.waktuDisposisi)
+          const waktuDisposisiRiil = (log.disposisi && log.disposisi.waktuDisposisi) ? log.disposisi.waktuDisposisi : (log.waktu || s.time);
+          metaRowHtml = `
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
+            <span class="step-time">${waktuDisposisiRiil}</span>
           </div>
         `;
         } else if (s.step === 3) {
@@ -6728,57 +6738,102 @@
             const arahanTeks = disp.arahan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.';
             const waktuDisp = disp.waktuDisposisi || (log.waktu || '10:45 WIB');
 
-            // Hitung SLA Tanggap Patroli Dinamis (Standar Mabes Polri: < 10 Menit sejak Disposisi)
-            const targetSlaMenit = 10;
-            const waktuMulaiSla = disp.waktuDisposisi || log.waktuMeluncur || log.waktu || '10:45 WIB';
-            const isSudahTibaTkp = (log.tahap >= 4);
-            const waktuTibaTkp = log.waktuTiba || (isSudahTibaTkp ? (log.waktu || '10:52 WIB') : '');
+            // =========================================================================
+            // PEMISAHAN 3 TAHAPAN SLA RESMI PRESISI POLRI:
+            // SLA 1: Respon Pimpinan/Pawas (Laporan Masuk ➔ Disposisi ke Anggota) [Target <= 5 Menit]
+            // SLA 2: Waktu Tanggap Lapangan (Disposisi Diterima ➔ Anggota Siaga/Mulai Tangani) [Target <= 3 Menit]
+            // SLA 3: Waktu Tempuh Patroli (Meluncur ➔ Tiba di TKP) [Target <= 10 Menit]
+            // =========================================================================
+            const waktuMasuk = log.waktu || '13:00 WIB';
+            const waktuMeluncur = log.waktuMeluncur;
+            const waktuTiba = log.waktuTiba;
 
-            // Hitung menit riil
-            let durasiMenitRiil = log.slaDurasiMenit;
-            if (!durasiMenitRiil) {
-              if (isSudahTibaTkp && waktuTibaTkp) {
-                durasiMenitRiil = hitungSelisihMenitTeks(waktuMulaiSla, waktuTibaTkp);
-              } else {
-                durasiMenitRiil = 5; // Estimasi default jika live baru jalan
-              }
-              log.slaDurasiMenit = durasiMenitRiil;
+            // 1. Hitung SLA 1: Laporan Masuk -> Disposisi Pawas
+            const durasiSla1 = hitungSelisihMenitTeks(waktuMasuk, waktuDisp);
+            const sla1Tepat = durasiSla1 <= 5;
+
+            // 2. Hitung SLA 2: Disposisi -> Anggota Mulai Tangani (Klik Meluncur)
+            let durasiSla2 = 2;
+            let sla2Status = 'SELESAI';
+            if (waktuMeluncur) {
+              durasiSla2 = hitungSelisihMenitTeks(waktuDisp, waktuMeluncur);
+            } else {
+              sla2Status = 'BERJALAN';
             }
+            const sla2Tepat = durasiSla2 <= 3;
 
-            // Status evaluasi kepatuhan SLA (< 10m Tepat, 10-15m Peringatan, > 15m Terlambat)
-            let slaBadgeTeks = '● TEPAT WAKTU (< 10 MENIT)';
-            let slaBadgeBg = '#065F46';
-            let slaBadgeColor = '#34D399';
-            let slaBorderColor = '#10B981';
-
-            if (durasiMenitRiil > 15) {
-              slaBadgeTeks = '🚨 MELEBIHI TARGET SLA (> 15 MENIT)';
-              slaBadgeBg = '#7F1D1D';
-              slaBadgeColor = '#FCA5A5';
-              slaBorderColor = '#EF4444';
-            } else if (durasiMenitRiil > 10) {
-              slaBadgeTeks = '⚠️ BATAS TOLERANSI (10 - 15 MENIT)';
-              slaBadgeBg = '#78350F';
-              slaBadgeColor = '#FDE68A';
-              slaBorderColor = '#F59E0B';
+            // 3. Hitung SLA 3: Waktu Tempuh Meluncur -> Tiba di TKP (Target < 10 Menit)
+            const isSudahTibaTkp = (log.tahap >= 4 && waktuTiba);
+            let durasiSla3 = log.slaDurasiMenit || 4;
+            if (isSudahTibaTkp && waktuMeluncur && waktuTiba) {
+              durasiSla3 = hitungSelisihMenitTeks(waktuMeluncur, waktuTiba);
+              log.slaDurasiMenit = durasiSla3;
             }
 
             const slaDisplayHtml = (roleTitle) => `
-              <div style="background:#0F172A; color:white; border-radius:10px; padding:12px 14px; border-left:4px solid ${slaBorderColor}; box-shadow:0 3px 10px rgba(0,0,0,0.15);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span style="font-size:10px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px;">⏱️ ${roleTitle}</span>
-                  <span id="sla-badge-indicator" style="font-size:10px; font-weight:700; background:${slaBadgeBg}; color:${slaBadgeColor}; padding:2px 8px; border-radius:4px;">${slaBadgeTeks}</span>
+              <div style="background:#0F172A; color:#F8FAFC; border-radius:10px; padding:12px; border-left:4px solid #38BDF8; box-shadow:0 4px 14px rgba(0,0,0,0.2);">
+                <!-- Header Card Ringkas -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid rgba(255,255,255,0.08);">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:12px;">⏱️</span>
+                    <span style="font-size:10.5px; font-weight:800; color:#E2E8F0; letter-spacing:0.4px; text-transform:uppercase;">${roleTitle}</span>
+                  </div>
+                  <span style="font-size:9.5px; font-weight:700; color:#38BDF8; background:rgba(56,189,248,0.12); border:1px solid rgba(56,189,248,0.25); padding:1px 7px; border-radius:4px;">STANDAR PRESISI</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; align-items:baseline;">
-                  <div>
-                    <div style="font-size:11px; color:#94A3B8;">Target Tiba di TKP:</div>
-                    <div style="font-size:13px; font-weight:800; color:#F8FAFC;">Maksimal ${targetSlaMenit} Menit sejak Disposisi</div>
-                    <div style="font-size:10.5px; color:#64748B; margin-top:2px;">Mulai: ${waktuMulaiSla} ${isSudahTibaTkp ? '➔ Tiba: ' + waktuTibaTkp : ''}</div>
+
+                <!-- 3 Baris SLA Ringkas & Rapi -->
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                  
+                  <!-- SLA 1: Respon Pawas -->
+                  <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">1. Respon Pawas (Disposisi)</div>
+                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 5 Menit sejak Masuk</div>
+                    </div>
+                    <div>
+                      <span style="font-size:9.5px; font-weight:700; background:${sla1Tepat ? '#065F46' : '#78350F'}; color:${sla1Tepat ? '#34D399' : '#FDE68A'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                        ${sla1Tepat ? '✓ 0' + durasiSla1 + ':00 Tepat' : '⚠️ 0' + durasiSla1 + ':00 Toleransi'}
+                      </span>
+                    </div>
                   </div>
-                  <div style="text-align:right;">
-                    <div style="font-size:10px; color:#94A3B8;">${isSudahTibaTkp ? 'Total Waktu Tempuh:' : 'Waktu Tempuh Berjalan:'}</div>
-                    <div id="sla-live-clock" style="font-family:monospace; font-size:18px; font-weight:900; color:#38BDF8;">${String(durasiMenitRiil).padStart(2, '0')}:00</div>
+
+                  <!-- SLA 2: Waktu Tanggap Anggota -->
+                  <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                      <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">2. Respon Anggota (Tanggap)</div>
+                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 3 Menit sejak Disposisi</div>
+                    </div>
+                    <div>
+                      ${waktuMeluncur ? `
+                        <span style="font-size:9.5px; font-weight:700; background:${sla2Tepat ? '#065F46' : '#78350F'}; color:${sla2Tepat ? '#34D399' : '#FDE68A'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                          ✓ 0${durasiSla2}:00 Siap
+                        </span>
+                      ` : `
+                        <span style="font-size:9.5px; font-weight:700; background:#1E3A8A; color:#93C5FD; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                          ⏳ Menunggu
+                        </span>
+                      `}
+                    </div>
                   </div>
+
+                  <!-- SLA 3: Waktu Tempuh ke TKP -->
+                  <div style="background:rgba(255,255,255,0.05); border:1px solid ${isSudahTibaTkp ? '#059669' : '#0284C7'}; border-radius:6px; padding:7px 9px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                      <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">3. Tempuh ke TKP (Target &le; 10m)</div>
+                      <span id="sla3-badge-indicator" style="font-size:9px; font-weight:700; background:${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#065F46' : '#78350F') : '#0C4A6E'}; color:${isSudahTibaTkp ? (durasiSla3 <= 10 ? '#34D399' : '#FDE68A') : '#38BDF8'}; padding:2px 6px; border-radius:4px; white-space:nowrap;">
+                        ${isSudahTibaTkp ? (durasiSla3 <= 10 ? '● Tepat di TKP' : '⚠️ Batas Waktu') : (waktuMeluncur ? '● Sedang Meluncur' : 'Belum Berangkat')}
+                      </span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                      <div style="font-size:9.5px; color:#94A3B8;">
+                        ${waktuMeluncur ? (waktuTiba ? 'Tiba: ' + waktuTiba : 'Berangkat: ' + waktuMeluncur) : 'Menunggu klik Meluncur'}
+                      </div>
+                      <div id="sla-live-clock" style="font-family:monospace; font-size:15px; font-weight:900; color:#38BDF8; letter-spacing:0.5px;">
+                        ${waktuMeluncur ? (String(durasiSla3).padStart(2, '0') + ':00') : '--:--'}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             `;
@@ -6786,8 +6841,8 @@
             if (isUserPawas()) {
               tlActions.innerHTML = `
               <div style="display:flex; flex-direction:column; gap:10px;">
-                <!-- 1. Indikator Live Waktu Tanggap Patroli (Pawas) -->
-                ${slaDisplayHtml('MONITORING WAKTU TANGGAP PATROLI')}
+                <!-- 1. Indikator Evaluasi 3 Lapis SLA Presisi (Pawas) -->
+                ${slaDisplayHtml('MONITORING 3 TAHAPAN SLA POLRI')}
 
                 <!-- 2. Unit Satuan & Komandan Terdisposisi -->
                 <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px 14px;">
@@ -6826,8 +6881,8 @@
               // Field Officer View (Bripka Ahmad & Regu Lapangan)
               tlActions.innerHTML = `
               <div style="display:flex; flex-direction:column; gap:10px;">
-                <!-- 1. Indikator Live Waktu Tanggap Patroli (Petugas) -->
-                ${slaDisplayHtml('TARGET WAKTU TANGGAP PATROLI')}
+                <!-- 1. Indikator Evaluasi 3 Lapis SLA Presisi (Petugas) -->
+                ${slaDisplayHtml('TARGET & EVALUASI WAKTU TANGGAP (SLA)')}
 
                 <!-- 2. Tombol Eksekusi Operasional Bripka Ahmad -->
                 <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
@@ -6849,18 +6904,18 @@
             `;
             }
 
-            // Jalankan Live Stopwatch jika masih meluncur (tahap 3)
+            // Jalankan Live Stopwatch SLA 3 hanya jika personel SUDAH meluncur tapi BELUM tiba di TKP
             if (window._simapresSlaInterval) {
               clearInterval(window._simapresSlaInterval);
               window._simapresSlaInterval = null;
             }
 
-            if (!isSudahTibaTkp) {
-              let totalDetik = (durasiMenitRiil * 60);
+            if (waktuMeluncur && !isSudahTibaTkp) {
+              let totalDetik = (durasiSla3 * 60);
               window._simapresSlaInterval = setInterval(() => {
                 totalDetik++;
                 const clockEl = document.getElementById('sla-live-clock');
-                const badgeEl = document.getElementById('sla-badge-indicator');
+                const badgeEl = document.getElementById('sla3-badge-indicator');
                 if (!clockEl) {
                   clearInterval(window._simapresSlaInterval);
                   return;
@@ -6869,16 +6924,16 @@
                 const s = totalDetik % 60;
                 clockEl.innerText = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 
-                // Evaluasi live rumus SLA
+                // Evaluasi live batas waktu SLA 3 (< 10m Tepat, 10-15m Peringatan, > 15m Terlambat)
                 if (m > 15) {
                   if (badgeEl) {
-                    badgeEl.innerText = '🚨 MELEBIHI TARGET SLA (> 15 MENIT)';
+                    badgeEl.innerText = '🚨 MELEBIHI TARGET (> 15M)';
                     badgeEl.style.background = '#7F1D1D';
                     badgeEl.style.color = '#FCA5A5';
                   }
                 } else if (m > 10) {
                   if (badgeEl) {
-                    badgeEl.innerText = '⚠️ BATAS TOLERANSI (10 - 15 MENIT)';
+                    badgeEl.innerText = '⚠️ BATAS TOLERANSI (10-15M)';
                     badgeEl.style.background = '#78350F';
                     badgeEl.style.color = '#FDE68A';
                   }
