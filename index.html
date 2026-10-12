@@ -98,20 +98,34 @@
     <div class="demo-section">
       <div class="demo-title">⚡ Akses Cepat Simulasi Role Internal (1-Klik)</div>
       
-      <!-- 3 ROLE INTERNAL DALAM SISTEM YANG SAMA -->
-      <button class="btn-demo" style="border-color:#2563EB; color:#1D4ED8; background:#EFF6FF; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('98040112', 'operator')">
+      <!-- OPERATOR SPKT -->
+      <button class="btn-demo" style="border-color:#2563EB; color:#1D4ED8; background:#EFF6FF; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('98040112')">
         <div style="font-size:13px; font-weight:800;">🎧 Login sbg OPERATOR SPKT</div>
         <div style="font-size:11px; font-weight:500; color:#3B82F6;">NRP: 98040112 • Briptu Dian Lestari (Sentra Pelayanan SPKT)</div>
       </button>
 
-      <button class="btn-demo" style="border-color:#153E75; color:#153E75; background:#F8FAFC; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('95020123', 'anggota')">
-        <div style="font-size:13px; font-weight:800;">👮 Login sbg ANGGOTA / PERSONEL</div>
-        <div style="font-size:11px; font-weight:500; color:#64748B;">NRP: 95020123 • Bripka Ahmad (Respon TKP & Patroli)</div>
-      </button>
-
-      <button class="btn-demo" style="border-color:#D97706; color:#B45309; background:#FFFBEB; text-align:left; padding:10px 14px; margin-bottom:12px;" onclick="quickLoginRole('88010234', 'pimpinan')">
+      <!-- PIMPINAN / PAWAS -->
+      <button class="btn-demo" style="border-color:#D97706; color:#B45309; background:#FFFBEB; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('88010234')">
         <div style="font-size:13px; font-weight:800;">👨‍✈️ Login sbg PIMPINAN / PAWAS</div>
         <div style="font-size:11px; font-weight:500; color:#D97706;">NRP: 88010234 • Kombes Pol Budi (Validasi & Supervisi)</div>
+      </button>
+
+      <!-- PERSONEL 1: SAMAPTA PRESISI -->
+      <button class="btn-demo" style="border-color:#153E75; color:#153E75; background:#F8FAFC; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('95020123')">
+        <div style="font-size:13px; font-weight:800;">👮 Login sbg SAMAPTA R-4 (Bripka Ahmad)</div>
+        <div style="font-size:11px; font-weight:500; color:#64748B;">NRP: 95020123 • Bripka Ahmad Subagyo (Patroli Roda 4)</div>
+      </button>
+
+      <!-- PERSONEL 2: TIM RAIMAS R-2 -->
+      <button class="btn-demo" style="border-color:#D97706; color:#B45309; background:#FEF3C7; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('50129841')">
+        <div style="font-size:13px; font-weight:800;">🏍️ Login sbg RAIMAS R-2 (Aipda Rudi)</div>
+        <div style="font-size:11px; font-weight:500; color:#92400E;">NRP: 50129841 • Aipda Rudi Hartono (Motor Taktis Sabhara)</div>
+      </button>
+
+      <!-- PERSONEL 3: TURJAWALI SATLANTAS -->
+      <button class="btn-demo" style="border-color:#1D4ED8; color:#1D4ED8; background:#EFF6FF; text-align:left; padding:10px 14px; margin-bottom:12px;" onclick="quickLoginRole('49112233')">
+        <div style="font-size:13px; font-weight:800;">🚓 Login sbg TURJAWALI LANTAS (Aiptu Bambang)</div>
+        <div style="font-size:11px; font-weight:500; color:#1E40AF;">NRP: 49112233 • Aiptu Bambang Sudrajat (PJR & Patroli Lantas)</div>
       </button>
 
       <div class="demo-title" style="margin-top:16px;">🌐 Portal Publik Warga (Masyarakat)</div>
@@ -126,32 +140,55 @@
     </div>
   </div>
 
+  <script src="js/simapres-roster.js"></script>
   <script>
-    function detectRoleFromNRP(nrpValue) {
-      const nrp = (nrpValue || '').toLowerCase().trim();
+    function routeUserToPage(user) {
+      if (!user) return;
+      sessionStorage.setItem('simapres_active_user', JSON.stringify(user));
 
-      if (nrp.includes('operator') || nrp.includes('dian') || nrp.includes('98040112') || nrp.includes('spkt') || nrp.includes('110')) {
-        return 'operator';
-      } else if (nrp.includes('pimpinan') || nrp.includes('pawas') || nrp.includes('budi') || nrp.includes('kapolres') || nrp.includes('88010234')) {
-        return 'pimpinan';
+      if (user.role === 'operator') {
+        window.location.href = 'e-tribrata-log.html?role=operator';
+      } else if (user.role === 'pimpinan') {
+        window.location.href = 'e-tribrata-log.html?role=pimpinan';
       } else {
-        return 'anggota';
+        // Personel Lapangan (diarahkan ke modul personil.html terdedikasi)
+        window.location.href = `personil.html?nrp=${encodeURIComponent(user.nrp)}`;
       }
     }
 
-    function quickLoginRole(nrp, role) {
+    function quickLoginRole(nrp) {
       const input = document.getElementById('login-nrp');
       if (input) input.value = nrp;
+
+      const user = (typeof cariPersonelByNrp === 'function') ? cariPersonelByNrp(nrp) : null;
       setTimeout(() => {
-        window.location.href = `e-tribrata-log.html?role=${role}`;
+        if (user) {
+          routeUserToPage(user);
+        } else {
+          window.location.href = `e-tribrata-log.html?nrp=${encodeURIComponent(nrp)}`;
+        }
       }, 150);
     }
 
     function handleInternalLogin(e) {
       e.preventDefault();
-      const nrp = document.getElementById('login-nrp').value;
-      const targetRole = detectRoleFromNRP(nrp);
-      window.location.href = `e-tribrata-log.html?role=${targetRole}`;
+      const nrpVal = document.getElementById('login-nrp').value.trim();
+      const user = (typeof cariPersonelByNrp === 'function') ? cariPersonelByNrp(nrpVal) : null;
+
+      if (user) {
+        routeUserToPage(user);
+      } else {
+        // Fallback jika NRP tidak dikenali
+        const fallbackUser = {
+          nrp: nrpVal || '95020123',
+          nama: 'Petugas Lapangan',
+          role: 'anggota',
+          pangkat: 'BRIGADIR POLISI',
+          jabatan: 'Unit Patroli Presisi',
+          satuan: 'Satuan Samapta Presisi'
+        };
+        routeUserToPage(fallbackUser);
+      }
     }
   </script>
 </body>
