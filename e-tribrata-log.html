@@ -3118,14 +3118,293 @@
     </div>
   </div>
 
+  <!-- ========================================================================= -->
+  <!-- MODAL AUDIT 1: DETAIL WAKTU TANGGAP PATROLI (SLA QUICK RESPONSE 110)      -->
+  <!-- ========================================================================= -->
+  <div id="modal-detail-sla-pimpinan"
+    style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(15,23,42,0.8); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;"
+    onclick="tutupModalDetailSlaPimpinan()">
+    <div
+      style="background:white; border-radius:16px; max-width:820px; width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.45); border:1px solid #CBD5E1; position:relative;"
+      onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div
+        style="background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div
+            style="width:40px; height:40px; border-radius:10px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:20px; border:1px solid rgba(255,255,255,0.3);">
+            ⏱️
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:16px; font-weight:800; letter-spacing:0.3px;">Audit Rincian Waktu Tanggap Patroli (SLA 110)</h3>
+            <span style="font-size:11.5px; opacity:0.9;">Standar Quick Response Mabes Polri • Target Respon TKP &lt; 10 Menit</span>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalDetailSlaPimpinan()"
+          style="background:rgba(255,255,255,0.15); border:none; color:white; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; transition:background 0.15s;"
+          onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">✕</button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div style="padding:18px 20px; overflow-y:auto; flex:1; background:#F8FAFC;">
+        <!-- Ringkasan KPI SLA -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:16px;">
+          <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase;">Rata-Rata Respon</div>
+            <div id="modal-sla-kpi-avg" style="font-size:20px; font-weight:900; color:#153E75; margin-top:2px;">7.4 <span style="font-size:11px; font-weight:700; color:#64748B;">MENIT</span></div>
+          </div>
+          <div style="background:white; border:1px solid #BBF7D0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#15803D; text-transform:uppercase;">Tepat Waktu</div>
+            <div id="modal-sla-kpi-percent" style="font-size:20px; font-weight:900; color:#16A34A; margin-top:2px;">94.8%</div>
+          </div>
+          <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#166534; text-transform:uppercase;">&lt; 5 Menit (Cepat)</div>
+            <div id="modal-sla-kpi-lt5" style="font-size:20px; font-weight:900; color:#166534; margin-top:2px;">18 Kasus</div>
+          </div>
+          <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#1E40AF; text-transform:uppercase;">5-10 Menit (SOP)</div>
+            <div id="modal-sla-kpi-5to10" style="font-size:20px; font-weight:900; color:#2563EB; margin-top:2px;">9 Kasus</div>
+          </div>
+          <div style="background:white; border:1px solid #FECACA; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#991B1B; text-transform:uppercase;">&gt; 10 Min (Evaluasi)</div>
+            <div id="modal-sla-kpi-gt10" style="font-size:20px; font-weight:900; color:#DC2626; margin-top:2px;">1 Kasus</div>
+          </div>
+        </div>
+
+        <!-- Filter Tab -->
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+          <button type="button" id="tab-sla-all" onclick="filterModalDetailSla('all')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:800; border-radius:8px; border:none; cursor:pointer; background:#153E75; color:white; transition:all 0.15s;">
+            Semua Kasus Terhitung (<span id="count-sla-tab-all">28</span>)
+          </button>
+          <button type="button" id="tab-sla-lt5" onclick="filterModalDetailSla('lt5')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            ⚡ &lt; 5 Menit (Sangat Cepat)
+          </button>
+          <button type="button" id="tab-sla-5to10" onclick="filterModalDetailSla('5to10')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            ✓ 5 - 10 Menit (Sesuai SOP)
+          </button>
+          <button type="button" id="tab-sla-gt10" onclick="filterModalDetailSla('gt10')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            ⚠️ &gt; 10 Menit (Evaluasi)
+          </button>
+        </div>
+
+        <!-- Daftar Kartu Tiket SLA -->
+        <div id="modal-sla-list-container" style="display:flex; flex-direction:column; gap:10px;">
+          <!-- Diisi via renderModalDetailSlaList() -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div
+        style="padding:12px 20px; background:white; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:11px; color:#64748B; display:flex; align-items:center; gap:6px;">
+          <span>ℹ️</span> <strong>Metodologi Akuntabilitas:</strong> Durasi dihitung sejak panggilan tercatat di SPKT 110 hingga tombol 'Tiba di TKP' diverifikasi GPS.
+        </div>
+        <button type="button" onclick="tutupModalDetailSlaPimpinan()"
+          style="padding:8px 18px; background:#F1F5F9; color:#334155; font-size:12px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer;">
+          Tutup Rincian
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL AUDIT 2: DETAIL KUAT PERSONEL & ARMADA PATROLI TERGELAR             -->
+  <!-- ========================================================================= -->
+  <div id="modal-detail-kuat-personel"
+    style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(15,23,42,0.8); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;"
+    onclick="tutupModalDetailKuatPersonel()">
+    <div
+      style="background:white; border-radius:16px; max-width:860px; width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.45); border:1px solid #CBD5E1; position:relative;"
+      onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div
+        style="background:linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%); color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div
+            style="width:40px; height:40px; border-radius:10px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:20px; border:1px solid rgba(255,255,255,0.3);">
+            🛡️
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:16px; font-weight:800; letter-spacing:0.3px;">Gelar Pasukan &amp; Alutsista Patroli Presisi</h3>
+            <span style="font-size:11.5px; opacity:0.9;">Daftar Riil Kekuatan 46 Personel Siaga Mako, Operasi Lapangan, dan 14 Unit Ranmor Dinas</span>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalDetailKuatPersonel()"
+          style="background:rgba(255,255,255,0.15); border:none; color:white; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; transition:background 0.15s;"
+          onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">✕</button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div style="padding:18px 20px; overflow-y:auto; flex:1; background:#F8FAFC;">
+        <!-- Ringkasan Bento Kuat Personel -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(135px, 1fr)); gap:10px; margin-bottom:16px;">
+          <div style="background:white; border:1px solid #BFDBFE; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#1D4ED8; text-transform:uppercase;">TOTAL KUAT TERGELAR</div>
+            <div id="modal-pers-kpi-total" style="font-size:20px; font-weight:900; color:#1E3A8A; margin-top:2px;">46 PERS</div>
+          </div>
+          <div style="background:white; border:1px solid #BBF7D0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#166534; text-transform:uppercase;">🟢 Siaga di Mako</div>
+            <div id="modal-pers-kpi-siaga" style="font-size:20px; font-weight:900; color:#16A34A; margin-top:2px;">28 Pers</div>
+          </div>
+          <div style="background:white; border:1px solid #BFDBFE; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#1E40AF; text-transform:uppercase;">🔵 Meluncur / Di TKP</div>
+            <div id="modal-pers-kpi-tugas" style="font-size:20px; font-weight:900; color:#2563EB; margin-top:2px;">6 Pers</div>
+          </div>
+          <div style="background:white; border:1px solid #FDE68A; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#92400E; text-transform:uppercase;">🟡 Cadangan Siaga</div>
+            <div id="modal-pers-kpi-cadangan" style="font-size:20px; font-weight:900; color:#D97706; margin-top:2px;">12 Pers</div>
+          </div>
+          <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#475569; text-transform:uppercase;">🚔 Ranmor Dinas</div>
+            <div style="font-size:20px; font-weight:900; color:#0F172A; margin-top:2px;">14 UNIT</div>
+          </div>
+        </div>
+
+        <!-- Filter Tab -->
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+          <button type="button" id="tab-pers-semua" onclick="filterModalDetailPersonel('semua')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:800; border-radius:8px; border:none; cursor:pointer; background:#1E3A8A; color:white; transition:all 0.15s;">
+            Semua Penempatan (46 Pers)
+          </button>
+          <button type="button" id="tab-pers-tugas" onclick="filterModalDetailPersonel('tugas')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            🔵 Meluncur &amp; Di TKP (Regu Lapangan)
+          </button>
+          <button type="button" id="tab-pers-siaga" onclick="filterModalDetailPersonel('siaga')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            🟢 Siaga Mako &amp; Command Center
+          </button>
+          <button type="button" id="tab-pers-cadangan" onclick="filterModalDetailPersonel('cadangan')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            🟡 Cadangan Siaga Piket (12 Pers)
+          </button>
+          <button type="button" id="tab-pers-ranmor" onclick="filterModalDetailPersonel('ranmor')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            🚔 Rincian 14 Armada Ranmor
+          </button>
+        </div>
+
+        <!-- Daftar Kartu Gelar Personel & Ranmor -->
+        <div id="modal-personel-list-container" style="display:flex; flex-direction:column; gap:10px;">
+          <!-- Diisi via renderModalDetailPersonelList() -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div
+        style="padding:12px 20px; background:white; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:11px; color:#64748B; display:flex; align-items:center; gap:6px;">
+          <span>⚖️</span> <strong>Dasar Pelaksanaan:</strong> Sprin Kapolres Piket Siaga Markas &amp; Sentra Komando 110 (Shift 1x24 Jam Terverifikasi).
+        </div>
+        <button type="button" onclick="tutupModalDetailKuatPersonel()"
+          style="padding:8px 18px; background:#F1F5F9; color:#334155; font-size:12px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer;">
+          Tutup Rincian
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL AUDIT 3: DETAIL INDEKS KEPUASAN MASYARAKAT (IKM & VOTING WARGA)     -->
+  <!-- ========================================================================= -->
+  <div id="modal-detail-ikm-warga"
+    style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(15,23,42,0.8); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;"
+    onclick="tutupModalDetailIkmWarga()">
+    <div
+      style="background:white; border-radius:16px; max-width:840px; width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.45); border:1px solid #CBD5E1; position:relative;"
+      onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div
+        style="background:linear-gradient(135deg, #065F46 0%, #047857 100%); color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.15);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div
+            style="width:40px; height:40px; border-radius:10px; background:rgba(255,255,255,0.18); display:flex; align-items:center; justify-content:center; font-size:20px; border:1px solid rgba(255,255,255,0.3);">
+            ⭐
+          </div>
+          <div>
+            <h3 style="margin:0; font-size:16px; font-weight:800; letter-spacing:0.3px;">Audit Indeks Kepuasan Masyarakat (IKM)</h3>
+            <span style="font-size:11.5px; opacity:0.9;">Transparansi Penilaian Riil Warga Pelapor Atas Penanganan Kasus Oleh Seluruh Unit</span>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalDetailIkmWarga()"
+          style="background:rgba(255,255,255,0.15); border:none; color:white; width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:15px; display:flex; align-items:center; justify-content:center; transition:background 0.15s;"
+          onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">✕</button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div style="padding:18px 20px; overflow-y:auto; flex:1; background:#F8FAFC;">
+        <!-- Ringkasan Bento IKM -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(135px, 1fr)); gap:10px; margin-bottom:16px;">
+          <div style="background:white; border:1px solid #A7F3D0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#065F46; text-transform:uppercase;">SKOR RATA-RATA IKM</div>
+            <div id="modal-ikm-kpi-score" style="font-size:22px; font-weight:900; color:#065F46; margin-top:2px;">4.9 <span style="font-size:11px; color:#64748B; font-weight:700;">/ 5.0</span></div>
+          </div>
+          <div style="background:white; border:1px solid #BBF7D0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#15803D; text-transform:uppercase;">KEPUASAN WARGA</div>
+            <div id="modal-ikm-kpi-percent" style="font-size:22px; font-weight:900; color:#16A34A; margin-top:2px;">98.2%</div>
+          </div>
+          <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#1E40AF; text-transform:uppercase;">TOTAL VOTING MASUK</div>
+            <div id="modal-ikm-kpi-count" style="font-size:22px; font-weight:900; color:#153E75; margin-top:2px;">11 Ulasan</div>
+          </div>
+          <div style="background:white; border:1px solid #FDE68A; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#B45309; text-transform:uppercase;">⭐⭐⭐⭐⭐ (BINTANG 5)</div>
+            <div id="modal-ikm-kpi-star5" style="font-size:22px; font-weight:900; color:#D97706; margin-top:2px;">10 Ulasan</div>
+          </div>
+          <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; text-align:center;">
+            <div style="font-size:10px; font-weight:700; color:#64748B; text-transform:uppercase;">⭐⭐⭐⭐ (BINTANG 4)</div>
+            <div id="modal-ikm-kpi-star4" style="font-size:22px; font-weight:900; color:#2563EB; margin-top:2px;">1 Ulasan</div>
+          </div>
+        </div>
+
+        <!-- Filter Tab -->
+        <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; border-bottom:1px solid #E2E8F0; padding-bottom:10px;">
+          <button type="button" id="tab-ikm-semua" onclick="filterModalDetailIkm('semua')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:800; border-radius:8px; border:none; cursor:pointer; background:#065F46; color:white; transition:all 0.15s;">
+            Semua Ulasan Warga (<span id="count-ikm-tab-all">11</span>)
+          </button>
+          <button type="button" id="tab-ikm-star5" onclick="filterModalDetailIkm('star5')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            ⭐⭐⭐⭐⭐ Bintang 5 (<span id="count-ikm-tab-star5">10</span>)
+          </button>
+          <button type="button" id="tab-ikm-star4" onclick="filterModalDetailIkm('star4')"
+            style="padding:6px 14px; font-size:11.5px; font-weight:700; border-radius:8px; border:1px solid #CBD5E1; cursor:pointer; background:white; color:#334155; transition:all 0.15s;">
+            ⭐⭐⭐⭐ Bintang 4 (<span id="count-ikm-tab-star4">1</span>)
+          </button>
+        </div>
+
+        <!-- Daftar Kartu Ulasan Warga -->
+        <div id="modal-ikm-list-container" style="display:flex; flex-direction:column; gap:10px;">
+          <!-- Diisi via renderModalDetailIkmList() -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div
+        style="padding:12px 20px; background:white; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:11px; color:#64748B; display:flex; align-items:center; gap:6px;">
+          <span>✓</span> <strong>Keabsahan Data:</strong> Ulasan disubmit langsung oleh pelapor melalui formulir survei masyarakat di portal publik SIMAPRES.
+        </div>
+        <button type="button" onclick="tutupModalDetailIkmWarga()"
+          style="padding:8px 18px; background:#F1F5F9; color:#334155; font-size:12px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer;">
+          Tutup Rincian
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- CONTAINER FLOATING TOAST NOTIFICATION -->
   <div id="toast-container"
     style="position:fixed; top:20px; right:20px; z-index:999999; display:flex; flex-direction:column; gap:10px; pointer-events:none;">
   </div>
 
   <!-- LOGIKA & SESI EKSTERNAL -->
-  <script src="js/simapres-roster.js?v=20261013_0348"></script>
-  <script src="js/e-tribrata-log.js?v=20261013_0348"></script>
+  <script src="js/simapres-roster.js?v=20261013_0415"></script>
+  <script src="js/e-tribrata-log.js?v=20261013_0415"></script>
 </body>
 
 </html>

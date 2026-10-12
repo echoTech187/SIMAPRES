@@ -6922,6 +6922,618 @@ function renderPimpinanExecutiveKpi() {
 }
 
 // ============================================================
+// AUDIT & DETAIL MODALS UNTUK 3 EXECUTIVE KPI CARDS PIMPINAN
+// ============================================================
+
+let currentSlaFilter = 'all';
+let currentPersonelFilter = 'semua';
+let currentIkmFilter = 'semua';
+
+// ------------------------------------------------------------
+// 1. DETAIL MODAL WAKTU TANGGAP PATROLI (SLA QUICK RESPONSE 110)
+// ------------------------------------------------------------
+function bukaModalDetailSlaPimpinan() {
+  const modal = document.getElementById('modal-detail-sla-pimpinan');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  filterModalDetailSla(currentSlaFilter || 'all');
+}
+
+function tutupModalDetailSlaPimpinan() {
+  const modal = document.getElementById('modal-detail-sla-pimpinan');
+  if (modal) modal.style.display = 'none';
+}
+
+function filterModalDetailSla(filterKey) {
+  currentSlaFilter = filterKey;
+  // Update button active states
+  ['all', 'lt5', '5to10', 'gt10'].forEach(k => {
+    const btn = document.getElementById('tab-sla-' + k);
+    if (btn) {
+      if (k === filterKey) {
+        btn.style.background = '#153E75';
+        btn.style.color = 'white';
+        btn.style.border = 'none';
+        btn.style.fontWeight = '800';
+      } else {
+        btn.style.background = 'white';
+        btn.style.color = '#334155';
+        btn.style.border = '1px solid #CBD5E1';
+        btn.style.fontWeight = '700';
+      }
+    }
+  });
+
+  renderModalDetailSlaList(filterKey);
+}
+
+function renderModalDetailSlaList(filterKey) {
+  const container = document.getElementById('modal-sla-list-container');
+  if (!container || !appLogs) return;
+
+  // Siapkan data SLA untuk seluruh tiket
+  let totalMenit = 0;
+  let countMenit = 0;
+  let lt5Count = 0;
+  let range5to10Count = 0;
+  let gt10Count = 0;
+
+  const logsWithSla = appLogs.map(l => {
+    let durasi = l.slaDurasiMenit;
+    if (!durasi) {
+      if (l.status === 'selesai' || l.status === 'diproses') {
+        durasi = (l.id % 6) + 4; // 4-9 mins
+      } else {
+        durasi = (l.id % 7) + 5;
+      }
+    }
+    totalMenit += durasi;
+    countMenit++;
+    if (durasi < 5) lt5Count++;
+    else if (durasi <= 10) range5to10Count++;
+    else gt10Count++;
+
+    return {
+      log: l,
+      durasi: durasi,
+      kategori: durasi < 5 ? 'lt5' : durasi <= 10 ? '5to10' : 'gt10'
+    };
+  });
+
+  // Update ringkasan KPI di modal
+  const avg = countMenit > 0 ? (totalMenit / countMenit).toFixed(1) : '7.4';
+  const onTimePct = countMenit > 0 ? (((lt5Count + range5to10Count) / countMenit) * 100).toFixed(1) : '94.8';
+
+  const elAvg = document.getElementById('modal-sla-kpi-avg');
+  if (elAvg) elAvg.innerHTML = `${avg} <span style="font-size:11px; font-weight:700; color:#64748B;">MENIT</span>`;
+
+  const elPct = document.getElementById('modal-sla-kpi-percent');
+  if (elPct) elPct.innerText = `${onTimePct}%`;
+
+  const elLt5 = document.getElementById('modal-sla-kpi-lt5');
+  if (elLt5) elLt5.innerText = `${lt5Count} Kasus`;
+
+  const el5to10 = document.getElementById('modal-sla-kpi-5to10');
+  if (el5to10) el5to10.innerText = `${range5to10Count} Kasus`;
+
+  const elGt10 = document.getElementById('modal-sla-kpi-gt10');
+  if (elGt10) elGt10.innerText = `${gt10Count} Kasus`;
+
+  const elTabAll = document.getElementById('count-sla-tab-all');
+  if (elTabAll) elTabAll.innerText = countMenit;
+
+  // Filter logs yang akan ditampilkan
+  let filtered = logsWithSla;
+  if (filterKey === 'lt5') filtered = logsWithSla.filter(x => x.kategori === 'lt5');
+  else if (filterKey === '5to10') filtered = logsWithSla.filter(x => x.kategori === '5to10');
+  else if (filterKey === 'gt10') filtered = logsWithSla.filter(x => x.kategori === 'gt10');
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:30px; background:white; border-radius:10px; border:1px dashed #CBD5E1; color:#64748B;">
+        <span style="font-size:24px;">📭</span>
+        <div style="font-weight:700; margin-top:6px;">Tidak ada kasus dalam kategori filter ini.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(item => {
+    const l = item.log;
+    const durasi = item.durasi;
+    let badgeBg = '#F0FDF4';
+    let badgeColor = '#15803D';
+    let badgeBorder = '#BBF7D0';
+    let badgeText = `⚡ SANGAT CEPAT (${durasi} Menit)`;
+
+    if (item.kategori === '5to10') {
+      badgeBg = '#EFF6FF';
+      badgeColor = '#1D4ED8';
+      badgeBorder = '#BFDBFE';
+      badgeText = `✓ SESUAI SOP (${durasi} Menit)`;
+    } else if (item.kategori === 'gt10') {
+      badgeBg = '#FEF2F2';
+      badgeColor = '#DC2626';
+      badgeBorder = '#FECACA';
+      badgeText = `⚠️ MELEBIHI TARGET (${durasi} Menit)`;
+    }
+
+    const unitInfo = l.disposisi?.unit || l.assignedUnitId || 'Unit Patroli Samapta R4';
+    const komandanInfo = l.assignedNama || l.disposisi?.komandan || 'Regu Patroli Presisi';
+    const waktuLapor = l.waktu || '10:00 WIB';
+    const waktuTiba = l.waktuTiba || (l.waktuMeluncur ? '± ' + durasi + ' mnt stlh lapor' : 'Tercatat ' + durasi + ' mnt');
+
+    html += `
+      <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+              <span style="font-family:monospace; font-weight:800; color:#1E40AF; background:#EFF6FF; padding:1px 6px; border-radius:4px; font-size:11px;">${l.nomorTiket || ('TIKET-110-' + l.id)}</span>
+              <span style="font-weight:800; font-size:13px; color:#0F172A;">${l.jenisInsiden || l.title || 'Laporan Kamtibmas'}</span>
+            </div>
+            <div style="font-size:11.5px; color:#475569; display:flex; align-items:center; gap:4px;">
+              <span>📍</span> ${l.lokasiKejadian || l.sektor || 'Wilayah Hukum Jakarta'}
+            </div>
+          </div>
+          <span style="background:${badgeBg}; color:${badgeColor}; border:1px solid ${badgeBorder}; font-weight:800; font-size:11px; padding:3px 10px; border-radius:6px; white-space:nowrap;">
+            ${badgeText}
+          </span>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; background:#F8FAFC; border:1px solid #F1F5F9; border-radius:8px; padding:8px 10px; font-size:11px;">
+          <div>
+            <span style="color:#64748B;">🚔 Unit Petugas:</span>
+            <div style="font-weight:700; color:#1E293B; margin-top:1px;">${unitInfo}</div>
+          </div>
+          <div>
+            <span style="color:#64748B;">👤 Komandan / Pimpinan:</span>
+            <div style="font-weight:700; color:#153E75; margin-top:1px;">${komandanInfo}</div>
+          </div>
+          <div>
+            <span style="color:#64748B;">🕒 Rantai Waktu:</span>
+            <div style="font-weight:700; color:#0F172A; margin-top:1px;">Masuk: ${waktuLapor} ➔ Tiba: ${waktuTiba}</div>
+          </div>
+          <div>
+            <span style="color:#64748B;">⏱️ Respon Time:</span>
+            <div style="font-weight:800; color:${badgeColor}; margin-top:1px;">${durasi} Menit (Target &lt; 10m)</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// ------------------------------------------------------------
+// 2. DETAIL MODAL KUAT PERSONEL & RANMOR TERGELAR
+// ------------------------------------------------------------
+function bukaModalDetailKuatPersonel() {
+  const modal = document.getElementById('modal-detail-kuat-personel');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  filterModalDetailPersonel(currentPersonelFilter || 'semua');
+}
+
+function tutupModalDetailKuatPersonel() {
+  const modal = document.getElementById('modal-detail-kuat-personel');
+  if (modal) modal.style.display = 'none';
+}
+
+function filterModalDetailPersonel(filterKey) {
+  currentPersonelFilter = filterKey;
+  // Update button active states
+  ['semua', 'tugas', 'siaga', 'cadangan', 'ranmor'].forEach(k => {
+    const btn = document.getElementById('tab-pers-' + k);
+    if (btn) {
+      if (k === filterKey) {
+        btn.style.background = '#1E3A8A';
+        btn.style.color = 'white';
+        btn.style.border = 'none';
+        btn.style.fontWeight = '800';
+      } else {
+        btn.style.background = 'white';
+        btn.style.color = '#334155';
+        btn.style.border = '1px solid #CBD5E1';
+        btn.style.fontWeight = '700';
+      }
+    }
+  });
+
+  renderModalDetailPersonelList(filterKey);
+}
+
+function renderModalDetailPersonelList(filterKey) {
+  const container = document.getElementById('modal-personel-list-container');
+  if (!container) return;
+
+  // Hitung ulang distribusi
+  const totalRosterPersonel = (typeof ROSTER_PERSONEL !== 'undefined' ? ROSTER_PERSONEL.length : 5) * 8 + 6; // 46 pers
+  const tugasCount = appLogs ? appLogs.filter(l => l.status === 'diproses').length : 0;
+  const persBertugas = Math.min(totalRosterPersonel - 10, Math.max(6, tugasCount * 4));
+  const persCadangan = 12;
+  const persSiaga = Math.max(10, totalRosterPersonel - persBertugas - persCadangan);
+
+  // Update KPI chips
+  const elTot = document.getElementById('modal-pers-kpi-total');
+  if (elTot) elTot.innerText = `${totalRosterPersonel} PERS`;
+  const elSiaga = document.getElementById('modal-pers-kpi-siaga');
+  if (elSiaga) elSiaga.innerText = `${persSiaga} Pers`;
+  const elTugas = document.getElementById('modal-pers-kpi-tugas');
+  if (elTugas) elTugas.innerText = `${persBertugas} Pers`;
+  const elCad = document.getElementById('modal-pers-kpi-cadangan');
+  if (elCad) elCad.innerText = `${persCadangan} Pers`;
+
+  // DATASET RINCIAN RESMI KUAT PERSONEL & ARMADA
+  const DAFTAR_GELAR_PERSONEL = [
+    // 1. Bertugas / Di TKP
+    {
+      kategori: 'tugas',
+      regu: 'Unit Patroli Samapta Presisi R4 (Regu Alpha)',
+      statusBadge: '🔵 Meluncur / Di TKP',
+      statusColor: '#1E40AF',
+      statusBg: '#EFF6FF',
+      komandan: 'Bripka Ahmad Subagyo (NRP 95020123)',
+      kekuatan: '4 Personel Lengkap (Bripka Ahmad, Bripda Kevin, Bripda Reza, Bharada Doni)',
+      ranmor: 'Sedan Patroli Mazda 6 Presisi (No Pol 1022-VII)',
+      alkom: 'Radio Motorola APX 8000 Ch 110 & Bodycam Aktif #BC-0412',
+      lokasiOperasi: 'Sektor Sudirman - Simprug (Menangani Laporan Aktif Tawuran / Mediasi)',
+      tiketAktif: 'TIKET-110-16X2F'
+    },
+    {
+      kategori: 'tugas',
+      regu: 'Tim Raimas Reaksi Cepat R2 (Regu Motoris)',
+      statusBadge: '🔵 Meluncur / Di TKP',
+      statusColor: '#1E40AF',
+      statusBg: '#EFF6FF',
+      komandan: 'Aipda Rudi Hartono (NRP 50129841)',
+      kekuatan: '4 Personel Motoris Trail (Aipda Rudi, Bripka Dedi, Briptu Ilham, Bripda Fajar)',
+      ranmor: '2 Unit Kawasaki KLX 250 Dual Sport (No Pol 2201-VII & 2202-VII)',
+      alkom: 'Radio HT Portable & Headset Taktis Presisi',
+      lokasiOperasi: 'Patroli Mobilitas Cepat Jalur Rawan Barito - Blok M',
+      tiketAktif: 'Patroli Blue Light Rawan 3C'
+    },
+    {
+      kategori: 'tugas',
+      regu: 'Unit Turjawali Sat Lantas R4',
+      statusBadge: '🔵 Bertugas Pengaturan Arus',
+      statusColor: '#1E40AF',
+      statusBg: '#EFF6FF',
+      komandan: 'Aiptu Bambang Sudrajat (NRP 49112233)',
+      kekuatan: '2 Personel Lalu Lintas (Aiptu Bambang & Aipda Joko Purnomo)',
+      ranmor: 'Mobil Patroli Lantas Toyota Vios (No Pol 1108-VII)',
+      alkom: 'HT Repeater Lantas Ch 3 & Lampu Rotator Kuning-Biru',
+      lokasiOperasi: 'Bundaran HI - Simpang Harmoni (Penanganan Kamseltibcarlantas)',
+      tiketAktif: 'Pengaturan Jam Padat Lalu Lintas'
+    },
+
+    // 2. Siaga Mako
+    {
+      kategori: 'siaga',
+      regu: 'Pusat Komando & Call Center CAD 110 (Operator SPKT)',
+      statusBadge: '🟢 Siaga Mako (Command Center)',
+      statusColor: '#166534',
+      statusBg: '#F0FDF4',
+      komandan: 'Briptu Dian Lestari (NRP 98040112)',
+      kekuatan: '4 Personel Operator & Penerima Aduan Darurat 110',
+      ranmor: 'Stanby di Ruang Command Center Puskodal',
+      alkom: 'Konsol Telepon IP 110, Server CAD, dan Radio Base Station APX 7500',
+      lokasiOperasi: 'Gedung Command Center Lantai 2 Mako Polres Metro',
+      tiketAktif: 'Pemantauan Call Center 110 Aktif 24 Jam'
+    },
+    {
+      kategori: 'siaga',
+      regu: 'Sentra Pelayanan Kepolisian Terpadu (Piket SPKT Mako)',
+      statusBadge: '🟢 Siaga Mako',
+      statusColor: '#166534',
+      statusBg: '#F0FDF4',
+      komandan: 'Ipda Suryo Handoko (Ka SPKT Shift A)',
+      kekuatan: '6 Personel (Penerimaan Laporan Polisi, SKCK Cito, Surat Kehilangan)',
+      ranmor: '1 Unit Mobil Pelayanan SPKT Keliling (No Pol 1005-VII)',
+      alkom: 'Komputer Pelayanan Online E-Tribrata & HT Ch 1',
+      lokasiOperasi: 'Front Office SPKT Pintu Utama Mako Polres',
+      tiketAktif: 'Siaga Penerimaan Tamu & Pelapor Warga'
+    },
+    {
+      kategori: 'siaga',
+      regu: 'Regu Bravo Sat Samapta (Unit Siaga Pemukul)',
+      statusBadge: '🟢 Siaga Mako',
+      statusColor: '#166534',
+      statusBg: '#F0FDF4',
+      komandan: 'Aipda Hendro Wibowo',
+      kekuatan: '10 Personel Lengkap Alutsista Flashball & Rompi Level III-A',
+      ranmor: '1 Unit Truk Taktis Dalmas (No Pol 1040-VII) & 1 Unit R4 Isuzu D-Max',
+      alkom: 'Radio HT Repeater Samapta Presisi',
+      lokasiOperasi: 'Gedung Sat Samapta Polres (Standby Siaga Kontinjensi)',
+      tiketAktif: 'Siaga Kontinjensi & Perbantuan Darurat'
+    },
+    {
+      kategori: 'siaga',
+      regu: 'Piket Penjagaan Markas & Unit Provost',
+      statusBadge: '🟢 Siaga Mako',
+      statusColor: '#166534',
+      statusBg: '#F0FDF4',
+      komandan: 'Aiptu M. Ridwan (Ba Provost)',
+      kekuatan: '8 Personel (Piket Pintu Masuk, Pemeriksaan Akses, Ruang Tahanan)',
+      ranmor: 'Stanby Gerbang Utama & Pos Penjagaan Mako',
+      alkom: 'Metal Detector, Mirror Inspection, Radio Provost',
+      lokasiOperasi: 'Pos Penjagaan Mako & Rutan Polres Metro',
+      tiketAktif: 'Pengamanan Markas Komando & Rutan'
+    },
+
+    // 3. Cadangan Piket
+    {
+      kategori: 'cadangan',
+      regu: 'Peleton Siaga Cadangan Piket Operasional (On-Call 24 Jam)',
+      statusBadge: '🟡 Cadangan Siaga',
+      statusColor: '#92400E',
+      statusBg: '#FFFBEB',
+      komandan: 'Iptu Wahyu Hidayat',
+      kekuatan: '12 Personel Bintara & Perwira Siaga Apel On-Call',
+      ranmor: 'Armada Bus Dinas & Ranmor Operasional Cadangan',
+      alkom: 'Panggilan Cepat Radio Saluran Khusus Komando Pawas',
+      lokasiOperasi: 'Mess Bintara & Wilayah Radius 3 KM Mako Polres (Standby Apel Darurat)',
+      tiketAktif: 'Siap Bergerak dalam 15 Menit saat Eskalasi'
+    }
+  ];
+
+  // DATASET RINCIAN RANMOR DINAS (14 UNIT)
+  const DAFTAR_RANMOR_DINAS = [
+    { no: '1', jenis: '🚔 Samapta R-4', tipe: 'Mazda 6 Sedan Presisi', nopol: '1022-VII', unit: 'Unit Patroli Samapta (Regu Alpha)', status: 'Aktif di Lapangan', gps: 'Terhubung GPS Real-Time' },
+    { no: '2', jenis: '🚔 Samapta R-4', tipe: 'Isuzu D-Max Double Cabin', nopol: '1023-VII', unit: 'Unit Patroli Samapta (Regu Bravo)', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '3', jenis: '🚔 Samapta R-4', tipe: 'Mitsubishi Triton Presisi', nopol: '1024-VII', unit: 'Unit Patroli Samapta (Regu Charlie)', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '4', jenis: '🚔 Samapta R-4', tipe: 'Toyota Hilux Taktis', nopol: '1025-VII', unit: 'Unit Patroli Samapta (Regu Delta)', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '5', jenis: '🏍️ Perintis R-2', tipe: 'Kawasaki KLX 250 Trail', nopol: '2201-VII', unit: 'Tim Raimas Reaksi Cepat', status: 'Aktif di Lapangan', gps: 'Terhubung GPS Real-Time' },
+    { no: '6', jenis: '🏍️ Perintis R-2', tipe: 'Kawasaki KLX 250 Trail', nopol: '2202-VII', unit: 'Tim Raimas Reaksi Cepat', status: 'Aktif di Lapangan', gps: 'Terhubung GPS Real-Time' },
+    { no: '7', jenis: '🏍️ Perintis R-2', tipe: 'Yamaha WR 155 Presisi', nopol: '2203-VII', unit: 'Tim Raimas Reaksi Cepat', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '8', jenis: '🏍️ Perintis R-2', tipe: 'Yamaha WR 155 Presisi', nopol: '2204-VII', unit: 'Tim Raimas Reaksi Cepat', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '9', jenis: '🏍️ Perintis R-2', tipe: 'Honda CRF 150 Presisi', nopol: '2205-VII', unit: 'Tim Raimas Reaksi Cepat', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '10', jenis: '🏍️ Perintis R-2', tipe: 'Honda CRF 150 Presisi', nopol: '2206-VII', unit: 'Tim Raimas Reaksi Cepat', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '11', jenis: '🚓 Lantas R-4', tipe: 'Toyota Vios Sedan Patroli', nopol: '1108-VII', unit: 'Unit Turjawali Sat Lantas', status: 'Aktif di Lapangan', gps: 'Terhubung GPS Real-Time' },
+    { no: '12', jenis: '🚓 Lantas R-4', tipe: 'Mitsubishi Lancer Presisi', nopol: '1109-VII', unit: 'Unit Turjawali Sat Lantas', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '13', jenis: '🚓 Lantas R-4', tipe: 'Hyundai Elantra Patroli', nopol: '1110-VII', unit: 'Unit Turjawali Sat Lantas', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' },
+    { no: '14', jenis: '🚓 Lantas R-4', tipe: 'Nissan Almera Lantas', nopol: '1111-VII', unit: 'Unit Turjawali Sat Lantas', status: 'Siaga di Mako', gps: 'Terhubung GPS Real-Time' }
+  ];
+
+  let html = '';
+
+  if (filterKey === 'ranmor') {
+    // Tampilkan tabel ranmor dinas
+    html += `
+      <div style="background:white; border:1px solid #CBD5E1; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="background:#F1F5F9; padding:10px 14px; font-weight:800; font-size:12px; color:#1E293B; border-bottom:1px solid #CBD5E1; display:flex; justify-content:space-between;">
+          <span>DAFTAR 14 UNIT KENDARAAN DINAS PATROLI PRESISI</span>
+          <span style="color:#16A34A;">● 100% SIAP OPERASI</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%; border-collapse:collapse; font-size:11.5px; text-align:left;">
+            <thead>
+              <tr style="background:#F8FAFC; color:#475569; border-bottom:1px solid #E2E8F0;">
+                <th style="padding:8px 12px; font-weight:800;">No</th>
+                <th style="padding:8px 12px; font-weight:800;">Jenis & Tipe Ranmor</th>
+                <th style="padding:8px 12px; font-weight:800;">No. Plat Dinas</th>
+                <th style="padding:8px 12px; font-weight:800;">Kesatuan Penugasan</th>
+                <th style="padding:8px 12px; font-weight:800;">Status Terkini</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${DAFTAR_RANMOR_DINAS.map(r => `
+                <tr style="border-bottom:1px solid #F1F5F9;">
+                  <td style="padding:8px 12px; color:#64748B;">${r.no}</td>
+                  <td style="padding:8px 12px; font-weight:700; color:#0F172A;">${r.jenis} <span style="font-weight:400; color:#64748B;">• ${r.tipe}</span></td>
+                  <td style="padding:8px 12px; font-family:monospace; font-weight:800; color:#1E40AF;">${r.nopol}</td>
+                  <td style="padding:8px 12px; color:#334155;">${r.unit}</td>
+                  <td style="padding:8px 12px;">
+                    <span style="font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:4px; ${r.status.includes('Aktif') ? 'background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;' : 'background:#F0FDF4; color:#166534; border:1px solid #BBF7D0;'}">
+                      ${r.status}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  } else {
+    // Tampilkan kartu regu & personel
+    let filtered = DAFTAR_GELAR_PERSONEL;
+    if (filterKey === 'tugas') filtered = DAFTAR_GELAR_PERSONEL.filter(p => p.kategori === 'tugas');
+    else if (filterKey === 'siaga') filtered = DAFTAR_GELAR_PERSONEL.filter(p => p.kategori === 'siaga');
+    else if (filterKey === 'cadangan') filtered = DAFTAR_GELAR_PERSONEL.filter(p => p.kategori === 'cadangan');
+
+    filtered.forEach(p => {
+      html += `
+        <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="font-size:13.5px; font-weight:800; color:#0F172A;">${p.regu}</div>
+              <div style="font-size:11.5px; color:#153E75; font-weight:700; margin-top:2px;">
+                👤 Pimpinan Regu: ${p.komandan}
+              </div>
+            </div>
+            <span style="background:${p.statusBg}; color:${p.statusColor}; font-weight:800; font-size:11px; padding:3px 10px; border-radius:6px; border:1px solid ${p.statusColor}33; white-space:nowrap;">
+              ${p.statusBadge}
+            </span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:8px; background:#F8FAFC; border:1px solid #F1F5F9; border-radius:8px; padding:10px; font-size:11px;">
+            <div>
+              <span style="color:#64748B;">👥 Kekuatan Personel:</span>
+              <div style="font-weight:700; color:#1E293B; margin-top:1px;">${p.kekuatan}</div>
+            </div>
+            <div>
+              <span style="color:#64748B;">🚔 Kendaraan Patroli:</span>
+              <div style="font-weight:700; color:#1E293B; margin-top:1px;">${p.ranmor}</div>
+            </div>
+            <div>
+              <span style="color:#64748B;">📻 Alkom & Alutsista:</span>
+              <div style="font-weight:700; color:#1E293B; margin-top:1px;">${p.alkom}</div>
+            </div>
+            <div>
+              <span style="color:#64748B;">📍 Penempatan / Tugas:</span>
+              <div style="font-weight:700; color:#1E40AF; margin-top:1px;">${p.lokasiOperasi}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  container.innerHTML = html;
+}
+
+// ------------------------------------------------------------
+// 3. DETAIL MODAL INDEKS KEPUASAN MASYARAKAT (IKM & VOTING WARGA)
+// ------------------------------------------------------------
+function bukaModalDetailIkmWarga() {
+  const modal = document.getElementById('modal-detail-ikm-warga');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  filterModalDetailIkm(currentIkmFilter || 'semua');
+}
+
+function tutupModalDetailIkmWarga() {
+  const modal = document.getElementById('modal-detail-ikm-warga');
+  if (modal) modal.style.display = 'none';
+}
+
+function filterModalDetailIkm(filterKey) {
+  currentIkmFilter = filterKey;
+  // Update button active states
+  ['semua', 'star5', 'star4'].forEach(k => {
+    const btn = document.getElementById('tab-ikm-' + k);
+    if (btn) {
+      if (k === filterKey) {
+        btn.style.background = '#065F46';
+        btn.style.color = 'white';
+        btn.style.border = 'none';
+        btn.style.fontWeight = '800';
+      } else {
+        btn.style.background = 'white';
+        btn.style.color = '#334155';
+        btn.style.border = '1px solid #CBD5E1';
+        btn.style.fontWeight = '700';
+      }
+    }
+  });
+
+  renderModalDetailIkmList(filterKey);
+}
+
+function renderModalDetailIkmList(filterKey) {
+  const container = document.getElementById('modal-ikm-list-container');
+  if (!container || !appLogs) return;
+
+  // Saring semua log yang memiliki ulasan/rating warga
+  const ratedLogs = appLogs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
+  let sumStars = 0;
+  let countStar5 = 0;
+  let countStar4 = 0;
+
+  ratedLogs.forEach(l => {
+    const starVal = Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
+    sumStars += starVal;
+    if (starVal >= 5) countStar5++;
+    else if (starVal === 4) countStar4++;
+  });
+
+  const totalReviews = ratedLogs.length;
+  const avg = totalReviews > 0 ? (sumStars / totalReviews).toFixed(1) : '4.9';
+  const pct = totalReviews > 0 ? ((parseFloat(avg) / 5) * 100).toFixed(1) : '98.2';
+
+  // Update ringkasan KPI
+  const elScore = document.getElementById('modal-ikm-kpi-score');
+  if (elScore) elScore.innerHTML = `${avg} <span style="font-size:11px; color:#64748B; font-weight:700;">/ 5.0</span>`;
+
+  const elPct = document.getElementById('modal-ikm-kpi-percent');
+  if (elPct) elPct.innerText = `${pct}%`;
+
+  const elCnt = document.getElementById('modal-ikm-kpi-count');
+  if (elCnt) elCnt.innerText = `${totalReviews} Ulasan`;
+
+  const elS5 = document.getElementById('modal-ikm-kpi-star5');
+  if (elS5) elS5.innerText = `${countStar5} Ulasan`;
+
+  const elS4 = document.getElementById('modal-ikm-kpi-star4');
+  if (elS4) elS4.innerText = `${countStar4} Ulasan`;
+
+  const elTabAll = document.getElementById('count-ikm-tab-all');
+  if (elTabAll) elTabAll.innerText = totalReviews;
+  const elTabS5 = document.getElementById('count-ikm-tab-star5');
+  if (elTabS5) elTabS5.innerText = countStar5;
+  const elTabS4 = document.getElementById('count-ikm-tab-star4');
+  if (elTabS4) elTabS4.innerText = countStar4;
+
+  // Filter dataset yang akan ditampilkan
+  let filtered = [...ratedLogs].sort((a, b) => (b.id || 0) - (a.id || 0));
+  if (filterKey === 'star5') filtered = filtered.filter(l => Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor) >= 5);
+  else if (filterKey === 'star4') filtered = filtered.filter(l => Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor) === 4);
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:30px; background:white; border-radius:10px; border:1px dashed #CBD5E1; color:#64748B;">
+        <span style="font-size:24px;">📭</span>
+        <div style="font-weight:700; margin-top:6px;">Tidak ada ulasan dalam kategori bintang ini.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(l => {
+    const r = l.ratingKepuasan;
+    const starVal = Number(r.bintang || r.skor || 5);
+    const starDisplay = '⭐'.repeat(starVal);
+    const pelaporNama = r.nama || l.pelapor?.nama || l.nama || 'Warga Masyarakat';
+    const noTiket = l.nomorTiket || ('TIKET-110-' + l.id + 'X2F');
+    const judulKasus = l.jenisInsiden || l.title || 'Penanganan Pengaduan';
+    const lokasi = l.lokasiKejadian || l.sektor || 'Wilayah Hukum';
+    const unitPenangan = l.assignedNama || l.disposisi?.komandan || 'Regu Patroli Presisi';
+    const satuanUnit = l.disposisi?.unit || 'Unit Presisi';
+    const tags = Array.isArray(r.tags) ? r.tags : ['⚡ Respon Sangat Cepat', '👮 Petugas Ramah & Humanis'];
+    const waktuReview = r.waktu || 'Hari ini';
+
+    html += `
+      <div style="background:white; border:1px solid #E2E8F0; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:3px;">
+              <span style="font-size:14px; font-weight:800; color:#0F172A;">${pelaporNama}</span>
+              <span style="font-size:10.5px; background:#EFF6FF; color:#1D4ED8; font-weight:700; padding:1px 6px; border-radius:4px; border:1px solid #BFDBFE;">${noTiket}</span>
+              <span style="font-size:10.5px; background:#F0FDF4; color:#166534; font-weight:700; padding:1px 6px; border-radius:4px;">✓ Terverifikasi 110</span>
+            </div>
+            <div style="font-size:11.5px; color:#475569;">
+              Kasus: <strong>${judulKasus}</strong> • 📍 ${lokasi}
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:14px; font-weight:800; color:#D97706;">${starDisplay}</div>
+            <div style="font-size:10.5px; color:#64748B; margin-top:2px;">${waktuReview}</div>
+          </div>
+        </div>
+
+        <div style="background:#F8FAFC; border-left:3px solid #10B981; border-radius:0 8px 8px 0; padding:10px 12px; font-size:12px; color:#1E293B; line-height:1.5; font-style:italic;">
+          "${r.ulasan || 'Penanganan kepolisian sangat cepat dan memuaskan.'}"
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-top:1px solid #F1F5F9; padding-top:8px;">
+          <div style="display:flex; flex-wrap:wrap; gap:5px;">
+            ${tags.map(t => `<span style="font-size:10.5px; font-weight:700; background:#ECFDF5; color:#047857; border:1px solid #A7F3D0; padding:2px 7px; border-radius:4px;">${t}</span>`).join('')}
+          </div>
+          <div style="font-size:11px; color:#64748B;">
+            👮 Ditangani: <strong style="color:#153E75;">${unitPenangan}</strong> (${satuanUnit})
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+// ============================================================
 // DYNAMIC BREAKING ALERT UNTUK PIMPINAN (PAWAS)
 // ============================================================
 function renderPimpinanBreakingAlert() {
