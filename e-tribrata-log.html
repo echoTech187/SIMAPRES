@@ -4279,7 +4279,7 @@
           urgensi: '🚨 Darurat',
           fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
           fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-          fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          fotoPersiapan: 'polri_patrol_car.jpg',
           lokasiKejadian: 'Jl. Simprug Golf Raya No. 15, Kebayoran Lama',
           alasanTolak: ''
         },
@@ -4681,7 +4681,7 @@
         'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80'
       ];
       const sampleBuktiPersiapan = [
-        'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        'assets/images/polri_patrol_car.jpg',
         'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
         'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
         'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80'
@@ -4762,7 +4762,9 @@
 
           if (!l.koordinatGps) l.koordinatGps = '-6.2345, 106.8423';
           if (!l.catatanPersiapan) l.catatanPersiapan = 'Personel lengkap, perlengkapan dinas siap siaga, meluncur menuju TKP.';
-          if (!l.fotoPersiapan) l.fotoPersiapan = sampleBuktiPersiapan[l.id % sampleBuktiPersiapan.length];
+          if (!l.fotoPersiapan || l.fotoPersiapan.includes('photo-1549965408869') || l.fotoPersiapan.includes('photo-1449965408869')) {
+            l.fotoPersiapan = 'polri_patrol_car.jpg';
+          }
           if (!l.deskripsiTindakan && (l.status === 'selesai' || l.tahap >= 5)) {
             l.deskripsiTindakan = 'Telah tiba di TKP, mengamankan perimeter lokasi kejadian, pendataan saksi dan mediasi situasi hingga kondusif.';
           }
@@ -6181,7 +6183,7 @@
       const gpsVal = (document.getElementById('koordinat-gps')?.value) || log.koordinatGps || '-6.2345, 106.8423';
 
       const poolPersiapan = [
-        'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        'polri_patrol_car.jpg',
         'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
         'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80'
       ];
@@ -8786,8 +8788,25 @@
       if (!log) return;
 
       const defaultFotoPengaduan = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80';
-      const defaultFotoPersiapan = 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
+      const defaultFotoPersiapan = 'polri_patrol_car.jpg';
       const defaultFotoTindakan = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
+
+      // Identifikasi Nama Petugas Lapangan (Bukan Nama Pelapor Warga/Sipil)
+      const namaPetugas = log.disposisi?.komandan
+        || (log.tipePelapor === 'personel' ? log.nama : 'Bripka Ahmad & Regu Alpha (Unit Samapta Presisi)');
+      const pimpinanSingkat = namaPetugas.split('&')[0].trim();
+      const nrpPetugas = (log.tipePelapor === 'personel' && log.nrp) ? log.nrp : '50123456';
+      const namaPelapor = (log.tipePelapor === 'personel') ? 'Personel Polisi' : (log.nama || 'Masyarakat');
+      const noTelpPelapor = log.noTelpPelapor || '110 (Call Center)';
+
+      // Format GPS agar rapi & terstandar (maks 4 desimal)
+      const rawGps = log.koordinatGps || '-6.2345, 106.8423';
+      const cleanGps = rawGps.includes(',')
+        ? rawGps.split(',').map(n => {
+            const v = parseFloat(n.trim());
+            return isNaN(v) ? n.trim() : v.toFixed(4);
+          }).join(', ')
+        : rawGps;
 
       if (type === 'pengaduan') {
         titleEl.innerHTML = '📷 Bukti Pengaduan Masyarakat (110)';
@@ -8800,19 +8819,21 @@
         };
         imgEl.src = src;
         descEl.innerText = 'Foto dokumentasi awal saat warga menghubungi call center 110 terkait "' + log.title + '". Lokasi: ' + (log.lokasiKejadian || log.sektor || 'Jakarta');
-        metaEl.innerText = 'Pelapor: Masyarakat (Terverifikasi Call Center 110)';
+        metaEl.innerText = 'Pelapor: ' + namaPelapor + ' (Kontak: ' + noTelpPelapor + ')';
       } else if (type === 'persiapan') {
         titleEl.innerHTML = '📷 Bukti Persiapan Keberangkatan (GPS)';
-        subEl.innerText = (log.nama || 'Bripka Ahmad') + ' • Koordinat GPS Terkunci';
+        subEl.innerText = pimpinanSingkat + ' • Koordinat GPS Terkunci';
         let src = log.fotoPersiapan || defaultFotoPersiapan;
-        if (src.includes('placehold.co')) src = defaultFotoPersiapan;
+        if (src.includes('placehold.co') || src.includes('photo-1549965408869') || src.includes('photo-1449965408869')) {
+          src = defaultFotoPersiapan;
+        }
         imgEl.onerror = function () {
           this.onerror = null;
           this.src = SVG_FALLBACK_PERSIAPAN;
         };
         imgEl.src = src;
-        descEl.innerText = 'Foto kesiapan personel dan armada patroli dinas sebelum meluncur. Koordinat: ' + (log.koordinatGps || '-6.2345, 106.8423') + '. Keterangan: "' + (log.catatanPersiapan || 'Personel dan armada siap siaga') + '"';
-        metaEl.innerText = 'Petugas: ' + (log.nama || 'Bripka Ahmad') + ' • GPS: ' + (log.koordinatGps || '-6.2345, 106.8423') + ' (Waktu: ' + (log.waktuMeluncur || log.waktu || '10:50 WIB') + ')';
+        descEl.innerText = 'Foto kesiapan personel dan armada patroli dinas sebelum meluncur. Koordinat: ' + cleanGps + '. Keterangan: "' + (log.catatanPersiapan || 'Personel lengkap, perlengkapan dinas siap siaga, meluncur menuju TKP.') + '"';
+        metaEl.innerText = 'Petugas: ' + namaPetugas + ' • GPS: ' + cleanGps + ' (Waktu: ' + (log.waktuMeluncur || log.disposisi?.waktuDisposisi || log.waktu || '13:05 WIB') + ')';
       } else if (type === 'selesai') {
         titleEl.innerHTML = '✅ Bukti Situasi Akhir & Kasus Selesai';
         subEl.innerText = (log.nomorTiket || 'TIKET-110') + ' • Selesai Ditangani';
@@ -8824,10 +8845,10 @@
         };
         imgEl.src = src;
         descEl.innerText = 'Foto dokumentasi penutupan kasus dan pemulihan ketertiban umum oleh personel. Catatan: "' + (log.catatanSelesai || 'Situasi telah aman dan kondusif, kasus tuntas ditangani.') + '"';
-        metaEl.innerText = 'Petugas Penindak: ' + (log.nama || 'Bripka Ahmad') + ' • Waktu Selesai: ' + (log.waktuSelesai || log.waktu || '11:45 WIB');
+        metaEl.innerText = 'Petugas Penindak: ' + namaPetugas + ' • Waktu Selesai: ' + (log.waktuSelesai || log.waktu || '11:45 WIB');
       } else {
         titleEl.innerHTML = '📸 Bukti Tindakan & Respon Petugas di TKP';
-        subEl.innerText = (log.nama || 'Bripka Ahmad') + ' • Tahap ' + (log.tahap || 3) + '/5';
+        subEl.innerText = pimpinanSingkat + ' • Tahap ' + (log.tahap || 3) + '/5';
         let src = log.fotoTindakan || defaultFotoTindakan;
         if (src.includes('placehold.co')) src = defaultFotoTindakan;
         imgEl.onerror = function () {
@@ -8835,8 +8856,8 @@
           this.src = SVG_FALLBACK_TINDAKAN;
         };
         imgEl.src = src;
-        descEl.innerText = 'Foto respon penanganan lapangan oleh ' + (log.nama || 'personel') + ' di TKP. Meliputi sterilisasi tempat kejadian, penertiban, dan pemulihan ketertiban umum. Catatan: "' + (log.deskripsiTindakan || 'Tindakan penertiban selesai sesuai SOP') + '"';
-        metaEl.innerText = 'Petugas Penindak: ' + (log.nama || 'Bripka Ahmad') + ' (NRP: ' + (log.nrp || '50123456') + ')';
+        descEl.innerText = 'Foto respon penanganan lapangan oleh ' + namaPetugas + ' di TKP. Meliputi sterilisasi tempat kejadian, penertiban, dan pemulihan ketertiban umum. Catatan: "' + (log.deskripsiTindakan || 'Tindakan penertiban selesai sesuai SOP.') + '"';
+        metaEl.innerText = 'Petugas Penindak: ' + namaPetugas + ' (NRP: ' + nrpPetugas + ')';
       }
 
       modal.style.display = 'flex';

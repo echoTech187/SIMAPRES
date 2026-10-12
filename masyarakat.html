@@ -1147,7 +1147,7 @@
         catatanSelesai: 'Situasi lalu lintas kembali lancar normal, kedua belah pihak sepakat damai.',
         koordinatGps: '-6.2088, 106.8456',
         fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
-        fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        fotoPersiapan: 'polri_patrol_car.jpg',
         fotoTindakan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
         fotoSelesai: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
         ratingKepuasan: {
@@ -1175,7 +1175,7 @@
         deskripsi: 'Sekelompok pemuda berkumpul membawa balok kayu di dekat halte bus.',
         koordinatGps: '-6.2415, 106.8021',
         fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
-        fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        fotoPersiapan: 'polri_patrol_car.jpg',
         ratingKepuasan: null
       },
       {
@@ -1197,7 +1197,7 @@
         deskripsiTindakan: 'Personel berkoordinasi dengan petugas Damkar dan Dishub untuk pemotongan dahan pohon serta pengalihan arus sementara.',
         koordinatGps: '-6.2301, 106.8173',
         fotoPengaduan: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
-        fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+        fotoPersiapan: 'polri_patrol_car.jpg',
         fotoTindakan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
         ratingKepuasan: null
       }
@@ -1654,14 +1654,16 @@
         modalWatermark.innerText = 'CALL CENTER 110 • ' + (log.waktu || '10:45 WIB') + ' • LOKASI: ' + (log.lokasiKejadian || 'Sudirman');
         modalDesc.innerText = 'Foto dokumentasi laporan awal yang diunggah oleh masyarakat melalui portal 110.';
       } else if (type === 'persiapan') {
+        const namaPetugas = log.disposisi?.komandan || (log.tipePelapor === 'personel' ? log.nama : 'Bripka Ahmad & Regu Alpha');
         modalTitle.innerText = 'Bukti Persiapan Meluncur & Watermark GPS';
-        modalImg.src = log.fotoPersiapan || 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80';
-        modalWatermark.innerText = 'DISPOSISI PRESISI • GPS: ' + gps + ' • ' + (log.waktu || '10:50 WIB') + ' • ' + (log.nama || 'Bripka Ahmad');
+        modalImg.src = log.fotoPersiapan || 'polri_patrol_car.jpg';
+        modalWatermark.innerText = 'DISPOSISI PRESISI • GPS: ' + gps + ' • ' + (log.waktu || '10:50 WIB') + ' • ' + namaPetugas;
         modalDesc.innerText = 'Dokumentasi kesiapan personel dan verifikasi koordinat satelit sebelum meluncur ke TKP.';
       } else if (type === 'tindakan') {
+        const namaPetugas = log.disposisi?.komandan || (log.tipePelapor === 'personel' ? log.nama : 'Bripka Ahmad & Regu Alpha');
         modalTitle.innerText = 'Dokumentasi Penanganan di TKP';
         modalImg.src = log.fotoTindakan || 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80';
-        modalWatermark.innerText = 'TKP POLRI • GPS: ' + gps + ' • TIBA: ' + (log.waktuTiba || '11:15 WIB') + ' • ' + (log.nama || 'Bripka Ahmad');
+        modalWatermark.innerText = 'TKP POLRI • GPS: ' + gps + ' • TIBA: ' + (log.waktuTiba || '11:15 WIB') + ' • ' + namaPetugas;
         modalDesc.innerText = 'Dokumentasi tindakan kepolisian langsung di tempat kejadian perkara.';
       }
 
