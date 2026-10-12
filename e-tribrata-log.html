@@ -282,7 +282,7 @@
     /* Rekapitulasi */
     .rekap-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 12px;
     }
 
@@ -1426,13 +1426,6 @@
                   <div class="rekap-label" style="color:var(--warning)">MENUNGGU TINDAKAN</div>
                   <div class="rekap-val orange" id="rekap-menunggu-val">3</div>
                 </div>
-                <div class="rekap-box" onclick="openValidasiList('disetujui')"
-                  style="cursor: pointer; transition: transform 0.2s; background: #F0FDF4; border-color: #BBF7D0;"
-                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Disetujui">
-                  <div class="rekap-label" style="color:var(--success)">DISETUJUI</div>
-                  <div class="rekap-val green" id="rekap-disetujui-val">10</div>
-                </div>
                 <div class="rekap-box" onclick="openValidasiList('ditolak')"
                   style="cursor: pointer; background: #FEF2F2; border-color: #FECACA; transition: transform 0.2s;"
                   onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
@@ -1453,6 +1446,34 @@
                   onmouseout="this.style.transform='none'; this.style.boxShadow='none'" title="Lihat Log Selesai">
                   <div class="rekap-label" style="color:var(--secondary)">SELESAI</div>
                   <div class="rekap-val secondary" id="rekap-selesai-val">12</div>
+                </div>
+              </div>
+
+              <!-- Breakdown 4 Saluran Platform Pelaporan Presisi -->
+              <div id="rekap-platform-breakdown" style="margin-top:12px; padding:10px 12px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; font-size:11px;">
+                <div style="background:white; border:1px solid #FECACA; border-radius:6px; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;" onclick="openValidasiWithPlatform('sos')">
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#DC2626;">
+                    <span>🚨</span> SOS PANIC
+                  </span>
+                  <span style="font-weight:800; color:#DC2626; font-size:12px;" id="rekap-sos-val">8</span>
+                </div>
+                <div style="background:white; border:1px solid #BAE6FD; border-radius:6px; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;" onclick="openValidasiWithPlatform('warga')">
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#0284C7;">
+                    <span>📱</span> WARGA
+                  </span>
+                  <span style="font-weight:800; color:#0284C7; font-size:12px;" id="rekap-warga-val">9</span>
+                </div>
+                <div style="background:white; border:1px solid #BFDBFE; border-radius:6px; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;" onclick="openValidasiWithPlatform('layanan110')">
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#1D4ED8;">
+                    <span>📞</span> 110 HOTLINE
+                  </span>
+                  <span style="font-weight:800; color:#1D4ED8; font-size:12px;" id="rekap-110-val">9</span>
+                </div>
+                <div style="background:white; border:1px solid #FDE68A; border-radius:6px; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; cursor:pointer;" onclick="openValidasiWithPlatform('personel')">
+                  <span style="display:inline-flex; align-items:center; gap:4px; font-weight:800; color:#92400E;">
+                    <span>👮</span> PERSONEL
+                  </span>
+                  <span style="font-weight:800; color:#92400E; font-size:12px;" id="rekap-polri-val">2</span>
                 </div>
               </div>
             </div>
@@ -1804,9 +1825,6 @@
           <button type="button" class="val-tab-btn active" id="val-tab-menunggu" onclick="openValidasiList('menunggu')">
             Menunggu Tindakan <span class="val-tab-badge orange" id="val-badge-menunggu">3</span>
           </button>
-          <button type="button" class="val-tab-btn" id="val-tab-disetujui" onclick="openValidasiList('disetujui')">
-            Disetujui <span class="val-tab-badge green" id="val-badge-disetujui">10</span>
-          </button>
           <button type="button" class="val-tab-btn" id="val-tab-ditolak" onclick="openValidasiList('ditolak')">
             Ditolak <span class="val-tab-badge red" id="val-badge-ditolak">2</span>
           </button>
@@ -1818,8 +1836,65 @@
           </button>
         </div>
 
-        <div class="page-subtitle" id="val-subtitle-text" style="margin-top:4px; font-weight:700;">Menampilkan: 3 Data
-          Menunggu Tindakan</div>
+        <!-- Filter Bar Terpadu: Saluran Platform & Kategori Jenis Pengaduan -->
+        <div style="background:white; border:1px solid var(--border); border-radius:10px; padding:10px 14px; margin: 6px 16px 12px; display:flex; flex-direction:column; gap:8px; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <!-- Baris 1: Filter Platform Pelaporan (SOS, Warga, Layanan 110, Personel) -->
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:4px;">
+                <span>📡</span> PLATFORM:
+              </span>
+              <button type="button" class="btn-filter-platform active" id="filter-platform-all" onclick="filterByPlatform('all')" style="padding:4px 10px; border-radius:6px; border:1px solid transparent; background:#0F172A; color:white; font-size:11px; font-weight:700; cursor:pointer; transition:0.15s;">
+                Semua Platform <span class="badge-mini" id="filter-count-all" style="background:rgba(255,255,255,0.25); padding:1px 6px; border-radius:10px; margin-left:3px; font-size:10px;">28</span>
+              </button>
+              <button type="button" class="btn-filter-platform" id="filter-platform-sos" onclick="filterByPlatform('sos')" style="padding:4px 10px; border-radius:6px; border:1px solid #FECACA; background:#FEF2F2; color:#DC2626; font-size:11px; font-weight:700; cursor:pointer; transition:0.15s;">
+                🚨 SOS Panik <span class="badge-mini" id="filter-count-sos" style="background:#FEE2E2; padding:1px 6px; border-radius:10px; margin-left:3px; font-size:10px;">8</span>
+              </button>
+              <button type="button" class="btn-filter-platform" id="filter-platform-warga" onclick="filterByPlatform('warga')" style="padding:4px 10px; border-radius:6px; border:1px solid #BAE6FD; background:#F0F9FF; color:#0284C7; font-size:11px; font-weight:700; cursor:pointer; transition:0.15s;">
+                📱 Portal Warga <span class="badge-mini" id="filter-count-warga" style="background:#E0F2FE; padding:1px 6px; border-radius:10px; margin-left:3px; font-size:10px;">9</span>
+              </button>
+              <button type="button" class="btn-filter-platform" id="filter-platform-layanan110" onclick="filterByPlatform('layanan110')" style="padding:4px 10px; border-radius:6px; border:1px solid #BFDBFE; background:#EFF6FF; color:#1D4ED8; font-size:11px; font-weight:700; cursor:pointer; transition:0.15s;">
+                📞 Layanan 110 <span class="badge-mini" id="filter-count-110" style="background:#DBEAFE; padding:1px 6px; border-radius:10px; margin-left:3px; font-size:10px;">9</span>
+              </button>
+              <button type="button" class="btn-filter-platform" id="filter-platform-personel" onclick="filterByPlatform('personel')" style="padding:4px 10px; border-radius:6px; border:1px solid #FDE68A; background:#FEF3C7; color:#92400E; font-size:11px; font-weight:700; cursor:pointer; transition:0.15s;">
+                👮 Patroli Personel <span class="badge-mini" id="filter-count-personel" style="background:#FEF3C7; padding:1px 6px; border-radius:10px; margin-left:3px; font-size:10px;">2</span>
+              </button>
+            </div>
+            
+            <div id="btn-reset-filter" onclick="resetActiveFilters()" style="display:none; font-size:11px; font-weight:700; color:#EF4444; cursor:pointer; padding:3px 8px; border-radius:4px; background:#FEE2E2;">
+              ✕ Reset Filter
+            </div>
+          </div>
+
+          <!-- Baris 2: Filter Jenis / Kategori Pengaduan -->
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-top:6px; border-top:1px dashed #E2E8F0;">
+            <span style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:4px;">
+              <span>📁</span> JENIS ADUAN:
+            </span>
+            <button type="button" class="btn-filter-kategori active" id="filter-kat-all" onclick="filterByKategori('all')" style="padding:3px 8px; border-radius:5px; border:1px solid transparent; background:#334155; color:white; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+              Semua Jenis <span class="badge-mini" id="filter-count-kat-all" style="background:rgba(255,255,255,0.25); color:white; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">28</span>
+            </button>
+            <button type="button" class="btn-filter-kategori" id="filter-kat-kriminal" onclick="filterByKategori('Kriminalitas')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+              ⚔️ Kriminalitas <span class="badge-mini" id="filter-count-kat-kriminal" style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">7</span>
+            </button>
+            <button type="button" class="btn-filter-kategori" id="filter-kat-kamtibmas" onclick="filterByKategori('Kamtibmas')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+              💥 Kamtibmas & Tawuran <span class="badge-mini" id="filter-count-kat-kamtibmas" style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">9</span>
+            </button>
+            <button type="button" class="btn-filter-kategori" id="filter-kat-laka" onclick="filterByKategori('Laka Lantas')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+              🚗 Laka Lantas <span class="badge-mini" id="filter-count-kat-laka" style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">4</span>
+            </button>
+            <button type="button" class="btn-filter-kategori" id="filter-kat-darurat" onclick="filterByKategori('Darurat Bencana')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+              🔥 Darurat & Bencana <span class="badge-mini" id="filter-count-kat-darurat" style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">2</span>
+            </button>
+            <button type="button" class="btn-filter-kategori" id="filter-kat-pelayanan" onclick="filterByKategori('Pelayanan Publik')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+              🤝 Pelayanan Publik <span class="badge-mini" id="filter-count-kat-pelayanan" style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">6</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="page-subtitle" id="val-subtitle-text" style="margin: 0 16px 10px; font-weight:700; font-size:12px; color:#475569;">
+          Menampilkan: Data Menunggu Tindakan
+        </div>
 
         <div class="split-layout">
           <div class="val-list" id="val-list-container">
@@ -1827,7 +1902,7 @@
           </div>
 
           <div class="val-detail" id="val-detail-box"
-            style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:sticky; top:16px; max-height: calc(100vh - 120px); overflow-y: auto;">
+            style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto;">
             <!-- GLOBAL MACRO MILESTONE STEPPER (Siklus Hidup Lengkap Laporan End-to-End) -->
             <div id="macro-milestone-box"
               style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px;">
@@ -1912,8 +1987,16 @@
                   <span id="detail-val-sektor" style="color:var(--text); font-weight:700;">Sektor Selatan</span>
                 </div>
                 <div style="margin-bottom:6px;">
-                  <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Personel Pelapor:</div>
-                  <span id="detail-val-petugas" style="color:var(--text); font-weight:700;">Bripka Ahmad</span>
+                  <div id="detail-val-petugas-label" style="color:var(--text-muted); font-size:11px; font-weight:600;">Pelapor:</div>
+                  <div id="detail-val-petugas" style="color:var(--text); font-weight:700;">-</div>
+                </div>
+                <div style="margin-bottom:6px;" id="detail-val-kontak-row">
+                  <div id="detail-val-kontak-label" style="color:var(--text-muted); font-size:11px; font-weight:600;">Kontak / Kesatuan:</div>
+                  <div id="detail-val-kontak" style="color:var(--text); font-weight:700;">-</div>
+                </div>
+                <div style="margin-bottom:6px;">
+                  <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Saluran / Sumber Laporan:</div>
+                  <div id="detail-val-sumber" style="color:var(--text); font-weight:700;">-</div>
                 </div>
                 <div style="margin-bottom:6px;">
                   <div style="color:var(--text-muted); font-size:11px; font-weight:600;">Deskripsi Kejadian:</div>
@@ -2806,10 +2889,6 @@
             style="font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; display:flex; align-items:center; gap:6px;">
             <span>←</span> Kembali ke Beranda
           </div>
-          <span
-            style="font-size:11px; background:#EFF6FF; color:var(--primary); font-weight:700; padding:4px 10px; border-radius:20px; border:1px solid #BFDBFE;">
-            🎧 Siaga Line 110
-          </span>
         </div>
 
         <div style="margin: 0 16px 20px;">
@@ -3625,132 +3704,784 @@
     // CENTRALIZED DATA MODEL & LOCAL STORAGE
     // ==========================================
     function getDefaultLogs() {
-      const list = [
-        // 3 Menunggu Tindakan (ID 1 - 3)
+      return [
+        // =========================================================================
+        // 13 DATA MENUNGGU TINDAKAN (ID 1 - 13)
+        // Komposisi: 4 SOS Panic + 4 Layanan 110 + 4 Portal Warga + 1 Personel Polri
+        // =========================================================================
         {
           id: 1,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'sos',
+          nama: 'Sdr. Kevin Wardana',
+          noTelpPelapor: '0812-9911-2233',
+          nikPelapor: '3174052108960002',
+          gpsCoords: '-6.2421, 106.7982',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
           status: 'menunggu',
-          statusText: 'Menunggu Validasi',
-          title: 'Laporan Pengamanan belum direview #1',
-          deskripsi: 'Patroli rutin pengamanan objek vital dan pertokoan di wilayah Sektor Selatan.',
+          statusText: 'Menunggu Tindakan',
+          title: '🚨 Peringatan SOS: Tawuran Remaja Bawa Senjata Tajam di Halte',
+          deskripsi: 'Aktivasi Panic Button SOS oleh warga: Gerombolan 15+ remaja berkumpul membawa balok & sajam di dekat halte bus. Warga ketakutan melintas, butuh pencegatan darurat regu Samapta.',
+          jenisInsiden: 'Tawuran & Senjata Tajam',
           sektor: 'Sektor Selatan',
-          waktu: '10:15 WIB',
-          fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+1',
+          waktu: '07:14 WIB',
+          urgensi: '🚨 Darurat',
+          fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Jl. Panglima Polim Raya No. 42 (Dekat Halte Bus), Kebayoran Baru',
           alasanTolak: ''
         },
         {
           id: 2,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Laka Lantas',
+          kategoriBadge: '🚗 Laka Lantas',
+          tipePelapor: 'warga',
+          nama: 'Budi Santoso, S.T.',
+          noTelpPelapor: '0856-9123-8842',
+          nikPelapor: '3171021405820001',
+          gpsCoords: '-6.2398, 106.8245',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
           status: 'menunggu',
-          statusText: 'Menunggu Validasi',
-          title: 'Laporan Pengamanan belum direview #2',
-          deskripsi: 'Sambang pos ronda dan penyuluhan kamtibmas warga RT 04/RW 02.',
-          sektor: 'Sektor Barat',
-          waktu: '11:40 WIB',
-          fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+2',
+          statusText: 'Menunggu Tindakan',
+          title: 'Truk Kontainer Mogok Patah As Roda di Jalur Underpass',
+          deskripsi: 'Laporan Pengemudi via Portal: Patah as roda pada truk kontainer muatan berat menutup 2 lajur arah Kuningan. Macet mengular 2,5 km, butuh bantuan mobil derek kepolisian.',
+          jenisInsiden: 'Gangguan Lalu Lintas & Derek',
+          sektor: 'Sektor Selatan',
+          waktu: '07:22 WIB',
+          urgensi: '⚠️ Sedang',
+          fotoLampiran: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Underpass Mampang Prapatan, Jakarta Selatan',
           alasanTolak: ''
         },
         {
           id: 3,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'layanan110',
+          nama: 'Sdri. Rina Indah Wulandari',
+          noTelpPelapor: '0813-1456-9901',
+          nikPelapor: '3174094408910005',
+          gpsCoords: '-6.2812, 106.7924',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
           status: 'menunggu',
-          statusText: 'Menunggu Validasi',
-          title: 'Laporan Pengamanan belum direview #3',
-          deskripsi: 'Pengaturan arus lalu lintas di titik rawan macet simpang empat protokol.',
-          sektor: 'Sektor Utara',
-          waktu: '12:20 WIB',
-          fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Lampiran+3',
+          statusText: 'Menunggu Tindakan',
+          title: 'Panggilan 110: Percobaan Curanmor Roda-2 di Parkiran Toko',
+          deskripsi: 'Laporan Warga 110 (Sdri. Rina): Karyawati toko melihat 2 pria tak dikenal merusak kunci kontak motor Beat di parkiran ruko. Pelaku kabur ke arah Cilandak saat ditegur satpam.',
+          jenisInsiden: 'Tindak Pidana Curanmor',
+          sektor: 'Sektor Selatan',
+          waktu: '07:35 WIB',
+          urgensi: '🚨 Darurat',
+          fotoLampiran: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Komplek Ruko Grand Fatmawati Blok B No. 7',
           alasanTolak: ''
         },
-        // 2 Ditolak (ID 14, 15)
+        {
+          id: 4,
+          platform: 'personel',
+          platformBadge: '👮 PATROLI POLRI',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'internal',
+          nama: 'Aipda Ridwan (NRP: 78040112)',
+          nrp: '78040112',
+          kesatuan: 'Unit Patroli Samapta Presisi R-4',
+          sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
+          sumberSingkat: 'PATROLI POLRI',
+          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Patroli Dialogis Perbankan & Gerai ATM 24 Jam',
+          deskripsi: 'Giat Inisiatif Patroli Samapta: Pengecekan CCTV & sambang sekuriti gedung perbankan. Memastikan tidak ada alat skimming atau aktivitas mencurigakan di area ATM.',
+          jenisInsiden: 'Pengamanan Objek Vital Perbankan',
+          sektor: 'Sektor Pusat',
+          waktu: '07:48 WIB',
+          urgensi: 'ℹ️ Normal',
+          fotoLampiran: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Kawasan Bisnis Sudirman Kav. 24-26, Senayan',
+          alasanTolak: ''
+        },
+        {
+          id: 5,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'layanan110',
+          nama: 'Pak Hendro Wicaksono (Ketua RT)',
+          noTelpPelapor: '0818-0921-4475',
+          nikPelapor: '3173012503710002',
+          gpsCoords: '-6.1732, 106.7915',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Panggilan 110: Cekcok Warga Mengenai Parkir Liar Akses Rumah',
+          deskripsi: 'Laporan Pengurus RT: Adu mulut antar warga akibat mobil tamu parkir sembarangan menutup akses gerbang rumah warga. Memohon kehadiran Bhabinkamtibmas untuk mediasi damai.',
+          jenisInsiden: 'Mediasi Kamtibmas Warga',
+          sektor: 'Sektor Barat',
+          waktu: '08:05 WIB',
+          urgensi: 'ℹ️ Normal',
+          fotoLampiran: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Jl. Tomang Asri Blok C RT 03/RW 05, Grogol',
+          alasanTolak: ''
+        },
+        {
+          id: 6,
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'sos',
+          nama: 'Sdri. Clarissa Putri (Pengendara Motor)',
+          noTelpPelapor: '0821-3344-5566',
+          nikPelapor: '3173066107870004',
+          gpsCoords: '-6.1668, 106.7891',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: '🚨 Peringatan SOS: Dugaan Penguntitan & Percobaan Begal Jalanan',
+          deskripsi: 'Aktivasi SOS Darurat: Pengendara wanita merasa dibuntuti 2 motor tanpa plat nomor di flyover sepi. Korban berhenti di dekat SPBU dan mengaktifkan suar darurat SIMAPRES.',
+          jenisInsiden: 'Ancaman Kejahatan Jalanan',
+          sektor: 'Sektor Barat',
+          waktu: '08:18 WIB',
+          urgensi: '🚨 Darurat',
+          fotoLampiran: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Flyover Roxy Mas Arah Grogol, Jakarta Barat',
+          alasanTolak: ''
+        },
+        {
+          id: 7,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Darurat Bencana',
+          kategoriBadge: '🔥 Darurat Bencana',
+          tipePelapor: 'warga',
+          nama: 'Ibu Ratna Dewi (Warga Rawamangun)',
+          noTelpPelapor: '0812-3456-7890',
+          nikPelapor: '3175034107850002',
+          gpsCoords: '-6.1954, 106.8832',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Laporan Warga: Pohon Rindang Tumbang Timpa Jaringan Kabel Listrik',
+          deskripsi: 'Laporan Warga via Portal: Dahan pohon trembesi besar patah melintang di jalan raya menimpa jaringan kabel listrik PLN dan kabel optik. Arus lalin tersendat, butuh pengamanan lokasi.',
+          jenisInsiden: 'Bencana Pohon Tumbang',
+          sektor: 'Sektor Timur',
+          waktu: '08:32 WIB',
+          urgensi: '⚠️ Sedang',
+          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Jl. Pemuda No. 88, Rawamangun, Pulo Gadung',
+          alasanTolak: ''
+        },
+        {
+          id: 8,
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'sos',
+          nama: 'Pak Bambang Hidayat',
+          noTelpPelapor: '0812-7788-9900',
+          nikPelapor: '3175041002760001',
+          gpsCoords: '-6.2341, 106.8762',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: '🚨 Peringatan SOS: Temuan Sepeda Motor Ditinggal di Semak Bantaran Kali',
+          deskripsi: 'Warga menekan tombol SOS: Menemukan 1 unit sepeda motor matic tanpa plat nomor ditinggalkan di semak tepi kali sejak subuh. Diduga hasil curanmor yang disembunyikan.',
+          jenisInsiden: 'Temuan Kendaraan Curian',
+          sektor: 'Sektor Timur',
+          waktu: '08:45 WIB',
+          urgensi: '⚠️ Sedang',
+          fotoLampiran: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Bantaran Saluran Kalimalang KM 3.5, Cipinang',
+          alasanTolak: ''
+        },
+        {
+          id: 9,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'layanan110',
+          nama: 'Ahmad Fauzi (Pedagang Pasar)',
+          noTelpPelapor: '0877-6543-2109',
+          nikPelapor: '3175082006880007',
+          gpsCoords: '-6.2731, 106.8681',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Panggilan 110: Premanisme & Dugaan Pungli Bongkar Muat Pasar',
+          deskripsi: 'Laporan Pedagang Pasar ke 110: Oknum preman meminta uang bongkar muat secara paksa kepada sopir pikap. Pelaku mengancam merusak ban jika tidak diberikan uang tunai.',
+          jenisInsiden: 'Penertiban Premanisme & Pungli',
+          sektor: 'Sektor Timur',
+          waktu: '09:05 WIB',
+          urgensi: '⚠️ Sedang',
+          fotoLampiran: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Pintu Masuk Barat Pasar Induk Kramat Jati',
+          alasanTolak: ''
+        },
+        {
+          id: 10,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'warga',
+          nama: 'Irfan Hakim, S.Kom.',
+          noTelpPelapor: '0817-2233-4455',
+          nikPelapor: '3172011904940002',
+          gpsCoords: '-6.1389, 106.8691',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Aduan Warga: Gangguan Musik Kafe Bising Melebihi Batas Waktu',
+          deskripsi: 'Laporan Warga via Portal Presisi: Kafe live music memutar sound system bass dentuman keras hingga pukul 02:00 dini hari di samping komplek perumahan warga.',
+          jenisInsiden: 'Gangguan Ketertiban Umum',
+          sektor: 'Sektor Utara',
+          waktu: '09:22 WIB',
+          urgensi: 'ℹ️ Normal',
+          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Kawasan Danau Sunter Utara, Tanjung Priok',
+          alasanTolak: ''
+        },
+        {
+          id: 11,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Laka Lantas',
+          kategoriBadge: '🚗 Laka Lantas',
+          tipePelapor: 'warga',
+          nama: 'dr. Tirta Prasetya',
+          noTelpPelapor: '0819-5566-7788',
+          nikPelapor: '3171042306890001',
+          gpsCoords: '-6.1845, 106.8423',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Laporan Warga: Tabrakan Beruntun 3 Minibus di TL Lampu Merah',
+          deskripsi: 'Laporan Pengendara via Portal: Tabrakan beruntun di lampu merah akibat rem blong. Tidak ada korban jiwa namun kendaraan melintang di lajur utama menyebabkan kemacetan parah.',
+          jenisInsiden: 'Kecelakaan Lalu Lintas Beruntun',
+          sektor: 'Sektor Pusat',
+          waktu: '09:38 WIB',
+          urgensi: '⚠️ Sedang',
+          fotoLampiran: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Simpang Lima Senen / TL Coca Cola, Jakarta Pusat',
+          alasanTolak: ''
+        },
+        {
+          id: 12,
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Pelayanan Publik',
+          kategoriBadge: '🤝 Pelayanan Publik',
+          tipePelapor: 'sos',
+          nama: 'Ibu Dewi Lestari (Ibu Korban)',
+          noTelpPelapor: '0819-8765-4321',
+          nikPelapor: '3171035508890006',
+          gpsCoords: '-6.1754, 106.8272',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: '🚨 Peringatan SOS: Anak Balita Terpisah dari Ibu di Keramaian Monas',
+          deskripsi: 'Aktivasi SOS Darurat Ibu: Balita usia 4 tahun terpisah di area taman Monas pintu barat daya saat ramai pengunjung. Ciri-ciri: kaos kuning, celana biru dongker, membawa botol minum.',
+          jenisInsiden: 'Pencarian Anak Hilang',
+          sektor: 'Sektor Pusat',
+          waktu: '09:55 WIB',
+          urgensi: '🚨 Darurat',
+          fotoLampiran: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Plaza Monumen Nasional Pintu Barat Daya',
+          alasanTolak: ''
+        },
+        {
+          id: 13,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'layanan110',
+          nama: 'Pak Joko Subroto (Warga RT 08)',
+          noTelpPelapor: '0812-1133-5577',
+          nikPelapor: '3174062104750003',
+          gpsCoords: '-6.2345, 106.7821',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          status: 'menunggu',
+          statusText: 'Menunggu Tindakan',
+          title: 'Panggilan 110: Sekelompok Pemuda Pesta Miras Oplosan di Pos Ronda',
+          deskripsi: 'Laporan Warga via 110: Kerumunan pemuda tak dikenal berkumpul di pos ronda kosong meminum miras oplosan dan mengganggu pengendara wanita yang melintas.',
+          jenisInsiden: 'Penertiban Miras & Kamtibmas',
+          sektor: 'Sektor Selatan',
+          waktu: '10:15 WIB',
+          urgensi: '⚠️ Sedang',
+          fotoLampiran: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Pos Kamling RW 08 Permata Hijau, Kebayoran Lama',
+          alasanTolak: ''
+        },
+
+        // =========================================================================
+        // 2 DATA DITOLAK / PERLU REVISI (ID 14, 15)
+        // Komposisi: 1 SOS (Salah Pencet) + 1 Portal Warga (Kurang Bukti)
+        // =========================================================================
         {
           id: 14,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Pelayanan Publik',
+          kategoriBadge: '🤝 Pelayanan Publik',
+          tipePelapor: 'sos',
+          nama: 'Sdr. Denny Pratama',
+          noTelpPelapor: '0857-8899-0011',
+          nikPelapor: '3175021208980004',
+          gpsCoords: '-6.2112, 106.8431',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
           status: 'ditolak',
           statusText: 'Ditolak / Revisi',
-          title: 'Laporan Patroli. Foto buram, mohon perbaiki #1',
-          deskripsi: 'Patroli pengawasan batas kota pada malam hari.',
+          title: '🚨 Peringatan SOS: Tombol Panik Tertekan Tidak Sengaja di Rumah',
+          deskripsi: 'Alarm SOS menyala dari aplikasi warga. Saat dikonfirmasi operator 110, telepon dipegang anak balita dan bukan kondisi darurat sebenarnya.',
+          jenisInsiden: 'Panggilan Panik Tidak Disengaja',
           sektor: 'Sektor Timur',
           waktu: '08:10 WIB',
-          fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+1',
-          alasanTolak: 'Foto Bukti Tidak Jelas / Buram - Dokumentasi minim cahaya dan plat kendaraan sasaran tidak terbaca.'
+          urgensi: 'ℹ️ Normal',
+          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Komplek Perumahan Jatinegara Baru Blok A, Jakarta Timur',
+          alasanTolak: 'Aktivasi Palsu / Tidak Disengaja - Konfirmasi telepon menyatakan tombol tertekan anak kecil, situasi rumah tangga aman dan kondusif.'
         },
         {
           id: 15,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'warga',
+          nama: 'Wahyu Setiawan',
+          noTelpPelapor: '0857-1122-3344',
+          nikPelapor: '3173041908850002',
+          gpsCoords: '-6.1523, 106.7214',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
           status: 'ditolak',
           statusText: 'Ditolak / Revisi',
-          title: 'Laporan Patroli. Foto buram, mohon perbaiki #2',
-          deskripsi: 'Pemeriksaan kendaraan mencurigakan di area pergudangan.',
+          title: 'Pengaduan Portal: Kehilangan Helm di Parkiran Swalayan Tanpa Saksi',
+          deskripsi: 'Warga melapor helm hilang di parkiran swalayan namun tidak mencantumkan rekaman CCTV, waktu pasti, maupun kontak petugas sekuriti setempat.',
+          jenisInsiden: 'Pencurian Ringan',
           sektor: 'Sektor Barat',
           waktu: '09:00 WIB',
-          fotoLampiran: 'https://placehold.co/300x400/EF4444/FFFFFF?text=Foto+Ditolak+2',
-          alasanTolak: 'Uraian Kegiatan Belum Lengkap - Hasil pemeriksaan identitas pengemudi belum dicantumkan pada deskripsi.'
+          urgensi: 'ℹ️ Normal',
+          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Parkiran Swalayan Daan Mogot KM 12',
+          alasanTolak: 'Informasi Tidak Lengkap - Mohon lampirkan rekaman CCTV atau nomor saksi sekuriti yang bertugas saat kejadian berlangsung.'
         },
-        // 1 Diproses (ID 16)
+
+        // =========================================================================
+        // 1 DATA SEDANG DIPROSES / DITANGANI (ID 16)
+        // Komposisi: 1 SOS Panic Button (Live Tracking Menuju TKP)
+        // =========================================================================
         {
           id: 16,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'sos',
+          nama: 'Sdri. Maya Indriani',
+          noTelpPelapor: '0812-9988-7766',
+          nikPelapor: '3174085104800008',
+          gpsCoords: '-6.2289, 106.7892',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
           status: 'diproses',
           statusText: 'Sedang Diproses',
-          title: 'Tindak lanjut laporan masyarakat 110 #1',
-          deskripsi: 'Personel sedang bergerak menindaklanjuti informasi kerumunan remaja.',
+          tahap: 3,
+          title: '🚨 Peringatan SOS: Upaya Pencegatan Curas oleh 4 OTK di Simprug',
+          deskripsi: 'Aktivasi SOS Darurat: Pengemudi mobil merasa dipepet 2 motor berboncengan saat melintas di jalanan sepi. Unit Patroli Samapta Presisi sedang meluncur ke TKP dengan SLA < 7 menit.',
+          jenisInsiden: 'Percobaan Curas & Kejahatan Jalanan',
           sektor: 'Sektor Selatan',
           waktu: '13:05 WIB',
-          fotoLampiran: 'https://placehold.co/300x400/153E75/FFFFFF?text=Foto+Diproses',
+          urgensi: '🚨 Darurat',
+          fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          fotoPersiapan: 'https://images.unsplash.com/photo-1549965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Jl. Simprug Golf Raya No. 15, Kebayoran Lama',
+          alasanTolak: ''
+        },
+
+        // =========================================================================
+        // 12 DATA SELESAI (ID 17 - 28)
+        // Komposisi: 2 SOS + 5 Layanan 110 + 4 Portal Warga + 1 Personel Polri
+        // =========================================================================
+        {
+          id: 17,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Laka Lantas',
+          kategoriBadge: '🚗 Laka Lantas',
+          tipePelapor: 'layanan110',
+          nama: 'Pak Sukardi (Pengemudi Taksi)',
+          noTelpPelapor: '0813-8899-0011',
+          nikPelapor: '3171011203650004',
+          gpsCoords: '-6.1951, 106.8231',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Panggilan 110: Mediasi Damai Senggolan Kendaraan Bundaran HI',
+          deskripsi: 'Kedua pihak pengemudi sepakat berdamai dan ganti rugi diselesaikan secara kekeluargaan di Pos Polantas Bundaran HI.',
+          jenisInsiden: 'Penyelesaian Laka Lantas',
+          sektor: 'Sektor Pusat',
+          waktu: '06:15 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80',
+          fotoTindakan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Pos Polantas Bundaran HI, Jakarta Pusat',
+          alasanTolak: ''
+        },
+        {
+          id: 18,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'warga',
+          nama: 'Sdri. Nadia Utami (Pengunjung Taman)',
+          noTelpPelapor: '0812-4433-2211',
+          nikPelapor: '3174075509920003',
+          gpsCoords: '-6.2442, 106.7971',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Laporan Portal: Pembubaran Pesta Miras Oplosan di Taman Barito',
+          deskripsi: 'Barang bukti 3 botol miras disita dan 6 pemuda diberikan pembinaan di hadapan orang tua serta ketua RT setempat.',
+          jenisInsiden: 'Penertiban Miras & Kamtibmas',
+          sektor: 'Sektor Selatan',
+          waktu: '06:30 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Taman Ayodya Barito, Kebayoran Baru',
+          alasanTolak: ''
+        },
+        {
+          id: 19,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Pelayanan Publik',
+          kategoriBadge: '🤝 Pelayanan Publik',
+          tipePelapor: 'layanan110',
+          nama: 'Anisa Fitri, S.Pd.',
+          noTelpPelapor: '0812-3344-5577',
+          nikPelapor: '3174064508930009',
+          gpsCoords: '-6.2391, 106.7981',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Panggilan 110: Pengembalian Dompet & Berkas Ketinggalan di Halte',
+          deskripsi: 'Warga menemukan dompet berisi uang dan KTP di halte busway. Diserahkan ke pos polisi dan berhasil dikembalikan ke pemilik sah.',
+          jenisInsiden: 'Pelayanan Temuan Barang Warga',
+          sektor: 'Sektor Selatan',
+          waktu: '06:45 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Halte CSW ASEAN, Kebayoran Baru',
+          alasanTolak: ''
+        },
+        {
+          id: 20,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Laka Lantas',
+          kategoriBadge: '🚗 Laka Lantas',
+          tipePelapor: 'warga',
+          nama: 'H. Syamsul Arifin (Pengguna KRL)',
+          noTelpPelapor: '0858-9900-1122',
+          nikPelapor: '3173051402680001',
+          gpsCoords: '-6.2078, 106.7972',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Aduan Portal: Penertiban Angkot Ngetem Bikin Macet Stasiun',
+          deskripsi: 'Arus lalin di depan pintu stasiun ditertibkan, sopir angkot diarahkan masuk ke lajur penurunan resmi dan tidak mengunci badan jalan.',
+          jenisInsiden: 'Penertiban Lalu Lintas',
+          sektor: 'Sektor Barat',
+          waktu: '07:00 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Pintu Keluar Stasiun Palmerah, Jakarta Barat',
+          alasanTolak: ''
+        },
+        {
+          id: 21,
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'sos',
+          nama: 'H. Mansyur (Tokoh Masyarakat SOS)',
+          noTelpPelapor: '0811-2233-4411',
+          nikPelapor: '3173021005580001',
+          gpsCoords: '-6.1751, 106.7812',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: '🚨 Peringatan SOS: Pencegahan Cekcok Antar Remaja di Balai Warga',
+          deskripsi: 'Respon cepat suar SOS warga: Bhabinkamtibmas dan regu patroli tiba dalam 5 menit, berhasil memediasi kesalahpahaman remaja disaksikan pengurus RW.',
+          jenisInsiden: 'Problem Solving Kamtibmas',
+          sektor: 'Sektor Barat',
+          waktu: '07:15 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Balai Warga RW 04 Tanjung Duren Utara',
+          alasanTolak: ''
+        },
+        {
+          id: 22,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Pelayanan Publik',
+          kategoriBadge: '🤝 Pelayanan Publik',
+          tipePelapor: 'warga',
+          nama: 'Sdri. Felicia Wijaya (Penyewa Toko)',
+          noTelpPelapor: '0813-7788-9911',
+          nikPelapor: '3172054907910003',
+          gpsCoords: '-6.1582, 106.9081',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Aduan Portal: Pengamanan & Sterilisasi Keramaian Mall Jelang Buka',
+          deskripsi: 'Sterilisasi area parkir dan eskalator mall jelang jam buka akhir pekan, situasi tertib, aman dan nihil gangguan kamtibmas.',
+          jenisInsiden: 'Pengamanan Objek Wisata & Niaga',
+          sektor: 'Sektor Utara',
+          waktu: '07:30 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Mall Kelapa Gading 3, Jakarta Utara',
+          alasanTolak: ''
+        },
+        {
+          id: 23,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Pelayanan Publik',
+          kategoriBadge: '🤝 Pelayanan Publik',
+          tipePelapor: 'layanan110',
+          nama: 'Dedi Kurniawan (Pejalan Kaki)',
+          noTelpPelapor: '0878-1234-5678',
+          nikPelapor: '3172041807900003',
+          gpsCoords: '-6.1421, 106.8712',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Panggilan 110: Bantuan Evakuasi Hewan Terjebak Rangka Jembatan',
+          deskripsi: 'Bantuan kemanusiaan personel kepolisian bersama petugas Dishub berhasil mengevakuasi hewan terjebak di ketinggian rangka JPO.',
+          jenisInsiden: 'Bantuan Kemanusiaan & Pelayanan',
+          sektor: 'Sektor Utara',
+          waktu: '07:45 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'JPO Halte Sunter Karya, Tanjung Priok',
+          alasanTolak: ''
+        },
+        {
+          id: 24,
+          platform: 'personel',
+          platformBadge: '👮 PATROLI POLRI',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'internal',
+          nama: 'Bripda Kevin Ananda (NRP: 99010432)',
+          nrp: '99010432',
+          kesatuan: 'Tim Perintis Presisi R-2',
+          sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
+          sumberSingkat: 'PATROLI POLRI',
+          avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Penyuluhan Hukum Tawuran & Narkoba di Karang Taruna',
+          deskripsi: 'Edukasi hukum kepada 30 pemuda karang taruna tentang bahaya tawuran dan ancaman pidana kepemilikan senjata tajam.',
+          jenisInsiden: 'Penyuluhan Hukum & Kamtibmas',
+          sektor: 'Sektor Timur',
+          waktu: '08:00 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Sekretariat Karang Taruna Kelurahan Cipinang Cempedak',
+          alasanTolak: ''
+        },
+        {
+          id: 25,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Kriminalitas',
+          kategoriBadge: '⚔️ Kriminalitas',
+          tipePelapor: 'layanan110',
+          nama: 'Ibu Ratna Sari (Jamaah Masjid)',
+          noTelpPelapor: '0813-9876-5432',
+          nikPelapor: '3175024409860005',
+          gpsCoords: '-6.2312, 106.9012',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Panggilan 110: Olah TKP Pembobolan Kotak Amal Rumah Ibadah',
+          deskripsi: 'Pemeriksaan rekaman CCTV masjid dan olah TKP awal berhasil mengamankan terduga pelaku di dekat pasar dalam waktu 40 menit.',
+          jenisInsiden: 'Tindak Pidana Pencurian',
+          sektor: 'Sektor Timur',
+          waktu: '08:15 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Masjid Jami Al-Hidayah, Duren Sawit',
+          alasanTolak: ''
+        },
+        {
+          id: 26,
+          platform: 'warga',
+          platformBadge: '📱 PORTAL WARGA',
+          kategoriInsiden: 'Pelayanan Publik',
+          kategoriBadge: '🤝 Pelayanan Publik',
+          tipePelapor: 'warga',
+          nama: 'Bambang Irawan (Pengurus RW)',
+          noTelpPelapor: '0812-7711-2288',
+          nikPelapor: '3174061502690001',
+          gpsCoords: '-6.2512, 106.7845',
+          sumberLaporan: '📱 Portal Presisi Pengaduan Warga (Online)',
+          sumberSingkat: 'PORTAL WARGA',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Aduan Portal: Pengawalan Penyaluran Bantuan Sosial Lansia',
+          deskripsi: 'Penyaluran beras bantuan pangan kepada 120 kepala keluarga lansia berlangsung tertib, aman dan tepat sasaran didampingi Bhabinkamtibmas.',
+          jenisInsiden: 'Pengamanan Bantuan Sosial',
+          sektor: 'Sektor Selatan',
+          waktu: '08:30 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Kantor Kelurahan Kebayoran Lama Selatan',
+          alasanTolak: ''
+        },
+        {
+          id: 27,
+          platform: 'sos',
+          platformBadge: '🚨 SOS PANIC',
+          kategoriInsiden: 'Darurat Bencana',
+          kategoriBadge: '🔥 Darurat Bencana',
+          tipePelapor: 'sos',
+          nama: 'Joko Prasetyo (Warga Johar Baru)',
+          noTelpPelapor: '0812-4455-6677',
+          nikPelapor: '3171052101790002',
+          gpsCoords: '-6.1892, 106.8521',
+          sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
+          sumberSingkat: 'SOS PANIC',
+          avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: '🚨 Peringatan SOS: Evakuasi Cepat Pohon Tumbang Robohkan Pagar Rumah',
+          deskripsi: 'Respon cepat alarm SOS: Personel kepolisian bersama Damkar dan warga memotong batang pohon tumbang serta mengamankan jalur evakuasi.',
+          jenisInsiden: 'Evakuasi Gangguan Pohon Tumbang',
+          sektor: 'Sektor Pusat',
+          waktu: '08:45 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Jl. Percetakan Negara IX No. 12, Johar Baru',
+          alasanTolak: ''
+        },
+        {
+          id: 28,
+          platform: 'layanan110',
+          platformBadge: '📞 LAYANAN 110',
+          kategoriInsiden: 'Kamtibmas',
+          kategoriBadge: '💥 Kamtibmas & Tawuran',
+          tipePelapor: 'layanan110',
+          nama: 'Ibu Maryam (Warga Dekat PJL)',
+          noTelpPelapor: '0818-4455-6688',
+          nikPelapor: '3171086203810005',
+          gpsCoords: '-6.1724, 106.8482',
+          sumberLaporan: '📞 Panggilan Darurat 110 (Call Center)',
+          sumberSingkat: 'LAYANAN 110',
+          avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
+          status: 'selesai',
+          statusText: 'Kasus Selesai',
+          tahap: 5,
+          title: 'Panggilan 110: Sterilisasi Jalur Rel Kereta Api dari Kerumunan',
+          deskripsi: 'Penertiban kerumunan anak-anak dan pemuda yang nongkrong berbahaya di dekat perlintasan rel kereta api sebidang untuk cegah kecelakaan.',
+          jenisInsiden: 'Pengamanan Objek Vital Perkeretaapian',
+          sektor: 'Sektor Pusat',
+          waktu: '09:00 WIB',
+          fotoLampiran: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          fotoPengaduan: 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          lokasiKejadian: 'Perlintasan Sebidang PJL 24 Pasar Senen',
           alasanTolak: ''
         }
       ];
-
-      // 10 Disetujui (ID 4 - 13)
-      for (let i = 1; i <= 10; i++) {
-        list.push({
-          id: 3 + i,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-          status: 'disetujui',
-          statusText: 'Disetujui',
-          title: 'Patroli Dialogis Pasar Jaya #' + i,
-          deskripsi: 'Patroli dialogis pembinaan pedagang kaki lima dan pengunjung pasar, situasi tertib dan kondusif.',
-          sektor: 'Sektor Selatan',
-          waktu: '07:' + (10 + i * 4) + ' WIB',
-          fotoLampiran: 'https://placehold.co/300x400/10B981/FFFFFF?text=Disetujui+#' + i,
-          alasanTolak: ''
-        });
-      }
-
-      // 12 Selesai (ID 17 - 28)
-      for (let i = 1; i <= 12; i++) {
-        list.push({
-          id: 16 + i,
-          nama: 'Bripka Ahmad',
-          nrp: '50123456',
-          avatar: 'https://images.unsplash.com/photo-1590086782957-93c06ef21604?auto=format&fit=crop&w=100&q=80',
-          status: 'selesai',
-          statusText: 'Kasus Selesai',
-          title: 'Penyelesaian insiden lalu lintas #' + i,
-          deskripsi: 'Mediasi damai laka lantas ringan di pos polantas, kedua belah pihak sepakat damai.',
-          sektor: 'Sektor Pusat',
-          waktu: '06:' + (15 + i * 3) + ' WIB',
-          fotoLampiran: 'https://placehold.co/300x400/047857/FFFFFF?text=Selesai+#' + i,
-          alasanTolak: ''
-        });
-      }
-      return list;
     }
 
     let appLogs = [];
@@ -3835,12 +4566,28 @@
         const saved = localStorage.getItem('simapres_app_logs_v1');
         if (saved) {
           appLogs = JSON.parse(saved);
+          // Auto-upgrade: jika data di storage masih berisi data dummy lawas atau belum memiliki platform lengkap (SOS, Warga, Layanan 110, Personel)
+          const hasLegacyDummy = appLogs.some(l => 
+            !l.platform ||
+            !l.kategoriInsiden ||
+            (l.id === 1 && l.platform !== 'sos') ||
+            (l.title && l.title.includes('Patroli Dialogis Pasar Jaya')) ||
+            (l.fotoLampiran && l.fotoLampiran.includes('Disetujui')) ||
+            (l.title && l.title.includes('belum direview'))
+          );
+          if (hasLegacyDummy) {
+            appLogs = getDefaultLogs();
+          }
         } else {
           appLogs = getDefaultLogs();
         }
 
         // Ensure defaults for tracking timeline & evidence photos
         appLogs.forEach(l => {
+          if (l.status === 'disetujui') {
+            l.status = 'menunggu';
+            l.statusText = 'Menunggu Tindakan';
+          }
           if (l.status === 'diproses' && !l.tahap) l.tahap = 3;
           if (l.status === 'selesai' && !l.tahap) l.tahap = 5;
           if (!l.nomorTiket) l.nomorTiket = 'TIKET-110-' + (l.id < 10 ? '0' + l.id : l.id) + 'X2F';
@@ -3873,7 +4620,14 @@
             l.catatanSelesai = 'Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal.';
           }
 
-          // Bersihkan foto dari URL rusak lama
+          // Bersihkan foto dari URL rusak atau dummy placeholder 'Disetujui'
+          const isBadLampiran = !l.fotoLampiran ||
+            l.fotoLampiran.includes('placehold.co') ||
+            l.fotoLampiran.includes('Disetujui');
+          if (isBadLampiran) {
+            l.fotoLampiran = l.fotoPengaduan || sampleBuktiPengaduan[l.id % sampleBuktiPengaduan.length];
+          }
+
           const isBadPengaduan = !l.fotoPengaduan ||
             l.fotoPengaduan.includes('517649763962') ||
             l.fotoPengaduan.includes('506521781263') ||
@@ -3929,7 +4683,7 @@
     }
 
     function resetDemoData() {
-      if (confirm('Reset ulang data log ke kondisi default awal (3 Menunggu, 10 Disetujui, 2 Ditolak)?')) {
+      if (confirm('Reset ulang data log ke kondisi default awal (13 Menunggu Tindakan, 2 Ditolak, 1 Sedang Ditangani, 12 Selesai)?')) {
         localStorage.removeItem('simapres_app_logs_v1');
         appLogs = getDefaultLogs();
         saveLogsToStorage();
@@ -3942,22 +4696,29 @@
     loadLogsFromStorage();
 
     let currentValidasiFilter = 'menunggu';
+    let currentPlatformFilter = 'all';
+    let currentKategoriFilter = 'all';
 
     function updateRekapCounts() {
+      // 1. GLOBAL SUMMARY (Untuk Beranda & Stat Keseluruhan)
       const cTotal = appLogs.length;
       const cMenunggu = appLogs.filter(l => l.status === 'menunggu').length;
-      const cDisetujui = appLogs.filter(l => l.status === 'disetujui').length;
       const cDitolak = appLogs.filter(l => l.status === 'ditolak').length;
       const cDiproses = appLogs.filter(l => l.status === 'diproses').length;
       const cSelesai = appLogs.filter(l => l.status === 'selesai').length;
 
-      // 1. Update Card Rekapitulasi di Beranda
+      const cSos = appLogs.filter(l => l.platform === 'sos').length;
+      const cWarga = appLogs.filter(l => l.platform === 'warga').length;
+      const c110 = appLogs.filter(l => l.platform === 'layanan110').length;
+      const cPolri = appLogs.filter(l => l.platform === 'personel').length;
+
+      // Update Card Rekapitulasi di Beranda
       const elTotal = document.getElementById('rekap-total-val');
       if (elTotal) elTotal.innerText = cTotal;
       const elMenunggu = document.getElementById('rekap-menunggu-val');
       if (elMenunggu) elMenunggu.innerText = cMenunggu;
       const elDisetujui = document.getElementById('rekap-disetujui-val');
-      if (elDisetujui) elDisetujui.innerText = cDisetujui;
+      if (elDisetujui) elDisetujui.innerText = '0';
       const elDitolak = document.getElementById('rekap-ditolak-val');
       if (elDitolak) elDitolak.innerText = cDitolak;
       const elDiproses = document.getElementById('rekap-diproses-val');
@@ -3965,19 +4726,73 @@
       const elSelesai = document.getElementById('rekap-selesai-val');
       if (elSelesai) elSelesai.innerText = cSelesai;
 
-      // 2. Update Badge Tabs di Halaman Validasi Atasan
+      // Update 4 Platform Breakdown di Beranda
+      const elSos = document.getElementById('rekap-sos-val');
+      if (elSos) elSos.innerText = cSos;
+      const elWarga = document.getElementById('rekap-warga-val');
+      if (elWarga) elWarga.innerText = cWarga;
+      const el110 = document.getElementById('rekap-110-val');
+      if (el110) el110.innerText = c110;
+      const elPolri = document.getElementById('rekap-polri-val');
+      if (elPolri) elPolri.innerText = cPolri;
+
+      // 2. STATUS TABS COUNTS (Saling terhubung dengan Platform & Kategori yang sedang aktif)
+      const logsForStatusTabs = appLogs.filter(l => {
+        const matchPlatform = (currentPlatformFilter === 'all') || (l.platform === currentPlatformFilter);
+        const matchKat = (currentKategoriFilter === 'all') || (l.kategoriInsiden === currentKategoriFilter);
+        return matchPlatform && matchKat;
+      });
+
       const bSemua = document.getElementById('val-badge-semua');
-      if (bSemua) bSemua.innerText = cTotal;
+      if (bSemua) bSemua.innerText = logsForStatusTabs.length;
       const bMenunggu = document.getElementById('val-badge-menunggu');
-      if (bMenunggu) bMenunggu.innerText = cMenunggu;
+      if (bMenunggu) bMenunggu.innerText = logsForStatusTabs.filter(l => l.status === 'menunggu').length;
       const bDisetujui = document.getElementById('val-badge-disetujui');
-      if (bDisetujui) bDisetujui.innerText = cDisetujui;
+      if (bDisetujui) bDisetujui.innerText = '0';
       const bDitolak = document.getElementById('val-badge-ditolak');
-      if (bDitolak) bDitolak.innerText = cDitolak;
+      if (bDitolak) bDitolak.innerText = logsForStatusTabs.filter(l => l.status === 'ditolak').length;
       const bDiproses = document.getElementById('val-badge-diproses');
-      if (bDiproses) bDiproses.innerText = cDiproses;
+      if (bDiproses) bDiproses.innerText = logsForStatusTabs.filter(l => l.status === 'diproses').length;
       const bSelesai = document.getElementById('val-badge-selesai');
-      if (bSelesai) bSelesai.innerText = cSelesai;
+      if (bSelesai) bSelesai.innerText = logsForStatusTabs.filter(l => l.status === 'selesai').length;
+
+      // 3. PLATFORM FILTER BAR COUNTS (Saling terhubung dengan Status Tab & Kategori yang sedang aktif)
+      const logsForPlatform = appLogs.filter(l => {
+        const matchStatus = (currentValidasiFilter === 'semua') || (l.status === currentValidasiFilter);
+        const matchKat = (currentKategoriFilter === 'all') || (l.kategoriInsiden === currentKategoriFilter);
+        return matchStatus && matchKat;
+      });
+
+      const fcAll = document.getElementById('filter-count-all');
+      if (fcAll) fcAll.innerText = logsForPlatform.length;
+      const fcSos = document.getElementById('filter-count-sos');
+      if (fcSos) fcSos.innerText = logsForPlatform.filter(l => l.platform === 'sos').length;
+      const fcWarga = document.getElementById('filter-count-warga');
+      if (fcWarga) fcWarga.innerText = logsForPlatform.filter(l => l.platform === 'warga').length;
+      const fc110 = document.getElementById('filter-count-110');
+      if (fc110) fc110.innerText = logsForPlatform.filter(l => l.platform === 'layanan110').length;
+      const fcPersonel = document.getElementById('filter-count-personel');
+      if (fcPersonel) fcPersonel.innerText = logsForPlatform.filter(l => l.platform === 'personel').length;
+
+      // 4. JENIS ADUAN FILTER BAR COUNTS (Saling terhubung dengan Status Tab & Platform yang sedang aktif)
+      const logsForKategori = appLogs.filter(l => {
+        const matchStatus = (currentValidasiFilter === 'semua') || (l.status === currentValidasiFilter);
+        const matchPlatform = (currentPlatformFilter === 'all') || (l.platform === currentPlatformFilter);
+        return matchStatus && matchPlatform;
+      });
+
+      const fckAll = document.getElementById('filter-count-kat-all');
+      if (fckAll) fckAll.innerText = logsForKategori.length;
+      const fckKrim = document.getElementById('filter-count-kat-kriminal');
+      if (fckKrim) fckKrim.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Kriminalitas').length;
+      const fckKamtib = document.getElementById('filter-count-kat-kamtibmas');
+      if (fckKamtib) fckKamtib.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Kamtibmas').length;
+      const fckLaka = document.getElementById('filter-count-kat-laka');
+      if (fckLaka) fckLaka.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Laka Lantas').length;
+      const fckDarurat = document.getElementById('filter-count-kat-darurat');
+      if (fckDarurat) fckDarurat.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Darurat Bencana').length;
+      const fckPelayanan = document.getElementById('filter-count-kat-pelayanan');
+      if (fckPelayanan) fckPelayanan.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Pelayanan Publik').length;
     }
 
     function isUserPawas() {
@@ -4241,6 +5056,24 @@
 
       const lokasiEl = document.getElementById('pawas-disp-lokasi-tkp');
       if (lokasiEl) lokasiEl.innerText = '📍 ' + (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
+
+      const pelaporBadgeEl = document.getElementById('pawas-disp-pelapor-badge');
+      const pelaporInfoEl = document.getElementById('pawas-disp-pelapor-info');
+      const isWarga = (log.tipePelapor === 'warga');
+      if (pelaporBadgeEl) {
+        pelaporBadgeEl.innerHTML = isWarga ? '👤 Laporan Warga 110' : '👮 Patroli Internal';
+        pelaporBadgeEl.style.background = isWarga ? '#EFF6FF' : '#FEF3C7';
+        pelaporBadgeEl.style.color = isWarga ? '#1D4ED8' : '#92400E';
+        pelaporBadgeEl.style.borderColor = isWarga ? '#BFDBFE' : '#FDE68A';
+      }
+      if (pelaporInfoEl) {
+        pelaporInfoEl.innerHTML = isWarga 
+          ? `👤 Pelapor: <strong>${log.nama}</strong> (${log.noTelpPelapor || '0812-8871-3321'}) via ${log.sumberLaporan || 'Call Center 110'}`
+          : `👮 Pelapor: <strong>${log.nama}</strong> (NRP: ${log.nrp || '50123456'}) • ${log.kesatuan || 'Unit Patroli Samapta Presisi'}`;
+        pelaporInfoEl.style.background = isWarga ? '#EFF6FF' : '#FFFBEB';
+        pelaporInfoEl.style.borderColor = isWarga ? '#93C5FD' : '#FCD34D';
+        pelaporInfoEl.style.color = isWarga ? '#1E40AF' : '#92400E';
+      }
 
       // Hitung daftar armada terdekat dan urutkan
       currentModalArmadaList = hitungEstimasiArmadaUntukLog(log);
@@ -4678,65 +5511,11 @@
     }
 
     function setujuiLog(id) {
-      if (isUserPawas()) {
-        bukaModalDisposisiPawas(id);
-        return;
-      }
-      const log = appLogs.find(l => l.id === id);
-      if (!log) return;
-
-      log.status = 'disetujui';
-      log.statusText = 'Disetujui';
-      if (!log.riwayatValidasi) log.riwayatValidasi = [];
-      log.riwayatValidasi.push({
-        waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-        aktor: 'Kompol Hendra (Pawas)',
-        aksi: 'Disetujui',
-        catatan: 'Berkas lengkap dan sesuai SOP'
-      });
-      saveLogsToStorage();
-      updateRekapCounts();
-
-      const remainingMenunggu = appLogs.filter(l => l.status === 'menunggu').length;
-      alert('✓ Laporan #' + log.id + ' ("' + log.title + '") berhasil disetujui!\n\nJumlah "Menunggu Tindakan" berkurang menjadi ' + remainingMenunggu + ' data.\nLaporan telah masuk ke LOG DISETUJUI.');
-
-      // Tetap di filter saat ini agar user melihat data yang sedang dikerjakan berkurang secara langsung
-      openValidasiList(currentValidasiFilter || 'menunggu');
+      bukaModalDisposisiPawas(id);
     }
 
     function prosesKasusLog(id) {
-      if (isUserPawas()) {
-        bukaModalDisposisiPawas(id);
-        return;
-      }
-      const log = appLogs.find(l => l.id === id);
-      if (!log) return;
-
-      log.status = 'diproses';
-      log.statusText = 'Sedang Diproses';
-      log.tahap = 3; // Default tahap 3: Personel Menuju Lokasi
-      if (!log.nomorTiket) log.nomorTiket = 'TIKET-110-' + (log.id < 10 ? '0' + log.id : log.id) + 'X2F';
-      if (!log.jenisInsiden) log.jenisInsiden = log.title;
-      if (!log.lokasiKejadian) log.lokasiKejadian = log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta';
-
-      if (!log.riwayatValidasi) log.riwayatValidasi = [];
-      log.riwayatValidasi.push({
-        waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-        aktor: 'Sistem SPKT',
-        aksi: 'Tiket Diterbitkan',
-        catatan: 'Kasus dialihkan ke status DIPROSES (Tahap 3)'
-      });
-
-      saveLogsToStorage();
-      updateRekapCounts();
-
-      const remainingDisetujui = appLogs.filter(l => l.status === 'disetujui').length;
-      const totalDiproses = appLogs.filter(l => l.status === 'diproses').length;
-
-      alert('⚡ Laporan #' + log.id + ' ("' + log.title + '") sekarang dialihkan ke status DIPROSES!\n\n• Dikeluarkan dari Log Disetujui (sisa: ' + remainingDisetujui + ' data)\n• Dimasukkan ke Log Diproses (total: ' + totalDiproses + ' data)\n• Timeline pelacakan penanganan kasus telah diaktifkan!');
-
-      // Refresh daftar pada filter saat ini agar langsung hilang dari log disetujui
-      openValidasiList(currentValidasiFilter || 'disetujui');
+      bukaModalDisposisiPawas(id);
     }
 
     function bukaHalamanTolak(id) {
@@ -5513,7 +6292,15 @@
     function updateMacroStepper(log) {
       if (!log) return;
       const badge = document.getElementById('macro-source-badge');
-      if (badge) badge.innerText = log.sumberLaporan || '📞 Panggilan 110';
+      const isWarga = (log.tipePelapor === 'warga');
+      if (badge) {
+        badge.innerHTML = isWarga 
+          ? `👤 ${log.sumberLaporan || 'Laporan Warga 110'}`
+          : `👮 ${log.sumberLaporan || 'Patroli Mandiri Personel'}`;
+        badge.style.background = isWarga ? '#EFF6FF' : '#FEF3C7';
+        badge.style.color = isWarga ? '#1D4ED8' : '#92400E';
+        badge.style.borderColor = isWarga ? '#BFDBFE' : '#FDE68A';
+      }
 
       const s1 = document.getElementById('mstep-1');
       const s2 = document.getElementById('mstep-2');
@@ -5547,14 +6334,18 @@
         }
       };
 
-      // Step 1: Lapor 110 selalu selesai (inisiasi berhasil)
-      setStep(s1, i1, t1, '✓', 'Tercatat', '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
+      // Step 1: Inisiasi
+      const statTeks1 = isWarga ? 'Lapor 110' : 'Giat Patroli';
+      setStep(s1, i1, t1, '✓', statTeks1, '#ECFDF5', '#A7F3D0', '#10B981', '#059669');
 
       if (log.status === 'menunggu') {
         setStep(s2, i2, t2, '⏳', 'Review Pawas', '#FEF3C7', '#F59E0B', '#D97706', '#B45309');
         setStep(s3, i3, t3, '🔒', 'Menunggu Acc', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
         setStep(s4, i4, t4, '🔒', 'Menunggu', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.6);
-        if (lastLog) lastLog.innerHTML = '🕒 <strong>Menunggu Validasi:</strong> Laporan masuk dalam antrean audit pimpinan pengawas.';
+        const asalTeks = isWarga 
+          ? `Laporan masuk dari warga (${log.nama}) via ${log.sumberLaporan || 'Call Center 110'}. Menunggu validasi & disposisi Pawas.`
+          : `Laporan kegiatan lapangan dari ${log.nama} (${log.nrp || 'Polri'}). Menunggu review Pawas.`;
+        if (lastLog) lastLog.innerHTML = '🕒 <strong>Menunggu Tindakan Pawas:</strong> ' + asalTeks;
       } else if (log.status === 'ditolak') {
         setStep(s2, i2, t2, '✕', 'Ditolak/Revisi', '#FEE2E2', '#EF4444', '#DC2626', '#B91C1C');
         setStep(s3, i3, t3, '⛔', 'Terkunci', '#F8FAFC', '#E2E8F0', '#94A3B8', '#94A3B8', 0.5);
@@ -5613,6 +6404,16 @@
       if (!log) return;
 
       selectedLogId = id;
+      const detailBox = document.getElementById('val-detail-box');
+      if (detailBox) detailBox.style.display = 'block';
+      const msBox = document.getElementById('macro-milestone-box');
+      if (msBox) msBox.style.display = 'block';
+      const listCont = document.getElementById('val-list-container');
+      if (listCont) {
+        listCont.style.flex = '1.2';
+        listCont.style.width = 'auto';
+      }
+
       updateMacroStepper(log);
 
       const isTimelineMode = (log.status === 'diproses' || log.status === 'selesai');
@@ -5856,13 +6657,48 @@
           this.onerror = null;
           this.src = SVG_FALLBACK_PENGADUAN;
         };
-        if (log.fotoLampiran) imgEl.src = log.fotoLampiran;
+        let srcLampiran = log.fotoLampiran || log.fotoPengaduan;
+        if (!srcLampiran || srcLampiran.includes('placehold.co') || srcLampiran.includes('Disetujui')) {
+          srcLampiran = log.fotoPengaduan || 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=600&q=80';
+        }
+        imgEl.src = srcLampiran;
       }
       if (titleEl) titleEl.innerText = log.title;
       if (descEl) descEl.innerText = log.deskripsi;
       if (sektorEl) sektorEl.innerText = log.sektor;
-      if (petugasEl) petugasEl.innerText = log.nama;
       if (waktuEl) waktuEl.innerText = log.waktu;
+
+      const platform = log.platform || (log.tipePelapor === 'internal' ? 'personel' : 'warga');
+      const petugasLabelEl = document.getElementById('detail-val-petugas-label');
+      const kontakLabelEl = document.getElementById('detail-val-kontak-label');
+      const kontakEl = document.getElementById('detail-val-kontak');
+      const sumberEl = document.getElementById('detail-val-sumber');
+
+      if (platform === 'sos') {
+        if (petugasLabelEl) petugasLabelEl.innerText = '🚨 Pelapor Darurat (SOS Panic):';
+        if (petugasEl) petugasEl.innerHTML = `<span style="color:#DC2626; font-weight:800; font-size:13px;">${log.nama}</span> <span style="font-size:10px; background:#FEE2E2; color:#DC2626; font-weight:800; padding:2px 7px; border-radius:4px; border:1px solid #FECACA;">🚨 Suar SOS Aktif</span>`;
+        if (kontakLabelEl) kontakLabelEl.innerText = 'Kontak & Koordinat GPS:';
+        if (kontakEl) kontakEl.innerHTML = `📞 <strong style="color:#DC2626;">${log.noTelpPelapor || '0812-9911-2233'}</strong> <span style="font-size:10.5px; color:#64748B;">• 🛰️ GPS: ${log.gpsCoords || '-6.2421, 106.7982'} (Akurasi Tinggi)</span>`;
+        if (sumberEl) sumberEl.innerHTML = `<span style="font-size:11px; font-weight:800; color:#DC2626; background:#FEF2F2; border:1px solid #FECACA; padding:3px 9px; border-radius:4px; display:inline-block;">🚨 PANGGILAN DARURAT SOS (PANIC BUTTON)</span>`;
+      } else if (platform === 'warga') {
+        if (petugasLabelEl) petugasLabelEl.innerText = '📱 Identitas Pelapor (Portal):';
+        if (petugasEl) petugasEl.innerHTML = `<span style="color:#0284C7; font-weight:800; font-size:13px;">${log.nama}</span> <span style="font-size:10px; background:#F0F9FF; color:#0284C7; font-weight:800; padding:2px 7px; border-radius:4px; border:1px solid #BAE6FD;">Portal Warga Terverifikasi</span>`;
+        if (kontakLabelEl) kontakLabelEl.innerText = 'Kontak & NIK Terdaftar:';
+        if (kontakEl) kontakEl.innerHTML = `📞 <strong style="color:#0369A1;">${log.noTelpPelapor || '0856-9123-8842'}</strong> ${log.nikPelapor ? `<span style="font-size:10.5px; color:#64748B;">• 🪪 NIK: ${log.nikPelapor} (Dukcapil Valid)</span>` : ''}`;
+        if (sumberEl) sumberEl.innerHTML = `<span style="font-size:11px; font-weight:800; color:#0284C7; background:#F0F9FF; border:1px solid #BAE6FD; padding:3px 9px; border-radius:4px; display:inline-block;">📱 PORTAL PRESISI WARGA (ONLINE)</span>`;
+      } else if (platform === 'layanan110') {
+        if (petugasLabelEl) petugasLabelEl.innerText = '📞 Penelepon Hotline 110:';
+        if (petugasEl) petugasEl.innerHTML = `<span style="color:#1D4ED8; font-weight:800; font-size:13px;">${log.nama}</span> <span style="font-size:10px; background:#EFF6FF; color:#1D4ED8; font-weight:800; padding:2px 7px; border-radius:4px; border:1px solid #BFDBFE;">Warga Pelapor 110</span>`;
+        if (kontakLabelEl) kontakLabelEl.innerText = 'Nomor Telepon & Rekaman:';
+        if (kontakEl) kontakEl.innerHTML = `📞 <strong style="color:#1D4ED8;">${log.noTelpPelapor || '0813-1456-9901'}</strong> <span style="font-size:10.5px; color:#64748B;">• 🎧 Rekaman SPKT 110 Terarsip</span>`;
+        if (sumberEl) sumberEl.innerHTML = `<span style="font-size:11px; font-weight:800; color:#1D4ED8; background:#EFF6FF; border:1px solid #BFDBFE; padding:3px 9px; border-radius:4px; display:inline-block;">📞 PANGGILAN DARURAT 110 (CALL CENTER)</span>`;
+      } else {
+        if (petugasLabelEl) petugasLabelEl.innerText = '👮 Personel Pelapor (Polri):';
+        if (petugasEl) petugasEl.innerHTML = `<span style="color:#0F172A; font-weight:800; font-size:13px;">${log.nama}</span> <span style="font-size:10px; background:#FEF3C7; color:#92400E; font-weight:800; padding:2px 7px; border-radius:4px; border:1px solid #FDE68A;">NRP: ${log.nrp || '50123456'}</span>`;
+        if (kontakLabelEl) kontakLabelEl.innerText = 'Kesatuan / Unit:';
+        if (kontakEl) kontakEl.innerHTML = `🛡️ <strong style="color:#334155;">${log.kesatuan || 'Unit Patroli Samapta Presisi'}</strong>`;
+        if (sumberEl) sumberEl.innerHTML = `<span style="font-size:11px; font-weight:800; color:#92400E; background:#FEF3C7; border:1px solid #FDE68A; padding:3px 9px; border-radius:4px; display:inline-block;">👮 PATROLI MANDIRI PERSONEL POLRI</span>`;
+      }
 
       // Badge status di panel kanan
       if (statusBadgeEl) {
@@ -5914,12 +6750,6 @@
             </button>
           `;
           }
-        } else if (log.status === 'disetujui') {
-          actionsBox.innerHTML = `
-          <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; border:none; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="bukaModalDisposisiPawas(${log.id})">
-            <span>⚡</span> Terbitkan Tiket & Perintahkan Disposisi Lapangan ➔
-          </button>
-        `;
         } else if (log.status === 'ditolak') {
           actionsBox.innerHTML = `
           <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:#D97706; font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; border:none; color:white; cursor:pointer; box-shadow:0 2px 6px rgba(217,119,6,0.3); transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="koreksiLogDitolak(${log.id})">
@@ -5936,27 +6766,125 @@
       displayLogDetail(id);
     }
 
+    function filterByPlatform(platform) {
+      currentPlatformFilter = platform;
+      const platforms = ['all', 'sos', 'warga', 'layanan110', 'personel'];
+      platforms.forEach(p => {
+        const btn = document.getElementById('filter-platform-' + p);
+        const badge = btn ? btn.querySelector('.badge-mini') : null;
+        if (btn) {
+          if (p === platform) {
+            btn.classList.add('active');
+            if (p === 'sos') { btn.style.background = '#DC2626'; btn.style.color = 'white'; btn.style.borderColor = 'transparent'; }
+            else if (p === 'warga') { btn.style.background = '#0284C7'; btn.style.color = 'white'; btn.style.borderColor = 'transparent'; }
+            else if (p === 'layanan110') { btn.style.background = '#1D4ED8'; btn.style.color = 'white'; btn.style.borderColor = 'transparent'; }
+            else if (p === 'personel') { btn.style.background = '#92400E'; btn.style.color = 'white'; btn.style.borderColor = 'transparent'; }
+            else { btn.style.background = '#0F172A'; btn.style.color = 'white'; btn.style.borderColor = 'transparent'; }
+            if (badge) { badge.style.background = 'rgba(255,255,255,0.25)'; badge.style.color = 'white'; }
+          } else {
+            btn.classList.remove('active');
+            if (p === 'sos') { btn.style.background = '#FEF2F2'; btn.style.color = '#DC2626'; btn.style.borderColor = '#FECACA'; if (badge) { badge.style.background = '#FEE2E2'; badge.style.color = '#DC2626'; } }
+            else if (p === 'warga') { btn.style.background = '#F0F9FF'; btn.style.color = '#0284C7'; btn.style.borderColor = '#BAE6FD'; if (badge) { badge.style.background = '#E0F2FE'; badge.style.color = '#0284C7'; } }
+            else if (p === 'layanan110') { btn.style.background = '#EFF6FF'; btn.style.color = '#1D4ED8'; btn.style.borderColor = '#BFDBFE'; if (badge) { badge.style.background = '#DBEAFE'; badge.style.color = '#1D4ED8'; } }
+            else if (p === 'personel') { btn.style.background = '#FEF3C7'; btn.style.color = '#92400E'; btn.style.borderColor = '#FDE68A'; if (badge) { badge.style.background = '#FEF3C7'; badge.style.color = '#92400E'; } }
+            else { btn.style.background = '#F1F5F9'; btn.style.color = '#475569'; btn.style.borderColor = '#CBD5E1'; if (badge) { badge.style.background = '#E2E8F0'; badge.style.color = '#475569'; } }
+          }
+        }
+      });
+      updateResetFilterVisibility();
+      openValidasiList(currentValidasiFilter, false);
+    }
+
+    function filterByKategori(kategori) {
+      currentKategoriFilter = kategori;
+      const katMap = {
+        'all': 'filter-kat-all',
+        'Kriminalitas': 'filter-kat-kriminal',
+        'Kamtibmas': 'filter-kat-kamtibmas',
+        'Laka Lantas': 'filter-kat-laka',
+        'Darurat Bencana': 'filter-kat-darurat',
+        'Pelayanan Publik': 'filter-kat-pelayanan'
+      };
+      Object.keys(katMap).forEach(k => {
+        const btn = document.getElementById(katMap[k]);
+        const badge = btn ? btn.querySelector('.badge-mini') : null;
+        if (btn) {
+          if (k === kategori) {
+            btn.classList.add('active');
+            btn.style.background = '#1E293B';
+            btn.style.color = 'white';
+            btn.style.borderColor = 'transparent';
+            if (badge) { badge.style.background = 'rgba(255,255,255,0.25)'; badge.style.color = 'white'; }
+          } else {
+            btn.classList.remove('active');
+            btn.style.background = '#F8FAFC';
+            btn.style.color = '#64748B';
+            btn.style.borderColor = '#E2E8F0';
+            if (badge) { badge.style.background = '#E2E8F0'; badge.style.color = '#475569'; }
+          }
+        }
+      });
+      updateResetFilterVisibility();
+      openValidasiList(currentValidasiFilter, false);
+    }
+
+    function resetActiveFilters() {
+      currentPlatformFilter = 'all';
+      currentKategoriFilter = 'all';
+      filterByPlatform('all');
+      filterByKategori('all');
+    }
+
+    function updateResetFilterVisibility() {
+      const rBtn = document.getElementById('btn-reset-filter');
+      if (rBtn) {
+        if (currentPlatformFilter !== 'all' || currentKategoriFilter !== 'all') {
+          rBtn.style.display = 'inline-block';
+        } else {
+          rBtn.style.display = 'none';
+        }
+      }
+    }
+
+    function openValidasiWithPlatform(platform) {
+      currentPlatformFilter = platform;
+      filterByPlatform(platform);
+      switchTab('view-validasi');
+    }
+
     function openValidasiList(filter, doSwitch = true) {
+      if (filter === 'disetujui') filter = 'menunggu';
       currentValidasiFilter = filter;
       const listContainer = document.getElementById('val-list-container');
       let html = '';
 
-      // 1. Highlight tombol tab yang aktif di Halaman Validasi
+      // 1. Highlight tombol status tab yang aktif
       document.querySelectorAll('.val-tab-btn').forEach(btn => btn.classList.remove('active'));
       const activeTab = document.getElementById('val-tab-' + filter);
       if (activeTab) activeTab.classList.add('active');
 
-      // 2. Filter log data
-      const filteredLogs = (filter === 'semua')
+      // 2. Filter log data berdasarkan Status, Platform Pelaporan, dan Jenis Pengaduan
+      let filteredLogs = (filter === 'semua')
         ? appLogs
         : appLogs.filter(l => l.status === filter);
 
+      if (currentPlatformFilter !== 'all') {
+        filteredLogs = filteredLogs.filter(l => l.platform === currentPlatformFilter);
+      }
+
+      if (currentKategoriFilter !== 'all') {
+        filteredLogs = filteredLogs.filter(l => l.kategoriInsiden === currentKategoriFilter);
+      }
+
       if (filteredLogs.length === 0) {
         html = `
-        <div style="text-align:center; padding:40px 16px; background:white; border-radius:12px; border:1px solid var(--border);">
-          <div style="font-size:36px; margin-bottom:8px;">📭</div>
-          <div style="font-weight:700; color:var(--text); font-size:14px;">Tidak Ada Data</div>
-          <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Semua laporan pada kategori ini telah selesai ditindaklanjuti.</div>
+        <div style="text-align:center; padding:48px 24px; background:white; border-radius:12px; border:1px solid var(--border); width:100%; box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div style="font-size:44px; margin-bottom:12px;">📭</div>
+          <div style="font-weight:800; color:var(--text); font-size:15px;">Tidak Ada Data Laporan Ditemukan</div>
+          <div style="font-size:12.5px; color:var(--text-muted); margin:6px auto 0; max-width:480px; line-height:1.5;">Tidak ada laporan pengaduan yang cocok dengan kombinasi status, platform, atau jenis pengaduan yang sedang aktif.</div>
+          <button type="button" onclick="resetActiveFilters()" style="margin-top:16px; padding:8px 18px; background:var(--primary); color:white; border:none; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; box-shadow:0 2px 6px rgba(21,62,117,0.25); transition:0.2s;">
+            🔄 Tampilkan Semua Laporan (Reset Filter)
+          </button>
         </div>
       `;
       } else {
@@ -5966,13 +6894,6 @@
 
           if (log.status === 'menunggu') {
             color = 'var(--warning)';
-          } else if (log.status === 'disetujui') {
-            color = 'var(--success)';
-            badgeInfo = `
-            <div style="margin-top:6px; font-size:11px; color:var(--success); font-weight:600; display:flex; align-items:center; gap:4px;">
-              <span>✓ Disetujui oleh Atasan</span>
-            </div>
-          `;
           } else if (log.status === 'ditolak') {
             color = 'var(--danger)';
             badgeInfo = `
@@ -6008,16 +6929,6 @@
               <span>🔍</span> Klik untuk tinjau foto bukti & validasi ➔
             </div>
           `;
-          } else if (log.status === 'disetujui') {
-            cardFooter = isUserPawas() ? `
-            <div style="font-size:11px; color:#1E40AF; font-weight:700; display:flex; align-items:center; gap:4px; margin-top:8px;">
-              <span>⚡</span> Klik untuk Terbitkan Tiket & Perintahkan Disposisi ➔
-            </div>
-          ` : `
-            <div style="font-size:11px; color:var(--primary); font-weight:600; display:flex; align-items:center; gap:4px; margin-top:8px;">
-              <span>⚡</span> Klik untuk proses kasus ➔
-            </div>
-          `;
           } else if (log.status === 'diproses' || log.status === 'selesai') {
             cardFooter = isUserPawas() ? (
               log.status === 'selesai' ? `
@@ -6036,20 +6947,123 @@
           `;
           }
 
+          // Saluran Platform Styling & Badges
+          const platform = log.platform || 'warga';
+          let platformBadge = '';
+          let avatarBorder = '#93C5FD';
+          let avatarIcon = '👤';
+          let avatarIconBg = '#2563EB';
+          let kontakMeta = `📞 ${log.noTelpPelapor || '0812-8871-3321'}`;
+
+          if (platform === 'sos') {
+            platformBadge = `
+              <span style="font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:4px; background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; display:inline-flex; align-items:center; gap:3px;">
+                🚨 SOS PANIC
+              </span>
+            `;
+            avatarBorder = '#FCA5A5';
+            avatarIcon = '🚨';
+            avatarIconBg = '#DC2626';
+            kontakMeta = `📞 ${log.noTelpPelapor || '0812-9911-2233'} • 🛰️ GPS: ${log.gpsCoords || '-6.2421, 106.7982'}`;
+          } else if (platform === 'warga') {
+            platformBadge = `
+              <span style="font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:4px; background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD; display:inline-flex; align-items:center; gap:3px;">
+                📱 PORTAL WARGA
+              </span>
+            `;
+            avatarBorder = '#7DD3FC';
+            avatarIcon = '📱';
+            avatarIconBg = '#0284C7';
+            kontakMeta = `📞 ${log.noTelpPelapor || '0856-9123-8842'} • 🪪 NIK: ${log.nikPelapor || '3171021405820001'}`;
+          } else if (platform === 'layanan110') {
+            platformBadge = `
+              <span style="font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:4px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; display:inline-flex; align-items:center; gap:3px;">
+                📞 LAYANAN 110
+              </span>
+            `;
+            avatarBorder = '#93C5FD';
+            avatarIcon = '📞';
+            avatarIconBg = '#1D4ED8';
+            kontakMeta = `📞 ${log.noTelpPelapor || '0813-1456-9901'} • 🎧 Call Center 110`;
+          } else {
+            platformBadge = `
+              <span style="font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:4px; background:#FEF3C7; color:#92400E; border:1px solid #FDE68A; display:inline-flex; align-items:center; gap:3px;">
+                👮 PATROLI POLRI
+              </span>
+            `;
+            avatarBorder = '#FCD34D';
+            avatarIcon = '👮';
+            avatarIconBg = '#D97706';
+            kontakMeta = `👮 NRP: ${log.nrp || '50123456'} • 🛡️ ${log.kesatuan || 'Unit Samapta'}`;
+          }
+
+          // Jenis Pengaduan Styling Badges
+          const kat = log.kategoriInsiden || 'Kamtibmas';
+          let katBadgeStyle = 'background:#FAF5FF; color:#7E22CE; border:1px solid #F3E8FF;';
+          let katBadgeText = log.kategoriBadge || '💥 Kamtibmas & Tawuran';
+          if (kat === 'Kriminalitas') {
+            katBadgeStyle = 'background:#FFF1F2; color:#BE123C; border:1px solid #FFE4E6;';
+            katBadgeText = log.kategoriBadge || '⚔️ Kriminalitas';
+          } else if (kat === 'Laka Lantas') {
+            katBadgeStyle = 'background:#FFFBEB; color:#B45309; border:1px solid #FEF3C7;';
+            katBadgeText = log.kategoriBadge || '🚗 Laka Lantas';
+          } else if (kat === 'Darurat Bencana') {
+            katBadgeStyle = 'background:#FFF7ED; color:#C2410C; border:1px solid #FFEDD5;';
+            katBadgeText = log.kategoriBadge || '🔥 Darurat Bencana';
+          } else if (kat === 'Pelayanan Publik') {
+            katBadgeStyle = 'background:#ECFDF5; color:#047857; border:1px solid #D1FAE5;';
+            katBadgeText = log.kategoriBadge || '🤝 Pelayanan Publik';
+          }
+
           html += `
           <div class="val-card" id="card-log-${log.id}" onclick="selectLogCard(${log.id})">
-            <div class="val-user">
-              <img src="${log.avatar}">
-              <div style="flex:1;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <div style="font-weight:700; font-size:13px; color:var(--text);">${log.nama}</div>
-                  <div style="font-size:10px; color:var(--text-muted);">${log.waktu}</div>
+            <!-- Header Kartu: Avatar Pelapor, Nama, Waktu, Status, Platform -->
+            <div class="val-user" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+              <div style="position:relative; flex-shrink:0;">
+                <img src="${log.avatar}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid ${avatarBorder}; display:block;">
+                <span style="position:absolute; bottom:-3px; right:-3px; font-size:9px; background:${avatarIconBg}; color:white; border-radius:50%; width:16px; height:16px; display:flex; align-items:center; justify-content:center; border:1.5px solid white;">
+                  ${avatarIcon}
+                </span>
+              </div>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+                  <div style="font-weight:700; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${log.nama}
+                  </div>
+                  <div style="font-size:10px; color:var(--text-muted); flex-shrink:0;">${log.waktu}</div>
                 </div>
-                <div style="font-size:11px; color:${color}; font-weight:bold;">Status: ${log.statusText}</div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:2px;">
+                  <div style="font-size:11px; color:${color}; font-weight:bold;">Status: ${log.statusText}</div>
+                  ${platformBadge}
+                </div>
               </div>
             </div>
-            <div style="font-weight:700; font-size:12px; color:var(--text); margin-bottom:4px;">${log.title}</div>
-            <div class="val-text" style="margin-bottom:4px;">${log.deskripsi}</div>
+
+            <!-- Baris Kombinasi: Jenis Pengaduan & Tingkat Urgensi -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:6px; flex-wrap:wrap;">
+              <span style="font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:4px; ${katBadgeStyle}">
+                ${katBadgeText}
+              </span>
+              ${log.urgensi ? `<span style="font-size:9.5px; font-weight:800; padding:1.5px 6px; border-radius:4px; white-space:nowrap; background:${log.urgensi.includes('Darurat') ? '#FEE2E2' : (log.urgensi.includes('Sedang') ? '#FEF3C7' : '#EFF6FF')}; color:${log.urgensi.includes('Darurat') ? '#DC2626' : (log.urgensi.includes('Sedang') ? '#D97706' : '#1D4ED8')};">${log.urgensi}</span>` : ''}
+            </div>
+
+            <!-- Judul & Ringkasan Laporan -->
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:4px; gap:8px;">
+              <div style="font-weight:700; font-size:12.5px; color:var(--text); line-height:1.35;">${log.title}</div>
+            </div>
+            <div class="val-text" style="margin-bottom:6px; line-height:1.45;">${log.deskripsi}</div>
+
+            <!-- Metadata Lokasi, Kontak & Tiket -->
+            <div style="font-size:10.5px; color:#64748B; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:6px 8px; margin-bottom:6px; display:flex; flex-direction:column; gap:2px;">
+              <div style="display:flex; align-items:center; gap:4px;">
+                <span>📍</span> <span style="font-weight:600; color:#334155;">${log.lokasiKejadian || log.sektor}</span>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+                <span style="color:#475569;">${kontakMeta}</span>
+                <span style="color:#64748B;">Tiket: <strong>${log.nomorTiket || 'TIKET-' + log.id}</strong></span>
+              </div>
+            </div>
+
             ${badgeInfo}
             ${cardFooter}
           </div>
@@ -6059,29 +7073,43 @@
 
       if (listContainer) listContainer.innerHTML = html;
 
+      const detailBox = document.getElementById('val-detail-box');
+      const msBox = document.getElementById('macro-milestone-box');
+
       // Otomatis pilih kartu pertama saat membuka tab jika ada data
       if (filteredLogs.length > 0) {
+        if (detailBox) detailBox.style.display = 'block';
+        if (msBox) msBox.style.display = 'block';
+        if (listContainer) {
+          listContainer.style.flex = '1.2';
+          listContainer.style.width = 'auto';
+        }
         selectLogCard(filteredLogs[0].id);
       } else {
-        // Sembunyikan panel detail jika kosong
+        // Sembunyikan SELURUH panel detail kanan jika data kosong
+        if (detailBox) detailBox.style.display = 'none';
+        if (msBox) msBox.style.display = 'none';
+        if (listContainer) {
+          listContainer.style.flex = '1';
+          listContainer.style.width = '100%';
+        }
         const stdView = document.getElementById('detail-standard-view');
         const tlView = document.getElementById('detail-timeline-view');
         if (stdView) stdView.style.display = 'none';
         if (tlView) tlView.style.display = 'none';
       }
 
-      // 3. Update judul/subtitle dengan ID eksplisit
+      // 3. Update judul/subtitle dengan total data yang ditampilkan
       const subtitle = document.getElementById('val-subtitle-text') || document.querySelector('#view-validasi .page-subtitle');
       if (subtitle) {
         const titles = {
           'semua': 'Semua Pengaduan',
           'menunggu': 'Menunggu Tindakan',
-          'disetujui': 'Log Disetujui',
           'ditolak': 'Log Ditolak',
-          'diproses': 'Sedang Diproses',
+          'diproses': 'Sedang Ditangani',
           'selesai': 'Kasus Selesai'
         };
-        subtitle.innerText = 'Menampilkan: ' + filteredLogs.length + ' Data ' + (titles[filter] || '');
+        subtitle.innerHTML = `Menampilkan: <strong>${filteredLogs.length} Data ${titles[filter] || ''}</strong>`;
       }
 
       // Sinkronkan seluruh badge angka
@@ -7948,11 +8976,17 @@
 
         <!-- Detail Kasus Singkat -->
         <div
-          style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px; margin-bottom:14px;">
-          <div style="font-size:11px; font-weight:700; color:#64748B; margin-bottom:4px;">Kasus / Lokasi TKP:</div>
+          style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div style="font-size:11px; font-weight:700; color:#64748B;">Kasus / Lokasi TKP:</div>
+            <span id="pawas-disp-pelapor-badge" style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;">👤 Laporan Warga 110</span>
+          </div>
           <div id="pawas-disp-judul-kasus" style="font-size:13px; font-weight:800; color:#0F172A; margin-bottom:2px;">
             Tawuran Pelajar Remaja</div>
-          <div id="pawas-disp-lokasi-tkp" style="font-size:11.5px; color:#475569;">📍 Sektor Selatan, Jakarta</div>
+          <div id="pawas-disp-lokasi-tkp" style="font-size:11.5px; color:#475569; margin-bottom:6px;">📍 Sektor Selatan, Jakarta</div>
+          <div id="pawas-disp-pelapor-info" style="font-size:11px; color:#1E40AF; background:#EFF6FF; padding:5px 8px; border-radius:6px; border:1px dashed #93C5FD;">
+            👤 Pelapor: <strong>Ibu Siti Rahmawati</strong> (0812-8871-3321) via Call Center 110
+          </div>
         </div>
 
         <!-- Form Pemilihan Satuan Terpadu (Opsi B: Merged Dropdown + Estimasi Jarak Proximity) -->
