@@ -5333,12 +5333,11 @@
       const posisiVal = armada.posisiSaatIni;
       const kekuatanVal = armada.kekuatan;
 
-      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      const waktuSekarang = formatWaktuHhMmWib();
 
       log.status = 'diproses';
       log.statusText = 'Sedang Diproses';
       log.tahap = 3; // Meluncur ke TKP
-      log.waktuMeluncur = waktuSekarang;
       log.disposisi = {
         unit: unitVal,
         unitId: armada.id,
@@ -5663,10 +5662,11 @@
       const confirmSah = confirm('⚖️ OTORISASI PENUTUPAN KASUS (PAWAS)\n\nApakah Anda yakin ingin mengesahkan Berita Acara Penanganan kasus #' + (log.nomorTiket || log.id) + ' dan menutup kasus ini secara resmi?');
       if (!confirmSah) return;
 
-      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      const waktuSekarang = formatWaktuHhMmWib();
       log.status = 'selesai';
       log.statusText = 'Kasus Selesai (Disahkan Pawas)';
       log.tahap = 5;
+      log.waktuSelesai = waktuSekarang;
       log.pengesahanPawas = {
         aktor: 'Kombes Pol Budi (Pawas / Kapolres)',
         waktu: waktuSekarang,
@@ -5911,11 +5911,14 @@
           </div>
         `;
         } else if (s.step === 5) {
-          // Hanya tampilkan tombol Bukti Selesai jika kasus SUDAH ditutup/disubmit step 3
+          // Hanya tampilkan tombol Bukti Selesai jika kasus SUDAH ditutup/disubmit step 3 atau disahkan Pawas
           const sudahSelesai = Boolean(log.waktuSelesai || log.status === 'selesai');
+          const waktuSelesaiFinal = log.pengesahanPawas?.waktu || log.waktuSelesai || log.waktu || s.time;
           metaRowHtml = `
           <div style="display:flex; align-items:center; justify-content:space-between; margin-top:6px;">
-            <span class="step-time" style="${!sudahSelesai ? 'color:#94A3B8; font-style:italic;' : ''}">${sudahSelesai ? 'Selesai: ' + (log.waktuSelesai || log.waktu || s.time) : 'Menunggu Otorisasi Penutupan Kasus'}</span>
+            <span class="step-time" style="${!sudahSelesai ? 'color:#94A3B8; font-style:italic;' : ''}">
+              ${sudahSelesai ? (log.pengesahanPawas ? 'Disahkan: ' + waktuSelesaiFinal : 'Selesai: ' + waktuSelesaiFinal) : 'Menunggu Otorisasi Penutupan Kasus'}
+            </span>
             ${sudahSelesai ? `
             <span style="font-size:10px; font-weight:700; color:#16A34A; background:#ECFDF5; border:1px solid #A7F3D0; padding:2px 8px; border-radius:4px; cursor:pointer; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); previewFotoModal('selesai')" title="Klik untuk lihat bukti foto penyelesaian akhir">
               ✅ Bukti Situasi Akhir ➔
@@ -5952,7 +5955,7 @@
           </div>
         `;
         } else if (s.step === 5 && (log.waktuSelesai || log.status === 'selesai')) {
-          const teksSelesai = log.catatanSelesai || 'Situasi telah aman dan kondusif. Kasus selesai ditangani dan disahkan oleh pimpinan.';
+          const teksSelesai = log.catatanSelesai || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.';
           let ratingBoxHtml = '';
           if (log.ratingKepuasan) {
             const r = log.ratingKepuasan;
@@ -5971,11 +5974,28 @@
           `;
           }
 
+          let pawasApprovalHtml = '';
+          if (log.pengesahanPawas) {
+            pawasApprovalHtml = `
+            <div style="background:#F0FDF4; border:1px solid #86EFAC; border-left:4px solid #16A34A; border-radius:6px; padding:7px 10px; margin-top:8px; line-height:1.4;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:10px; font-weight:800; color:#15803D;">⚖️ PENGESAHAN RESMI PIMPINAN (PAWAS):</span>
+                <span style="font-size:9.5px; font-weight:700; background:#DCFCE7; color:#166534; padding:1px 6px; border-radius:3px;">SAH &amp; VALID</span>
+              </div>
+              <div style="font-size:10.5px; color:#166534; margin-top:2px;">
+                <strong>Pengesah:</strong> ${log.pengesahanPawas.aktor || 'Kombes Pol Budi (Pawas)'} • <strong>Waktu:</strong> ${log.pengesahanPawas.waktu}
+              </div>
+              <div style="font-size:11px; color:#1E293B; font-style:italic; margin-top:2px;">"${log.pengesahanPawas.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}"</div>
+            </div>
+            `;
+          }
+
           detailSnippetHtml = `
           <div style="background:#ECFDF5; border-left:3px solid #10B981; border-radius:0 6px 6px 0; padding:6px 10px; margin-top:8px; line-height:1.4;">
-            <div style="font-size:10px; font-weight:700; color:#047857; margin-bottom:2px;">✓ PENYELESAIAN AKHIR:</div>
+            <div style="font-size:10px; font-weight:700; color:#047857; margin-bottom:2px;">✓ LAPORAN AKHIR PETUGAS:</div>
             <div style="font-size:11px; color:#1E293B;">"${teksSelesai}"</div>
           </div>
+          ${pawasApprovalHtml}
           ${ratingBoxHtml}
         `;
         }
@@ -6000,11 +6020,17 @@
       container.innerHTML = html;
     }
 
+    function formatWaktuHhMmWib(d = new Date()) {
+      const h = String(d.getHours()).padStart(2, '0');
+      const m = String(d.getMinutes()).padStart(2, '0');
+      return `${h}:${m} WIB`;
+    }
+
     function hitungSelisihMenitTeks(t1, t2) {
       if (!t1 || !t2) return 5;
       try {
-        const clean1 = t1.replace(' WIB', '').trim();
-        const clean2 = t2.replace(' WIB', '').trim();
+        const clean1 = t1.replace(' WIB', '').trim().replace('.', ':');
+        const clean2 = t2.replace(' WIB', '').trim().replace('.', ':');
         const parts1 = clean1.split(':').map(Number);
         const parts2 = clean2.split(':').map(Number);
         if (parts1.length >= 2 && parts2.length >= 2 && !isNaN(parts1[0]) && !isNaN(parts2[0])) {
@@ -6012,12 +6038,29 @@
           const totalM2 = parts2[0] * 60 + parts2[1];
           let diff = totalM2 - totalM1;
           if (diff < 0) diff += 1440; // Melewati tengah malam
-          return Math.max(1, diff);
+          return diff;
         }
       } catch (e) {
         console.warn('Gagal parse waktu SLA:', e);
       }
       return 5;
+    }
+
+    function hitungDetikDariWaktuTeks(waktuTeks) {
+      if (!waktuTeks) return 0;
+      try {
+        const clean = waktuTeks.replace(' WIB', '').trim().replace('.', ':');
+        const parts = clean.split(':').map(Number);
+        if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          const now = new Date();
+          const target = new Date();
+          target.setHours(parts[0], parts[1], 0, 0);
+          let diffMs = now.getTime() - target.getTime();
+          if (diffMs < 0) diffMs += 24 * 3600 * 1000;
+          return Math.floor(diffMs / 1000);
+        }
+      } catch (e) {}
+      return 0;
     }
 
     function updateTahapPenanganan(id, newTahap) {
@@ -6039,7 +6082,7 @@
 
       log.tahap = newTahap;
 
-      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      const waktuSekarang = formatWaktuHhMmWib();
       if (newTahap >= 4 && !log.waktuTiba) {
         log.waktuTiba = waktuSekarang;
         if (!log.slaDurasiMenit) {
@@ -6435,7 +6478,7 @@
       const log = appLogs.find(l => l.id === activeWizardLogId);
       if (!log) return;
 
-      const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      const waktuSekarang = formatWaktuHhMmWib();
 
       if (currentStep === 1) {
         // 1. Ekstraksi Input Wizard Step 1 (Item 8: Kamera GPS & Persiapan)
@@ -6749,24 +6792,35 @@
             const waktuTiba = log.waktuTiba;
 
             // 1. Hitung SLA 1: Laporan Masuk -> Disposisi Pawas
-            const durasiSla1 = hitungSelisihMenitTeks(waktuMasuk, waktuDisp);
+            let durasiSla1 = hitungSelisihMenitTeks(waktuMasuk, waktuDisp);
+            // Jika masuk dan disposisi pada menit yang sama, durasi respon di bawah 1 menit (< 1m)
+            const teksDurasiSla1 = durasiSla1 === 0 ? '< 1m' : `${durasiSla1}m`;
             const sla1Tepat = durasiSla1 <= 5;
 
             // 2. Hitung SLA 2: Disposisi -> Anggota Mulai Tangani (Klik Meluncur)
-            let durasiSla2 = 2;
-            let sla2Status = 'SELESAI';
+            let durasiSla2 = 0;
+            let teksDurasiSla2 = '';
+            let sla2Tepat = true;
             if (waktuMeluncur) {
               durasiSla2 = hitungSelisihMenitTeks(waktuDisp, waktuMeluncur);
-            } else {
-              sla2Status = 'BERJALAN';
+              if (durasiSla2 >= 60) {
+                const jam = Math.floor(durasiSla2 / 60);
+                const sisaMenit = durasiSla2 % 60;
+                teksDurasiSla2 = `${jam}j ${sisaMenit}m`;
+              } else if (durasiSla2 === 0) {
+                teksDurasiSla2 = '< 1m';
+              } else {
+                teksDurasiSla2 = `${durasiSla2}m`;
+              }
+              sla2Tepat = durasiSla2 <= 3;
             }
-            const sla2Tepat = durasiSla2 <= 3;
 
             // 3. Hitung SLA 3: Waktu Tempuh Meluncur -> Tiba di TKP (Target < 10 Menit)
             const isSudahTibaTkp = (log.tahap >= 4 && waktuTiba);
-            let durasiSla3 = log.slaDurasiMenit || 4;
+            let durasiSla3 = log.slaDurasiMenit || 0;
             if (isSudahTibaTkp && waktuMeluncur && waktuTiba) {
               durasiSla3 = hitungSelisihMenitTeks(waktuMeluncur, waktuTiba);
+              if (durasiSla3 > 60 || durasiSla3 <= 0) durasiSla3 = 5;
               log.slaDurasiMenit = durasiSla3;
             }
 
@@ -6788,11 +6842,11 @@
                   <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
                     <div>
                       <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">1. Respon Pawas (Disposisi)</div>
-                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 5 Menit sejak Masuk</div>
+                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 5 Menit (${waktuMasuk} ➔ ${waktuDisp})</div>
                     </div>
                     <div>
                       <span style="font-size:9.5px; font-weight:700; background:${sla1Tepat ? '#065F46' : '#78350F'}; color:${sla1Tepat ? '#34D399' : '#FDE68A'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
-                        ${sla1Tepat ? '✓ 0' + durasiSla1 + ':00 Tepat' : '⚠️ 0' + durasiSla1 + ':00 Toleransi'}
+                        ${sla1Tepat ? '✓ Respon Cepat (' + teksDurasiSla1 + ')' : '⚠️ Toleransi (' + teksDurasiSla1 + ')'}
                       </span>
                     </div>
                   </div>
@@ -6801,16 +6855,16 @@
                   <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; padding:6px 9px; display:flex; justify-content:space-between; align-items:center;">
                     <div>
                       <div style="font-size:10.5px; font-weight:700; color:#F1F5F9;">2. Respon Anggota (Tanggap)</div>
-                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 3 Menit sejak Disposisi</div>
+                      <div style="font-size:9.5px; color:#94A3B8;">Target &le; 3 Menit (${waktuDisp} ➔ ${waktuMeluncur || 'Belum Berangkat'})</div>
                     </div>
                     <div>
                       ${waktuMeluncur ? `
-                        <span style="font-size:9.5px; font-weight:700; background:${sla2Tepat ? '#065F46' : '#78350F'}; color:${sla2Tepat ? '#34D399' : '#FDE68A'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
-                          ✓ 0${durasiSla2}:00 Siap
+                        <span style="font-size:9.5px; font-weight:700; background:${sla2Tepat ? '#065F46' : '#7F1D1D'}; color:${sla2Tepat ? '#34D399' : '#FCA5A5'}; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
+                          ${sla2Tepat ? '✓ Tanggap Cepat (' + teksDurasiSla2 + ')' : '🚨 Melebihi Batas (' + teksDurasiSla2 + ')'}
                         </span>
                       ` : `
                         <span style="font-size:9.5px; font-weight:700; background:#1E3A8A; color:#93C5FD; padding:2px 7px; border-radius:4px; display:inline-block; white-space:nowrap;">
-                          ⏳ Menunggu
+                          ⏳ Menunggu Tindakan
                         </span>
                       `}
                     </div>
@@ -6884,22 +6938,10 @@
                 <!-- 1. Indikator Evaluasi 3 Lapis SLA Presisi (Petugas) -->
                 ${slaDisplayHtml('TARGET & EVALUASI WAKTU TANGGAP (SLA)')}
 
-                <!-- 2. Tombol Eksekusi Operasional Bripka Ahmad -->
-                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:12px; background:var(--primary); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; box-shadow:0 2px 8px rgba(21,62,117,0.25); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
-                  <span>🚀</span> Buka Wizard Penanganan TKP ➔
+                <!-- 2. Tombol Eksekusi Operasional Utama (Bripka Ahmad) -->
+                <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                  <span>🚀</span> Tangani Laporan ➔
                 </button>
-                ${log.tahap < 5 ? `
-                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:#F8FAFC; color:var(--primary); border:1px solid #CBD5E1; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="updateTahapPenanganan(${log.id}, ${(log.tahap || 3) + 1})">
-                    <span>⏩</span> Perbarui Progres Penanganan TKP ➔
-                  </button>
-                ` : `
-                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:10px; background:var(--success); color:white; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; border-radius:8px; cursor:pointer;" onclick="selesaikanKasus(${log.id})">
-                    <span>✓</span> Kasus Selesai (Pindahkan ke Log Selesai) ➔
-                  </button>
-                `}
-                <a href="masyarakat.html?tiket=${encodeURIComponent(log.nomorTiket || '')}" target="_blank" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; font-size:11px; font-weight:700; color:#153E75; background:#EFF6FF; border:1px dashed #93C5FD; border-radius:8px; margin-top:2px; transition:background 0.15s;" onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
-                  <span>🌐</span> Pantau di Portal Laporan Warga ➔
-                </a>
               </div>
             `;
             }
@@ -6911,7 +6953,18 @@
             }
 
             if (waktuMeluncur && !isSudahTibaTkp) {
-              let totalDetik = (durasiSla3 * 60);
+              // Hitung detik riil yang sudah berlalu sejak jam keberangkatan (waktuMeluncur) hingga detik ini
+              let totalDetik = hitungDetikDariWaktuTeks(waktuMeluncur);
+              if (totalDetik < 0 || isNaN(totalDetik)) totalDetik = 0;
+
+              // Tampilkan langsung nilai aktual detik ini
+              const initialClockEl = document.getElementById('sla-live-clock');
+              if (initialClockEl) {
+                const im = Math.floor(totalDetik / 60);
+                const is = totalDetik % 60;
+                initialClockEl.innerText = String(im).padStart(2, '0') + ':' + String(is).padStart(2, '0');
+              }
+
               window._simapresSlaInterval = setInterval(() => {
                 totalDetik++;
                 const clockEl = document.getElementById('sla-live-clock');
