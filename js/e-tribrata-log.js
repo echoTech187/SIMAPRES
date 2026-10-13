@@ -2808,6 +2808,20 @@ function submitPenolakan() {
   openValidasiList('ditolak');
 }
 
+function bukaMobileDrawer() {
+  const detailBox = document.getElementById('val-detail-box');
+  const backdrop = document.getElementById('mobile-drawer-backdrop');
+  if (detailBox) detailBox.classList.add('mobile-drawer-open');
+  if (backdrop) backdrop.classList.add('active');
+}
+
+function tutupMobileDrawer() {
+  const detailBox = document.getElementById('val-detail-box');
+  const backdrop = document.getElementById('mobile-drawer-backdrop');
+  if (detailBox) detailBox.classList.remove('mobile-drawer-open');
+  if (backdrop) backdrop.classList.remove('active');
+}
+
 function selectLogCard(id) {
   selectedLogId = id;
 
@@ -2819,6 +2833,11 @@ function selectLogCard(id) {
   }
 
   displayLogDetail(id);
+
+  // Jika berada di device mobile (< 768px), otomatis buka bottom drawer
+  if (window.innerWidth < 768) {
+    bukaMobileDrawer();
+  }
 }
 
 const TIMELINE_STEPS_DATA = [

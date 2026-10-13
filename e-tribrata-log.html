@@ -823,6 +823,9 @@
           Menampilkan: Data Menunggu Tindakan
         </div>
 
+        <!-- Mobile Drawer Backdrop Overlay -->
+        <div class="mobile-drawer-backdrop" id="mobile-drawer-backdrop" onclick="tutupMobileDrawer()"></div>
+
         <div class="split-layout">
           <div class="val-list" id="val-list-container">
             <!-- Cards will be generated dynamically by JavaScript -->
@@ -830,6 +833,20 @@
 
           <div class="val-detail" id="val-detail-box"
             style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); height:auto;">
+            
+            <!-- Mobile Drawer Handle & Top Bar (Hanya muncul di Mobile) -->
+            <div class="mobile-drawer-handle">
+              <div class="mobile-drawer-pill"></div>
+              <div class="mobile-drawer-bar">
+                <div class="mobile-drawer-title">
+                  <span>📄</span> Detail & Progres Kasus
+                </div>
+                <button type="button" class="mobile-drawer-close-btn" onclick="tutupMobileDrawer()">
+                  <span>✕</span> Tutup
+                </button>
+              </div>
+            </div>
+
             <!-- GLOBAL MACRO MILESTONE STEPPER (Siklus Hidup Lengkap Laporan End-to-End) -->
             <div id="macro-milestone-box"
               style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px;">

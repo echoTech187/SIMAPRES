@@ -62,9 +62,38 @@
     .btn-demo {
       width: 100%; padding: 12px; border: 2px solid var(--primary); background: transparent; color: var(--primary);
       border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; margin-bottom: 10px;
-      transition: background 0.2s;
+      transition: all 0.2s;
     }
     .btn-demo:hover { background: var(--primary); color: white; }
+
+    /* Responsiveness Desktop & Mobile */
+    @media (min-width: 1200px) {
+      .login-card {
+        max-width: 460px;
+        padding: 40px 32px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+      }
+      .brand-title {
+        font-size: 24px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+      .login-card {
+        padding: 24px 16px;
+        border-radius: 14px;
+      }
+      .brand-title {
+        font-size: 20px;
+      }
+      .btn-demo {
+        font-size: 13px;
+        padding: 10px 12px;
+      }
+    }
   </style>
 </head>
 <body>
