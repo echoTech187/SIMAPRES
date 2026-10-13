@@ -6399,9 +6399,9 @@ function simpanLogKegiatanInput() {
     assignedNama: userNama,
     assignedUnitId: userUnitId,
     avatar: userAvatar,
-    status: 'selesai',
-    statusText: 'Tuntas (Mandiri)',
-    title: `Log ${jenisVal} - ${sektorVal}`,
+    status: 'menunggu',
+    statusText: 'Menunggu Validasi',
+    title: `Laporan Kegiatan ${jenisVal} (Mandiri)`,
     jenisInsiden: jenisVal,
     deskripsi: descVal,
     sektor: sektorVal,
@@ -6411,16 +6411,16 @@ function simpanLogKegiatanInput() {
     sumberLaporan: '👮 Input Log Mandiri Personel',
     fotoLampiran: fotoBukti,
     fotoPengaduan: fotoBukti,
-    slaMenit: 6,
-    ratingKepuasan: 5,
+    alasanTolak: '',
     riwayatValidasi: [
       {
         waktu: waktuVal,
         aktor: `${userNama} (${userNrp})`,
         aksi: `Input Log Kegiatan ${jenisVal}`,
-        catatan: descVal
+        catatan: `Penginputan kegiatan ${jenisVal} via formulir mobile. Menunggu audit & persetujuan Pawas.`
       }
-    ]
+    ],
+    ratingKepuasan: null
   };
 
   appLogs.unshift(newLog);
@@ -6438,13 +6438,17 @@ function simpanLogKegiatanInput() {
   if (typeof syncProfileData === 'function') syncProfileData();
 
   if (typeof tampilkanToast === 'function') {
-    tampilkanToast(`✓ Log Kegiatan #${newId} berhasil disimpan dengan bukti foto & waktu tercatat!`, 'success');
+    tampilkanToast(`✓ Log Kegiatan #${newId} terkirim! Masuk ke antrean "Menunggu Validasi" Atasan/Pawas.`, 'success');
+  } else if (typeof showToastNotification === 'function') {
+    showToastNotification(`✓ Log Kegiatan #${newId} terkirim! Masuk ke antrean "Menunggu Validasi" Atasan/Pawas.`, 'success');
   }
+
+  alert(`✓ Log Kegiatan Mandiri #${newId} Berhasil Dikirim!\n\nLaporan masuk ke antrean: STATUS: MENUNGGU (Draft Log Masuk Antrean).\nTiket resmi akan diterbitkan setelah diverifikasi & disetujui oleh Pawas / Atasan.`);
 
   // Navigasi ke Beranda
   setTimeout(() => {
     switchTab('view-beranda');
-  }, 900);
+  }, 400);
 }
 
 function bukaLightboxBukti(src, title = 'Bukti Dokumentasi Tugas Lapangan') {
