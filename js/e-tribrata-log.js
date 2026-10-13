@@ -102,24 +102,32 @@ function initMaps() {
     };
     const urlParams = new URLSearchParams(window.location.search);
     const role = urlParams.get('role');
-    const isPimpinan = (role === 'pimpinan' || role === 'atasan' || role === 'pawas');
+    const sessionUser = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+    const isPimpinan = (role === 'pimpinan' || role === 'atasan' || role === 'pawas' || (sessionUser && (sessionUser.role === 'pimpinan' || sessionUser.role === 'pawas' || sessionUser.nrp === '88010234')));
+
+    // Untuk pimpinan, sembunyikan toggle "Lihat Sebaran Personel Lain" karena defaultnya sudah tampil semua
+    const toggleContainer = document.getElementById('container-toggle-personel') || document.getElementById('toggle-personel')?.closest('label');
+    if (toggleContainer) {
+      toggleContainer.style.display = isPimpinan ? 'none' : 'flex';
+    }
+
+    // Circular Badge Pin dengan Glowing Halo Ring Sesuai Mockup Gambar 2
+    const makeHaloBadgeIcon = (emoji, strokeColor, haloColor) => ({
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+            <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
+              <!-- Outer Pulsing Halo Ring -->
+              <circle cx="26" cy="26" r="23" fill="${haloColor}" fill-opacity="0.32" stroke="${strokeColor}" stroke-width="1.5" stroke-dasharray="4,2"/>
+              <!-- Inner Solid White Circle -->
+              <circle cx="26" cy="26" r="16.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2.5"/>
+              <!-- Centered Emoji/Icon -->
+              <text x="26" y="32" font-size="18" text-anchor="middle" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif">${emoji}</text>
+            </svg>
+          `),
+      scaledSize: new google.maps.Size(52, 52),
+      anchor: new google.maps.Point(26, 26)
+    });
 
     if (isPimpinan) {
-      // Circular Badge Pin dengan Glowing Halo Ring Sesuai Mockup Gambar 2
-      const makeHaloBadgeIcon = (emoji, strokeColor, haloColor) => ({
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
-                <!-- Outer Pulsing Halo Ring -->
-                <circle cx="26" cy="26" r="23" fill="${haloColor}" fill-opacity="0.32" stroke="${strokeColor}" stroke-width="1.5" stroke-dasharray="4,2"/>
-                <!-- Inner Solid White Circle -->
-                <circle cx="26" cy="26" r="16.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2.5"/>
-                <!-- Centered Emoji/Icon -->
-                <text x="26" y="32" font-size="18" text-anchor="middle" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif">${emoji}</text>
-              </svg>
-            `),
-        scaledSize: new google.maps.Size(52, 52),
-        anchor: new google.maps.Point(26, 26)
-      });
 
       // 1. Data Lengkap 4 Unit Samapta R-4 (Sesuai Label "🚔 4 Samapta R-4")
       const samaptaUnits = [
@@ -403,33 +411,248 @@ function initMaps() {
       new google.maps.Marker({ position: p4, map: mapBeranda, icon: policeIcon, title: "Posisi Saya" });
     }
 
-    // Create markers for other personnel (hidden by default)
-    const otherIcon = {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
-          <path d="M10,30 L20,15 L70,15 L85,30 L95,30 L95,45 L5,45 L5,30 Z" fill="#64748B"/>
-          <path d="M25,18 L65,18 L75,28 L20,28 Z" fill="#CBD5E1"/>
-          <circle cx="25" cy="45" r="8" fill="#1E293B"/>
-          <circle cx="75" cy="45" r="8" fill="#1E293B"/>
-          <text x="50" y="38" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle">REKAN</text>
-        </svg>
-      `),
-      anchor: new google.maps.Point(50, 25)
-    };
+    // =========================================================================
+    // 4. SEBARAN PERSONEL LAIN (REKAN LAPANGAN DI WILAYAH SEKITAR)
+    // =========================================================================
+    // Untuk pimpinan, seluruh armada sudah tampil otomatis secara default di peta.
+    // Sebaran personel lain dengan toggle hanya aktif untuk personel lapangan.
+    if (!isPimpinan) {
+      const iconSamaptaRekan = (typeof makeHaloBadgeIcon === 'function') ? makeHaloBadgeIcon('🚔', '#0284C7', '#38BDF8') : null;
+      const iconPerintisRekan = (typeof makeHaloBadgeIcon === 'function') ? makeHaloBadgeIcon('🏍️', '#D97706', '#FBBF24') : null;
+      const iconLantasRekan = (typeof makeHaloBadgeIcon === 'function') ? makeHaloBadgeIcon('🚓', '#1D4ED8', '#60A5FA') : null;
 
-    window.otherMarkers = [
-      new google.maps.Marker({ position: { lat: -6.2050, lng: 106.8250 }, map: null, icon: otherIcon, title: "Bripka Joko" }),
-      new google.maps.Marker({ position: { lat: -6.1850, lng: 106.8100 }, map: null, icon: otherIcon, title: "Aiptu Setiawan" }),
-      new google.maps.Marker({ position: { lat: -6.2200, lng: 106.8150 }, map: null, icon: otherIcon, title: "Briptu Andi" })
+      // Master seluruh armada operasional presisi (14 Unit Identik Maps Pimpinan)
+      const masterRekan = [
+      // 4 Unit Samapta R-4
+      {
+        key: 'samapta1',
+        nrp: '95020123',
+        pos: p4,
+        iconEmoji: '🚔',
+        icon: iconSamaptaRekan,
+        title: 'Patroli Samapta 110-A',
+        petugas: 'Bripka Ahmad Subagyo (NRP 95020123)',
+        sub: 'Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81',
+        status: 'Status: SIAGA',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Patroli Rute Beat 1 (Pasar & Bank)',
+        telemetri: 'Kecepatan: 35 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'samapta2',
+        nrp: '82040512',
+        pos: { lat: -6.2050, lng: 106.8250 },
+        iconEmoji: '🚔',
+        icon: iconSamaptaRekan,
+        title: 'Patroli Samapta 110-B',
+        petugas: 'Aipda Eko Prasetyo (NRP 82040512)',
+        sub: 'Sat Samapta (Sektor Pusat) • Double Cabin R4-Samapta-12',
+        status: 'Status: PATROLI KOTA',
+        statusColor: '#2563EB',
+        tugas: 'Tugas: Patroli Jalur Protokol & Objek Vital Perbankan',
+        telemetri: 'Kecepatan: 40 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'samapta3',
+        nrp: '87090214',
+        pos: { lat: -6.1920, lng: 106.8380 },
+        iconEmoji: '🚔',
+        icon: iconSamaptaRekan,
+        title: 'Patroli Samapta 110-C',
+        petugas: 'Bripka Doni Hendrawan (NRP 87090214)',
+        sub: 'Sat Samapta (Sektor Timur) • Sedan R4-Samapta-83',
+        status: 'Status: SIAGA BEAT 2',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Patroli Pemukiman Padat & Sentra Ekonomi',
+        telemetri: 'Kecepatan: 28 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'samapta4',
+        nrp: '84110329',
+        pos: { lat: -6.1780, lng: 106.8120 },
+        iconEmoji: '🚔',
+        icon: iconSamaptaRekan,
+        title: 'Patroli Samapta 110-D',
+        petugas: 'Aipda Rian Saputra (NRP 84110329)',
+        sub: 'Sat Samapta (Sektor Barat) • Double Cabin R4-Samapta-15',
+        status: 'Status: PATROLI BLUE LIGHT',
+        statusColor: '#2563EB',
+        tugas: 'Tugas: Pengawasan Kawasan Perkantoran & Niaga',
+        telemetri: 'Kecepatan: 32 km/jam • Sinyal GPS Prima'
+      },
+      // 6 Unit Perintis R-2
+      {
+        key: 'perintis1',
+        nrp: '50129841',
+        pos: { lat: -6.2200, lng: 106.8150 },
+        iconEmoji: '🏍️',
+        icon: iconPerintisRekan,
+        title: 'Tim Perintis Presisi R-2 (Alpha)',
+        petugas: 'Aipda Rudi Hartono (NRP 50129841)',
+        sub: 'Tim Perintis Presisi (Sektor Barat) • Sepeda Motor R2-Trail-06',
+        status: 'Status: MERESPON TKP (DARURAT 110)',
+        statusColor: '#D97706',
+        tugas: 'Tugas: Respon Cepat Kerumunan Pelajar Jl. Panglima Polim',
+        telemetri: 'Kecepatan: 50 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'perintis2',
+        nrp: '96080441',
+        pos: { lat: -6.2120, lng: 106.8280 },
+        iconEmoji: '🏍️',
+        icon: iconPerintisRekan,
+        title: 'Tim Perintis Presisi R-2 (Bravo)',
+        petugas: 'Briptu Fajar Pratama (NRP 96080441)',
+        sub: 'Tim Perintis Presisi (Sektor Selatan) • Sepeda Motor R2-Trail-08',
+        status: 'Status: PATROLI PREVENTIF',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Patroli Lorong & Gang Rawan Tawuran Warga',
+        telemetri: 'Kecepatan: 35 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'perintis3',
+        nrp: '98030219',
+        pos: { lat: -6.1880, lng: 106.8260 },
+        iconEmoji: '🏍️',
+        icon: iconPerintisRekan,
+        title: 'Tim Perintis Presisi R-2 (Charlie)',
+        petugas: 'Bripda Rizki Maulana (NRP 98030219)',
+        sub: 'Tim Perintis Presisi (Sektor Pusat) • Sepeda Motor R2-Trail-02',
+        status: 'Status: SIAGA TITIK PANTAU',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Sterilisasi Jalur Kereta & Jembatan Layang',
+        telemetri: 'Kecepatan: 0 km/jam (Stasioner) • Sinyal GPS Prima'
+      },
+      {
+        key: 'perintis4',
+        nrp: '89050117',
+        pos: { lat: -6.1720, lng: 106.8280 },
+        iconEmoji: '🏍️',
+        icon: iconPerintisRekan,
+        title: 'Tim Perintis Presisi R-2 (Delta)',
+        petugas: 'Bripka Sigit Purnomo (NRP 89050117)',
+        sub: 'Tim Perintis Presisi (Sektor Utara) • Sepeda Motor R2-Trail-11',
+        status: 'Status: PATROLI KEWILAYAHAN',
+        statusColor: '#2563EB',
+        tugas: 'Tugas: Antisipasi Balap Liar & 3C Malam Hari',
+        telemetri: 'Kecepatan: 42 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'perintis5',
+        nrp: '94120332',
+        pos: { lat: -6.2020, lng: 106.8120 },
+        iconEmoji: '🏍️',
+        icon: iconPerintisRekan,
+        title: 'Tim Perintis Presisi R-2 (Echo)',
+        petugas: 'Briptu Aris Munandar (NRP 94120332)',
+        sub: 'Tim Perintis Presisi (Sektor Barat) • Sepeda Motor R2-Trail-14',
+        status: 'Status: PATROLI DIALOGIS',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Sambang Pos Satkamling & Sentra Kuliner',
+        telemetri: 'Kecepatan: 20 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'perintis6',
+        nrp: '99010554',
+        pos: { lat: -6.2250, lng: 106.8220 },
+        iconEmoji: '🏍️',
+        icon: iconPerintisRekan,
+        title: 'Tim Perintis Presisi R-2 (Foxtrot)',
+        petugas: 'Bripda Bagus Santoso (NRP 99010554)',
+        sub: 'Tim Perintis Presisi (Sektor Selatan) • Sepeda Motor R2-Trail-19',
+        status: 'Status: MERESPON ADUAN 110',
+        statusColor: '#D97706',
+        tugas: 'Tugas: Cek Lokasi Gangguan Kamtibmas Permukiman',
+        telemetri: 'Kecepatan: 45 km/jam • Sinyal GPS Prima'
+      },
+      // 4 Unit Lantas R-4
+      {
+        key: 'lantas1',
+        nrp: '49112233',
+        pos: { lat: -6.1850, lng: 106.8100 },
+        iconEmoji: '🚓',
+        icon: iconLantasRekan,
+        title: 'Patroli Turjawali Satlantas 01',
+        petugas: 'Aiptu Bambang Sudrajat (NRP 49112233)',
+        sub: 'Satlantas Polres (Sektor Protokol) • Sedan Lantas-01',
+        status: 'Status: PENJAGAAN & PENGATURAN',
+        statusColor: '#0284C7',
+        tugas: 'Tugas: Penguraian Arus Lalu Lintas Simpang Protokol',
+        telemetri: 'Kecepatan: 15 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'lantas2',
+        nrp: '83070619',
+        pos: { lat: -6.2180, lng: 106.8040 },
+        iconEmoji: '🚓',
+        icon: iconLantasRekan,
+        title: 'Patroli Turjawali Satlantas 02',
+        petugas: 'Aipda Dwi Haryanto (NRP 83070619)',
+        sub: 'Satlantas Polres (Sektor Selatan) • Sedan Lantas-04',
+        status: 'Status: PENGATURAN ARUS',
+        statusColor: '#0284C7',
+        tugas: 'Tugas: Pengamanan Jalur Protokol & Rekayasa Lalin',
+        telemetri: 'Kecepatan: 22 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'lantas3',
+        nrp: '86090432',
+        pos: { lat: -6.1750, lng: 106.8320 },
+        iconEmoji: '🚓',
+        icon: iconLantasRekan,
+        title: 'Patroli Turjawali Satlantas 03',
+        petugas: 'Bripka Kurniawan (NRP 86090432)',
+        sub: 'Satlantas Polres (Sektor Timur) • Sedan Lantas-07',
+        status: 'Status: PENGAWASAN KELANCARAN',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Sterilisasi Jalur Busway & Penertiban Parkir Liar',
+        telemetri: 'Kecepatan: 18 km/jam • Sinyal GPS Prima'
+      },
+      {
+        key: 'lantas4',
+        nrp: '81120543',
+        pos: { lat: -6.1980, lng: 106.8420 },
+        iconEmoji: '🚓',
+        icon: iconLantasRekan,
+        title: 'Patroli Turjawali Satlantas 04',
+        petugas: 'Aipda Tri Wahyudi (NRP 81120543)',
+        sub: 'Satlantas Polres (Sektor Rumah Sakit) • Sedan Lantas-09',
+        status: 'Status: SIAGA KAWAL AMBULANS',
+        statusColor: '#10B981',
+        tugas: 'Tugas: Prioritas Jalur Darurat Koridor Medis Salemba',
+        telemetri: 'Kecepatan: 25 km/jam • Sinyal GPS Prima'
+      }
     ];
+
+    const activeRekan = masterRekan.filter(r => r.nrp !== userNrp);
+
+      window.otherMarkers = activeRekan.map(rekanData => {
+        if (window.markerDataMap) window.markerDataMap[rekanData.key] = rekanData;
+        const marker = new google.maps.Marker({
+          position: rekanData.pos,
+          map: null,
+          icon: rekanData.icon,
+          title: rekanData.title,
+          cursor: 'pointer'
+        });
+        google.maps.event.addListener(marker, 'click', () => {
+          bukaModalMapUnit(rekanData, marker, mapFullscreen);
+        });
+        rekanData._markerFs = marker;
+        return marker;
+      });
+    } else {
+      window.otherMarkers = [];
+    }
   } catch (e) {
     console.warn('Inisialisasi peta ditunda/gagal:', e);
   }
 }
 
 function toggleSebaranPersonel() {
-  const isChecked = document.getElementById('toggle-personel').checked;
-  if (window.otherMarkers) {
+  const chk = document.getElementById('toggle-personel');
+  const isChecked = chk ? chk.checked : false;
+  if (window.otherMarkers && Array.isArray(window.otherMarkers)) {
     window.otherMarkers.forEach(m => {
       m.setMap(isChecked ? mapFullscreen : null);
     });
