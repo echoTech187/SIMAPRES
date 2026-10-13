@@ -17,7 +17,7 @@ function initMaps() {
   try {
     const mapOptions = {
       zoom: 13,
-      center: { lat: -6.1950, lng: 106.8200 },
+      center: { lat: -6.1980, lng: 106.8245 },
       disableDefaultUI: true, // Clean interface like the mockup
       mapTypeId: 'roadmap',
       styles: [
@@ -33,7 +33,7 @@ function initMaps() {
       gestureHandling: 'greedy'
     }));
     mapBeranda = new google.maps.Map(elBeranda, Object.assign({}, mapOptions, {
-      zoom: 11,
+      zoom: 13,
       draggable: true,
       scrollwheel: true,
       gestureHandling: 'greedy'
@@ -238,8 +238,9 @@ function initMaps() {
     // 3. Tampilkan Mako Polres Metro
     registerAndAddMarker(makoUnit, iconMako);
 
-    // Pusatkan peta langsung ke titik posisi personel saat ini
-    mapBeranda.setCenter(myUnit.pos);
+    // Pusatkan peta Beranda ke area rute patroli beat (zoom 13) dan peta layar penuh ke posisi personel
+    mapBeranda.setCenter({ lat: -6.1980, lng: 106.8245 });
+    mapBeranda.setZoom(13);
     mapFullscreen.setCenter(myUnit.pos);
 
     // Tutup InfoWindow jika klik di luar area marker
@@ -267,19 +268,15 @@ function toggleSebaranPersonel() {
 
 function zoomMapBeranda(delta) {
   if (mapBeranda) {
-    const curZoom = mapBeranda.getZoom() || 11;
+    const curZoom = mapBeranda.getZoom() || 13;
     mapBeranda.setZoom(curZoom + delta);
   }
 }
 
 function resetCenterMapBeranda() {
   if (mapBeranda) {
-    mapBeranda.setZoom(12);
-    if (window.markerDataMap && window.markerDataMap.my_unit) {
-      mapBeranda.panTo(window.markerDataMap.my_unit.pos);
-    } else {
-      mapBeranda.panTo({ lat: -6.2150, lng: 106.8300 });
-    }
+    mapBeranda.setZoom(13);
+    mapBeranda.panTo({ lat: -6.1980, lng: 106.8245 });
   }
 }
 
@@ -394,7 +391,8 @@ function switchTab(viewId, navElement) {
   // Resize map if needed
   if (viewId === 'view-beranda' && mapBeranda && typeof google !== 'undefined') {
     google.maps.event.trigger(mapBeranda, 'resize');
-    mapBeranda.setCenter({ lat: -6.1950, lng: 106.8200 });
+    mapBeranda.setCenter({ lat: -6.1980, lng: 106.8245 });
+    mapBeranda.setZoom(13);
   }
   if (viewId === 'view-peta' && mapFullscreen && typeof google !== 'undefined') {
     google.maps.event.trigger(mapFullscreen, 'resize');
