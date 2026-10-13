@@ -7075,6 +7075,16 @@ function initPersonilDashboard() {
     elRanmor.innerText = `🚔 ${user.ranmor || 'Ranmor Dinas Patroli'} • Terhubung GPS Presisi`;
   }
 
+  const elHudRanmor = document.getElementById('hud-ranmor-name');
+  if (elHudRanmor && user.ranmor) {
+    elHudRanmor.innerText = user.ranmor;
+  }
+
+  const elModalKpiOfficer = document.getElementById('modal-kpi-officer-name');
+  if (elModalKpiOfficer && user.nama) {
+    elModalKpiOfficer.innerText = `${user.nama} (${user.nrp})`;
+  }
+
   // 2. Status Taktis Mandiri
   const statusKey = 'personel_status_taktis_' + user.nrp;
   const currentStatus = sessionStorage.getItem(statusKey) || 'siaga';
@@ -7285,6 +7295,15 @@ function renderPersonalStatsBento() {
 
   const elRevCount = document.getElementById('stat-personal-reviews-count');
   if (elRevCount) elRevCount.innerText = `${rated.length || 6} Ulasan Warga`;
+
+  const elTugasCount = document.getElementById('stat-tugas-count');
+  if (elTugasCount) elTugasCount.innerText = cSelesai || 4;
+
+  const elResponTime = document.getElementById('stat-respon-time');
+  if (elResponTime) elResponTime.innerText = '4.8m';
+
+  const elPoinPresisi = document.getElementById('stat-poin-presisi');
+  if (elPoinPresisi) elPoinPresisi.innerText = (cSelesai * 100 + 50) || 450;
 }
 
 function renderPersonelShiftTimeline() {
@@ -7442,6 +7461,39 @@ function bukaModalRatingPersonal() {
 function tutupModalRatingPersonal() {
   const modal = document.getElementById('modal-rating-personal');
   if (modal) modal.style.display = 'none';
+}
+
+function bukaModalKpiDetail() {
+  const modal = document.getElementById('modal-kpi-detail');
+  if (modal) modal.style.display = 'flex';
+}
+
+function tutupModalKpiDetail() {
+  const modal = document.getElementById('modal-kpi-detail');
+  if (modal) modal.style.display = 'none';
+}
+
+function bukaModalSos() {
+  const modal = document.getElementById('modal-sos-confirm');
+  if (modal) modal.style.display = 'flex';
+}
+
+function tutupModalSos() {
+  const modal = document.getElementById('modal-sos-confirm');
+  if (modal) modal.style.display = 'none';
+}
+
+function kirimSinyalSos() {
+  tutupModalSos();
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const nama = user ? user.nama : 'Petugas Lapangan';
+  const ranmor = user ? (user.ranmor || 'Patroli Samapta') : 'Ranmor Samapta';
+
+  if (typeof showToastNotification === 'function') {
+    showToastNotification(`🚨 SINYAL SOS TERKIRIM! Koordinat GPS ${ranmor} disiarkan ke Command Center Pawas & Unit Terdekat!`, 'error');
+  }
+
+  console.warn(`[EMERGENCY SOS] Signal dispatched by ${nama} (${ranmor})`);
 }
 
 // Inisialisasi otomatis dashboard saat DOM siap

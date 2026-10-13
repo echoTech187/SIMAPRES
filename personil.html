@@ -50,11 +50,25 @@
 
       <!-- SCREEN 1: BERANDA -->
       <section id="view-beranda" class="view active">
-        <div class="dashboard-header">
-          DASHBOARD OPERASIONAL
-          <div class="status-text">STATUS: DINAS (Patroli Wilayah)</div>
+        <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="font-size:18px; font-weight:900; color:#1E293B; letter-spacing:0.5px;">DASHBOARD OPERASIONAL</div>
+            <div class="status-text" id="personil-header-status-sub" style="margin-top:2px;">STATUS: DINAS (Patroli Wilayah)</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:11px; font-weight:800; color:#475569;">STATUS KESIAGAAN:</span>
+            <select id="select-status-taktis-mandiri" onchange="gantiStatusTaktisMandiri(this.value)"
+              style="padding:6px 14px; font-size:11.5px; font-weight:800; border-radius:20px; border:1.5px solid #16A34A; background:#15803D; color:white; cursor:pointer; outline:none; transition:0.2s; box-shadow:0 2px 6px rgba(0,0,0,0.1);">
+              <option value="siaga">🟢 Siaga Patroli Beat</option>
+              <option value="meluncur">🔵 Meluncur ke TKP (110)</option>
+              <option value="ditkp">🟠 Penanganan di TKP</option>
+              <option value="konsolidasi">⚪ Konsolidasi / Piket</option>
+            </select>
+          </div>
         </div>
 
+        <!-- Mission Critical Alert / Kondusif Banner -->
+        <div id="mission-critical-card" style="margin-bottom:14px;"></div>
 
         <div class="beranda-grid">
           <!-- Left Column -->
@@ -89,9 +103,30 @@
                 <!-- Container Google Maps murni (isi canvas digenerate oleh Google Maps) -->
                 <div id="map-beranda" style="width:100%; height:100%;"></div>
 
-                <!-- Floating Map Controls (Zoom In, Zoom Out, Reset Center, Fullscreen) -->
+                <!-- Tactical Map HUD Telemetri -->
+                <div id="map-hud-telemetri"
+                  style="position:absolute; top:12px; left:12px; z-index:998; background:rgba(15, 23, 42, 0.85); backdrop-filter:blur(6px); color:white; border-radius:8px; padding:6px 12px; font-size:10.5px; font-weight:600; display:flex; align-items:center; gap:10px; border:1px solid rgba(255,255,255,0.18); box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+                  <div style="display:flex; align-items:center; gap:5px; color:#60A5FA; font-weight:800;">
+                    <span>🚗</span> <span id="hud-ranmor-name">Sedan R4 Samapta-81</span>
+                  </div>
+                  <span style="color:#64748B;">|</span>
+                  <div style="display:flex; align-items:center; gap:4px; color:#34D399; font-weight:700;">
+                    <span>⚡</span> <span>35 km/jam</span>
+                  </div>
+                  <span style="color:#64748B;">|</span>
+                  <div style="display:flex; align-items:center; gap:4px; color:#FBBF24; font-weight:700;">
+                    <span>📶</span> <span>GPS Presisi</span>
+                  </div>
+                </div>
+
+                <!-- Floating Map Controls (Zoom In, Zoom Out, Reset Center, Fullscreen, SOS) -->
                 <div
                   style="position:absolute; top:12px; right:12px; z-index:999; display:flex; flex-direction:column; gap:6px;">
+                  <button type="button" onclick="bukaModalSos()" title="Request Backup / SOS Darurat Lapangan"
+                    style="width:34px; height:34px; background:#DC2626; border:1px solid #B91C1C; border-radius:8px; font-weight:800; font-size:14px; color:white; cursor:pointer; box-shadow:0 2px 6px rgba(220,38,38,0.35); display:flex; align-items:center; justify-content:center; transition:0.2s;"
+                    onmouseover="this.style.background='#B91C1C'" onmouseout="this.style.background='#DC2626'">
+                    🚨
+                  </button>
                   <button type="button" onclick="zoomMapBeranda(1)" title="Perbesar (Zoom In)"
                     style="width:34px; height:34px; background:white; border:1px solid #CBD5E1; border-radius:8px; font-weight:800; font-size:18px; color:#1E293B; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; transition:0.2s;"
                     onmouseover="this.style.background='#F1F5F9'" onmouseout="this.style.background='white'">
@@ -197,7 +232,7 @@
             </div>
 
             <!-- Saluran Radio HT (Sesuai Gambar 2) -->
-            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:11px;">
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:11px;">
               <div style="display:flex; align-items:center; gap:6px; color:#475569; font-weight:600;">
                 <span>📻</span>
                 <span>Saluran Radio HT:</span>
@@ -205,9 +240,32 @@
               <div style="color:#0284C7; font-weight:800; font-size:11px;" id="personel-radio-channel">CH-110 METRO PRESISI</div>
             </div>
 
-            <!-- KPI PERFORMANCE (Sesuai Gambar 2) -->
-            <div class="card-panel" id="kpi-card" style="margin-bottom:12px; padding:16px;">
-              <div class="card-title" style="margin-bottom:8px; font-size:12px; font-weight:800;">KPI PERFORMANCE</div>
+            <!-- Daily Shift Stats Pills -->
+            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:12px;" id="officer-shift-stats">
+              <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:7px 4px; text-align:center;">
+                <div style="font-size:15px; font-weight:900; color:#1D4ED8;" id="stat-tugas-count">4</div>
+                <div style="font-size:8.5px; font-weight:800; color:#64748B; margin-top:1px;">TUGAS SELESAI</div>
+              </div>
+              <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:7px 4px; text-align:center;">
+                <div style="font-size:15px; font-weight:900; color:#059669;" id="stat-respon-time">4.8m</div>
+                <div style="font-size:8.5px; font-weight:800; color:#64748B; margin-top:1px;">AVG RESPON</div>
+              </div>
+              <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:7px 4px; text-align:center;">
+                <div style="font-size:15px; font-weight:900; color:#D97706;" id="stat-poin-presisi">450</div>
+                <div style="font-size:8.5px; font-weight:800; color:#64748B; margin-top:1px;">POIN PRESISI</div>
+              </div>
+            </div>
+
+            <!-- KPI PERFORMANCE (Sesuai Gambar 2 + Interaktif) -->
+            <div class="card-panel" id="kpi-card" style="margin-bottom:12px; padding:16px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;"
+              onclick="bukaModalKpiDetail()"
+              title="Klik untuk melihat rincian capaian KPI presisi Anda"
+              onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.08)'; this.style.transform='translateY(-1px)'"
+              onmouseout="this.style.boxShadow='none'; this.style.transform='none'">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div class="card-title" style="margin-bottom:0; font-size:12px; font-weight:800;">KPI PERFORMANCE</div>
+                <span style="font-size:10px; font-weight:700; color:#1D4ED8; background:#EFF6FF; padding:2px 6px; border-radius:4px;">Detail ➔</span>
+              </div>
               <div class="gauge-container" style="position:relative; width:100%; height:110px; display:flex; align-items:center; justify-content:center;">
                 <canvas id="gauge1"></canvas>
                 <div style="position:absolute; top:58%; left:50%; transform:translate(-50%, -50%); font-size:24px; font-weight:900; color:#1E293B;" id="gauge1-text">92%</div>
@@ -2806,6 +2864,102 @@
           <button type="button" onclick="konfirmasiPresensiPulangFinal()"
             style="flex:1.5; padding:10px; background:#DC2626; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
             <span>✓</span> Konfirmasi Pulang
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RINCIAN KPI PERFORMANCE PRESISI -->
+  <div id="modal-kpi-detail" onclick="tutupModalKpiDetail()"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:14px; max-width:440px; width:100%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); overflow:hidden; border:1px solid #CBD5E1;"
+      onclick="event.stopPropagation()">
+      <div style="background:#153E75; color:white; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:20px;">📊</span>
+          <div>
+            <div style="font-size:13px; font-weight:800; letter-spacing:0.3px;">RINCIAN CAPAIAN KPI PRESISI</div>
+            <div style="font-size:11px; color:#93C5FD;" id="modal-kpi-officer-name">Petugas Lapangan</div>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalKpiDetail()"
+          style="background:rgba(255,255,255,0.2); border:none; color:white; width:28px; height:28px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">✕</button>
+      </div>
+      <div style="padding:18px;">
+        <!-- Big Score Bento -->
+        <div style="display:flex; align-items:center; gap:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
+          <div style="font-size:32px; font-weight:900; color:#059669; line-height:1;">92%</div>
+          <div>
+            <div style="font-size:12px; font-weight:800; color:#1E293B;">PREDIKAT: SANGAT BAIK (A)</div>
+            <div style="font-size:11px; color:#64748B; margin-top:2px;">Memenuhi seluruh indikator kesiapsiagaan &amp; respon cepat Mabes Polri.</div>
+          </div>
+        </div>
+
+        <!-- Metric Items -->
+        <div style="display:flex; flex-direction:column; gap:10px; font-size:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
+            <div>
+              <div style="font-weight:700; color:#1E293B;">⚡ Kecepatan Respon TKP</div>
+              <div style="font-size:10.5px; color:#64748B;">Rata-rata 4.8 menit (SOP Presisi: &lt; 10 menit)</div>
+            </div>
+            <div style="font-weight:800; color:#059669; font-size:13px;">96%</div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
+            <div>
+              <div style="font-weight:700; color:#1E293B;">📸 Kelengkapan Berkas &amp; Geo-tag</div>
+              <div style="font-size:10.5px; color:#64748B;">Foto TKP, GPS watermarking &amp; kronologi</div>
+            </div>
+            <div style="font-weight:800; color:#059669; font-size:13px;">90%</div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
+            <div>
+              <div style="font-weight:700; color:#1E293B;">⭐ Kepuasan Pelayanan Publik</div>
+              <div style="font-size:10.5px; color:#64748B;">Rating masyarakat langsung di e-Tribrata</div>
+            </div>
+            <div style="font-weight:800; color:#059669; font-size:13px;">4.9 / 5.0</div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:700; color:#1E293B;">🛡️ Kepatuhan Prosedur (SOP)</div>
+              <div style="font-size:10.5px; color:#64748B;">Disiplin apel, pelaporan berkala &amp; radio HT</div>
+            </div>
+            <div style="font-weight:800; color:#059669; font-size:13px;">92%</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button type="button" onclick="tutupModalKpiDetail()"
+            style="width:100%; background:#153E75; color:white; border:none; padding:10px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;">
+            Tutup Rincian
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KONFIRMASI REQUEST BACKUP (SOS DARURAT) -->
+  <div id="modal-sos-confirm" onclick="tutupModalSos()"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.8); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:14px; max-width:390px; width:100%; box-shadow:0 25px 50px -12px rgba(220,38,38,0.4); overflow:hidden; border-top:6px solid #DC2626;"
+      onclick="event.stopPropagation()">
+      <div style="padding:22px; text-align:center;">
+        <div style="font-size:42px; line-height:1; margin-bottom:10px;">🚨</div>
+        <div style="font-size:16px; font-weight:900; color:#991B1B;">KIRIM SINYAL DARURAT (SOS)?</div>
+        <div style="font-size:12px; color:#475569; margin-top:8px; line-height:1.5;">
+          Sinyal darurat prioritas tinggi beserta koordinat GPS lokasi ranmor Anda akan dibunyikan langsung di Command Center Pawas dan disiarkan ke seluruh unit patroli terdekat!
+        </div>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button type="button" onclick="tutupModalSos()"
+            style="flex:1; background:#F1F5F9; border:1px solid #CBD5E1; color:#475569; padding:10px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer;">
+            Batal
+          </button>
+          <button type="button" onclick="kirimSinyalSos()"
+            style="flex:1.4; background:#DC2626; border:none; color:white; padding:10px; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; box-shadow:0 3px 10px rgba(220,38,38,0.4);">
+            ⚡ Kirim SOS Sekarang
           </button>
         </div>
       </div>
