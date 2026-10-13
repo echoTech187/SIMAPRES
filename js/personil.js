@@ -629,6 +629,9 @@ function switchTab(viewId, navElement) {
   if (viewId === 'view-operator') {
     renderEbOperatorQueue();
   }
+  if (viewId === 'view-log') {
+    initViewLogKegiatan();
+  }
   if (viewId === 'view-profil') {
     syncProfileData(role);
     renderRiwayatLogLengkap();
@@ -6116,6 +6119,360 @@ function tutupDetailLogProfil() {
   if (modal) modal.style.display = 'none';
 }
 
+// ==========================================
+// TIMEPICKER LOG KEGIATAN MODAL HANDLER
+// ==========================================
+let tpFormat = '24h';
+
+function formatTo12hTimePicker(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  let h = parseInt(parts[0], 10);
+  const m = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  h = h ? h : 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function bukaTimePickerLog() {
+  const modal = document.getElementById('modal-timepicker-log');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  const inputWaktu = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
+  const val = inputWaktu ? inputWaktu.value.trim() : '';
+
+  const elMulai = document.getElementById('tp-jam-mulai');
+  const elSelesai = document.getElementById('tp-jam-selesai');
+
+  if (val && val.includes('-')) {
+    const parts = val.split('-');
+    const p1 = parts[0].trim();
+    const p2 = parts[1].trim();
+
+    if (val.toUpperCase().includes('AM') || val.toUpperCase().includes('PM')) {
+      tpFormat = '12h';
+    } else {
+      tpFormat = '24h';
+    }
+
+    const parseTo24 = (t) => {
+      const isPm = t.toUpperCase().includes('PM');
+      const isAm = t.toUpperCase().includes('AM');
+      const clean = t.replace(/(AM|PM|WIB)/gi, '').trim();
+      const spl = clean.split(':');
+      if (spl.length >= 2) {
+        let hr = parseInt(spl[0], 10);
+        const mn = spl[1].substring(0, 2);
+        if (isPm && hr < 12) hr += 12;
+        if (isAm && hr === 12) hr = 0;
+        return `${hr < 10 ? '0' + hr : hr}:${mn}`;
+      }
+      return null;
+    };
+
+    const parsedStart = parseTo24(p1);
+    const parsedEnd = parseTo24(p2);
+    if (parsedStart && elMulai) elMulai.value = parsedStart;
+    if (parsedEnd && elSelesai) elSelesai.value = parsedEnd;
+  }
+
+  setTimePickerFormat(tpFormat);
+  updateTimePickerPreview();
+}
+
+function tutupTimePickerLog() {
+  const modal = document.getElementById('modal-timepicker-log');
+  if (modal) modal.style.display = 'none';
+}
+
+function setTimePickerFormat(fmt) {
+  tpFormat = fmt;
+  const btn12 = document.getElementById('tp-btn-fmt-12h');
+  const btn24 = document.getElementById('tp-btn-fmt-24h');
+  if (btn12 && btn24) {
+    if (fmt === '12h') {
+      btn12.style.background = '#153E75';
+      btn12.style.color = '#FFFFFF';
+      btn12.style.borderColor = '#153E75';
+      btn24.style.background = '#FFFFFF';
+      btn24.style.color = '#1E293B';
+      btn24.style.borderColor = '#CBD5E1';
+    } else {
+      btn24.style.background = '#153E75';
+      btn24.style.color = '#FFFFFF';
+      btn24.style.borderColor = '#153E75';
+      btn12.style.background = '#FFFFFF';
+      btn12.style.color = '#1E293B';
+      btn12.style.borderColor = '#CBD5E1';
+    }
+  }
+  updateTimePickerPreview();
+}
+
+function updateTimePickerPreview() {
+  const elMulai = document.getElementById('tp-jam-mulai');
+  const elSelesai = document.getElementById('tp-jam-selesai');
+  const elPrevText = document.getElementById('tp-preview-text');
+  const elPrevDurasi = document.getElementById('tp-preview-durasi');
+
+  const startVal = (elMulai && elMulai.value) ? elMulai.value : '09:00';
+  const endVal = (elSelesai && elSelesai.value) ? elSelesai.value : '14:30';
+
+  const [sH, sM] = startVal.split(':').map(Number);
+  const [eH, eM] = endVal.split(':').map(Number);
+  let totalStart = (sH || 0) * 60 + (sM || 0);
+  let totalEnd = (eH || 0) * 60 + (eM || 0);
+  let diff = totalEnd - totalStart;
+  if (diff < 0) diff += 24 * 60;
+
+  const diffHours = Math.floor(diff / 60);
+  const diffMins = diff % 60;
+  let durasiStr = `${diffHours} Jam`;
+  if (diffMins > 0) durasiStr += ` ${diffMins} Menit`;
+
+  let formattedResult = '';
+  if (tpFormat === '12h') {
+    formattedResult = `${formatTo12hTimePicker(startVal)} - ${formatTo12hTimePicker(endVal)}`;
+  } else {
+    formattedResult = `${startVal} - ${endVal}`;
+  }
+
+  if (elPrevText) elPrevText.textContent = formattedResult;
+  if (elPrevDurasi) elPrevDurasi.textContent = `⏱️ Durasi: ${durasiStr}`;
+}
+
+function setPresetTimePicker(start, end) {
+  const elMulai = document.getElementById('tp-jam-mulai');
+  const elSelesai = document.getElementById('tp-jam-selesai');
+  if (elMulai) elMulai.value = start;
+  if (elSelesai) elSelesai.value = end;
+  updateTimePickerPreview();
+}
+
+function setPresetRelativeTimePicker(hours) {
+  const now = new Date();
+  const past = new Date(now.getTime() - hours * 60 * 60 * 1000);
+  const pad = n => n < 10 ? '0' + n : '' + n;
+  const startStr = `${pad(past.getHours())}:${pad(past.getMinutes())}`;
+  const endStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  setPresetTimePicker(startStr, endStr);
+}
+
+function terapkanTimePickerLog() {
+  const elPrevText = document.getElementById('tp-preview-text');
+  const resultText = elPrevText ? elPrevText.textContent : '09:00 - 14:30';
+  const inputWaktu = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
+  if (inputWaktu) {
+    inputWaktu.value = resultText;
+    if (typeof isUserEditingJamLog !== 'undefined') {
+      isUserEditingJamLog = true;
+    }
+    if (typeof logJamInterval !== 'undefined' && logJamInterval) {
+      clearInterval(logJamInterval);
+      logJamInterval = null;
+    }
+  }
+  tutupTimePickerLog();
+  if (typeof tampilkanToast === 'function') {
+    tampilkanToast(`Rentang waktu disetel: ${resultText}`, 'success');
+  } else if (typeof showToastNotification === 'function') {
+    showToastNotification(`Rentang waktu disetel: ${resultText}`, 'success');
+  }
+}
+
+// Global window exposure
+window.bukaTimePickerLog = bukaTimePickerLog;
+window.tutupTimePickerLog = tutupTimePickerLog;
+window.setTimePickerFormat = setTimePickerFormat;
+window.updateTimePickerPreview = updateTimePickerPreview;
+window.setPresetTimePicker = setPresetTimePicker;
+window.setPresetRelativeTimePicker = setPresetRelativeTimePicker;
+window.terapkanTimePickerLog = terapkanTimePickerLog;
+
+// ==========================================
+// VIEW-LOG: LIVE RUNNING CLOCK & UPLOAD BUKTI (SCREEN 2)
+// ==========================================
+let logJamInterval = null;
+let logWaktuMode = 'live'; // 'live' | 'manual'
+let currentUploadedBuktiLog = null;
+let isUserEditingJamLog = false;
+
+function updateJamLiveInputLog() {
+  const inputWaktu = document.getElementById('log-input-waktu');
+  if (!inputWaktu || isUserEditingJamLog) return;
+  const now = new Date();
+  const jamString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':') + ' WIB';
+  inputWaktu.value = jamString;
+}
+
+
+
+function toggleModeJamLog(mode) {
+  logWaktuMode = mode;
+  if (mode === 'manual') {
+    isUserEditingJamLog = true;
+    const inputWaktu = document.getElementById('log-input-waktu');
+    if (inputWaktu) inputWaktu.focus();
+  } else {
+    isUserEditingJamLog = false;
+    updateJamLiveInputLog();
+  }
+}
+
+function handleUploadBuktiLog(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentUploadedBuktiLog = e.target.result;
+    const previewImg = document.getElementById('log-preview-img');
+    if (previewImg) {
+      previewImg.src = currentUploadedBuktiLog;
+    }
+    if (typeof tampilkanToast === 'function') {
+      tampilkanToast('✓ Foto bukti berhasil dilampirkan!', 'success');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function gunakanSampleBukti(jenis = 'patroli') {
+  currentUploadedBuktiLog = 'assets/images/polri_pengaduan_tkp.jpg';
+  const previewImg = document.getElementById('log-preview-img');
+  if (previewImg) previewImg.src = currentUploadedBuktiLog;
+  if (typeof tampilkanToast === 'function') {
+    tampilkanToast('Foto bukti disetel.', 'info');
+  }
+}
+
+function hapusBuktiLog() {
+  currentUploadedBuktiLog = null;
+  const fileInput = document.getElementById('log-file-input');
+  if (fileInput) fileInput.value = '';
+  const previewImg = document.getElementById('log-preview-img');
+  if (previewImg) previewImg.src = 'https://placehold.co/200x200/153E75/FFFFFF?text=Foto';
+}
+
+function simpanLogKegiatanInput() {
+  const inputWaktu = document.getElementById('log-input-waktu');
+  const inputSektor = document.getElementById('log-input-sektor');
+  const selectJenis = document.getElementById('log-jenis');
+  const inputDeskripsi = document.getElementById('log-input-deskripsi');
+
+  const now = new Date();
+  const jamSekarang = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  const waktuVal = (inputWaktu && inputWaktu.value.trim()) ? inputWaktu.value.trim() : jamSekarang;
+  const sektorVal = (inputSektor && inputSektor.value.trim()) ? inputSektor.value.trim() : 'Sektor Gambir & Menteng';
+  const jenisVal = selectJenis ? selectJenis.value : 'PATROLI';
+  const descVal = (inputDeskripsi && inputDeskripsi.value.trim()) ? inputDeskripsi.value.trim() : `Melaksanakan kegiatan ${jenisVal} di wilayah ${sektorVal}. Situasi aman terkendali, nihil kejadian menonjol.`;
+  const fotoBukti = currentUploadedBuktiLog || 'assets/images/polri_pengaduan_tkp.jpg';
+
+  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+  const userNama = activeUser ? (activeUser.namaSingkat || activeUser.nama) : 'Bripka Ahmad Subagyo';
+  const userNrp = activeUser ? activeUser.nrp : '95020123';
+  const userAvatar = activeUser ? activeUser.avatar : 'assets/images/polri_pengaduan_tkp.jpg';
+  const userUnitId = activeUser ? activeUser.unitId : 'samapta-r4-selatan';
+
+  const maxId = appLogs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
+  const newId = maxId + 1;
+
+  const newLog = {
+    id: newId,
+    nama: userNama,
+    nrp: userNrp,
+    assignedNrp: userNrp,
+    assignedNama: userNama,
+    assignedUnitId: userUnitId,
+    avatar: userAvatar,
+    status: 'selesai',
+    statusText: 'Tuntas (Mandiri)',
+    title: `Log ${jenisVal} - ${sektorVal}`,
+    jenisInsiden: jenisVal,
+    deskripsi: descVal,
+    sektor: sektorVal,
+    lokasiKejadian: sektorVal + ', Jakarta',
+    koordinatGps: '-6.1980, 106.8245',
+    waktu: waktuVal,
+    sumberLaporan: '👮 Input Log Mandiri Personel',
+    fotoLampiran: fotoBukti,
+    fotoPengaduan: fotoBukti,
+    slaMenit: 6,
+    ratingKepuasan: 5,
+    riwayatValidasi: [
+      {
+        waktu: waktuVal,
+        aktor: `${userNama} (${userNrp})`,
+        aksi: `Input Log Kegiatan ${jenisVal}`,
+        catatan: descVal
+      }
+    ]
+  };
+
+  appLogs.unshift(newLog);
+  saveLogsToStorage();
+  if (typeof updateRekapCounts === 'function') updateRekapCounts();
+
+  // Reset deskripsi & foto
+  if (inputDeskripsi) inputDeskripsi.value = '';
+  hapusBuktiLog();
+  toggleModeJamLog('live');
+
+  // Refresh Bento Stats, KPI, Riwayat
+  if (typeof renderPersonalStatsBento === 'function') renderPersonalStatsBento();
+  if (typeof renderRiwayatLogLengkap === 'function') renderRiwayatLogLengkap();
+  if (typeof syncProfileData === 'function') syncProfileData();
+
+  if (typeof tampilkanToast === 'function') {
+    tampilkanToast(`✓ Log Kegiatan #${newId} berhasil disimpan dengan bukti foto & waktu tercatat!`, 'success');
+  }
+
+  // Navigasi ke Beranda
+  setTimeout(() => {
+    switchTab('view-beranda');
+  }, 900);
+}
+
+function bukaLightboxBukti(src, title = 'Bukti Dokumentasi Tugas Lapangan') {
+  const modal = document.getElementById('lightbox-modal');
+  if (!modal) return;
+  const titleEl = document.getElementById('modal-foto-title');
+  const subEl = document.getElementById('modal-foto-subtitle');
+  const imgEl = document.getElementById('modal-foto-img');
+  const descEl = document.getElementById('modal-foto-desc');
+  const metaEl = document.getElementById('modal-foto-meta');
+
+  if (titleEl) titleEl.innerText = title;
+  if (subEl) subEl.innerText = 'Presisi Mobile Camera System';
+  if (imgEl) imgEl.src = src;
+  if (descEl) descEl.innerText = 'Dokumentasi visual kegiatan patroli / penugasan lapangan yang terverifikasi.';
+  if (metaEl) metaEl.innerText = 'GPS Koordinat Aktif • Terverifikasi Presisi';
+
+  modal.style.display = 'flex';
+}
+
+function initViewLogKegiatan() {
+  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+  const inputSektor = document.getElementById('log-input-sektor');
+  if (inputSektor && (!inputSektor.value || inputSektor.value === 'Sektor Patroli')) {
+    inputSektor.value = activeUser ? (activeUser.satuan || 'Sektor Gambir & Menteng') : 'Sektor Gambir & Menteng';
+  }
+
+  // Listener input manual jika user ketik sendiri di input jam
+  const inputWaktu = document.getElementById('log-input-waktu');
+  if (inputWaktu && !inputWaktu.dataset.listenerAttached) {
+    inputWaktu.dataset.listenerAttached = 'true';
+    inputWaktu.addEventListener('input', () => {
+      if (logWaktuMode === 'live') {
+        toggleModeJamLog('manual');
+      }
+    });
+  }
+}
+
 // ==================================
 // FASE 0 LOGIC: JALUR OPERATOR SPKT & MANDIRI PERSONEL
 // ==================================
@@ -7250,6 +7607,7 @@ function initPersonilDashboard() {
   renderMissionCriticalCard();
   renderPersonalStatsBento();
   renderPersonelShiftTimeline();
+  initViewLogKegiatan();
 }
 
 function updateStatusTaktisSelectStyle(selectEl, status) {

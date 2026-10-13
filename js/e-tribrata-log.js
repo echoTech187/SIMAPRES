@@ -796,6 +796,9 @@ function switchTab(viewId, navElement) {
   if (viewId === 'view-operator') {
     renderEbOperatorQueue();
   }
+  if (viewId === 'view-log') {
+    if (typeof initViewLogKegiatan === 'function') initViewLogKegiatan();
+  }
   if (viewId === 'view-profil') {
     syncProfileData(role);
     renderRiwayatLogLengkap();
@@ -6045,6 +6048,125 @@ function bukaDetailLogProfil(id) {
 function tutupDetailLogProfil() {
   const modal = document.getElementById('modal-detail-log-profil');
   if (modal) modal.style.display = 'none';
+}
+
+let jamLiveInputLogInterval = null;
+let currentUploadedBuktiLogFoto = null;
+
+function updateJamLiveInputLog() {
+  const el = document.getElementById('log-jam-input');
+  if (!el) return;
+  const now = new Date();
+  const jam = String(now.getHours()).padStart(2, '0');
+  const menit = String(now.getMinutes()).padStart(2, '0');
+  const detik = String(now.getSeconds()).padStart(2, '0');
+  el.value = `${jam}:${menit}:${detik} WIB`;
+}
+
+function mulaiJamLiveInputLog() {
+  updateJamLiveInputLog();
+  if (jamLiveInputLogInterval) clearInterval(jamLiveInputLogInterval);
+  jamLiveInputLogInterval = setInterval(updateJamLiveInputLog, 1000);
+}
+
+function handleUploadBuktiLog(event) {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentUploadedBuktiLogFoto = e.target.result;
+    const preview = document.getElementById('log-preview-img');
+    if (preview) {
+      preview.src = currentUploadedBuktiLogFoto;
+      preview.style.borderColor = '#10B981';
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+function simpanLogKegiatanInput() {
+  const aktifUser = (typeof getActiveSimapresUser === 'function') ? getActiveSimapresUser() : currentUser;
+  const uraianEl = document.getElementById('log-kegiatan-input');
+  const lokasiEl = document.getElementById('log-lokasi-input');
+  const uraian = uraianEl ? uraianEl.value.trim() : '';
+  const lokasi = lokasiEl ? lokasiEl.value.trim() : '';
+
+  if (!uraian) {
+    alert('Uraian kegiatan wajib diisi.');
+    if (uraianEl) uraianEl.focus();
+    return;
+  }
+
+  const now = new Date();
+  const jamWib = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ' WIB';
+  const maxId = (Array.isArray(appLogs) ? appLogs : []).reduce((acc, curr) => Math.max(acc, Number(curr.id) || 0), 0);
+  const newId = maxId + 1;
+  const nomorRegistrasi = 'LOG-ACT-' + String(newId).padStart(4, '0');
+
+  const newLogEntry = {
+    id: newId,
+    noTiket: nomorRegistrasi,
+    kategori: 'Patroli',
+    subKategori: 'Kegiatan Mandiri',
+    uraian: uraian,
+    pelapor: aktifUser?.nama || 'Petugas Patroli',
+    kontak: aktifUser?.nrp || '081299990001',
+    lokasi: lokasi || 'Wilayah Hukum Polsek Gambir',
+    lat: -6.1754,
+    lng: 106.8272,
+    status: 'selesai',
+    waktuMasuk: jamWib,
+    waktuMeluncur: jamWib,
+    waktuTiba: jamWib,
+    waktuSelesai: jamWib,
+    slaMenit: 5,
+    assignedNrp: aktifUser?.nrp || '95020123',
+    assignedNama: aktifUser?.nama || 'Bripka Ahmad Subagyo',
+    assignedUnitId: aktifUser?.unitId || 'UNIT-PATROLI-1',
+    asalLaporan: 'mandiri_personel',
+    fotoBukti: currentUploadedBuktiLogFoto || 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=400&q=80',
+    tindakanPetugas: uraian,
+    ratingWarga: 5,
+    isSlaTaat: true,
+    ringkasanAi: `Laporan kegiatan lapangan dicatat langsung oleh ${aktifUser?.nama || 'Petugas'}. Kondisi aman kondusif.`
+  };
+
+  if (!Array.isArray(appLogs)) appLogs = [];
+  appLogs.unshift(newLogEntry);
+
+  if (typeof saveAppLogsToStore === 'function') {
+    saveAppLogsToStore(appLogs);
+  } else {
+    try {
+      localStorage.setItem('simapres_app_logs_v1', JSON.stringify(appLogs));
+    } catch(e) {
+      console.warn('Gagal menyimpan ke localStorage:', e);
+    }
+  }
+
+  // Update UI & stats
+  if (typeof renderPersonalStatsBento === 'function') renderPersonalStatsBento();
+  if (typeof renderRiwayatLogLengkap === 'function') renderRiwayatLogLengkap();
+  if (typeof renderEbOperatorQueue === 'function') renderEbOperatorQueue();
+  if (typeof renderPersonelShiftTimeline === 'function') renderPersonelShiftTimeline();
+
+  alert(`Log kegiatan berhasil dicatat ke sistem!\nNomor: ${nomorRegistrasi}\nStatus: Selesai`);
+
+  if (uraianEl) uraianEl.value = '';
+  currentUploadedBuktiLogFoto = null;
+  const preview = document.getElementById('log-preview-img');
+  if (preview) {
+    preview.src = 'https://placehold.co/200x200/153E75/FFFFFF?text=Foto';
+    preview.style.borderColor = '#153E75';
+  }
+}
+
+function initViewLogKegiatan() {
+  mulaiJamLiveInputLog();
+  const locEl = document.getElementById('log-lokasi-input');
+  if (locEl && !locEl.value) {
+    locEl.value = 'Jl. Medan Merdeka Barat, Gambir, Jakarta Pusat';
+  }
 }
 
 // ==================================
