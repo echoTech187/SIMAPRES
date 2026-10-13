@@ -1193,11 +1193,11 @@
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
             <div class="form-group">
               <label class="form-label" for="lapor-nama">Nama Lengkap Pelapor <span class="req">*</span></label>
-              <input type="text" id="lapor-nama" class="form-control" placeholder="Contoh: Budi Santoso" value="Budi Santoso, S.T." required>
+              <input type="text" id="lapor-nama" class="form-control" placeholder="Masukkan nama lengkap Anda" required>
             </div>
             <div class="form-group">
               <label class="form-label" for="lapor-telp">Nomor WhatsApp / HP <span class="req">*</span></label>
-              <input type="tel" id="lapor-telp" class="form-control" placeholder="08xxxxxxxxxx" value="0856-9123-8842" required>
+              <input type="tel" id="lapor-telp" class="form-control" placeholder="Contoh: 081234567890" required>
             </div>
           </div>
 
@@ -1205,7 +1205,7 @@
           <div class="form-group">
             <label class="form-label" for="lapor-lokasi">Lokasi Kejadian (TKP) <span class="req">*</span></label>
             <div class="input-icon-wrap">
-              <input type="text" id="lapor-lokasi" class="form-control" placeholder="Sebutkan patokan jalan / gedung terdekat" value="Jl. Panglima Polim Raya No. 42, Kebayoran Baru, Jakarta Selatan" required>
+              <input type="text" id="lapor-lokasi" class="form-control" placeholder="Contoh: Jl. Sudirman Kav. 24, patokan depan Gedung BRI" required>
               <button type="button" class="input-icon-btn" onclick="ambilLokasiSaatIni()" title="Dapatkan Lokasi GPS Saat Ini">📍</button>
             </div>
             <div id="gps-status-info" style="font-size:11px; color:#059669; font-weight:600; margin-top:4px;">
@@ -1216,7 +1216,7 @@
           <!-- Keterangan Kejadian -->
           <div class="form-group">
             <label class="form-label" for="lapor-uraian">Keterangan / Uraian Singkat Kejadian <span class="req">*</span></label>
-            <textarea id="lapor-uraian" class="form-control" placeholder="Jelaskan secara ringkas situasi di lapangan, korban, atau kebutuhan armada..." required>Tawuran sekelompok remaja berkumpul membawa sajam di dekat halte bus, butuh penanganan patroli segera.</textarea>
+            <textarea id="lapor-uraian" class="form-control" placeholder="Jelaskan secara ringkas apa yang terjadi, situasi di lapangan, korban, atau bantuan yang dibutuhkan..." required></textarea>
           </div>
 
           <!-- Lampiran Foto -->
@@ -1228,7 +1228,7 @@
 
           <!-- Tombol Kirim -->
           <button type="submit" class="btn-submit-lapor" id="btn-kirim-laporan">
-            <span>🚀</span> Kirim Laporan ke Command Center 110
+            <span>🚀</span> Kirim Laporan
           </button>
         </form>
       </section>
@@ -1248,21 +1248,91 @@
         </p>
         
         <div class="input-group-search">
-          <input type="text" id="ticket-input" placeholder="Contoh: TIKET-110-18X2F" value="TIKET-110-18X2F" onkeypress="if(event.key === 'Enter') lacakLaporan()">
-        </div>
-
-        <!-- Quick Suggestion Pills -->
-        <div class="quick-pills-label">
-          <span>⚡ Tiket Contoh Simulasi Cepat:</span>
-        </div>
-        <div class="quick-pills" id="quick-pills-container">
-          <!-- Rendered by JS -->
+          <input type="text" id="ticket-input" placeholder="Masukkan Nomor Tiket (Contoh: TIKET-110-18X2F)" onkeypress="if(event.key === 'Enter') lacakLaporan()">
         </div>
         
         <button type="button" class="btn-search" onclick="lacakLaporan()">
           <span>🔍</span> Lacak Laporan Sekarang
         </button>
       </section>
+
+      <!-- Panduan & Informasi Layanan (Ditampilkan saat belum ada tiket dicari) -->
+      <div id="tracking-empty-guide">
+        <!-- Card 1: 5 Tahapan Alur Penanganan Presisi -->
+        <div class="card" style="padding: 20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <h3 style="font-size:15px; font-weight:800; color:var(--primary); display:flex; align-items:center; gap:8px;">
+              <span>🛡️</span> Alur Transparansi Penanganan Laporan 110
+            </h3>
+            <span style="font-size:10.5px; font-weight:800; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; padding:2px 8px; border-radius:12px;">5 TAHAPAN RESMI</span>
+          </div>
+          <p style="font-size:12.5px; color:var(--text-muted); line-height:1.5; margin-bottom:16px;">
+            Setiap pengaduan masyarakat yang terdaftar diproses secara akuntabel dan terpantau langsung melalui sistem monitoring Command Center:
+          </p>
+
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap:10px; text-align:center;">
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px 8px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:#EFF6FF; color:#1D4ED8; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">1</div>
+              <div style="font-size:11.5px; font-weight:800; color:var(--text); margin-bottom:2px;">Verifikasi SPKT</div>
+              <div style="font-size:10px; color:var(--text-muted);">Pemeriksaan data & keabsahan laporan</div>
+            </div>
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px 8px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:#FEF3C7; color:#B45309; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">2</div>
+              <div style="font-size:11.5px; font-weight:800; color:var(--text); margin-bottom:2px;">Disposisi Pawas</div>
+              <div style="font-size:10px; color:var(--text-muted);">Penugasan unit regu patroli terdekat</div>
+            </div>
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px 8px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:#DBEAFE; color:#1E40AF; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">3</div>
+              <div style="font-size:11.5px; font-weight:800; color:var(--text); margin-bottom:2px;">Meluncur TKP</div>
+              <div style="font-size:10px; color:var(--text-muted);">Pergerakan armada terpantau GPS</div>
+            </div>
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px 8px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:#FEE2E2; color:#DC2626; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">4</div>
+              <div style="font-size:11.5px; font-weight:800; color:var(--text); margin-bottom:2px;">Tindakan TKP</div>
+              <div style="font-size:10px; color:var(--text-muted);">Pengamanan & pengisian BAP resmi</div>
+            </div>
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px 8px;">
+              <div style="width:32px; height:32px; border-radius:50%; background:#DCFCE7; color:#15803D; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; margin:0 auto 8px;">5</div>
+              <div style="font-size:11.5px; font-weight:800; color:var(--text); margin-bottom:2px;">Selesai & Evaluasi</div>
+              <div style="font-size:10px; color:var(--text-muted);">Pengesahan pimpinan & rating warga</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 2: Informasi Bantuan & Call Center 110 -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:20px;">
+          <div class="card" style="padding:16px; margin-bottom:0; background:#F0FDF4; border-color:#BBF7D0;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:18px;">⏱️</span>
+              <div style="font-size:13px; font-weight:800; color:#15803D;">Standar Respon Cepat (SLA)</div>
+            </div>
+            <div style="font-size:11.5px; color:#166534; line-height:1.5;">
+              Armada Samapta dan Raimas Presisi ditargetkan tiba di lokasi kejadian dalam waktu <strong>10 menit</strong> sejak perintah disposisi diterbitkan.
+            </div>
+          </div>
+
+          <div class="card" style="padding:16px; margin-bottom:0; background:#EFF6FF; border-color:#BFDBFE;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+              <span style="font-size:18px;">📞</span>
+              <div style="font-size:13px; font-weight:800; color:#1D4ED8;">Panggilan Darurat 110</div>
+            </div>
+            <div style="font-size:11.5px; color:#1E40AF; line-height:1.5;">
+              Layanan bebas pulsa siaga 24 jam untuk kondisi kritis yang membutuhkan tindakan kepolisian segera di seluruh wilayah DKI Jakarta.
+            </div>
+          </div>
+        </div>
+
+        <!-- Banner Panduan Mendapatkan Tiket -->
+        <div style="background:#FFFBEB; border:1.5px dashed #FDE68A; border-radius:14px; padding:14px 18px; display:flex; align-items:flex-start; gap:12px;">
+          <span style="font-size:22px;">💡</span>
+          <div>
+            <div style="font-size:13px; font-weight:800; color:#B45309; margin-bottom:2px;">Belum Memiliki Nomor Tiket?</div>
+            <div style="font-size:12px; color:#92400E; line-height:1.45;">
+              Anda dapat membuat laporan baru atau mengaktifkan suar darurat melalui tab <a href="javascript:void(0)" onclick="switchPortalTab('lapor')" style="font-weight:800; color:#B45309; text-decoration:underline;">🚨 Buat Laporan / SOS</a>. Nomor tiket resmi akan diterbitkan secara instan.
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Tracking Result Container -->
       <section class="card" id="tracking-result" aria-labelledby="tracking-result-title">
@@ -1585,7 +1655,6 @@
     // ==========================================
     function initApp() {
       loadLogs();
-      renderQuickPills();
 
       const urlParams = new URLSearchParams(window.location.search);
       const urlTiket = urlParams.get('tiket');
@@ -1609,33 +1678,6 @@
         document.getElementById('ticket-input').value = sessionTiket;
         lacakLaporan(sessionTiket);
       }
-    }
-
-    function renderQuickPills() {
-      const container = document.getElementById('quick-pills-container');
-      if (!container) return;
-
-      const pills = [
-        { tiket: 'TIKET-110-18X2F', label: '⭐ TIKET-110-18X2F (Selesai - Evaluasi)', done: true },
-        { tiket: 'TIKET-110-15X2F', label: '🚓 TIKET-110-15X2F (Tahap 3 - Meluncur)', done: false },
-        { tiket: 'TIKET-110-14X2F', label: '🛡️ TIKET-110-14X2F (Tahap 4 - Di TKP)', done: false }
-      ];
-
-      const activeTiket = sessionStorage.getItem('active_tiket');
-      if (activeTiket && !pills.some(p => p.tiket === activeTiket)) {
-        pills.unshift({ tiket: activeTiket, label: '📍 ' + activeTiket + ' (Laporan Anda)', done: false });
-      }
-
-      container.innerHTML = pills.map(p => `
-        <button type="button" class="quick-pill ${p.done ? 'done' : ''}" onclick="selectQuickTicket('${p.tiket}')">
-          ${p.label}
-        </button>
-      `).join('');
-    }
-
-    function selectQuickTicket(tiket) {
-      document.getElementById('ticket-input').value = tiket;
-      lacakLaporan(tiket);
     }
 
     // ==========================================
@@ -1701,7 +1743,6 @@
       setTimeout(() => {
         switchPortalTab('lacak');
         document.getElementById('ticket-input').value = noTiket;
-        renderQuickPills();
         lacakLaporan(noTiket);
       }, 600);
     }
@@ -1813,7 +1854,6 @@
       setTimeout(() => {
         switchPortalTab('lacak');
         document.getElementById('ticket-input').value = noTiket;
-        renderQuickPills();
         lacakLaporan(noTiket);
       }, 600);
     }
@@ -1861,6 +1901,9 @@
         renderTicketDetails(foundLog);
         renderTimelineSteps(foundLog);
         renderRatingSection(foundLog);
+
+        const guideEl = document.getElementById('tracking-empty-guide');
+        if (guideEl) guideEl.style.display = 'none';
 
         const resultCard = document.getElementById('tracking-result');
         resultCard.style.display = 'block';
