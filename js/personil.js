@@ -6388,27 +6388,39 @@ function simpanLogKegiatanInput() {
   const userAvatar = activeUser ? activeUser.avatar : 'assets/images/polri_pengaduan_tkp.jpg';
   const userUnitId = activeUser ? activeUser.unitId : 'samapta-r4-selatan';
 
+  const userSatuan = activeUser ? (activeUser.satuan || 'Unit Samapta Presisi') : 'Unit Samapta Presisi';
+
   const maxId = appLogs.reduce((acc, curr) => Math.max(acc, curr.id || 0), 0);
   const newId = maxId + 1;
+  const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
 
   const newLog = {
     id: newId,
-    nama: userNama,
+    nomorTiket: noTiket,
+    platform: 'personel',
+    platformBadge: '👮 PATROLI POLRI',
+    kategoriInsiden: 'Kamtibmas',
+    kategoriBadge: '💥 Kamtibmas & Tawuran',
+    tipePelapor: 'internal',
+    nama: `${userNama} (NRP: ${userNrp})`,
     nrp: userNrp,
+    kesatuan: userSatuan,
     assignedNrp: userNrp,
     assignedNama: userNama,
     assignedUnitId: userUnitId,
-    avatar: userAvatar,
+    avatar: 'assets/images/avatar_polisi.jpg',
     status: 'menunggu',
-    statusText: 'Menunggu Validasi',
+    statusText: 'Menunggu Tindakan',
     title: `Laporan Kegiatan ${jenisVal} (Mandiri)`,
-    jenisInsiden: jenisVal,
+    jenisInsiden: `Kegiatan ${jenisVal} Mandiri`,
     deskripsi: descVal,
     sektor: sektorVal,
     lokasiKejadian: document.getElementById('log-lokasi-kegiatan')?.value.trim() || (sektorVal + ', Jakarta'),
     koordinatGps: document.getElementById('log-koordinat-gps')?.value.trim() || '-6.1980, 106.8245',
     waktu: waktuVal,
-    sumberLaporan: '👮 Input Log Mandiri Personel',
+    sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
+    sumberSingkat: 'PATROLI POLRI',
+    urgensi: 'ℹ️ Normal',
     fotoLampiran: fotoBukti,
     fotoPengaduan: fotoBukti,
     alasanTolak: '',
@@ -6417,7 +6429,7 @@ function simpanLogKegiatanInput() {
         waktu: waktuVal,
         aktor: `${userNama} (${userNrp})`,
         aksi: `Input Log Kegiatan ${jenisVal}`,
-        catatan: `Penginputan kegiatan ${jenisVal} via formulir mobile. Menunggu audit & persetujuan Pawas.`
+        catatan: `Penginputan kegiatan ${jenisVal} via formulir mobile. Menunggu audit & disposisi Pawas.`
       }
     ],
     ratingKepuasan: null
@@ -6485,28 +6497,35 @@ function kirimLogMandiriPersonel() {
   const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
   const userNama = activeUser ? (activeUser.namaSingkat || activeUser.nama) : 'Personel Patroli';
   const userNrp = activeUser ? activeUser.nrp : '95020123';
-  const userAvatar = activeUser ? activeUser.avatar : 'assets/images/polri_pengaduan_tkp.jpg';
-  const userUnitId = activeUser ? activeUser.unitId : 'samapta-r4-selatan';
-  const userSatuan = activeUser ? (activeUser.satuan || 'Unit Samapta Presisi') : 'Unit Samapta Presisi';
+  const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
 
   const newLog = {
     id: newId,
-    nama: userNama,
+    nomorTiket: noTiket,
+    platform: 'personel',
+    platformBadge: '👮 PATROLI POLRI',
+    kategoriInsiden: 'Kamtibmas',
+    kategoriBadge: '💥 Kamtibmas & Tawuran',
+    tipePelapor: 'internal',
+    nama: `${userNama} (NRP: ${userNrp})`,
     nrp: userNrp,
+    kesatuan: userSatuan,
     assignedNrp: userNrp,
     assignedNama: userNama,
     assignedUnitId: userUnitId,
-    avatar: userAvatar,
+    avatar: 'assets/images/avatar_polisi.jpg',
     status: 'menunggu',
-    statusText: 'Menunggu Validasi',
+    statusText: 'Menunggu Tindakan',
     title: 'Laporan Kegiatan ' + jenis + ' (Mandiri)',
-    jenisInsiden: jenis,
+    jenisInsiden: 'Kegiatan ' + jenis + ' Mandiri',
     deskripsi: desc,
     sektor: userSatuan.includes('Barat') ? 'Sektor Barat' : (userSatuan.includes('Timur') ? 'Sektor Timur' : 'Sektor Selatan'),
     lokasiKejadian: document.getElementById('respon-lokasi-kegiatan')?.value.trim() || 'Pos Polisi / Titik Patroli',
     koordinatGps: document.getElementById('respon-koordinat-gps')?.value.trim() || '-6.1980, 106.8245',
     waktu: document.getElementById('respon-waktu-perekaman')?.value.trim() || waktu,
-    sumberLaporan: '👮 Patroli Mandiri Personel',
+    sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
+    sumberSingkat: 'PATROLI POLRI',
+    urgensi: 'ℹ️ Normal',
     fotoLampiran: userAvatar,
     fotoPengaduan: userAvatar,
     alasanTolak: '',
@@ -6515,7 +6534,7 @@ function kirimLogMandiriPersonel() {
         waktu: waktu,
         aktor: userNama + ' (Personel Lapangan)',
         aksi: 'Input Log Mandiri Personel',
-        catatan: 'Penginputan formulir kegiatan ' + jenis + ' dari aplikasi mobile.'
+        catatan: 'Penginputan formulir kegiatan ' + jenis + ' dari aplikasi mobile. Menunggu audit & disposisi Pawas.'
       }
     ],
     ratingKepuasan: null
@@ -6525,7 +6544,7 @@ function kirimLogMandiriPersonel() {
   saveLogsToStorage();
   updateRekapCounts();
 
-  alert('✓ Log Kegiatan Mandiri #' + newId + ' berhasil dikirim!\n\nLaporan telah masuk ke antrean "Menunggu Validasi" untuk diverifikasi oleh Pawas/Atasan .');
+  alert('✓ Log Kegiatan Mandiri #' + newId + ' berhasil dikirim!\n\nLaporan telah masuk ke antrean "Menunggu Tindakan" untuk diverifikasi oleh Pawas/Atasan .');
   switchTab('view-beranda');
 }
 
@@ -6548,13 +6567,31 @@ function ebSubmitLaporanOperator() {
   const opNama = activeUser ? (activeUser.namaSingkat || activeUser.nama) : 'Operator SPKT (Briptu Dian Lestari)';
   const opNrp = activeUser ? activeUser.nrp : '98040112';
 
+  const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
+  let katInsiden = 'Kamtibmas';
+  let katBadge = '💥 Kamtibmas & Tawuran';
+  if (jenis.includes('Kecelakaan') || jenis.includes('Laka')) {
+    katInsiden = 'Laka Lantas';
+    katBadge = '🚗 Laka Lantas';
+  } else if (jenis.includes('Pencurian') || jenis.includes('Begal') || jenis.includes('Curanmor')) {
+    katInsiden = 'Kriminalitas';
+    katBadge = '⚔️ Kriminalitas';
+  }
+
   const newLog = {
     id: newId,
-    nama: opNama,
+    nomorTiket: noTiket,
+    platform: 'layanan110',
+    platformBadge: '📞 LAYANAN 110',
+    kategoriInsiden: katInsiden,
+    kategoriBadge: katBadge,
+    tipePelapor: 'layanan110',
+    nama: namaPelapor,
+    noTelpPelapor: notelp,
     nrp: opNrp,
-    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    avatar: SVG_AVATAR_WARGA,
     status: 'menunggu',
-    statusText: 'Menunggu Validasi',
+    statusText: 'Menunggu Tindakan',
     title: jenis + ' - ' + lokasi.split(',')[0],
     jenisInsiden: jenis,
     deskripsi: uraian,
@@ -6562,7 +6599,9 @@ function ebSubmitLaporanOperator() {
     lokasiKejadian: lokasi,
     koordinatGps: gps,
     waktu: waktu,
+    urgensi: '🚨 Darurat',
     sumberLaporan: '📞 Panggilan 110 (Call Center SPKT)',
+    sumberSingkat: 'LAYANAN 110',
     pelapor: { nama: namaPelapor, telepon: notelp },
     fotoPengaduan: sampleFoto,
     fotoLampiran: sampleFoto,

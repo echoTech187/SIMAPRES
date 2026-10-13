@@ -6103,32 +6103,50 @@ function simpanLogKegiatanInput() {
   const newId = maxId + 1;
   const nomorRegistrasi = 'LOG-ACT-' + String(newId).padStart(4, '0');
 
+  const userNama = aktifUser ? (aktifUser.namaSingkat || aktifUser.nama) : 'Bripka Ahmad Subagyo';
+  const userNrp = aktifUser ? aktifUser.nrp : '95020123';
+  const userUnitId = aktifUser ? aktifUser.unitId : 'samapta-r4-selatan';
+  const userSatuan = aktifUser ? (aktifUser.satuan || 'Unit Samapta Presisi') : 'Unit Samapta Presisi';
+
   const newLogEntry = {
     id: newId,
-    noTiket: nomorRegistrasi,
-    kategori: 'Patroli',
-    subKategori: 'Kegiatan Mandiri',
-    uraian: uraian,
-    pelapor: aktifUser?.nama || 'Petugas Patroli',
-    kontak: aktifUser?.nrp || '081299990001',
-    lokasi: lokasi || 'Wilayah Hukum Polsek Gambir',
-    lat: -6.1754,
-    lng: 106.8272,
-    status: 'selesai',
-    waktuMasuk: jamWib,
-    waktuMeluncur: jamWib,
-    waktuTiba: jamWib,
-    waktuSelesai: jamWib,
-    slaMenit: 5,
-    assignedNrp: aktifUser?.nrp || '95020123',
-    assignedNama: aktifUser?.nama || 'Bripka Ahmad Subagyo',
-    assignedUnitId: aktifUser?.unitId || 'UNIT-PATROLI-1',
-    asalLaporan: 'mandiri_personel',
-    fotoBukti: currentUploadedBuktiLogFoto || 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=400&q=80',
-    tindakanPetugas: uraian,
-    ratingWarga: 5,
-    isSlaTaat: true,
-    ringkasanAi: `Laporan kegiatan lapangan dicatat langsung oleh ${aktifUser?.nama || 'Petugas'}. Kondisi aman kondusif.`
+    nomorTiket: 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F',
+    platform: 'personel',
+    platformBadge: '👮 PATROLI POLRI',
+    kategoriInsiden: 'Kamtibmas',
+    kategoriBadge: '💥 Kamtibmas & Tawuran',
+    tipePelapor: 'internal',
+    nama: `${userNama} (NRP: ${userNrp})`,
+    nrp: userNrp,
+    kesatuan: userSatuan,
+    assignedNrp: userNrp,
+    assignedNama: userNama,
+    assignedUnitId: userUnitId,
+    avatar: 'assets/images/avatar_polisi.jpg',
+    status: 'menunggu',
+    statusText: 'Menunggu Tindakan',
+    title: 'Laporan Kegiatan Patroli (Mandiri)',
+    jenisInsiden: 'Kegiatan Patroli Mandiri',
+    deskripsi: uraian,
+    sektor: 'Sektor Gambir & Menteng',
+    lokasiKejadian: lokasi || 'Wilayah Hukum Polsek Gambir',
+    koordinatGps: '-6.1754, 106.8272',
+    waktu: jamWib,
+    sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
+    sumberSingkat: 'PATROLI POLRI',
+    urgensi: 'ℹ️ Normal',
+    fotoLampiran: currentUploadedBuktiLogFoto || 'assets/images/polri_pengaduan_tkp.jpg',
+    fotoPengaduan: currentUploadedBuktiLogFoto || 'assets/images/polri_pengaduan_tkp.jpg',
+    alasanTolak: '',
+    riwayatValidasi: [
+      {
+        waktu: jamWib,
+        aktor: `${userNama} (${userNrp})`,
+        aksi: 'Input Log Kegiatan Mandiri',
+        catatan: 'Penginputan kegiatan mandiri personel via formulir mobile. Menunggu audit & disposisi Pawas.'
+      }
+    ],
+    ratingKepuasan: null
   };
 
   if (!Array.isArray(appLogs)) appLogs = [];
@@ -6188,24 +6206,35 @@ function kirimLogMandiriPersonel() {
   const userUnitId = activeUser ? activeUser.unitId : 'samapta-r4-selatan';
   const userSatuan = activeUser ? (activeUser.satuan || 'Unit Samapta Presisi') : 'Unit Samapta Presisi';
 
+  const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
+
   const newLog = {
     id: newId,
-    nama: userNama,
+    nomorTiket: noTiket,
+    platform: 'personel',
+    platformBadge: '👮 PATROLI POLRI',
+    kategoriInsiden: 'Kamtibmas',
+    kategoriBadge: '💥 Kamtibmas & Tawuran',
+    tipePelapor: 'internal',
+    nama: `${userNama} (NRP: ${userNrp})`,
     nrp: userNrp,
+    kesatuan: userSatuan,
     assignedNrp: userNrp,
     assignedNama: userNama,
     assignedUnitId: userUnitId,
-    avatar: userAvatar,
+    avatar: 'assets/images/avatar_polisi.jpg',
     status: 'menunggu',
-    statusText: 'Menunggu Validasi',
+    statusText: 'Menunggu Tindakan',
     title: 'Laporan Kegiatan ' + jenis + ' (Mandiri)',
-    jenisInsiden: jenis,
+    jenisInsiden: 'Kegiatan ' + jenis + ' Mandiri',
     deskripsi: desc,
     sektor: userSatuan.includes('Barat') ? 'Sektor Barat' : (userSatuan.includes('Timur') ? 'Sektor Timur' : 'Sektor Selatan'),
     lokasiKejadian: 'Jl. Fatmawati Raya No. 12, Jakarta Selatan',
     koordinatGps: '-6.2345, 106.8423',
     waktu: waktu,
-    sumberLaporan: '👮 Patroli Mandiri Personel',
+    sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri',
+    sumberSingkat: 'PATROLI POLRI',
+    urgensi: 'ℹ️ Normal',
     fotoLampiran: userAvatar,
     fotoPengaduan: userAvatar,
     alasanTolak: '',
@@ -6214,7 +6243,7 @@ function kirimLogMandiriPersonel() {
         waktu: waktu,
         aktor: userNama + ' (Personel Lapangan)',
         aksi: 'Input Log Mandiri Personel',
-        catatan: 'Penginputan formulir kegiatan ' + jenis + ' dari aplikasi mobile.'
+        catatan: 'Penginputan formulir kegiatan ' + jenis + ' dari aplikasi mobile. Menunggu audit & disposisi Pawas.'
       }
     ],
     ratingKepuasan: null
@@ -6224,7 +6253,7 @@ function kirimLogMandiriPersonel() {
   saveLogsToStorage();
   updateRekapCounts();
 
-  alert('✓ Log Kegiatan Mandiri #' + newId + ' berhasil dikirim!\n\nLaporan telah masuk ke antrean "Menunggu Validasi" untuk diverifikasi oleh Pawas/Atasan .');
+  alert('✓ Log Kegiatan Mandiri #' + newId + ' berhasil dikirim!\n\nLaporan telah masuk ke antrean "Menunggu Tindakan" untuk diverifikasi oleh Pawas/Atasan .');
   switchTab('view-beranda');
 }
 
@@ -6247,13 +6276,31 @@ function ebSubmitLaporanOperator() {
   const opNama = activeUser ? (activeUser.namaSingkat || activeUser.nama) : 'Operator SPKT (Briptu Dian Lestari)';
   const opNrp = activeUser ? activeUser.nrp : '98040112';
 
+  const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
+  let katInsiden = 'Kamtibmas';
+  let katBadge = '💥 Kamtibmas & Tawuran';
+  if (jenis.includes('Kecelakaan') || jenis.includes('Laka')) {
+    katInsiden = 'Laka Lantas';
+    katBadge = '🚗 Laka Lantas';
+  } else if (jenis.includes('Pencurian') || jenis.includes('Begal') || jenis.includes('Curanmor')) {
+    katInsiden = 'Kriminalitas';
+    katBadge = '⚔️ Kriminalitas';
+  }
+
   const newLog = {
     id: newId,
-    nama: opNama,
+    nomorTiket: noTiket,
+    platform: 'layanan110',
+    platformBadge: '📞 LAYANAN 110',
+    kategoriInsiden: katInsiden,
+    kategoriBadge: katBadge,
+    tipePelapor: 'layanan110',
+    nama: namaPelapor,
+    noTelpPelapor: notelp,
     nrp: opNrp,
-    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    avatar: SVG_AVATAR_WARGA,
     status: 'menunggu',
-    statusText: 'Menunggu Validasi',
+    statusText: 'Menunggu Tindakan',
     title: jenis + ' - ' + lokasi.split(',')[0],
     jenisInsiden: jenis,
     deskripsi: uraian,
@@ -6261,7 +6308,9 @@ function ebSubmitLaporanOperator() {
     lokasiKejadian: lokasi,
     koordinatGps: gps,
     waktu: waktu,
+    urgensi: '🚨 Darurat',
     sumberLaporan: '📞 Panggilan 110 (Call Center SPKT)',
+    sumberSingkat: 'LAYANAN 110',
     pelapor: { nama: namaPelapor, telepon: notelp },
     fotoPengaduan: sampleFoto,
     fotoLampiran: sampleFoto,
