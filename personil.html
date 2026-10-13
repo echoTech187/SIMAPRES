@@ -279,7 +279,7 @@
             <div class="card-panel" id="mutasi-kegiatan-card" style="padding:16px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div class="card-title" style="margin-bottom:0; font-size:12px; font-weight:800;">MUTASI KEGIATAN SAYA</div>
-                <a href="javascript:void(0)" onclick="switchTab('view-kinerja')"
+                <a href="javascript:void(0)" onclick="switchTab('view-laporan')"
                   style="font-size:11px; font-weight:700; color:#1D4ED8; text-decoration:none; display:flex; align-items:center; gap:3px;">
                   Lihat Semua ➔
                 </a>
@@ -2889,10 +2889,10 @@
       <div style="padding:18px;">
         <!-- Big Score Bento -->
         <div style="display:flex; align-items:center; gap:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px 14px; margin-bottom:14px;">
-          <div style="font-size:32px; font-weight:900; color:#059669; line-height:1;">92%</div>
+          <div style="font-size:32px; font-weight:900; color:#059669; line-height:1;" id="modal-kpi-score">92%</div>
           <div>
-            <div style="font-size:12px; font-weight:800; color:#1E293B;">PREDIKAT: SANGAT BAIK (A)</div>
-            <div style="font-size:11px; color:#64748B; margin-top:2px;">Memenuhi seluruh indikator kesiapsiagaan &amp; respon cepat Mabes Polri.</div>
+            <div style="font-size:12px; font-weight:800; color:#1E293B;" id="modal-kpi-predikat">PREDIKAT: SANGAT BAIK (A)</div>
+            <div style="font-size:11px; color:#64748B; margin-top:2px;" id="modal-kpi-desc">Memenuhi seluruh indikator kesiapsiagaan &amp; respon cepat Mabes Polri.</div>
           </div>
         </div>
 
@@ -2901,9 +2901,9 @@
           <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
             <div>
               <div style="font-weight:700; color:#1E293B;">⚡ Kecepatan Respon TKP</div>
-              <div style="font-size:10.5px; color:#64748B;">Rata-rata 4.8 menit (SOP Presisi: &lt; 10 menit)</div>
+              <div style="font-size:10.5px; color:#64748B;" id="modal-kpi-sub-kecepatan">Rata-rata 4.8 menit (SOP Presisi: &lt; 10 menit)</div>
             </div>
-            <div style="font-weight:800; color:#059669; font-size:13px;">96%</div>
+            <div style="font-weight:800; color:#059669; font-size:13px;" id="modal-kpi-val-kecepatan">96%</div>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
@@ -2911,15 +2911,15 @@
               <div style="font-weight:700; color:#1E293B;">📸 Kelengkapan Berkas &amp; Geo-tag</div>
               <div style="font-size:10.5px; color:#64748B;">Foto TKP, GPS watermarking &amp; kronologi</div>
             </div>
-            <div style="font-weight:800; color:#059669; font-size:13px;">90%</div>
+            <div style="font-weight:800; color:#059669; font-size:13px;" id="modal-kpi-val-kelengkapan">90%</div>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center; padding-bottom:8px; border-bottom:1px solid #F1F5F9;">
             <div>
               <div style="font-weight:700; color:#1E293B;">⭐ Kepuasan Pelayanan Publik</div>
-              <div style="font-size:10.5px; color:#64748B;">Rating masyarakat langsung di e-Tribrata</div>
+              <div style="font-size:10.5px; color:#64748B;" id="modal-kpi-sub-kepuasan">Rating masyarakat langsung di e-Tribrata</div>
             </div>
-            <div style="font-weight:800; color:#059669; font-size:13px;">4.9 / 5.0</div>
+            <div style="font-weight:800; color:#059669; font-size:13px;" id="modal-kpi-val-kepuasan">4.9 / 5.0</div>
           </div>
 
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -2927,7 +2927,7 @@
               <div style="font-weight:700; color:#1E293B;">🛡️ Kepatuhan Prosedur (SOP)</div>
               <div style="font-size:10.5px; color:#64748B;">Disiplin apel, pelaporan berkala &amp; radio HT</div>
             </div>
-            <div style="font-weight:800; color:#059669; font-size:13px;">92%</div>
+            <div style="font-weight:800; color:#059669; font-size:13px;" id="modal-kpi-val-sop">92%</div>
           </div>
         </div>
 
@@ -2972,8 +2972,9 @@
   </div>
 
   <!-- LOGIKA & SESI EKSTERNAL -->
-  <script src="js/simapres-roster.js?v=20261013_0348"></script>
-  <script src="js/personil.js?v=20261013_0348"></script>
+  <script src="js/simapres-roster.js?v=20261013_0440"></script>
+  <script src="js/simapres-store.js?v=20261013_0440"></script>
+  <script src="js/personil.js?v=20261013_0440"></script>
 </body>
 
 </html>

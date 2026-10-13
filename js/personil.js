@@ -595,7 +595,7 @@ function switchTab(viewId, navElement) {
       if (lapPim) lapPim.style.display = 'block';
       if (lapAng) lapAng.style.display = 'none';
       renderPimpinanExecutiveDashboard();
-    initPawasKinerjaCharts();
+      initPawasKinerjaCharts();
       renderPawasInsidenTable();
     } else {
       if (lapPim) lapPim.style.display = 'none';
@@ -617,13 +617,7 @@ function openRespon(jenis) {
 // ==========================================
 // CENTRALIZED DATA MODEL & LOCAL STORAGE
 // ==========================================
-const SVG_AVATAR_WARGA = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <circle cx="50" cy="50" r="50" fill="#E2E8F0"/>
-  <circle cx="50" cy="38" r="20" fill="#64748B"/>
-  <path d="M18 86 C18 64 32 58 50 58 C68 58 82 64 82 86 Z" fill="#64748B"/>
-</svg>
-`)}`;
+
 
 function getDefaultLogs() {
   const defaultList = [
@@ -1434,59 +1428,6 @@ let appLogs = [];
 let selectedLogId = null;
 let activeWizardLogId = null;
 
-const SVG_FALLBACK_PENGADUAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
-  <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E293B"/>
-      <stop offset="100%" stop-color="#0F172A"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="240" fill="url(#grad1)"/>
-  <circle cx="200" cy="85" r="32" fill="#334155"/>
-  <text x="200" y="93" fill="#60A5FA" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="24" font-weight="800" text-anchor="middle">110</text>
-  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">BUKTI LAPORAN WARGA</text>
-  <text x="200" y="168" fill="#94A3B8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Call Center 110 Terverifikasi</text>
-  <rect x="130" y="186" width="140" height="24" rx="12" fill="rgba(59,130,246,0.2)"/>
-  <text x="200" y="202" fill="#60A5FA" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ BUKTI TERVERIFIKASI</text>
-</svg>
-`)}`;
-
-const SVG_FALLBACK_TINDAKAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
-  <defs>
-    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#064E3B"/>
-      <stop offset="100%" stop-color="#022C22"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="240" fill="url(#grad2)"/>
-  <circle cx="200" cy="85" r="32" fill="#065F46"/>
-  <path d="M190 85 L197 92 L212 77" stroke="#34D399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">TINDAKAN PETUGAS TKP</text>
-  <text x="200" y="168" fill="#A7F3D0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Respon Lapangan Presisi</text>
-  <rect x="130" y="186" width="140" height="24" rx="12" fill="rgba(16,185,129,0.2)"/>
-  <text x="200" y="202" fill="#34D399" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ PERSONEL DI LOKASI</text>
-</svg>
-`)}`;
-
-const SVG_FALLBACK_PERSIAPAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
-  <defs>
-    <linearGradient id="gradP" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E3A8A"/>
-      <stop offset="100%" stop-color="#0F172A"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="240" fill="url(#gradP)"/>
-  <circle cx="200" cy="85" r="32" fill="#1E40AF"/>
-  <path d="M190 85 L200 70 L210 85 L203 85 L203 100 L197 100 L197 85 Z" fill="#93C5FD"/>
-  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">PERSIAPAN & MELUNCUR</text>
-  <text x="200" y="168" fill="#93C5FD" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Personel & GPS Terkunci</text>
-  <rect x="120" y="186" width="160" height="24" rx="12" fill="rgba(59,130,246,0.2)"/>
-  <text x="200" y="202" fill="#93C5FD" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ GPS & ARMADA SIAGA</text>
-</svg>
-`)}`;
 
 function getFotoPengaduanByKategori(log) {
   if (!log) return 'assets/images/polri_pengaduan_tkp.jpg';
@@ -1947,74 +1888,7 @@ function isUserPawas() {
 let selectedPawasDisposisiLogId = null;
 let currentModalArmadaList = [];
 
-// Master Data Armada Siaga Presisi (Smart Computer-Aided Dispatch / CAD)
-const DAFTAR_ARMADA_PRESISI = [
-  {
-    id: 'samapta-r4-selatan',
-    nama: 'Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)',
-    namaSingkat: 'Patroli Samapta R4 (Zona Selatan)',
-    sektorUtama: 'Sektor Selatan',
-    komandan: 'Bripka Ahmad & Regu Alpha (NRP: 95020123)',
-    nrpKomandan: '95020123',
-    posisiSaatIni: 'Pos Pantau Bundaran Senayan / Patroli Mobile',
-    kekuatan: '4 Personel • Mobil Sedan Sabhara • Senpi V2 • Bodycam On',
-    jarakBase: 1.2,
-    etaBase: 3,
-    icon: '🚔'
-  },
-  {
-    id: 'samapta-r2-motor',
-    nama: 'Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)',
-    namaSingkat: 'Samapta Raimas R2 (Motor Taktis)',
-    sektorUtama: 'Sektor Selatan',
-    komandan: 'Aipda Rudi Hartono & Tim Raimas (NRP: 50129841)',
-    nrpKomandan: '50129841',
-    posisiSaatIni: 'Pos Pol Simpang Panglima Polim',
-    kekuatan: '2 Personel (2 Trail Sabhara) • Helm Taktis • Gas Air Mata',
-    jarakBase: 1.8,
-    etaBase: 4,
-    icon: '🏍️'
-  },
-  {
-    id: 'lantas-turjawali',
-    nama: 'Turjawali Satlantas (Unit Patroli Jalan Raya PJR)',
-    namaSingkat: 'Turjawali Satlantas PJR',
-    sektorUtama: 'Sektor Barat',
-    komandan: 'Aiptu Bambang Sudrajat & Brigadir Doni (NRP: 49112233)',
-    nrpKomandan: '49112233',
-    posisiSaatIni: 'Simpang CSW / Koridor Protokol Sudirman',
-    kekuatan: '2 Personel • Mobil Sedan Lantas • Rompi Fosfor • Traffic Cone',
-    jarakBase: 2.5,
-    etaBase: 6,
-    icon: '🚓'
-  },
-  {
-    id: 'bhabin-polsek',
-    nama: 'Bhabinkamtibmas & Piket Polsek Wilayah Setempat',
-    namaSingkat: 'Bhabinkamtibmas & Piket Polsek',
-    sektorUtama: 'Sektor Timur',
-    komandan: 'Aipda Hendra Gunawan & Bripka Joko (NRP: 48099881)',
-    nrpKomandan: '48099881',
-    posisiSaatIni: 'Pos Pol Subsektor / Kantor Kelurahan',
-    kekuatan: '3 Personel • Mobil Patroli Polsek • HT APCO P25',
-    jarakBase: 3.2,
-    etaBase: 7,
-    icon: '👮'
-  },
-  {
-    id: 'reskrim-opsnal',
-    nama: 'Tim Opsnal & Resmob Satreskrim (Gakkum Tertutup)',
-    namaSingkat: 'Opsnal & Resmob Satreskrim',
-    sektorUtama: 'Pusat',
-    komandan: 'Ipda Reza Pratama, S.H. & Tim Macan (NRP: 51044321)',
-    nrpKomandan: '51044321',
-    posisiSaatIni: 'Mako Polres (Standby Tim Taktis Khusus)',
-    kekuatan: '5 Personel Sipil Taktis • Minibus Hitam • Senpi HS-9',
-    jarakBase: 4.5,
-    etaBase: 9,
-    icon: '🕵️'
-  }
-];
+
 
 // Fungsi Hitung Estimasi Jarak GPS & Waktu Tiba (ETA) Realistis Berdasarkan TKP Kasus
 function hitungEstimasiArmadaUntukLog(log) {
@@ -4641,6 +4515,92 @@ function openValidasiList(filter, doSwitch = true) {
 let myChart1, myChart2, myChart3;
 
 // ==================================
+// HELPER PERHITUNGAN METRIK KPI PRESISI DINAMIS
+// ==================================
+function hitungMetrikPersonalKpi(user, userLogs) {
+  const activeUser = user || (typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null);
+  const logs = userLogs || (typeof getLogsForUser === 'function' ? getLogsForUser(activeUser, 'semua') : (typeof appLogs !== 'undefined' ? appLogs : []));
+  const cTotal = logs.length;
+  const cSelesai = logs.filter(l => l.status === 'selesai').length;
+  const cDiproses = logs.filter(l => l.status === 'diproses').length;
+  const cPengesahan = logs.filter(l => l.status === 'menunggu_pengesahan').length;
+
+  // 1. Kecepatan Respon (SLA Menit)
+  const logsWithSla = logs.filter(l => typeof l.slaMenit === 'number' || (l.sla && !isNaN(parseFloat(l.sla))));
+  let totalSla = 0;
+  let onTimeCount = 0;
+  logsWithSla.forEach(l => {
+    const val = typeof l.slaMenit === 'number' ? l.slaMenit : parseFloat(l.sla);
+    totalSla += val;
+    if (val <= 10) onTimeCount++;
+  });
+
+  const avgSlaMenit = logsWithSla.length > 0 ? (totalSla / logsWithSla.length) : 5.2;
+  const kecepatanScore = logsWithSla.length > 0 ? Math.round((onTimeCount / logsWithSla.length) * 100) : 96;
+
+  // 2. Kelengkapan Berkas & Geo-tag
+  let completeDocs = 0;
+  logs.forEach(l => {
+    const hasPhoto = Boolean(l.fotoLampiran || l.fotoPengaduan);
+    const hasGps = Boolean(l.koordinatGps);
+    const hasDesc = Boolean(l.deskripsi && l.deskripsi.length > 10);
+    if (hasPhoto && (hasGps || hasDesc)) completeDocs++;
+  });
+  const kelengkapanScore = cTotal > 0 ? Math.min(100, Math.max(75, Math.round((completeDocs / cTotal) * 100))) : 90;
+
+  // 3. Kepuasan Pelayanan Publik (Rating Warga)
+  const rated = logs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
+  let sumRating = 0;
+  rated.forEach(l => {
+    sumRating += Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
+  });
+  const avgRating = rated.length > 0 ? (sumRating / rated.length) : 4.9;
+  const kepuasanScore = Math.min(100, Math.round((avgRating / 5.0) * 100));
+
+  // 4. Kepatuhan Prosedur (SOP)
+  let sopScore = 92;
+  if (activeUser) {
+    const presensiKey = 'simapres_presensi_' + activeUser.nrp;
+    if (sessionStorage.getItem(presensiKey)) {
+      sopScore = 96;
+    }
+  }
+
+  // 5. Total Komposit Score (Bobot: 35% Kecepatan, 25% Kelengkapan, 25% Kepuasan, 15% SOP)
+  const totalKpiScore = Math.round((kecepatanScore * 0.35) + (kelengkapanScore * 0.25) + (kepuasanScore * 0.25) + (sopScore * 0.15));
+
+  let predikatTitle = 'Sangat Memuaskan';
+  let predikatDesc = 'Memenuhi seluruh indikator kesiapsiagaan & respon cepat Mabes Polri.';
+  if (totalKpiScore >= 90) {
+    predikatTitle = 'Sangat Baik (A)';
+    predikatDesc = 'Memenuhi seluruh indikator kesiapsiagaan & respon cepat Mabes Polri.';
+  } else if (totalKpiScore >= 80) {
+    predikatTitle = 'Baik (B)';
+    predikatDesc = 'Kinerja operasional solid dan memenuhi target standar Presisi.';
+  } else {
+    predikatTitle = 'Cukup (C)';
+    predikatDesc = 'Perlu akselerasi respon TKP dan kelengkapan dokumentasi dinas.';
+  }
+
+  return {
+    cTotal,
+    cSelesai,
+    cDiproses,
+    cPengesahan,
+    avgSlaMenit,
+    kecepatanScore,
+    kelengkapanScore,
+    avgRating,
+    ratedCount: rated.length,
+    kepuasanScore,
+    sopScore,
+    totalKpiScore,
+    predikatTitle,
+    predikatDesc
+  };
+}
+
+// ==================================
 // CHART.JS INITIALIZATION (Screen 4 & Beranda)
 // ==================================
 function initCharts() {
@@ -4648,23 +4608,33 @@ function initCharts() {
   Chart.defaults.font.size = 10;
   Chart.defaults.plugins.legend.display = false;
 
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user, 'semua') : (typeof appLogs !== 'undefined' ? appLogs : []);
+  const kpi = hitungMetrikPersonalKpi(user, myLogs);
+
   // Half-circle Gauges for Beranda
   const gaugeOpts = {
     type: 'doughnut',
-    data: { datasets: [{ data: [92, 8], backgroundColor: ['#10B981', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
+    data: { datasets: [{ data: [kpi.totalKpiScore, Math.max(0, 100 - kpi.totalKpiScore)], backgroundColor: ['#10B981', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
     options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
   };
   const g1 = document.getElementById('gauge1');
   if (g1) {
     if (window.myGauge1Chart) {
-      try { window.myGauge1Chart.destroy(); } catch (e) {}
+      try { window.myGauge1Chart.destroy(); } catch (e) { }
     }
     try {
       const existing = typeof Chart.getChart === 'function' ? Chart.getChart(g1) : null;
       if (existing) existing.destroy();
-    } catch (e) {}
+    } catch (e) { }
     window.myGauge1Chart = new Chart(g1, gaugeOpts);
   }
+
+  const elGauge1Text = document.getElementById('gauge1-text');
+  if (elGauge1Text) elGauge1Text.innerText = `${kpi.totalKpiScore}%`;
+
+  const elGauge1Subtext = document.getElementById('gauge1-subtext');
+  if (elGauge1Subtext) elGauge1Subtext.innerText = `${kpi.predikatTitle} (Target >85%)`;
 
   const gSla = document.getElementById('gauge-sla-pimpinan');
   if (gSla) {
@@ -4688,30 +4658,54 @@ function initCharts() {
 
   const gaugeOpts2 = {
     type: 'doughnut',
-    data: { datasets: [{ data: [92, 8], backgroundColor: ['#EF4444', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
+    data: { datasets: [{ data: [kpi.totalKpiScore, Math.max(0, 100 - kpi.totalKpiScore)], backgroundColor: ['#EF4444', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
     options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
   };
-  new Chart(document.getElementById('gauge2'), gaugeOpts2);
+  const g2 = document.getElementById('gauge2');
+  if (g2) new Chart(g2, gaugeOpts2);
 
-  // Chart 1: Distribusi Jenis Kegiatan (Pie)
-  myChart1 = new Chart(document.getElementById('chart1'), {
-    type: 'pie',
-    data: {
-      labels: ['Patroli', 'TPTKP', 'Sambang', 'Pengamanan'],
-      datasets: [{ data: [40, 10, 30, 20], backgroundColor: ['#1D4ED8', '#EF4444', '#F59E0B', '#10B981'], borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: { maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+  // Chart 1: Distribusi Jenis Kegiatan (Pie) Dinamis Berdasarkan Log Nyata
+  let cPatroli = 0, cTptkp = 0, cSambang = 0, cPengamanan = 0;
+  myLogs.forEach(l => {
+    const txt = ((l.jenisInsiden || '') + ' ' + (l.title || '') + ' ' + (l.tindakan || '')).toLowerCase();
+    if (txt.includes('patroli')) cPatroli++;
+    else if (txt.includes('sambang') || txt.includes('mediasi') || txt.includes('warga')) cSambang++;
+    else if (txt.includes('pengamanan') || txt.includes('lalin') || txt.includes('pohon')) cPengamanan++;
+    else cTptkp++;
   });
+  if (cPatroli + cTptkp + cSambang + cPengamanan === 0) {
+    cPatroli = 4; cTptkp = 1; cSambang = 3; cPengamanan = 2;
+  }
 
-  // Chart 2: Status Validasi (Doughnut)
-  myChart2 = new Chart(document.getElementById('chart2'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Disetujui', 'Menunggu', 'Ditolak'],
-      datasets: [{ data: [38, 5, 2], backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: { maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
-  });
+  const elChart1 = document.getElementById('chart1');
+  if (elChart1) {
+    myChart1 = new Chart(elChart1, {
+      type: 'pie',
+      data: {
+        labels: ['Patroli', 'TPTKP', 'Sambang', 'Pengamanan'],
+        datasets: [{ data: [cPatroli, cTptkp, cSambang, cPengamanan], backgroundColor: ['#1D4ED8', '#EF4444', '#F59E0B', '#10B981'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+    });
+  }
+
+  // Chart 2: Status Validasi (Doughnut) Dinamis
+  const cAcc = myLogs.filter(l => l.status === 'selesai').length;
+  const cWait = myLogs.filter(l => l.status === 'diproses' || l.status === 'menunggu' || l.status === 'menunggu_pengesahan').length;
+  const cRej = myLogs.filter(l => l.status === 'ditolak').length;
+  const chart2Data = (cAcc + cWait + cRej > 0) ? [cAcc, cWait, cRej] : [4, 1, 0];
+
+  const elChart2 = document.getElementById('chart2');
+  if (elChart2) {
+    myChart2 = new Chart(elChart2, {
+      type: 'doughnut',
+      data: {
+        labels: ['Disetujui', 'Menunggu', 'Ditolak'],
+        datasets: [{ data: chart2Data, backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+    });
+  }
 
   // Chart 3: Tren Volume Kegiatan (Bar)
   myChart3 = new Chart(document.getElementById('chart3'), {
@@ -4725,7 +4719,7 @@ function initCharts() {
 
   // Panggil inisialisasi chart Pawas jika diakses pimpinan
   renderPimpinanExecutiveDashboard();
-    initPawasKinerjaCharts();
+  initPawasKinerjaCharts();
 }
 
 // ==================================
@@ -5224,7 +5218,7 @@ function updateKinerjaTab(period, el) {
     myChart3.data.datasets[0].data = [8, 10, 5, 12, 15, 6, 4];
 
     // Update text stats
-        const curU = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+    const curU = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
     const uLogsList = (typeof appLogs !== 'undefined')
       ? ((curU && curU.role !== 'pimpinan') ? appLogs.filter(l => typeof isLogAssignedToUser === 'function' ? isLogAssignedToUser(l, curU) : true) : appLogs)
       : [];
@@ -5490,11 +5484,13 @@ function syncProfileData(targetRole) {
   }
 
   // Metrik KTA Digital Dinamis
-  const uLogs = (typeof appLogs !== 'undefined')
-    ? ((activeUser && activeUser.role !== 'pimpinan')
+  const uLogs = (typeof getLogsForUser === 'function')
+    ? getLogsForUser(activeUser, 'semua')
+    : ((typeof appLogs !== 'undefined')
+      ? ((activeUser && activeUser.role !== 'pimpinan')
         ? appLogs.filter(l => typeof isLogAssignedToUser === 'function' ? isLogAssignedToUser(l, activeUser) : true)
         : appLogs)
-    : [];
+      : []);
   const elKtaTot = document.getElementById('profil-stat-total');
   if (elKtaTot) elKtaTot.innerText = uLogs.length;
 
@@ -5502,8 +5498,16 @@ function syncProfileData(targetRole) {
   const elKtaSel = document.getElementById('profil-stat-selesai');
   if (elKtaSel) elKtaSel.innerText = uSelesai;
 
+  const kpiProf = (typeof hitungMetrikPersonalKpi === 'function') ? hitungMetrikPersonalKpi(activeUser, uLogs) : null;
   const elKtaSla = document.getElementById('profil-stat-sla');
-  if (elKtaSla) elKtaSla.innerText = uLogs.length > 0 ? (((uSelesai || 1) / uLogs.length) * 100).toFixed(1) + '%' : '96.4%';
+  if (elKtaSla) {
+    elKtaSla.innerText = kpiProf ? `${kpiProf.kecepatanScore}%` : (uLogs.length > 0 ? (((uSelesai || 1) / uLogs.length) * 100).toFixed(1) + '%' : '96.4%');
+  }
+
+  // Trigger render riwayat log lengkap di Profil
+  if (typeof renderRiwayatLogLengkap === 'function') {
+    renderRiwayatLogLengkap();
+  }
 
   // Presensi State Management per User
   if (activeUser) {
@@ -5520,7 +5524,7 @@ function syncProfileData(targetRole) {
           elStatusPresensi.style.color = '#15803D';
           elStatusPresensi.style.background = '#DCFCE7';
         }
-      } catch(e) {}
+      } catch (e) { }
     } else {
       if (elJamMasuk) elJamMasuk.innerText = '- (Belum Masuk Dinas)';
       if (elStatusPresensi) {
@@ -5832,6 +5836,101 @@ const daftarRiwayatLog110 = [
   }
 ];
 
+function getDynamicRiwayatLog110() {
+  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+  const userLogs = (typeof getLogsForUser === 'function')
+    ? getLogsForUser(activeUser, 'semua')
+    : (typeof appLogs !== 'undefined' ? appLogs : []);
+
+  if (!userLogs || userLogs.length === 0) {
+    return daftarRiwayatLog110;
+  }
+
+  return userLogs.map(l => {
+    const idStr = String(l.id || '');
+    const tiket = l.nomorTiket || (`#110-2026-${idStr.padStart(4, '0')}`);
+    const waktu = l.waktu || '11 Okt 2026, 20:00 WIB';
+    const kategori = l.jenisInsiden || l.title || 'Laporan Kamtibmas';
+
+    // Tindakan badge
+    let tindakan = 'TPTKP';
+    let tindakanBg = '#FEE2E2';
+    let tindakanColor = '#B91C1C';
+    const katLower = (kategori + ' ' + (l.tipePelapor || '')).toLowerCase();
+    if (katLower.includes('patroli')) {
+      tindakan = 'PATROLI';
+      tindakanBg = '#DBEAFE';
+      tindakanColor = '#1D4ED8';
+    } else if (katLower.includes('sambang') || katLower.includes('mediasi') || katLower.includes('warga')) {
+      tindakan = 'SAMBANG';
+      tindakanBg = '#FEF3C7';
+      tindakanColor = '#B45309';
+    } else if (katLower.includes('pengamanan') || katLower.includes('lalin') || katLower.includes('pohon')) {
+      tindakan = 'PENGAMANAN';
+      tindakanBg = '#E0E7FF';
+      tindakanColor = '#4338CA';
+    }
+
+    // Pelapor info
+    const pelaporNama = l.pelapor?.nama || l.namaPelapor || (l.tipePelapor === 'personel' ? (l.nama + ' (Personel)') : (l.nama || 'Warga Masyarakat'));
+    const telp = l.pelapor?.telp || l.teleponPelapor || '0812-9844-3210';
+    const lokasi = l.lokasiKejadian || l.sektor || 'Wilayah Hukum Polres';
+    const petugasNama = (l.assignedNama || l.disposisi?.komandan || (activeUser ? activeUser.nama : l.nama || 'Petugas Lapangan')).split('(')[0].trim();
+    const satuanName = activeUser?.satuan || activeUser?.jabatan || 'Samapta Presisi';
+
+    // Status format
+    let statusText = 'Selesai (LP Dibuat)';
+    let statusBg = '#DCFCE7';
+    let statusColor = '#15803D';
+    if (l.status === 'diproses') {
+      statusText = 'Sedang Ditangani';
+      statusBg = '#FEF3C7';
+      statusColor = '#B45309';
+    } else if (l.status === 'menunggu_pengesahan') {
+      statusText = 'Menunggu Pengesahan';
+      statusBg = '#EFF6FF';
+      statusColor = '#1D4ED8';
+    } else if (l.status === 'menunggu') {
+      statusText = 'Menunggu Tindakan';
+      statusBg = '#F1F5F9';
+      statusColor = '#475569';
+    } else if (l.status === 'ditolak') {
+      statusText = 'Ditolak Pawas';
+      statusBg = '#FEE2E2';
+      statusColor = '#DC2626';
+    }
+
+    // SLA calculation
+    const slaVal = (typeof l.slaMenit === 'number') ? l.slaMenit : (l.sla ? parseFloat(l.sla) : 5.8);
+    const slaText = slaVal.toFixed(1) + ' Menit';
+    const slaStatus = slaVal <= 10 ? 'Tepat Waktu (< 10 Menit)' : 'Terlambat (> 10 Menit)';
+
+    return {
+      id: idStr,
+      rawId: l.id,
+      tiket: tiket,
+      waktu: waktu,
+      kategori: kategori,
+      tindakan: tindakan,
+      tindakanBg: tindakanBg,
+      tindakanColor: tindakanColor,
+      pelapor: pelaporNama,
+      telp: telp,
+      lokasi: lokasi,
+      petugas: `${petugasNama} (${satuanName})`,
+      status: l.status,
+      statusText: statusText,
+      statusBg: statusBg,
+      statusColor: statusColor,
+      sla: slaText,
+      slaStatus: slaStatus,
+      kronologi: l.deskripsi || l.kronologi || 'Petugas mendatangi lokasi dan mengambil tindakan kepolisian sesuai prosedur.',
+      foto: l.fotoLampiran || l.fotoPengaduan || (activeUser ? activeUser.avatar : 'assets/images/polri_pengaduan_tkp.jpg'),
+      catatan: l.catatanPetugas || (l.alasanTolak ? ('Alasan Penolakan: ' + l.alasanTolak) : (l.disposisi?.arahan ? ('Arahan: ' + l.disposisi.arahan) : 'Situasi aman terkendali. Laporan selesai dan terverifikasi.'))
+    };
+  });
+}
+
 function setFilterLogProfil(status, el) {
   profilCurrentFilter = status;
   if (el) {
@@ -5934,7 +6033,8 @@ function renderRiwayatLogLengkap(status = profilCurrentFilter, keyword = '') {
 }
 
 function bukaDetailLogProfil(id) {
-  const item = daftarRiwayatLog110.find(x => x.id === id);
+  const sourceData = (typeof getDynamicRiwayatLog110 === 'function') ? getDynamicRiwayatLog110() : daftarRiwayatLog110;
+  const item = sourceData.find(x => String(x.id) === String(id) || String(x.rawId) === String(id) || x.tiket === id) || daftarRiwayatLog110.find(x => x.id === id);
   if (!item) return;
 
   const modal = document.getElementById('modal-detail-log-profil');
@@ -6556,7 +6656,7 @@ function renderPimpinanPersonelActivityTimeline() {
     const judulLog = l.title || l.jenisInsiden || 'Laporan Kamtibmas';
     const tglTeks = l.tanggal || (typeof formatTanggalIndo === 'function' ? formatTanggalIndo() : 'Hari ini');
 
-        // 1. TAHAP 5: Kasus Selesai Ditangani (atau Menunggu Pengesahan)
+    // 1. TAHAP 5: Kasus Selesai Ditangani (atau Menunggu Pengesahan)
     if (l.status === 'selesai' || l.status === 'menunggu_pengesahan' || l.waktuSelesai || l.pengesahanPawas) {
       const isSelesai = l.status === 'selesai';
       const waktuEvent = l.pengesahanPawas?.waktu || l.waktuSelesai || l.waktu;
@@ -6997,7 +7097,7 @@ function renderPimpinanBreakingAlert() {
 
   const elBtn = document.getElementById('pimpinan-alert-btn-tindak');
   if (elBtn) {
-    elBtn.onclick = function() {
+    elBtn.onclick = function () {
       switchTab('view-validasi');
       if (typeof openValidasiList === 'function') openValidasiList(urgentLog.status);
       if (typeof selectLogCard === 'function') selectLogCard(urgentLog.id);
@@ -7083,6 +7183,11 @@ function initPersonilDashboard() {
   const elModalKpiOfficer = document.getElementById('modal-kpi-officer-name');
   if (elModalKpiOfficer && user.nama) {
     elModalKpiOfficer.innerText = `${user.nama} (${user.nrp})`;
+  }
+
+  const elRadio = document.getElementById('personel-radio-channel');
+  if (elRadio) {
+    elRadio.innerText = user.chRadio || 'CH-110 METRO PRESISI';
   }
 
   // 2. Status Taktis Mandiri
@@ -7265,45 +7370,97 @@ function bukaWizardDariBeranda(logId) {
   }
 }
 
+function updateModalKpiDetailContent(kpi, user) {
+  if (!kpi) return;
+  const elOfficer = document.getElementById('modal-kpi-officer-name');
+  if (elOfficer && user) {
+    elOfficer.innerText = `${user.nama} (NRP ${user.nrp}) • ${user.jabatan || user.satuan || 'Presisi'}`;
+  }
+
+  const elScore = document.getElementById('modal-kpi-score');
+  if (elScore) elScore.innerText = `${kpi.totalKpiScore}%`;
+
+  const elPredikat = document.getElementById('modal-kpi-predikat');
+  if (elPredikat) elPredikat.innerText = `PREDIKAT: ${kpi.predikatTitle.toUpperCase()}`;
+
+  const elDesc = document.getElementById('modal-kpi-desc');
+  if (elDesc) elDesc.innerText = kpi.predikatDesc;
+
+  const elValKecepatan = document.getElementById('modal-kpi-val-kecepatan');
+  if (elValKecepatan) elValKecepatan.innerText = `${kpi.kecepatanScore}%`;
+
+  const elSubKecepatan = document.getElementById('modal-kpi-sub-kecepatan');
+  if (elSubKecepatan) elSubKecepatan.innerText = `Rata-rata ${kpi.avgSlaMenit.toFixed(1)} menit (SOP Presisi: < 10 menit)`;
+
+  const elValKelengkapan = document.getElementById('modal-kpi-val-kelengkapan');
+  if (elValKelengkapan) elValKelengkapan.innerText = `${kpi.kelengkapanScore}%`;
+
+  const elValKepuasan = document.getElementById('modal-kpi-val-kepuasan');
+  if (elValKepuasan) elValKepuasan.innerText = `${kpi.avgRating.toFixed(1)} / 5.0`;
+
+  const elSubKepuasan = document.getElementById('modal-kpi-sub-kepuasan');
+  if (elSubKepuasan) elSubKepuasan.innerText = `Berdasarkan survei ${kpi.ratedCount} warga terverifikasi 110`;
+
+  const elValSop = document.getElementById('modal-kpi-val-sop');
+  if (elValSop) elValSop.innerText = `${kpi.sopScore}%`;
+}
+
 function renderPersonalStatsBento() {
   const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
-  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
-
-  const cDiproses = myLogs.filter(l => l.status === 'diproses').length;
-  const cPengesahan = myLogs.filter(l => l.status === 'menunggu_pengesahan').length;
-  const cSelesai = myLogs.filter(l => l.status === 'selesai').length;
-
-  // Hitung rating khusus kasus personel
-  const rated = myLogs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
-  let totalScore = 0;
-  rated.forEach(l => {
-    totalScore += Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
-  });
-  const avgRating = rated.length > 0 ? (totalScore / rated.length).toFixed(1) : '4.9';
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user, 'semua') : (appLogs || []);
+  const kpi = (typeof hitungMetrikPersonalKpi === 'function') ? hitungMetrikPersonalKpi(user, myLogs) : {
+    cDiproses: myLogs.filter(l => l.status === 'diproses').length,
+    cPengesahan: myLogs.filter(l => l.status === 'menunggu_pengesahan').length,
+    cSelesai: myLogs.filter(l => l.status === 'selesai').length,
+    avgRating: 4.9,
+    ratedCount: 0,
+    avgSlaMenit: 5.2,
+    kecepatanScore: 96,
+    kelengkapanScore: 90,
+    sopScore: 94,
+    totalKpiScore: 92,
+    predikatTitle: 'Sangat Memuaskan',
+    predikatDesc: 'Memenuhi seluruh indikator kesiapsiagaan Presisi.'
+  };
 
   const elAktif = document.getElementById('stat-personal-aktif');
-  if (elAktif) elAktif.innerText = cDiproses;
+  if (elAktif) elAktif.innerText = kpi.cDiproses;
 
   const elPengesahan = document.getElementById('stat-personal-pengesahan');
-  if (elPengesahan) elPengesahan.innerText = cPengesahan;
+  if (elPengesahan) elPengesahan.innerText = kpi.cPengesahan;
 
   const elSelesai = document.getElementById('stat-personal-selesai');
-  if (elSelesai) elSelesai.innerText = cSelesai;
+  if (elSelesai) elSelesai.innerText = kpi.cSelesai;
 
   const elRating = document.getElementById('stat-personal-rating');
-  if (elRating) elRating.innerText = `⭐ ${avgRating}`;
+  if (elRating) elRating.innerText = `⭐ ${kpi.avgRating.toFixed(1)}`;
 
   const elRevCount = document.getElementById('stat-personal-reviews-count');
-  if (elRevCount) elRevCount.innerText = `${rated.length || 6} Ulasan Warga`;
+  if (elRevCount) elRevCount.innerText = `${kpi.ratedCount} Ulasan Warga`;
 
   const elTugasCount = document.getElementById('stat-tugas-count');
-  if (elTugasCount) elTugasCount.innerText = cSelesai || 4;
+  if (elTugasCount) elTugasCount.innerText = kpi.cSelesai;
 
   const elResponTime = document.getElementById('stat-respon-time');
-  if (elResponTime) elResponTime.innerText = '4.8m';
+  if (elResponTime) elResponTime.innerText = `${kpi.avgSlaMenit.toFixed(1)}m`;
 
   const elPoinPresisi = document.getElementById('stat-poin-presisi');
-  if (elPoinPresisi) elPoinPresisi.innerText = (cSelesai * 100 + 50) || 450;
+  if (elPoinPresisi) elPoinPresisi.innerText = (kpi.cSelesai * 100 + Math.round(kpi.avgRating * 20));
+
+  // Sinkronisasi KPI Gauge visual
+  const elGaugeText = document.getElementById('gauge1-text');
+  if (elGaugeText) elGaugeText.innerText = `${kpi.totalKpiScore}%`;
+
+  const elGaugeSubtext = document.getElementById('gauge1-subtext');
+  if (elGaugeSubtext) elGaugeSubtext.innerText = `${kpi.predikatTitle} (Target >85%)`;
+
+  if (window.myGauge1Chart && window.myGauge1Chart.data && window.myGauge1Chart.data.datasets && window.myGauge1Chart.data.datasets[0]) {
+    window.myGauge1Chart.data.datasets[0].data = [kpi.totalKpiScore, Math.max(0, 100 - kpi.totalKpiScore)];
+    window.myGauge1Chart.update();
+  }
+
+  // Sinkronkan rincian pada modal KPI detail
+  updateModalKpiDetailContent(kpi, user);
 }
 
 function renderPersonelShiftTimeline() {
@@ -7311,7 +7468,7 @@ function renderPersonelShiftTimeline() {
   if (!container) return;
 
   const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
-  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user, 'semua') : (appLogs || []);
 
   if (myLogs.length === 0) {
     container.innerHTML = `
@@ -7325,7 +7482,7 @@ function renderPersonelShiftTimeline() {
 
   let html = '';
   // Ambil hingga 4 aktivitas terkini
-  const sorted = [...myLogs].sort((a,b) => (b.id || 0) - (a.id || 0)).slice(0, 4);
+  const sorted = [...myLogs].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 4);
 
   sorted.forEach(l => {
     let dotClass = 'blue';
@@ -7402,20 +7559,20 @@ function bukaModalRatingPersonal() {
   if (!modal) return;
 
   const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
-  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user, 'semua') : (appLogs || []);
   const rated = myLogs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
 
   let totalScore = 0;
   rated.forEach(l => {
     totalScore += Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
   });
-  const avg = rated.length > 0 ? (totalScore / rated.length).toFixed(1) : '4.9';
+  const avg = rated.length > 0 ? (totalScore / rated.length).toFixed(1) : '0.0';
 
   const elScore = document.getElementById('modal-rating-score');
   if (elScore) elScore.innerText = avg;
 
   const elCountInfo = document.getElementById('modal-rating-count-info');
-  if (elCountInfo) elCountInfo.innerText = `Berdasarkan ${rated.length || 6} survei warga terverifikasi 110`;
+  if (elCountInfo) elCountInfo.innerText = `Berdasarkan ${rated.length} survei warga terverifikasi 110`;
 
   const container = document.getElementById('modal-rating-list-container');
   if (container) {
@@ -7465,7 +7622,12 @@ function tutupModalRatingPersonal() {
 
 function bukaModalKpiDetail() {
   const modal = document.getElementById('modal-kpi-detail');
-  if (modal) modal.style.display = 'flex';
+  if (!modal) return;
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user, 'semua') : (appLogs || []);
+  const kpi = (typeof hitungMetrikPersonalKpi === 'function') ? hitungMetrikPersonalKpi(user, myLogs) : null;
+  if (kpi) updateModalKpiDetailContent(kpi, user);
+  modal.style.display = 'flex';
 }
 
 function tutupModalKpiDetail() {

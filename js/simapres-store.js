@@ -5,10 +5,10 @@
  *            dan helper filter kepemilikan tugas per personel (Data Ownership Isolation).
  */
 
-const STORAGE_KEY_LOGS = 'simapres_app_logs_v1';
+var STORAGE_KEY_LOGS = window.STORAGE_KEY_LOGS || 'simapres_app_logs_v1';
 
 // SVGs Standar Dokumen Bukti & Avatar
-const SVG_AVATAR_WARGA = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+var SVG_AVATAR_WARGA = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
   <circle cx="50" cy="50" r="50" fill="#E2E8F0"/>
   <circle cx="50" cy="38" r="20" fill="#64748B"/>
@@ -16,7 +16,7 @@ const SVG_AVATAR_WARGA = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
 </svg>
 `)}`;
 
-const SVG_FALLBACK_PENGADUAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+var SVG_FALLBACK_PENGADUAN = window.SVG_FALLBACK_PENGADUAN || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
   <defs>
     <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -34,7 +34,7 @@ const SVG_FALLBACK_PENGADUAN = `data:image/svg+xml;charset=utf-8,${encodeURIComp
 </svg>
 `)}`;
 
-const SVG_FALLBACK_TINDAKAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+var SVG_FALLBACK_TINDAKAN = window.SVG_FALLBACK_TINDAKAN || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
   <defs>
     <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -52,7 +52,7 @@ const SVG_FALLBACK_TINDAKAN = `data:image/svg+xml;charset=utf-8,${encodeURICompo
 </svg>
 `)}`;
 
-const SVG_FALLBACK_PERSIAPAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
+var SVG_FALLBACK_PERSIAPAN = window.SVG_FALLBACK_PERSIAPAN || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
   <defs>
     <linearGradient id="gradP" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -71,7 +71,7 @@ const SVG_FALLBACK_PERSIAPAN = `data:image/svg+xml;charset=utf-8,${encodeURIComp
 `)}`;
 
 // Daftar Armada Reaksi Cepat Presisi untuk Disposisi CAD Pawas
-const DAFTAR_ARMADA_PRESISI = [
+var DAFTAR_ARMADA_PRESISI = window.DAFTAR_ARMADA_PRESISI || [
   {
     id: 'samapta-r4-selatan',
     nama: 'Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)',
@@ -212,17 +212,39 @@ function enrichLogOperationalHistory(l) {
 
   const resolvePetugasDefault = (logItem) => {
     if (logItem.assignedNama) {
-      return { nama: logItem.assignedNama, unit: logItem.assignedUnitId || 'Samapta R-4' };
+      return {
+        nama: logItem.assignedNama,
+        nrp: logItem.assignedNrp || '95020123',
+        unit: logItem.assignedUnitId || 'Patroli Samapta Presisi R4',
+        unitId: logItem.assignedUnitId || 'samapta-r4-selatan'
+      };
     }
     if (logItem.disposisi?.komandan) {
-      return { nama: logItem.disposisi.komandan.split('(')[0].trim(), unit: logItem.disposisi.unit || 'Unit Presisi' };
+      const nrpKom = logItem.disposisi.nrpKomandan || '95020123';
+      return {
+        nama: logItem.disposisi.komandan.split('(')[0].trim(),
+        nrp: nrpKom,
+        unit: logItem.disposisi.unit || 'Unit Patroli Presisi',
+        unitId: logItem.disposisi.unitId || 'samapta-r4-selatan'
+      };
     }
-    if (logItem.sektor?.includes('Selatan')) return { nama: 'Bripka Ahmad Subagyo', unit: 'Samapta R-4 Selatan' };
-    if (logItem.sektor?.includes('Barat')) return { nama: 'Aipda Rudi Hartono', unit: 'Tim Raimas R-2 Barat' };
-    if (logItem.sektor?.includes('Pusat')) return { nama: 'Aiptu Bambang Sudrajat', unit: 'Turjawali Satlantas' };
-    if (logItem.sektor?.includes('Timur')) return { nama: 'Aiptu Herman', unit: 'Samapta R-4 Timur' };
-    if (logItem.sektor?.includes('Utara')) return { nama: 'Bripka Wahyu', unit: 'Tim Raimas R-2 Utara' };
-    return { nama: 'Bripka Ahmad Subagyo', unit: 'Samapta R-4' };
+    const sektorStr = (logItem.sektor || '').toLowerCase();
+    if (sektorStr.includes('selatan')) {
+      return { nama: 'Bripka Ahmad Subagyo', nrp: '95020123', unit: 'Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)', unitId: 'samapta-r4-selatan' };
+    }
+    if (sektorStr.includes('barat')) {
+      return { nama: 'Aipda Rudi Hartono', nrp: '50129841', unit: 'Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)', unitId: 'samapta-r2-motor' };
+    }
+    if (sektorStr.includes('pusat')) {
+      return { nama: 'Aiptu Bambang Sudrajat', nrp: '49112233', unit: 'Turjawali Satlantas Presisi (Unit Pengurai Kemacetan)', unitId: 'lantas-turjawali' };
+    }
+    if (sektorStr.includes('timur')) {
+      return { nama: 'Aipda Rudi Hartono', nrp: '50129841', unit: 'Samapta Raimas R2 (Motor Taktis)', unitId: 'samapta-r2-motor' };
+    }
+    if (sektorStr.includes('utara')) {
+      return { nama: 'Bripka Ahmad Subagyo', nrp: '95020123', unit: 'Patroli Samapta R4 (Zona Selatan)', unitId: 'samapta-r4-selatan' };
+    }
+    return { nama: 'Bripka Ahmad Subagyo', nrp: '95020123', unit: 'Patroli Samapta R4', unitId: 'samapta-r4-selatan' };
   };
 
   if (l.status === 'selesai') {
@@ -234,16 +256,32 @@ function enrichLogOperationalHistory(l) {
     if (!l.waktuTiba) l.waktuTiba = formatMin(totalMins - 12);
     if (!l.waktuMeluncur) l.waktuMeluncur = formatMin(totalMins - 20);
 
+    l.assignedNrp = petugasInfo.nrp;
+    l.assignedNama = petugasInfo.nama;
+    l.assignedUnitId = petugasInfo.unitId;
+
+    if (!l.slaMenit) {
+      const mel = parseMin(l.waktuMeluncur);
+      const tib = parseMin(l.waktuTiba);
+      l.slaMenit = (tib > mel && (tib - mel) <= 30) ? (tib - mel) : 5;
+      l.sla = `${l.slaMenit}.0 Menit`;
+    }
+
     if (!l.disposisi) {
       l.disposisi = {
         unit: petugasInfo.unit,
-        unitId: l.assignedUnitId || 'patroli-presisi',
-        komandan: petugasInfo.nama,
+        unitId: petugasInfo.unitId,
+        komandan: `${petugasInfo.nama} (NRP: ${petugasInfo.nrp})`,
+        nrpKomandan: petugasInfo.nrp,
         waktuDisposisi: formatMin(totalMins - 25),
+        estimasiJarak: '1.4 km',
+        estimasiEta: '± 5 Menit',
         arahan: 'Respon cepat laporan "' + (l.title || l.jenisInsiden || 'Kamtibmas') + '", amankan lokasi.'
       };
-    } else if (!l.disposisi.waktuDisposisi) {
-      l.disposisi.waktuDisposisi = formatMin(totalMins - 25);
+    } else {
+      if (!l.disposisi.nrpKomandan) l.disposisi.nrpKomandan = petugasInfo.nrp;
+      if (!l.disposisi.unitId) l.disposisi.unitId = petugasInfo.unitId;
+      if (!l.disposisi.waktuDisposisi) l.disposisi.waktuDisposisi = formatMin(totalMins - 25);
     }
 
     if (!l.catatanPersiapan) {
@@ -762,7 +800,7 @@ function isLogAssignedToUser(log, user) {
 /**
  * Mengambil daftar tugas yang khusus menjadi tanggung jawab personel aktif
  * @param {object|string} userOrNrp 
- * @param {string} statusFilter ('semua' | 'diproses' | 'menunggu_pengesahan')
+ * @param {string} statusFilter ('semua' | 'aktif' | 'diproses' | 'menunggu_pengesahan' | 'selesai')
  * @returns {Array}
  */
 function getLogsForUser(userOrNrp, statusFilter = 'semua') {
@@ -773,19 +811,20 @@ function getLogsForUser(userOrNrp, statusFilter = 'semua') {
     user = userOrNrp;
   }
 
-  const all = storeLogs.length > 0 ? storeLogs : loadLogsFromStore();
+  // Gunakan data memori aktif (appLogs) jika tersedia, fallback ke storage
+  const all = (typeof appLogs !== 'undefined' && Array.isArray(appLogs) && appLogs.length > 0)
+    ? appLogs
+    : (storeLogs.length > 0 ? storeLogs : loadLogsFromStore());
 
   return all.filter(log => {
-    // Personel lapangan HANYA menangani kasus aktif (diproses / menunggu_pengesahan)
-    const isStatusAktifLapangan = (log.status === 'diproses' || log.status === 'menunggu_pengesahan');
-    if (!isStatusAktifLapangan) return false;
-
-    // Filter kepemilikan personel
+    // Filter kepemilikan personel (Data Ownership)
     if (!isLogAssignedToUser(log, user)) return false;
 
     // Filter status tab
+    if (statusFilter === 'aktif') return (log.status === 'diproses' || log.status === 'menunggu_pengesahan');
     if (statusFilter === 'diproses') return log.status === 'diproses';
     if (statusFilter === 'menunggu_pengesahan') return log.status === 'menunggu_pengesahan';
+    if (statusFilter === 'selesai') return log.status === 'selesai';
     return true; // 'semua'
   });
 }

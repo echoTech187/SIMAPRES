@@ -607,13 +607,6 @@ function openRespon(jenis) {
 // ==========================================
 // CENTRALIZED DATA MODEL & LOCAL STORAGE
 // ==========================================
-const SVG_AVATAR_WARGA = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
-  <circle cx="50" cy="50" r="50" fill="#E2E8F0"/>
-  <circle cx="50" cy="38" r="20" fill="#64748B"/>
-  <path d="M18 86 C18 64 32 58 50 58 C68 58 82 64 82 86 Z" fill="#64748B"/>
-</svg>
-`)}`;
 
 function getDefaultLogs() {
   const defaultList = [
@@ -1424,59 +1417,6 @@ let appLogs = [];
 let selectedLogId = null;
 let activeWizardLogId = null;
 
-const SVG_FALLBACK_PENGADUAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
-  <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E293B"/>
-      <stop offset="100%" stop-color="#0F172A"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="240" fill="url(#grad1)"/>
-  <circle cx="200" cy="85" r="32" fill="#334155"/>
-  <text x="200" y="93" fill="#60A5FA" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="24" font-weight="800" text-anchor="middle">110</text>
-  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">BUKTI LAPORAN WARGA</text>
-  <text x="200" y="168" fill="#94A3B8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Call Center 110 Terverifikasi</text>
-  <rect x="130" y="186" width="140" height="24" rx="12" fill="rgba(59,130,246,0.2)"/>
-  <text x="200" y="202" fill="#60A5FA" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ BUKTI TERVERIFIKASI</text>
-</svg>
-`)}`;
-
-const SVG_FALLBACK_TINDAKAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
-  <defs>
-    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#064E3B"/>
-      <stop offset="100%" stop-color="#022C22"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="240" fill="url(#grad2)"/>
-  <circle cx="200" cy="85" r="32" fill="#065F46"/>
-  <path d="M190 85 L197 92 L212 77" stroke="#34D399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">TINDAKAN PETUGAS TKP</text>
-  <text x="200" y="168" fill="#A7F3D0" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Respon Lapangan Presisi</text>
-  <rect x="130" y="186" width="140" height="24" rx="12" fill="rgba(16,185,129,0.2)"/>
-  <text x="200" y="202" fill="#34D399" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ PERSONEL DI LOKASI</text>
-</svg>
-`)}`;
-
-const SVG_FALLBACK_PERSIAPAN = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" width="400" height="240">
-  <defs>
-    <linearGradient id="gradP" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E3A8A"/>
-      <stop offset="100%" stop-color="#0F172A"/>
-    </linearGradient>
-  </defs>
-  <rect width="400" height="240" fill="url(#gradP)"/>
-  <circle cx="200" cy="85" r="32" fill="#1E40AF"/>
-  <path d="M190 85 L200 70 L210 85 L203 85 L203 100 L197 100 L197 85 Z" fill="#93C5FD"/>
-  <text x="200" y="145" fill="#F8FAFC" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="13" font-weight="700" text-anchor="middle">PERSIAPAN & MELUNCUR</text>
-  <text x="200" y="168" fill="#93C5FD" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="11" text-anchor="middle">Dokumentasi Personel & GPS Terkunci</text>
-  <rect x="120" y="186" width="160" height="24" rx="12" fill="rgba(59,130,246,0.2)"/>
-  <text x="200" y="202" fill="#93C5FD" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif" font-size="10.5" font-weight="700" text-anchor="middle">✓ GPS & ARMADA SIAGA</text>
-</svg>
-`)}`;
 
 function getFotoPengaduanByKategori(log) {
   if (!log) return 'assets/images/polri_pengaduan_tkp.jpg';
@@ -1938,75 +1878,6 @@ function isUserPawas() {
 
 let selectedPawasDisposisiLogId = null;
 let currentModalArmadaList = [];
-
-// Master Data Armada Siaga Presisi (Smart Computer-Aided Dispatch / CAD)
-const DAFTAR_ARMADA_PRESISI = [
-  {
-    id: 'samapta-r4-selatan',
-    nama: 'Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)',
-    namaSingkat: 'Patroli Samapta R4 (Zona Selatan)',
-    sektorUtama: 'Sektor Selatan',
-    komandan: 'Bripka Ahmad & Regu Alpha (NRP: 95020123)',
-    nrpKomandan: '95020123',
-    posisiSaatIni: 'Pos Pantau Bundaran Senayan / Patroli Mobile',
-    kekuatan: '4 Personel • Mobil Sedan Sabhara • Senpi V2 • Bodycam On',
-    jarakBase: 1.2,
-    etaBase: 3,
-    icon: '🚔'
-  },
-  {
-    id: 'samapta-r2-motor',
-    nama: 'Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)',
-    namaSingkat: 'Samapta Raimas R2 (Motor Taktis)',
-    sektorUtama: 'Sektor Selatan',
-    komandan: 'Aipda Rudi Hartono & Tim Raimas (NRP: 50129841)',
-    nrpKomandan: '50129841',
-    posisiSaatIni: 'Pos Pol Simpang Panglima Polim',
-    kekuatan: '2 Personel (2 Trail Sabhara) • Helm Taktis • Gas Air Mata',
-    jarakBase: 1.8,
-    etaBase: 4,
-    icon: '🏍️'
-  },
-  {
-    id: 'lantas-turjawali',
-    nama: 'Turjawali Satlantas (Unit Patroli Jalan Raya PJR)',
-    namaSingkat: 'Turjawali Satlantas PJR',
-    sektorUtama: 'Sektor Barat',
-    komandan: 'Aiptu Bambang Sudrajat & Brigadir Doni (NRP: 49112233)',
-    nrpKomandan: '49112233',
-    posisiSaatIni: 'Simpang CSW / Koridor Protokol Sudirman',
-    kekuatan: '2 Personel • Mobil Sedan Lantas • Rompi Fosfor • Traffic Cone',
-    jarakBase: 2.5,
-    etaBase: 6,
-    icon: '🚓'
-  },
-  {
-    id: 'bhabin-polsek',
-    nama: 'Bhabinkamtibmas & Piket Polsek Wilayah Setempat',
-    namaSingkat: 'Bhabinkamtibmas & Piket Polsek',
-    sektorUtama: 'Sektor Timur',
-    komandan: 'Aipda Hendra Gunawan & Bripka Joko (NRP: 48099881)',
-    nrpKomandan: '48099881',
-    posisiSaatIni: 'Pos Pol Subsektor / Kantor Kelurahan',
-    kekuatan: '3 Personel • Mobil Patroli Polsek • HT APCO P25',
-    jarakBase: 3.2,
-    etaBase: 7,
-    icon: '👮'
-  },
-  {
-    id: 'reskrim-opsnal',
-    nama: 'Tim Opsnal & Resmob Satreskrim (Gakkum Tertutup)',
-    namaSingkat: 'Opsnal & Resmob Satreskrim',
-    sektorUtama: 'Pusat',
-    komandan: 'Ipda Reza Pratama, S.H. & Tim Macan (NRP: 51044321)',
-    nrpKomandan: '51044321',
-    posisiSaatIni: 'Mako Polres (Standby Tim Taktis Khusus)',
-    kekuatan: '5 Personel Sipil Taktis • Minibus Hitam • Senpi HS-9',
-    jarakBase: 4.5,
-    etaBase: 9,
-    icon: '🕵️'
-  }
-];
 
 // Fungsi Hitung Estimasi Jarak GPS & Waktu Tiba (ETA) Realistis Berdasarkan TKP Kasus
 function hitungEstimasiArmadaUntukLog(log) {
