@@ -6141,7 +6141,10 @@ function bukaTimePickerLog() {
   if (!modal) return;
   modal.style.display = 'flex';
 
-  const inputWaktu = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
+  const isResponActive = document.getElementById('view-respon')?.classList.contains('active');
+  const inputRespon = document.getElementById('respon-waktu-perekaman');
+  const inputLog = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
+  const inputWaktu = (isResponActive && inputRespon) ? inputRespon : (inputRespon || inputLog);
   const val = inputWaktu ? inputWaktu.value.trim() : '';
 
   const elMulai = document.getElementById('tp-jam-mulai');
@@ -6264,6 +6267,13 @@ function setPresetRelativeTimePicker(hours) {
 function terapkanTimePickerLog() {
   const elPrevText = document.getElementById('tp-preview-text');
   const resultText = elPrevText ? elPrevText.textContent : '09:00 - 14:30';
+
+  // Update kedua input (baik di view-respon maupun di view-log)
+  const inputResponWaktu = document.getElementById('respon-waktu-perekaman');
+  if (inputResponWaktu) {
+    inputResponWaktu.value = resultText;
+  }
+
   const inputWaktu = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
   if (inputWaktu) {
     inputWaktu.value = resultText;
@@ -6275,6 +6285,7 @@ function terapkanTimePickerLog() {
       logJamInterval = null;
     }
   }
+
   tutupTimePickerLog();
   if (typeof tampilkanToast === 'function') {
     tampilkanToast(`Rentang waktu disetel: ${resultText}`, 'success');
@@ -6490,7 +6501,7 @@ function kirimLogMandiriPersonel() {
     sektor: userSatuan.includes('Barat') ? 'Sektor Barat' : (userSatuan.includes('Timur') ? 'Sektor Timur' : 'Sektor Selatan'),
     lokasiKejadian: document.getElementById('respon-lokasi-kegiatan')?.value.trim() || 'Pos Polisi / Titik Patroli',
     koordinatGps: document.getElementById('respon-koordinat-gps')?.value.trim() || '-6.1980, 106.8245',
-    waktu: waktu,
+    waktu: document.getElementById('respon-waktu-perekaman')?.value.trim() || waktu,
     sumberLaporan: '👮 Patroli Mandiri Personel',
     fotoLampiran: userAvatar,
     fotoPengaduan: userAvatar,
