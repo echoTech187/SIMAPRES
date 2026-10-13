@@ -8085,7 +8085,7 @@ function onInputLokasiKegiatan(query) {
     return;
   }
 
-  if (spinner) spinner.style.display = 'block';
+  if (spinner) spinner.style.display = 'inline-flex';
 
   // Debounce 500ms agar efisien
   geocodeDebounceTimer = setTimeout(() => {
@@ -8183,7 +8183,16 @@ function ambilGpsSaatIniLog() {
   }
   const inputGps = document.getElementById('respon-koordinat-gps');
   const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
-  if (inputGps) inputGps.value = 'Mendeteksi satelit GPS...';
+  const spinner = document.getElementById('lokasi-loading-spinner');
+
+  // Aktifkan spinner + "Mencari lokasi..." di pojok kanan input Lokasi Kegiatan
+  if (inputLokasi) {
+    inputLokasi.value = '';
+    inputLokasi.placeholder = 'Mencari lokasi...';
+  }
+  if (spinner) {
+    spinner.style.display = 'inline-flex';
+  }
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
@@ -8191,10 +8200,12 @@ function ambilGpsSaatIniLog() {
       const lng = pos.coords.longitude;
       if (inputGps) inputGps.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
-      // Lakukan reverse geocoding untuk melengkapi alamat teks
+      // Lakukan reverse geocoding untuk melengkapi alamat teks pada Lokasi Kegiatan
       reverseGeocodeCoords(lat, lng, (alamat) => {
-        if (inputLokasi && (!inputLokasi.value.trim() || inputLokasi.value.includes('Pos Polisi'))) {
+        if (spinner) spinner.style.display = 'none';
+        if (inputLokasi) {
           inputLokasi.value = alamat;
+          inputLokasi.placeholder = 'Masukan Lokasi Kegiatan (misal: Jl. Margonda Raya No. 100)';
         }
       });
 
@@ -8204,6 +8215,10 @@ function ambilGpsSaatIniLog() {
     },
     (err) => {
       console.warn('Geolocation error:', err);
+      if (spinner) spinner.style.display = 'none';
+      if (inputLokasi) {
+        inputLokasi.placeholder = 'Masukan Lokasi Kegiatan (misal: Jl. Margonda Raya No. 100)';
+      }
       // Fallback koordinat wilayah tugas (Polda Metro Jaya/Polres)
       const defLat = -6.1980;
       const defLng = 106.8245;

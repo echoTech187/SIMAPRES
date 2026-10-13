@@ -1215,14 +1215,23 @@
             <input type="text" id="respon-lokasi-kegiatan" class="form-control" value=""
               placeholder="Masukan Lokasi Kegiatan (misal: Jl. Margonda Raya No. 100)"
               oninput="onInputLokasiKegiatan(this.value)">
-            <span id="lokasi-loading-spinner" style="display:none; position:absolute; right:12px; top:13px; font-size:12px; color:#64748B;">⏳ Mencari...</span>
+            <span id="lokasi-loading-spinner"
+              style="display:none; position:absolute; right:12px; top:11px; font-size:12px; color:#2563EB; font-weight:600; align-items:center; gap:6px; background:#EFF6FF; padding:3px 8px; border-radius:6px; border:1px solid #BFDBFE;">
+              <span style="display:inline-block; width:12px; height:12px; border:2px solid #93C5FD; border-top-color:#1D4ED8; border-radius:50%; animation:spinLokasi 0.75s linear infinite;"></span>
+              Mencari lokasi...
+            </span>
+            <style>
+              @keyframes spinLokasi {
+                to { transform: rotate(360deg); }
+              }
+            </style>
           </div>
           <!-- Dropdown Rekomendasi Geocoding / Autocomplete -->
           <div id="respon-lokasi-suggestions"
             style="display:none; position:relative; z-index:100; background:#fff; border:1px solid #CBD5E1; border-radius:8px; margin-top:4px; box-shadow:0 4px 12px rgba(0,0,0,0.1); max-height:180px; overflow-y:auto;">
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="display: none;">
           <label class="form-label">Koordinat Lokasi GPS</label>
           <div style="position:relative">
             <input type="text" id="respon-koordinat-gps" class="form-control" value="" readonly
@@ -3239,7 +3248,7 @@
   <!-- LOGIKA & SESI EKSTERNAL -->
   <script src="js/simapres-roster.js?v=20261013_0440"></script>
   <script src="js/simapres-store.js?v=20261013_0440"></script>
-  <script src="js/personil.js?v=20261013_1939"></script>
+  <script src="js/personil.js?v=20261013_2049"></script>
 </body>
 
 </html>
