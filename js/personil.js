@@ -6405,8 +6405,8 @@ function simpanLogKegiatanInput() {
     jenisInsiden: jenisVal,
     deskripsi: descVal,
     sektor: sektorVal,
-    lokasiKejadian: sektorVal + ', Jakarta',
-    koordinatGps: '-6.1980, 106.8245',
+    lokasiKejadian: document.getElementById('log-lokasi-kegiatan')?.value.trim() || (sektorVal + ', Jakarta'),
+    koordinatGps: document.getElementById('log-koordinat-gps')?.value.trim() || '-6.1980, 106.8245',
     waktu: waktuVal,
     sumberLaporan: '👮 Input Log Mandiri Personel',
     fotoLampiran: fotoBukti,
@@ -8069,12 +8069,16 @@ function initLokasiKegiatanForm() {
   }
 }
 
+// Target form saat ini: 'respon' atau 'log'
+let activeMapTarget = 'respon';
+
 // 1. INPUT EVENT LISTENER: Geocoding otomatis dari teks alamat yang diketik
-function onInputLokasiKegiatan(query) {
+function onInputLokasiKegiatan(query, target = 'respon') {
+  activeMapTarget = target;
   clearTimeout(geocodeDebounceTimer);
   const q = (query || '').trim();
-  const suggestionsBox = document.getElementById('respon-lokasi-suggestions');
-  const spinner = document.getElementById('lokasi-loading-spinner');
+  const suggestionsBox = document.getElementById(target === 'log' ? 'log-lokasi-suggestions' : 'respon-lokasi-suggestions');
+  const spinner = document.getElementById(target === 'log' ? 'log-loading-spinner' : 'lokasi-loading-spinner');
 
   if (!q || q.length < 3) {
     if (suggestionsBox) {
@@ -8089,17 +8093,17 @@ function onInputLokasiKegiatan(query) {
 
   // Debounce 500ms agar efisien
   geocodeDebounceTimer = setTimeout(() => {
-    lakukanPencarianGeocoding(q);
+    lakukanPencarianGeocoding(q, target);
   }, 500);
 }
 
 // Fungsi eksekusi pencarian: Gunakan OpenStreetMap Nominatim (gratis tanpa butuh API key)
-function lakukanPencarianGeocoding(query) {
-  cariViaNominatim(query);
+function lakukanPencarianGeocoding(query, target = 'respon') {
+  cariViaNominatim(query, target);
 }
 
-function cariViaNominatim(query) {
-  const spinner = document.getElementById('lokasi-loading-spinner');
+function cariViaNominatim(query, target = 'respon') {
+  const spinner = document.getElementById(target === 'log' ? 'log-loading-spinner' : 'lokasi-loading-spinner');
   const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=5`;
   
   fetch(endpoint, {
@@ -8113,20 +8117,20 @@ function cariViaNominatim(query) {
           display_name: item.display_name,
           lat: parseFloat(item.lat),
           lng: parseFloat(item.lon)
-        })));
+        })), target);
       } else {
-        tampilkanRekomendasiKosong();
+        tampilkanRekomendasiKosong(target);
       }
     })
     .catch(err => {
       if (spinner) spinner.style.display = 'none';
       console.warn('Geocoding offline/fallback:', err);
-      tampilkanRekomendasiKosong();
+      tampilkanRekomendasiKosong(target);
     });
 }
 
-function tampilkanRekomendasiLokasi(list) {
-  const box = document.getElementById('respon-lokasi-suggestions');
+function tampilkanRekomendasiLokasi(list, target = 'respon') {
+  const box = document.getElementById(target === 'log' ? 'log-lokasi-suggestions' : 'respon-lokasi-suggestions');
   if (!box) return;
   box.innerHTML = '';
   box.style.display = 'block';
@@ -8144,14 +8148,14 @@ function tampilkanRekomendasiLokasi(list) {
       </div>
     `;
     row.onclick = () => {
-      pilihRekomendasiLokasi(item.display_name, item.lat, item.lng);
+      pilihRekomendasiLokasi(item.display_name, item.lat, item.lng, target);
     };
     box.appendChild(row);
   });
 }
 
-function tampilkanRekomendasiKosong() {
-  const box = document.getElementById('respon-lokasi-suggestions');
+function tampilkanRekomendasiKosong(target = 'respon') {
+  const box = document.getElementById(target === 'log' ? 'log-lokasi-suggestions' : 'respon-lokasi-suggestions');
   if (!box) return;
   box.innerHTML = `
     <div style="padding:10px 12px; font-size:12px; color:#64748B; text-align:center;">
@@ -8161,10 +8165,10 @@ function tampilkanRekomendasiKosong() {
   box.style.display = 'block';
 }
 
-function pilihRekomendasiLokasi(nama, lat, lng) {
-  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
-  const inputGps = document.getElementById('respon-koordinat-gps');
-  const box = document.getElementById('respon-lokasi-suggestions');
+function pilihRekomendasiLokasi(nama, lat, lng, target = 'respon') {
+  const inputLokasi = document.getElementById(target === 'log' ? 'log-lokasi-kegiatan' : 'respon-lokasi-kegiatan');
+  const inputGps = document.getElementById(target === 'log' ? 'log-koordinat-gps' : 'respon-koordinat-gps');
+  const box = document.getElementById(target === 'log' ? 'log-lokasi-suggestions' : 'respon-lokasi-suggestions');
 
   if (inputLokasi) inputLokasi.value = nama;
   if (inputGps) inputGps.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
@@ -8176,14 +8180,15 @@ function pilihRekomendasiLokasi(nama, lat, lng) {
 }
 
 // 2. DETEKSI GPS PERANGKAT SEKARANG (HTML5 GEOLOCATION)
-function ambilGpsSaatIniLog() {
+function ambilGpsSaatIniLog(target = 'respon') {
+  activeMapTarget = target;
   if (!navigator.geolocation) {
     alert('Browser atau perangkat Anda tidak mendukung akses GPS Geolocation.');
     return;
   }
-  const inputGps = document.getElementById('respon-koordinat-gps');
-  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
-  const spinner = document.getElementById('lokasi-loading-spinner');
+  const inputGps = document.getElementById(target === 'log' ? 'log-koordinat-gps' : 'respon-koordinat-gps');
+  const inputLokasi = document.getElementById(target === 'log' ? 'log-lokasi-kegiatan' : 'respon-lokasi-kegiatan');
+  const spinner = document.getElementById(target === 'log' ? 'log-loading-spinner' : 'lokasi-loading-spinner');
 
   // Aktifkan spinner + "Mencari lokasi..." di pojok kanan input Lokasi Kegiatan
   if (inputLokasi) {
@@ -8230,13 +8235,14 @@ function ambilGpsSaatIniLog() {
 }
 
 // 3. MODAL MAP PICKER (MEMILIH SENDIRI DARI MAPS TITIK LOKASINYA)
-function bukaModalPickMapLog() {
+function bukaModalPickMapLog(target = 'respon') {
+  activeMapTarget = target;
   const modal = document.getElementById('modal-map-picker-log');
   if (!modal) return;
   modal.style.display = 'flex';
 
   // Baca koordinat yang sudah ada di input (jika ada)
-  const currentGpsStr = document.getElementById('respon-koordinat-gps')?.value.trim();
+  const currentGpsStr = document.getElementById(target === 'log' ? 'log-koordinat-gps' : 'respon-koordinat-gps')?.value.trim();
   let initialLat = -6.1980;
   let initialLng = 106.8245;
 
@@ -8442,8 +8448,8 @@ function terapkanTitikPetaKeForm() {
     return;
   }
 
-  const inputGps = document.getElementById('respon-koordinat-gps');
-  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
+  const inputGps = document.getElementById(activeMapTarget === 'log' ? 'log-koordinat-gps' : 'respon-koordinat-gps');
+  const inputLokasi = document.getElementById(activeMapTarget === 'log' ? 'log-lokasi-kegiatan' : 'respon-lokasi-kegiatan');
 
   if (inputGps) {
     inputGps.value = `${currentPickedCoords.lat.toFixed(6)}, ${currentPickedCoords.lng.toFixed(6)}`;
@@ -8462,10 +8468,16 @@ function terapkanTitikPetaKeForm() {
 
 // Close suggestion box when clicking outside
 document.addEventListener('click', (e) => {
-  const suggestionsBox = document.getElementById('respon-lokasi-suggestions');
-  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
-  if (suggestionsBox && e.target !== suggestionsBox && e.target !== inputLokasi && !suggestionsBox.contains(e.target)) {
-    suggestionsBox.style.display = 'none';
+  const suggestionsBoxRespon = document.getElementById('respon-lokasi-suggestions');
+  const suggestionsBoxLog = document.getElementById('log-lokasi-suggestions');
+  const inputLokasiRespon = document.getElementById('respon-lokasi-kegiatan');
+  const inputLokasiLog = document.getElementById('log-lokasi-kegiatan');
+
+  if (suggestionsBoxRespon && e.target !== suggestionsBoxRespon && e.target !== inputLokasiRespon && !suggestionsBoxRespon.contains(e.target)) {
+    suggestionsBoxRespon.style.display = 'none';
+  }
+  if (suggestionsBoxLog && e.target !== suggestionsBoxLog && e.target !== inputLokasiLog && !suggestionsBoxLog.contains(e.target)) {
+    suggestionsBoxLog.style.display = 'none';
   }
 });
 

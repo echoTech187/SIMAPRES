@@ -347,10 +347,11 @@
 
       <!-- SCREEN 2: BUAT LOG -->
       <section id="view-log" class="view">
-        <h2 class="page-title">Input Log Kegiatan</h2>
+        <h2 class="page-title">Formulir Input Log</h2>
+        <div class="page-subtitle">Presensi dan Pencatatan Kegiatan Personel Lapangan</div>
 
         <div class="form-group">
-          <label class="form-label">Waktu Mulai</label>
+          <label class="form-label">Waktu Pelaksanaan</label>
           <div style="position:relative; cursor:pointer;" onclick="bukaTimePickerLog()">
             <input type="text" id="log-input-waktu" class="form-control" value="09:00 - 2:30 PM" style="cursor:pointer;"
               title="Klik untuk pilih rentang jam kegiatan" readonly onclick="bukaTimePickerLog()">
@@ -368,21 +369,63 @@
         <div class="form-group">
           <label class="form-label">Jenis Kegiatan</label>
           <div style="position:relative">
-            <select id="log-jenis" class="form-control" style="appearance:none;">
-              <option value="PATROLI">Patroli</option>
-              <option value="SAMBANG">Sambang</option>
-              <option value="TPTKP">TPTKP</option>
-              <option value="PENGAMANAN">Pengamanan</option>
+            <select id="log-jenis" class="form-control"
+              style="font-weight:700; color:var(--primary); background:#F8FAFC; appearance:none;">
+              <option value="PATROLI">🚔 PATROLI</option>
+              <option value="SAMBANG">🤝 SAMBANG</option>
+              <option value="TPTKP">🛡️ TPTKP</option>
+              <option value="PENGAMANAN">⚠️ PENGAMANAN</option>
             </select>
-            <span style="position:absolute; right:14px; top:16px; font-size:12px; pointer-events:none;">▼</span>
+            <span style="position:absolute; right:14px; top:16px; font-size:12px; pointer-events:none; color:#64748B;">▼</span>
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Deskripsi Kejadian</label>
-          <textarea id="log-input-deskripsi" class="form-control"
-            placeholder="Deskripsi Kejadian, Deskripsi Kejadian"></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" style="margin-bottom:0;">Lokasi Kegiatan</label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" onclick="ambilGpsSaatIniLog('log')" title="Gunakan GPS Perangkat Saat Ini"
+                style="border:none; background:#EFF6FF; color:#1D4ED8; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px; border:1px solid #BFDBFE;">
+                📍 GPS Saya
+              </button>
+              <button type="button" onclick="bukaModalPickMapLog('log')" title="Pilih Titik di Peta Interaktif"
+                style="border:none; background:#F0FDF4; color:#15803D; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px; border:1px solid #BBF7D0;">
+                🗺️ Pilih di Peta
+              </button>
+            </div>
+          </div>
+          <div style="position:relative">
+            <input type="text" id="log-lokasi-kegiatan" class="form-control" value=""
+              placeholder="Masukan Lokasi Kegiatan (misal: Jl. Margonda Raya No. 100)"
+              oninput="onInputLokasiKegiatan(this.value, 'log')">
+            <span id="log-loading-spinner"
+              style="display:none; position:absolute; right:12px; top:11px; font-size:12px; color:#2563EB; font-weight:600; align-items:center; gap:6px; background:#EFF6FF; padding:3px 8px; border-radius:6px; border:1px solid #BFDBFE;">
+              <span style="display:inline-block; width:12px; height:12px; border:2px solid #93C5FD; border-top-color:#1D4ED8; border-radius:50%; animation:spinLokasi 0.75s linear infinite;"></span>
+              Mencari lokasi...
+            </span>
+          </div>
+          <!-- Dropdown Rekomendasi Geocoding / Autocomplete -->
+          <div id="log-lokasi-suggestions"
+            style="display:none; position:relative; z-index:100; background:#fff; border:1px solid #CBD5E1; border-radius:8px; margin-top:4px; box-shadow:0 4px 12px rgba(0,0,0,0.1); max-height:180px; overflow-y:auto;">
+          </div>
         </div>
+
+        <div class="form-group" style="display: none;">
+          <label class="form-label">Koordinat Lokasi GPS</label>
+          <div style="position:relative">
+            <input type="text" id="log-koordinat-gps" class="form-control" value="" readonly
+              placeholder="Menunggu lokasi kegiatan dipilih / ditentukan..."
+              style="background:#F8FAFC; color:#1D4ED8; font-family:monospace; font-weight:600;">
+            <span style="position:absolute; right:14px; top:13px; font-size:14px; color:#64748B;">🛰️</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Uraian Kegiatan</label>
+          <textarea id="log-input-deskripsi" class="form-control" style="min-height: 100px;"
+            placeholder="Masukan Uraian Kegiatan"></textarea>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Lampiran Foto (Live Camera)</label>
           <div
@@ -391,9 +434,10 @@
             📸 Ambil Foto Kegiatan
           </div>
         </div>
+
         <button type="button" class="btn-blue" id="btn-simpan-log" onclick="simpanLogKegiatanInput()"
-          style="margin-top:14px; background:#10B981; border:none; display:flex; align-items:center; justify-content:center; gap:8px;">
-          <span>💾</span> Simpan Log Kegiatan
+          style="background:var(--success); font-size:16px; margin-top:16px;">
+          Kirim Log Kegiatan
         </button>
       </section>
 
@@ -3248,7 +3292,7 @@
   <!-- LOGIKA & SESI EKSTERNAL -->
   <script src="js/simapres-roster.js?v=20261013_0440"></script>
   <script src="js/simapres-store.js?v=20261013_0440"></script>
-  <script src="js/personil.js?v=20261013_2049"></script>
+  <script src="js/personil.js?v=20261013_2057"></script>
 </body>
 
 </html>
