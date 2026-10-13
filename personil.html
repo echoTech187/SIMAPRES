@@ -103,22 +103,6 @@
                 <!-- Container Google Maps murni (isi canvas digenerate oleh Google Maps) -->
                 <div id="map-beranda" style="width:100%; height:100%;"></div>
 
-                <!-- Tactical Map HUD Telemetri -->
-                <div id="map-hud-telemetri"
-                  style="position:absolute; top:12px; left:12px; z-index:998; background:rgba(15, 23, 42, 0.85); backdrop-filter:blur(6px); color:white; border-radius:8px; padding:6px 12px; font-size:10.5px; font-weight:600; display:flex; align-items:center; gap:10px; border:1px solid rgba(255,255,255,0.18); box-shadow:0 4px 12px rgba(0,0,0,0.25);">
-                  <div style="display:flex; align-items:center; gap:5px; color:#60A5FA; font-weight:800;">
-                    <span>🚗</span> <span id="hud-ranmor-name">Sedan R4 Samapta-81</span>
-                  </div>
-                  <span style="color:#64748B;">|</span>
-                  <div style="display:flex; align-items:center; gap:4px; color:#34D399; font-weight:700;">
-                    <span>⚡</span> <span>35 km/jam</span>
-                  </div>
-                  <span style="color:#64748B;">|</span>
-                  <div style="display:flex; align-items:center; gap:4px; color:#FBBF24; font-weight:700;">
-                    <span>📶</span> <span>GPS Presisi</span>
-                  </div>
-                </div>
-
                 <!-- Floating Map Controls (Zoom In, Zoom Out, Reset Center, Fullscreen, SOS) -->
                 <div
                   style="position:absolute; top:12px; right:12px; z-index:999; display:flex; flex-direction:column; gap:6px;">
@@ -182,10 +166,7 @@
                   </div>
                 </div>
 
-                <div class="map-legend-mini" id="map-legend-mini" style="display:flex; align-items:center; gap:12px; font-size:11px; font-weight:700; color:#475569;">
-                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="color:#2563EB; font-size:13px;">●</span> Posisi Anda</span>
-                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="color:#EF4444; font-size:13px;">●</span> Titik Rawan</span>
-                </div>
+                <div class="map-legend-mini" id="map-legend-mini"><span style="color:#EF4444; font-size:14px;">●</span> Titik Rawan</div>
               </div>
             </div>
           </div>

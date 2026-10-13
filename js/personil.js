@@ -84,354 +84,173 @@ function initMaps() {
     fetchRouteAndDraw([p3, p4], '#EF4444');     // Red
     fetchRouteAndDraw([p4, p5, p6], '#F59E0B'); // Orange
 
-    // Draw classic Red Pins
-    const redPin = {
-      path: google.maps.SymbolPath.CIRCLE,
-      fillColor: '#EF4444',
-      fillOpacity: 1,
-      strokeColor: '#FFFFFF',
-      strokeWeight: 2,
-      scale: 8
-    };
-    new google.maps.Marker({ position: p1, map: mapFullscreen });
-    new google.maps.Marker({ position: p3, map: mapFullscreen });
-    new google.maps.Marker({ position: p6, map: mapFullscreen });
-
-    // Big Police Car Icon with "POLISI" text untuk anggota lapangan
-    const policeIcon = {
+    // =========================================================================
+    // STANDAR ICON MARKER PIMPINAN (Circular Glowing Halo Badge)
+    // =========================================================================
+    const makeHaloBadgeIcon = (emoji, strokeColor, haloColor) => ({
       url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
-          <path d="M10,30 L20,15 L70,15 L85,30 L95,30 L95,45 L5,45 L5,30 Z" fill="#153E75"/>
-          <path d="M25,18 L65,18 L75,28 L20,28 Z" fill="#60A5FA"/>
-          <circle cx="25" cy="45" r="8" fill="#1E293B"/>
-          <circle cx="75" cy="45" r="8" fill="#1E293B"/>
-          <text x="50" y="38" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle">SAYA</text>
+        <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
+          <!-- Outer Pulsing Halo Ring -->
+          <circle cx="26" cy="26" r="23" fill="${haloColor}" fill-opacity="0.32" stroke="${strokeColor}" stroke-width="1.5" stroke-dasharray="4,2"/>
+          <!-- Inner Solid White Circle -->
+          <circle cx="26" cy="26" r="16.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2.5"/>
+          <!-- Centered Emoji/Icon -->
+          <text x="26" y="32" font-size="18" text-anchor="middle" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif">${emoji}</text>
         </svg>
       `),
-      anchor: new google.maps.Point(50, 25)
-    };
-    const urlParams = new URLSearchParams(window.location.search);
-    const role = urlParams.get('role');
-    const isPimpinan = (role === 'pimpinan' || role === 'atasan' || role === 'pawas');
+      scaledSize: new google.maps.Size(52, 52),
+      anchor: new google.maps.Point(26, 26)
+    });
 
-    if (isPimpinan) {
-      // Circular Badge Pin dengan Glowing Halo Ring Sesuai Mockup Gambar 2
-      const makeHaloBadgeIcon = (emoji, strokeColor, haloColor) => ({
-        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">
-                <!-- Outer Pulsing Halo Ring -->
-                <circle cx="26" cy="26" r="23" fill="${haloColor}" fill-opacity="0.32" stroke="${strokeColor}" stroke-width="1.5" stroke-dasharray="4,2"/>
-                <!-- Inner Solid White Circle -->
-                <circle cx="26" cy="26" r="16.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2.5"/>
-                <!-- Centered Emoji/Icon -->
-                <text x="26" y="32" font-size="18" text-anchor="middle" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif">${emoji}</text>
-              </svg>
-            `),
-        scaledSize: new google.maps.Size(52, 52),
-        anchor: new google.maps.Point(26, 26)
-      });
+    const iconSamapta = makeHaloBadgeIcon('🚔', '#0284C7', '#38BDF8');
+    const iconPerintis = makeHaloBadgeIcon('🏍️', '#D97706', '#FBBF24');
+    const iconLantas = makeHaloBadgeIcon('🚓', '#1D4ED8', '#60A5FA');
+    const iconHotspot = makeHaloBadgeIcon('🔴', '#DC2626', '#F87171');
+    const iconMako = makeHaloBadgeIcon('🏢', '#1E3A8A', '#93C5FD');
 
-      // 1. Data Lengkap 4 Unit Samapta R-4 (Sesuai Label "🚔 4 Samapta R-4")
-      const samaptaUnits = [
-        {
-          key: 'samapta1',
-          pos: p4, // { lat: -6.2150, lng: 106.8300 } - Menteng Atas / Kuningan
-          iconEmoji: '🚔',
-          title: 'Patroli Samapta 110-A',
-          petugas: 'Bripka Ahmad Subagyo (NRP 95020123)',
-          sub: 'Sat Samapta (Sektor Timur) • Sedan R4-Samapta-81',
-          status: 'Status: SIAGA',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Patroli Rute Beat 1 (Pasar & Bank)',
-          telemetri: 'Kecepatan: 35 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'samapta2',
-          pos: { lat: -6.2050, lng: 106.8250 }, // Karet / Sudirman
-          iconEmoji: '🚔',
-          title: 'Patroli Samapta 110-B',
-          petugas: 'Aipda Eko Prasetyo (NRP 82040512)',
-          sub: 'Sat Samapta (Sektor Pusat) • Double Cabin R4-Samapta-12',
-          status: 'Status: PATROLI KOTA',
-          statusColor: '#2563EB',
-          tugas: 'Tugas: Patroli Jalur Protokol & Objek Vital Perbankan',
-          telemetri: 'Kecepatan: 40 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'samapta3',
-          pos: { lat: -6.1920, lng: 106.8380 }, // Salemba / Matraman
-          iconEmoji: '🚔',
-          title: 'Patroli Samapta 110-C',
-          petugas: 'Bripka Doni Hendrawan (NRP 87090214)',
-          sub: 'Sat Samapta (Sektor Timur) • Sedan R4-Samapta-83',
-          status: 'Status: SIAGA BEAT 2',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Patroli Pemukiman Padat & Sentra Ekonomi',
-          telemetri: 'Kecepatan: 28 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'samapta4',
-          pos: { lat: -6.1780, lng: 106.8120 }, // Petojo / Cideng
-          iconEmoji: '🚔',
-          title: 'Patroli Samapta 110-D',
-          petugas: 'Aipda Rian Saputra (NRP 84110329)',
-          sub: 'Sat Samapta (Sektor Barat) • Double Cabin R4-Samapta-15',
-          status: 'Status: PATROLI BLUE LIGHT',
-          statusColor: '#2563EB',
-          tugas: 'Tugas: Pengawasan Kawasan Perkantoran & Niaga',
-          telemetri: 'Kecepatan: 32 km/jam • Sinyal GPS Prima'
-        }
-      ];
-
-      // 2. Data Lengkap 6 Unit Perintis R-2 (Sesuai Label "🏍️ 6 Perintis R-2")
-      const perintisUnits = [
-        {
-          key: 'perintis1',
-          pos: { lat: -6.2200, lng: 106.8150 }, // Kota Kasablanka
-          iconEmoji: '🏍️',
-          title: 'Tim Perintis Presisi R-2 (Alpha)',
-          petugas: 'Briptu Dian Wicaksono (NRP 95020123)',
-          sub: 'Tim Perintis Presisi (Sektor Barat) • Sepeda Motor R2-Trail-06',
-          status: 'Status: MERESPON TKP (DARURAT 110)',
-          statusColor: '#D97706',
-          tugas: 'Tugas: Respon Cepat Kerumunan Pelajar Jl. Panglima Polim',
-          telemetri: 'Kecepatan: 50 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'perintis2',
-          pos: { lat: -6.2120, lng: 106.8280 }, // Setiabudi / Rasuna Said
-          iconEmoji: '🏍️',
-          title: 'Tim Perintis Presisi R-2 (Bravo)',
-          petugas: 'Briptu Fajar Pratama (NRP 96080441)',
-          sub: 'Tim Perintis Presisi (Sektor Selatan) • Sepeda Motor R2-Trail-08',
-          status: 'Status: PATROLI PREVENTIF',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Patroli Lorong & Gang Rawan Tawuran Warga',
-          telemetri: 'Kecepatan: 35 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'perintis3',
-          pos: { lat: -6.1880, lng: 106.8260 }, // Menteng / Cikini
-          iconEmoji: '🏍️',
-          title: 'Tim Perintis Presisi R-2 (Charlie)',
-          petugas: 'Bripda Rizki Maulana (NRP 98030219)',
-          sub: 'Tim Perintis Presisi (Sektor Pusat) • Sepeda Motor R2-Trail-02',
-          status: 'Status: SIAGA TITIK PANTAU',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Sterilisasi Jalur Kereta & Jembatan Layang',
-          telemetri: 'Kecepatan: 0 km/jam (Stasioner) • Sinyal GPS Prima'
-        },
-        {
-          key: 'perintis4',
-          pos: { lat: -6.1720, lng: 106.8280 }, // Pasar Baru / Juanda
-          iconEmoji: '🏍️',
-          title: 'Tim Perintis Presisi R-2 (Delta)',
-          petugas: 'Bripka Sigit Purnomo (NRP 89050117)',
-          sub: 'Tim Perintis Presisi (Sektor Utara) • Sepeda Motor R2-Trail-11',
-          status: 'Status: PATROLI KEWILAYAHAN',
-          statusColor: '#2563EB',
-          tugas: 'Tugas: Antisipasi Balap Liar & 3C Malam Hari',
-          telemetri: 'Kecepatan: 42 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'perintis5',
-          pos: { lat: -6.2020, lng: 106.8120 }, // Benhil / Karet Tengsin
-          iconEmoji: '🏍️',
-          title: 'Tim Perintis Presisi R-2 (Echo)',
-          petugas: 'Briptu Aris Munandar (NRP 94120332)',
-          sub: 'Tim Perintis Presisi (Sektor Barat) • Sepeda Motor R2-Trail-14',
-          status: 'Status: PATROLI DIALOGIS',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Sambang Pos Satkamling & Sentra Kuliner',
-          telemetri: 'Kecepatan: 20 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'perintis6',
-          pos: { lat: -6.2250, lng: 106.8220 }, // Gatot Subroto / Pancoran
-          iconEmoji: '🏍️',
-          title: 'Tim Perintis Presisi R-2 (Foxtrot)',
-          petugas: 'Bripda Bagus Santoso (NRP 99010554)',
-          sub: 'Tim Perintis Presisi (Sektor Selatan) • Sepeda Motor R2-Trail-19',
-          status: 'Status: MERESPON ADUAN 110',
-          statusColor: '#D97706',
-          tugas: 'Tugas: Cek Lokasi Gangguan Kamtibmas Permukiman',
-          telemetri: 'Kecepatan: 45 km/jam • Sinyal GPS Prima'
-        }
-      ];
-
-      // 3. Data Lengkap 4 Unit Lantas R-4 (Sesuai Label "🚓 4 Lantas R-4")
-      const lantasUnits = [
-        {
-          key: 'lantas1',
-          pos: { lat: -6.1850, lng: 106.8100 }, // Tanah Abang / Thamrin
-          iconEmoji: '🚓',
-          title: 'Patroli Turjawali Satlantas 01',
-          petugas: 'Aiptu Bambang Irawan (NRP 78050321)',
-          sub: 'Satlantas Polres (Sektor Protokol) • Sedan Lantas-01',
-          status: 'Status: PENJAGAAN & PENGATURAN',
-          statusColor: '#0284C7',
-          tugas: 'Tugas: Penguraian Arus Lalu Lintas Simpang Protokol',
-          telemetri: 'Kecepatan: 15 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'lantas2',
-          pos: { lat: -6.2180, lng: 106.8040 }, // Semanggi / Senayan
-          iconEmoji: '🚓',
-          title: 'Patroli Turjawali Satlantas 02',
-          petugas: 'Aipda Dwi Haryanto (NRP 83070619)',
-          sub: 'Satlantas Polres (Sektor Selatan) • Sedan Lantas-04',
-          status: 'Status: PENGATURAN ARUS',
-          statusColor: '#0284C7',
-          tugas: 'Tugas: Pengamanan Jalur Protokol & Rekayasa Lalin',
-          telemetri: 'Kecepatan: 22 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'lantas3',
-          pos: { lat: -6.1750, lng: 106.8320 }, // Senen / Gunung Sahari
-          iconEmoji: '🚓',
-          title: 'Patroli Turjawali Satlantas 03',
-          petugas: 'Bripka Kurniawan (NRP 86090432)',
-          sub: 'Satlantas Polres (Sektor Timur) • Sedan Lantas-07',
-          status: 'Status: PENGAWASAN KELANCARAN',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Sterilisasi Jalur Busway & Penertiban Parkir Liar',
-          telemetri: 'Kecepatan: 18 km/jam • Sinyal GPS Prima'
-        },
-        {
-          key: 'lantas4',
-          pos: { lat: -6.1980, lng: 106.8420 }, // Salemba Raya
-          iconEmoji: '🚓',
-          title: 'Patroli Turjawali Satlantas 04',
-          petugas: 'Aipda Tri Wahyudi (NRP 81120543)',
-          sub: 'Satlantas Polres (Sektor Rumah Sakit) • Sedan Lantas-09',
-          status: 'Status: SIAGA KAWAL AMBULANS',
-          statusColor: '#10B981',
-          tugas: 'Tugas: Prioritas Jalur Darurat Koridor Medis Salemba',
-          telemetri: 'Kecepatan: 25 km/jam • Sinyal GPS Prima'
-        }
-      ];
-
-      // 4. Data 3 Titik Hotspot Rawan (Sesuai Label "🔴 3 Titik Hotspot")
-      const hotspotUnits = [
-        {
-          key: 'hotspot1',
-          pos: p1, // -6.1800, 106.8200
-          iconEmoji: '🔴',
-          title: 'Titik Hotspot 1 (Manggarai)',
-          petugas: 'Wilayah Polsek Tebet / Sektor Timur',
-          sub: 'Kategori: Rawan Tawuran Warga & Gesekan Kelompok',
-          status: 'Status: PENGAWASAN PRIORITAS (RAWAN)',
-          statusColor: '#DC2626',
-          tugas: 'Jadwal Rawan: 23.00 - 04.30 WIB',
-          telemetri: 'Unit Terdekat: Patroli Samapta 110-A (600m)'
-        },
-        {
-          key: 'hotspot2',
-          pos: p3, // -6.2100, 106.8180
-          iconEmoji: '🔴',
-          title: 'Titik Hotspot 2 (Sudirman)',
-          petugas: 'Wilayah Polsek Setiabudi / Sektor Pusat',
-          sub: 'Kategori: Rawan Balap Liar',
-          status: 'Status: SIAGA PATROLI BLUE LIGHT',
-          statusColor: '#D97706',
-          tugas: 'Jadwal Rawan: 00.30 - 05.00 WIB',
-          telemetri: 'Unit Terdekat: Patroli Samapta 110-B (450m)'
-        },
-        {
-          key: 'hotspot3',
-          pos: p6, // -6.1850, 106.8300
-          iconEmoji: '🔴',
-          title: 'Titik Hotspot 3 (Panglima Polim)',
-          petugas: 'Wilayah Polsek Kebayoran Baru / Sektor Selatan',
-          sub: 'Kategori: Rawan Tawuran Pelajar Ber-sajam',
-          status: 'Status: INSIDEN DARURAT AKTIF (SIAGA 110)',
-          statusColor: '#DC2626',
-          tugas: 'Laporan Masuk: 12:20 WIB',
-          telemetri: 'Unit Terdekat: Tim Perintis Presisi R-2 (3 Menit)'
-        }
-      ];
-
-      // 5. Mako Polres Metro
-      const makoUnit = {
-        key: 'mako',
-        pos: { lat: -6.2220, lng: 106.8020 },
-        iconEmoji: '🏢',
-        title: 'Mako Polres Metro Jakarta Pusat',
-        petugas: 'Komando & Pengendalian Operasi (KODAL)',
-        sub: 'Jl. Kramat Raya No.61, Senen',
-        status: 'Status: MAKO SIAGA 1',
-        statusColor: '#10B981',
-        tugas: 'Pusat Komando & SPKT Pelayanan 110 Terpadu',
-        telemetri: '46 Personel Piket Aktif • 14 Armada Operasional'
-      };
-
-      const addInteractiveMarker = (targetMap, pos, icon, data, title) => {
-        const marker = new google.maps.Marker({
-          position: pos,
-          map: targetMap,
-          icon: icon,
-          title: title,
-          cursor: 'pointer'
-        });
-        google.maps.event.addListener(marker, 'click', () => {
-          bukaModalMapUnit(data, marker, targetMap);
-        });
-        return marker;
-      };
-
-      const iconSamapta = makeHaloBadgeIcon('🚔', '#0284C7', '#38BDF8');
-      const iconPerintis = makeHaloBadgeIcon('🏍️', '#D97706', '#FBBF24');
-      const iconLantas = makeHaloBadgeIcon('🚓', '#1D4ED8', '#60A5FA');
-      const iconHotspot = makeHaloBadgeIcon('🔴', '#DC2626', '#F87171');
-      const iconMako = makeHaloBadgeIcon('🏢', '#1E3A8A', '#93C5FD');
-
-      window.markerDataMap = {};
-
-      function registerAndAddMarker(data, icon) {
-        window.markerDataMap[data.key] = data;
-        data._markerB = addInteractiveMarker(mapBeranda, data.pos, icon, data, data.title);
-        data._markerFs = addInteractiveMarker(mapFullscreen, data.pos, icon, data, data.title);
+    // =========================================================================
+    // 1. DATA 3 TITIK HOTSPOT RAWAN (IDENTIK 100% DENGAN MAPS PIMPINAN)
+    // =========================================================================
+    const hotspotUnits = [
+      {
+        key: 'hotspot1',
+        pos: p1, // { lat: -6.1800, lng: 106.8200 }
+        iconEmoji: '🔴',
+        title: 'Titik Hotspot 1 (Manggarai)',
+        petugas: 'Wilayah Polsek Tebet / Sektor Timur',
+        sub: 'Kategori: Rawan Tawuran Warga & Gesekan Kelompok',
+        status: 'Status: PENGAWASAN PRIORITAS (RAWAN)',
+        statusColor: '#DC2626',
+        tugas: 'Jadwal Rawan: 23.00 - 04.30 WIB',
+        telemetri: 'Kordinat: -6.1800, 106.8200 • Radius Aman 500m'
+      },
+      {
+        key: 'hotspot2',
+        pos: p3, // { lat: -6.2100, lng: 106.8180 }
+        iconEmoji: '🔴',
+        title: 'Titik Hotspot 2 (Sudirman)',
+        petugas: 'Wilayah Polsek Setiabudi / Sektor Pusat',
+        sub: 'Kategori: Rawan Balap Liar',
+        status: 'Status: SIAGA PATROLI BLUE LIGHT',
+        statusColor: '#D97706',
+        tugas: 'Jadwal Rawan: 00.30 - 05.00 WIB',
+        telemetri: 'Kordinat: -6.2100, 106.8180 • Jalur Pantau Lalin'
+      },
+      {
+        key: 'hotspot3',
+        pos: p6, // { lat: -6.1850, lng: 106.8300 }
+        iconEmoji: '🔴',
+        title: 'Titik Hotspot 3 (Panglima Polim)',
+        petugas: 'Wilayah Polsek Kebayoran Baru / Sektor Selatan',
+        sub: 'Kategori: Rawan Tawuran Pelajar Ber-sajam',
+        status: 'Status: INSIDEN DARURAT AKTIF (SIAGA 110)',
+        statusColor: '#DC2626',
+        tugas: 'Laporan Masuk: 12:20 WIB',
+        telemetri: 'Kordinat: -6.1850, 106.8300 • Siaga Respon'
       }
+    ];
 
-      // Render seluruh armada sehingga persis sesuai label & sidebar (4 Samapta, 6 Perintis, 4 Lantas, 3 Hotspot, 1 Mako)
-      samaptaUnits.forEach(u => registerAndAddMarker(u, iconSamapta));
-      perintisUnits.forEach(u => registerAndAddMarker(u, iconPerintis));
-      lantasUnits.forEach(u => registerAndAddMarker(u, iconLantas));
-      hotspotUnits.forEach(u => registerAndAddMarker(u, iconHotspot));
-      registerAndAddMarker(makoUnit, iconMako);
+    // Mako Polres Metro Jakarta Pusat (Identik dengan Pimpinan)
+    const makoUnit = {
+      key: 'mako',
+      pos: { lat: -6.2220, lng: 106.8020 },
+      iconEmoji: '🏢',
+      title: 'Mako Polres Metro Jakarta Pusat',
+      petugas: 'Komando & Pengendalian Operasi (KODAL)',
+      sub: 'Jl. Kramat Raya No.61, Senen',
+      status: 'Status: MAKO SIAGA 1',
+      statusColor: '#10B981',
+      tugas: 'Pusat Komando & SPKT Pelayanan 110 Terpadu',
+      telemetri: '46 Personel Piket Aktif • 14 Armada Operasional'
+    };
 
-      // Tutup modal InfoWindow ketika mengklik area peta
-      google.maps.event.addListener(mapBeranda, 'click', () => {
-        tutupModalMapUnit();
-      });
-      google.maps.event.addListener(mapFullscreen, 'click', () => {
-        tutupModalMapUnit();
-      });
-    } else {
-      new google.maps.Marker({ position: p1, map: mapBeranda, icon: redPin });
-      new google.maps.Marker({ position: p4, map: mapFullscreen, icon: policeIcon, title: "Posisi Saya" });
-      new google.maps.Marker({ position: p4, map: mapBeranda, icon: policeIcon, title: "Posisi Saya" });
+    // =========================================================================
+    // 2. DATA ARMADA KHUSUS PERSONEL SENDIRI (HANYA MENAMPILKAN TITIK DIRINYA)
+    // =========================================================================
+    const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+    const userNrp = user ? user.nrp : '95020123';
+    const userNama = user ? user.nama : 'Bripka Ahmad Subagyo';
+    const userRanmor = user ? (user.ranmor || 'Ranmor Dinas Samapta R-4') : 'Ranmor Dinas Samapta R-4';
+    const userSatuan = user ? (user.satuan || user.jabatan || 'Patroli Samapta Presisi R4') : 'Patroli Samapta Presisi R4';
+
+    let myUnit = {
+      key: 'my_unit',
+      pos: p4, // { lat: -6.2150, lng: 106.8300 } - Bundaran Senayan / Kuningan
+      iconEmoji: '🚔',
+      icon: iconSamapta,
+      title: 'Patroli Samapta 110-A (Unit Anda)',
+      petugas: `${userNama} (NRP ${userNrp})`,
+      sub: `${userSatuan} • ${userRanmor}`,
+      status: 'Status: SIAGA (PATROLI BEAT)',
+      statusColor: '#10B981',
+      tugas: 'Tugas: Patroli Rute Beat Wilayah & Siaga Panggilan Darurat 110',
+      telemetri: 'Kecepatan: 35 km/jam • GPS Presisi Prima (Aktif)'
+    };
+
+    // Sesuaikan armada dan icon berdasarkan profil & kesatuan personel yang login
+    if (user && (user.unitId === 'samapta-r2-motor' || (user.ranmor && user.ranmor.toLowerCase().includes('motor')) || (user.satuan && user.satuan.toLowerCase().includes('raimas')))) {
+      myUnit.pos = { lat: -6.2200, lng: 106.8150 }; // Barito / Blok M
+      myUnit.iconEmoji = '🏍️';
+      myUnit.icon = iconPerintis;
+      myUnit.title = 'Tim Raimas Motor Taktis (Unit Anda)';
+      myUnit.tugas = 'Tugas: Respon Cepat Kerawanan Gang & Patroli Beat Wilayah Barat';
+      myUnit.telemetri = 'Kecepatan: 40 km/jam • GPS Presisi Prima (Aktif)';
+    } else if (user && (user.unitId === 'lantas-turjawali' || (user.ranmor && user.ranmor.toLowerCase().includes('lantas')) || (user.satuan && user.satuan.toLowerCase().includes('lantas')))) {
+      myUnit.pos = { lat: -6.1850, lng: 106.8100 }; // Thamrin / HI
+      myUnit.iconEmoji = '🚓';
+      myUnit.icon = iconLantas;
+      myUnit.title = 'Patroli Turjawali Satlantas (Unit Anda)';
+      myUnit.tugas = 'Tugas: Pengaturan & Patroli Kamseltibcarlantas Koridor Protokol';
+      myUnit.telemetri = 'Kecepatan: 20 km/jam • GPS Presisi Prima (Aktif)';
     }
 
-    // Create markers for other personnel (hidden by default)
-    const otherIcon = {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
-          <path d="M10,30 L20,15 L70,15 L85,30 L95,30 L95,45 L5,45 L5,30 Z" fill="#64748B"/>
-          <path d="M25,18 L65,18 L75,28 L20,28 Z" fill="#CBD5E1"/>
-          <circle cx="25" cy="45" r="8" fill="#1E293B"/>
-          <circle cx="75" cy="45" r="8" fill="#1E293B"/>
-          <text x="50" y="38" font-family="Arial" font-size="12" font-weight="bold" fill="white" text-anchor="middle">REKAN</text>
-        </svg>
-      `),
-      anchor: new google.maps.Point(50, 25)
+    // =========================================================================
+    // 3. RENDER MARKER INTERAKTIF DENGAN STANDARD MODAL PIMPINAN
+    // =========================================================================
+    const addInteractiveMarker = (targetMap, pos, icon, data, title) => {
+      const marker = new google.maps.Marker({
+        position: pos,
+        map: targetMap,
+        icon: icon,
+        title: title,
+        cursor: 'pointer'
+      });
+      google.maps.event.addListener(marker, 'click', () => {
+        bukaModalMapUnit(data, marker, targetMap);
+      });
+      return marker;
     };
 
-    window.otherMarkers = [
-      new google.maps.Marker({ position: { lat: -6.2050, lng: 106.8250 }, map: null, icon: otherIcon, title: "Bripka Joko" }),
-      new google.maps.Marker({ position: { lat: -6.1850, lng: 106.8100 }, map: null, icon: otherIcon, title: "Aiptu Setiawan" }),
-      new google.maps.Marker({ position: { lat: -6.2200, lng: 106.8150 }, map: null, icon: otherIcon, title: "Briptu Andi" })
-    ];
+    window.markerDataMap = {};
+
+    function registerAndAddMarker(data, icon) {
+      window.markerDataMap[data.key] = data;
+      data._markerB = addInteractiveMarker(mapBeranda, data.pos, icon, data, data.title);
+      data._markerFs = addInteractiveMarker(mapFullscreen, data.pos, icon, data, data.title);
+    }
+
+    // 1. Tampilkan hanya unit milik personel sendiri (Data Ownership Isolation)
+    registerAndAddMarker(myUnit, myUnit.icon);
+
+    // 2. Tampilkan seluruh titik daerah rawan (Hotspots) identik dengan pimpinan
+    hotspotUnits.forEach(u => registerAndAddMarker(u, iconHotspot));
+
+    // 3. Tampilkan Mako Polres Metro
+    registerAndAddMarker(makoUnit, iconMako);
+
+    // Pusatkan peta langsung ke titik posisi personel saat ini
+    mapBeranda.setCenter(myUnit.pos);
+    mapFullscreen.setCenter(myUnit.pos);
+
+    // Tutup InfoWindow jika klik di luar area marker
+    google.maps.event.addListener(mapBeranda, 'click', () => {
+      tutupModalMapUnit();
+    });
+    google.maps.event.addListener(mapFullscreen, 'click', () => {
+      tutupModalMapUnit();
+    });
+
+    window.otherMarkers = [];
   } catch (e) {
     console.warn('Inisialisasi peta ditunda/gagal:', e);
   }
@@ -455,8 +274,12 @@ function zoomMapBeranda(delta) {
 
 function resetCenterMapBeranda() {
   if (mapBeranda) {
-    mapBeranda.setZoom(11);
-    mapBeranda.setCenter({ lat: -6.1950, lng: 106.8200 });
+    mapBeranda.setZoom(12);
+    if (window.markerDataMap && window.markerDataMap.my_unit) {
+      mapBeranda.panTo(window.markerDataMap.my_unit.pos);
+    } else {
+      mapBeranda.panTo({ lat: -6.2150, lng: 106.8300 });
+    }
   }
 }
 
@@ -523,14 +346,12 @@ function tutupModalMapUnit() {
 
 function fokusUnitMap(tipe) {
   if (!window.markerDataMap) return;
-  if (tipe === 'samapta' && window.markerDataMap.samapta1) {
-    bukaModalMapUnit(window.markerDataMap.samapta1);
-  } else if (tipe === 'perintis' && window.markerDataMap.perintis1) {
-    bukaModalMapUnit(window.markerDataMap.perintis1);
-  } else if (tipe === 'lantas' && window.markerDataMap.lantas1) {
-    bukaModalMapUnit(window.markerDataMap.lantas1);
-  } else if (tipe === 'hotspot' && window.markerDataMap.hotspot3) {
-    bukaModalMapUnit(window.markerDataMap.hotspot3);
+  if ((tipe === 'my_unit' || tipe === 'samapta' || tipe === 'perintis' || tipe === 'lantas') && window.markerDataMap.my_unit) {
+    bukaModalMapUnit(window.markerDataMap.my_unit);
+  } else if (tipe === 'hotspot' && (window.markerDataMap.hotspot3 || window.markerDataMap.hotspot1)) {
+    bukaModalMapUnit(window.markerDataMap.hotspot3 || window.markerDataMap.hotspot1);
+  } else if (tipe === 'mako' && window.markerDataMap.mako) {
+    bukaModalMapUnit(window.markerDataMap.mako);
   }
 }
 
@@ -7533,12 +7354,7 @@ function fokusPosisiSayaMap() {
   if (!mapBeranda && !mapFullscreen) return;
   const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
 
-  let pos = { lat: -6.2200, lng: 106.8150 }; // Default Samapta R4
-  if (user && user.unitId === 'samapta-r2-motor') {
-    pos = { lat: -6.2420, lng: 106.8020 }; // Raimas R2 Barito
-  } else if (user && user.unitId === 'lantas-turjawali') {
-    pos = { lat: -6.1950, lng: 106.8240 }; // Lantas HI
-  }
+  let pos = (window.markerDataMap && window.markerDataMap.my_unit) ? window.markerDataMap.my_unit.pos : { lat: -6.2150, lng: 106.8300 };
 
   if (mapBeranda) {
     mapBeranda.panTo(pos);
