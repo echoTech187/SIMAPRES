@@ -383,15 +383,14 @@
           <textarea id="log-input-deskripsi" class="form-control"
             placeholder="Deskripsi Kejadian, Deskripsi Kejadian"></textarea>
         </div>
-
-        <input type="file" id="log-file-input" accept="image/*" style="display:none;"
-          onchange="handleUploadBuktiLog(event)">
-        <button type="button" class="btn-blue" id="btn-lampirkan-foto"
-          onclick="document.getElementById('log-file-input').click()">Lampirkan Foto</button>
-        <img id="log-preview-img" src="https://placehold.co/200x200/153E75/FFFFFF?text=Foto" class="photo-thumb"
-          style="cursor:pointer;" onclick="document.getElementById('log-file-input').click()"
-          title="Klik untuk lampirkan/ganti foto"
-          onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\' viewBox=\'0 0 200 200\'><rect width=\'200\' height=\'200\' fill=\'%23153E75\'/><text x=\'50%25\' y=\'55%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23ffffff\' font-family=\'sans-serif\' font-size=\'32\' font-weight=\'bold\'>Foto</text></svg>'">
+        <div class="form-group">
+          <label class="form-label">Lampiran Foto (Live Camera)</label>
+          <div
+            style="width: 100%; height: 120px; border: 2px dashed #94a3b8; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f8fafc; cursor: pointer; font-weight: 600; color: var(--primary);"
+            onclick="alert('Membuka Kamera Utama...')">
+            📸 Ambil Foto Kegiatan
+          </div>
+        </div>
         <button type="button" class="btn-blue" id="btn-simpan-log" onclick="simpanLogKegiatanInput()"
           style="margin-top:14px; background:#10B981; border:none; display:flex; align-items:center; justify-content:center; gap:8px;">
           <span>💾</span> Simpan Log Kegiatan
@@ -1176,12 +1175,22 @@
         <h2 class="page-title">Formulir Input Log</h2>
         <div class="page-subtitle">Presensi dan Pencatatan Kegiatan Patroli</div>
 
+        
         <div class="form-group">
-          <label class="form-label">Waktu Perekaman</label>
-          <input type="text" id="respon-waktu-perekaman" class="form-control" value="" readonly
-            style="background:#e2e8f0;">
+          <label class="form-label">Waktu Pelaksanaan</label>
+          <div style="position:relative; cursor:pointer;" onclick="bukaTimePickerLog()">
+            <input type="text" id="respon-waktu-perekaman" class="form-control" value="09:00 - 2:30 PM"
+              style="cursor:pointer;" title="Klik untuk pilih rentang jam kegiatan" readonly
+              onclick="bukaTimePickerLog()">
+            <span id="log-calendar-icon"
+              style="position:absolute; right:14px; top:14px; font-size:16px; cursor:pointer; user-select:none;"
+              title="Pilih rentang jam kegiatan" onclick="event.stopPropagation(); bukaTimePickerLog()">📅</span>
+          </div>
         </div>
-
+        <div class="form-group">
+          <label class="form-label">Sektor Patroli</label>
+          <input type="text" id="respon-sektor" class="form-control" value="Sektor Patroli">
+        </div>
         <div class="form-group">
           <label class="form-label">Jenis Kegiatan</label>
           <input type="text" id="respon-jenis" class="form-control" value="PATROLI" readonly
@@ -1189,30 +1198,45 @@
         </div>
 
         <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label class="form-label" style="margin-bottom:0;">Lokasi Kegiatan</label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" onclick="ambilGpsSaatIniLog()" title="Gunakan GPS Perangkat Saat Ini"
+                style="border:none; background:#EFF6FF; color:#1D4ED8; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px; border:1px solid #BFDBFE;">
+                📍 GPS Saya
+              </button>
+              <button type="button" onclick="bukaModalPickMapLog()" title="Pilih Titik di Peta Interaktif"
+                style="border:none; background:#F0FDF4; color:#15803D; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:4px; border:1px solid #BBF7D0;">
+                🗺️ Pilih di Peta
+              </button>
+            </div>
+          </div>
+          <div style="position:relative">
+            <input type="text" id="respon-lokasi-kegiatan" class="form-control" value=""
+              placeholder="Masukan Lokasi Kegiatan (misal: Jl. Margonda Raya No. 100)"
+              oninput="onInputLokasiKegiatan(this.value)">
+            <span id="lokasi-loading-spinner" style="display:none; position:absolute; right:12px; top:13px; font-size:12px; color:#64748B;">⏳ Mencari...</span>
+          </div>
+          <!-- Dropdown Rekomendasi Geocoding / Autocomplete -->
+          <div id="respon-lokasi-suggestions"
+            style="display:none; position:relative; z-index:100; background:#fff; border:1px solid #CBD5E1; border-radius:8px; margin-top:4px; box-shadow:0 4px 12px rgba(0,0,0,0.1); max-height:180px; overflow-y:auto;">
+          </div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Koordinat Lokasi GPS</label>
           <div style="position:relative">
-            <input type="text" id="respon-koordinat-gps" class="form-control" value="" readonly>
-            <span style="position:absolute; right:14px; top:14px; font-size:16px;">📍</span>
+            <input type="text" id="respon-koordinat-gps" class="form-control" value="" readonly
+              placeholder="Menunggu lokasi kegiatan dipilih / ditentukan..."
+              style="background:#F8FAFC; color:#1D4ED8; font-family:monospace; font-weight:600;">
+            <span style="position:absolute; right:14px; top:13px; font-size:14px; color:#64748B;">🛰️</span>
+          </div>
+          <div id="gps-status-hint" style="font-size:11px; color:#64748B; margin-top:3px;">
+            💡 Masukkan nama jalan/tempat di atas atau gunakan tombol <strong>"Pilih di Peta"</strong> untuk mengunci koordinat.
           </div>
         </div>
-
         <div class="form-group">
-          <label class="form-label" style="color:var(--primary);">Update Tahap Penanganan</label>
-          <div style="position:relative">
-            <select id="status-penanganan" class="form-control"
-              style="appearance:none; border-color:var(--primary); font-weight:700;">
-              <option value="menuju">🚓 Menuju Lokasi TKP</option>
-              <option value="penanganan">🚧 Penanganan di Lokasi</option>
-              <option value="selesai">✅ Kasus Selesai Ditangani</option>
-            </select>
-            <span style="position:absolute; right:14px; top:16px; font-size:12px;">▼</span>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Tindakan / Uraian Kegiatan</label>
-          <textarea class="form-control"
-            style="min-height: 100px;">Melaksanakan patroli dialogis di wilayah pasar. Terpantau aman dan kondusif...</textarea>
+          <label class="form-label">Uraian Kegiatan</label>
+          <textarea class="form-control" style="min-height: 100px;" placeholder="Masukan Uraian Kegiatan"></textarea>
         </div>
 
         <div class="form-group">
@@ -2993,156 +3017,227 @@
 
   <!-- MODAL: TIMEPICKER RENTANG WAKTU KEGIATAN -->
   <div id="modal-timepicker-log" onclick="tutupTimePickerLog()"
-      style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
-      <div
-        style="background:white; border-radius:14px; max-width:390px; width:100%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); overflow:hidden; border-top:5px solid #153E75;"
-        onclick="event.stopPropagation()">
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; border-radius:14px; max-width:390px; width:100%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); overflow:hidden; border-top:5px solid #153E75;"
+      onclick="event.stopPropagation()">
 
-        <!-- Header Modal -->
-        <div
-          style="padding:16px 20px 14px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center;">
-          <div>
-            <div style="font-size:15px; font-weight:800; color:#1E293B; display:flex; align-items:center; gap:7px;">
-              <span>📅</span> Pilih Rentang Jam Kegiatan
-            </div>
-            <div style="font-size:11px; color:#64748B; margin-top:2px;">Tentukan jam mulai dan sampai jam berapa
-              kegiatan berlangsung</div>
+      <!-- Header Modal -->
+      <div
+        style="padding:16px 20px 14px; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:15px; font-weight:800; color:#1E293B; display:flex; align-items:center; gap:7px;">
+            <span>📅</span> Pilih Rentang Jam Kegiatan
           </div>
-          <button type="button" onclick="tutupTimePickerLog()"
-            style="background:none; border:none; font-size:20px; color:#94A3B8; cursor:pointer; line-height:1; padding:4px;"
-            title="Tutup">&times;</button>
+          <div style="font-size:11px; color:#64748B; margin-top:2px;">Tentukan jam mulai dan sampai jam berapa
+            kegiatan berlangsung</div>
+        </div>
+        <button type="button" onclick="tutupTimePickerLog()"
+          style="background:none; border:none; font-size:20px; color:#94A3B8; cursor:pointer; line-height:1; padding:4px;"
+          title="Tutup">&times;</button>
+      </div>
+
+      <!-- Body Modal -->
+      <div style="padding:20px;">
+        <!-- Input Jam Mulai s/d Jam Selesai -->
+        <div
+          style="display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; margin-bottom:14px;">
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:5px;">
+              <span>🕒</span> Jam Mulai
+            </label>
+            <input type="time" id="tp-jam-mulai" value="09:00" onchange="updateTimePickerPreview()"
+              style="width:100%; padding:10px 8px; border:1.5px solid #CBD5E1; border-radius:8px; font-size:15px; font-weight:700; color:#1E293B; text-align:center; background:#F8FAFC; outline:none; transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#153E75'" onblur="this.style.borderColor='#CBD5E1'">
+          </div>
+          <div style="text-align:center; padding-top:18px;">
+            <div
+              style="font-size:11.5px; font-weight:800; color:#64748B; background:#F1F5F9; padding:4px 8px; border-radius:6px; border:1px solid #E2E8F0;">
+              s/d
+            </div>
+          </div>
+          <div>
+            <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:5px;">
+              <span>🏁</span> Sampai Jam
+            </label>
+            <input type="time" id="tp-jam-selesai" value="14:30" onchange="updateTimePickerPreview()"
+              style="width:100%; padding:10px 8px; border:1.5px solid #CBD5E1; border-radius:8px; font-size:15px; font-weight:700; color:#1E293B; text-align:center; background:#F8FAFC; outline:none; transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#153E75'" onblur="this.style.borderColor='#CBD5E1'">
+          </div>
         </div>
 
-        <!-- Body Modal -->
-        <div style="padding:20px;">
-          <!-- Input Jam Mulai s/d Jam Selesai -->
+        <!-- Format Toggle & Live Preview -->
+        <div
+          style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="font-size:11px; font-weight:700; color:#64748B;">Format Tampilan:</div>
+            <div style="display:flex; gap:4px;">
+              <button type="button" id="tp-btn-fmt-12h" onclick="setTimePickerFormat('12h')"
+                style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #CBD5E1; background:#FFFFFF; color:#1E293B; cursor:pointer; transition:0.2s;">
+                12 Jam (AM/PM)
+              </button>
+              <button type="button" id="tp-btn-fmt-24h" onclick="setTimePickerFormat('24h')"
+                style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #153E75; background:#153E75; color:#FFFFFF; cursor:pointer; transition:0.2s;">
+                24 Jam
+              </button>
+            </div>
+          </div>
           <div
-            style="display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; margin-bottom:14px;">
-            <div>
-              <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:5px;">
-                <span>🕒</span> Jam Mulai
-              </label>
-              <input type="time" id="tp-jam-mulai" value="09:00" onchange="updateTimePickerPreview()"
-                style="width:100%; padding:10px 8px; border:1.5px solid #CBD5E1; border-radius:8px; font-size:15px; font-weight:700; color:#1E293B; text-align:center; background:#F8FAFC; outline:none; transition:border-color 0.2s;"
-                onfocus="this.style.borderColor='#153E75'" onblur="this.style.borderColor='#CBD5E1'">
-            </div>
-            <div style="text-align:center; padding-top:18px;">
-              <div
-                style="font-size:11.5px; font-weight:800; color:#64748B; background:#F1F5F9; padding:4px 8px; border-radius:6px; border:1px solid #E2E8F0;">
-                s/d
-              </div>
-            </div>
-            <div>
-              <label style="display:block; font-size:11px; font-weight:700; color:#475569; margin-bottom:5px;">
-                <span>🏁</span> Sampai Jam
-              </label>
-              <input type="time" id="tp-jam-selesai" value="14:30" onchange="updateTimePickerPreview()"
-                style="width:100%; padding:10px 8px; border:1.5px solid #CBD5E1; border-radius:8px; font-size:15px; font-weight:700; color:#1E293B; text-align:center; background:#F8FAFC; outline:none; transition:border-color 0.2s;"
-                onfocus="this.style.borderColor='#153E75'" onblur="this.style.borderColor='#CBD5E1'">
+            style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px dashed #CBD5E1;">
+            <span style="font-size:11px; color:#475569; font-weight:600;">Hasil Rentang:</span>
+            <div style="text-align:right;">
+              <span id="tp-preview-text" style="font-size:13.5px; font-weight:800; color:#153E75;">09:00 - 2:30
+                PM</span>
+              <div id="tp-preview-durasi" style="font-size:10px; color:#059669; font-weight:700; margin-top:2px;">⏱️
+                Durasi: 5 Jam 30 Menit</div>
             </div>
           </div>
+        </div>
 
-          <!-- Format Toggle & Live Preview -->
+        <!-- Preset Pilihan Cepat -->
+        <div style="margin-bottom:18px;">
           <div
-            style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px; margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <div style="font-size:11px; font-weight:700; color:#64748B;">Format Tampilan:</div>
-              <div style="display:flex; gap:4px;">
-                <button type="button" id="tp-btn-fmt-12h" onclick="setTimePickerFormat('12h')"
-                  style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #CBD5E1; background:#FFFFFF; color:#1E293B; cursor:pointer; transition:0.2s;">
-                  12 Jam (AM/PM)
-                </button>
-                <button type="button" id="tp-btn-fmt-24h" onclick="setTimePickerFormat('24h')"
-                  style="font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; border:1px solid #153E75; background:#153E75; color:#FFFFFF; cursor:pointer; transition:0.2s;">
-                  24 Jam
-                </button>
-              </div>
-            </div>
-            <div
-              style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px dashed #CBD5E1;">
-              <span style="font-size:11px; color:#475569; font-weight:600;">Hasil Rentang:</span>
-              <div style="text-align:right;">
-                <span id="tp-preview-text" style="font-size:13.5px; font-weight:800; color:#153E75;">09:00 - 2:30
-                  PM</span>
-                <div id="tp-preview-durasi" style="font-size:10px; color:#059669; font-weight:700; margin-top:2px;">⏱️
-                  Durasi: 5 Jam 30 Menit</div>
-              </div>
-            </div>
+            style="font-size:11px; font-weight:700; color:#475569; margin-bottom:8px; display:flex; justify-content:space-between;">
+            <span>⚡ Preset Cepat Shift Dinas:</span>
+            <span style="font-size:10px; color:#94A3B8; font-weight:normal;">1-Klik Set</span>
           </div>
-
-          <!-- Preset Pilihan Cepat -->
-          <div style="margin-bottom:18px;">
-            <div
-              style="font-size:11px; font-weight:700; color:#475569; margin-bottom:8px; display:flex; justify-content:space-between;">
-              <span>⚡ Preset Cepat Shift Dinas:</span>
-              <span style="font-size:10px; color:#94A3B8; font-weight:normal;">1-Klik Set</span>
-            </div>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
-              <button type="button" onclick="setPresetTimePicker('08:00', '16:00')"
-                style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
-                onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
-                onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
-                ☀️ Shift Pagi (08:00 - 16:00)
-              </button>
-              <button type="button" onclick="setPresetTimePicker('16:00', '00:00')"
-                style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
-                onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
-                onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
-                🌇 Shift Sore (16:00 - 00:00)
-              </button>
-              <button type="button" onclick="setPresetTimePicker('00:00', '08:00')"
-                style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
-                onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
-                onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
-                🌙 Shift Malam (00:00 - 08:00)
-              </button>
-              <button type="button" onclick="setPresetTimePicker('09:00', '14:30')"
-                style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
-                onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
-                onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
-                🕒 Standar (09:00 - 14:30)
-              </button>
-              <button type="button" onclick="setPresetRelativeTimePicker(1)"
-                style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
-                onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
-                onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
-                ⚡ 1 Jam Terakhir
-              </button>
-              <button type="button" onclick="setPresetRelativeTimePicker(2)"
-                style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
-                onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
-                onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
-                ⏱️ 2 Jam Terakhir
-              </button>
-            </div>
-          </div>
-
-          <!-- Tombol Aksi -->
-          <div style="display:flex; gap:10px;">
-            <button type="button" onclick="tutupTimePickerLog()"
-              style="flex:1; background:#F1F5F9; border:1px solid #CBD5E1; color:#475569; padding:11px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; transition:0.2s;"
-              onmouseover="this.style.background='#E2E8F0'" onmouseout="this.style.background='#F1F5F9'">
-              Batal
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+            <button type="button" onclick="setPresetTimePicker('08:00', '16:00')"
+              style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
+              onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
+              onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
+              ☀️ Shift Pagi (08:00 - 16:00)
             </button>
-            <button type="button" onclick="terapkanTimePickerLog()"
-              style="flex:1.4; background:#153E75; border:none; color:white; padding:11px; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(21,62,117,0.3); transition:0.2s;"
-              onmouseover="this.style.background='#0F2B52'" onmouseout="this.style.background='#153E75'">
-              <span>✓</span> Terapkan Waktu
+            <button type="button" onclick="setPresetTimePicker('16:00', '00:00')"
+              style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
+              onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
+              onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
+              🌇 Shift Sore (16:00 - 00:00)
+            </button>
+            <button type="button" onclick="setPresetTimePicker('00:00', '08:00')"
+              style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
+              onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
+              onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
+              🌙 Shift Malam (00:00 - 08:00)
+            </button>
+            <button type="button" onclick="setPresetTimePicker('09:00', '14:30')"
+              style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
+              onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
+              onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
+              🕒 Standar (09:00 - 14:30)
+            </button>
+            <button type="button" onclick="setPresetRelativeTimePicker(1)"
+              style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
+              onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
+              onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
+              ⚡ 1 Jam Terakhir
+            </button>
+            <button type="button" onclick="setPresetRelativeTimePicker(2)"
+              style="background:#FFFFFF; border:1px solid #E2E8F0; border-radius:6px; padding:7px 8px; font-size:10.5px; font-weight:700; color:#334155; cursor:pointer; text-align:left; transition:0.15s;"
+              onmouseover="this.style.background='#F1F5F9'; this.style.borderColor='#94A3B8'"
+              onmouseout="this.style.background='#FFFFFF'; this.style.borderColor='#E2E8F0'">
+              ⏱️ 2 Jam Terakhir
             </button>
           </div>
+        </div>
+
+        <!-- Tombol Aksi -->
+        <div style="display:flex; gap:10px;">
+          <button type="button" onclick="tutupTimePickerLog()"
+            style="flex:1; background:#F1F5F9; border:1px solid #CBD5E1; color:#475569; padding:11px; border-radius:8px; font-weight:700; font-size:12px; cursor:pointer; transition:0.2s;"
+            onmouseover="this.style.background='#E2E8F0'" onmouseout="this.style.background='#F1F5F9'">
+            Batal
+          </button>
+          <button type="button" onclick="terapkanTimePickerLog()"
+            style="flex:1.4; background:#153E75; border:none; color:white; padding:11px; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(21,62,117,0.3); transition:0.2s;"
+            onmouseover="this.style.background='#0F2B52'" onmouseout="this.style.background='#153E75'">
+            <span>✓</span> Terapkan Waktu
+          </button>
         </div>
       </div>
     </div>
+  <!-- MODAL MAP PICKER (PILIH TITIK LOKASI DI PETA) -->
+  <div id="modal-map-picker-log"
+    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:#FFFFFF; width:100%; max-width:620px; border-radius:14px; box-shadow:0 20px 45px rgba(0,0,0,0.3); overflow:hidden; display:flex; flex-direction:column; animation:fadeInScale 0.2s ease;">
+      <!-- Header Modal -->
+      <div style="background:#153E75; color:white; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:15px; font-weight:800; display:flex; align-items:center; gap:8px;">
+            <span>🗺️</span> Tentukan Titik Lokasi Kegiatan di Peta
+          </div>
+          <div style="font-size:11.5px; opacity:0.85; margin-top:2px;">
+            Klik pada peta atau geser pin merah untuk mengunci titik presisi kegiatan
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalPickMapLog()"
+          style="background:rgba(255,255,255,0.15); border:none; color:white; width:28px; height:28px; border-radius:6px; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;">
+          ✕
+        </button>
+      </div>
 
-    <!-- CONTAINER FLOATING TOAST NOTIFICATION -->
-    <div id="toast-container"
-      style="position:fixed; top:20px; right:20px; z-index:999999; display:flex; flex-direction:column; gap:10px; pointer-events:none;">
+      <!-- Kotak Pencarian Cepat di Dalam Modal -->
+      <div style="padding:10px 16px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; display:flex; gap:8px;">
+        <input type="text" id="modal-map-search-input" class="form-control"
+          placeholder="Cari jalan / tempat di peta..." style="font-size:12.5px; padding:7px 12px;"
+          onkeydown="if(event.key==='Enter'){ cariAlamatDiModalMap(); event.preventDefault(); }">
+        <button type="button" onclick="cariAlamatDiModalMap()"
+          style="background:#1D4ED8; color:white; border:none; padding:7px 14px; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; flex-shrink:0;">
+          Cari
+        </button>
+      </div>
+
+      <!-- Canvas Map -->
+      <div id="picker-map-canvas" style="width:100%; height:360px; background:#E2E8F0; position:relative;">
+        <div id="picker-map-loading"
+          style="display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#64748B; font-weight:600; font-size:13px;">
+          Memuat Peta Interaktif...
+        </div>
+      </div>
+
+      <!-- Footer Info & Actions -->
+      <div style="padding:12px 18px; background:#F8FAFC; border-top:1px solid #E2E8F0;">
+        <div style="display:flex; flex-direction:column; gap:4px; margin-bottom:12px;">
+          <div style="font-size:11px; font-weight:700; color:#64748B; text-transform:uppercase;">Alamat Terpilih:</div>
+          <div id="picker-selected-address"
+            style="font-size:13px; font-weight:700; color:#1E293B; background:#FFFFFF; padding:7px 10px; border-radius:6px; border:1px solid #CBD5E1; word-break:break-word;">
+            - Belum ditentukan -
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+            <div style="font-size:11px; color:#64748B;">
+              Koordinat GPS: <span id="picker-selected-coords" style="font-weight:700; color:#2563EB; font-family:monospace;">-</span>
+            </div>
+            <button type="button" onclick="ambilGpsSaatIniModal()"
+              style="border:none; background:none; color:#1D4ED8; font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline;">
+              🎯 Titik Saya Saat Ini
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+          <button type="button" onclick="tutupModalPickMapLog()"
+            style="flex:1; background:#FFFFFF; border:1px solid #CBD5E1; color:#475569; padding:10px; border-radius:8px; font-weight:700; font-size:12.5px; cursor:pointer;">
+            Batal
+          </button>
+          <button type="button" onclick="terapkanTitikPetaKeForm()"
+            style="flex:1.5; background:#059669; border:none; color:white; padding:10px; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 8px rgba(5,150,105,0.3);">
+            <span>✓</span> Gunakan Titik &amp; Koordinat Ini
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- LOGIKA & SESI EKSTERNAL -->
-    <script src="js/simapres-roster.js?v=20261013_0440"></script>
-    <script src="js/simapres-store.js?v=20261013_0440"></script>
-    <script src="js/personil.js?v=20261013_0440"></script>
+  <!-- CONTAINER FLOATING TOAST NOTIFICATION -->
+  <div id="toast-container"
+    style="position:fixed; top:20px; right:20px; z-index:999999; display:flex; flex-direction:column; gap:10px; pointer-events:none;">
+  </div>
+
+  <!-- LOGIKA & SESI EKSTERNAL -->
+  <script src="js/simapres-roster.js?v=20261013_0440"></script>
+  <script src="js/simapres-store.js?v=20261013_0440"></script>
+  <script src="js/personil.js?v=20261013_0440"></script>
 </body>
 
 </html>

@@ -629,9 +629,7 @@ function switchTab(viewId, navElement) {
   if (viewId === 'view-operator') {
     renderEbOperatorQueue();
   }
-  if (viewId === 'view-log') {
-    initViewLogKegiatan();
-  }
+
   if (viewId === 'view-profil') {
     syncProfileData(role);
     renderRiwayatLogLengkap();
@@ -660,6 +658,8 @@ function openRespon(jenis) {
   if (jenisEl) {
     jenisEl.value = jenis;
   }
+  // Reset atau sinkronkan lokasi jika kosong
+  initLokasiKegiatanForm();
   // Buka halaman formulir respon
   switchTab('view-respon');
 }
@@ -6454,24 +6454,6 @@ function bukaLightboxBukti(src, title = 'Bukti Dokumentasi Tugas Lapangan') {
   modal.style.display = 'flex';
 }
 
-function initViewLogKegiatan() {
-  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
-  const inputSektor = document.getElementById('log-input-sektor');
-  if (inputSektor && (!inputSektor.value || inputSektor.value === 'Sektor Patroli')) {
-    inputSektor.value = activeUser ? (activeUser.satuan || 'Sektor Gambir & Menteng') : 'Sektor Gambir & Menteng';
-  }
-
-  // Listener input manual jika user ketik sendiri di input jam
-  const inputWaktu = document.getElementById('log-input-waktu');
-  if (inputWaktu && !inputWaktu.dataset.listenerAttached) {
-    inputWaktu.dataset.listenerAttached = 'true';
-    inputWaktu.addEventListener('input', () => {
-      if (logWaktuMode === 'live') {
-        toggleModeJamLog('manual');
-      }
-    });
-  }
-}
 
 // ==================================
 // FASE 0 LOGIC: JALUR OPERATOR SPKT & MANDIRI PERSONEL
@@ -6506,8 +6488,8 @@ function kirimLogMandiriPersonel() {
     jenisInsiden: jenis,
     deskripsi: desc,
     sektor: userSatuan.includes('Barat') ? 'Sektor Barat' : (userSatuan.includes('Timur') ? 'Sektor Timur' : 'Sektor Selatan'),
-    lokasiKejadian: 'Jl. Fatmawati Raya No. 12, Jakarta Selatan',
-    koordinatGps: '-6.2345, 106.8423',
+    lokasiKejadian: document.getElementById('respon-lokasi-kegiatan')?.value.trim() || 'Pos Polisi / Titik Patroli',
+    koordinatGps: document.getElementById('respon-koordinat-gps')?.value.trim() || '-6.1980, 106.8245',
     waktu: waktu,
     sumberLaporan: '👮 Patroli Mandiri Personel',
     fotoLampiran: userAvatar,
@@ -7607,7 +7589,6 @@ function initPersonilDashboard() {
   renderMissionCriticalCard();
   renderPersonalStatsBento();
   renderPersonelShiftTimeline();
-  initViewLogKegiatan();
 }
 
 function updateStatusTaktisSelectStyle(selectEl, status) {
@@ -8058,9 +8039,413 @@ function kirimSinyalSos() {
   console.warn(`[EMERGENCY SOS] Signal dispatched by ${nama} (${ranmor})`);
 }
 
+// =========================================================================
+// GEOCODING OTOMATIS & MODAL MAP PICKER (ZERO ASSUMPTION LOG KEGIATAN)
+// =========================================================================
+let geocodeDebounceTimer = null;
+let pickerMapInstance = null;
+let pickerMarkerInstance = null;
+let currentPickedCoords = null;
+let currentPickedAddress = '';
+
+// Inisialisasi awal formulir respon lokasi & GPS
+function initLokasiKegiatanForm() {
+  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
+  const inputGps = document.getElementById('respon-koordinat-gps');
+  if (inputLokasi && !inputLokasi.value.trim()) {
+    // Kosongkan agar personel memasukkan data nyata (zero assumption)
+    if (inputGps) inputGps.value = '';
+  }
+}
+
+// 1. INPUT EVENT LISTENER: Geocoding otomatis dari teks alamat yang diketik
+function onInputLokasiKegiatan(query) {
+  clearTimeout(geocodeDebounceTimer);
+  const q = (query || '').trim();
+  const suggestionsBox = document.getElementById('respon-lokasi-suggestions');
+  const spinner = document.getElementById('lokasi-loading-spinner');
+
+  if (!q || q.length < 3) {
+    if (suggestionsBox) {
+      suggestionsBox.style.display = 'none';
+      suggestionsBox.innerHTML = '';
+    }
+    if (spinner) spinner.style.display = 'none';
+    return;
+  }
+
+  if (spinner) spinner.style.display = 'block';
+
+  // Debounce 500ms agar efisien
+  geocodeDebounceTimer = setTimeout(() => {
+    lakukanPencarianGeocoding(q);
+  }, 500);
+}
+
+// Fungsi eksekusi pencarian: Gunakan OpenStreetMap Nominatim (gratis tanpa butuh API key)
+function lakukanPencarianGeocoding(query) {
+  cariViaNominatim(query);
+}
+
+function cariViaNominatim(query) {
+  const spinner = document.getElementById('lokasi-loading-spinner');
+  const endpoint = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=5`;
+  
+  fetch(endpoint, {
+    headers: { 'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8' }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (spinner) spinner.style.display = 'none';
+      if (Array.isArray(data) && data.length > 0) {
+        tampilkanRekomendasiLokasi(data.map(item => ({
+          display_name: item.display_name,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon)
+        })));
+      } else {
+        tampilkanRekomendasiKosong();
+      }
+    })
+    .catch(err => {
+      if (spinner) spinner.style.display = 'none';
+      console.warn('Geocoding offline/fallback:', err);
+      tampilkanRekomendasiKosong();
+    });
+}
+
+function tampilkanRekomendasiLokasi(list) {
+  const box = document.getElementById('respon-lokasi-suggestions');
+  if (!box) return;
+  box.innerHTML = '';
+  box.style.display = 'block';
+
+  list.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'padding:9px 12px; border-bottom:1px solid #F1F5F9; cursor:pointer; font-size:12px; display:flex; align-items:flex-start; gap:8px; transition:0.15s background;';
+    row.onmouseover = () => row.style.background = '#EFF6FF';
+    row.onmouseout = () => row.style.background = '#FFFFFF';
+    row.innerHTML = `
+      <span style="font-size:14px; margin-top:1px;">📍</span>
+      <div style="flex:1;">
+        <div style="color:#1E293B; font-weight:600; line-height:1.3;">${item.display_name}</div>
+        <div style="font-size:10.5px; color:#2563EB; font-family:monospace; margin-top:2px;">[${item.lat.toFixed(6)}, ${item.lng.toFixed(6)}]</div>
+      </div>
+    `;
+    row.onclick = () => {
+      pilihRekomendasiLokasi(item.display_name, item.lat, item.lng);
+    };
+    box.appendChild(row);
+  });
+}
+
+function tampilkanRekomendasiKosong() {
+  const box = document.getElementById('respon-lokasi-suggestions');
+  if (!box) return;
+  box.innerHTML = `
+    <div style="padding:10px 12px; font-size:12px; color:#64748B; text-align:center;">
+      Lokasi tidak ditemukan secara presisi. Anda dapat mengklik tombol <strong>"🗺️ Pilih di Peta"</strong> untuk menandai titik langsung.
+    </div>
+  `;
+  box.style.display = 'block';
+}
+
+function pilihRekomendasiLokasi(nama, lat, lng) {
+  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
+  const inputGps = document.getElementById('respon-koordinat-gps');
+  const box = document.getElementById('respon-lokasi-suggestions');
+
+  if (inputLokasi) inputLokasi.value = nama;
+  if (inputGps) inputGps.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  if (box) box.style.display = 'none';
+
+  if (typeof showToastNotification === 'function') {
+    showToastNotification(`📍 Koordinat terkunci: ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 'success');
+  }
+}
+
+// 2. DETEKSI GPS PERANGKAT SEKARANG (HTML5 GEOLOCATION)
+function ambilGpsSaatIniLog() {
+  if (!navigator.geolocation) {
+    alert('Browser atau perangkat Anda tidak mendukung akses GPS Geolocation.');
+    return;
+  }
+  const inputGps = document.getElementById('respon-koordinat-gps');
+  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
+  if (inputGps) inputGps.value = 'Mendeteksi satelit GPS...';
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      if (inputGps) inputGps.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+      // Lakukan reverse geocoding untuk melengkapi alamat teks
+      reverseGeocodeCoords(lat, lng, (alamat) => {
+        if (inputLokasi && (!inputLokasi.value.trim() || inputLokasi.value.includes('Pos Polisi'))) {
+          inputLokasi.value = alamat;
+        }
+      });
+
+      if (typeof showToastNotification === 'function') {
+        showToastNotification(`🛰️ GPS Berhasil Dikunci: ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 'success');
+      }
+    },
+    (err) => {
+      console.warn('Geolocation error:', err);
+      // Fallback koordinat wilayah tugas (Polda Metro Jaya/Polres)
+      const defLat = -6.1980;
+      const defLng = 106.8245;
+      if (inputGps) inputGps.value = `${defLat.toFixed(6)}, ${defLng.toFixed(6)}`;
+      alert('Izin GPS tidak diberikan atau sinyal lemah. Koordinat disetel ke Titik Komando Default. Anda dapat menggunakan tombol "Pilih di Peta".');
+    },
+    { enableHighAccuracy: true, timeout: 8000 }
+  );
+}
+
+// 3. MODAL MAP PICKER (MEMILIH SENDIRI DARI MAPS TITIK LOKASINYA)
+function bukaModalPickMapLog() {
+  const modal = document.getElementById('modal-map-picker-log');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  // Baca koordinat yang sudah ada di input (jika ada)
+  const currentGpsStr = document.getElementById('respon-koordinat-gps')?.value.trim();
+  let initialLat = -6.1980;
+  let initialLng = 106.8245;
+
+  if (currentGpsStr && currentGpsStr.includes(',')) {
+    const parts = currentGpsStr.split(',');
+    const parsedLat = parseFloat(parts[0]);
+    const parsedLng = parseFloat(parts[1]);
+    if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+      initialLat = parsedLat;
+      initialLng = parsedLng;
+    }
+  }
+
+  currentPickedCoords = { lat: initialLat, lng: initialLng };
+  updatePickerInfoDisplay(initialLat, initialLng);
+
+  setTimeout(() => {
+    initOrUpdatePickerMap(initialLat, initialLng);
+  }, 100);
+}
+
+function tutupModalPickMapLog() {
+  const modal = document.getElementById('modal-map-picker-log');
+  if (modal) modal.style.display = 'none';
+}
+
+function initOrUpdatePickerMap(lat, lng) {
+  const container = document.getElementById('picker-map-canvas');
+  const loadingEl = document.getElementById('picker-map-loading');
+  if (!container) return;
+
+  const centerPos = { lat: lat, lng: lng };
+
+  if (typeof google !== 'undefined' && google.maps && typeof google.maps.Map === 'function') {
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    if (!pickerMapInstance) {
+      pickerMapInstance = new google.maps.Map(container, {
+        zoom: 15,
+        center: centerPos,
+        mapTypeId: 'roadmap',
+        disableDefaultUI: false,
+        zoomControl: true,
+        streetViewControl: false,
+        mapTypeControl: false
+      });
+
+      pickerMarkerInstance = new google.maps.Marker({
+        position: centerPos,
+        map: pickerMapInstance,
+        draggable: true,
+        animation: google.maps.Animation.DROP,
+        title: 'Geser titik ini ke lokasi kegiatan'
+      });
+
+      // Event saat peta diklik
+      pickerMapInstance.addListener('click', (e) => {
+        const clickedLat = e.latLng.lat();
+        const clickedLng = e.latLng.lng();
+        pickerMarkerInstance.setPosition(e.latLng);
+        currentPickedCoords = { lat: clickedLat, lng: clickedLng };
+        updatePickerInfoDisplay(clickedLat, clickedLng);
+        reverseGeocodeCoords(clickedLat, clickedLng, (addr) => {
+          currentPickedAddress = addr;
+          const addrEl = document.getElementById('picker-selected-address');
+          if (addrEl) addrEl.textContent = addr;
+        });
+      });
+
+      // Event saat marker digeser (dragend)
+      pickerMarkerInstance.addListener('dragend', (e) => {
+        const draggedLat = e.latLng.lat();
+        const draggedLng = e.latLng.lng();
+        currentPickedCoords = { lat: draggedLat, lng: draggedLng };
+        updatePickerInfoDisplay(draggedLat, draggedLng);
+        reverseGeocodeCoords(draggedLat, draggedLng, (addr) => {
+          currentPickedAddress = addr;
+          const addrEl = document.getElementById('picker-selected-address');
+          if (addrEl) addrEl.textContent = addr;
+        });
+      });
+    } else {
+      google.maps.event.trigger(pickerMapInstance, 'resize');
+      pickerMapInstance.setCenter(centerPos);
+      pickerMapInstance.setZoom(15);
+      if (pickerMarkerInstance) {
+        pickerMarkerInstance.setPosition(centerPos);
+      }
+    }
+
+    // Ambil alamat awal jika belum ada
+    reverseGeocodeCoords(lat, lng, (addr) => {
+      currentPickedAddress = addr;
+      const addrEl = document.getElementById('picker-selected-address');
+      if (addrEl) addrEl.textContent = addr;
+    });
+  } else {
+    // Fallback info jika Google Maps belum selesai termuat
+    if (loadingEl) {
+      loadingEl.innerHTML = `
+        <div style="text-align:center; padding:20px;">
+          <div style="font-size:24px; margin-bottom:8px;">🗺️</div>
+          <div>Menggunakan Titik Koordinat: <strong>${lat.toFixed(6)}, ${lng.toFixed(6)}</strong></div>
+          <div style="font-size:11px; color:#64748B; margin-top:6px;">Google Maps SDK memuat di latar belakang. Anda dapat langsung mengonfirmasi titik ini.</div>
+        </div>
+      `;
+    }
+  }
+}
+
+function updatePickerInfoDisplay(lat, lng) {
+  const coordsEl = document.getElementById('picker-selected-coords');
+  if (coordsEl) {
+    coordsEl.textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  }
+}
+
+// Reverse Geocoding: Koordinat Lat/Lng -> Teks Nama Alamat (OpenStreetMap Nominatim)
+function reverseGeocodeCoords(lat, lng, callback) {
+  reverseViaNominatim(lat, lng, callback);
+}
+
+function reverseViaNominatim(lat, lng, callback) {
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+    headers: { 'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8' }
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.display_name) {
+        callback(data.display_name);
+      } else {
+        callback(`Titik Koordinat [${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+      }
+    })
+    .catch(() => {
+      callback(`Titik Koordinat [${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+    });
+}
+
+function cariAlamatDiModalMap() {
+  const query = document.getElementById('modal-map-search-input')?.value.trim();
+  if (!query) return;
+  cariModalViaNominatim(query);
+}
+
+function cariModalViaNominatim(query) {
+  fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=id&limit=1`, {
+    headers: { 'Accept-Language': 'id-ID,id;q=0.9,en;q=0.8' }
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data) && data.length > 0) {
+        pindahkanPickerKeLokasi(parseFloat(data[0].lat), parseFloat(data[0].lon), data[0].display_name);
+      } else {
+        alert('Lokasi tidak ditemukan. Coba gunakan nama jalan utama atau klik langsung pada peta.');
+      }
+    })
+    .catch(() => {
+      alert('Pencarian alamat sedang mengalami kendala jaringan.');
+    });
+}
+
+function pindahkanPickerKeLokasi(lat, lng, namaAlamat) {
+  currentPickedCoords = { lat, lng };
+  currentPickedAddress = namaAlamat;
+  updatePickerInfoDisplay(lat, lng);
+
+  const addrEl = document.getElementById('picker-selected-address');
+  if (addrEl) addrEl.textContent = namaAlamat;
+
+  if (pickerMapInstance && pickerMarkerInstance) {
+    const pos = new google.maps.LatLng(lat, lng);
+    pickerMapInstance.panTo(pos);
+    pickerMapInstance.setZoom(16);
+    pickerMarkerInstance.setPosition(pos);
+  }
+}
+
+function ambilGpsSaatIniModal() {
+  if (!navigator.geolocation) {
+    alert('Browser tidak mendukung geolokasi.');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      reverseGeocodeCoords(lat, lng, (addr) => {
+        pindahkanPickerKeLokasi(lat, lng, addr);
+      });
+    },
+    () => {
+      alert('Tidak dapat membaca GPS perangkat saat ini.');
+    },
+    { enableHighAccuracy: true }
+  );
+}
+
+// Menerapkan titik dari modal kembali ke formulir input log
+function terapkanTitikPetaKeForm() {
+  if (!currentPickedCoords) {
+    alert('Silakan tentukan titik di peta terlebih dahulu.');
+    return;
+  }
+
+  const inputGps = document.getElementById('respon-koordinat-gps');
+  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
+
+  if (inputGps) {
+    inputGps.value = `${currentPickedCoords.lat.toFixed(6)}, ${currentPickedCoords.lng.toFixed(6)}`;
+  }
+
+  if (inputLokasi && currentPickedAddress) {
+    inputLokasi.value = currentPickedAddress;
+  }
+
+  tutupModalPickMapLog();
+
+  if (typeof showToastNotification === 'function') {
+    showToastNotification(`✓ Titik lokasi & koordinat GPS berhasil diterapkan!`, 'success');
+  }
+}
+
+// Close suggestion box when clicking outside
+document.addEventListener('click', (e) => {
+  const suggestionsBox = document.getElementById('respon-lokasi-suggestions');
+  const inputLokasi = document.getElementById('respon-lokasi-kegiatan');
+  if (suggestionsBox && e.target !== suggestionsBox && e.target !== inputLokasi && !suggestionsBox.contains(e.target)) {
+    suggestionsBox.style.display = 'none';
+  }
+});
+
 // Inisialisasi otomatis dashboard saat DOM siap
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initPersonilDashboard);
 } else {
   initPersonilDashboard();
-}
+}
