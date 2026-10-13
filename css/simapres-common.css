@@ -1246,3 +1246,8 @@
         break-inside: avoid !important;
       }
     }
+
+    /* Sembunyikan Google Maps Warning Box / Error Modal */
+    .gm-err-container, .gm-err-content, .dismissButton {
+      display: none !important;
+    }

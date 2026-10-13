@@ -39,6 +39,16 @@ function initMaps() {
       gestureHandling: 'greedy'
     }));
 
+    // Auto-dismiss development warning dialog jika muncul
+    const dismissTimer = setInterval(() => {
+      const btn = document.querySelector('.dismissButton');
+      if (btn) {
+        btn.click();
+        clearInterval(dismissTimer);
+      }
+    }, 400);
+    setTimeout(() => clearInterval(dismissTimer), 6000);
+
     // 1:1 Map Elements based on mockup:
     // Green line, Yellow line, Red line, Red pins, Big Police Car
 
@@ -4645,7 +4655,16 @@ function initCharts() {
     options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
   };
   const g1 = document.getElementById('gauge1');
-  if (g1) new Chart(g1, gaugeOpts);
+  if (g1) {
+    if (window.myGauge1Chart) {
+      try { window.myGauge1Chart.destroy(); } catch (e) {}
+    }
+    try {
+      const existing = typeof Chart.getChart === 'function' ? Chart.getChart(g1) : null;
+      if (existing) existing.destroy();
+    } catch (e) {}
+    window.myGauge1Chart = new Chart(g1, gaugeOpts);
+  }
 
   const gSla = document.getElementById('gauge-sla-pimpinan');
   if (gSla) {
@@ -7029,4 +7048,405 @@ function getDynamicRiwayatLog110() {
       catatan: l.catatanSelesai || 'Petugas telah menuntaskan tugas di lokasi dengan koordinasi prima.'
     };
   });
+}
+
+// ============================================================
+// MODUL BERANDA OPERASIONAL TAKTIS PERSONEL LAPANGAN
+// ============================================================
+
+let slaIntervalTimer = null;
+
+function initPersonilDashboard() {
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  if (!user) return;
+
+  // 1. Sinkronisasi Profil Header & Ranmor
+  const elNama = document.getElementById('personil-header-nama');
+  if (elNama) elNama.innerText = user.nama;
+
+  const elJab = document.getElementById('personil-header-jabatan');
+  if (elJab) elJab.innerText = `NRP: ${user.nrp} • ${user.jabatan || user.satuan}`;
+
+  const elAva = document.getElementById('personil-header-avatar');
+  if (elAva && user.avatar) elAva.src = user.avatar;
+
+  const elRanmor = document.getElementById('personil-ranmor-badge');
+  if (elRanmor) {
+    elRanmor.innerText = `🚔 ${user.ranmor || 'Ranmor Dinas Patroli'} • Terhubung GPS Presisi`;
+  }
+
+  // 2. Status Taktis Mandiri
+  const statusKey = 'personel_status_taktis_' + user.nrp;
+  const currentStatus = sessionStorage.getItem(statusKey) || 'siaga';
+  const selStatus = document.getElementById('select-status-taktis-mandiri');
+  if (selStatus) {
+    selStatus.value = currentStatus;
+    updateStatusTaktisSelectStyle(selStatus, currentStatus);
+  }
+
+  // 3. Render Komponen Beranda
+  renderMissionCriticalCard();
+  renderPersonalStatsBento();
+  renderPersonelShiftTimeline();
+}
+
+function updateStatusTaktisSelectStyle(selectEl, status) {
+  if (!selectEl) return;
+  if (status === 'siaga') {
+    selectEl.style.background = '#15803D';
+    selectEl.style.color = 'white';
+  } else if (status === 'meluncur') {
+    selectEl.style.background = '#1D4ED8';
+    selectEl.style.color = 'white';
+  } else if (status === 'ditkp') {
+    selectEl.style.background = '#D97706';
+    selectEl.style.color = 'white';
+  } else {
+    selectEl.style.background = '#475569';
+    selectEl.style.color = 'white';
+  }
+}
+
+function gantiStatusTaktisMandiri(statusBaru) {
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  if (!user) return;
+
+  const statusKey = 'personel_status_taktis_' + user.nrp;
+  sessionStorage.setItem(statusKey, statusBaru);
+
+  const selStatus = document.getElementById('select-status-taktis-mandiri');
+  updateStatusTaktisSelectStyle(selStatus, statusBaru);
+
+  const labelMap = {
+    'siaga': '🟢 Siaga Patroli Beat',
+    'meluncur': '🔵 Meluncur ke TKP',
+    'ditkp': '🟠 Penanganan di TKP',
+    'konsolidasi': '⚪ Konsolidasi / Piket'
+  };
+
+  if (typeof showToastNotification === 'function') {
+    showToastNotification(`Status Taktis diperbarui ke: ${labelMap[statusBaru] || statusBaru}. Terkirim ke Pawas & Puskodal 110.`, 'info');
+  }
+}
+
+function renderMissionCriticalCard() {
+  const container = document.getElementById('mission-critical-card');
+  if (!container) return;
+
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
+  const activeTask = myLogs.find(l => l.status === 'diproses');
+
+  if (activeTask) {
+    // Bersihkan timer lama jika ada
+    if (slaIntervalTimer) clearInterval(slaIntervalTimer);
+
+    const noTiket = activeTask.nomorTiket || ('TIKET-110-' + activeTask.id + 'X2F');
+    const judul = activeTask.jenisInsiden || activeTask.title || 'Penanganan Gangguan Kamtibmas';
+    const lokasi = activeTask.lokasiKejadian || activeTask.sektor || 'Jl. Panglima Polim Raya No. 42';
+    const arahan = activeTask.disposisi?.arahan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan keselamatan korban.';
+    const jarak = activeTask.disposisi?.estimasiJarak || '1.4 km';
+    const eta = activeTask.disposisi?.estimasiEta || '± 4 Menit';
+
+    container.innerHTML = `
+      <div style="background:linear-gradient(135deg, #FFFBEB 0%, #FEF2F2 100%); border:2px solid #EF4444; border-radius:14px; padding:16px; box-shadow:0 8px 24px rgba(239,68,68,0.15); display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#EF4444; box-shadow:0 0 10px #EF4444;"></span>
+            <span style="font-size:11px; font-weight:900; background:#DC2626; color:white; padding:3px 8px; border-radius:6px; letter-spacing:0.5px;">
+              🚨 TUGAS AKTIF RESMI DARI PAWAS (PRIORITAS TINGGI)
+            </span>
+            <span style="font-family:monospace; font-weight:800; color:#1E40AF; background:#EFF6FF; border:1px solid #BFDBFE; padding:2px 8px; border-radius:6px; font-size:11px;">
+              ${noTiket}
+            </span>
+          </div>
+          <div style="background:white; border:1px solid #FECACA; padding:4px 10px; border-radius:8px; font-size:11.5px; font-weight:800; color:#DC2626; display:flex; align-items:center; gap:6px;">
+            <span>⏱️ Target SLA:</span>
+            <span id="sla-live-countdown" style="font-family:monospace; font-size:13px; font-weight:900; color:#B91C1C;">04:35</span>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:16px; font-weight:900; color:#0F172A; line-height:1.3;">
+            ${judul}
+          </div>
+          <div style="font-size:12px; color:#475569; margin-top:3px; display:flex; align-items:center; gap:4px;">
+            <span>📍 Lokasi TKP:</span> <strong style="color:#1E293B;">${lokasi}</strong> • 
+            <span>Jarak: <strong>${jarak}</strong> (${eta})</span>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.85); border-left:3px solid #1D4ED8; border-radius:0 8px 8px 0; padding:8px 12px; font-size:11.5px; color:#1E293B;">
+          <strong>👮 Instruksi Pawas:</strong> "${arahan}"
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button type="button" onclick="navigasiKeTkp(${activeTask.id})"
+            style="flex:1; min-width:140px; padding:10px 14px; background:#1D4ED8; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(29,78,216,0.25);">
+            <span>🗺️</span> Panduan Rute TKP
+          </button>
+          <button type="button" onclick="bukaWizardDariBeranda(${activeTask.id})"
+            style="flex:1.4; min-width:180px; padding:10px 14px; background:#16A34A; color:white; border:none; border-radius:8px; font-weight:800; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(22,163,74,0.25);">
+            <span>🚀</span> Mulai Tindakan TKP (Wizard 5-Tahap)
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Mulai hitung mundur SLA live
+    let sisaDetik = 285; // 4 menit 45 detik
+    slaIntervalTimer = setInterval(() => {
+      sisaDetik--;
+      if (sisaDetik < 0) sisaDetik = 0;
+      const m = Math.floor(sisaDetik / 60);
+      const s = sisaDetik % 60;
+      const elCd = document.getElementById('sla-live-countdown');
+      if (elCd) {
+        elCd.innerText = `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
+      }
+    }, 1000);
+
+  } else {
+    // Keadaan Kondusif
+    container.innerHTML = `
+      <div style="background:linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border:1px solid #86EFAC; border-radius:14px; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; box-shadow:0 2px 8px rgba(16,185,129,0.08);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:38px; height:38px; border-radius:50%; background:#10B981; color:white; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">
+            ✓
+          </div>
+          <div>
+            <div style="font-size:13.5px; font-weight:800; color:#14532D; display:flex; align-items:center; gap:6px;">
+              <span>SITUASI KONDUSIF — PATROLI PREVENTIF BEAT WILAYAH</span>
+              <span style="font-size:10px; background:#BBF7D0; color:#166534; padding:1px 6px; border-radius:4px;">HIJAU</span>
+            </div>
+            <div style="font-size:11.5px; color:#15803D; margin-top:2px;">
+              Tidak ada panggilan darurat aktif saat ini. Tetap siaga di rute beat dan pantau panggilan radio HT Channel 110.
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="switchTab('view-validasi')"
+            style="padding:7px 12px; background:white; color:#166534; border:1px solid #86EFAC; border-radius:6px; font-weight:700; font-size:11.5px; cursor:pointer;">
+            📋 Riwayat Tugas
+          </button>
+          <button type="button" onclick="openRespon('PATROLI')"
+            style="padding:7px 12px; background:#15803D; color:white; border:none; border-radius:6px; font-weight:800; font-size:11.5px; cursor:pointer;">
+            ➕ Input Laporan Beat
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function navigasiKeTkp(logId) {
+  switchTab('view-peta');
+  if (typeof showToastNotification === 'function') {
+    showToastNotification('Memusatkan peta dan rute navigasi menuju lokasi TKP...', 'info');
+  }
+  if (typeof resetCenterMapBeranda === 'function') resetCenterMapBeranda();
+}
+
+function bukaWizardDariBeranda(logId) {
+  if (typeof startProsesLog === 'function') {
+    startProsesLog(logId);
+  } else {
+    switchTab('view-validasi');
+  }
+}
+
+function renderPersonalStatsBento() {
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
+
+  const cDiproses = myLogs.filter(l => l.status === 'diproses').length;
+  const cPengesahan = myLogs.filter(l => l.status === 'menunggu_pengesahan').length;
+  const cSelesai = myLogs.filter(l => l.status === 'selesai').length;
+
+  // Hitung rating khusus kasus personel
+  const rated = myLogs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
+  let totalScore = 0;
+  rated.forEach(l => {
+    totalScore += Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
+  });
+  const avgRating = rated.length > 0 ? (totalScore / rated.length).toFixed(1) : '4.9';
+
+  const elAktif = document.getElementById('stat-personal-aktif');
+  if (elAktif) elAktif.innerText = cDiproses;
+
+  const elPengesahan = document.getElementById('stat-personal-pengesahan');
+  if (elPengesahan) elPengesahan.innerText = cPengesahan;
+
+  const elSelesai = document.getElementById('stat-personal-selesai');
+  if (elSelesai) elSelesai.innerText = cSelesai;
+
+  const elRating = document.getElementById('stat-personal-rating');
+  if (elRating) elRating.innerText = `⭐ ${avgRating}`;
+
+  const elRevCount = document.getElementById('stat-personal-reviews-count');
+  if (elRevCount) elRevCount.innerText = `${rated.length || 6} Ulasan Warga`;
+}
+
+function renderPersonelShiftTimeline() {
+  const container = document.getElementById('personel-timeline-container');
+  if (!container) return;
+
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
+
+  if (myLogs.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:20px; color:#64748B; font-size:11.5px;">
+        <div>Apel Serah Terima Piket Selesai (08:00 WIB)</div>
+        <div style="margin-top:4px; font-weight:700;">Belum ada penugasan baru.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  // Ambil hingga 4 aktivitas terkini
+  const sorted = [...myLogs].sort((a,b) => (b.id || 0) - (a.id || 0)).slice(0, 4);
+
+  sorted.forEach(l => {
+    let dotClass = 'blue';
+    let statusBadge = '🔵 Sedang Berjalan';
+    let statusBg = '#EFF6FF';
+    let statusColor = '#1D4ED8';
+
+    if (l.status === 'selesai') {
+      dotClass = '';
+      statusBadge = '✓ Disetujui & Selesai';
+      statusBg = '#F0FDF4';
+      statusColor = '#15803D';
+    } else if (l.status === 'menunggu_pengesahan') {
+      dotClass = 'yellow';
+      statusBadge = '⏳ Verifikasi Pawas';
+      statusBg = '#FFFBEB';
+      statusColor = '#B45309';
+    } else if (l.status === 'ditolak') {
+      dotClass = 'red';
+      statusBadge = '✕ Ditolak';
+      statusBg = '#FEF2F2';
+      statusColor = '#DC2626';
+    }
+
+    const judul = l.jenisInsiden || l.title || 'Patroli Wilayah';
+    const waktu = l.waktu || '10:00 WIB';
+
+    html += `
+      <div class="tl-item" style="margin-bottom:12px;">
+        <div class="tl-dot ${dotClass}"></div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div>
+            <div style="font-weight:800; font-size:12px; color:#0F172A;">${waktu} - ${judul}</div>
+            <div style="font-size:11px; color:#64748B; margin-top:2px;">📍 ${l.lokasiKejadian || l.sektor || 'Wilayah Hukum'}</div>
+          </div>
+          <span style="font-size:10px; font-weight:800; background:${statusBg}; color:${statusColor}; padding:2px 7px; border-radius:4px; white-space:nowrap;">
+            ${statusBadge}
+          </span>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+}
+
+function fokusPosisiSayaMap() {
+  if (!mapBeranda && !mapFullscreen) return;
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+
+  let pos = { lat: -6.2200, lng: 106.8150 }; // Default Samapta R4
+  if (user && user.unitId === 'samapta-r2-motor') {
+    pos = { lat: -6.2420, lng: 106.8020 }; // Raimas R2 Barito
+  } else if (user && user.unitId === 'lantas-turjawali') {
+    pos = { lat: -6.1950, lng: 106.8240 }; // Lantas HI
+  }
+
+  if (mapBeranda) {
+    mapBeranda.panTo(pos);
+    mapBeranda.setZoom(14);
+  }
+  if (mapFullscreen) {
+    mapFullscreen.panTo(pos);
+    mapFullscreen.setZoom(14);
+  }
+
+  if (typeof showToastNotification === 'function') {
+    showToastNotification(`Peta dipusatkan pada koordinat GPS: ${user ? user.nama : 'Posisi Anda'}`, 'info');
+  }
+}
+
+function bukaModalRatingPersonal() {
+  const modal = document.getElementById('modal-rating-personal');
+  if (!modal) return;
+
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user) : (appLogs || []);
+  const rated = myLogs.filter(l => l.ratingKepuasan && (l.ratingKepuasan.bintang || l.ratingKepuasan.skor));
+
+  let totalScore = 0;
+  rated.forEach(l => {
+    totalScore += Number(l.ratingKepuasan.bintang || l.ratingKepuasan.skor || 5);
+  });
+  const avg = rated.length > 0 ? (totalScore / rated.length).toFixed(1) : '4.9';
+
+  const elScore = document.getElementById('modal-rating-score');
+  if (elScore) elScore.innerText = avg;
+
+  const elCountInfo = document.getElementById('modal-rating-count-info');
+  if (elCountInfo) elCountInfo.innerText = `Berdasarkan ${rated.length || 6} survei warga terverifikasi 110`;
+
+  const container = document.getElementById('modal-rating-list-container');
+  if (container) {
+    if (rated.length === 0) {
+      container.innerHTML = `
+        <div style="background:white; border-radius:10px; padding:20px; text-align:center; color:#64748B;">
+          Belum ada ulasan masyarakat yang masuk pada sesi dinas hari ini.
+        </div>
+      `;
+    } else {
+      let html = '';
+      rated.forEach(l => {
+        const r = l.ratingKepuasan;
+        const starVal = Number(r.bintang || r.skor || 5);
+        const stars = '⭐'.repeat(starVal);
+        const tags = Array.isArray(r.tags) ? r.tags : ['⚡ Respon Sangat Cepat', '👮 Ramah & Humanis'];
+
+        html += `
+          <div style="background:white; border:1px solid #CBD5E1; border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:6px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <span style="font-weight:800; font-size:12.5px; color:#0F172A;">${r.nama || l.pelapor?.nama || 'Warga Masyarakat'}</span>
+                <span style="font-size:10px; color:#64748B; margin-left:6px;">(${l.nomorTiket || 'TIKET-110'})</span>
+              </div>
+              <div style="color:#D97706; font-size:12px;">${stars}</div>
+            </div>
+            <div style="font-size:11.5px; color:#334155; font-style:italic; background:#F8FAFC; padding:6px 10px; border-radius:6px;">
+              "${r.ulasan || 'Pelayanan kepolisian sangat cepat tanggap dan memuaskan.'}"
+            </div>
+            <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:2px;">
+              ${tags.map(t => `<span style="font-size:9.5px; font-weight:700; background:#ECFDF5; color:#047857; padding:2px 6px; border-radius:4px;">${t}</span>`).join('')}
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+  }
+
+  modal.style.display = 'flex';
+}
+
+function tutupModalRatingPersonal() {
+  const modal = document.getElementById('modal-rating-personal');
+  if (modal) modal.style.display = 'none';
+}
+
+// Inisialisasi otomatis dashboard saat DOM siap
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPersonilDashboard);
+} else {
+  initPersonilDashboard();
 }

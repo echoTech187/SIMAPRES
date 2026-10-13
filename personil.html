@@ -147,139 +147,90 @@
                   </div>
                 </div>
 
-                <div class="map-legend-mini" id="map-legend-mini"><span style="color:#EF4444; font-size:14px;">●</span>
-                  Titik Rawan</div>
-              </div>
-            </div>
-
-            <!-- Rekapitulasi Tugas Personel -->
-            <div id="rekap-card" class="card-panel">
-              <div class="card-title">Status Tugas Saya Hari Ini</div>
-              <div class="rekap-grid" style="grid-template-columns: repeat(3, 1fr);">
-                <div class="rekap-box" id="rekap-box-total" onclick="openValidasiList('semua')"
-                  style="cursor: pointer; transition: transform 0.2s; background: white;"
-                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'"
-                  title="Lihat Semua Tugas Saya">
-                  <div class="rekap-label" id="rekap-label-total">TOTAL TUGAS SAYA</div>
-                  <div class="rekap-val" id="rekap-total-val">1</div>
-                </div>
-                <div class="rekap-box" id="rekap-box-diproses" onclick="openValidasiList('diproses')"
-                  style="cursor: pointer; background: #d0ccea; border-color: #d0ccea; transition: transform 0.2s;"
-                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'"
-                  title="Lihat Tugas Sedang Ditangani">
-                  <div class="rekap-label" style="color:var(--primary)">SEDANG DITANGANI</div>
-                  <div class="rekap-val primary" id="rekap-diproses-val">1</div>
-                </div>
-                <div class="rekap-box" id="rekap-box-pengesahan" onclick="openValidasiList('menunggu_pengesahan')"
-                  style="cursor: pointer; background: #EDE9FE; border-color: #DDD6FE; transition: transform 0.2s;"
-                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
-                  onmouseout="this.style.transform='none'; this.style.boxShadow='none'"
-                  title="Lihat Tugas Menunggu Pengesahan Pawas">
-                  <div class="rekap-label" style="color:#7C3AED">PENGESAHAN PAWAS</div>
-                  <div class="rekap-val purple" style="color:#7C3AED;" id="rekap-pengesahan-val">0</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Aktivitas Personel Lapangan (Tampil saat akun Anggota) -->
-            <div id="aktivitas-personel-card" class="card-panel">
-              <div class="card-title">Aktivitas Terkini</div>
-              <div class="timeline" id="personel-timeline-container">
-                <div class="tl-item">
-                  <div class="tl-dot"></div>
-                  <div class="tl-time">09:30 - Patroli Pasar Jaya</div>
-                  <div class="tl-desc">- Disetujui</div>
-                </div>
-                <div class="tl-item">
-                  <div class="tl-dot yellow"></div>
-                  <div class="tl-time">11:15 - Penanganan Laka Lantas</div>
-                  <div class="tl-desc">- Menunggu</div>
-                </div>
-                <div class="tl-item" style="margin-bottom:0;">
-                  <div class="tl-dot red"></div>
-                  <div class="tl-time">13:45 - Sambang Tokoh Warga</div>
-                  <div class="tl-desc" style="color:var(--danger); font-weight:600;">- Ditolak: Foto kurang jelas</div>
-                  <button onclick="switchTab('view-log')"
-                    style="margin-top:8px; background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:4px; font-size:11px; font-weight:bold; cursor:pointer;">✏️
-                    Perbaiki Log</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Feed Komando & Respon Personel Terkini (Khusus Pimpinan/Pawas) -->
-            <div id="aktivitas-pimpinan-card" class="card-panel" style="display:none;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-                <div>
-                  <div class="card-title" style="margin-bottom:2px;">FEED KOMANDO & SITUASI LAPANGAN (REAL-TIME)</div>
-                  <div style="font-size:11.5px; color:var(--text-muted);">Pantauan eskalasi insiden darurat, panggilan 110, dan status penanganan kasus di wilayah hukum Polres</div>
-                </div>
-              </div>
-              <div class="timeline" id="pimpinan-ops-timeline">
-                <div class="tl-item">
-                  <div class="tl-dot red"></div>
-                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                    <div>
-                      <div style="font-weight:800; font-size:13px; color:var(--text);">12:20 WIB - Respon Cepat Tawuran
-                        Pelajar (Panglima Polim)</div>
-                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Unit Samapta Presisi R-4 (Aiptu
-                        Herman) meluncur ke TKP. Estimasi tiba 3 menit.</div>
-                    </div>
-                    <span
-                      style="font-size:10px; font-weight:800; background:#FEF2F2; color:#DC2626; padding:3px 8px; border-radius:6px; border:1px solid #FECACA; white-space:nowrap;">🚨
-                      DARURAT</span>
-                  </div>
-                </div>
-                <div class="tl-item">
-                  <div class="tl-dot yellow"></div>
-                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                    <div>
-                      <div style="font-weight:800; font-size:13px; color:var(--text);">11:40 WIB - Pengamanan Sambang
-                        Pos Kamling & Warga RT 04 (Sektor Barat)</div>
-                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Petugas lapangan menyelesaikan
-                        penyuluhan kamtibmas. Menunggu review lembar laporan.</div>
-                    </div>
-                    <span
-                      style="font-size:10px; font-weight:800; background:#FFFBEB; color:#D97706; padding:3px 8px; border-radius:6px; border:1px solid #FDE68A; white-space:nowrap;">⏳
-                      REVIEW PAWAS</span>
-                  </div>
-                </div>
-                <div class="tl-item" style="margin-bottom:0;">
-                  <div class="tl-dot"></div>
-                  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-                    <div>
-                      <div style="font-weight:800; font-size:13px; color:var(--text);">10:15 WIB - Pengaturan Arus Lalu
-                        Lintas & Patroli Simpang Protokol</div>
-                      <div style="font-size:11.5px; color:#475569; margin-top:2px;">Turjawali Satlantas telah
-                        menuntaskan tugas penguraian kemacetan. Situasi kembali lancar.</div>
-                    </div>
-                    <span
-                      style="font-size:10px; font-weight:800; background:#F0FDF4; color:#16A34A; padding:3px 8px; border-radius:6px; border:1px solid #BBF7D0; white-space:nowrap;">✓
-                      TUNTAS (⭐ 5.0)</span>
-                  </div>
+                <div class="map-legend-mini" id="map-legend-mini" style="display:flex; align-items:center; gap:12px; font-size:11px; font-weight:700; color:#475569;">
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="color:#2563EB; font-size:13px;">●</span> Posisi Anda</span>
+                  <span style="display:inline-flex; align-items:center; gap:4px;"><span style="color:#EF4444; font-size:13px;">●</span> Titik Rawan</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Right Column -->
-          <div id="beranda-col-right" style="width: 330px; flex-shrink: 0;">
-            <!-- Input Log Buttons (Khusus Personel Lapangan) -->
-            <div id="tindak-lanjut-card" class="card-panel">
-              <div class="card-title">Input Log Kegiatan</div>
-              <button class="btn-log" onclick="openRespon('PATROLI')">PATROLI</button>
-              <button class="btn-log" onclick="openRespon('TPTKP')">TPTKP</button>
-              <button class="btn-log" onclick="openRespon('SAMBANG')">SAMBANG</button>
-              <button class="btn-log" onclick="openRespon('PENGAMANAN')">PENGAMANAN</button>
+          <!-- Right Column (Sesuai Gambar 2) -->
+          <div id="beranda-col-right" style="width: 340px; flex-shrink: 0;">
+            <!-- Quick Action Pad 2x2 (Sesuai Gambar 2) -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:10px;">
+              <!-- Patroli (Blue) -->
+              <button type="button" onclick="openRespon('PATROLI')"
+                style="background:#1D4ED8; color:white; border:none; border-radius:10px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:3px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; box-shadow:0 2px 6px rgba(29,78,216,0.25);"
+                onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                <div style="font-size:18px;">🚔</div>
+                <div style="font-size:11.5px; font-weight:800; letter-spacing:0.5px;">PATROLI</div>
+                <div style="font-size:9.5px; opacity:0.85;">Blue Light Beat</div>
+              </button>
+
+              <!-- TPTKP (Red) -->
+              <button type="button" onclick="openRespon('TPTKP')"
+                style="background:#DC2626; color:white; border:none; border-radius:10px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:3px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; box-shadow:0 2px 6px rgba(220,38,38,0.25);"
+                onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                <div style="font-size:18px;">🛡️</div>
+                <div style="font-size:11.5px; font-weight:800; letter-spacing:0.5px;">TPTKP</div>
+                <div style="font-size:9.5px; opacity:0.85;">Tindakan Pertama</div>
+              </button>
+
+              <!-- Sambang (Green) -->
+              <button type="button" onclick="openRespon('SAMBANG')"
+                style="background:#059669; color:white; border:none; border-radius:10px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:3px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; box-shadow:0 2px 6px rgba(5,150,105,0.25);"
+                onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                <div style="font-size:18px;">🤝</div>
+                <div style="font-size:11.5px; font-weight:800; letter-spacing:0.5px;">SAMBANG</div>
+                <div style="font-size:9.5px; opacity:0.85;">Warga &amp; Tokoh</div>
+              </button>
+
+              <!-- Pengamanan (Orange) -->
+              <button type="button" onclick="openRespon('PENGAMANAN')"
+                style="background:#D97706; color:white; border:none; border-radius:10px; padding:12px 8px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:3px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s; box-shadow:0 2px 6px rgba(217,119,6,0.25);"
+                onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+                <div style="font-size:18px;">⚠️</div>
+                <div style="font-size:11.5px; font-weight:800; letter-spacing:0.5px;">PENGAMANAN</div>
+                <div style="font-size:9.5px; opacity:0.85;">Jalur / Keramaian</div>
+              </button>
             </div>
 
-            <!-- KPI (Khusus Personel Lapangan) -->
-            <div id="kpi-card" class="card-panel">
-              <div class="card-title">KPI PERFORMANCE</div>
-              <div class="gauge-container">
+            <!-- Saluran Radio HT (Sesuai Gambar 2) -->
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px 12px; display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; font-size:11px;">
+              <div style="display:flex; align-items:center; gap:6px; color:#475569; font-weight:600;">
+                <span>📻</span>
+                <span>Saluran Radio HT:</span>
+              </div>
+              <div style="color:#0284C7; font-weight:800; font-size:11px;" id="personel-radio-channel">CH-110 METRO PRESISI</div>
+            </div>
+
+            <!-- KPI PERFORMANCE (Sesuai Gambar 2) -->
+            <div class="card-panel" id="kpi-card" style="margin-bottom:12px; padding:16px;">
+              <div class="card-title" style="margin-bottom:8px; font-size:12px; font-weight:800;">KPI PERFORMANCE</div>
+              <div class="gauge-container" style="position:relative; width:100%; height:110px; display:flex; align-items:center; justify-content:center;">
                 <canvas id="gauge1"></canvas>
-                <div class="gauge-text" style="color:var(--primary);">92%</div>
+                <div style="position:absolute; top:58%; left:50%; transform:translate(-50%, -50%); font-size:24px; font-weight:900; color:#1E293B;" id="gauge1-text">92%</div>
+              </div>
+              <div style="text-align:center; font-size:11px; color:#64748B; font-weight:600; margin-top:6px;" id="gauge1-subtext">
+                Capaian Target Respon &amp; Standar SOP Presisi
+              </div>
+            </div>
+
+            <!-- MUTASI KEGIATAN SAYA (Sesuai Gambar 2) -->
+            <div class="card-panel" id="mutasi-kegiatan-card" style="padding:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div class="card-title" style="margin-bottom:0; font-size:12px; font-weight:800;">MUTASI KEGIATAN SAYA</div>
+                <a href="javascript:void(0)" onclick="switchTab('view-kinerja')"
+                  style="font-size:11px; font-weight:700; color:#1D4ED8; text-decoration:none; display:flex; align-items:center; gap:3px;">
+                  Lihat Semua ➔
+                </a>
+              </div>
+              <div id="personel-timeline-container" style="border-left:2px solid #E2E8F0; padding-left:14px; margin-left:6px;">
+                <div style="font-size:11.5px; color:#475569; line-height:1.5;">
+                  <div style="font-weight:700; color:#1E293B;">Apel Serah Terima Piket Selesai (08:00 WIB)</div>
+                  <div style="color:#64748B; margin-top:2px;">Belum ada penugasan baru.</div>
+                </div>
               </div>
             </div>
           </div>
@@ -384,7 +335,8 @@
             <div style="display:flex; align-items:center; gap:8px;">
               <h2 class="page-title" style="margin:0;" id="val-page-title">Daftar Penugasan Lapangan</h2>
               <span
-                style="font-size:10px; font-weight:800; background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0; padding:2px 8px; border-radius:12px;">TUGAS OPERASIONAL LAPANGAN</span>
+                style="font-size:10px; font-weight:800; background:#F0FDF4; color:#15803D; border:1px solid #BBF7D0; padding:2px 8px; border-radius:12px;">TUGAS
+                OPERASIONAL LAPANGAN</span>
             </div>
             <div class="page-subtitle" style="margin:2px 0 0; color:var(--text-muted); font-size:12px;"
               id="val-page-desc">Monitoring Penugasan Lapangan: Respon TKP, Pengisian BAP & Pengajuan Pengesahan
@@ -954,11 +906,13 @@
                       style="font-size:10.5px; font-weight:700; color:#93C5FD; text-transform:uppercase; letter-spacing:0.5px;">
                       -</div>
                     <h3 id="profil-user-nama"
-                      style="font-size:17px; color:#FFFFFF; font-weight:800; margin:2px 0 3px; line-height:1.2;">Memuat Personel...</h3>
+                      style="font-size:17px; color:#FFFFFF; font-weight:800; margin:2px 0 3px; line-height:1.2;">Memuat
+                      Personel...</h3>
                     <div id="profil-user-nrp"
                       style="font-size:12px; font-weight:700; color:#FDE68A; font-family:monospace; letter-spacing:1px;">
                       NRP: -</div>
-                    <div id="profil-user-jabatan" style="font-size:10.5px; color:#E2E8F0; margin-top:3px;">Unit Operasional Presisi</div>
+                    <div id="profil-user-jabatan" style="font-size:10.5px; color:#E2E8F0; margin-top:3px;">Unit
+                      Operasional Presisi</div>
                   </div>
                 </div>
 
@@ -1008,7 +962,8 @@
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
                     <span style="color:var(--text-muted);">Jam Masuk Piket:</span>
-                    <span id="profil-presensi-jam-masuk" style="font-weight:700; color:var(--text);">- (Belum Masuk Dinas)
+                    <span id="profil-presensi-jam-masuk" style="font-weight:700; color:var(--text);">- (Belum Masuk
+                      Dinas)
                       (Tervalidasi)</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
@@ -1114,16 +1069,20 @@
                 <div
                   style="display:flex; gap:6px; margin-bottom:16px; border-bottom:1px solid #F1F5F9; padding-bottom:10px; flex-wrap:wrap;"
                   id="profil-filter-buttons-container">
-                  <button type="button" id="profil-btn-semua" class="btn-log-filter active" onclick="setFilterLogProfil('semua', this)"
+                  <button type="button" id="profil-btn-semua" class="btn-log-filter active"
+                    onclick="setFilterLogProfil('semua', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #BFDBFE; background:#EFF6FF; color:var(--primary); cursor:pointer;">Semua
                     (0)</button>
-                  <button type="button" id="profil-btn-menunggu" class="btn-log-filter" onclick="setFilterLogProfil('menunggu', this)"
+                  <button type="button" id="profil-btn-menunggu" class="btn-log-filter"
+                    onclick="setFilterLogProfil('menunggu', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Menunggu
                     Tindakan (0)</button>
-                  <button type="button" id="profil-btn-diproses" class="btn-log-filter" onclick="setFilterLogProfil('diproses', this)"
+                  <button type="button" id="profil-btn-diproses" class="btn-log-filter"
+                    onclick="setFilterLogProfil('diproses', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Sedang
                     Ditangani (0)</button>
-                  <button type="button" id="profil-btn-selesai" class="btn-log-filter" onclick="setFilterLogProfil('selesai', this)"
+                  <button type="button" id="profil-btn-selesai" class="btn-log-filter"
+                    onclick="setFilterLogProfil('selesai', this)"
                     style="padding:5px 12px; font-size:11.5px; font-weight:700; border-radius:6px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; cursor:pointer;">Selesai
                     (0)</button>
                 </div>
@@ -1148,7 +1107,8 @@
 
         <div class="form-group">
           <label class="form-label">Waktu Perekaman</label>
-          <input type="text" id="respon-waktu-perekaman" class="form-control" value="" readonly style="background:#e2e8f0;">
+          <input type="text" id="respon-waktu-perekaman" class="form-control" value="" readonly
+            style="background:#e2e8f0;">
         </div>
 
         <div class="form-group">
@@ -1487,7 +1447,8 @@
             <img id="tolak-preview-avatar" src="assets/images/avatar_polisi.jpg"
               style="width:38px; height:38px; border-radius:50%; object-fit:cover;">
             <div>
-              <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Petugas Lapangan</div>
+              <div id="tolak-preview-petugas" style="font-weight:700; font-size:13px; color:var(--text);">Petugas
+                Lapangan</div>
               <div id="tolak-preview-waktu" style="font-size:11px; color:var(--text-muted);">Terkirim: Hari ini, 10:15
                 WIB</div>
             </div>
