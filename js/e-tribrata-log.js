@@ -926,8 +926,8 @@ function getDefaultLogs() {
       id: 4,
       platform: 'personel',
       platformBadge: '👮 PATROLI POLRI',
-      kategoriInsiden: 'Kamtibmas',
-      kategoriBadge: '💥 Kamtibmas & Tawuran',
+      kategoriInsiden: 'PATROLI',
+      kategoriBadge: '🚔 Patroli Wilayah',
       tipePelapor: 'internal',
       nama: 'Aipda Ridwan (NRP: 78040112)',
       nrp: '78040112',
@@ -1492,8 +1492,8 @@ function getDefaultLogs() {
       id: 24,
       platform: 'personel',
       platformBadge: '👮 PATROLI POLRI',
-      kategoriInsiden: 'Kamtibmas',
-      kategoriBadge: '💥 Kamtibmas & Tawuran',
+      kategoriInsiden: 'SAMBANG',
+      kategoriBadge: '🤝 Sambang Warga',
       tipePelapor: 'internal',
       nama: 'Bripda Kevin Ananda (NRP: 99010432)',
       nrp: '99010432',
@@ -1768,6 +1768,27 @@ function loadLogsFromStorage() {
       if (l.status === 'selesai' && !l.tahap) l.tahap = 5;
       if (!l.nomorTiket) l.nomorTiket = 'TIKET-110-' + (l.id < 10 ? '0' + l.id : l.id) + 'X2F';
       if (!l.jenisInsiden) l.jenisInsiden = l.title;
+
+      // Auto-upgrade log personel lawas ke klasifikasi giat presisi Opsi B
+      if (l.platform === 'personel') {
+        if (!l.kategoriInsiden || l.kategoriInsiden === 'Kamtibmas') {
+          const t = (l.title || '').toLowerCase() + ' ' + (l.jenisInsiden || '').toLowerCase();
+          if (t.includes('sambang') || t.includes('penyuluhan')) {
+            l.kategoriInsiden = 'SAMBANG';
+            l.kategoriBadge = '🤝 Sambang Warga';
+          } else if (t.includes('tptkp')) {
+            l.kategoriInsiden = 'TPTKP';
+            l.kategoriBadge = '🛡️ TPTKP';
+          } else if (t.includes('pengamanan') || t.includes('pam')) {
+            l.kategoriInsiden = 'PENGAMANAN';
+            l.kategoriBadge = '⚠️ Pengamanan Jalur/Objek';
+          } else {
+            l.kategoriInsiden = 'PATROLI';
+            l.kategoriBadge = '🚔 Patroli Wilayah';
+          }
+        }
+      }
+
       if (!l.lokasiKejadian) l.lokasiKejadian = l.sektor ? l.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta';
       if (!l.sumberLaporan) l.sumberLaporan = (l.id % 2 === 0 ? '📞 Panggilan 110 (Call Center)' : '👮 Patroli Mandiri Personel');
 
@@ -2074,25 +2095,10 @@ function updateRekapCounts() {
   const fcPersonel = document.getElementById('filter-count-personel');
   if (fcPersonel) fcPersonel.innerText = logsForPlatform.filter(l => l.platform === 'personel').length;
 
-  // 4. JENIS ADUAN FILTER BAR COUNTS (Saling terhubung dengan Status Tab & Platform yang sedang aktif)
-  const logsForKategori = appLogs.filter(l => {
-    const matchStatus = (currentValidasiFilter === 'semua') || (l.status === currentValidasiFilter);
-    const matchPlatform = (currentPlatformFilter === 'all') || (l.platform === currentPlatformFilter);
-    return matchStatus && matchPlatform;
-  });
-
-  const fckAll = document.getElementById('filter-count-kat-all');
-  if (fckAll) fckAll.innerText = logsForKategori.length;
-  const fckKrim = document.getElementById('filter-count-kat-kriminal');
-  if (fckKrim) fckKrim.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Kriminalitas').length;
-  const fckKamtib = document.getElementById('filter-count-kat-kamtibmas');
-  if (fckKamtib) fckKamtib.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Kamtibmas').length;
-  const fckLaka = document.getElementById('filter-count-kat-laka');
-  if (fckLaka) fckLaka.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Laka Lantas').length;
-  const fckDarurat = document.getElementById('filter-count-kat-darurat');
-  if (fckDarurat) fckDarurat.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Darurat Bencana').length;
-  const fckPelayanan = document.getElementById('filter-count-kat-pelayanan');
-  if (fckPelayanan) fckPelayanan.innerText = logsForKategori.filter(l => l.kategoriInsiden === 'Pelayanan Publik').length;
+  // 4. JENIS ADUAN / GIAT FILTER BAR COUNTS
+  if (typeof renderFilterKategoriBar === 'function') {
+    renderFilterKategoriBar();
+  }
 
   renderPimpinanExecutiveDashboard();
 }
@@ -4352,39 +4358,86 @@ function filterByPlatform(platform) {
       }
     }
   });
+
+  // Switch bilah kategori: Jika platform 'personel' aktif, tampilkan JENIS GIAT PERSONEL
+  currentKategoriFilter = 'all';
+  renderFilterKategoriBar();
   updateResetFilterVisibility();
+  if (typeof updateRekapCounts === 'function') updateRekapCounts();
   openValidasiList(currentValidasiFilter, false);
+}
+
+function renderFilterKategoriBar() {
+  const lbl = document.getElementById('filter-kat-label');
+  const btnContainer = document.getElementById('filter-kat-buttons');
+  if (!btnContainer) return;
+
+  const logsForKategori = appLogs.filter(l => {
+    const matchStatus = (currentValidasiFilter === 'semua') || (l.status === currentValidasiFilter);
+    const matchPlatform = (currentPlatformFilter === 'all') || (l.platform === currentPlatformFilter);
+    return matchStatus && matchPlatform;
+  });
+
+  if (currentPlatformFilter === 'personel') {
+    if (lbl) lbl.innerHTML = '<span>👮</span> JENIS GIAT:';
+    const cAll = logsForKategori.length;
+    const cPatroli = logsForKategori.filter(l => l.kategoriInsiden === 'PATROLI').length;
+    const cSambang = logsForKategori.filter(l => l.kategoriInsiden === 'SAMBANG').length;
+    const cTptkp = logsForKategori.filter(l => l.kategoriInsiden === 'TPTKP').length;
+    const cPam = logsForKategori.filter(l => l.kategoriInsiden === 'PENGAMANAN').length;
+
+    btnContainer.innerHTML = `
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'all' ? 'active' : ''}" id="filter-kat-all" onclick="filterByKategori('all')" style="padding:3px 8px; border-radius:5px; border:1px solid transparent; background:${currentKategoriFilter === 'all' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'all' ? 'white' : '#64748B'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        Semua Giat <span class="badge-mini" style="background:${currentKategoriFilter === 'all' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'all' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cAll}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'PATROLI' ? 'active' : ''}" id="filter-kat-patroli" onclick="filterByKategori('PATROLI')" style="padding:3px 8px; border-radius:5px; border:1px solid #BFDBFE; background:${currentKategoriFilter === 'PATROLI' ? '#1D4ED8' : '#EFF6FF'}; color:${currentKategoriFilter === 'PATROLI' ? 'white' : '#1D4ED8'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        🚔 Patroli <span class="badge-mini" style="background:${currentKategoriFilter === 'PATROLI' ? 'rgba(255,255,255,0.25)' : '#DBEAFE'}; color:${currentKategoriFilter === 'PATROLI' ? 'white' : '#1D4ED8'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cPatroli}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'SAMBANG' ? 'active' : ''}" id="filter-kat-sambang" onclick="filterByKategori('SAMBANG')" style="padding:3px 8px; border-radius:5px; border:1px solid #BBF7D0; background:${currentKategoriFilter === 'SAMBANG' ? '#15803D' : '#F0FDF4'}; color:${currentKategoriFilter === 'SAMBANG' ? 'white' : '#15803D'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        🤝 Sambang <span class="badge-mini" style="background:${currentKategoriFilter === 'SAMBANG' ? 'rgba(255,255,255,0.25)' : '#DCFCE7'}; color:${currentKategoriFilter === 'SAMBANG' ? 'white' : '#15803D'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cSambang}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'TPTKP' ? 'active' : ''}" id="filter-kat-tptkp" onclick="filterByKategori('TPTKP')" style="padding:3px 8px; border-radius:5px; border:1px solid #FECACA; background:${currentKategoriFilter === 'TPTKP' ? '#DC2626' : '#FEF2F2'}; color:${currentKategoriFilter === 'TPTKP' ? 'white' : '#DC2626'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        🛡️ TPTKP <span class="badge-mini" style="background:${currentKategoriFilter === 'TPTKP' ? 'rgba(255,255,255,0.25)' : '#FEE2E2'}; color:${currentKategoriFilter === 'TPTKP' ? 'white' : '#DC2626'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cTptkp}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'PENGAMANAN' ? 'active' : ''}" id="filter-kat-pam" onclick="filterByKategori('PENGAMANAN')" style="padding:3px 8px; border-radius:5px; border:1px solid #FDE68A; background:${currentKategoriFilter === 'PENGAMANAN' ? '#D97706' : '#FFFBEB'}; color:${currentKategoriFilter === 'PENGAMANAN' ? 'white' : '#B45309'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        ⚠️ Pengamanan <span class="badge-mini" style="background:${currentKategoriFilter === 'PENGAMANAN' ? 'rgba(255,255,255,0.25)' : '#FEF3C7'}; color:${currentKategoriFilter === 'PENGAMANAN' ? 'white' : '#B45309'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cPam}</span>
+      </button>
+    `;
+  } else {
+    if (lbl) lbl.innerHTML = '<span>📁</span> JENIS ADUAN:';
+    const cAll = logsForKategori.length;
+    const cKrim = logsForKategori.filter(l => l.kategoriInsiden === 'Kriminalitas').length;
+    const cKamtib = logsForKategori.filter(l => l.kategoriInsiden === 'Kamtibmas').length;
+    const cLaka = logsForKategori.filter(l => l.kategoriInsiden === 'Laka Lantas').length;
+    const cDarurat = logsForKategori.filter(l => l.kategoriInsiden === 'Darurat Bencana').length;
+    const cPelayanan = logsForKategori.filter(l => l.kategoriInsiden === 'Pelayanan Publik').length;
+
+    btnContainer.innerHTML = `
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'all' ? 'active' : ''}" id="filter-kat-all" onclick="filterByKategori('all')" style="padding:3px 8px; border-radius:5px; border:1px solid transparent; background:${currentKategoriFilter === 'all' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'all' ? 'white' : '#64748B'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        Semua Jenis <span class="badge-mini" style="background:${currentKategoriFilter === 'all' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'all' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cAll}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'Kriminalitas' ? 'active' : ''}" id="filter-kat-kriminal" onclick="filterByKategori('Kriminalitas')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:${currentKategoriFilter === 'Kriminalitas' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'Kriminalitas' ? 'white' : '#64748B'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        ⚔️ Kriminalitas <span class="badge-mini" style="background:${currentKategoriFilter === 'Kriminalitas' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'Kriminalitas' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cKrim}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'Kamtibmas' ? 'active' : ''}" id="filter-kat-kamtibmas" onclick="filterByKategori('Kamtibmas')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:${currentKategoriFilter === 'Kamtibmas' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'Kamtibmas' ? 'white' : '#475569'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        💥 Kamtibmas & Tawuran <span class="badge-mini" style="background:${currentKategoriFilter === 'Kamtibmas' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'Kamtibmas' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cKamtib}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'Laka Lantas' ? 'active' : ''}" id="filter-kat-laka" onclick="filterByKategori('Laka Lantas')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:${currentKategoriFilter === 'Laka Lantas' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'Laka Lantas' ? 'white' : '#64748B'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        🚗 Laka Lantas <span class="badge-mini" style="background:${currentKategoriFilter === 'Laka Lantas' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'Laka Lantas' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cLaka}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'Darurat Bencana' ? 'active' : ''}" id="filter-kat-darurat" onclick="filterByKategori('Darurat Bencana')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:${currentKategoriFilter === 'Darurat Bencana' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'Darurat Bencana' ? 'white' : '#64748B'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        🔥 Darurat & Bencana <span class="badge-mini" style="background:${currentKategoriFilter === 'Darurat Bencana' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'Darurat Bencana' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cDarurat}</span>
+      </button>
+      <button type="button" class="btn-filter-kategori ${currentKategoriFilter === 'Pelayanan Publik' ? 'active' : ''}" id="filter-kat-pelayanan" onclick="filterByKategori('Pelayanan Publik')" style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:${currentKategoriFilter === 'Pelayanan Publik' ? '#1E293B' : '#F8FAFC'}; color:${currentKategoriFilter === 'Pelayanan Publik' ? 'white' : '#64748B'}; font-size:10.5px; font-weight:700; cursor:pointer;">
+        🤝 Pelayanan Publik <span class="badge-mini" style="background:${currentKategoriFilter === 'Pelayanan Publik' ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color:${currentKategoriFilter === 'Pelayanan Publik' ? 'white' : '#475569'}; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">${cPelayanan}</span>
+      </button>
+    `;
+  }
 }
 
 function filterByKategori(kategori) {
   currentKategoriFilter = kategori;
-  const katMap = {
-    'all': 'filter-kat-all',
-    'Kriminalitas': 'filter-kat-kriminal',
-    'Kamtibmas': 'filter-kat-kamtibmas',
-    'Laka Lantas': 'filter-kat-laka',
-    'Darurat Bencana': 'filter-kat-darurat',
-    'Pelayanan Publik': 'filter-kat-pelayanan'
-  };
-  Object.keys(katMap).forEach(k => {
-    const btn = document.getElementById(katMap[k]);
-    const badge = btn ? btn.querySelector('.badge-mini') : null;
-    if (btn) {
-      if (k === kategori) {
-        btn.classList.add('active');
-        btn.style.background = '#1E293B';
-        btn.style.color = 'white';
-        btn.style.borderColor = 'transparent';
-        if (badge) { badge.style.background = 'rgba(255,255,255,0.25)'; badge.style.color = 'white'; }
-      } else {
-        btn.classList.remove('active');
-        btn.style.background = '#F8FAFC';
-        btn.style.color = '#64748B';
-        btn.style.borderColor = '#E2E8F0';
-        if (badge) { badge.style.background = '#E2E8F0'; badge.style.color = '#475569'; }
-      }
-    }
-  });
+  renderFilterKategoriBar();
   updateResetFilterVisibility();
   openValidasiList(currentValidasiFilter, false);
 }
@@ -4603,7 +4656,7 @@ function openValidasiList(filter, doSwitch = true) {
         kontakMeta = `👮 NRP: ${log.nrp || ''} • 🛡️ ${log.kesatuan || ''}`;
       }
 
-      // Jenis Pengaduan Styling Badges
+      // Jenis Pengaduan / Giat Styling Badges
       const kat = log.kategoriInsiden || 'Kamtibmas';
       let katBadgeStyle = 'background:#FAF5FF; color:#7E22CE; border:1px solid #F3E8FF;';
       let katBadgeText = log.kategoriBadge || '💥 Kamtibmas & Tawuran';
@@ -4619,6 +4672,18 @@ function openValidasiList(filter, doSwitch = true) {
       } else if (kat === 'Pelayanan Publik') {
         katBadgeStyle = 'background:#ECFDF5; color:#047857; border:1px solid #D1FAE5;';
         katBadgeText = log.kategoriBadge || '🤝 Pelayanan Publik';
+      } else if (kat === 'PATROLI') {
+        katBadgeStyle = 'background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;';
+        katBadgeText = log.kategoriBadge || '🚔 Patroli Wilayah';
+      } else if (kat === 'SAMBANG') {
+        katBadgeStyle = 'background:#ECFDF5; color:#047857; border:1px solid #A7F3D0;';
+        katBadgeText = log.kategoriBadge || '🤝 Sambang Warga';
+      } else if (kat === 'TPTKP') {
+        katBadgeStyle = 'background:#FEF2F2; color:#DC2626; border:1px solid #FECACA;';
+        katBadgeText = log.kategoriBadge || '🛡️ TPTKP';
+      } else if (kat === 'PENGAMANAN') {
+        katBadgeStyle = 'background:#FFFBEB; color:#B45309; border:1px solid #FDE68A;';
+        katBadgeText = log.kategoriBadge || '⚠️ Pengamanan Jalur/Objek';
       }
 
       html += `
@@ -6208,13 +6273,26 @@ function kirimLogMandiriPersonel() {
 
   const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
 
+  let katGiat = 'PATROLI';
+  let katBadgeGiat = '🚔 Patroli Wilayah';
+  if (jenis === 'SAMBANG') {
+    katGiat = 'SAMBANG';
+    katBadgeGiat = '🤝 Sambang Warga';
+  } else if (jenis === 'TPTKP') {
+    katGiat = 'TPTKP';
+    katBadgeGiat = '🛡️ TPTKP';
+  } else if (jenis === 'PENGAMANAN') {
+    katGiat = 'PENGAMANAN';
+    katBadgeGiat = '⚠️ Pengamanan Jalur/Objek';
+  }
+
   const newLog = {
     id: newId,
     nomorTiket: noTiket,
     platform: 'personel',
     platformBadge: '👮 PATROLI POLRI',
-    kategoriInsiden: 'Kamtibmas',
-    kategoriBadge: '💥 Kamtibmas & Tawuran',
+    kategoriInsiden: katGiat,
+    kategoriBadge: katBadgeGiat,
     tipePelapor: 'internal',
     nama: `${userNama} (NRP: ${userNrp})`,
     nrp: userNrp,
@@ -6279,12 +6357,18 @@ function ebSubmitLaporanOperator() {
   const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
   let katInsiden = 'Kamtibmas';
   let katBadge = '💥 Kamtibmas & Tawuran';
-  if (jenis.includes('Kecelakaan') || jenis.includes('Laka')) {
-    katInsiden = 'Laka Lantas';
-    katBadge = '🚗 Laka Lantas';
-  } else if (jenis.includes('Pencurian') || jenis.includes('Begal') || jenis.includes('Curanmor')) {
+  if (jenis.includes('Kriminalitas') || jenis.includes('Pencurian') || jenis.includes('Begal') || jenis.includes('Curanmor')) {
     katInsiden = 'Kriminalitas';
     katBadge = '⚔️ Kriminalitas';
+  } else if (jenis.includes('Laka Lantas') || jenis.includes('Kecelakaan') || jenis.includes('Laka')) {
+    katInsiden = 'Laka Lantas';
+    katBadge = '🚗 Laka Lantas';
+  } else if (jenis.includes('Darurat Bencana') || jenis.includes('Bencana') || jenis.includes('Pohon Tumbang')) {
+    katInsiden = 'Darurat Bencana';
+    katBadge = '🔥 Darurat Bencana';
+  } else if (jenis.includes('Pelayanan Publik') || jenis.includes('Mediasi') || jenis.includes('Pelayanan')) {
+    katInsiden = 'Pelayanan Publik';
+    katBadge = '🤝 Pelayanan Publik';
   }
 
   const newLog = {
@@ -6534,9 +6618,9 @@ function tutupDetailLaporanOperator() {
 
 function ebAcakPanggilan() {
   const list = [
-    { tel: '+62 813-7722-1109', nama: 'Bapak Hendra Gunawan', jenis: 'Kecelakaan Lalu Lintas', loc: 'Jl. Jend. Sudirman Kav. 28, Jakarta Pusat', gps: '-6.2150, 106.8200', ket: 'Tabrakan antara sedan dan sepeda motor di jalur cepat, arus lalu lintas padat.' },
-    { tel: '+62 856-1199-8833', nama: 'Ibu Maya Suryani', jenis: 'Tindak Pidana / Pencurian', loc: 'Jl. Tomang Asri Blok C No. 12, Jakarta Barat', gps: '-6.1750, 106.7900', ket: 'Percobaan pencurian sepeda motor di halaman rumah warga, pelaku melarikan diri.' },
-    { tel: '+62 812-9844-3210', nama: 'Ibu Ratna Dewi', jenis: 'Tawuran Pelajar / Remaja', loc: 'Jl. Panglima Polim Raya No. 42, Jakarta Selatan', gps: '-6.2415, 106.8021', ket: 'Sekelompok pemuda berkumpul membawa balok kayu di dekat pertokoan.' }
+    { tel: '+62 813-7722-1109', nama: 'Bapak Hendra Gunawan', jenis: 'Laka Lantas (Tabrakan / Kemacetan)', loc: 'Jl. Jend. Sudirman Kav. 28, Jakarta Pusat', gps: '-6.2150, 106.8200', ket: 'Tabrakan antara sedan dan sepeda motor di jalur cepat, arus lalu lintas padat.' },
+    { tel: '+62 856-1199-8833', nama: 'Ibu Maya Suryani', jenis: 'Kriminalitas (Pencurian / Begal / Curas)', loc: 'Jl. Tomang Asri Blok C No. 12, Jakarta Barat', gps: '-6.1750, 106.7900', ket: 'Percobaan pencurian sepeda motor di halaman rumah warga, pelaku melarikan diri.' },
+    { tel: '+62 812-9844-3210', nama: 'Ibu Ratna Dewi', jenis: 'Kamtibmas (Tawuran / Keributan Warga)', loc: 'Jl. Panglima Polim Raya No. 42, Jakarta Selatan', gps: '-6.2415, 106.8021', ket: 'Sekelompok pemuda berkumpul membawa balok kayu di dekat pertokoan.' }
   ];
   const item = list[Math.floor(Math.random() * list.length)];
   const elCaller = document.getElementById('eb-sim-caller'); if (elCaller) elCaller.innerText = item.tel;

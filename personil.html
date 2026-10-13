@@ -376,7 +376,8 @@
               <option value="TPTKP">🛡️ TPTKP</option>
               <option value="PENGAMANAN">⚠️ PENGAMANAN</option>
             </select>
-            <span style="position:absolute; right:14px; top:16px; font-size:12px; pointer-events:none; color:#64748B;">▼</span>
+            <span
+              style="position:absolute; right:14px; top:16px; font-size:12px; pointer-events:none; color:#64748B;">▼</span>
           </div>
         </div>
 
@@ -400,7 +401,8 @@
               oninput="onInputLokasiKegiatan(this.value, 'log')">
             <span id="log-loading-spinner"
               style="display:none; position:absolute; right:12px; top:11px; font-size:12px; color:#2563EB; font-weight:600; align-items:center; gap:6px; background:#EFF6FF; padding:3px 8px; border-radius:6px; border:1px solid #BFDBFE;">
-              <span style="display:inline-block; width:12px; height:12px; border:2px solid #93C5FD; border-top-color:#1D4ED8; border-radius:50%; animation:spinLokasi 0.75s linear infinite;"></span>
+              <span
+                style="display:inline-block; width:12px; height:12px; border:2px solid #93C5FD; border-top-color:#1D4ED8; border-radius:50%; animation:spinLokasi 0.75s linear infinite;"></span>
               Mencari lokasi...
             </span>
           </div>
@@ -532,48 +534,51 @@
           </div>
 
           <!-- Baris 2: Filter Jenis / Kategori Pengaduan -->
-          <div
+          <!-- Baris 2: Filter Jenis / Kategori Pengaduan & Giat Personel -->
+          <div id="filter-kat-container"
             style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; padding-top:6px; border-top:1px dashed #E2E8F0;">
-            <span
+            <span id="filter-kat-label"
               style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:4px;">
               <span>📁</span> JENIS ADUAN:
             </span>
-            <button type="button" class="btn-filter-kategori active" id="filter-kat-all"
-              onclick="filterByKategori('all')"
-              style="padding:3px 8px; border-radius:5px; border:1px solid transparent; background:#334155; color:white; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
-              Semua Jenis <span class="badge-mini" id="filter-count-kat-all"
-                style="background:rgba(255,255,255,0.25); color:white; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">28</span>
-            </button>
-            <button type="button" class="btn-filter-kategori" id="filter-kat-kriminal"
-              onclick="filterByKategori('Kriminalitas')"
-              style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
-              ⚔️ Kriminalitas <span class="badge-mini" id="filter-count-kat-kriminal"
-                style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">7</span>
-            </button>
-            <button type="button" class="btn-filter-kategori" id="filter-kat-kamtibmas"
-              onclick="filterByKategori('Kamtibmas')"
-              style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
-              💥 Kamtibmas & Tawuran <span class="badge-mini" id="filter-count-kat-kamtibmas"
-                style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">9</span>
-            </button>
-            <button type="button" class="btn-filter-kategori" id="filter-kat-laka"
-              onclick="filterByKategori('Laka Lantas')"
-              style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
-              🚗 Laka Lantas <span class="badge-mini" id="filter-count-kat-laka"
-                style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">4</span>
-            </button>
-            <button type="button" class="btn-filter-kategori" id="filter-kat-darurat"
-              onclick="filterByKategori('Darurat Bencana')"
-              style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
-              🔥 Darurat & Bencana <span class="badge-mini" id="filter-count-kat-darurat"
-                style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">2</span>
-            </button>
-            <button type="button" class="btn-filter-kategori" id="filter-kat-pelayanan"
-              onclick="filterByKategori('Pelayanan Publik')"
-              style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
-              🤝 Pelayanan Publik <span class="badge-mini" id="filter-count-kat-pelayanan"
-                style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">6</span>
-            </button>
+            <div id="filter-kat-buttons" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="btn-filter-kategori active" id="filter-kat-all"
+                onclick="filterByKategori('all')"
+                style="padding:3px 8px; border-radius:5px; border:1px solid transparent; background:#334155; color:white; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+                Semua Jenis <span class="badge-mini" id="filter-count-kat-all"
+                  style="background:rgba(255,255,255,0.25); color:white; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">28</span>
+              </button>
+              <button type="button" class="btn-filter-kategori" id="filter-kat-kriminal"
+                onclick="filterByKategori('Kriminalitas')"
+                style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+                ⚔️ Kriminalitas <span class="badge-mini" id="filter-count-kat-kriminal"
+                  style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">7</span>
+              </button>
+              <button type="button" class="btn-filter-kategori" id="filter-kat-kamtibmas"
+                onclick="filterByKategori('Kamtibmas')"
+                style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+                💥 Kamtibmas & Tawuran <span class="badge-mini" id="filter-count-kat-kamtibmas"
+                  style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">9</span>
+              </button>
+              <button type="button" class="btn-filter-kategori" id="filter-kat-laka"
+                onclick="filterByKategori('Laka Lantas')"
+                style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+                🚗 Laka Lantas <span class="badge-mini" id="filter-count-kat-laka"
+                  style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">4</span>
+              </button>
+              <button type="button" class="btn-filter-kategori" id="filter-kat-darurat"
+                onclick="filterByKategori('Darurat Bencana')"
+                style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+                🔥 Darurat & Bencana <span class="badge-mini" id="filter-count-kat-darurat"
+                  style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">2</span>
+              </button>
+              <button type="button" class="btn-filter-kategori" id="filter-kat-pelayanan"
+                onclick="filterByKategori('Pelayanan Publik')"
+                style="padding:3px 8px; border-radius:5px; border:1px solid #E2E8F0; background:#F8FAFC; color:#64748B; font-size:10.5px; font-weight:700; cursor:pointer; transition:0.15s;">
+                🤝 Pelayanan Publik <span class="badge-mini" id="filter-count-kat-pelayanan"
+                  style="background:#E2E8F0; color:#475569; padding:1px 5px; border-radius:10px; margin-left:3px; font-size:9.5px;">6</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1219,7 +1224,7 @@
         <h2 class="page-title">Formulir Input Log</h2>
         <div class="page-subtitle">Presensi dan Pencatatan Kegiatan Patroli</div>
 
-        
+
         <div class="form-group">
           <label class="form-label">Waktu Pelaksanaan</label>
           <div style="position:relative; cursor:pointer;" onclick="bukaTimePickerLog()">
@@ -1261,12 +1266,15 @@
               oninput="onInputLokasiKegiatan(this.value)">
             <span id="lokasi-loading-spinner"
               style="display:none; position:absolute; right:12px; top:11px; font-size:12px; color:#2563EB; font-weight:600; align-items:center; gap:6px; background:#EFF6FF; padding:3px 8px; border-radius:6px; border:1px solid #BFDBFE;">
-              <span style="display:inline-block; width:12px; height:12px; border:2px solid #93C5FD; border-top-color:#1D4ED8; border-radius:50%; animation:spinLokasi 0.75s linear infinite;"></span>
+              <span
+                style="display:inline-block; width:12px; height:12px; border:2px solid #93C5FD; border-top-color:#1D4ED8; border-radius:50%; animation:spinLokasi 0.75s linear infinite;"></span>
               Mencari lokasi...
             </span>
             <style>
               @keyframes spinLokasi {
-                to { transform: rotate(360deg); }
+                to {
+                  transform: rotate(360deg);
+                }
               }
             </style>
           </div>
@@ -1284,7 +1292,8 @@
             <span style="position:absolute; right:14px; top:13px; font-size:14px; color:#64748B;">🛰️</span>
           </div>
           <div id="gps-status-hint" style="font-size:11px; color:#64748B; margin-top:3px;">
-            💡 Masukkan nama jalan/tempat di atas atau gunakan tombol <strong>"Pilih di Peta"</strong> untuk mengunci koordinat.
+            💡 Masukkan nama jalan/tempat di atas atau gunakan tombol <strong>"Pilih di Peta"</strong> untuk mengunci
+            koordinat.
           </div>
         </div>
         <div class="form-group">
@@ -1758,11 +1767,15 @@
                   <label class="form-label" style="font-size:11.5px;">Kategori / Jenis Insiden <span
                       style="color:red;">*</span></label>
                   <select id="eb-op-jenis" class="form-control" style="font-weight:600;">
-                    <option value="Kecelakaan Lalu Lintas">🚗 Kecelakaan Lalu Lintas</option>
-                    <option value="Tawuran Pelajar / Remaja" selected>⚔️ Tawuran Pelajar / Kerumunan Remaja</option>
-                    <option value="Tindak Pidana / Pencurian">🚨 Tindak Pidana (Pencurian / Curas)</option>
-                    <option value="Bencana Alam / Pohon Tumbang">🌳 Bencana Alam / Pohon Tumbang</option>
-                    <option value="Gangguan Ketertiban Umum">📢 Gangguan Kamtibmas / Keributan</option>
+                    <option value="Kriminalitas (Pencurian / Begal / Curas)">⚔️ Kriminalitas (Pencurian / Begal / Curas)
+                    </option>
+                    <option value="Kamtibmas (Tawuran / Keributan Warga)" selected>💥 Kamtibmas (Tawuran / Keributan
+                      Warga)</option>
+                    <option value="Laka Lantas (Tabrakan / Kemacetan)">🚗 Laka Lantas (Tabrakan / Kemacetan)</option>
+                    <option value="Darurat Bencana (Pohon Tumbang / Kebakaran)">🔥 Darurat Bencana (Pohon Tumbang /
+                      Kebakaran)</option>
+                    <option value="Pelayanan Publik (Bantuan Warga / Mediasi)">🤝 Pelayanan Publik (Bantuan Warga /
+                      Mediasi)</option>
                   </select>
                 </div>
 
@@ -3217,7 +3230,8 @@
     <div
       style="background:#FFFFFF; width:100%; max-width:620px; border-radius:14px; box-shadow:0 20px 45px rgba(0,0,0,0.3); overflow:hidden; display:flex; flex-direction:column; animation:fadeInScale 0.2s ease;">
       <!-- Header Modal -->
-      <div style="background:#153E75; color:white; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+      <div
+        style="background:#153E75; color:white; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
         <div>
           <div style="font-size:15px; font-weight:800; display:flex; align-items:center; gap:8px;">
             <span>🗺️</span> Tentukan Titik Lokasi Kegiatan di Peta
@@ -3234,8 +3248,8 @@
 
       <!-- Kotak Pencarian Cepat di Dalam Modal -->
       <div style="padding:10px 16px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; display:flex; gap:8px;">
-        <input type="text" id="modal-map-search-input" class="form-control"
-          placeholder="Cari jalan / tempat di peta..." style="font-size:12.5px; padding:7px 12px;"
+        <input type="text" id="modal-map-search-input" class="form-control" placeholder="Cari jalan / tempat di peta..."
+          style="font-size:12.5px; padding:7px 12px;"
           onkeydown="if(event.key==='Enter'){ cariAlamatDiModalMap(); event.preventDefault(); }">
         <button type="button" onclick="cariAlamatDiModalMap()"
           style="background:#1D4ED8; color:white; border:none; padding:7px 14px; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; flex-shrink:0;">
@@ -3261,7 +3275,8 @@
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
             <div style="font-size:11px; color:#64748B;">
-              Koordinat GPS: <span id="picker-selected-coords" style="font-weight:700; color:#2563EB; font-family:monospace;">-</span>
+              Koordinat GPS: <span id="picker-selected-coords"
+                style="font-weight:700; color:#2563EB; font-family:monospace;">-</span>
             </div>
             <button type="button" onclick="ambilGpsSaatIniModal()"
               style="border:none; background:none; color:#1D4ED8; font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline;">

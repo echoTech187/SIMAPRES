@@ -329,7 +329,7 @@ function getDefaultLogs() {
       lokasiKejadian: 'Komplek Ruko Grand Fatmawati Blok B No. 7', alasanTolak: ''
     },
     {
-      id: 4, platform: 'personel', platformBadge: '👮 PATROLI POLRI', kategoriInsiden: 'Kamtibmas', kategoriBadge: '💥 Kamtibmas & Tawuran',
+      id: 4, platform: 'personel', platformBadge: '👮 PATROLI POLRI', kategoriInsiden: 'PATROLI', kategoriBadge: '🚔 Patroli Wilayah',
       tipePelapor: 'internal', nama: 'Aipda Ridwan (NRP: 78040112)', nrp: '78040112', kesatuan: 'Unit Patroli Samapta Presisi R-4',
       sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri', sumberSingkat: 'PATROLI POLRI', avatar: 'assets/images/avatar_polisi.jpg', status: 'menunggu', statusText: 'Menunggu Tindakan',
       title: 'Patroli Dialogis Perbankan & Gerai ATM 24 Jam',
@@ -550,7 +550,7 @@ function getDefaultLogs() {
       lokasiKejadian: 'JPO Halte Sunter Karya, Tanjung Priok', alasanTolak: ''
     },
     {
-      id: 24, platform: 'personel', platformBadge: '👮 PATROLI POLRI', kategoriInsiden: 'Kamtibmas', kategoriBadge: '💥 Kamtibmas & Tawuran',
+      id: 24, platform: 'personel', platformBadge: '👮 PATROLI POLRI', kategoriInsiden: 'SAMBANG', kategoriBadge: '🤝 Sambang Warga',
       tipePelapor: 'internal', nama: 'Bripda Kevin Ananda (NRP: 99010432)', nrp: '99010432', kesatuan: 'Tim Perintis Presisi R-2',
       sumberLaporan: '👮 Inisiatif Patroli Mandiri Personel Polri', sumberSingkat: 'PATROLI POLRI', avatar: 'assets/images/avatar_polisi.jpg', status: 'selesai', statusText: 'Kasus Selesai', tahap: 5,
       title: 'Penyuluhan Hukum Tawuran & Narkoba di Karang Taruna',
@@ -692,6 +692,26 @@ function loadLogsFromStore() {
       if (l.status === 'diproses' && !l.tahap) l.tahap = 3;
       if (l.status === 'menunggu_pengesahan' && !l.tahap) l.tahap = 5;
       if (l.status === 'selesai' && !l.tahap) l.tahap = 5;
+
+      // Auto-upgrade log personel lawas ke klasifikasi giat presisi Opsi B
+      if (l.platform === 'personel') {
+        if (!l.kategoriInsiden || l.kategoriInsiden === 'Kamtibmas') {
+          const t = (l.title || '').toLowerCase() + ' ' + (l.jenisInsiden || '').toLowerCase();
+          if (t.includes('sambang') || t.includes('penyuluhan')) {
+            l.kategoriInsiden = 'SAMBANG';
+            l.kategoriBadge = '🤝 Sambang Warga';
+          } else if (t.includes('tptkp')) {
+            l.kategoriInsiden = 'TPTKP';
+            l.kategoriBadge = '🛡️ TPTKP';
+          } else if (t.includes('pengamanan') || t.includes('pam')) {
+            l.kategoriInsiden = 'PENGAMANAN';
+            l.kategoriBadge = '⚠️ Pengamanan Jalur/Objek';
+          } else {
+            l.kategoriInsiden = 'PATROLI';
+            l.kategoriBadge = '🚔 Patroli Wilayah';
+          }
+        }
+      }
 
       if (!l.nomorTiket) {
         l.nomorTiket = `TIKET-110-${l.id}X2F`;
