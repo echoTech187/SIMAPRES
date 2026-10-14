@@ -616,6 +616,19 @@ function switchTab(viewId, navElement) {
     }
   }
 
+  // Rekam aktivitas navigasi user di aplikasi
+  const namaTabMap = {
+    'view-beranda': 'Membuka Beranda Operasional',
+    'view-peta': 'Membuka Peta Radar Wilayah & Armada',
+    'view-log': 'Membuka Menu Buat Log Presisi',
+    'view-validasi': 'Membuka Daftar Penugasan Lapangan',
+    'view-laporan': 'Membuka Laporan Kinerja & Akuntabilitas',
+    'view-profil': 'Membuka Profil Petugas & Identitas'
+  };
+  if (typeof catatAktivitasPersonelApp === 'function' && namaTabMap[viewId] && viewId !== 'view-beranda') {
+    catatAktivitasPersonelApp(namaTabMap[viewId], `Menavigasi antarmuka aplikasi pada modul ${viewId.replace('view-', '')}`, 'navigasi');
+  }
+
   // Resize map if needed
   if (viewId === 'view-beranda' && mapBeranda && typeof google !== 'undefined') {
     google.maps.event.trigger(mapBeranda, 'resize');
@@ -7796,6 +7809,15 @@ function gantiStatusTaktisMandiri(statusBaru) {
     'konsolidasi': '⚪ Konsolidasi / Piket'
   };
 
+  // Catat aksi perubahan status taktis ke audit log aktivitas aplikasi
+  if (typeof catatAktivitasPersonelApp === 'function') {
+    catatAktivitasPersonelApp(
+      `Perubahan Kesiagaan: ${labelMap[statusBaru] || statusBaru}`,
+      `Memperbarui status taktis dinas lapangan dan sinkronisasi ke Puskodal 110`,
+      'taktis'
+    );
+  }
+
   if (typeof showToastNotification === 'function') {
     showToastNotification(`Status Taktis diperbarui ke: ${labelMap[statusBaru] || statusBaru}. Terkirim ke Pawas & Puskodal 110.`, 'info');
   }
@@ -8020,64 +8042,169 @@ function renderPersonalStatsBento() {
   updateModalKpiDetailContent(kpi, user);
 }
 
+// =============================================================================
+// SISTEM PENCATATAN AKTIVITAS USER SELAMA BERADA DI APLIKASI (AUDIT LOG SESI)
+// =============================================================================
+function catatAktivitasPersonelApp(judul, keterangan, kategori = 'info') {
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const nrp = user ? user.nrp : '95020123';
+  const key = 'simapres_user_activities_' + nrp;
+  
+  const now = new Date();
+  const jam = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ' WIB';
+  
+  let list = [];
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (raw) list = JSON.parse(raw);
+  } catch (e) {
+    list = [];
+  }
+
+  // Hindari duplikasi beruntun pesan yang persis sama dalam 1 menit
+  if (list.length > 0 && list[0].judul === judul && list[0].waktu === jam) {
+    return;
+  }
+
+  const item = {
+    id: Date.now(),
+    waktu: jam,
+    judul: judul,
+    keterangan: keterangan || '',
+    kategori: kategori // 'login' | 'taktis' | 'navigasi' | 'gps' | 'laporan' | 'info'
+  };
+
+  list.unshift(item);
+  // Simpan maksimal 15 aktivitas sesi terakhir
+  if (list.length > 15) list = list.slice(0, 15);
+
+  try {
+    sessionStorage.setItem(key, JSON.stringify(list));
+  } catch (e) {
+    console.warn('Gagal menyimpan aktivitas user', e);
+  }
+
+  // Re-render widget aktivitas jika container tersedia
+  const container = document.getElementById('personel-timeline-container');
+  if (container) {
+    renderPersonelShiftTimeline();
+  }
+}
+
+function getAktivitasPersonelApp() {
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const nrp = user ? user.nrp : '95020123';
+  const key = 'simapres_user_activities_' + nrp;
+  
+  let list = [];
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (raw) {
+      list = JSON.parse(raw);
+      // Auto-purge jika di sessionStorage tersimpan data dummy statis sebelumnya (5 mnt lalu, 08:00 WIB, dll)
+      const isLegacyDummy = Array.isArray(list) && list.some(item => 
+        item.waktu === '5 mnt lalu' || 
+        item.waktu === '08:00 WIB' || 
+        item.waktu === '07:45 WIB' || 
+        (item.keterangan && item.keterangan.includes('Bripka Bripka'))
+      );
+      if (isLegacyDummy) {
+        list = [];
+        sessionStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    list = [];
+  }
+
+  // Jika baru login pertama kali dan belum ada riwayat sama sekali,
+  // buat 1 log real time: sesi login akun yang baru saja berhasil diakses
+  if (!list || list.length === 0) {
+    const now = new Date();
+    const jamReal = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0') + ' WIB';
+    const namaUser = user ? user.nama : 'Bripka Ahmad Subagyo';
+    const unit = user ? (user.satuan || 'Patroli Samapta Presisi') : 'Patroli Samapta Presisi';
+
+    list = [
+      {
+        id: Date.now(),
+        waktu: jamReal,
+        judul: 'Login Sesi Dinas Presisi Berhasil',
+        keterangan: `Terautentikasi sebagai ${namaUser} (${unit})`,
+        kategori: 'login'
+      }
+    ];
+
+    try {
+      sessionStorage.setItem(key, JSON.stringify(list));
+    } catch (e) {}
+  }
+
+  return list;
+}
+
 function renderPersonelShiftTimeline() {
   const container = document.getElementById('personel-timeline-container');
   if (!container) return;
 
-  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
-  const myLogs = (typeof getLogsForUser === 'function') ? getLogsForUser(user, 'semua') : (appLogs || []);
+  const activities = getAktivitasPersonelApp();
 
-  if (myLogs.length === 0) {
+  if (!activities || activities.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center; padding:20px; color:#64748B; font-size:11.5px;">
-        <div>Apel Serah Terima Piket Selesai (08:00 WIB)</div>
-        <div style="margin-top:4px; font-weight:700;">Belum ada penugasan baru.</div>
+      <div style="text-align:center; padding:16px; color:#64748B; font-size:11.5px;">
+        <div>Belum ada aktivitas tercatat pada sesi ini.</div>
       </div>
     `;
     return;
   }
 
   let html = '';
-  // Ambil hingga 4 aktivitas terkini
-  const sorted = [...myLogs].sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 4);
+  // Tampilkan 4 aktivitas terbaru
+  const displayItems = activities.slice(0, 4);
 
-  sorted.forEach(l => {
-    let dotClass = 'blue';
-    let statusBadge = '🔵 Sedang Berjalan';
-    let statusBg = '#EFF6FF';
-    let statusColor = '#1D4ED8';
+  displayItems.forEach((act, idx) => {
+    let dotColor = '#2563EB'; // default biru
+    let badgeText = 'Aktivitas';
+    let badgeBg = '#EFF6FF';
+    let badgeColor = '#1D4ED8';
 
-    if (l.status === 'selesai') {
-      dotClass = '';
-      statusBadge = '✓ Disetujui & Selesai';
-      statusBg = '#F0FDF4';
-      statusColor = '#15803D';
-    } else if (l.status === 'menunggu_pengesahan') {
-      dotClass = 'yellow';
-      statusBadge = '⏳ Verifikasi Pawas';
-      statusBg = '#FFFBEB';
-      statusColor = '#B45309';
-    } else if (l.status === 'ditolak') {
-      dotClass = 'red';
-      statusBadge = '✕ Ditolak';
-      statusBg = '#FEF2F2';
-      statusColor = '#DC2626';
+    if (act.kategori === 'login') {
+      dotColor = '#16A34A';
+      badgeText = 'Autentikasi';
+      badgeBg = '#F0FDF4';
+      badgeColor = '#15803D';
+    } else if (act.kategori === 'taktis') {
+      dotColor = '#D97706';
+      badgeText = 'Kesiagaan';
+      badgeBg = '#FEF3C7';
+      badgeColor = '#B45309';
+    } else if (act.kategori === 'laporan') {
+      dotColor = '#7C3AED';
+      badgeText = 'Giat Tugas';
+      badgeBg = '#F3E8FF';
+      badgeColor = '#6B21A8';
+    } else if (act.kategori === 'navigasi') {
+      dotColor = '#0284C7';
+      badgeText = 'Konsol App';
+      badgeBg = '#E0F2FE';
+      badgeColor = '#0369A1';
     }
 
-    const judul = l.jenisInsiden || l.title || 'Patroli Wilayah';
-    const waktu = l.waktu || '10:00 WIB';
+    const isLast = idx === displayItems.length - 1;
 
     html += `
-      <div class="tl-item" style="margin-bottom:12px;">
-        <div class="tl-dot ${dotClass}"></div>
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-          <div>
-            <div style="font-weight:800; font-size:12px; color:#0F172A;">${waktu} - ${judul}</div>
-            <div style="font-size:11px; color:#64748B; margin-top:2px;">📍 ${l.lokasiKejadian || l.sektor || 'Wilayah Hukum'}</div>
+      <div style="position:relative; padding-bottom:${isLast ? '0px' : '12px'}; display:flex; align-items:flex-start; gap:10px;">
+        <div style="width:9px; height:9px; border-radius:50%; background:${dotColor}; margin-top:4px; flex-shrink:0; box-shadow:0 0 0 3px rgba(37,99,235,0.15);"></div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+            <div style="font-weight:800; font-size:12px; color:#0F172A; line-height:1.3;">
+              ${act.waktu} - ${act.judul}
+            </div>
+            <span style="font-size:9.5px; font-weight:800; background:${badgeBg}; color:${badgeColor}; padding:1px 6px; border-radius:4px; white-space:nowrap; flex-shrink:0;">
+              ${badgeText}
+            </span>
           </div>
-          <span style="font-size:10px; font-weight:800; background:${statusBg}; color:${statusColor}; padding:2px 7px; border-radius:4px; white-space:nowrap;">
-            ${statusBadge}
-          </span>
+          ${act.keterangan ? `<div style="font-size:11px; color:#64748B; margin-top:2px; line-height:1.35;">${act.keterangan}</div>` : ''}
         </div>
       </div>
     `;
@@ -8103,6 +8230,14 @@ function fokusPosisiSayaMap() {
 
   if (typeof showToastNotification === 'function') {
     showToastNotification(`Peta dipusatkan pada koordinat GPS: ${user ? user.nama : 'Posisi Anda'}`, 'info');
+  }
+
+  if (typeof catatAktivitasPersonelApp === 'function') {
+    catatAktivitasPersonelApp(
+      'Pengecekan GPS & Posisi Patroli',
+      `Memusatkan radar peta ke posisi armada: ${user ? user.nama : 'Unit Samapta'}`,
+      'gps'
+    );
   }
 }
 
@@ -8205,6 +8340,15 @@ function kirimSinyalSos() {
 
   if (typeof showToastNotification === 'function') {
     showToastNotification(`🚨 SINYAL SOS TERKIRIM! Koordinat GPS ${ranmor} disiarkan ke Command Center Pawas & Unit Terdekat!`, 'error');
+  }
+
+  // Rekam aktivasi SOS ke aktivitas sesi user
+  if (typeof catatAktivitasPersonelApp === 'function') {
+    catatAktivitasPersonelApp(
+      '🚨 Mengirim Sinyal SOS Darurat',
+      `Menyiarkan permintaan bantuan darurat & koordinat GPS ${ranmor} ke Pawas & seluruh unit patroli`,
+      'taktis'
+    );
   }
 
   console.warn(`[EMERGENCY SOS] Signal dispatched by ${nama} (${ranmor})`);
