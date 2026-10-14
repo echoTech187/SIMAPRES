@@ -126,7 +126,13 @@
       <div style="font-size: 11px; font-weight: 800; color: #94A3B8; text-transform: uppercase;">
         Device ID Terkunci
       </div>
-      <div id="disp-device-id" class="dev-badge">MEMUAT DEVICE ID...</div>
+      <div id="disp-device-id" class="dev-badge" onclick="salinDeviceIdHp()" style="cursor:pointer;" title="Ketuk untuk menyalin Device ID">
+        MEMUAT DEVICE ID...
+      </div>
+      <div style="font-size:11px; color:#38BDF8; margin-top:-10px; margin-bottom:12px; cursor:pointer;" onclick="salinDeviceIdHp()">
+        📋 <u>Ketuk di sini untuk Salin Device ID</u>
+      </div>
+
       <div id="disp-unit-box" style="margin-bottom:14px; font-size:12px; font-weight:700; color:#93C5FD; background:rgba(37,99,235,0.15); border:1px solid rgba(59,130,246,0.3); padding:6px 12px; border-radius:8px; display:inline-block;">
         Unit: <span id="disp-unit-name">Mendeteksi Satuan...</span>
       </div>
@@ -148,16 +154,16 @@
         </div>
       </div>
 
-      <div style="font-size:12px; color:#94A3B8; line-height:1.5; margin-bottom:20px;">
+      <div style="font-size:12px; color:#94A3B8; line-height:1.5; margin-bottom:16px;">
         ✅ <strong>HP Personel Berhasil Diikat!</strong> Lokasi patroli Anda kini tersinkronisasi secara real-time dengan radar peta komando Pawas dan E-Tribrata Log.
       </div>
 
-      <button type="button" class="btn-act btn-primary" onclick="bukaLayarPersonel()">
-        <span>🛡️</span> Masuk ke Layar Tugas Personel ➔
+      <button type="button" class="btn-act btn-primary" onclick="salinDanKirim()" style="margin-bottom:10px;">
+        <span>📋</span> Salin Device ID HP Anda
       </button>
 
-      <button type="button" class="btn-act btn-outline" onclick="kembaliKeRegistrasi()">
-        <span>📋</span> Kembali ke Halaman Registrasi Unit
+      <button type="button" class="btn-act" onclick="bukaLayarPersonel()" style="background:#1E293B; border:1px solid #3B82F6; color:#93C5FD;">
+        <span>🛡️</span> Masuk ke Layar Tugas Personel ➔
       </button>
     </div>
   </div>
@@ -234,10 +240,13 @@
       return generatedId;
     }
 
+    let activeSessionToken = null;
+
     document.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
       targetNrp = params.get('nrp');
       targetUnit = params.get('unit');
+      activeSessionToken = params.get('session');
 
       // Ambil Device ID Hardware Asli dari Perangkat HP Fisik
       physicalDeviceId = extractHardwareDeviceId();
@@ -277,7 +286,6 @@
     });
 
     function simpanKeDatabase(devId, coords, nrp) {
-      // 1. Simpan sinyal scan HP ke broadcast channel & storage agar langsung tertangkap oleh registrasi-unit.html
       const scanData = {
         deviceID: devId,
         coords: coords,
@@ -289,11 +297,34 @@
         isScanned: true
       };
 
-      // Simpan ke localStorage agar form registrasi-unit.html di laptop otomatis terisi Device ID HP ini
+      // 1. Simpan secara lokal di HP
       localStorage.setItem('simapres_latest_hp_scan', JSON.stringify(scanData));
       sessionStorage.setItem('simapres_scanned_device', JSON.stringify(scanData));
 
-      // 2. Perbarui ke localStorage daftar unit jika NRP sudah cocok
+      // 2. Transmisikan secara ONLINE REAL-TIME ke Laptop melalui Cloud Relay ntfy.sh
+      if (activeSessionToken) {
+        console.log('Broadcasting payload to cloud relay session:', activeSessionToken);
+        fetch(`https://ntfy.sh/${activeSessionToken}`, {
+          method: 'POST',
+          body: JSON.stringify(scanData),
+          headers: {
+            'Title': 'SIMAPRES Device ID Link',
+            'Priority': 'urgent',
+            'Tags': 'shield,mobile_phone'
+          }
+        }).then(res => {
+          console.log('Cloud Relay Success:', res.status);
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed; top:20px; left:20px; right:20px; background:#065F46; color:#ECFDF5; padding:12px; border-radius:10px; font-size:12px; font-weight:700; z-index:99999; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.4);';
+          toast.innerText = '⚡ Sukses! Device ID fisik HP Anda telah terkirim ke layar laptop.';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 4000);
+        }).catch(err => {
+          console.warn('Cloud relay broadcast error:', err);
+        });
+      }
+
+      // 3. Perbarui ke localStorage daftar unit jika NRP sudah cocok
       try {
         let list = JSON.parse(localStorage.getItem('simapres_registered_units') || '[]');
         let updated = false;
@@ -316,6 +347,19 @@
       } catch (e) {
         console.warn('Gagal sync registered units:', e);
       }
+    }
+
+    function salinDeviceIdHp() {
+      if (!physicalDeviceId) return;
+      navigator.clipboard.writeText(physicalDeviceId).then(() => {
+        alert(`✓ Device ID HP Anda (${physicalDeviceId}) berhasil disalin! Silakan tempelkan di form laptop jika belum terisi.`);
+      }).catch(() => {
+        prompt('Salin Device ID HP Anda berikut:', physicalDeviceId);
+      });
+    }
+
+    function salinDanKirim() {
+      salinDeviceIdHp();
     }
 
     function bukaLayarPersonel() {

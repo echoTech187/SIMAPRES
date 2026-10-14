@@ -133,7 +133,7 @@
 
     /* Main Container */
     .container {
-      max-width: 1280px;
+      max-width: 1440px;
       width: 100%;
       margin: 28px auto;
       padding: 0 20px;
@@ -600,24 +600,26 @@
               </div>
             </div>
 
-            <!-- 6. Device ID (Diambil Asli dari Hasil Scan HP Fisik Personel) -->
+            <!-- 6. Device ID (Diambil Asli dari Hasil Scan HP Fisik Personel atau Input Manual) -->
             <div class="form-group">
               <label class="form-label" for="reg-device">
                 Device ID HP Personel <span class="req">*</span>
-                <span id="badge-device-source" style="font-size:10px; font-weight:800; background:#EFF6FF; color:#1D4ED8; padding:2px 8px; border-radius:10px; margin-left:6px; border:1px solid #BFDBFE;">Wajib Scan via HP</span>
+                <span id="badge-device-source" style="font-size:10px; font-weight:800; background:#EFF6FF; color:#1D4ED8; padding:2px 8px; border-radius:10px; margin-left:6px; border:1px solid #BFDBFE;">Scan HP / Input Manual</span>
               </label>
               <div class="input-group">
-                <input type="text" id="reg-device" class="form-control font-mono" placeholder="Belum ada Device ID (Silakan Scan QRCode dengan HP)"
-                  required readonly style="background:#F8FAFC; font-weight:700; color:#0F172A; border-color:#CBD5E1;">
+                <input type="text" id="reg-device" class="form-control font-mono" placeholder="Scan QRCode HP atau ketik Device ID (Contoh: DEV-HP-62956071)"
+                  required style="background:#FFFFFF; font-weight:700; color:#0F172A; border-color:#CBD5E1;">
                 <button type="button" class="btn-addon" onclick="bukaModalQrCode()"
                   style="background:#2563EB; color:white; border-color:#2563EB; font-weight:800;" title="Buka QRCode untuk di-scan Kamera HP">
-                  <span>📱</span> Scan QRCode via HP
+                  <span>📱</span> Scan QRCode HP
                 </button>
               </div>
 
-              <!-- Indikator Status Hasil Scan HP -->
-              <div id="device-scan-info" style="margin-top:8px; padding:8px 12px; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; font-size:11.5px; color:#64748B;">
-                📲 <em>Arahkan kamera HP personel ke QRCode. Sistem akan mengekstrak <strong>Device ID unik dari perangkat HP fisik</strong> (bukan nomor acak) dan mengunci satelit GPS HP secara otomatis.</em>
+              <!-- Indikator Status Hasil Scan HP & Tombol Cepat -->
+              <div id="device-scan-info" style="margin-top:8px; padding:10px 12px; background:#F8FAFC; border:1px dashed #CBD5E1; border-radius:8px; font-size:11.5px; color:#475569; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <div>
+                  📲 <em>Hasil scan kamera HP Anda (misal: <strong>DEV-HP-62956071</strong>) otomatis masuk atau dapat disalin langsung.</em>
+                </div>
               </div>
             </div>
 
@@ -862,17 +864,21 @@
       listenForRealHpScan();
     });
 
-    // Listener otomatis: Saat HP fisik menyelesaikan scan-device.html,
-    // Device ID asli HP & koordinat GPS-nya otomatis mengisi form registrasi di layar ini!
+    // Cloud Relay Channel & Listener otomatis:
+    // Saat HP fisik membuka scan-device.html dari mana saja (internet),
+    // Device ID asli HP & koordinat GPS-nya langsung tertransmisi secara live ke laptop!
+    let currentSessionToken = '';
+    let currentEventSource = null;
+
     function listenForRealHpScan() {
-      // 1. Storage Event (lintas tab / browser window)
+      // 1. Storage Event (lintas tab lokal jika dites di browser yang sama)
       window.addEventListener('storage', (e) => {
         if (e.key === 'simapres_latest_hp_scan' && e.newValue) {
           applyScannedHpData(JSON.parse(e.newValue));
         }
       });
 
-      // 2. Polling interval (setiap 1.5 detik jika storage event tidak terpicu di beda konteks)
+      // 2. Local Polling Interval
       let lastProcessedTimestamp = 0;
       setInterval(() => {
         try {
@@ -888,6 +894,40 @@
       }, 1500);
     }
 
+    // Sambungkan WebSocket / Server-Sent Events (SSE) Relay Publik ntfy.sh (Zero config, realtime internet)
+    function connectCloudRelayListener(sessionToken) {
+      if (currentEventSource) {
+        try { currentEventSource.close(); } catch(e) {}
+      }
+
+      const topicUrl = `https://ntfy.sh/${sessionToken}/sse`;
+      console.log('Connecting to Cloud Relay Topic:', topicUrl);
+
+      try {
+        currentEventSource = new EventSource(topicUrl);
+        currentEventSource.onmessage = (event) => {
+          try {
+            const ntfyMsg = JSON.parse(event.data);
+            if (ntfyMsg && ntfyMsg.message) {
+              const payload = JSON.parse(ntfyMsg.message);
+              if (payload && payload.deviceID) {
+                console.log('Live Cloud Signal Received from Smartphone:', payload);
+                applyScannedHpData(payload);
+              }
+            }
+          } catch (e) {
+            console.warn('Parsing cloud message error:', e);
+          }
+        };
+
+        currentEventSource.onerror = (err) => {
+          console.warn('Cloud relay stream reconnecting...', err);
+        };
+      } catch (err) {
+        console.warn('EventSource not supported or blocked:', err);
+      }
+    }
+
     function applyScannedHpData(data) {
       if (!data || !data.deviceID) return;
       const devInput = document.getElementById('reg-device');
@@ -899,6 +939,11 @@
       devInput.style.background = '#ECFDF5';
       devInput.style.borderColor = '#10B981';
       devInput.style.color = '#065F46';
+
+      // Simpan koordinat GPS satelit HP yang dikirimkan
+      if (data.coords) {
+        currentLiveGpsCoords = data.coords;
+      }
 
       if (badgeSource) {
         badgeSource.innerText = `✓ TERVERIFIKASI (${data.brand || 'HP FISIK'})`;
@@ -941,14 +986,18 @@
       const unitId = unitSelect ? unitSelect.value : 'lantas';
       const unitText = unitSelect ? unitSelect.options[unitSelect.selectedIndex].text : 'Satuan Tugas';
 
+      // Buat token sesi relay unik acak per scan agar terisolasi (misal: simapres_cad_9a12c8)
+      currentSessionToken = 'simapres_relay_' + Math.random().toString(36).substring(2, 10);
+      connectCloudRelayListener(currentSessionToken);
+
       // Buat URL Absolut Target Scan yang Dituju Kamera HP
       let baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
       if (baseUrl.startsWith('file://')) {
         baseUrl = 'http://localhost/SIMAPRES';
       }
 
-      // Tautan ini mengarahkan kamera HP langsung ke scan-device.html untuk mengekstrak Hardware Device ID HP tersebut
-      const targetUrl = `${baseUrl}/scan-device.html?nrp=${encodeURIComponent(nrp)}&unit=${encodeURIComponent(unitId)}`;
+      // Tautan ini membawa parameter sesi relay (sessionToken) ke HP
+      const targetUrl = `${baseUrl}/scan-device.html?session=${encodeURIComponent(currentSessionToken)}&nrp=${encodeURIComponent(nrp)}&unit=${encodeURIComponent(unitId)}`;
       lastGeneratedQrUrl = targetUrl;
 
       // Update elemen UI di Modal
@@ -971,6 +1020,9 @@
 
     function tutupModalQrCode() {
       document.getElementById('modal-qr').style.display = 'none';
+      if (currentEventSource) {
+        try { currentEventSource.close(); } catch(e) {}
+      }
     }
 
     function salinLinkQr() {
