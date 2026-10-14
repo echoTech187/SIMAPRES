@@ -624,6 +624,33 @@ function initMaps() {
       }
     ];
 
+    // Ambil tambahan unit terdaftar dari localStorage jika ada
+    try {
+      const registeredList = JSON.parse(localStorage.getItem('simapres_registered_units') || '[]');
+      registeredList.forEach((reg, idx) => {
+        if (!masterRekan.some(m => m.nrp === reg.nrp)) {
+          const isLantas = (reg.unitId === 'lantas');
+          const isReskrim = (reg.unitId === 'reskrim');
+          masterRekan.push({
+            key: 'reg_unit_' + idx,
+            nrp: reg.nrp,
+            pos: reg.gpsCoords || { lat: -6.2100 + (idx * 0.005), lng: 106.8400 + (idx * 0.004) },
+            iconEmoji: isLantas ? '🚓' : (isReskrim ? '🕵️' : '🚔'),
+            icon: isLantas ? iconLantasRekan : iconSamaptaRekan,
+            title: `Unit ${reg.satuanNama} (${reg.kelompokRegu || 'Patroli'})`,
+            petugas: `${reg.nama} (NRP ${reg.nrp})`,
+            sub: `${reg.satuanNama} • Device: ${reg.deviceID || 'DEV-GPS'}`,
+            status: 'Status: SIAGA AKTIF (GPS TERKUNCI)',
+            statusColor: '#10B981',
+            tugas: `Tugas: Siaga Patroli & Respon 110 • Sektor Presisi`,
+            telemetri: `Device ID: ${reg.deviceID || '-'} • Telemetri HP Terhubung`
+          });
+        }
+      });
+    } catch (e) {
+      console.warn('Gagal load registered units ke peta:', e);
+    }
+
     const activeRekan = masterRekan.filter(r => r.nrp !== userNrp);
 
       window.otherMarkers = activeRekan.map(rekanData => {
@@ -2151,19 +2178,19 @@ function hitungEstimasiArmadaUntukLog(log) {
       eta += 2;
     }
 
-    // Penyesuaian tipe kasus (Laka Lantas -> Satlantas, Tawuran/Darurat -> Raimas / Samapta R4)
+    // Penyesuaian tipe kasus (Laka Lantas -> Satlantas, Tawuran/Darurat -> Raimas / Samapta, Curanmor/Narkoba -> Reskrim)
     if (judul.includes('laka') || judul.includes('lalu lintas') || judul.includes('macet') || judul.includes('kendaraan')) {
-      if (armada.id === 'lantas-turjawali') {
+      if (armada.id === 'lantas' || armada.satuanId === 'lantas') {
         jarak = 1.1;
         eta = 3;
       }
     } else if (judul.includes('tawuran') || judul.includes('balap') || judul.includes('darurat') || judul.includes('senjata')) {
-      if (armada.id === 'samapta-r2-motor') {
+      if (armada.id === 'samapta' || armada.satuanId === 'samapta') {
         jarak = 1.0;
-        eta = 3; // Motor taktis lebih lincah
+        eta = 3; // Reaksi Cepat Samapta
       }
     } else if (judul.includes('curat') || judul.includes('curanmor') || judul.includes('narkoba') || judul.includes('pencurian')) {
-      if (armada.id === 'reskrim-opsnal') {
+      if (armada.id === 'reskrim' || armada.satuanId === 'reskrim') {
         jarak = Math.max(1.8, +(jarak * 0.6).toFixed(1));
         eta = Math.max(4, eta - 3);
       }
@@ -2359,7 +2386,7 @@ function konfirmasiDisposisiPawas() {
   if (!log) return;
 
   const unitSelect = document.getElementById('pawas-disp-unit');
-  const selectedArmadaId = unitSelect ? unitSelect.value : (currentModalArmadaList[0]?.id || 'samapta-r4-selatan');
+  const selectedArmadaId = unitSelect ? unitSelect.value : (currentModalArmadaList[0]?.id || 'samapta');
   const armada = currentModalArmadaList.find(a => a.id === selectedArmadaId) || currentModalArmadaList[0] || DAFTAR_ARMADA_PRESISI[0];
 
   const unitVal = armada.nama;
@@ -2376,32 +2403,39 @@ function konfirmasiDisposisiPawas() {
   log.statusText = 'Sedang Diproses';
   log.tahap = 3; // Meluncur ke TKP
 
-  const assignedNrpVal = armada.nrpKomandan || (armada.id === 'samapta-r4-selatan' ? '95020123' : (armada.id === 'samapta-r2-motor' ? '50129841' : (armada.id === 'lantas-turjawali' ? '49112233' : '95020123')));
-  log.assignedUnitId = armada.id;
-  log.assignedNrp = assignedNrpVal;
+  // Normalisasi id satuan (5 Satuan Utama: reskrim, intel, lantas, binmas, sabhara)
+  const rawId = (armada.satuanId || armada.id || '').toLowerCase();
+  const sId = rawId.includes('reskrim') ? 'reskrim' : (rawId.includes('intel') ? 'intel' : (rawId.includes('lantas') ? 'lantas' : (rawId.includes('binmas') || rawId.includes('polsek') ? 'binmas' : 'sabhara')));
+
+  log.assignedUnitId = sId;
+  log.assignedSatuan = armada.satuan || unitVal;
+  log.assignedNrp = armada.nrpKomandan || '95020123';
   log.assignedNama = personelVal;
+  log.acceptedNrps = []; // Wadah bagi setiap personel satuan yang menerima tugas
+  log.acceptedPersonels = []; // Detail nama dan pangkat personel yang bergabung
 
   log.disposisi = {
     unit: unitVal,
-    unitId: armada.id,
+    unitId: sId,
+    satuan: armada.satuan || unitVal,
     komandan: personelVal,
-    nrpKomandan: assignedNrpVal,
+    nrpKomandan: log.assignedNrp,
     estimasiJarak: jarakVal,
     estimasiEta: etaVal,
     posisiAwal: posisiVal,
     kekuatan: kekuatanVal,
     arahan: arahanVal,
     waktuDisposisi: waktuSekarang,
-    pawasNama: (typeof getActiveSessionUser === 'function' && getActiveSessionUser() && getActiveSessionUser().nama ? getActiveSessionUser().nama + ' (Pawas / Kapolres)' : ''),
+    pawasNama: (typeof getActiveSessionUser === 'function' && getActiveSessionUser() && getActiveSessionUser().nama ? getActiveSessionUser().nama + ' (Pawas / Kapolres)' : 'Kombes Pol Budi Santoso (Pawas)'),
     targetSlaMenit: 10
   };
 
   if (!log.riwayatValidasi) log.riwayatValidasi = [];
   log.riwayatValidasi.push({
     waktu: waktuSekarang,
-    aktor: (typeof getActiveSessionUser === 'function' && getActiveSessionUser() && getActiveSessionUser().nama ? getActiveSessionUser().nama + ' (Pawas)' : ''),
-    aksi: 'Disposisi Taktis Diterbitkan (CAD Proximity)',
-    catatan: 'Dikerahkan: ' + unitVal + ' (' + personelVal + ') • Estimasi Jarak: ' + jarakVal + ' (' + etaVal + ' ke TKP). Arahan: "' + arahanVal + '"'
+    aktor: (typeof getActiveSessionUser === 'function' && getActiveSessionUser() && getActiveSessionUser().nama ? getActiveSessionUser().nama + ' (Pawas)' : 'Kombes Pol Budi Santoso (Pawas)'),
+    aksi: 'Disposisi Satuan Diterbitkan (Broadcast Persatuan)',
+    catatan: 'Disiarkan ke: ' + (armada.satuan || unitVal) + ' • Estimasi Jarak: ' + jarakVal + ' (' + etaVal + ' ke TKP). Arahan: "' + arahanVal + '"'
   });
 
   log._updatedAt = Date.now();
@@ -2455,6 +2489,197 @@ function bukaModalSuksesDisposisi(data) {
 function tutupModalSuksesDisposisi() {
   const modal = document.getElementById('modal-sukses-disposisi');
   if (modal) modal.style.display = 'none';
+}
+
+// ============================================================
+// AUDIO SINTESIS SIAP-SIAGA PRESISI (WEB AUDIO API NATIVE)
+// Tidak bergantung pada file mp3 eksternal, bebas error 404
+// ============================================================
+let audioCtxPresisi = null;
+
+function putarSirineDisposisiSatuan() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!audioCtxPresisi || audioCtxPresisi.state === 'suspended') {
+      audioCtxPresisi = new AudioContextClass();
+    }
+    const ctx = audioCtxPresisi;
+    const now = ctx.currentTime;
+
+    // Beep 1 (Tone Tinggi 880 Hz)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(880, now);
+    osc1.frequency.exponentialRampToValueAtTime(1175, now + 0.18);
+    gain1.gain.setValueAtTime(0.3, now);
+    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.22);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.23);
+
+    // Beep 2 (Tone Harmoni 1175 Hz -> 1318 Hz)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1046, now + 0.25);
+    osc2.frequency.exponentialRampToValueAtTime(1318, now + 0.45);
+    gain2.gain.setValueAtTime(0.35, now + 0.25);
+    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.25);
+    osc2.stop(now + 0.52);
+  } catch (err) {
+    console.warn('AudioContext belum dapat bersuara (perlu interaksi user):', err);
+  }
+}
+
+// ============================================================
+// BROADCAST DISPOSISI PERSATUAN REAL-TIME (MULTI-USER RESPONSE)
+// ============================================================
+let currentBroadcastLogId = null;
+
+function normSatuanETribrata(satuanStr) {
+  const s = String(satuanStr || '').toLowerCase();
+  if (s.includes('lantas') || s.includes('lalu') || s.includes('pjr') || s.includes('turjawali')) return 'lantas';
+  if (s.includes('samapta') || s.includes('sabhara') || s.includes('raimas') || s.includes('patroli')) return 'samapta';
+  if (s.includes('reskrim') || s.includes('reserse') || s.includes('penyidik') || s.includes('opsnal') || s.includes('resmob')) return 'reskrim';
+  if (s.includes('polsek') || s.includes('bhabin')) return 'polsek';
+  return 'samapta';
+}
+
+function cekNotifikasiBroadcastSatuan() {
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  if (!user || user.role === 'pimpinan' || user.role === 'operator') {
+    return; // Hanya personel satuan lapangan
+  }
+
+  const userCategory = user.unitId || normSatuanETribrata(user.satuan || user.jabatan);
+
+  const matchingLog = appLogs.find(l => {
+    if (l.status !== 'diproses') return false;
+    const targetSatuan = l.assignedUnitId || normSatuanETribrata(l.disposisi?.satuan || l.disposisi?.unit || l.assignedSatuan);
+    if (targetSatuan !== userCategory) return false;
+
+    const isAlreadyAccepted = Array.isArray(l.acceptedNrps) && l.acceptedNrps.includes(user.nrp);
+    const isDismissed = sessionStorage.getItem('bcast_dismissed_' + l.id);
+
+    return !isAlreadyAccepted && !isDismissed;
+  });
+
+  if (matchingLog) {
+    bukaModalBroadcastSatuan(matchingLog);
+  }
+}
+
+function bukaModalBroadcastSatuan(log) {
+  const modal = document.getElementById('modal-broadcast-satuan');
+  if (!modal) return;
+
+  currentBroadcastLogId = log.id;
+
+  const noTiketEl = document.getElementById('bcast-no-tiket');
+  const satuanNameEl = document.getElementById('bcast-satuan-name');
+  const sumberEl = document.getElementById('bcast-sumber');
+  const judulEl = document.getElementById('bcast-judul');
+  const lokasiEl = document.getElementById('bcast-lokasi');
+  const arahanEl = document.getElementById('bcast-arahan');
+  const petugasListEl = document.getElementById('bcast-petugas-list');
+  const btnTerima = document.getElementById('btn-terima-tugas-bcast');
+
+  if (noTiketEl) noTiketEl.innerText = log.nomorTiket || ('TIKET-110-' + log.id);
+  if (satuanNameEl) satuanNameEl.innerText = log.disposisi?.satuan || log.disposisi?.unit || 'Satuan Tugas Presisi';
+  if (sumberEl) sumberEl.innerText = log.platform === 'sos' ? '🚨 SINYAL SOS WARGA' : 'Call Center 110';
+  if (judulEl) judulEl.innerText = log.title || log.jenisInsiden || 'Laporan Pengaduan Masyarakat';
+  if (lokasiEl) lokasiEl.innerHTML = `<span>📍 TKP:</span> <strong>${log.lokasiKejadian || log.sektor || 'Wilayah Penugasan'}</strong>`;
+  if (arahanEl) arahanEl.innerText = `"${log.disposisi?.arahan || 'Segera meluncur ke TKP dan lakukan tindakan taktis.'}"`;
+
+  if (petugasListEl) {
+    if (Array.isArray(log.acceptedPersonels) && log.acceptedPersonels.length > 0) {
+      const names = log.acceptedPersonels.map(p => `👮 ${p.nama} (${p.pangkat || 'Personel'})`).join('<br>');
+      petugasListEl.innerHTML = `<span style="color:#15803D; font-weight:800;">${log.acceptedPersonels.length} Anggota Telah Siap:</span><br>${names}`;
+    } else {
+      petugasListEl.innerHTML = `<span style="color:#B45309; font-weight:700;">Belum ada anggota yang klik terima (Jadilah personel pertama yang merespon)</span>`;
+    }
+  }
+
+  if (btnTerima) {
+    btnTerima.innerHTML = '<span>🛡️</span> TERIMA PENGADUAN INI ➔';
+    btnTerima.disabled = false;
+  }
+
+  modal.style.display = 'flex';
+  putarSirineDisposisiSatuan();
+}
+
+function tutupModalBroadcastSatuan() {
+  const modal = document.getElementById('modal-broadcast-satuan');
+  if (modal) modal.style.display = 'none';
+  if (currentBroadcastLogId) {
+    sessionStorage.setItem('bcast_dismissed_' + currentBroadcastLogId, 'true');
+  }
+  currentBroadcastLogId = null;
+}
+
+function terimaTugasSatuanDariModal() {
+  if (!currentBroadcastLogId) return;
+  const log = appLogs.find(l => l.id === currentBroadcastLogId);
+  if (!log) return;
+
+  const user = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const userNrp = user ? user.nrp : '95020123';
+  const userNama = user ? user.nama : 'Petugas Lapangan';
+  const userPangkat = user ? user.pangkat : 'BRIGADIR POLISI';
+
+  if (!Array.isArray(log.acceptedNrps)) log.acceptedNrps = [];
+  if (!Array.isArray(log.acceptedPersonels)) log.acceptedPersonels = [];
+
+  if (!log.acceptedNrps.includes(userNrp)) {
+    log.acceptedNrps.push(userNrp);
+    log.acceptedPersonels.push({
+      nrp: userNrp,
+      nama: userNama,
+      pangkat: userPangkat,
+      waktuTerima: formatWaktuHhMmWib()
+    });
+
+    if (!log.riwayatValidasi) log.riwayatValidasi = [];
+    log.riwayatValidasi.push({
+      waktu: formatWaktuHhMmWib(),
+      aktor: `${userNama} (${userPangkat})`,
+      aksi: 'Personel Satuan Menerima Tugas',
+      catatan: `Personel bergabung dalam penanganan terpadu untuk Satuan: ${log.disposisi?.satuan || 'Satuan Tugas'}`
+    });
+
+    log._updatedAt = Date.now();
+    saveLogsToStorage();
+    updateRekapCounts();
+  }
+
+  const modal = document.getElementById('modal-broadcast-satuan');
+  if (modal) modal.style.display = 'none';
+
+  if (typeof openValidasiList === 'function') {
+    openValidasiList('diproses', true);
+  }
+  if (typeof selectLogCard === 'function') {
+    selectLogCard(log.id);
+  }
+
+  if (typeof tampilkanModalAlertPresisi === 'function') {
+    tampilkanModalAlertPresisi(
+      `✓ Tugas Pengaduan Diterima!\n\n` +
+      `Anda (${userNama}) telah resmi bergabung menangani tiket ${log.nomorTiket || log.id}.\n` +
+      `Seluruh rekan di satuan Anda dapat melihat status keterlibatan ini secara real-time.`
+    );
+  } else {
+    alert(`Tugas ${log.nomorTiket} berhasil diterima.`);
+  }
+
+  currentBroadcastLogId = null;
 }
 
 // ============================================================
@@ -4089,29 +4314,61 @@ function displayLogDetail(id) {
             `;
         } else {
           // Field Officer View (Bripka Ahmad & Regu Lapangan)
+          const curActiveUser = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+          const userAlreadyAccepted = curActiveUser && Array.isArray(log.acceptedNrps) && log.acceptedNrps.includes(curActiveUser.nrp);
+
+          let timSatuanHtml = '';
+          if (Array.isArray(log.acceptedPersonels) && log.acceptedPersonels.length > 0) {
+            const listNama = log.acceptedPersonels.map(p => `<span style="display:inline-block; background:#DCFCE7; color:#166534; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px; margin:2px;">👮 ${p.nama}</span>`).join(' ');
+            timSatuanHtml = `
+              <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:8px 12px; margin-bottom:4px;">
+                <div style="font-size:11px; font-weight:800; color:#166534; margin-bottom:4px;">👥 Anggota Satuan yang Menangani (${log.acceptedPersonels.length} Personel):</div>
+                <div>${listNama}</div>
+              </div>
+            `;
+          }
+
+          let tombolAksiPersonelHtml = '';
+          if (!userAlreadyAccepted && (log.status === 'diproses' && log.tahap < 5)) {
+            tombolAksiPersonelHtml = `
+              <button type="button" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #059669 0%, #10B981 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 4px 12px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="currentBroadcastLogId = ${log.id}; terimaTugasSatuanDariModal();">
+                <span>🛡️</span> Terima Penugasan Satuan Ini ➔
+              </button>
+            `;
+          } else if (log.status === 'menunggu_pengesahan' || (log.tahap >= 5 && (log.catatanSelesai || log.waktuSelesai))) {
+            tombolAksiPersonelHtml = `
+              <div style="background:#FEF9C3; border:1.5px solid #FDE047; border-radius:10px; padding:13px; display:flex; align-items:flex-start; gap:10px;">
+                <span style="font-size:20px; line-height:1;">⏳</span>
+                <div>
+                  <div style="color:#854D0E; font-weight:800; font-size:13px;">Laporan Lapangan Terkirim (Menunggu Pengesahan Pawas)</div>
+                  <div style="color:#92400E; font-size:11px; margin-top:3px;">Personel telah menyelesaikan penanganan di TKP dan menutup laporan. Menunggu pengesahan resmi Berita Acara oleh Perwira Pengawas (Pawas).</div>
+                </div>
+              </div>
+            `;
+          } else if (log.tahap >= 5 && log.status !== 'selesai') {
+            tombolAksiPersonelHtml = `
+              <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                <span>✅</span> Lanjutkan ke Step 3: Tutup Kasus ➔
+              </button>
+            `;
+          } else {
+            tombolAksiPersonelHtml = `
+              <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
+                <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
+              </button>
+            `;
+          }
+
           tlActions.innerHTML = `
               <div style="display:flex; flex-direction:column; gap:10px;">
                 <!-- 1. Indikator Evaluasi 3 Lapis SLA Presisi (Petugas) -->
                 ${slaDisplayHtml('TARGET & EVALUASI WAKTU TANGGAP (SLA)')}
 
-                <!-- 2. Tombol Eksekusi Operasional Utama (Bripka Ahmad Sesuai Diagram Alur) -->
-                ${(log.status === 'menunggu_pengesahan' || (log.tahap >= 5 && (log.catatanSelesai || log.waktuSelesai))) ? `
-                  <div style="background:#FEF9C3; border:1.5px solid #FDE047; border-radius:10px; padding:13px; display:flex; align-items:flex-start; gap:10px;">
-                    <span style="font-size:20px; line-height:1;">⏳</span>
-                    <div>
-                      <div style="color:#854D0E; font-weight:800; font-size:13px;">Laporan Lapangan Terkirim (Menunggu Pengesahan Pawas)</div>
-                      <div style="color:#92400E; font-size:11px; margin-top:3px;">Personel telah menyelesaikan penanganan di TKP dan menutup laporan. Menunggu pengesahan resmi Berita Acara oleh Perwira Pengawas (Pawas).</div>
-                    </div>
-                  </div>
-                ` : (log.tahap >= 5 && log.status !== 'selesai' ? `
-                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
-                    <span>✅</span> Lanjutkan ke Step 3: Tutup Kasus ➔
-                  </button>
-                ` : `
-                  <button type="button" class="btn-blue" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(21,62,117,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="openWizardForLog(${log.id})">
-                    <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
-                  </button>
-                `)}
+                <!-- Tim Satuan Terlibat -->
+                ${timSatuanHtml}
+
+                <!-- 2. Tombol Eksekusi Operasional Utama -->
+                ${tombolAksiPersonelHtml}
               </div>
             `;
         }
@@ -5581,6 +5838,13 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Inisialisasi profil pengguna sesuai role aktif
   syncProfileData(role);
+
+  // Periksa notifikasi darurat broadcast satuan (jika ada tiket yang didisposisikan ke satuan ini)
+  setTimeout(() => {
+    if (typeof cekNotifikasiBroadcastSatuan === 'function') {
+      cekNotifikasiBroadcastSatuan();
+    }
+  }, 400);
 });
 
 // Sinkronisasi data log standar lintas tab secara real-time
@@ -5593,6 +5857,10 @@ window.addEventListener('storage', (e) => {
     }
     if (typeof currentValidasiFilter !== 'undefined') {
       openValidasiList(currentValidasiFilter, false);
+    }
+    // Periksa apakah perubahan log memicu broadcast notifikasi satuan
+    if (typeof cekNotifikasiBroadcastSatuan === 'function') {
+      cekNotifikasiBroadcastSatuan();
     }
   }
 });

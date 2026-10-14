@@ -1924,8 +1924,16 @@
       document.getElementById('th-nomor').innerText = log.nomorTiket || ('TIKET-110-' + log.id + 'X2F');
       document.getElementById('th-jenis').innerText = log.jenisInsiden || log.title || 'Laporan Pengaduan Masyarakat';
       document.getElementById('th-waktu').innerText = 'Hari ini, ' + (log.waktu || '10:45 WIB');
-      document.getElementById('th-lokasi').innerText = log.lokasiKejadian || (log.sektor ? log.sektor + ', Jakarta' : 'Jl. Jend. Sudirman, Jakarta');
-      document.getElementById('th-petugas').innerText = (log.nama || 'Bripka Ahmad') + ' (' + (log.nrp ? 'NRP: ' + log.nrp : 'Unit Reaksi Cepat') + ')';
+      const satuanNama = log.disposisi?.satuan || log.disposisi?.unit || (log.tipePelapor === 'personel' ? 'Satuan Patroli' : 'Satuan Tugas Presisi');
+      let petugasDisplay = '';
+      if (log.acceptedPersonels && log.acceptedPersonels.length > 0) {
+        petugasDisplay = `${satuanNama} • ${log.acceptedPersonels.map(p => p.nama).join(', ')}`;
+      } else if (log.disposisi?.komandan) {
+        petugasDisplay = `${satuanNama} (${log.disposisi.komandan})`;
+      } else {
+        petugasDisplay = (log.nama || 'Petugas Patroli') + ' (' + (log.nrp ? 'NRP: ' + log.nrp : 'Unit Reaksi Cepat') + ')';
+      }
+      document.getElementById('th-petugas').innerText = petugasDisplay;
     }
 
     function renderTimelineSteps(log) {
@@ -1940,8 +1948,15 @@
       // Step 2: Disposisi
       const s2 = document.getElementById('step-2-el');
       s2.className = 'step completed';
-      const dispInfoExtra = log.disposisi?.estimasiJarak ? ` (${log.disposisi.unit || 'Samapta'} • Jarak: ${log.disposisi.estimasiJarak})` : '';
-      document.getElementById('step-2-desc').innerText = 'Tugas penanganan telah diserahkan kepada ' + (log.disposisi?.komandan || log.nama || 'Bripka Ahmad') + dispInfoExtra + '.';
+      const satuanLabel = log.disposisi?.satuan || log.disposisi?.unit || 'Satuan Tugas Presisi';
+      const dispInfoExtra = log.disposisi?.estimasiJarak ? ` • Estimasi Jarak: ${log.disposisi.estimasiJarak}` : '';
+      let targetPetugas = satuanLabel;
+      if (log.acceptedPersonels && log.acceptedPersonels.length > 0) {
+        targetPetugas += ` (Diterima oleh: ${log.acceptedPersonels.map(p => p.nama).join(', ')})`;
+      } else if (log.disposisi?.komandan) {
+        targetPetugas += ` (${log.disposisi.komandan})`;
+      }
+      document.getElementById('step-2-desc').innerText = 'Tugas penanganan telah disiarkan dan diserahkan kepada ' + targetPetugas + dispInfoExtra + '.';
 
       // Step 3: Menuju Lokasi
       const s3 = document.getElementById('step-3-el');
@@ -1952,7 +1967,10 @@
       if (tahap === 3 && !isSelesai) {
         s3.className = 'step active';
         if (s3Map) s3Map.style.display = 'block';
-        document.getElementById('map-police-name').innerText = log.disposisi?.komandan || log.nama || 'Bripka Ahmad';
+        const namaPenangan = (log.acceptedPersonels && log.acceptedPersonels.length > 0)
+          ? log.acceptedPersonels.map(p => p.nama).join(' & ')
+          : (log.disposisi?.komandan || log.nama || 'Petugas Satuan');
+        document.getElementById('map-police-name').innerText = namaPenangan;
         const etaTeks = log.disposisi?.estimasiEta ? log.disposisi.estimasiEta : '4-5 Menit';
         const jarakTeks = log.disposisi?.estimasiJarak ? ` • Jarak: ${log.disposisi.estimasiJarak}` : '';
         document.getElementById('map-police-eta').innerText = `⚡ Status: Menuju Lokasi (Estimasi Tiba: ${etaTeks}${jarakTeks})`;

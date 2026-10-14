@@ -6,7 +6,7 @@
  */
 
 const ROSTER_PERSONEL = [
-  // 1. PERSONEL LAPANGAN - UNIT SAMAPTA PRESISI (RODA 4)
+  // 1. PERSONEL LAPANGAN - SATUAN SAMAPTA PRESISI (R4 & R2)
   {
     nrp: '95020123',
     aliasNrp: ['50123456'],
@@ -16,8 +16,8 @@ const ROSTER_PERSONEL = [
     pangkat: 'BRIGADIR POLISI KEPALA (BRIPKA)',
     pangkatSingkat: 'Bripka',
     jabatan: 'Unit Patroli Reaksi Cepat • Satuan Samapta',
-    satuan: 'Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)',
-    unitId: 'samapta-r4-selatan',
+    satuan: 'Satuan Samapta Presisi',
+    unitId: 'samapta',
     chRadio: 'CH-04 SAMAPTA SELATAN',
     golongan: 'Bintara (II/d)',
     avatar: 'assets/images/polri_pengaduan_tkp.jpg',
@@ -25,12 +25,10 @@ const ROSTER_PERSONEL = [
     alkom: 'HT Motorola GP338 Plus',
     gadget: 'Bodycam Presisi Live #04',
     senpi: 'Revolver Cal 38 & Rompi III-A',
-    badgeText: 'ANGGOTA PATROLI',
+    badgeText: 'SAMAPTA PRESISI',
     badgeBg: '#F0FDF4',
     badgeColor: '#15803D'
   },
-
-  // 2. PERSONEL LAPANGAN - UNIT SAMAPTA REAKSI CEPAT RAIMAS (RODA 2)
   {
     nrp: '50129841',
     aliasNrp: ['97080215'],
@@ -40,8 +38,8 @@ const ROSTER_PERSONEL = [
     pangkat: 'AJUN INSPEKTUR POLISI DUA (AIPDA)',
     pangkatSingkat: 'Aipda',
     jabatan: 'Danru Tim Reaksi Cepat Raimas • Satuan Samapta',
-    satuan: 'Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)',
-    unitId: 'samapta-r2-motor',
+    satuan: 'Satuan Samapta Presisi',
+    unitId: 'samapta',
     chRadio: 'CH-02 RAIMAS MOTOR BARAT',
     golongan: 'Bintara (II/c)',
     avatar: 'assets/images/polri_pengaduan_tkp.jpg',
@@ -49,12 +47,34 @@ const ROSTER_PERSONEL = [
     alkom: 'HT Motorola APX 2000 & Headset Helm',
     gadget: 'Bodycam Helm Taktis #12',
     senpi: 'Gas Air Mata & Rompi Taktis Level III',
-    badgeText: 'TIM RAIMAS R2',
+    badgeText: 'SAMAPTA RAIMAS',
     badgeBg: '#FEF3C7',
     badgeColor: '#B45309'
   },
+  {
+    nrp: '82040512',
+    aliasNrp: ['82040512'],
+    nama: 'Aipda Eko Prasetyo',
+    namaSingkat: 'Aipda Eko',
+    role: 'anggota',
+    pangkat: 'AJUN INSPEKTUR POLISI DUA (AIPDA)',
+    pangkatSingkat: 'Aipda',
+    jabatan: 'Patroli Kota Satuan Samapta',
+    satuan: 'Satuan Samapta Presisi',
+    unitId: 'samapta',
+    chRadio: 'CH-04 SAMAPTA PUSAT',
+    golongan: 'Bintara (II/c)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Double Cabin R4-Samapta-12',
+    alkom: 'HT Motorola GP338 Plus',
+    gadget: 'Bodycam Presisi Live #07',
+    senpi: 'Revolver Cal 38',
+    badgeText: 'SAMAPTA PRESISI',
+    badgeBg: '#F0FDF4',
+    badgeColor: '#15803D'
+  },
 
-  // 3. PERSONEL LAPANGAN - UNIT TURJAWALI SATLANTAS (PJR / LAKA)
+  // 2. PERSONEL LAPANGAN - SATUAN LALU LINTAS (SATLANTAS) - 10 Personel Siaga
   {
     nrp: '49112233',
     aliasNrp: ['93050411'],
@@ -64,8 +84,8 @@ const ROSTER_PERSONEL = [
     pangkat: 'AJUN INSPEKTUR POLISI SATU (AIPTU)',
     pangkatSingkat: 'Aiptu',
     jabatan: 'Unit Patroli Jalan Raya (PJR) & Turjawali • Satlantas',
-    satuan: 'Turjawali Satlantas (Unit Patroli Jalan Raya PJR)',
-    unitId: 'lantas-turjawali',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
     chRadio: 'CH-01 TURJAWALI LANTAS',
     golongan: 'Bintara (II/d)',
     avatar: 'assets/images/polri_pengaduan_tkp.jpg',
@@ -76,6 +96,272 @@ const ROSTER_PERSONEL = [
     badgeText: 'TURJAWALI LANTAS',
     badgeBg: '#EFF6FF',
     badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '93020101',
+    aliasNrp: ['lantas02'],
+    nama: 'Bripka Hendro Wibowo',
+    namaSingkat: 'Bripka Hendro',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI KEPALA (BRIPKA)',
+    pangkatSingkat: 'Bripka',
+    jabatan: 'Unit Patroli Reaksi Cepat Lantas • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/d)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Motor PJR Yamaha FJR 1300',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Tablet E-Tilang #04',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '94030202',
+    aliasNrp: ['lantas03'],
+    nama: 'Bripka Dwi Cahyono',
+    namaSingkat: 'Bripka Dwi',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI KEPALA (BRIPKA)',
+    pangkatSingkat: 'Bripka',
+    jabatan: 'Unit Pengaturan & Patroli • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/d)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Sedan Patroli Lantas VII-3012-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Bodycam Lantas #08',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '95040303',
+    aliasNrp: ['lantas04'],
+    nama: 'Brigadir Surya Pratama',
+    namaSingkat: 'Brigadir Surya',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI (BRIGADIR)',
+    pangkatSingkat: 'Brigadir',
+    jabatan: 'Unit Penegakan Hukum & Laka • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/c)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Sedan PJR Patroli VII-3015-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Tablet E-Tilang #09',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '96050404',
+    aliasNrp: ['lantas05'],
+    nama: 'Brigadir Bayu Nugroho',
+    namaSingkat: 'Brigadir Bayu',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI (BRIGADIR)',
+    pangkatSingkat: 'Brigadir',
+    jabatan: 'Unit Turjawali Beat Timur • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/c)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Motor Trail PJR VII-2101-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Bodycam Lantas #10',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '97060505',
+    aliasNrp: ['lantas06'],
+    nama: 'Briptu Indra Lesmana',
+    namaSingkat: 'Briptu Indra',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI SATU (BRIPTU)',
+    pangkatSingkat: 'Briptu',
+    jabatan: 'Unit Quick Response Lantas • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/b)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Motor Patroli Lantas VII-2102-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Bodycam Lantas #11',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '98070606',
+    aliasNrp: ['lantas07'],
+    nama: 'Briptu Rizky Ramadhan',
+    namaSingkat: 'Briptu Rizky',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI SATU (BRIPTU)',
+    pangkatSingkat: 'Briptu',
+    jabatan: 'Unit Patroli Protokol • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/b)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Sedan PJR VII-3016-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Tablet E-Tilang #12',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '99080707',
+    aliasNrp: ['lantas08'],
+    nama: 'Briptu Fajar Hidayat',
+    namaSingkat: 'Briptu Fajar',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI SATU (BRIPTU)',
+    pangkatSingkat: 'Briptu',
+    jabatan: 'Unit Turjawali Jalur Protokol • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/b)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Motor PJR Yamaha VII-2103-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Bodycam Lantas #13',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '00090808',
+    aliasNrp: ['lantas09'],
+    nama: 'Bripda Arif Gunawan',
+    namaSingkat: 'Bripda Arif',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI DUA (BRIPDA)',
+    pangkatSingkat: 'Bripda',
+    jabatan: 'Unit Pengawalan & Pengaturan • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/a)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Motor Patroli Lantas VII-2104-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Bodycam Lantas #14',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+  {
+    nrp: '01100909',
+    aliasNrp: ['lantas10'],
+    nama: 'Bripda Dimas Anggoro',
+    namaSingkat: 'Bripda Dimas',
+    role: 'anggota',
+    pangkat: 'BRIGADIR POLISI DUA (BRIPDA)',
+    pangkatSingkat: 'Bripda',
+    jabatan: 'Unit Patroli Jalan Raya Siaga • Satlantas',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    unitId: 'lantas',
+    chRadio: 'CH-01 TURJAWALI LANTAS',
+    golongan: 'Bintara (II/a)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Sedan PJR VII-3018-01',
+    alkom: 'HT Motorola APX 7000',
+    gadget: 'Bodycam Lantas #15',
+    senpi: 'Rompi Fosfor Lantas',
+    badgeText: 'SATLANTAS PRESISI',
+    badgeBg: '#EFF6FF',
+    badgeColor: '#1D4ED8'
+  },
+
+  // 3. PERSONEL SATUAN RESKRIM, INTEL, & BINMAS
+  {
+    nrp: '51044321',
+    aliasNrp: ['reskrim01'],
+    nama: 'Ipda Reza Pratama, S.H.',
+    namaSingkat: 'Ipda Reza',
+    role: 'anggota',
+    pangkat: 'INSPEKTUR POLISI DUA (IPDA)',
+    pangkatSingkat: 'Ipda',
+    jabatan: 'Panit Tim Opsnal & Resmob • Satreskrim',
+    satuan: 'Satuan Reserse Kriminal (Satreskrim)',
+    unitId: 'reskrim',
+    chRadio: 'CH-05 RESKRIM OPSNAL',
+    golongan: 'Pama (III/a)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Minibus Taktis Tertutup VII-4011-01',
+    alkom: 'HT APX 8000',
+    gadget: 'Perangkat Inafis & Forensik Mobile',
+    senpi: 'Senpi HS-9 & Rompi Taktis Level III',
+    badgeText: 'RESKRIM OPSNAL',
+    badgeBg: '#FEF2F2',
+    badgeColor: '#991B1B'
+  },
+  {
+    nrp: '52011234',
+    aliasNrp: ['intel01'],
+    nama: 'Ipda Dimas Wicaksono',
+    namaSingkat: 'Ipda Dimas',
+    role: 'anggota',
+    pangkat: 'INSPEKTUR POLISI DUA (IPDA)',
+    pangkatSingkat: 'Ipda',
+    jabatan: 'Unit Deteksi Dini & Pulbaket • Sat Intelkam',
+    satuan: 'Satuan Intelijen Keamanan (Sat Intelkam)',
+    unitId: 'intel',
+    chRadio: 'CH-06 INTELKAM VIP',
+    golongan: 'Pama (III/a)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Kendaraan Dinas Tertutup VII-6011-01',
+    alkom: 'HT Motorola APX 8000 Encrypted',
+    gadget: 'Terminal Pantau Siber & Deteksi Dini #01',
+    senpi: 'Senpi Rahasia Glock 19 & ID Khusus',
+    badgeText: 'SAT INTELKAM',
+    badgeBg: '#FFF7ED',
+    badgeColor: '#C2410C'
+  },
+  {
+    nrp: '48099881',
+    aliasNrp: ['bhabin01', 'binmas01'],
+    nama: 'Aipda Hendra Gunawan',
+    namaSingkat: 'Aipda Hendra',
+    role: 'anggota',
+    pangkat: 'AJUN INSPEKTUR POLISI DUA (AIPDA)',
+    pangkatSingkat: 'Aipda',
+    jabatan: 'Piket Binmas & Bhabinkamtibmas Kelurahan Binaan',
+    satuan: 'Satuan Pembinaan Masyarakat (Sat Binmas)',
+    unitId: 'binmas',
+    chRadio: 'CH-03 BINMAS BHABIN',
+    golongan: 'Bintara (II/c)',
+    avatar: 'assets/images/polri_pengaduan_tkp.jpg',
+    ranmor: 'Mobil Penyuluhan Binmas VII-5011-01',
+    alkom: 'HT Motorola GP338 Plus',
+    gadget: 'Tablet Binmas Online System (BOS)',
+    senpi: 'Revolver Cal 38',
+    badgeText: 'SAT BINMAS',
+    badgeBg: '#F0FDF4',
+    badgeColor: '#166534'
   },
 
   // 4. OPERATOR SENTRA PELAYANAN KEPOLISIAN TERPADU 110 (SPKT)
@@ -128,6 +414,23 @@ const ROSTER_PERSONEL = [
 ];
 
 /**
+ * Mendapatkan seluruh daftar personel gabungan (Bawaan ROSTER_PERSONEL + Registrasi Satuan Baru dari localStorage)
+ * @returns {Array}
+ */
+function getCombinedRosterPersonel() {
+  let registered = [];
+  try {
+    const raw = localStorage.getItem('simapres_registered_units');
+    if (raw) {
+      registered = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Gagal membaca simapres_registered_units:', e);
+  }
+  return [...ROSTER_PERSONEL, ...registered];
+}
+
+/**
  * Mencari profil personel berdasarkan NRP atau alias NRP
  * @param {string} nrpInput 
  * @returns {object|null}
@@ -135,10 +438,11 @@ const ROSTER_PERSONEL = [
 function cariPersonelByNrp(nrpInput) {
   if (!nrpInput) return null;
   const clean = String(nrpInput).trim().toLowerCase();
-  return ROSTER_PERSONEL.find(u => {
-    if (u.nrp.toLowerCase() === clean) return true;
+  const allPersonel = getCombinedRosterPersonel();
+  return allPersonel.find(u => {
+    if (u.nrp && u.nrp.toLowerCase() === clean) return true;
     if (u.aliasNrp && u.aliasNrp.some(a => a.toLowerCase() === clean)) return true;
-    if (u.nama.toLowerCase().includes(clean)) return true;
+    if (u.nama && u.nama.toLowerCase().includes(clean)) return true;
     return false;
   }) || null;
 }
@@ -205,7 +509,8 @@ function getActiveSessionUser() {
 }
 
 /**
- * Filter cerdas isolasi data tugas: Menentukan apakah sebuah tiket adalah tanggung jawab user
+ * Filter cerdas isolasi data tugas: Menentukan apakah sebuah tiket adalah tanggung jawab user / satuan user
+ * Mendukung penugasan persatuan (seluruh anggota dalam satuan tersebut dapat melihat & menangani tiket)
  * @param {object} log 
  * @param {object} user 
  * @returns {boolean}
@@ -216,14 +521,38 @@ function isLogAssignedToUser(log, user) {
   const namaSingkat = String(user.namaSingkat || '').trim().toLowerCase();
   const nama = String(user.nama || '').trim().toLowerCase();
   const unitId = String(user.unitId || '').trim().toLowerCase();
+  const satuan = String(user.satuan || '').trim().toLowerCase();
 
-  // 1. Cek langsung assignedNrp atau assignedUnitId pada level root tiket
+  // Helper normalisasi ID satuan (5 Satuan Utama: reskrim, intel, lantas, binmas, sabhara)
+  const normSatuan = (val) => {
+    const s = String(val || '').toLowerCase();
+    if (s.includes('reskrim') || s.includes('resmob') || s.includes('opsnal') || s.includes('inafis') || s.includes('penyidik')) return 'reskrim';
+    if (s.includes('intel') || s.includes('intelkam') || s.includes('sandik') || s.includes('pulbaket')) return 'intel';
+    if (s.includes('lantas') || s.includes('pjr') || s.includes('turjawali') || s.includes('laka')) return 'lantas';
+    if (s.includes('binmas') || s.includes('bhabin') || s.includes('polsek') || s.includes('sambang')) return 'binmas';
+    if (s.includes('sabhara') || s.includes('samapta') || s.includes('raimas') || s.includes('perintis') || s.includes('patroli')) return 'sabhara';
+    return s;
+  };
+
+  const userCategory = normSatuan(unitId || satuan);
+
+  // 1. Cek langsung assignedUnitId atau assignedSatuan pada level root tiket
+  if (log.assignedUnitId) {
+    const targetUnit = String(log.assignedUnitId).trim().toLowerCase();
+    if (targetUnit === unitId || normSatuan(targetUnit) === userCategory) return true;
+  }
+  if (log.assignedSatuan && normSatuan(log.assignedSatuan) === userCategory) return true;
   if (log.assignedNrp && String(log.assignedNrp).trim().toLowerCase() === nrp) return true;
-  if (log.assignedUnitId && String(log.assignedUnitId).trim().toLowerCase() === unitId) return true;
+  if (Array.isArray(log.acceptedNrps) && log.acceptedNrps.includes(nrp)) return true;
 
   // 2. Cek di dalam objek disposisi taktis
   if (log.disposisi) {
-    if (log.disposisi.unitId && String(log.disposisi.unitId).trim().toLowerCase() === unitId) return true;
+    if (log.disposisi.unitId) {
+      const dispUnit = String(log.disposisi.unitId).trim().toLowerCase();
+      if (dispUnit === unitId || normSatuan(dispUnit) === userCategory) return true;
+    }
+    if (log.disposisi.satuan && normSatuan(log.disposisi.satuan) === userCategory) return true;
+    if (log.disposisi.unit && normSatuan(log.disposisi.unit) === userCategory) return true;
     if (log.disposisi.nrpKomandan && String(log.disposisi.nrpKomandan).trim().toLowerCase() === nrp) return true;
     const komandan = String(log.disposisi.komandan || '').toLowerCase();
     if (komandan.includes(nrp)) return true;
@@ -242,8 +571,8 @@ function isLogAssignedToUser(log, user) {
     if (namaSingkat && String(log.nama || '').toLowerCase().includes(namaSingkat)) return true;
   }
 
-  // 5. Fallback Default untuk Tiket 16 (Bripka Ahmad)
-  if (log.id === 16 && (nrp === '95020123' || nrp === '50123456')) return true;
+  // 5. Fallback Default untuk Tiket 16 (Samapta Presisi)
+  if (log.id === 16 && (userCategory === 'samapta' || nrp === '95020123' || nrp === '50123456')) return true;
 
   return false;
 }

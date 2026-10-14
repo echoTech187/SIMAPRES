@@ -28,6 +28,9 @@
         E TRIBRATA LOG
       </div>
       <div class="user-profile" style="display:flex; align-items:center; gap:10px;">
+        <a href="registrasi-unit.html" class="nav-btn-reg-unit" style="text-decoration:none; background:rgba(255,255,255,0.15); color:white; font-size:11.5px; font-weight:700; padding:5px 10px; border-radius:6px; border:1px solid rgba(255,255,255,0.25); display:flex; align-items:center; gap:5px; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'" title="Buka Halaman Pendaftaran & Manajemen Satuan Unit">
+          <span>⚙️</span> Registrasi Unit
+        </a>
         <div id="bell-notif" class="bell-icon" onclick="event.stopPropagation(); switchTab('view-validasi')"
           style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'"
           onmouseout="this.style.transform='scale(1)'" title="Lihat Log Menunggu">
@@ -2154,24 +2157,22 @@
         <div style="margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <label style="font-size:12px; font-weight:800; color:#1E293B;">
-              1. Pilihan Armada Siaga &amp; Pimpinan Regu (Smart CAD): <span style="color:#DC2626;">*</span>
+              1. Disposisi ke Satuan Tugas (Broadcast Persatuan): <span style="color:#DC2626;">*</span>
             </label>
             <span id="pawas-disp-badge-terdekat"
               style="font-size:10px; font-weight:800; background:#DCFCE7; color:#166534; padding:2px 8px; border-radius:12px; border:1px solid #86EFAC; display:flex; align-items:center; gap:4px;">
-              <span>⚡</span> CAD PROXIMITY ACTIVE
+              <span>⚡</span> BROADCAST SATUAN AKTIF
             </span>
           </div>
 
-          <!-- Dropdown Terpadu: Gabungan Satuan, Komandan, dan Estimasi Jarak/ETA -->
+          <!-- Dropdown Terpadu: Disposisi Satuan Tugas Presisi (5 Satuan Utama) -->
           <select id="pawas-disp-unit" onchange="onPawasArmadaSelectChange()"
             style="width:100%; padding:10px 12px; border:2px solid #2563EB; border-radius:8px; font-size:12.5px; font-weight:700; color:#0F172A; background:#FFFFFF; outline:none; box-shadow:0 0 0 3px rgba(37,99,235,0.1); cursor:pointer;">
-            <!-- Opsi di-render secara dinamis dengan sorting terdekat oleh bukaModalDisposisiPawas() -->
-            <option value="samapta-r4-selatan">🚔 Patroli Samapta Presisi R4 — Bripka Ahmad [📍 1.2 km • ~3 Menit
-              (TERDEKAT)]</option>
-            <option value="samapta-r2-motor">🏍️ Samapta Reaksi Cepat R2 — Aipda Rudi [📍 1.8 km • ~4 Menit]</option>
-            <option value="lantas-turjawali">🚓 Turjawali Satlantas — Aiptu Bambang [📍 2.5 km • ~6 Menit]</option>
-            <option value="bhabin-polsek">👮 Bhabinkamtibmas Polsek — Aipda Hendra [📍 3.2 km • ~7 Menit]</option>
-            <option value="reskrim-opsnal">🕵️ Opsnal Resmob Satreskrim — Ipda Reza [📍 4.5 km • ~9 Menit]</option>
+            <option value="reskrim">🕵️ Satuan Reserse Kriminal (Satreskrim • Opsnal &amp; Resmob) [📍 2.1 km • ~5 Menit]</option>
+            <option value="intel">👁️ Satuan Intelijen Keamanan (Sat Intelkam • Deteksi Dini) [📍 1.8 km • ~4 Menit]</option>
+            <option value="lantas">🚓 Satuan Lalu Lintas (Satlantas • Turjawali &amp; PJR) [📍 1.5 km • ~4 Menit]</option>
+            <option value="binmas">🤝 Satuan Pembinaan Masyarakat (Sat Binmas / Bhabin) [📍 2.5 km • ~6 Menit]</option>
+            <option value="sabhara">🚔 Satuan Sabhara / Samapta Presisi (Patroli R4 &amp; Raimas) [📍 1.2 km • ~3 Menit]</option>
           </select>
 
           <!-- Kartu Preview Rincian Armada Terpilih & Estimasi Jarak Live -->
@@ -2527,6 +2528,210 @@
         <button type="button" onclick="konfirmasiModalPromptPresisi()"
           style="flex:1; padding:10px 18px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:12.5px; font-weight:800; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(21,62,117,0.3);">
           <span>✓</span> Simpan &amp; Lanjutkan ➔
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL SUKSES DISPOSISI TAKTIS (PENGGANTI POPUP ALERT BROWSER) -->
+  <div id="modal-sukses-disposisi"
+    style="display:none; position:fixed; inset:0; z-index:999999; background:rgba(15,23,42,0.82); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; width:100%; max-width:520px; border-radius:16px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.45); overflow:hidden; border:1px solid #CBD5E1; display:flex; flex-direction:column;">
+
+      <!-- Header Gradien Presisi dengan Lencana Sukses -->
+      <div
+        style="background:linear-gradient(135deg, #064E3B 0%, #065F46 60%, #047857 100%); color:white; padding:24px 20px 20px 20px; text-align:center; position:relative;">
+        <button type="button" onclick="tutupModalSuksesDisposisi()"
+          style="position:absolute; top:12px; right:12px; background:rgba(255,255,255,0.15); border:none; color:white; width:28px; height:28px; border-radius:50%; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center;"
+          onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+          onmouseout="this.style.background='rgba(255,255,255,0.15)'">
+          ✕
+        </button>
+
+        <div
+          style="width:58px; height:58px; background:rgba(255,255,255,0.2); border:2px solid rgba(255,255,255,0.4); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:12px; box-shadow:0 0 20px rgba(52,211,153,0.4);">
+          ✓
+        </div>
+        <div style="font-size:17px; font-weight:900; letter-spacing:0.4px; text-transform:uppercase;">
+          Perintah Disposisi Berhasil Diterbitkan!
+        </div>
+        <div style="font-size:12px; color:#A7F3D0; margin-top:4px;">
+          Instruksi operasi telah ditransmisikan ke seluruh personel satuan siaga
+        </div>
+      </div>
+
+      <!-- Body Rincian Penugasan -->
+      <div style="padding:18px 20px; overflow-y:auto;">
+        <div
+          style="background:#FEF3C7; border:1.5px dashed #F59E0B; border-radius:10px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:10px; font-weight:800; color:#B45309; text-transform:uppercase;">NOMOR TIKET RESMI</div>
+            <div id="sukses-disp-nomor-tiket"
+              style="font-family:monospace; font-size:16px; font-weight:900; color:#92400E;">TIKET-110-29X2F</div>
+          </div>
+          <div style="text-align:right;">
+            <span
+              style="font-size:10.5px; font-weight:800; background:#DCFCE7; color:#166534; padding:3px 8px; border-radius:6px; border:1px solid #86EFAC;">
+              ● BROADCAST SATUAN LIVE
+            </span>
+          </div>
+        </div>
+
+        <div
+          style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+          <div
+            style="display:flex; justify-content:space-between; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
+            <div style="font-size:11.5px; color:#64748B; font-weight:600;">🚔 Satuan Bertugas:</div>
+            <div id="sukses-disp-unit"
+              style="font-size:12px; font-weight:800; color:#0F172A; text-align:right; max-width:65%;">
+              Satuan Samapta Presisi
+            </div>
+          </div>
+
+          <div
+            style="display:flex; justify-content:space-between; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
+            <div style="font-size:11.5px; color:#64748B; font-weight:600;">👤 Penanggung Jawab / Komandan:</div>
+            <div id="sukses-disp-komandan" style="font-size:12px; font-weight:800; color:#1E40AF; text-align:right;">
+              -
+            </div>
+          </div>
+
+          <div
+            style="display:flex; justify-content:space-between; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
+            <div style="font-size:11.5px; color:#64748B; font-weight:600;">📍 Estimasi Jarak GPS:</div>
+            <div style="text-align:right;">
+              <span id="sukses-disp-jarak"
+                style="font-size:13px; font-weight:900; color:#1E40AF; font-family:monospace;">1.2 km</span>
+              <span id="sukses-disp-eta"
+                style="font-size:11.5px; font-weight:700; color:#059669; margin-left:4px;">(ETA: ± 3 Menit)</span>
+            </div>
+          </div>
+
+          <div
+            style="display:flex; justify-content:space-between; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
+            <div style="font-size:11.5px; color:#64748B; font-weight:600;">🏢 Posisi Awal Patroli:</div>
+            <div id="sukses-disp-posisi"
+              style="font-size:11.5px; font-weight:700; color:#334155; text-align:right; max-width:60%;">
+              Pos Pantau Bundaran Senayan
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between;">
+            <div style="font-size:11.5px; color:#64748B; font-weight:600;">⚡ Target Quick Response:</div>
+            <div style="font-size:11.5px; font-weight:800; color:#166534; text-align:right;">
+              &lt; 10 Menit Tiba di TKP (SLA Aman ✅)
+            </div>
+          </div>
+        </div>
+
+        <div
+          style="background:#EFF6FF; border-left:3px solid #3B82F6; padding:10px 12px; border-radius:0 8px 8px 0; font-size:11px; color:#1E40AF; line-height:1.45; margin-top:12px;">
+          <strong>📡 Status Terkini:</strong> Notifikasi telah disiarkan ke seluruh personel satuan. Setiap personel satuan dapat membuka dan menerima penanganan bersama.
+        </div>
+      </div>
+
+      <div
+        style="padding:14px 20px; border-top:1px solid #E2E8F0; background:#F8FAFC; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <button type="button" onclick="tutupModalSuksesDisposisi()"
+          style="padding:10px 16px; background:#F1F5F9; color:#475569; font-size:12px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer;">
+          Tutup
+        </button>
+        <button type="button" onclick="tutupModalSuksesDisposisi()"
+          style="flex:1; padding:11px 18px; background:linear-gradient(135deg, #153E75 0%, #1E40AF 100%); color:white; font-size:12.5px; font-weight:800; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(21,62,117,0.3); transition:transform 0.15s;"
+          onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
+          <span>🎯</span> Pantau Penanganan di Timeline ➔
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL BROADCAST DISPOSISI SATUAN REAL-TIME (NOTIFIKASI MASING-MASING PERSONEL) -->
+  <style>
+    @keyframes pulseBroadcast {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { transform: scale(1.015); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+  </style>
+  <div id="modal-broadcast-satuan"
+    style="display:none; position:fixed; inset:0; z-index:9999999; background:rgba(15,23,42,0.85); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; width:100%; max-width:540px; border-radius:18px; box-shadow:0 25px 60px -10px rgba(220,38,38,0.4); overflow:hidden; border:2px solid #EF4444; display:flex; flex-direction:column; animation: pulseBroadcast 2s infinite ease-in-out;">
+
+      <!-- Header Emergency Flash -->
+      <div
+        style="background:linear-gradient(135deg, #991B1B 0%, #DC2626 50%, #B91C1C 100%); color:white; padding:20px; text-align:center; position:relative;">
+        <div
+          style="width:54px; height:54px; background:rgba(255,255,255,0.2); border:2px solid rgba(255,255,255,0.5); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:8px; box-shadow:0 0 25px rgba(255,255,255,0.5);">
+          🚨
+        </div>
+        <div style="font-size:18px; font-weight:900; letter-spacing:0.5px; text-transform:uppercase;">
+          PENGADUAN BARU DITERIMA SATUAN ANDA!
+        </div>
+        <div id="bcast-satuan-name" style="font-size:12px; color:#FEE2E2; margin-top:4px; font-weight:700;">
+          Satuan Samapta Presisi
+        </div>
+        <div
+          style="display:inline-block; margin-top:8px; background:#FEF3C7; color:#92400E; font-size:11px; font-weight:900; padding:3px 10px; border-radius:12px; border:1px solid #FCD34D;">
+          ⏱️ TARGET SLA KEDATANGAN: &lt; 10 MENIT
+        </div>
+      </div>
+
+      <!-- Body Detail Pengaduan -->
+      <div style="padding:18px 20px; overflow-y:auto; max-height:60vh;">
+        <!-- Banner Tiket -->
+        <div
+          style="background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-size:10px; font-weight:800; color:#991B1B; text-transform:uppercase;">NOMOR TIKET</div>
+            <div id="bcast-no-tiket" style="font-family:monospace; font-size:16px; font-weight:900; color:#B91C1C;">
+              TIKET-110-01X2F
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px; font-weight:800; color:#64748B;">SUMBER LAPORAN</div>
+            <div id="bcast-sumber" style="font-size:11px; font-weight:800; color:#1E40AF;">Call Center 110</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div id="bcast-judul" style="font-size:16px; font-weight:900; color:#0F172A; line-height:1.35; margin-bottom:4px;">
+            Tawuran Remaja
+          </div>
+          <div id="bcast-lokasi" style="font-size:12.5px; color:#334155; display:flex; align-items:center; gap:4px;">
+            <span>📍 TKP:</span> <strong>Jl. Sudirman, Jakarta</strong>
+          </div>
+        </div>
+
+        <!-- Instruksi Pawas -->
+        <div
+          style="background:#EFF6FF; border-left:4px solid #2563EB; border-radius:0 8px 8px 0; padding:10px 12px; font-size:12px; color:#1E3A8A; line-height:1.5; margin-bottom:12px;">
+          <strong>👮 Instruksi Pawas:</strong> <span id="bcast-arahan">"Segera meluncur ke TKP..."</span>
+        </div>
+
+        <!-- Personel Yang Sudah Terima -->
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px 12px; font-size:11.5px; color:#475569;">
+          <span style="font-weight:700; color:#0F172A;">👥 Personel Satuan yang Siap / Terlibat:</span>
+          <div id="bcast-petugas-list" style="margin-top:4px; font-weight:600; color:#15803D;">
+            Belum ada anggota yang klik terima (Jadilah personel pertama yang merespon)
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button: Terima Tugas -->
+      <div
+        style="padding:14px 20px; border-top:1px solid #E2E8F0; background:#F8FAFC; display:flex; gap:10px;">
+        <button type="button" onclick="tutupModalBroadcastSatuan()"
+          style="flex:1; padding:12px 14px; background:#F1F5F9; color:#475569; font-size:12px; font-weight:700; border:1px solid #CBD5E1; border-radius:8px; cursor:pointer;">
+          Nanti Saja
+        </button>
+        <button type="button" id="btn-terima-tugas-bcast" onclick="terimaTugasSatuanDariModal()"
+          style="flex:2; padding:12px 18px; background:linear-gradient(135deg, #059669 0%, #10B981 100%); color:white; font-size:13.5px; font-weight:900; border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(16,185,129,0.35); transition:transform 0.15s;"
+          onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
+          <span>🛡️</span> TERIMA PENGADUAN INI ➔
         </button>
       </div>
 

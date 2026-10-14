@@ -70,72 +70,82 @@ var SVG_FALLBACK_PERSIAPAN = window.SVG_FALLBACK_PERSIAPAN || `data:image/svg+xm
 </svg>
 `)}`;
 
-// Daftar Armada Reaksi Cepat Presisi untuk Disposisi CAD Pawas
+// Daftar Satuan Tugas / Satker Presisi untuk Disposisi CAD Pawas (5 Satuan Utama)
 var DAFTAR_ARMADA_PRESISI = window.DAFTAR_ARMADA_PRESISI || [
   {
-    id: 'samapta-r4-selatan',
-    nama: 'Patroli Samapta Presisi (Unit Roda 4 - Zona Selatan)',
-    namaSingkat: 'Patroli Samapta R4 (Zona Selatan)',
-    sektorUtama: 'Sektor Selatan',
-    komandan: 'Bripka Ahmad & Regu Alpha (NRP: 95020123)',
-    nrpKomandan: '95020123',
-    posisiSaatIni: 'Pos Pantau Bundaran Senayan / Patroli Mobile',
-    kekuatan: '4 Personel • Mobil Sedan Sabhara • Senpi V2 • Bodycam On',
-    jarakBase: 1.2,
-    etaBase: 3,
-    icon: '🚔'
+    id: 'reskrim',
+    satuanId: 'reskrim',
+    nama: 'Satuan Reserse Kriminal (Satreskrim • Opsnal & Resmob)',
+    namaSingkat: 'Sat Reskrim',
+    satuan: 'Satuan Reserse Kriminal (Satreskrim)',
+    sektorUtama: 'Pusat Komando',
+    komandan: 'Ipda Reza Pratama, S.H. (Panit Opsnal)',
+    nrpKomandan: '51044321',
+    posisiSaatIni: 'Mako Polres (Standby Tim Tindak Gakkum Resmob)',
+    kekuatan: 'Siaga 8 Personel Opsnal • Minibus Taktis • Senpi HS-9 & Kit Olah TKP Inafis',
+    jarakBase: 2.1,
+    etaBase: 5,
+    icon: '🕵️'
   },
   {
-    id: 'samapta-r2-motor',
-    nama: 'Patroli Samapta Reaksi Cepat (Unit Roda 2 - Motor Taktis)',
-    namaSingkat: 'Samapta Raimas R2 (Motor Taktis)',
-    sektorUtama: 'Sektor Selatan',
-    komandan: 'Aipda Rudi Hartono & Tim Raimas (NRP: 50129841)',
-    nrpKomandan: '50129841',
-    posisiSaatIni: 'Pos Pol Simpang Panglima Polim',
-    kekuatan: '2 Personel (2 Trail Sabhara) • Helm Taktis • Gas Air Mata',
+    id: 'intel',
+    satuanId: 'intel',
+    nama: 'Satuan Intelijen Keamanan (Sat Intelkam • Deteksi Dini & Pulbaket)',
+    namaSingkat: 'Sat Intelkam',
+    satuan: 'Satuan Intelijen Keamanan (Sat Intelkam)',
+    sektorUtama: 'Wilayah Hukum Polres',
+    komandan: 'Ipda Dimas Wicaksono (Unit Analis Intel)',
+    nrpKomandan: '52011234',
+    posisiSaatIni: 'Wilayah Pantau Tertutup & Mako Sat Intelkam',
+    kekuatan: 'Siaga 6 Personel Tertutup • Alkom Terenkripsi • Alat Pantau Siber & Deteksi Dini',
     jarakBase: 1.8,
     etaBase: 4,
-    icon: '🏍️'
+    icon: '👁️'
   },
   {
-    id: 'lantas-turjawali',
-    nama: 'Turjawali Satlantas (Unit Patroli Jalan Raya PJR)',
-    namaSingkat: 'Turjawali Satlantas PJR',
-    sektorUtama: 'Sektor Barat',
-    komandan: 'Aiptu Bambang Sudrajat & Brigadir Doni (NRP: 49112233)',
+    id: 'lantas',
+    satuanId: 'lantas',
+    nama: 'Satuan Lalu Lintas (Satlantas • Turjawali & PJR)',
+    namaSingkat: 'Satlantas (Turjawali)',
+    satuan: 'Satuan Lalu Lintas (Satlantas)',
+    sektorUtama: 'Sektor Barat & Jalur Protokol',
+    komandan: 'Aiptu Bambang Sudrajat (Piket Turjawali Lantas)',
     nrpKomandan: '49112233',
-    posisiSaatIni: 'Simpang CSW / Koridor Protokol Sudirman',
-    kekuatan: '2 Personel • Mobil Sedan Lantas • Rompi Fosfor • Traffic Cone',
-    jarakBase: 2.5,
-    etaBase: 6,
+    posisiSaatIni: 'Pos Pol Koridor Protokol Sudirman - Thamrin',
+    kekuatan: 'Siaga 10 Personel • Mobil Sedan PJR & Motor Patwal • Traffic Kit • Bodycam Live',
+    jarakBase: 1.5,
+    etaBase: 4,
     icon: '🚓'
   },
   {
-    id: 'bhabin-polsek',
-    nama: 'Bhabinkamtibmas & Piket Polsek Wilayah Setempat',
-    namaSingkat: 'Bhabinkamtibmas & Piket Polsek',
-    sektorUtama: 'Sektor Timur',
-    komandan: 'Aipda Hendra Gunawan & Bripka Joko (NRP: 48099881)',
+    id: 'binmas',
+    satuanId: 'binmas',
+    nama: 'Satuan Pembinaan Masyarakat (Sat Binmas & Bhabinkamtibmas)',
+    namaSingkat: 'Sat Binmas',
+    satuan: 'Satuan Pembinaan Masyarakat (Sat Binmas)',
+    sektorUtama: 'Sektor Timur & Kelurahan Binaan',
+    komandan: 'Aipda Hendra Gunawan (Piket Binmas Bhabinkamtibmas)',
     nrpKomandan: '48099881',
-    posisiSaatIni: 'Pos Pol Subsektor / Kantor Kelurahan',
-    kekuatan: '3 Personel • Mobil Patroli Polsek • HT APCO P25',
-    jarakBase: 3.2,
-    etaBase: 7,
-    icon: '👮'
+    posisiSaatIni: 'Balai Warga / Kelurahan Binaan Bhabinkamtibmas',
+    kekuatan: 'Siaga 6 Personel Sambang • Mobil Penyuluhan Binmas • Tablet BOS • Mediasi Warga',
+    jarakBase: 2.5,
+    etaBase: 6,
+    icon: '🤝'
   },
   {
-    id: 'reskrim-opsnal',
-    nama: 'Tim Opsnal & Resmob Satreskrim (Gakkum Tertutup)',
-    namaSingkat: 'Opsnal & Resmob Satreskrim',
-    sektorUtama: 'Pusat',
-    komandan: 'Ipda Reza Pratama, S.H. & Tim Macan (NRP: 51044321)',
-    nrpKomandan: '51044321',
-    posisiSaatIni: 'Mako Polres (Standby Tim Taktis Khusus)',
-    kekuatan: '5 Personel Sipil Taktis • Minibus Hitam • Senpi HS-9',
-    jarakBase: 4.5,
-    etaBase: 9,
-    icon: '🕵️'
+    id: 'sabhara',
+    satuanId: 'sabhara',
+    nama: 'Satuan Sabhara / Samapta Presisi (Patroli Perintis Presisi & Raimas)',
+    namaSingkat: 'Sat Sabhara',
+    satuan: 'Satuan Samapta Bhayangkara (Sabhara)',
+    sektorUtama: 'Sektor Selatan & Rute Patroli Beat',
+    komandan: 'Bripka Ahmad Subagyo (Piket Sabhara Perintis)',
+    nrpKomandan: '95020123',
+    posisiSaatIni: 'Pos Pantau Senayan / Patroli Mobile Beat Sabhara',
+    kekuatan: 'Siaga 10 Personel • Armada R4 Sedan & R2 Trail Raimas • Senpi V2 • Bodycam Live',
+    jarakBase: 1.2,
+    etaBase: 3,
+    icon: '🚔'
   }
 ];
 
@@ -774,25 +784,49 @@ function saveLogsToStore(logs) {
 }
 
 /**
- * Filter cerdas isolasi data tugas: Menentukan apakah sebuah tiket adalah tanggung jawab user
+ * Filter cerdas isolasi data tugas: Menentukan apakah sebuah tiket adalah tanggung jawab user / satuan user
+ * Mendukung penugasan persatuan (seluruh anggota dalam satuan tersebut dapat melihat & menangani tiket)
  * @param {object} log 
  * @param {object} user 
  * @returns {boolean}
  */
 function isLogAssignedToUser(log, user) {
-  if (!user) return false;
+  if (!user || !log) return false;
   const nrp = String(user.nrp || '').trim().toLowerCase();
   const namaSingkat = String(user.namaSingkat || '').trim().toLowerCase();
   const nama = String(user.nama || '').trim().toLowerCase();
   const unitId = String(user.unitId || '').trim().toLowerCase();
+  const satuan = String(user.satuan || '').trim().toLowerCase();
 
-  // 1. Cek langsung assignedNrp atau assignedUnitId pada level root tiket
+  // Helper normalisasi ID satuan: misal 'samapta-r4-selatan' atau 'samapta-r2-motor' -> 'samapta'
+  const normSatuan = (val) => {
+    const s = String(val || '').toLowerCase();
+    if (s.includes('lantas') || s.includes('pjr') || s.includes('turjawali')) return 'lantas';
+    if (s.includes('samapta') || s.includes('sabhara') || s.includes('raimas') || s.includes('perintis')) return 'samapta';
+    if (s.includes('reskrim') || s.includes('resmob') || s.includes('opsnal') || s.includes('inafis')) return 'reskrim';
+    if (s.includes('bhabin') || s.includes('polsek') || s.includes('subsektor')) return 'polsek';
+    return s;
+  };
+
+  const userCategory = normSatuan(unitId || satuan);
+
+  // 1. Cek langsung assignedUnitId atau assignedSatuan pada level root tiket
+  if (log.assignedUnitId) {
+    const targetUnit = String(log.assignedUnitId).trim().toLowerCase();
+    if (targetUnit === unitId || normSatuan(targetUnit) === userCategory) return true;
+  }
+  if (log.assignedSatuan && normSatuan(log.assignedSatuan) === userCategory) return true;
   if (log.assignedNrp && String(log.assignedNrp).trim().toLowerCase() === nrp) return true;
-  if (log.assignedUnitId && String(log.assignedUnitId).trim().toLowerCase() === unitId) return true;
+  if (Array.isArray(log.acceptedNrps) && log.acceptedNrps.includes(nrp)) return true;
 
   // 2. Cek di dalam objek disposisi taktis
   if (log.disposisi) {
-    if (log.disposisi.unitId && String(log.disposisi.unitId).trim().toLowerCase() === unitId) return true;
+    if (log.disposisi.unitId) {
+      const dispUnit = String(log.disposisi.unitId).trim().toLowerCase();
+      if (dispUnit === unitId || normSatuan(dispUnit) === userCategory) return true;
+    }
+    if (log.disposisi.satuan && normSatuan(log.disposisi.satuan) === userCategory) return true;
+    if (log.disposisi.unit && normSatuan(log.disposisi.unit) === userCategory) return true;
     if (log.disposisi.nrpKomandan && String(log.disposisi.nrpKomandan).trim().toLowerCase() === nrp) return true;
     const komandan = String(log.disposisi.komandan || '').toLowerCase();
     if (komandan.includes(nrp)) return true;
@@ -811,8 +845,8 @@ function isLogAssignedToUser(log, user) {
     if (namaSingkat && String(log.nama || '').toLowerCase().includes(namaSingkat)) return true;
   }
 
-  // 5. Fallback Default untuk Tiket 16 (Bripka Ahmad)
-  if (log.id === 16 && (nrp === '95020123' || nrp === '50123456')) return true;
+  // 5. Fallback Default untuk Tiket 16 (Samapta Presisi)
+  if (log.id === 16 && (userCategory === 'samapta' || nrp === '95020123' || nrp === '50123456')) return true;
 
   return false;
 }
