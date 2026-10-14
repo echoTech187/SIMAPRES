@@ -399,31 +399,54 @@ function initMaps() {
     let userScannedPos = null;
     let userDeviceID = null;
     try {
+      // 1. Cek dari scan HP terbaru (simapres_latest_hp_scan)
+      const latestScan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || 'null');
+      if (latestScan && latestScan.coords) {
+        userScannedPos = latestScan.coords;
+        userDeviceID = latestScan.deviceID;
+      }
+
+      // 2. Cek dari sessionStorage / localStorage simapres_scanned_device
+      const scannedDev = JSON.parse(sessionStorage.getItem('simapres_scanned_device') || localStorage.getItem('simapres_scanned_device') || 'null');
+      if (scannedDev && scannedDev.coords) {
+        userScannedPos = scannedDev.coords;
+        userDeviceID = scannedDev.deviceID;
+      }
+
+      // 3. Cek dari daftar unit terdaftar berdasarkan NRP user atau fallback ke unit terakhir
       const registeredList = JSON.parse(localStorage.getItem('simapres_registered_units') || '[]');
       const regUser = registeredList.find(u => u.nrp === userNrp);
       if (regUser && regUser.gpsCoords) {
         userScannedPos = regUser.gpsCoords;
         userDeviceID = regUser.deviceID;
+      } else if (!userScannedPos && registeredList.length > 0 && registeredList[0].gpsCoords) {
+        // Fallback jika baru daftar tapi login sebagai personil umum
+        userScannedPos = registeredList[0].gpsCoords;
+        userDeviceID = registeredList[0].deviceID;
       }
-      const scannedDev = JSON.parse(sessionStorage.getItem('simapres_scanned_device') || 'null');
-      if (scannedDev && scannedDev.coords) {
-        userScannedPos = scannedDev.coords;
-        userDeviceID = scannedDev.deviceID;
+
+      // 4. Cek dari profil active user di session
+      if (user && user.gpsCoords) {
+        userScannedPos = user.gpsCoords;
+        if (user.deviceID) userDeviceID = user.deviceID;
       }
     } catch (e) {
       console.warn('Gagal load GPS device ID user:', e);
     }
 
+    // Icon khusus jika terdeteksi dari GPS HP fisik
+    const iconLiveGps = userScannedPos ? makeHaloBadgeIcon('📍', '#10B981', '#34D399') : myUnit.icon;
+
     let myUnit = Object.assign({}, baseMyUnit, {
       key: 'my_unit',
       pos: userScannedPos || baseMyUnit.pos,
-      title: baseMyUnit.title + ' (Unit Anda)',
+      title: userScannedPos ? '📍 POSISI ANDA (LIVE HP GPS)' : baseMyUnit.title + ' (Unit Anda)',
       petugas: `${userNama} (NRP ${userNrp})`,
       sub: `${userSatuan} • ${userRanmor}`,
-      status: 'Status: SIAGA (PATROLI BEAT)',
+      status: userScannedPos ? 'Status: TERHUBUNG GPS HP (LIVE)' : 'Status: SIAGA (PATROLI BEAT)',
       statusColor: '#10B981',
       telemetri: userDeviceID
-        ? `Device ID: ${userDeviceID} • GPS Live HP: ${userScannedPos ? `${userScannedPos.lat.toFixed(4)}, ${userScannedPos.lng.toFixed(4)}` : 'Aktif'}`
+        ? `Device ID: ${userDeviceID} • GPS Satelit HP: ${userScannedPos ? `${userScannedPos.lat.toFixed(6)}, ${userScannedPos.lng.toFixed(6)}` : 'Aktif'}`
         : 'Kecepatan: 35 km/jam • GPS Presisi Prima (Aktif)'
     });
 
@@ -436,7 +459,8 @@ function initMaps() {
         map: targetMap,
         icon: icon,
         title: title,
-        cursor: 'pointer'
+        cursor: 'pointer',
+        zIndex: (data.key === 'my_unit') ? 9999 : 100
       });
       google.maps.event.addListener(marker, 'click', () => {
         bukaModalMapUnit(data, marker, targetMap);
@@ -453,7 +477,7 @@ function initMaps() {
     }
 
     // 1. Tampilkan unit milik personel sendiri (Unit Anda)
-    registerAndAddMarker(myUnit, myUnit.icon);
+    registerAndAddMarker(myUnit, userScannedPos ? iconLiveGps : myUnit.icon);
 
     // 2. Tampilkan seluruh titik daerah rawan (Hotspots) identik dengan pimpinan
     hotspotUnits.forEach(u => registerAndAddMarker(u, iconHotspot));
@@ -461,10 +485,25 @@ function initMaps() {
     // 3. Tampilkan Mako Polres Metro
     registerAndAddMarker(makoUnit, iconMako);
 
-    // Pusatkan peta Beranda ke area rute patroli beat (zoom 13) dan peta layar penuh ke posisi personel
-    mapBeranda.setCenter({ lat: -6.1980, lng: 106.8245 });
-    mapBeranda.setZoom(13);
+    // Pusatkan peta Beranda & Layar Penuh ke lokasi unit personel
+    // Jika ada koordinat GPS hasil scan HP, langsung fokuskan peta ke posisi GPS asli user!
+    const targetMapCenter = userScannedPos || { lat: -6.1980, lng: 106.8245 };
+    const targetZoom = userScannedPos ? 14 : 13;
+
+    mapBeranda.setCenter(targetMapCenter);
+    mapBeranda.setZoom(targetZoom);
     mapFullscreen.setCenter(myUnit.pos);
+    mapFullscreen.setZoom(targetZoom);
+
+    // Tambahkan notifikasi toast di beranda jika GPS HP terdeteksi
+    if (userScannedPos) {
+      console.log('SIMAPRES MAPS: Lokasi GPS HP terdeteksi di', userScannedPos);
+      setTimeout(() => {
+        if (typeof showToast === 'function') {
+          showToast(`🛰️ GPS HP Terdeteksi! Device ID: ${userDeviceID || 'DEV-HP'} • Peta dipusatkan ke koordinat ${userScannedPos.lat.toFixed(4)}, ${userScannedPos.lng.toFixed(4)}`, 'success');
+        }
+      }, 800);
+    }
 
     // Tutup InfoWindow jika klik di luar area marker
     google.maps.event.addListener(mapBeranda, 'click', () => {
@@ -523,8 +562,17 @@ function zoomMapBeranda(delta) {
 
 function resetCenterMapBeranda() {
   if (mapBeranda) {
-    mapBeranda.setZoom(13);
-    mapBeranda.panTo({ lat: -6.1980, lng: 106.8245 });
+    let liveCenter = { lat: -6.1980, lng: 106.8245 };
+    let liveZoom = 13;
+    try {
+      const scan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device') || 'null');
+      if (scan && scan.coords) {
+        liveCenter = scan.coords;
+        liveZoom = 14;
+      }
+    } catch(e) {}
+    mapBeranda.setZoom(liveZoom);
+    mapBeranda.panTo(liveCenter);
   }
 }
 
@@ -652,12 +700,31 @@ function switchTab(viewId, navElement) {
   // Resize map if needed
   if (viewId === 'view-beranda' && mapBeranda && typeof google !== 'undefined') {
     google.maps.event.trigger(mapBeranda, 'resize');
-    mapBeranda.setCenter({ lat: -6.1980, lng: 106.8245 });
-    mapBeranda.setZoom(13);
+    let liveCenter = { lat: -6.1980, lng: 106.8245 };
+    let liveZoom = 13;
+    try {
+      const scan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device') || 'null');
+      if (scan && scan.coords) {
+        liveCenter = scan.coords;
+        liveZoom = 14;
+      }
+    } catch(e) {}
+    mapBeranda.setCenter(liveCenter);
+    mapBeranda.setZoom(liveZoom);
   }
   if (viewId === 'view-peta' && mapFullscreen && typeof google !== 'undefined') {
     google.maps.event.trigger(mapFullscreen, 'resize');
-    mapFullscreen.setCenter({ lat: -6.1950, lng: 106.8200 });
+    let liveCenter = { lat: -6.1950, lng: 106.8200 };
+    let liveZoom = 13;
+    try {
+      const scan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device') || 'null');
+      if (scan && scan.coords) {
+        liveCenter = scan.coords;
+        liveZoom = 14;
+      }
+    } catch(e) {}
+    mapFullscreen.setCenter(liveCenter);
+    mapFullscreen.setZoom(liveZoom);
   }
   if (viewId === 'view-operator') {
     renderEbOperatorQueue();

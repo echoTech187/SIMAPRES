@@ -945,6 +945,25 @@
         currentLiveGpsCoords = data.coords;
       }
 
+      // Simpan permanen ke localStorage & sessionStorage agar Peta di Beranda dan Personil langsung mendeteksi titik GPS ini
+      try {
+        localStorage.setItem('simapres_latest_hp_scan', JSON.stringify(data));
+        sessionStorage.setItem('simapres_scanned_device', JSON.stringify(data));
+        localStorage.setItem('simapres_scanned_device', JSON.stringify(data));
+
+        // Jika user yang aktif sedang login di browser (misal Eko Susanto atau user apapun), update koordinat GPS-nya
+        const activeUserRaw = sessionStorage.getItem('simapres_active_user');
+        if (activeUserRaw) {
+          const activeUser = JSON.parse(activeUserRaw);
+          activeUser.gpsCoords = data.coords;
+          activeUser.deviceID = data.deviceID;
+          activeUser.brand = data.brand;
+          sessionStorage.setItem('simapres_active_user', JSON.stringify(activeUser));
+        }
+      } catch (err) {
+        console.warn('Gagal simpan simapres_latest_hp_scan:', err);
+      }
+
       if (badgeSource) {
         badgeSource.innerText = `✓ TERVERIFIKASI (${data.brand || 'HP FISIK'})`;
         badgeSource.style.background = '#DCFCE7';
@@ -966,7 +985,7 @@
         modalQrDevId.style.borderColor = '#86EFAC';
       }
 
-      showToast(`📲 HP Personel Terkoneksi! Device ID Asli: ${data.deviceID} berhasil masuk ke form.`, 'success');
+      showToast(`📲 HP Personel Terkoneksi! Device ID Asli: ${data.deviceID} berhasil masuk ke form & koordinat GPS tersinkronisasi.`, 'success');
       
       // Tutup modal QR otomatis setelah 1.2 detik agar user langsung melihat form yang terisi
       setTimeout(() => {
