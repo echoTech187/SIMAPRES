@@ -5846,8 +5846,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const activeUserPim = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null; const un = document.getElementById('user-name'); if (un) un.innerText = (activeUserPim && (activeUserPim.role === 'pimpinan' || activeUserPim.role === 'pawas')) ? (activeUserPim.namaSingkat || activeUserPim.nama) : '';
     const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Perwira Pengawas (PAWAS)';
-    const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'assets/images/polri_pengaduan_tkp.jpg';
-    const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: POSKO PENGENDALIAN PIKET PAWAS';
+    updateStatusDinasHeader();
 
     // 1. Pastikan tab 1 tetap Beranda (Posko Kendali Pawas)
     const bottomNavItems = document.querySelectorAll('.bottom-nav .nav-item');
@@ -5890,7 +5889,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null; const un = document.getElementById('user-name'); if (un) un.innerText = (activeUser && activeUser.role === 'operator') ? (activeUser.namaSingkat || activeUser.nama) : ''; const opLbl = document.getElementById('eb-operator-petugas-label'); if (opLbl) opLbl.innerText = (activeUser && activeUser.role === 'operator') ? (activeUser.nama + ' (NRP ' + activeUser.nrp + ')') : '';
     const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Operator SPKT';
     const avatarTop = document.getElementById('user-avatar-top'); if (avatarTop) avatarTop.src = 'assets/images/polri_pengaduan_tkp.jpg';
-    const status = document.querySelector('.status-text'); if (status) status.innerText = 'STATUS: KONSOL OPERATOR SPKT (SIAGA)';
+    updateStatusDinasHeader();
 
     const tl = document.getElementById('tindak-lanjut-card'); if (tl) tl.style.display = 'none';
     const navLog = document.getElementById('nav-log'); if (navLog) navLog.style.display = 'none';
@@ -6030,25 +6029,41 @@ function syncProfileData(targetRole) {
     const presensiKey = 'simapres_presensi_' + activeUser.nrp;
     const savedPresensi = sessionStorage.getItem(presensiKey);
     const elJamMasuk = document.getElementById('profil-presensi-jam-masuk');
+    const elJamPulang = document.getElementById('profil-presensi-jam-pulang');
     const elStatusPresensi = document.getElementById('profil-presensi-status-text');
+    let isDinas = false;
     if (savedPresensi) {
       try {
         const pData = JSON.parse(savedPresensi);
         if (elJamMasuk && pData.masuk) elJamMasuk.innerText = pData.masuk + ' WIB (Tervalidasi)';
-        if (elStatusPresensi && pData.masuk) {
-          elStatusPresensi.innerHTML = '● Sudah Masuk Dinas';
-          elStatusPresensi.style.color = '#15803D';
-          elStatusPresensi.style.background = '#DCFCE7';
+        if (elJamPulang && pData.pulang) elJamPulang.innerText = pData.pulang + ' WIB (Lepas Piket)';
+        else if (elJamPulang) elJamPulang.innerText = 'Belum Presensi Pulang';
+
+        if (pData.masuk && !pData.pulang) {
+          isDinas = true;
+          if (elStatusPresensi) {
+            elStatusPresensi.innerHTML = '● Sudah Masuk Dinas';
+            elStatusPresensi.style.color = '#15803D';
+            elStatusPresensi.style.background = '#DCFCE7';
+          }
+        } else if (pData.pulang) {
+          if (elStatusPresensi) {
+            elStatusPresensi.innerHTML = '● Selesai Dinas (Lepas Piket)';
+            elStatusPresensi.style.color = '#475569';
+            elStatusPresensi.style.background = '#F1F5F9';
+          }
         }
       } catch(e) {}
     } else {
       if (elJamMasuk) elJamMasuk.innerText = '- (Belum Masuk Dinas)';
+      if (elJamPulang) elJamPulang.innerText = 'Belum Presensi Pulang';
       if (elStatusPresensi) {
         elStatusPresensi.innerHTML = '○ Belum Masuk Dinas';
         elStatusPresensi.style.color = '#B45309';
         elStatusPresensi.style.background = '#FEF3C7';
       }
     }
+    updateStatusDinasHeader();
   }
 
   // Header Pawas di Layar Kinerja
@@ -6086,8 +6101,99 @@ function kembaliDariProfil() {
   }
 }
 
+function isUserSedangDinas() {
+  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+  if (!activeUser || !activeUser.nrp) return false;
+  const presensiKey = 'simapres_presensi_' + activeUser.nrp;
+  const raw = sessionStorage.getItem(presensiKey);
+  if (!raw) return false;
+  try {
+    const data = JSON.parse(raw);
+    return Boolean(data && data.masuk && !data.pulang);
+  } catch(e) {
+    return false;
+  }
+}
+
+function updatePresensiButtonsState() {
+  const isDinas = isUserSedangDinas();
+  const btnMasuk = document.getElementById('btn-presensi-masuk');
+  const btnPulang = document.getElementById('btn-presensi-pulang');
+
+  if (btnMasuk) {
+    if (isDinas) {
+      btnMasuk.disabled = true;
+      btnMasuk.style.opacity = '0.5';
+      btnMasuk.style.cursor = 'not-allowed';
+      btnMasuk.style.pointerEvents = 'none';
+      btnMasuk.title = 'Anda sudah melakukan presensi masuk dinas';
+    } else {
+      btnMasuk.disabled = false;
+      btnMasuk.style.opacity = '1';
+      btnMasuk.style.cursor = 'pointer';
+      btnMasuk.style.pointerEvents = 'auto';
+      btnMasuk.title = 'Klik untuk presensi masuk piket dinas';
+    }
+  }
+
+  if (btnPulang) {
+    if (!isDinas) {
+      btnPulang.disabled = true;
+      btnPulang.style.opacity = '0.5';
+      btnPulang.style.cursor = 'not-allowed';
+      btnPulang.style.pointerEvents = 'none';
+      btnPulang.title = 'Belum dapat presensi keluar karena belum melakukan presensi masuk';
+    } else {
+      btnPulang.disabled = false;
+      btnPulang.style.opacity = '1';
+      btnPulang.style.cursor = 'pointer';
+      btnPulang.style.pointerEvents = 'auto';
+      btnPulang.title = 'Klik untuk presensi pulang / lepas dinas';
+    }
+  }
+}
+
+function updateStatusDinasHeader() {
+  const isDinas = isUserSedangDinas();
+  const statusEls = document.querySelectorAll('.status-text');
+  statusEls.forEach(statusEl => {
+    if (isDinas) {
+      statusEl.innerHTML = '<span style="color:#10B981; font-weight:800; display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981;"></span> STATUS: DINAS</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:#EF4444; font-weight:800; display:inline-flex; align-items:center; gap:5px;"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#EF4444;"></span> STATUS: TIDAK DINAS</span>';
+    }
+  });
+
+  // Sinkronkan badge dot avatar dan pill status jika elemen tersedia
+  const dot = document.getElementById('profil-avatar-dot');
+  const pill = document.getElementById('profil-status-dinas-pill');
+  if (isDinas) {
+    if (dot) dot.style.background = '#10B981';
+    if (pill) {
+      pill.innerText = 'SIAGA PIKET AKTIF';
+      pill.style.background = 'rgba(16,185,129,0.25)';
+      pill.style.color = '#6EE7B7';
+    }
+  } else {
+    if (dot) dot.style.background = '#94A3B8';
+    if (pill) {
+      pill.innerText = 'TIDAK DINAS';
+      pill.style.background = 'rgba(239,68,68,0.2)';
+      pill.style.color = '#FCA5A5';
+    }
+  }
+
+  // Update disable/enable state tombol presensi masuk dan keluar
+  updatePresensiButtonsState();
+}
+
 function konfirmasiLogout() {
   if (confirm('Apakah Anda yakin ingin mengakhiri sesi dinas dan keluar ke halaman login?')) {
+    const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+    if (activeUser && activeUser.nrp) {
+      sessionStorage.removeItem('simapres_presensi_' + activeUser.nrp);
+    }
+    updateStatusDinasHeader();
     window.location.href = 'index.html';
   }
 }
@@ -6155,7 +6261,23 @@ function tampilkanToast(pesan, tipe = 'success') {
 }
 
 function handlePresensiMasuk() {
+  if (isUserSedangDinas()) {
+    tampilkanToast('Anda sudah melakukan presensi masuk dinas. Tidak dapat presensi masuk lagi.', 'info');
+    return;
+  }
+
   const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+
+  if (activeUser && activeUser.nrp) {
+    const presensiKey = 'simapres_presensi_' + activeUser.nrp;
+    sessionStorage.setItem(presensiKey, JSON.stringify({
+      masuk: waktu,
+      tgl: new Date().toDateString(),
+      nrp: activeUser.nrp,
+      pulang: null
+    }));
+  }
 
   const statusText = document.getElementById('profil-presensi-status-text');
   if (statusText) {
@@ -6167,6 +6289,9 @@ function handlePresensiMasuk() {
   const jamMasuk = document.getElementById('profil-presensi-jam-masuk');
   if (jamMasuk) jamMasuk.innerText = waktu + ' (Tervalidasi Biometrik)';
 
+  const jamPulang = document.getElementById('profil-presensi-jam-pulang');
+  if (jamPulang) jamPulang.innerText = 'Belum Presensi Pulang';
+
   const pill = document.getElementById('profil-status-dinas-pill');
   if (pill) {
     pill.innerText = 'SIAGA PIKET AKTIF';
@@ -6177,10 +6302,15 @@ function handlePresensiMasuk() {
   const dot = document.getElementById('profil-avatar-dot');
   if (dot) dot.style.background = '#10B981';
 
-  tampilkanToast(`Presensi Masuk Berhasil! Sesi piket tercatat pukul ${waktu}.`, 'success');
+  updateStatusDinasHeader();
+  tampilkanToast(`Presensi Masuk Berhasil! Sesi piket tercatat pukul ${waktu}. Status: DINAS`, 'success');
 }
 
 function handlePresensiPulang() {
+  if (!isUserSedangDinas()) {
+    tampilkanToast('Tidak dapat melakukan presensi keluar karena Anda belum melakukan presensi masuk.', 'danger');
+    return;
+  }
   const modal = document.getElementById('modal-presensi-pulang');
   if (modal) modal.style.display = 'flex';
 }
@@ -6191,8 +6321,25 @@ function tutupModalPresensiPulang() {
 }
 
 function konfirmasiPresensiPulangFinal() {
+  if (!isUserSedangDinas()) {
+    tutupModalPresensiPulang();
+    tampilkanToast('Tidak dapat melakukan presensi keluar karena Anda belum melakukan presensi masuk.', 'danger');
+    return;
+  }
   tutupModalPresensiPulang();
   const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+
+  if (activeUser && activeUser.nrp) {
+    const presensiKey = 'simapres_presensi_' + activeUser.nrp;
+    let existingData = {};
+    try {
+      existingData = JSON.parse(sessionStorage.getItem(presensiKey)) || {};
+    } catch(e) {}
+    existingData.pulang = waktu;
+    existingData.tglPulang = new Date().toDateString();
+    sessionStorage.setItem(presensiKey, JSON.stringify(existingData));
+  }
 
   const statusText = document.getElementById('profil-presensi-status-text');
   if (statusText) {
@@ -6214,7 +6361,8 @@ function konfirmasiPresensiPulangFinal() {
   const dot = document.getElementById('profil-avatar-dot');
   if (dot) dot.style.background = '#94A3B8';
 
-  tampilkanToast(`Presensi Pulang Berhasil! Sesi dinas piket selesai pukul ${waktu}.`, 'info');
+  updateStatusDinasHeader();
+  tampilkanToast(`Presensi Pulang Berhasil! Sesi dinas piket selesai pukul ${waktu}. Status: TIDAK DINAS`, 'info');
 }
 
 const daftarRiwayatLog110 = [
@@ -6709,7 +6857,7 @@ function kirimLogMandiriPersonel() {
   switchTab('view-beranda');
 }
 
-function ebSubmitLaporanOperator() {
+function ebSubmitLaporanOperator(langsungDisposisi = false) {
   const notelp = document.getElementById('eb-op-telepon')?.value.trim() || '+62 812-9844-3210';
   const namaPelapor = document.getElementById('eb-op-nama')?.value.trim() || 'Ibu Ratna Dewi';
   const jenis = document.getElementById('eb-op-jenis')?.value || 'Tawuran Pelajar / Remaja';
@@ -6725,8 +6873,8 @@ function ebSubmitLaporanOperator() {
   if (jenis.includes('Kecelakaan')) sampleFoto = 'assets/images/polri_pengaduan_tkp.jpg';
 
   const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
-  const opNama = activeUser ? (activeUser.namaSingkat || activeUser.nama) : 'Operator SPKT (Briptu Dian Lestari)';
-  const opNrp = activeUser ? activeUser.nrp : '98040112';
+  const opNama = activeUser ? (activeUser.namaSingkat || activeUser.nama) : 'Pawas & Operator SPKT (Kombes Pol Budi)';
+  const opNrp = activeUser ? activeUser.nrp : '72010190';
 
   const noTiket = 'TIKET-110-' + (newId < 10 ? '0' + newId : newId) + 'X2F';
   let katInsiden = 'Kamtibmas';
@@ -6776,9 +6924,9 @@ function ebSubmitLaporanOperator() {
     riwayatValidasi: [
       {
         waktu: waktu,
-        aktor: 'Operator SPKT (Briptu Dian)',
+        aktor: opNama,
         aksi: 'Penerimaan Panggilan Telepon 110',
-        catatan: 'Panggilan darurat 110 diterima dari ' + namaPelapor + ' (' + notelp + '). Disalurkan ke antrean validasi Pawas.'
+        catatan: 'Panggilan darurat 110 diterima dari ' + namaPelapor + ' (' + notelp + '). Disalurkan ke konsol komando Pawas.'
       }
     ],
     ratingKepuasan: null
@@ -6789,24 +6937,15 @@ function ebSubmitLaporanOperator() {
   updateRekapCounts();
   renderEbOperatorQueue();
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const currentRole = urlParams.get('role');
+  // Reset status panggilan aktif
+  const bConn = document.getElementById('eb-call-connected-bar'); if (bConn) bConn.style.display = 'none';
+  const dDur = document.getElementById('eb-call-duration'); if (dDur) dDur.innerText = 'Siap Menerima';
+  if (ebCallInterval) clearInterval(ebCallInterval);
 
-  if (currentRole === 'operator') {
-    alert('✓ Panggilan 110 #' + newId + ' Berhasil Dicatat oleh Operator SPKT!\n\n• Sumber: Panggilan 110 (Call Center SPKT)\n• Status: Menunggu Validasi Pawas \n• Laporan telah diteruskan ke antrean Pawas/Atasan.\n• Formulir telah siap untuk panggilan berikutnya.');
-    // Reset formulir & status panggilan aktif
-    const bConn = document.getElementById('eb-call-connected-bar'); if (bConn) bConn.style.display = 'none';
-    const dDur = document.getElementById('eb-call-duration'); if (dDur) dDur.innerText = 'Siap Menerima';
-    if (ebCallInterval) clearInterval(ebCallInterval);
-    const fTel = document.getElementById('eb-op-telepon'); if (fTel) fTel.value = '';
-    const fNama = document.getElementById('eb-op-nama'); if (fNama) fNama.value = '';
-    const fLok = document.getElementById('eb-op-lokasi'); if (fLok) fLok.value = '';
-    const fGps = document.getElementById('eb-op-gps'); if (fGps) fGps.value = '';
-    const fUraian = document.getElementById('eb-op-uraian'); if (fUraian) fUraian.value = '';
-    switchTab('view-operator');
+  if (langsungDisposisi) {
+    bukaModalDisposisiPawas(newId);
   } else {
-    alert('✓ Panggilan 110 #' + newId + ' Berhasil Dicatat oleh Operator SPKT!\n\n• Sumber: Panggilan 110 (Call Center SPKT)\n• Status: Menunggu Validasi Pawas \n• Data langsung masuk ke antrean validasi atasan.');
-    openValidasiList('menunggu');
+    alert('✓ Laporan #' + noTiket + ' Berhasil Masuk Antrean!\n\n• Sumber: Panggilan 110 (Call Center SPKT)\n• Status: Antrean Laporan Siap Disposisi\n• Anda dapat mengklik tombol "⚡ Disposisi" langsung pada kartu antrean di kanan.');
   }
 }
 
@@ -6873,35 +7012,48 @@ function renderEbOperatorQueue() {
   if (countEl) countEl.innerText = pendingLogs.length;
 
   if (pendingLogs.length === 0) {
-    listEl.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:12px;">Tidak ada antrean laporan menunggu.</div>';
+    listEl.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:18px; background:#F8FAFC; border-radius:8px;">Semua laporan telah tervalidasi dan terdisposisi ke unit lapangan.</div>';
     return;
   }
 
-  listEl.innerHTML = pendingLogs.slice(0, 5).map(l => {
+  listEl.innerHTML = pendingLogs.slice(0, 6).map(l => {
     const nomorTiket = l.nomorTiket || ('TIKET-110-' + (l.id < 10 ? '0' + l.id : l.id) + 'X2F');
     return `
-        <div onclick="bukaDetailLaporanOperator(${l.id})"
-          style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 12px; margin-bottom:8px; cursor:pointer; transition:all 0.15s ease;"
-          onmouseover="this.style.borderColor='#3B82F6'; this.style.background='#F0F9FF'; this.style.boxShadow='0 2px 6px rgba(59,130,246,0.12)'"
-          onmouseout="this.style.borderColor='#E2E8F0'; this.style.background='#F8FAFC'; this.style.boxShadow='none'">
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:10px 12px; margin-bottom:10px; transition:all 0.15s ease;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
             <span style="font-size:10px; font-weight:700; background:#EFF6FF; color:#1D4ED8; padding:2px 6px; border-radius:4px;">
               ${l.sumberLaporan || '📞 Panggilan 110'}
             </span>
             <span style="font-size:10px; color:var(--text-muted); font-weight:600;">${l.waktu || ''}</span>
           </div>
-          <div style="font-size:12.5px; font-weight:700; color:var(--text); line-height:1.35; margin-bottom:2px;">${l.title}</div>
-          <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">📍 ${l.lokasiKejadian || l.sektor || ''}</div>
-          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:6px; border-top:1px dashed #E2E8F0; font-size:10.5px;">
-            <span style="color:#D97706; font-weight:700;">⏳ Menunggu Pawas</span>
-            <span style="color:#2563EB; font-weight:700; display:flex; align-items:center; gap:2px;">Lihat Rincian ➔</span>
+          <div style="font-size:12.5px; font-weight:700; color:var(--text); line-height:1.35; margin-bottom:3px;">${l.title}</div>
+          <div style="font-size:11px; color:var(--text-muted); margin-bottom:8px;">📍 ${l.lokasiKejadian || l.sektor || ''}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:8px; border-top:1px dashed #CBD5E1; gap:6px;">
+            <button type="button" onclick="bukaDetailLaporanOperator(${l.id})"
+              style="background:white; border:1px solid #CBD5E1; color:#334155; padding:5px 9px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:3px;">
+              👁️ Rincian
+            </button>
+            <button type="button" onclick="bukaModalDisposisiPawas(${l.id})"
+              style="background:linear-gradient(135deg, #153E75 0%, #1D4ED8 100%); border:none; color:white; padding:5px 12px; border-radius:6px; font-size:11px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(21,62,117,0.25);">
+              <span>⚡ Disposisi</span> ➔
+            </button>
           </div>
         </div>
       `;
   }).join('');
 }
 
+let activeDetailOperatorLogId = null;
+
+function eksekusiDisposisiDariModalOperator() {
+  if (!activeDetailOperatorLogId) return;
+  const targetId = activeDetailOperatorLogId;
+  tutupDetailLaporanOperator();
+  bukaModalDisposisiPawas(targetId);
+}
+
 function bukaDetailLaporanOperator(id) {
+  activeDetailOperatorLogId = id;
   const log = appLogs.find(l => l.id === id);
   if (!log) return;
 
@@ -6920,8 +7072,8 @@ function bukaDetailLaporanOperator(id) {
   const bannerEl = document.getElementById('op-modal-status-banner');
 
   if (log.status === 'menunggu') {
-    if (statusTextEl) statusTextEl.innerText = 'Status: Menunggu Validasi Pawas ';
-    if (phaseTagEl) phaseTagEl.innerText = 'Antrean Pawas';
+    if (statusTextEl) statusTextEl.innerText = 'Status: Menunggu Disposisi (Siap Diteruskan ke Unit)';
+    if (phaseTagEl) phaseTagEl.innerText = 'Menunggu Disposisi';
     if (bannerEl) { bannerEl.style.background = '#FFFBEB'; bannerEl.style.borderBottomColor = '#FDE68A'; }
   } else if (log.status === 'diproses') {
     if (statusTextEl) statusTextEl.innerText = 'Status: Disetujui Pawas • Sedang Ditangani Personel di Lapangan';

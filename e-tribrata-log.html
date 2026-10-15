@@ -28,13 +28,6 @@
         E TRIBRATA LOG
       </div>
       <div class="user-profile" style="display:flex; align-items:center; gap:10px;">
-        <!-- Tombol Sentra SPKT 110 (Penerimaan Aduan Warga & Disposisi) -->
-        <button id="btn-top-spkt-disposisi" type="button" onclick="switchTab('view-operator')"
-          style="background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; border:none; padding:6px 12px; border-radius:8px; font-weight:800; font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(16,185,129,0.3); transition:0.2s;"
-          onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'"
-          title="Buka Sentra Pelayanan SPKT 110 untuk Input Panggilan Darurat & Disposisi Cepat">
-          <span>🎧</span> SPKT 110
-        </button>
         <div id="bell-notif" class="bell-icon" onclick="event.stopPropagation(); switchTab('view-validasi')"
           style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.1)'"
           onmouseout="this.style.transform='scale(1)'" title="Lihat Log Menunggu">
@@ -57,12 +50,23 @@
 
       <!-- SCREEN 1: BERANDA -->
       <section id="view-beranda" class="view active">
-        <div class="dashboard-header">
-          DASHBOARD OPERASIONAL
-          <div class="status-text">STATUS: DINAS (Patroli Wilayah)</div>
+        <div class="dashboard-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            DASHBOARD OPERASIONAL
+            <div class="status-text">STATUS: TIDAK DINAS</div>
+          </div>
+          <!-- Tombol Tambah Pengaduan (Panggilan Darurat & Pengaduan Warga) -->
+          <button id="btn-top-spkt-disposisi" type="button" onclick="switchTab('view-operator')"
+            style="background:linear-gradient(135deg, #10B981 0%, #059669 100%); color:white; border:none; padding:10px 18px; border-radius:10px; font-weight:800; font-size:13px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(16,185,129,0.3); transition:transform 0.15s, box-shadow 0.15s;"
+            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'"
+            onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'"
+            title="Buka Sentra Pelayanan untuk Tambah Pengaduan Darurat & Disposisi Cepat">
+            <span style="font-size:15px;">🎧</span>
+            <span>+ Tambah Pengaduan</span>
+          </button>
         </div>
 
-        <!-- Banner Alert Insiden Menonjol Khusus Pimpinan/Pawas -->
+        <!-- Banner Alert Insiden Menonjol Khusus Pimpinan / Pengendali Operasi -->
         <div id="pimpinan-breaking-alert"
           style="display:none; margin: 0 24px 20px; background: linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%); border: 1.5px solid #FCA5A5; border-left: 6px solid #DC2626; border-radius: 12px; padding: 14px 18px; box-shadow: 0 4px 15px rgba(220, 38, 38, 0.08);">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px;">
@@ -677,13 +681,13 @@
         </button>
       </section>
 
-      <!-- SCREEN 3: VALIDASI & MONITORING PAWAS -->
+      <!-- SCREEN 3: VALIDASI & MONITORING OPERASIONAL -->
       <section id="view-validasi" class="view">
         <div
           style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px; flex-wrap:wrap; gap:10px;">
           <div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <h2 class="page-title" style="margin:0;" id="val-page-title">Konsol Monitoring & Komando Pawas</h2>
+              <h2 class="page-title" style="margin:0;" id="val-page-title">Konsol Monitoring & Komando Operasional</h2>
               <span
                 style="font-size:10px; font-weight:800; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE; padding:2px 8px; border-radius:12px;">SUPERVISI
                 PIKET</span>
@@ -695,7 +699,7 @@
           <div id="val-header-right-action" style="display:flex; align-items:center; gap:8px;">
             <div
               style="font-size:11.5px; font-weight:700; color:#1E40AF; background:#EFF6FF; padding:6px 12px; border-radius:6px; border:1px solid #BFDBFE; display:flex; align-items:center; gap:5px;">
-              <span>👮</span> <span id="val-header-badge-text">Piket Pawas Siaga 24 Jam</span>
+              <span>👮</span> <span id="val-header-badge-text">Piket Operasi Siaga 24 Jam</span>
             </div>
             <div onclick="switchTab('view-beranda')" id="val-btn-beranda-kembali"
               style="font-size:12px; font-weight:700; color:var(--primary); cursor:pointer; background:#F1F5F9; padding:6px 12px; border-radius:6px; transition:0.2s; display:flex; align-items:center; gap:4px;"
@@ -1044,7 +1048,7 @@
       <section id="view-laporan" class="view">
 
         <!-- ============================================== -->
-        <!-- CONTAINER 1: LAPORAN AKUNTABILITAS PIKET PAWAS (ROLE PIMPINAN / PAWAS) -->
+        <!-- CONTAINER 1: LAPORAN AKUNTABILITAS PIKET (ROLE PIMPINAN / PENGENDALI OPERASI) -->
         <!-- ============================================== -->
         <div id="laporan-pimpinan-container" style="display:none; padding-bottom:24px;">
 
@@ -1054,7 +1058,7 @@
             <div>
               <div style="display:flex; align-items:center; gap:8px;">
                 <h2 class="page-title" style="margin:0; font-size:18px; font-weight:800; color:var(--primary-dark);">
-                  Laporan Kinerja Pawas</h2>
+                  Laporan Kinerja Operasional</h2>
                 <span
                   style="font-size:10px; font-weight:800; background:#FEF3C7; color:#B45309; padding:2px 8px; border-radius:12px; border:1px solid #FCD34D;">PIKET
                   1X24 JAM</span>
@@ -1241,17 +1245,12 @@
             <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Sentra Pelayanan Kepolisian Terpadu
               (SPKT) • SIMAPRES</div>
           </div>
-          <div onclick="kembaliDariProfil()"
-            style="font-size:12.5px; font-weight:700; color:var(--primary); cursor:pointer; background:#EFF6FF; padding:8px 16px; border-radius:8px; display:flex; align-items:center; gap:6px; border:1px solid #BFDBFE; transition:0.2s;"
-            onmouseover="this.style.background='#DBEAFE'" onmouseout="this.style.background='#EFF6FF'">
-            <span>←</span> Kembali ke Beranda
-          </div>
         </div>
 
-        <div style="max-width:1200px; margin:20px auto; padding:0 16px;">
+        <div style="margin:20px auto; padding:0 16px;">
           <!-- RESPONSIVE 2-COLUMN GRID -->
           <div
-            style="display:grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap:20px; align-items:start;">
+            style="display:flex; gap:20px; align-items:start; justify-content:center">
 
             <!-- KOLOM KIRI: IDENTITAS PETUGAS, TOMBOL PRESENSI (MASUK/PULANG), DAN PENGATURAN AKUN -->
             <div style="display:flex; flex-direction:column; gap:16px;">
@@ -1337,8 +1336,8 @@
                     style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:11.5px;">
                     <span style="color:var(--text-muted);">Status Kehadiran:</span>
                     <span id="profil-presensi-status-text"
-                      style="font-weight:800; color:#15803D; background:#DCFCE7; padding:2px 8px; border-radius:6px;">●
-                      Sudah Masuk Dinas</span>
+                      style="font-weight:800; color:#B45309; background:#FEF3C7; padding:2px 8px; border-radius:6px;">○
+                      Belum Masuk Dinas</span>
                   </div>
                   <div style="display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:6px;">
                     <span style="color:var(--text-muted);">Jam Masuk Piket:</span>
@@ -1365,9 +1364,9 @@
                     onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                     <span>✅</span> Presensi Masuk
                   </button>
-                  <button type="button" id="btn-presensi-pulang" onclick="handlePresensiPulang()"
-                    style="flex:1; padding:11px 12px; background:#EF4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.25); transition:0.2s;"
-                    onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                  <button type="button" id="btn-presensi-pulang" onclick="handlePresensiPulang()" disabled
+                    style="flex:1; padding:11px 12px; background:#EF4444; color:white; border:none; border-radius:8px; font-weight:800; font-size:12.5px; cursor:not-allowed; opacity:0.5; pointer-events:none; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 2px 6px rgba(239,68,68,0.25); transition:0.2s;"
+                    title="Belum dapat presensi keluar karena belum melakukan presensi masuk">
                     <span>🚪</span> Presensi Pulang
                   </button>
                 </div>
@@ -1892,7 +1891,7 @@
         </div>
       </section>
 
-      <!-- SCREEN 9: KONSOL OPERATOR SPKT (CALL CENTER 110) -->
+      <!-- SCREEN 9: KONSOL PENGADUAN & DISPOSISI TERPADU -->
       <section id="view-operator" class="view">
         <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 16px 8px;">
           <div id="op-back-btn" onclick="switchTab('view-beranda')"
@@ -1902,9 +1901,16 @@
         </div>
 
         <div style="margin: 0 16px 20px;">
-          <h2 class="page-title" style="margin:0 0 4px 0;">Konsol Operator SPKT</h2>
-          <div class="page-subtitle" style="margin:0 0 14px 0; color:var(--text-muted); font-size:12px;">Perekaman
-            Laporan Masyarakat Masuk</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h2 class="page-title" style="margin:0 0 4px 0;">Konsol Pengaduan & Disposisi Terpadu</h2>
+              <div class="page-subtitle" style="margin:0; color:var(--text-muted); font-size:12px;">Perekaman
+                Laporan Masyarakat Masuk & Penugasan Unit Patroli</div>
+            </div>
+            <span style="font-size:11.5px; font-weight:800; background:#EFF6FF; color:#1D4ED8; padding:5px 12px; border-radius:8px; border:1px solid #BFDBFE;">
+              👑 Akses Penuh: Input Laporan & Disposisi Unit
+            </span>
+          </div>
           <div style="display: flex;gap: 20px;">
             <div style="width: 60%;">
               <!-- 1. KOTAK SIMULASI PANGGILAN MASUK -->
@@ -1952,7 +1958,7 @@
                 </div>
               </div>
 
-              <!-- 2. FORMULIR INPUT OPERATOR SPKT (TEMA TERANG PUTIH BERSIH) -->
+              <!-- 2. FORMULIR INPUT LAPORAN (TEMA TERANG PUTIH BERSIH) -->
               <div
                 style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div
@@ -2040,22 +2046,29 @@
                     placeholder="Tuliskan keterangan pelapor...">Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok antar kelompok. Mohon penanganan unit patroli segera.</textarea>
                 </div>
 
-                <button type="button" class="btn-blue"
-                  style="width:100%; margin:0; background:var(--primary); padding:13px; font-weight:800; font-size:13.5px; display:flex; align-items:center; justify-content:space-between; gap:8px; box-shadow:0 3px 10px rgba(21, 62, 117, 0.25);"
-                  onclick="ebSubmitLaporanOperator()">
-                  <span>🚀 Simpan</span> <span>➔</span>
-                </button>
+                <div style="display:flex; gap:10px;">
+                  <button type="button" class="btn-blue"
+                    style="flex:1; margin:0; background:#0F766E; padding:12px 14px; font-weight:800; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(15, 118, 110, 0.25);"
+                    onclick="ebSubmitLaporanOperator(false)">
+                    <span>💾 Simpan ke Antrean</span>
+                  </button>
+                  <button type="button" class="btn-blue"
+                    style="flex:1.4; margin:0; background:linear-gradient(135deg, #153E75 0%, #1D4ED8 100%); padding:12px 14px; font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 3px 10px rgba(21, 62, 117, 0.3);"
+                    onclick="ebSubmitLaporanOperator(true)">
+                    <span>⚡ Simpan & Disposisi</span> <span>➔</span>
+                  </button>
+                </div>
               </div>
             </div>
             <div style="width: 40%;">
-              <!-- 3. KARTU ANTREAN LIVE MENUNGGU VALIDASI PAWAS -->
+              <!-- 3. KARTU ANTREAN LIVE & DISPOSISI LANGSUNG -->
               <div
                 style="background:white; border:1px solid var(--border); border-radius:12px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
                 <div
                   style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #E2E8F0; padding-bottom:8px;">
                   <div
                     style="font-size:13px; font-weight:800; color:var(--text); display:flex; align-items:center; gap:6px;">
-                    <span>📋</span> Antrean Menunggu Validasi Pawas
+                    <span>📋</span> Antrean Laporan & Disposisi
                   </div>
                   <span
                     style="font-size:11px; font-weight:800; background:#F59E0B; color:white; padding:2px 8px; border-radius:10px;"
@@ -2067,8 +2080,8 @@
                 </div>
 
                 <div
-                  style="text-align:center; font-size:11px; color:#94A3B8; margin-top:10px; padding-top:8px; border-top:1px dashed #E2E8F0; display:flex; align-items:center; justify-content:center; gap:5px;">
-                  <span>ℹ️</span> Seluruh laporan otomatis disalurkan ke Pawas untuk validasi & penerbitan tiket
+                  style="text-align:center; font-size:11px; color:#64748B; margin-top:10px; padding-top:8px; border-top:1px dashed #E2E8F0; display:flex; align-items:center; justify-content:center; gap:5px;">
+                  <span>⚡</span> Klik <strong>"Disposisi"</strong> pada kartu laporan untuk mengerahkan unit patroli secara instan
                 </div>
               </div>
             </div>
@@ -2139,7 +2152,7 @@
     </div>
   </div>
 
-  <!-- MODAL DETAIL LAPORAN OPERATOR SPKT 110 (READ-ONLY) -->
+  <!-- MODAL DETAIL LAPORAN (READ-ONLY) -->
   <div id="operator-detail-modal"
     style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.7); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;"
     onclick="tutupDetailLaporanOperator()">
@@ -2156,9 +2169,9 @@
             📋
           </div>
           <div>
-            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0F172A;">Detail Pelaporan 110</h3>
-            <span id="op-modal-subtitle" style="font-size:11.5px; color:#64748B; font-weight:600;">#TIKET-110-01 •
-              Dicatat Operator</span>
+            <h3 style="margin:0; font-size:15px; font-weight:800; color:#0F172A;">Detail Pelaporan Masuk</h3>
+            <span id="op-modal-subtitle" style="font-size:11.5px; color:#64748B; font-weight:600;">#TIKET-01 •
+              Penerimaan Laporan</span>
           </div>
         </div>
         <button type="button" onclick="tutupDetailLaporanOperator()"
@@ -2171,12 +2184,11 @@
         style="background:#FFFBEB; border-bottom:1px solid #FDE68A; padding:10px 18px; display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:14px;">⏳</span>
-          <span style="font-size:12px; font-weight:700; color:#B45309;" id="op-modal-status-text">Status: Menunggu
-            Validasi Pawas </span>
+          <span style="font-size:12px; font-weight:700; color:#B45309;" id="op-modal-status-text">Status: Menunggu Disposisi</span>
         </div>
         <span
           style="font-size:10.5px; background:#FEF3C7; color:#92400E; font-weight:700; padding:2px 8px; border-radius:4px; border:1px solid #FCD34D;"
-          id="op-modal-phase-tag">Antrean Pawas</span>
+          id="op-modal-phase-tag">Menunggu Disposisi</span>
       </div>
 
       <!-- Modal Body Content -->
@@ -2245,12 +2257,12 @@
           </div>
         </div>
 
-        <!-- Baris 4: Kronologi Percakapan 110 -->
+        <!-- Baris 4: Kronologi Percakapan Laporan -->
         <div
           style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px 14px; margin-bottom:12px;">
           <div
             style="font-size:11px; font-weight:800; color:#64748B; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; display:flex; align-items:center; gap:5px;">
-            <span>🎙️</span> Ringkasan Kronologi Percakapan Telepon 110
+            <span>🎙️</span> Ringkasan Kronologi Percakapan Telepon
           </div>
           <div
             style="font-size:12px; color:#334155; line-height:1.55; background:white; border-left:3px solid #3B82F6; padding:10px 12px; border-radius:0 8px 8px 0; font-style:italic;"
@@ -2265,7 +2277,6 @@
           style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#64748B; padding:8px 4px;">
           <div>
             Petugas Pencatat: <strong style="color:#0F172A;" id="op-modal-petugas"></strong>
-            (Operator SPKT 110)
           </div>
           <div id="op-modal-waktu-catat" style="font-weight:600;">
             10:45 WIB
@@ -2276,19 +2287,25 @@
       <!-- Modal Footer -->
       <div
         style="padding:12px 18px; border-top:1px solid #E2E8F0; background:#F8FAFC; display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-size:11px; color:#64748B; display:flex; align-items:center; gap:5px;">
-          <span>🔒</span> Mode Tinjau Operator (Read-Only)
+        <div style="font-size:11px; color:#1D4ED8; font-weight:700; display:flex; align-items:center; gap:5px;">
+          <span>👑</span> Otoritas Disposisi Aktif
         </div>
-        <button type="button" onclick="tutupDetailLaporanOperator()"
-          style="padding:8px 18px; background:var(--primary); color:white; font-size:12px; font-weight:700; border:none; border-radius:6px; cursor:pointer;">
-          Tutup Rincian
-        </button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" onclick="tutupDetailLaporanOperator()"
+            style="padding:8px 14px; background:white; color:#64748B; border:1px solid #CBD5E1; font-size:12px; font-weight:700; border-radius:6px; cursor:pointer;">
+            Tutup
+          </button>
+          <button type="button" id="btn-modal-op-disposisi" onclick="eksekusiDisposisiDariModalOperator()"
+            style="padding:8px 16px; background:linear-gradient(135deg, #153E75 0%, #1D4ED8 100%); color:white; font-size:12px; font-weight:800; border:none; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 8px rgba(21,62,117,0.3);">
+            <span>⚡ Disposisi Unit Sekarang</span> ➔
+          </button>
+        </div>
       </div>
 
     </div>
   </div>
 
-  <!-- MODAL DISPOSISI TAKTIS PAWAS (KOMANDO PENGENDALIAN OPERASI PRESISI 110) -->
+  <!-- MODAL DISPOSISI TAKTIS (KOMANDO PENGENDALIAN OPERASI PRESISI) -->
   <div id="modal-disposisi-pawas"
     style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.75); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
     <div
@@ -2303,7 +2320,7 @@
             👮
           </div>
           <div>
-            <div style="font-size:15px; font-weight:800; letter-spacing:0.3px;">LEMBAR DISPOSISI TAKTIS PAWAS</div>
+            <div style="font-size:15px; font-weight:800; letter-spacing:0.3px;">LEMBAR DISPOSISI TAKTIS UNIT</div>
             <div style="font-size:11px; opacity:0.85;">Posko Pengendalian Operasi Kepolisian</div>
           </div>
         </div>
@@ -2340,7 +2357,7 @@
             <div style="font-size:11px; font-weight:700; color:#64748B;">Kasus / Lokasi TKP:</div>
             <span id="pawas-disp-pelapor-badge"
               style="font-size:10px; font-weight:700; padding:2px 8px; border-radius:4px; background:#EFF6FF; color:#1D4ED8; border:1px solid #BFDBFE;">👤
-              Laporan Warga 110</span>
+              Laporan Pengaduan Warga</span>
           </div>
           <div id="pawas-disp-judul-kasus" style="font-size:13px; font-weight:800; color:#0F172A; margin-bottom:2px;">
             Tawuran Pelajar Remaja</div>
@@ -2348,7 +2365,7 @@
             Jakarta</div>
           <div id="pawas-disp-pelapor-info"
             style="font-size:11px; color:#1E40AF; background:#EFF6FF; padding:5px 8px; border-radius:6px; border:1px dashed #93C5FD;">
-            👤 Pelapor: <strong>Ibu Siti Rahmawati</strong> (0812-8871-3321) via Call Center 110
+            👤 Pelapor: <strong>Ibu Siti Rahmawati</strong> (0812-8871-3321) via Sentra Pengaduan Warga
           </div>
         </div>
 
@@ -2460,7 +2477,7 @@
         <div style="margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
             <label style="font-size:11.5px; font-weight:800; color:#1E293B;">
-              2. Instruksi Taktis &amp; Petunjuk Khusus Pawas: <span style="color:#DC2626;">*</span>
+              2. Instruksi Taktis &amp; Petunjuk Khusus Operasi: <span style="color:#DC2626;">*</span>
             </label>
             <span style="font-size:10px; color:#64748B;">Klik template untuk arahan cepat:</span>
           </div>
@@ -2490,7 +2507,7 @@
           </div>
 
           <textarea id="pawas-disp-arahan" rows="3"
-            style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:12px; color:#0F172A; outline:none; line-height:1.5; box-sizing:border-box;">Segera meluncur ke TKP dengan lampu sirine biru. Prioritaskan keselamatan warga/korban, amankan perimeter TKP, dokumentasikan temuan awal via bodycam, dan laporkan berkala via HT ke Pawas.</textarea>
+            style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:8px; font-size:12px; color:#0F172A; outline:none; line-height:1.5; box-sizing:border-box;">Segera meluncur ke TKP dengan lampu sirine biru. Prioritaskan keselamatan warga/korban, amankan perimeter TKP, dokumentasikan temuan awal via bodycam, dan laporkan berkala via HT ke Posko Pengendali.</textarea>
         </div>
 
         <div
@@ -2683,7 +2700,7 @@
           </div>
           <div style="text-align:right;">
             <div style="font-size:10px; font-weight:800; color:#64748B;">SUMBER LAPORAN</div>
-            <div id="bcast-sumber" style="font-size:11px; font-weight:800; color:#1E40AF;">Call Center 110</div>
+            <div id="bcast-sumber" style="font-size:11px; font-weight:800; color:#1E40AF;">Pengaduan Warga</div>
           </div>
         </div>
 
@@ -2696,10 +2713,10 @@
           </div>
         </div>
 
-        <!-- Instruksi Pawas -->
+        <!-- Instruksi Taktis Disposisi -->
         <div
           style="background:#EFF6FF; border-left:4px solid #2563EB; border-radius:0 8px 8px 0; padding:10px 12px; font-size:12px; color:#1E3A8A; line-height:1.5; margin-bottom:12px;">
-          <strong>👮 Instruksi Pawas:</strong> <span id="bcast-arahan">"Segera meluncur ke TKP..."</span>
+          <strong>👮 Instruksi Operasi:</strong> <span id="bcast-arahan">"Segera meluncur ke TKP..."</span>
         </div>
 
         <!-- Personel Yang Sudah Terima -->
@@ -2746,7 +2763,7 @@
           Pemberitahuan Sistem Presisi
         </div>
         <div id="alert-presisi-subtitle" style="font-size:11px; opacity:0.85; margin-top:3px;">
-          Pusat Komando &amp; Pengendalian Operasi (Puskodal 110)
+          Pusat Komando &amp; Pengendalian Operasi (Puskodal)
         </div>
       </div>
 
@@ -2786,9 +2803,9 @@
           <div id="prompt-presisi-icon" style="font-size:22px;">📢</div>
           <div>
             <div id="prompt-presisi-title" style="font-size:14px; font-weight:800; letter-spacing:0.3px;">
-              Instruksi Tambahan Pawas
+              Instruksi Tambahan Operasi
             </div>
-            <div style="font-size:10.5px; opacity:0.85;">Pusat Komando Operasi 110</div>
+            <div style="font-size:10.5px; opacity:0.85;">Pusat Komando &amp; Pengendalian Operasi</div>
           </div>
         </div>
         <button type="button" onclick="batalModalPromptPresisi()"
@@ -2823,7 +2840,7 @@
     </div>
   </div>
 
-  <!-- MODAL CETAK RESMI LAPORAN AKUNTABILITAS PAWAS (PDF STANDAR POLRI) -->
+  <!-- MODAL CETAK RESMI LAPORAN AKUNTABILITAS OPERASIONAL (PDF STANDAR POLRI) -->
   <div id="modal-cetak-laporan-pawas"
     style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.85); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px; overflow-y:auto;">
     <div class="modal-print-dialog"
@@ -2834,7 +2851,7 @@
         style="background:#0F172A; color:white; padding:12px 20px; display:flex; justify-content:space-between; align-items:center;">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:16px;">📄</span>
-          <span style="font-size:13px; font-weight:800; letter-spacing:0.3px;">PRATINJAU DOKUMEN MUTASI RESMI PAWAS
+          <span style="font-size:13px; font-weight:800; letter-spacing:0.3px;">PRATINJAU DOKUMEN MUTASI RESMI OPERASIONAL
             (FORMAT KEDINASAN POLRI)</span>
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
