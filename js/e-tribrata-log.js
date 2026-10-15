@@ -449,6 +449,42 @@ function initMaps() {
           };
           registerAndAddMarker(scanObj, iconScanLive);
         }
+
+        // =========================================================================
+        // LIVE REAL-TIME GPS TRACKING LISTENER (Sinkronisasi Otomatis Pergerakan HP)
+        // =========================================================================
+        const updateLiveUnitMarkerPositions = () => {
+          try {
+            const rawScan = localStorage.getItem('simapres_latest_hp_scan');
+            if (rawScan) {
+              const liveData = JSON.parse(rawScan);
+              if (liveData && liveData.coords) {
+                const newPos = new google.maps.LatLng(liveData.coords.lat, liveData.coords.lng);
+                
+                // Cari apakah marker untuk unit ini sudah ada
+                for (const key in window.markerDataMap) {
+                  const item = window.markerDataMap[key];
+                  if ((liveData.nrp && item.nrp === liveData.nrp) || (liveData.deviceID && item.telemetri && item.telemetri.includes(liveData.deviceID))) {
+                    item.pos = liveData.coords;
+                    if (item._markerB) item._markerB.setPosition(newPos);
+                    if (item._markerFs) item._markerFs.setPosition(newPos);
+                  }
+                }
+              }
+            }
+          } catch(e) {}
+        };
+
+        // 1. Pantau perubahan storage antar-tab / dari smartphone
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'simapres_latest_hp_scan' || e.key === 'simapres_registered_units') {
+            updateLiveUnitMarkerPositions();
+          }
+        });
+
+        // 2. Interval polling pemantauan pergerakan (setiap 2 detik)
+        setInterval(updateLiveUnitMarkerPositions, 2000);
+
       } catch (err) {
         console.warn('Gagal memuat unit terdaftar ke radar pimpinan:', err);
       }
@@ -5844,8 +5880,11 @@ window.addEventListener('DOMContentLoaded', () => {
           `;
     }
 
-    const activeUserPim = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null; const un = document.getElementById('user-name'); if (un) un.innerText = (activeUserPim && (activeUserPim.role === 'pimpinan' || activeUserPim.role === 'pawas')) ? (activeUserPim.namaSingkat || activeUserPim.nama) : '';
-    const ur = document.getElementById('user-role'); if (ur) ur.innerText = 'Perwira Pengawas (PAWAS)';
+    const activeUserPim = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null; 
+    const un = document.getElementById('user-name'); 
+    if (un) un.innerText = activeUserPim ? (activeUserPim.namaSingkat || activeUserPim.nama) : 'Pawas';
+    const ur = document.getElementById('user-role'); 
+    if (ur) ur.innerText = activeUserPim ? `${activeUserPim.pangkat || 'PAWAS'} • NRP: ${activeUserPim.nrp}` : 'Perwira Pengawas (PAWAS)';
     updateStatusDinasHeader();
 
     // 1. Pastikan tab 1 tetap Beranda (Posko Kendali Pawas)
@@ -5907,6 +5946,14 @@ window.addEventListener('DOMContentLoaded', () => {
   } else {
     // Anggota (Personel Lapangan)
     const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+    const urlNrp = urlParams.get('nrp');
+    const isRegistered = (typeof isNrpTerdaftarDiTabelUnit === 'function') ? isNrpTerdaftarDiTabelUnit(urlNrp) : (activeUser && cariPersonelByNrp(urlNrp));
+    if (urlNrp && (!isRegistered || !activeUser)) {
+      alert(`Akses Ditolak: NRP ${urlNrp} tidak terdaftar di Data Personel & Satuan Unit Aktif (Gambar 1).`);
+      window.location.href = 'index.html';
+      return;
+    }
+
     const un = document.getElementById('user-name');
     const ur = document.getElementById('user-role');
     const avatarTop = document.getElementById('user-avatar-top');

@@ -257,29 +257,47 @@
       const unitLabel = UNIT_NAMES[targetUnit] || (targetUnit ? targetUnit.toUpperCase() : 'Satuan Tugas');
       document.getElementById('disp-unit-name').innerText = `${unitLabel} • ${brand}`;
 
-      // Ambil Koordinat Satelit GPS Asli dari HP
+      // Ambil Koordinat Satelit GPS Asli dari HP & Pasang Real-Time Live Tracking (watchPosition)
       if (navigator.geolocation) {
+        const updateGpsUI = (pos) => {
+          activeCoords = {
+            lat: Number(pos.coords.latitude.toFixed(6)),
+            lng: Number(pos.coords.longitude.toFixed(6))
+          };
+          const elCoords = document.getElementById('disp-coords');
+          const elAcc = document.getElementById('disp-accuracy');
+          const elBadge = document.getElementById('gps-status-badge');
+          if (elCoords) elCoords.innerText = `${activeCoords.lat}, ${activeCoords.lng}`;
+          if (elAcc) elAcc.innerText = `Akurasi Satelit HP: ± ${Math.round(pos.coords.accuracy || 3)} Meter (Sinyal Satelit Live)`;
+          if (elBadge) {
+            elBadge.innerText = 'TERHUBUNG (LIVE GPS BERGERAK)';
+            elBadge.style.background = '#065F46';
+          }
+          simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
+        };
+
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            activeCoords = {
-              lat: Number(pos.coords.latitude.toFixed(6)),
-              lng: Number(pos.coords.longitude.toFixed(6))
-            };
-            document.getElementById('disp-coords').innerText = `${activeCoords.lat}, ${activeCoords.lng}`;
-            document.getElementById('disp-accuracy').innerText = `Akurasi Satelit HP: ± ${Math.round(pos.coords.accuracy || 3)} Meter (Sinyal Satelit Prima)`;
-            document.getElementById('gps-status-badge').innerText = 'TERHUBUNG (LIVE GPS)';
-            document.getElementById('gps-status-badge').style.background = '#065F46';
-            simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
-          },
+          updateGpsUI,
           (err) => {
-            console.warn('Geolocation error / fallback:', err);
+            console.warn('Geolocation initial error / fallback:', err);
             activeCoords = { lat: -6.208800, lng: 106.845600 };
             document.getElementById('disp-coords').innerText = `${activeCoords.lat}, ${activeCoords.lng} (Simulasi Lokasi Mako)`;
             document.getElementById('gps-status-badge').innerText = 'STANDBY GPS';
             simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
           },
-          { enableHighAccuracy: true, timeout: 10000 }
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
         );
+
+        // Pasang sensor pemantau pergerakan dinamis (Real-Time GPS Tracker)
+        try {
+          navigator.geolocation.watchPosition(
+            updateGpsUI,
+            (err) => console.warn('watchPosition warning:', err),
+            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+          );
+        } catch(e) {
+          console.warn('watchPosition not available:', e);
+        }
       } else {
         simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
       }

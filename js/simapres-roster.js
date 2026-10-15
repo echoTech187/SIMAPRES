@@ -423,21 +423,135 @@ function getCombinedRosterPersonel() {
     const raw = localStorage.getItem('simapres_registered_units');
     if (raw) {
       registered = JSON.parse(raw);
-      // Lengkapi atribut role jika didaftarkan sebagai pawas_spkt
-      registered.forEach(u => {
-        if (u.unitId === 'pawas_spkt' || u.unitId === 'pawas' || u.unitId === 'operator') {
-          u.role = 'pawas';
-          u.isSuperUser = true;
-          if (!u.avatar) u.avatar = 'assets/images/avatar_polisi.jpg';
-        } else if (!u.role) {
-          u.role = 'anggota';
+    } else {
+      // Seed default data sesuai Modul Registrasi Satuan Unit Aktif (Gambar 1)
+      const tglSekarang = new Date().toISOString().split('T')[0];
+      registered = [
+        {
+          id: 'unit_1',
+          nrp: '95020123',
+          nama: 'Bripka Ahmad Subagyo',
+          pangkat: 'BRIPKA',
+          unitId: 'sabhara',
+          satuanNama: 'Satuan Samapta Presisi',
+          kelompokRegu: 'Regu Alpha Presisi',
+          password: 'polripresisi2026',
+          deviceID: 'DEV-POLRES-8821FA90',
+          tanggalDaftar: tglSekarang,
+          tanggalUpdate: tglSekarang,
+          status: 'Aktif'
+        },
+        {
+          id: 'unit_2',
+          nrp: '49112233',
+          nama: 'Aiptu Bambang Sudrajat',
+          pangkat: 'AIPTU',
+          unitId: 'lantas',
+          satuanNama: 'Satuan Lalu Lintas (Satlantas)',
+          kelompokRegu: 'Unit Turjawali PJR',
+          password: 'polripresisi2026',
+          deviceID: 'DEV-POLRES-4190BC33',
+          tanggalDaftar: tglSekarang,
+          tanggalUpdate: tglSekarang,
+          status: 'Aktif'
+        },
+        {
+          id: 'unit_3',
+          nrp: '93020101',
+          nama: 'Bripka Hendro Purnomo',
+          pangkat: 'BRIPKA',
+          unitId: 'lantas',
+          satuanNama: 'Satuan Lalu Lintas (Satlantas)',
+          kelompokRegu: 'Unit Turjawali PJR',
+          password: 'polripresisi2026',
+          deviceID: 'DEV-POLRES-5531EE12',
+          tanggalDaftar: tglSekarang,
+          tanggalUpdate: tglSekarang,
+          status: 'Siaga Patroli'
+        },
+        {
+          id: 'unit_4',
+          nrp: '96050119',
+          nama: 'Bripka Agus Salim',
+          pangkat: 'BRIPKA',
+          unitId: 'reskrim',
+          satuanNama: 'Satuan Reserse Kriminal (Satreskrim)',
+          kelompokRegu: 'Tim Tindak Opsnal & Resmob',
+          password: 'polripresisi2026',
+          deviceID: 'DEV-POLRES-9901FA72',
+          tanggalDaftar: tglSekarang,
+          tanggalUpdate: tglSekarang,
+          status: 'Aktif'
         }
-      });
+      ];
+      localStorage.setItem('simapres_registered_units', JSON.stringify(registered));
     }
+
+    // Lengkapi atribut role jika didaftarkan sebagai pawas_spkt
+    registered.forEach(u => {
+      if (u.unitId === 'pawas_spkt' || u.unitId === 'pawas' || u.unitId === 'operator') {
+        u.role = 'pawas';
+        u.isSuperUser = true;
+        if (!u.avatar) u.avatar = 'assets/images/avatar_polisi.jpg';
+      } else if (!u.role) {
+        u.role = 'anggota';
+      }
+      // Lengkapi profil dari ROSTER_PERSONEL jika ada (hanya atribut teknis tambahan yang kosong, jangan menimpa nama/pangkat pendaftaran asli)
+      const masterProfile = ROSTER_PERSONEL.find(r => r.nrp === u.nrp || (r.aliasNrp && r.aliasNrp.includes(u.nrp)));
+      if (!u.namaSingkat) {
+        u.namaSingkat = u.nama || '';
+      }
+      if (masterProfile) {
+        if (!u.avatar) u.avatar = masterProfile.avatar;
+        if (!u.ranmor) u.ranmor = masterProfile.ranmor;
+        if (!u.alkom) u.alkom = masterProfile.alkom;
+        if (!u.gadget) u.gadget = masterProfile.gadget;
+        if (!u.senpi) u.senpi = masterProfile.senpi;
+        if (!u.chRadio) u.chRadio = masterProfile.chRadio;
+        if (!u.golongan) u.golongan = masterProfile.golongan;
+        if (!u.badgeText) u.badgeText = masterProfile.badgeText;
+        if (!u.badgeBg) u.badgeBg = masterProfile.badgeBg;
+        if (!u.badgeColor) u.badgeColor = masterProfile.badgeColor;
+      }
+    });
   } catch (e) {
     console.warn('Gagal membaca simapres_registered_units:', e);
   }
-  return [...ROSTER_PERSONEL, ...registered];
+  // Catatan: Prioritaskan unit yang terdaftar di Data Personel & Satuan Unit Aktif (simapres_registered_units).
+  // Pawas/Pimpinan (88010234) dan Operator (98040112) hanya ditambahkan jika belum didaftarkan di registered units.
+  const registeredNrps = registered.map(r => String(r.nrp).trim().toLowerCase());
+  const pawasOpOnly = ROSTER_PERSONEL.filter(u => {
+    const isSpecialRole = (u.role === 'pimpinan' || u.role === 'operator' || u.role === 'pawas');
+    return isSpecialRole && !registeredNrps.includes(String(u.nrp).trim().toLowerCase());
+  });
+  return [...registered, ...pawasOpOnly];
+}
+
+/**
+ * Memeriksa apakah suatu NRP terdaftar resmi di Data Personel & Satuan Unit Aktif (simapres_registered_units)
+ * @param {string} nrpInput 
+ * @returns {boolean}
+ */
+function isNrpTerdaftarDiTabelUnit(nrpInput) {
+  if (!nrpInput) return false;
+  const clean = String(nrpInput).trim().toLowerCase();
+  try {
+    let raw = localStorage.getItem('simapres_registered_units');
+    let list = raw ? JSON.parse(raw) : [];
+    if (!list || list.length === 0) {
+      // Panggil getCombinedRosterPersonel() untuk menginisialisasi seed jika kosong
+      getCombinedRosterPersonel();
+      raw = localStorage.getItem('simapres_registered_units');
+      list = raw ? JSON.parse(raw) : [];
+    }
+    return list.some(u => {
+      if (u.nrp && u.nrp.toLowerCase() === clean) return true;
+      if (u.aliasNrp && u.aliasNrp.some(a => a.toLowerCase() === clean)) return true;
+      return false;
+    });
+  } catch (e) {
+    return false;
+  }
 }
 
 /**
@@ -452,7 +566,7 @@ function cariPersonelByNrp(nrpInput) {
   return allPersonel.find(u => {
     if (u.nrp && u.nrp.toLowerCase() === clean) return true;
     if (u.aliasNrp && u.aliasNrp.some(a => a.toLowerCase() === clean)) return true;
-    if (u.nama && u.nama.toLowerCase().includes(clean)) return true;
+    if (u.nama && u.nama.toLowerCase() === clean) return true;
     return false;
   }) || null;
 }

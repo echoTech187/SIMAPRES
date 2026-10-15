@@ -518,6 +518,32 @@ function initMaps() {
     });
 
     // =========================================================================
+    // LIVE REAL-TIME GPS TRACKING LISTENER (Sinkronisasi Otomatis Pergerakan HP Personel)
+    // =========================================================================
+    const updateMyUnitMarkerLive = () => {
+      try {
+        const rawScan = localStorage.getItem('simapres_latest_hp_scan');
+        if (rawScan) {
+          const liveData = JSON.parse(rawScan);
+          if (liveData && liveData.coords) {
+            const newPos = new google.maps.LatLng(liveData.coords.lat, liveData.coords.lng);
+            if (myUnit._markerB) myUnit._markerB.setPosition(newPos);
+            if (myUnit._markerFs) myUnit._markerFs.setPosition(newPos);
+            myUnit.pos = liveData.coords;
+          }
+        }
+      } catch(e) {}
+    };
+
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'simapres_latest_hp_scan' || e.key === 'simapres_registered_units') {
+        updateMyUnitMarkerLive();
+      }
+    });
+
+    setInterval(updateMyUnitMarkerLive, 2000);
+
+    // =========================================================================
     // 4. SEBARAN SELURUH PERSONEL LAIN (13 ARMADA LAINNYA IDENTIK DENGAN MAPS PIMPINAN)
     // =========================================================================
     // Seluruh armada selain unit milik user yang sedang login
@@ -5869,6 +5895,14 @@ window.addEventListener('DOMContentLoaded', () => {
   } else {
     // Anggota (Personel Lapangan)
     const activeUser = typeof getActiveSessionUser === 'function' ? getActiveSessionUser() : null;
+    const urlNrp = urlParams.get('nrp');
+    const isRegistered = (typeof isNrpTerdaftarDiTabelUnit === 'function') ? isNrpTerdaftarDiTabelUnit(urlNrp) : (activeUser && cariPersonelByNrp(urlNrp));
+    if (urlNrp && (!isRegistered || !activeUser)) {
+      alert(`Akses Ditolak: NRP ${urlNrp} tidak terdaftar di Data Personel & Satuan Unit Aktif (Gambar 1).`);
+      window.location.href = 'index.html';
+      return;
+    }
+
     const un = document.getElementById('user-name');
     const ur = document.getElementById('user-role');
     const avatarTop = document.getElementById('user-avatar-top');
