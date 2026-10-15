@@ -388,12 +388,16 @@ function initMaps() {
     let matchedUnitKey = 'samapta1';
     if (user && (user.unitId === 'samapta-r2-motor' || userNrp === '50129841' || (user.ranmor && user.ranmor.toLowerCase().includes('motor')) || (user.satuan && user.satuan.toLowerCase().includes('raimas')))) {
       matchedUnitKey = 'perintis1';
-    } else if (user && (user.unitId === 'lantas-turjawali' || userNrp === '49112233' || (user.ranmor && user.ranmor.toLowerCase().includes('lantas')) || (user.satuan && user.satuan.toLowerCase().includes('lantas')))) {
+    } else if (user && (user.unitId === 'lantas' || user.unitId === 'lantas-turjawali' || userNrp === '49112233' || (user.ranmor && user.ranmor.toLowerCase().includes('lantas')) || (user.satuan && user.satuan.toLowerCase().includes('lantas')))) {
       matchedUnitKey = 'lantas1';
     } else {
-      const foundByNrp = allFleetUnits.find(u => u.nrp === userNrp);
+      const foundByNrp = allFleetUnits.find(u => String(u.nrp) === String(userNrp));
       if (foundByNrp) matchedUnitKey = foundByNrp.key;
     }
+
+    // Tentukan unit dasar personel dari armada yang cocok
+    const matchedUnit = allFleetUnits.find(u => u.key === matchedUnitKey) || samaptaUnits[0];
+    const baseMyUnit = matchedUnit;
 
     // Cek apakah user memiliki koordinat live GPS dari Device ID yang di-scan
     let userScannedPos = null;
@@ -415,7 +419,7 @@ function initMaps() {
 
       // 3. Cek dari daftar unit terdaftar berdasarkan NRP user atau fallback ke unit terakhir
       const registeredList = JSON.parse(localStorage.getItem('simapres_registered_units') || '[]');
-      const regUser = registeredList.find(u => u.nrp === userNrp);
+      const regUser = registeredList.find(u => String(u.nrp) === String(userNrp));
       if (regUser && regUser.gpsCoords) {
         userScannedPos = regUser.gpsCoords;
         userDeviceID = regUser.deviceID;
@@ -435,7 +439,7 @@ function initMaps() {
     }
 
     // Icon khusus jika terdeteksi dari GPS HP fisik
-    const iconLiveGps = userScannedPos ? makeHaloBadgeIcon('📍', '#10B981', '#34D399') : myUnit.icon;
+    const iconLiveGps = userScannedPos ? makeHaloBadgeIcon('📍', '#10B981', '#34D399') : (baseMyUnit.icon || iconSamapta);
 
     let myUnit = Object.assign({}, baseMyUnit, {
       key: 'my_unit',

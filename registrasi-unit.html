@@ -1327,8 +1327,24 @@
         let units = getRegisteredUnits();
         const nowIso = new Date().toISOString().split('T')[0];
 
+        // Periksa apakah ada koordinat GPS hasil scan HP yang tersimpan
+        let scannedGps = null;
+        try {
+          const rawScanned = localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device');
+          if (rawScanned) {
+            const parsed = JSON.parse(rawScanned);
+            if (parsed && parsed.coords) {
+              scannedGps = parsed.coords;
+            }
+          }
+        } catch (e) {
+          console.warn('Gagal membaca scanned gps:', e);
+        }
+
+        const finalCoords = scannedGps || currentLiveGpsCoords || { lat: -6.208800, lng: 106.845600 };
+
         if (editId) {
-          // Mode Edit
+          // Mode Edit by ID
           const idx = units.findIndex(u => u.id === editId);
           if (idx !== -1) {
             units[idx].nrp = nrp;
@@ -1339,48 +1355,69 @@
             units[idx].kelompokRegu = kelompokRegu;
             units[idx].password = pass;
             units[idx].deviceID = deviceID;
+            units[idx].gpsCoords = finalCoords;
             units[idx].status = status;
             units[idx].tanggalUpdate = nowIso;
           }
           showToast(`✓ Data personel ${nama} (${nrp}) berhasil diperbarui!`, 'success');
         } else {
-          // Cek duplikasi NRP
-          if (units.some(u => u.nrp === nrp)) {
-            showToast(`NRP ${nrp} sudah terdaftar dalam sistem!`, 'error');
-            return;
+          // Cek apakah NRP sudah ada di tabel (Upsert mode: jika ada, update datanya agar tidak tertolak)
+          const existingIdx = units.findIndex(u => String(u.nrp).trim() === String(nrp).trim());
+          if (existingIdx !== -1) {
+            units[existingIdx].nama = nama;
+            units[existingIdx].pangkat = pangkat;
+            units[existingIdx].unitId = unitId;
+            units[existingIdx].satuanNama = satuanNama;
+            units[existingIdx].kelompokRegu = kelompokRegu;
+            units[existingIdx].password = pass;
+            units[existingIdx].deviceID = deviceID;
+            units[existingIdx].gpsCoords = finalCoords;
+            units[existingIdx].status = status;
+            units[existingIdx].tanggalUpdate = nowIso;
+            showToast(`✓ Data personel ${nama} (${nrp}) berhasil diperbarui dengan Device ID ${deviceID}!`, 'success');
+          } else {
+            const newUnit = {
+              id: 'unit_' + Date.now(),
+              nrp: nrp,
+              nama: nama,
+              pangkat: pangkat,
+              unitId: unitId,
+              satuanNama: satuanNama,
+              kelompokRegu: kelompokRegu,
+              password: pass,
+              deviceID: deviceID,
+              gpsCoords: finalCoords,
+              tanggalDaftar: nowIso,
+              tanggalUpdate: nowIso,
+              status: status
+            };
+            units.unshift(newUnit);
+            showToast(`✓ Personel baru ${nama} (${nrp}) berhasil didaftarkan ke ${satuanNama} dengan Device ID ${deviceID}!`, 'success');
           }
+        }
 
-          // Periksa apakah ada koordinat GPS hasil scan HP yang tersimpan
-          let scannedGps = null;
-          try {
-            const rawScanned = sessionStorage.getItem('simapres_scanned_device');
-            if (rawScanned) {
-              const parsed = JSON.parse(rawScanned);
-              if (parsed && parsed.coords) {
-                scannedGps = parsed.coords;
-              }
-            }
-          } catch (e) {
-            console.warn('Gagal membaca scanned gps:', e);
-          }
-
-          const newUnit = {
-            id: 'unit_' + Date.now(),
+        // Sinkronisasi data ke sesi aktif browser agar personil.html langsung membaca data terbaru ini
+        try {
+          const userSessionData = {
             nrp: nrp,
             nama: nama,
             pangkat: pangkat,
             unitId: unitId,
-            satuanNama: satuanNama,
-            kelompokRegu: kelompokRegu,
-            password: pass,
+            satuan: satuanNama,
+            role: 'anggota',
             deviceID: deviceID,
-            gpsCoords: scannedGps || currentLiveGpsCoords || { lat: -6.208800, lng: 106.845600 },
-            tanggalDaftar: nowIso,
-            tanggalUpdate: nowIso,
-            status: status
+            gpsCoords: finalCoords,
+            brand: 'Smartphone Android/iOS'
           };
-          units.unshift(newUnit);
-          showToast(`✓ Personel baru ${nama} (${nrp}) berhasil didaftarkan ke ${satuanNama} dengan Device ID ${deviceID}!`, 'success');
+          sessionStorage.setItem('simapres_active_user', JSON.stringify(userSessionData));
+          localStorage.setItem('simapres_latest_hp_scan', JSON.stringify({
+            deviceID: deviceID,
+            coords: finalCoords,
+            nrp: nrp,
+            timestamp: new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' WIB'
+          }));
+        } catch(err) {
+          console.warn('Gagal sinkron sesi:', err);
         }
 
         saveRegisteredUnits(units);
