@@ -846,7 +846,11 @@ window.onload = () => {
 function switchTab(viewId, navElement) {
   const urlParams = new URLSearchParams(window.location.search);
   const role = urlParams.get('role');
-  if (role === 'operator' && (viewId === 'view-validasi' || viewId === 'view-tolak')) {
+  const activeUser = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const isSuperCmd = (role === 'pawas' || role === 'pimpinan' || (activeUser && (activeUser.role === 'pawas' || activeUser.role === 'pimpinan' || activeUser.unitId === 'pawas_spkt')));
+
+  // Jika super user komando, seluruh tab (Validasi, Operator SPKT, Beranda, Peta) dapat diakses penuh bebas hambatan
+  if (!isSuperCmd && role === 'operator' && (viewId === 'view-validasi' || viewId === 'view-tolak')) {
     alert('Akses Dibatasi: Halaman Validasi Atasan khusus untuk Perwira Pengawas (PAWAS).');
     viewId = 'view-operator';
   }

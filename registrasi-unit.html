@@ -133,7 +133,6 @@
 
     /* Main Container */
     .container {
-      max-width: 1440px;
       width: 100%;
       margin: 28px auto;
       padding: 0 20px;
@@ -381,6 +380,13 @@
       border: 1px solid #FDE68A;
     }
 
+    .satuan-komando {
+      background: linear-gradient(135deg, #EFF6FF 0%, #FEF3C7 100%);
+      color: #1E3A8A;
+      border: 1px solid #93C5FD;
+      font-weight: 800;
+    }
+
     .badge-status {
       display: inline-flex;
       align-items: center;
@@ -522,55 +528,41 @@
 
             <!-- 3. Pangkat Kepolisian -->
             <div class="form-group">
-              <label class="form-label" for="reg-pangkat">Pangkat <span class="req">*</span></label>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label class="form-label" for="reg-pangkat" style="margin-bottom:0;">Pangkat <span class="req">*</span></label>
+                <button type="button" onclick="bukaModalMasterData('pangkat')" style="background:none; border:none; color:#2563EB; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                  <span>⚙️ Kelola</span>
+                </button>
+              </div>
               <select id="reg-pangkat" class="form-control" required>
-                <option value="">-- Pilih Pangkat Kepolisian --</option>
-                <optgroup label="Tamtama">
-                  <option value="BHARADA">Bharada (Bhayangkara Dua)</option>
-                  <option value="BHARATU">Bharatu (Bhayangkara Satu)</option>
-                  <option value="BHARAKA">Bharaka (Bhayangkara Kepala)</option>
-                  <option value="ABRIPDA">Abripda (Ajun Brigadir Polisi Dua)</option>
-                  <option value="ABRIPTU">Abriptu (Ajun Brigadir Polisi Satu)</option>
-                  <option value="ABRIP">Abrip (Ajun Brigadir Polisi)</option>
-                </optgroup>
-                <optgroup label="Bintara">
-                  <option value="BRIPDA">Bripda (Brigadir Polisi Dua)</option>
-                  <option value="BRIPTU">Briptu (Brigadir Polisi Satu)</option>
-                  <option value="BRIGADIR">Brigadir (Brigadir Polisi)</option>
-                  <option value="BRIPKA" selected>Bripka (Brigadir Polisi Kepala)</option>
-                  <option value="AIPDA">Aipda (Ajun Inspektur Polisi Dua)</option>
-                  <option value="AIPTU">Aiptu (Ajun Inspektur Polisi Satu)</option>
-                </optgroup>
-                <optgroup label="Perwira Pertama (Pama)">
-                  <option value="IPDA">Ipda (Inspektur Polisi Dua)</option>
-                  <option value="IPTU">Iptu (Inspektur Polisi Satu)</option>
-                  <option value="AKP">AKP (Ajun Komisaris Polisi)</option>
-                </optgroup>
-                <optgroup label="Perwira Menengah (Pamen)">
-                  <option value="KOMPOL">Kompol (Komisaris Polisi)</option>
-                  <option value="AKBP">AKBP (Ajun Komisaris Besar Polisi)</option>
-                  <option value="KOMBES POL">Kombes Pol (Komisaris Besar Polisi)</option>
-                </optgroup>
+                <!-- Opsi di-render secara dinamis dari Master Data -->
               </select>
             </div>
 
             <!-- 4. Unit Satuan & Kelompok Regu -->
             <div class="form-row-2">
               <div class="form-group">
-                <label class="form-label" for="reg-unit">Unit Satuan <span class="req">*</span></label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label class="form-label" for="reg-unit" style="margin-bottom:0;">Unit Satuan <span class="req">*</span></label>
+                  <button type="button" onclick="bukaModalMasterData('satuan')" style="background:none; border:none; color:#2563EB; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                    <span>⚙️ Kelola</span>
+                  </button>
+                </div>
                 <select id="reg-unit" class="form-control" onchange="autoSetChRadio()" required>
-                  <option value="reskrim">1. Satuan Reserse Kriminal (Satreskrim)</option>
-                  <option value="intel">2. Satuan Intelijen Keamanan (Sat Intelkam)</option>
-                  <option value="lantas" selected>3. Satuan Lalu Lintas (Satlantas)</option>
-                  <option value="binmas">4. Satuan Pembinaan Masyarakat (Sat Binmas / Bhabin)</option>
-                  <option value="sabhara">5. Satuan Sabhara / Samapta Bhayangkara (Patroli Presisi)</option>
+                  <!-- Opsi di-render secara dinamis dari Master Data -->
                 </select>
               </div>
 
               <div class="form-group">
-                <label class="form-label" for="reg-regu">Kelompok Regu <span class="req">*</span></label>
-                <input type="text" id="reg-regu" class="form-control" placeholder="Misal: Regu Alpha / Tim 1"
-                  value="Regu Alpha Presisi" required>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label class="form-label" for="reg-regu" style="margin-bottom:0;">Kelompok Regu <span class="req">*</span></label>
+                  <button type="button" onclick="bukaModalMasterData('regu')" style="background:none; border:none; color:#2563EB; font-size:11px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:3px;">
+                    <span>⚙️ Kelola</span>
+                  </button>
+                </div>
+                <select id="reg-regu" class="form-control" required>
+                  <!-- Opsi di-render secara dinamis ter-group dari Master Data -->
+                </select>
               </div>
             </div>
 
@@ -653,7 +645,8 @@
             <input type="text" id="search-input" class="form-control"
               placeholder="🔍 Cari NRP, Nama Personel, atau Device ID..." oninput="filterTableData()" style="flex:2;">
             <select id="filter-satuan" class="form-control" onchange="filterTableData()" style="flex:1;">
-              <option value="all">Semua Satuan (5 Satuan)</option>
+              <option value="all">Semua Satuan</option>
+              <option value="pawas_spkt">👑 Sentra Komando (Pawas & SPKT)</option>
               <option value="reskrim">1. Sat Reskrim</option>
               <option value="intel">2. Sat Intelkam</option>
               <option value="lantas">3. Sat Lantas</option>
@@ -817,6 +810,109 @@
     </div>
   </div>
 
+  <!-- MODAL MASTER DATA (CRUD PANGKAT, SATUAN, REGU) -->
+  <div id="modal-master-data"
+    style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.85); backdrop-filter:blur(6px); z-index:99999; align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; border-radius:18px; width:100%; max-width:540px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 25px 60px -15px rgba(0,0,0,0.5);">
+      <!-- Modal Header -->
+      <div style="background:linear-gradient(135deg, #153E75 0%, #1D4ED8 100%); color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div id="master-modal-title" style="font-size:16px; font-weight:800; letter-spacing:0.3px; display:flex; align-items:center; gap:8px;">
+            <span>⚙️</span> Kelola Master Data
+          </div>
+          <div id="master-modal-subtitle" style="font-size:11.5px; opacity:0.88; margin-top:2px;">
+            Tambah, perbarui, atau hapus opsi pilihan
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalMasterData()" style="background:rgba(255,255,255,0.15); border:none; color:white; width:32px; height:32px; border-radius:50%; font-size:14px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+          ✕
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div style="padding:18px 20px; overflow-y:auto; flex:1;">
+        <!-- Input Form Tambah / Edit -->
+        <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:14px 16px; margin-bottom:16px;">
+          <input type="hidden" id="master-input-id">
+          <input type="hidden" id="master-input-tipe">
+
+          <div style="font-size:12px; font-weight:800; color:#1E40AF; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="master-form-header">➕ Tambah Pilihan Baru</span>
+            <button type="button" id="master-btn-cancel-edit" onclick="resetMasterForm()" style="display:none; background:none; border:none; color:#DC2626; font-size:11px; font-weight:700; cursor:pointer;">
+              ✕ Batal Edit
+            </button>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <!-- Field 1: Nama / Label Utama -->
+            <div>
+              <label id="master-label-utama" style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">
+                Nama / Label Opsi <span style="color:#DC2626;">*</span>
+              </label>
+              <input type="text" id="master-field-label" class="form-control" placeholder="Contoh: Briptu / Sat Reskrim / Regu Charlie..." style="padding:8px 12px; font-size:12.5px;">
+            </div>
+
+            <!-- Field 2: Kode / Singkatan (Opsional sesuai tipe) -->
+            <div id="master-group-extra" style="display:flex; gap:10px;">
+              <div id="master-col-code" style="flex:1;">
+                <label id="master-label-code" style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">
+                  Kode Singkat
+                </label>
+                <input type="text" id="master-field-code" class="form-control font-mono" placeholder="BRIPTU" style="padding:8px 12px; font-size:12.5px; text-transform:uppercase;">
+              </div>
+              <div id="master-col-kategori" style="flex:1;">
+                <label id="master-label-kategori" style="display:block; font-size:11px; font-weight:800; color:#475569; margin-bottom:4px;">
+                  Kelompok / Golongan
+                </label>
+                <input type="text" id="master-field-kategori" class="form-control" placeholder="Bintara Polri" style="padding:8px 12px; font-size:12.5px;">
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+              <button type="button" id="master-btn-save" onclick="simpanMasterItem()" class="btn-submit" style="margin:0; padding:8px 16px; font-size:12px; width:auto;">
+                <span>💾</span> Simpan Opsi
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Item List Table -->
+        <div>
+          <div style="font-size:12px; font-weight:800; color:#334155; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📋 Daftar Opsi Aktif</span>
+            <span id="master-count-badge" style="font-size:11px; background:#EFF6FF; color:#1D4ED8; padding:2px 8px; border-radius:10px; font-weight:700;">
+              0 Opsi
+            </span>
+          </div>
+
+          <div style="border:1px solid #E2E8F0; border-radius:10px; overflow:hidden;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px; text-align:left;">
+              <thead style="background:#F1F5F9; color:#475569; font-weight:800; border-bottom:1px solid #E2E8F0;">
+                <tr>
+                  <th style="padding:8px 12px;">Pilihan / Label</th>
+                  <th style="padding:8px 12px;" id="th-master-kategori">Golongan</th>
+                  <th style="padding:8px 12px; text-align:right;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="master-table-body">
+                <!-- Diisi via JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding:12px 20px; background:#F8FAFC; border-top:1px solid #E2E8F0; display:flex; justify-content:flex-end;">
+        <button type="button" class="btn-addon" onclick="tutupModalMasterData()" style="padding:8px 18px; font-size:12px;">
+          Selesai & Tutup
+        </button>
+      </div>
+    </div>
+  </div>
+
   <style>
     @keyframes scanLine {
       0% {
@@ -845,13 +941,377 @@
   <script src="js/simapres-roster.js"></script>
   <script>
     const STORAGE_KEY = 'simapres_registered_units';
+    const KEY_MASTER_PANGKAT = 'simapres_master_pangkat';
+    const KEY_MASTER_SATUAN = 'simapres_master_satuan';
+    const KEY_MASTER_REGU = 'simapres_master_regu';
 
     // Inisialisasi awal
     document.addEventListener('DOMContentLoaded', () => {
+      initMasterDataIfEmpty();
+      renderAllSelects();
       initInitialDataIfEmpty();
       renderTable();
       listenForRealHpScan();
     });
+
+    // ==========================================
+    // SISTEM MASTER DATA (CRUD PANGKAT, SATUAN, REGU)
+    // ==========================================
+    const DEFAULT_MASTER_PANGKAT = [
+      { id: 'pkt_1', code: 'BRIPDA', label: 'Bripda (Brigadir Polisi Dua)', group: 'Bintara' },
+      { id: 'pkt_2', code: 'BRIPTU', label: 'Briptu (Brigadir Polisi Satu)', group: 'Bintara' },
+      { id: 'pkt_3', code: 'BRIGADIR', label: 'Brigadir Polisi', group: 'Bintara' },
+      { id: 'pkt_4', code: 'BRIPKA', label: 'Bripka (Brigadir Polisi Kepala)', group: 'Bintara' },
+      { id: 'pkt_5', code: 'AIPDA', label: 'Aipda (Ajun Inspektur Polisi Dua)', group: 'Bintara Tinggi' },
+      { id: 'pkt_6', code: 'AIPTU', label: 'Aiptu (Ajun Inspektur Polisi Satu)', group: 'Bintara Tinggi' },
+      { id: 'pkt_7', code: 'IPDA', label: 'Ipda (Inspektur Polisi Dua)', group: 'Pama' },
+      { id: 'pkt_8', code: 'IPTU', label: 'Iptu (Inspektur Polisi Satu)', group: 'Pama' },
+      { id: 'pkt_9', code: 'AKP', label: 'AKP (Ajun Komisaris Polisi)', group: 'Pama' },
+      { id: 'pkt_10', code: 'KOMPOL', label: 'Kompol (Komisaris Polisi)', group: 'Pamen' },
+      { id: 'pkt_11', code: 'AKBP', label: 'AKBP (Ajun Komisaris Besar Polisi)', group: 'Pamen' },
+      { id: 'pkt_12', code: 'KOMBES', label: 'Kombes Pol (Komisaris Besar Polisi)', group: 'Pamen' }
+    ];
+
+    const DEFAULT_MASTER_SATUAN = [
+      { id: 'sat_1', code: 'pawas_spkt', label: '👑 Sentra Komando (Pawas & SPKT 110)', group: 'Komando & Pimpinan' },
+      { id: 'sat_2', code: 'reskrim', label: '1. Satuan Reserse Kriminal (Satreskrim)', group: 'Operasional' },
+      { id: 'sat_3', code: 'intel', label: '2. Satuan Intelijen Keamanan (Sat Intelkam)', group: 'Operasional' },
+      { id: 'sat_4', code: 'lantas', label: '3. Satuan Lalu Lintas (Satlantas)', group: 'Operasional' },
+      { id: 'sat_5', code: 'binmas', label: '4. Satuan Binmas (Bhabinkamtibmas)', group: 'Operasional' },
+      { id: 'sat_6', code: 'sabhara', label: '5. Satuan Sabhara / Samapta Presisi', group: 'Operasional' }
+    ];
+
+    const DEFAULT_MASTER_REGU = [
+      { id: 'rgu_1', label: 'Regu Alpha Presisi', group: 'Patroli Samapta' },
+      { id: 'rgu_2', label: 'Regu Bravo Presisi', group: 'Patroli Samapta' },
+      { id: 'rgu_3', label: 'Regu Charlie Presisi', group: 'Patroli Samapta' },
+      { id: 'rgu_4', label: 'Tim Tindak Opsnal & Resmob', group: 'Reskrim & Intel' },
+      { id: 'rgu_5', label: 'Unit Turjawali PJR', group: 'Lalu Lintas' },
+      { id: 'rgu_6', label: 'Unit Sambang Bhabin', group: 'Binmas' },
+      { id: 'rgu_7', label: 'Piket Pawas Siaga 110', group: 'Komando & Pimpinan' }
+    ];
+
+    function getMasterData(tipe) {
+      try {
+        let key = KEY_MASTER_PANGKAT;
+        if (tipe === 'satuan') key = KEY_MASTER_SATUAN;
+        if (tipe === 'regu') key = KEY_MASTER_REGU;
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        console.error('Error getMasterData:', e);
+        return [];
+      }
+    }
+
+    function saveMasterData(tipe, list) {
+      let key = KEY_MASTER_PANGKAT;
+      if (tipe === 'satuan') key = KEY_MASTER_SATUAN;
+      if (tipe === 'regu') key = KEY_MASTER_REGU;
+      localStorage.setItem(key, JSON.stringify(list));
+      renderAllSelects();
+    }
+
+    function initMasterDataIfEmpty() {
+      if (!localStorage.getItem(KEY_MASTER_PANGKAT)) {
+        localStorage.setItem(KEY_MASTER_PANGKAT, JSON.stringify(DEFAULT_MASTER_PANGKAT));
+      }
+      if (!localStorage.getItem(KEY_MASTER_SATUAN)) {
+        localStorage.setItem(KEY_MASTER_SATUAN, JSON.stringify(DEFAULT_MASTER_SATUAN));
+      }
+      if (!localStorage.getItem(KEY_MASTER_REGU)) {
+        localStorage.setItem(KEY_MASTER_REGU, JSON.stringify(DEFAULT_MASTER_REGU));
+      }
+    }
+
+    function renderAllSelects() {
+      // Helper untuk mengelompokkan array berdasarkan field 'group'
+      const groupBy = (array, key) => {
+        return array.reduce((result, item) => {
+          const groupName = item[key] || 'Lainnya';
+          (result[groupName] = result[groupName] || []).push(item);
+          return result;
+        }, {});
+      };
+
+      // 1. Render Pangkat Select (Ter-group berdasarkan Golongan Kepangkatan)
+      const pangkats = getMasterData('pangkat');
+      const selectPangkat = document.getElementById('reg-pangkat');
+      if (selectPangkat) {
+        const curPangkat = selectPangkat.value || 'BRIPKA';
+        const groupedPangkat = groupBy(pangkats, 'group');
+        let pangkatHtml = '';
+        for (const [groupName, items] of Object.entries(groupedPangkat)) {
+          pangkatHtml += `<optgroup label="── Golongan: ${groupName} ──">`;
+          items.forEach(p => {
+            pangkatHtml += `<option value="${p.code}" ${p.code === curPangkat ? 'selected' : ''}>${p.label}</option>`;
+          });
+          pangkatHtml += `</optgroup>`;
+        }
+        selectPangkat.innerHTML = pangkatHtml;
+      }
+
+      // 2. Render Unit Satuan Select (Form Input & Filter Table) Ter-group berdasarkan Kategori
+      const satuans = getMasterData('satuan');
+      const selectSatuan = document.getElementById('reg-unit');
+      if (selectSatuan) {
+        const curSatuan = selectSatuan.value || 'reskrim';
+        const groupedSatuan = groupBy(satuans, 'group');
+        let satuanHtml = '';
+        for (const [groupName, items] of Object.entries(groupedSatuan)) {
+          satuanHtml += `<optgroup label="── ${groupName} ──">`;
+          items.forEach(s => {
+            satuanHtml += `<option value="${s.code}" ${s.code === curSatuan ? 'selected' : ''}>${s.label}</option>`;
+          });
+          satuanHtml += `</optgroup>`;
+        }
+        selectSatuan.innerHTML = satuanHtml;
+      }
+
+      const filterSatuan = document.getElementById('filter-satuan');
+      if (filterSatuan) {
+        const curFilter = filterSatuan.value || 'all';
+        const groupedSatuan = groupBy(satuans, 'group');
+        let filterHtml = '<option value="all">Semua Satuan</option>';
+        for (const [groupName, items] of Object.entries(groupedSatuan)) {
+          filterHtml += `<optgroup label="── ${groupName} ──">`;
+          items.forEach(s => {
+            filterHtml += `<option value="${s.code}" ${s.code === curFilter ? 'selected' : ''}>${s.label}</option>`;
+          });
+          filterHtml += `</optgroup>`;
+        }
+        filterSatuan.innerHTML = filterHtml;
+      }
+
+      // 3. Render Kelompok Regu Select (Ter-group berdasarkan Kategori Regu)
+      const regus = getMasterData('regu');
+      const selectRegu = document.getElementById('reg-regu');
+      if (selectRegu) {
+        const curRegu = selectRegu.value || (regus[0] ? regus[0].label : 'Regu Alpha Presisi');
+        const groupedRegu = groupBy(regus, 'group');
+        let reguHtml = '';
+        for (const [groupName, items] of Object.entries(groupedRegu)) {
+          reguHtml += `<optgroup label="── ${groupName} ──">`;
+          items.forEach(r => {
+            reguHtml += `<option value="${r.label}" ${r.label === curRegu ? 'selected' : ''}>${r.label}</option>`;
+          });
+          reguHtml += `</optgroup>`;
+        }
+        selectRegu.innerHTML = reguHtml;
+      }
+    }
+
+    function pilihPresetRegu(val) {
+      if (!val) return;
+      const inputRegu = document.getElementById('reg-regu');
+      if (inputRegu) {
+        inputRegu.value = val;
+      }
+    }
+
+    // Modal Master Data Controls
+    let currentMasterType = 'pangkat';
+
+    function bukaModalMasterData(tipe) {
+      currentMasterType = tipe;
+      document.getElementById('master-input-tipe').value = tipe;
+      resetMasterForm();
+
+      const modal = document.getElementById('modal-master-data');
+      const title = document.getElementById('master-modal-title');
+      const subtitle = document.getElementById('master-modal-subtitle');
+      const lblUtama = document.getElementById('master-label-utama');
+      const fldLabel = document.getElementById('master-field-label');
+      const grpExtra = document.getElementById('master-group-extra');
+      const thKategori = document.getElementById('th-master-kategori');
+
+      if (tipe === 'pangkat') {
+        title.innerHTML = '<span>⚙️</span> Kelola Master Pangkat Kepolisian';
+        subtitle.innerText = 'Tambah, edit atau hapus daftar kepangkatan Polri';
+        lblUtama.innerHTML = 'Nama Lengkap Pangkat <span style="color:#DC2626;">*</span>';
+        fldLabel.placeholder = 'Contoh: Bripka (Brigadir Polisi Kepala)';
+        grpExtra.style.display = 'flex';
+        document.getElementById('master-col-code').style.display = 'block';
+        document.getElementById('master-label-code').innerText = 'Singkatan Pangkat (KODE)';
+        document.getElementById('master-field-code').placeholder = 'BRIPKA';
+        document.getElementById('master-label-kategori').innerText = 'Golongan Pangkat';
+        document.getElementById('master-field-kategori').placeholder = 'Bintara Polri / Pama / Pamen';
+        thKategori.innerText = 'Kode / Golongan';
+      } else if (tipe === 'satuan') {
+        title.innerHTML = '<span>⚙️</span> Kelola Master Unit Satuan';
+        subtitle.innerText = 'Tambah, perbarui, atau sesuaikan nama Satuan Fungsi / Divisi';
+        lblUtama.innerHTML = 'Nama Lengkap Satuan <span style="color:#DC2626;">*</span>';
+        fldLabel.placeholder = 'Contoh: Satuan Reserse Narkoba (Satresnarkoba)';
+        grpExtra.style.display = 'flex';
+        document.getElementById('master-col-code').style.display = 'block';
+        document.getElementById('master-label-code').innerText = 'ID Kode Satuan (Karakter Unik)';
+        document.getElementById('master-field-code').placeholder = 'narkoba';
+        document.getElementById('master-label-kategori').innerText = 'Kategori Satuan';
+        document.getElementById('master-field-kategori').placeholder = 'Operasional / Pembinaan / Komando';
+        thKategori.innerText = 'Kode ID / Kategori';
+      } else if (tipe === 'regu') {
+        title.innerHTML = '<span>⚙️</span> Kelola Master Kelompok Regu';
+        subtitle.innerText = 'Daftar nama regu patroli / tim tindak dan pengelompokannya';
+        lblUtama.innerHTML = 'Nama Kelompok Regu / Tim Tindak <span style="color:#DC2626;">*</span>';
+        fldLabel.placeholder = 'Contoh: Tim Resmob Unit 1 / Regu Bravo Patroli';
+        grpExtra.style.display = 'flex';
+        document.getElementById('master-col-code').style.display = 'none';
+        document.getElementById('master-label-kategori').innerText = 'Kelompok Satuan / Dinas';
+        document.getElementById('master-field-kategori').placeholder = 'Patroli Samapta / Reskrim & Intel / Lantas';
+        thKategori.innerText = 'Kelompok / Dinas';
+      }
+
+      renderMasterList(tipe);
+      modal.style.display = 'flex';
+    }
+
+    function tutupModalMasterData() {
+      document.getElementById('modal-master-data').style.display = 'none';
+      renderAllSelects();
+    }
+
+    function resetMasterForm() {
+      document.getElementById('master-input-id').value = '';
+      document.getElementById('master-field-label').value = '';
+      document.getElementById('master-field-code').value = '';
+      document.getElementById('master-field-kategori').value = '';
+      document.getElementById('master-form-header').innerHTML = '➕ Tambah Pilihan Baru';
+      document.getElementById('master-btn-save').innerHTML = '<span>💾</span> Simpan Opsi';
+      document.getElementById('master-btn-cancel-edit').style.display = 'none';
+    }
+
+    function renderMasterList(tipe) {
+      const items = getMasterData(tipe);
+      const tbody = document.getElementById('master-table-body');
+      const badgeCount = document.getElementById('master-count-badge');
+      badgeCount.innerText = `${items.length} Opsi`;
+
+      if (items.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" style="text-align:center; padding:18px; color:#94A3B8;">
+              Belum ada pilihan data. Silakan tambahkan opsi baru di atas.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = items.map(item => {
+        let extraInfo = '';
+        if (tipe === 'pangkat') {
+          extraInfo = `<span style="font-weight:700; color:#1E40AF; background:#EFF6FF; padding:1px 6px; border-radius:4px; font-size:11px;">${item.code}</span> <span style="color:#64748B; font-size:11px;">(${item.group || '-'})</span>`;
+        } else if (tipe === 'satuan') {
+          extraInfo = `<code style="font-size:11px; color:#0F172A; background:#F1F5F9; padding:2px 5px; border-radius:4px;">${item.code}</code> <div style="color:#64748B; font-size:10.5px;">${item.group || 'Umum'}</div>`;
+        } else {
+          extraInfo = `<span style="color:#1E40AF; background:#EFF6FF; padding:2px 6px; border-radius:4px; font-weight:700; font-size:11px;">${item.group || 'Regu Umum'}</span>`;
+        }
+
+        return `
+          <tr style="border-bottom:1px solid #F1F5F9;">
+            <td style="padding:8px 12px; font-weight:700; color:#1E293B;">
+              ${item.label}
+            </td>
+            <td style="padding:8px 12px;">
+              ${extraInfo}
+            </td>
+            <td style="padding:8px 12px; text-align:right; white-space:nowrap;">
+              <button type="button" onclick="editMasterItem('${item.id}')" style="background:#EFF6FF; border:1px solid #BFDBFE; color:#1D4ED8; font-size:10.5px; font-weight:700; padding:3px 7px; border-radius:4px; cursor:pointer; margin-right:4px;">
+                ✏️ Edit
+              </button>
+              <button type="button" onclick="hapusMasterItem('${item.id}')" style="background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; font-size:10.5px; font-weight:700; padding:3px 7px; border-radius:4px; cursor:pointer;">
+                🗑️
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function simpanMasterItem() {
+      const tipe = currentMasterType;
+      const editId = document.getElementById('master-input-id').value;
+      const label = document.getElementById('master-field-label').value.trim();
+      let code = document.getElementById('master-field-code').value.trim();
+      const group = document.getElementById('master-field-kategori').value.trim();
+
+      if (!label) {
+        alert('Nama/Label opsi wajib diisi!');
+        document.getElementById('master-field-label').focus();
+        return;
+      }
+
+      if (!code && tipe !== 'regu') {
+        code = label.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 15);
+      }
+
+      let items = getMasterData(tipe);
+
+      if (editId) {
+        // Update item
+        const idx = items.findIndex(x => x.id === editId);
+        if (idx !== -1) {
+          items[idx].label = label;
+          items[idx].group = group || 'Lainnya';
+          if (tipe !== 'regu') {
+            items[idx].code = code;
+          }
+          showToast(`✓ Opsi ${label} berhasil diperbarui!`, 'success');
+        }
+      } else {
+        // Create new item
+        const newItem = {
+          id: (tipe.substring(0, 3)) + '_' + Date.now(),
+          label: label,
+          group: group || (tipe === 'regu' ? 'Regu Umum' : 'Lainnya')
+        };
+        if (tipe !== 'regu') {
+          newItem.code = code;
+        }
+        items.push(newItem);
+        showToast(`✓ Opsi baru ${label} berhasil ditambahkan!`, 'success');
+      }
+
+      saveMasterData(tipe, items);
+      resetMasterForm();
+      renderMasterList(tipe);
+    }
+
+    function editMasterItem(id) {
+      const tipe = currentMasterType;
+      const items = getMasterData(tipe);
+      const item = items.find(x => x.id === id);
+      if (!item) return;
+
+      document.getElementById('master-input-id').value = item.id;
+      document.getElementById('master-field-label').value = item.label;
+      document.getElementById('master-field-kategori').value = item.group || '';
+      if (tipe !== 'regu') {
+        document.getElementById('master-field-code').value = item.code || '';
+      }
+
+      document.getElementById('master-form-header').innerHTML = '✏️ Edit Pilihan';
+      document.getElementById('master-btn-save').innerHTML = '<span>✓</span> Simpan Perubahan';
+      document.getElementById('master-btn-cancel-edit').style.display = 'inline';
+      document.getElementById('master-field-label').focus();
+    }
+
+    function hapusMasterItem(id) {
+      const tipe = currentMasterType;
+      let items = getMasterData(tipe);
+      const item = items.find(x => x.id === id);
+      if (!item) return;
+
+      if (confirm(`Apakah Anda yakin ingin menghapus opsi "${item.label}"?`)) {
+        items = items.filter(x => x.id !== id);
+        saveMasterData(tipe, items);
+        showToast(`Opsi "${item.label}" telah dihapus.`, 'warning');
+        renderMasterList(tipe);
+        if (document.getElementById('master-input-id').value === id) {
+          resetMasterForm();
+        }
+      }
+    }
 
     // Cloud Relay Channel & Listener otomatis:
     // Saat HP fisik membuka scan-device.html dari mana saja (internet),
@@ -1244,7 +1704,8 @@
 
         tbody.innerHTML = filtered.map(u => {
           let badgeSatuanClass = 'satuan-sabhara';
-          if (u.unitId === 'reskrim') badgeSatuanClass = 'satuan-reskrim';
+          if (u.unitId === 'pawas_spkt' || u.unitId === 'pawas' || u.unitId === 'operator') badgeSatuanClass = 'satuan-komando';
+          else if (u.unitId === 'reskrim') badgeSatuanClass = 'satuan-reskrim';
           else if (u.unitId === 'intel') badgeSatuanClass = 'satuan-intel';
           else if (u.unitId === 'lantas') badgeSatuanClass = 'satuan-lantas';
           else if (u.unitId === 'binmas' || u.unitId === 'polsek') badgeSatuanClass = 'satuan-binmas';
@@ -1393,15 +1854,17 @@
           }
         }
 
-        // Sinkronisasi data ke sesi aktif browser agar personil.html langsung membaca data terbaru ini
+        // Sinkronisasi data ke sesi aktif browser agar sistem langsung membaca data terbaru ini
         try {
+          const isPawasSpkt = (unitId === 'pawas_spkt' || unitId === 'pawas' || unitId === 'operator');
           const userSessionData = {
             nrp: nrp,
             nama: nama,
             pangkat: pangkat,
             unitId: unitId,
             satuan: satuanNama,
-            role: 'anggota',
+            role: isPawasSpkt ? 'pawas' : 'anggota',
+            isSuperUser: isPawasSpkt,
             deviceID: deviceID,
             gpsCoords: finalCoords,
             brand: 'Smartphone Android/iOS'
@@ -1484,6 +1947,7 @@
         document.getElementById('btn-cancel-edit').style.display = 'none';
         document.getElementById('reg-pass').value = 'polripresisi2026';
         document.getElementById('reg-pass-confirm').value = 'polripresisi2026';
+        document.getElementById('reg-regu').value = 'Regu Alpha Presisi';
       }
 
       function deleteUnit(id) {

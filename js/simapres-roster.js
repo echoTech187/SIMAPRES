@@ -423,6 +423,16 @@ function getCombinedRosterPersonel() {
     const raw = localStorage.getItem('simapres_registered_units');
     if (raw) {
       registered = JSON.parse(raw);
+      // Lengkapi atribut role jika didaftarkan sebagai pawas_spkt
+      registered.forEach(u => {
+        if (u.unitId === 'pawas_spkt' || u.unitId === 'pawas' || u.unitId === 'operator') {
+          u.role = 'pawas';
+          u.isSuperUser = true;
+          if (!u.avatar) u.avatar = 'assets/images/avatar_polisi.jpg';
+        } else if (!u.role) {
+          u.role = 'anggota';
+        }
+      });
     }
   } catch (e) {
     console.warn('Gagal membaca simapres_registered_units:', e);

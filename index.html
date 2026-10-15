@@ -127,16 +127,13 @@
     <div class="demo-section">
       <div class="demo-title">⚡ Akses Cepat Simulasi Role Internal (1-Klik)</div>
       
-      <!-- OPERATOR SPKT -->
-      <button class="btn-demo" style="border-color:#2563EB; color:#1D4ED8; background:#EFF6FF; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('98040112')">
-        <div style="font-size:13px; font-weight:800;">🎧 Login sbg OPERATOR SPKT</div>
-        <div style="font-size:11px; font-weight:500; color:#3B82F6;">NRP: 98040112 • Briptu Dian Lestari (Sentra Pelayanan SPKT)</div>
-      </button>
-
-      <!-- PIMPINAN / PAWAS -->
-      <button class="btn-demo" style="border-color:#D97706; color:#B45309; background:#FFFBEB; text-align:left; padding:10px 14px; margin-bottom:8px;" onclick="quickLoginRole('88010234')">
-        <div style="font-size:13px; font-weight:800;">👨‍✈️ Login sbg PIMPINAN / PAWAS</div>
-        <div style="font-size:11px; font-weight:500; color:#D97706;">NRP: 88010234 • Kombes Pol Budi (Validasi & Supervisi)</div>
+      <!-- KONSOL KOMANDO TERPADU (PAWAS & SPKT 110) -->
+      <button class="btn-demo" style="border-color:#D97706; color:#1E3A8A; background:linear-gradient(135deg, #EFF6FF 0%, #FFFBEB 100%); text-align:left; padding:12px 14px; margin-bottom:10px; border-width:2px; box-shadow:0 3px 10px rgba(217,119,6,0.15);" onclick="quickLoginRole('88010234')">
+        <div style="font-size:13.5px; font-weight:800; color:#1E3A8A; display:flex; align-items:center; gap:6px;">
+          <span>👑🎧</span>
+          <span>Login sbg KONSOL KOMANDO (PAWAS & SPKT 110)</span>
+        </div>
+        <div style="font-size:11px; font-weight:600; color:#B45309; margin-top:2px;">NRP: 88010234 • Kombes Pol Budi (Komando, Disposisi 110, Validasi & Peta Armada)</div>
       </button>
 
       <!-- PERSONEL 1: SAMAPTA PRESISI -->
@@ -193,10 +190,10 @@
       if (!user) return;
       sessionStorage.setItem('simapres_active_user', JSON.stringify(user));
 
-      if (user.role === 'operator') {
+      if (user.role === 'pawas' || user.role === 'pimpinan' || user.unitId === 'pawas_spkt') {
+        window.location.href = 'e-tribrata-log.html?role=pawas';
+      } else if (user.role === 'operator') {
         window.location.href = 'e-tribrata-log.html?role=operator';
-      } else if (user.role === 'pimpinan') {
-        window.location.href = 'e-tribrata-log.html?role=pimpinan';
       } else {
         // Personel Lapangan (diarahkan ke modul personil.html terdedikasi)
         window.location.href = `personil.html?nrp=${encodeURIComponent(user.nrp)}`;
