@@ -871,15 +871,23 @@
     let currentEventSource = null;
 
     function listenForRealHpScan() {
-      // 1. Storage Event (lintas tab lokal jika dites di browser yang sama)
+      // Set timestamp awal ke waktu saat halaman dimuat (agar data scan lama tidak auto-fill saat user ingin input baru)
+      let lastProcessedTimestamp = Date.now();
+
+      // 1. Storage Event (hanya tangkap jika ada pembaruan scan BARU secara realtime)
       window.addEventListener('storage', (e) => {
         if (e.key === 'simapres_latest_hp_scan' && e.newValue) {
-          applyScannedHpData(JSON.parse(e.newValue));
+          try {
+            const data = JSON.parse(e.newValue);
+            if (data && data.timeUpdated && data.timeUpdated > lastProcessedTimestamp) {
+              lastProcessedTimestamp = data.timeUpdated;
+              applyScannedHpData(data);
+            }
+          } catch(err) {}
         }
       });
 
-      // 2. Local Polling Interval
-      let lastProcessedTimestamp = 0;
+      // 2. Local Polling Interval (hanya eksekusi jika ada payload scan yang benar-benar baru masuk)
       setInterval(() => {
         try {
           const raw = localStorage.getItem('simapres_latest_hp_scan');
