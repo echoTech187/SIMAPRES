@@ -184,8 +184,121 @@ function getFotoPengaduanByKategori(log) {
   return 'assets/images/polri_pengaduan_tkp.jpg';
 }
 
+// Standar Tugas Pokok & Fungsi Satuan Operasional Polri (Berdasarkan SOP Resmi & Arahan Klien)
+var TUPOKSI_SATUAN_POLRI = {
+  reskrim: {
+    id: 'reskrim',
+    nama: 'Satuan Reserse Kriminal (Sat Reskrim)',
+    namaSingkat: 'Sat Reskrim',
+    icon: '🕵️',
+    tupoksi: 'Melakukan olah TKP, penyelidikan, penyidikan, penangkapan tersangka, dan penyelesaian berkas perkara pidana untuk diserahkan ke kejaksaan.',
+    arahanDefault: 'Segera datangi TKP, pasang garis polisi (Police Line), lakukan olah TKP awal dan identifikasi Inafis, kumpulkan barang bukti, serta lakukan pengejaran terhadap pelaku tindak pidana.'
+  },
+  intel: {
+    id: 'intel',
+    nama: 'Satuan Intelijen Keamanan (Sat Intelkam)',
+    namaSingkat: 'Sat Intelkam',
+    icon: '👁️',
+    tupoksi: 'Melakukan deteksi dini potensi gangguan keamanan (early warning), memetakan konflik, serta melayani perizinan keramaian.',
+    arahanDefault: 'Lakukan penggalangan dan pulbaket tertutup, petakan aktor penggerak dan eskalasi massa, pantau pergerakan situasi serta laporkan perkembangan berkala ke Posko Intel.'
+  },
+  lantas: {
+    id: 'lantas',
+    nama: 'Satuan Lalu Lintas (Sat Lantas)',
+    namaSingkat: 'Satlantas',
+    icon: '🚓',
+    tupoksi: 'Mengatur kelancaran lalu lintas, menindak pelanggaran, serta menangani kecelakaan jalan raya.',
+    arahanDefault: 'Prioritaskan evakuasi dan pertolongan korban laka lantas, amankan dan tandai posisi ranmor di TKP, lakukan rekayasa lalu lintas dan urai simpul kemacetan.'
+  },
+  sabhara: {
+    id: 'sabhara',
+    nama: 'Satuan Sabhara / Samapta Presisi (Sat Samapta)',
+    namaSingkat: 'Sat Samapta',
+    icon: '🚔',
+    tupoksi: 'Melakukan patroli pencegahan kejahatan di area rawan, pengamanan objek vital, serta pengendalian massa (Dalmas) saat unjuk rasa atau gangguan nyata.',
+    arahanDefault: 'Nyalakan rotator sirine biru (Blue Light Patrol), datangi TKP < 10 menit, lakukan tindakan preventif pembubaran/pengamanan perimeter, serta lindungi warga sekitar.'
+  },
+  binmas: {
+    id: 'binmas',
+    nama: 'Satuan Pembinaan Masyarakat (Sat Binmas)',
+    namaSingkat: 'Sat Binmas',
+    icon: '🤝',
+    tupoksi: 'Melakukan problem solving kamtibmas, mediasi warga, sambang kemasyarakatan, serta penyuluhan hukum.',
+    arahanDefault: 'Lakukan pendekatan humanis, dampingi tokoh masyarakat / perangkat RT/RW untuk problem solving mediasi damai, dan jaga kondusifitas lingkungan warga.'
+  }
+};
+
+/**
+ * Menentukan Satuan Utama (Primary) dan Satuan Pendukung (Secondary) sesuai SOP Tupoksi
+ */
+function getSopRecommendationByIncident(log) {
+  if (!log) return { primarySatuanId: 'sabhara', secondarySatuanId: 'binmas', kategoriLabel: 'Kamtibmas Umum' };
+
+  const text = ((log.title || '') + ' ' + (log.jenisInsiden || '') + ' ' + (log.kategoriInsiden || '') + ' ' + (log.deskripsi || '')).toLowerCase();
+
+  // 1. Kamseltibcarlantas (Laka, macet, tabrakan, balap liar) -> Utama: Lantas, Pendukung: Sabhara
+  if (text.includes('laka') || text.includes('tabrakan') || text.includes('macet') || text.includes('lalu lintas') || text.includes('derek') || text.includes('rem blong') || text.includes('senggolan') || text.includes('balap liar')) {
+    return {
+      primarySatuanId: 'lantas',
+      secondarySatuanIds: ['sabhara'],
+      kategoriLabel: 'Kamseltibcarlantas',
+      alasanSop: 'SOP Sat Lantas (Utama) & Sat Samapta (Pendukung pengamanan jalur).'
+    };
+  }
+
+  // 2. Tindak Pidana & Kriminalitas (Curanmor, curas, sajam, pencurian, pembegalan) -> Utama: Reskrim, Pendukung: Sabhara, Intelkam
+  if (text.includes('curanmor') || text.includes('curas') || text.includes('curat') || text.includes('pencuri') || text.includes('curian') || text.includes('rampok') || text.includes('senjata tajam') || text.includes('sajam') || text.includes('begal') || text.includes('penodong') || text.includes('narkoba') || text.includes('penjambret') || text.includes('tindak pidana') || text.includes('bobol') || text.includes('kotak amal')) {
+    return {
+      primarySatuanId: 'reskrim',
+      secondarySatuanIds: ['sabhara', 'intel'],
+      kategoriLabel: 'Tindak Pidana & Kriminalitas',
+      alasanSop: 'SOP Sat Reskrim (Utama) didukung Sat Samapta & Sat Intelkam.'
+    };
+  }
+
+  // 3. Potensi Konflik & Deteksi Dini (Isu SARA, provokasi, unjuk rasa, demo, intel) -> Utama: Intelkam, Pendukung: Binmas, Sabhara
+  if (text.includes('intel') || text.includes('konflik') || text.includes('sara') || text.includes('provokasi') || text.includes('unjuk rasa') || text.includes('demo') || text.includes('keramaian') || text.includes('izin') || text.includes('ancaman bom') || text.includes('deteksi')) {
+    return {
+      primarySatuanId: 'intel',
+      secondarySatuanIds: ['binmas', 'sabhara'],
+      kategoriLabel: 'Potensi Konflik & Deteksi Dini',
+      alasanSop: 'SOP Sat Intelkam (Utama) didukung Sat Binmas & Sat Samapta.'
+    };
+  }
+
+  // 4. Kemasyarakatan & Problem Solving (Mediasi warga, sengketa, anak hilang, bansos) -> Utama: Binmas, Pendukung: Sabhara
+  if (text.includes('mediasi') || text.includes('problem solving') || text.includes('sengketa') || text.includes('keluarga') || text.includes('anak hilang') || text.includes('tetangga') || text.includes('bantuan') || text.includes('sosial') || text.includes('bansos')) {
+    return {
+      primarySatuanId: 'binmas',
+      secondarySatuanIds: ['sabhara'],
+      kategoriLabel: 'Kemasyarakatan & Problem Solving',
+      alasanSop: 'SOP Sat Binmas (Utama) didukung Sat Samapta.'
+    };
+  }
+
+  // 5. Bencana & Situasi Darurat Khusus (Pohon tumbang, banjir, kebakaran, evakuasi) -> Utama: Samapta (SAR), Pendukung: Lantas
+  if (text.includes('pohon') || text.includes('tumbang') || text.includes('bencana') || text.includes('banjir') || text.includes('kebakaran') || text.includes('evakuasi') || text.includes('sar')) {
+    return {
+      primarySatuanId: 'sabhara',
+      secondarySatuanIds: ['lantas'],
+      kategoriLabel: 'Bencana & Situasi Darurat Khusus',
+      alasanSop: 'SOP Sat Samapta / SAR Presisi (Utama) didukung Sat Lantas untuk pengalihan arus.'
+    };
+  }
+
+  // 6. Kamtibmas & Gangguan Nyata (Tawuran, miras, pungli, keributan warga) -> Utama: Samapta, Pendukung: Binmas, Reskrim
+  return {
+    primarySatuanId: 'sabhara',
+    secondarySatuanIds: ['binmas', 'reskrim'],
+    kategoriLabel: 'Kamtibmas & Gangguan Nyata',
+    alasanSop: 'SOP Sat Samapta (Utama) didukung Sat Binmas & Sat Reskrim.'
+  };
+}
+
 function hitungEstimasiArmadaUntukLog(log) {
   const sektor = (log.sektor || 'Sektor Selatan').toLowerCase();
+  const sop = getSopRecommendationByIncident(log);
+
   return DAFTAR_ARMADA_PRESISI.map(armada => {
     let multiplier = 1.0;
     if (armada.sektorUtama.toLowerCase().includes(sektor.replace('sektor ', ''))) {
@@ -193,17 +306,45 @@ function hitungEstimasiArmadaUntukLog(log) {
     } else {
       multiplier = 1.4;
     }
+
+    const isPrimarySop = armada.id === sop.primarySatuanId || armada.satuanId === sop.primarySatuanId;
+    const isSecondarySop = Array.isArray(sop.secondarySatuanIds)
+      ? sop.secondarySatuanIds.some(sid => armada.id === sid || armada.satuanId === sid)
+      : (armada.id === sop.secondarySatuanId || armada.satuanId === sop.secondarySatuanId);
+
+    // Satuan yang sesuai SOP mendapatkan prioritas respon waktu dan jarak operasional
+    if (isPrimarySop) {
+      multiplier *= 0.7;
+    } else if (isSecondarySop) {
+      multiplier *= 0.85;
+    }
+
     const jarak = (armada.jarakBase * multiplier).toFixed(1);
     const eta = Math.max(2, Math.round(armada.etaBase * multiplier));
+
     return {
       ...armada,
       jarakKm: parseFloat(jarak),
+      jarakCalc: parseFloat(jarak),
       jarakTeks: `${jarak} km`,
       etaMenit: eta,
+      etaCalc: eta,
       etaTeks: `± ${eta} Menit`,
-      isSektorSama: armada.sektorUtama.toLowerCase().includes(sektor.replace('sektor ', ''))
+      isSlaAman: eta <= 10,
+      isSektorSama: armada.sektorUtama.toLowerCase().includes(sektor.replace('sektor ', '')),
+      isPrimarySop: isPrimarySop,
+      isSecondarySop: isSecondarySop,
+      sopRole: isPrimarySop ? 'PRIMARY' : (isSecondarySop ? 'SECONDARY' : 'STANDBY'),
+      sopInfo: TUPOKSI_SATUAN_POLRI[armada.satuanId || armada.id] || null
     };
-  }).sort((a, b) => a.jarakKm - b.jarakKm);
+  }).sort((a, b) => {
+    // Urutkan: Satuan Utama SOP lebih dulu, lalu jarak terdekat
+    if (a.isPrimarySop && !b.isPrimarySop) return -1;
+    if (!a.isPrimarySop && b.isPrimarySop) return 1;
+    if (a.isSecondarySop && !b.isSecondarySop) return -1;
+    if (!a.isSecondarySop && b.isSecondarySop) return 1;
+    return a.jarakKm - b.jarakKm;
+  });
 }
 
 
@@ -810,7 +951,14 @@ function isLogAssignedToUser(log, user) {
 
   const userCategory = normSatuan(unitId || satuan);
 
-  // 1. Cek langsung assignedUnitId atau assignedSatuan pada level root tiket
+  // 1. Cek langsung assignedUnitId, assignedUnitIds (Multi-Unit), atau assignedSatuan pada level root tiket
+  if (Array.isArray(log.assignedUnitIds) && log.assignedUnitIds.length > 0) {
+    const isMatched = log.assignedUnitIds.some(uId => {
+      const uNorm = normSatuan(uId);
+      return uId === unitId || uNorm === userCategory;
+    });
+    if (isMatched) return true;
+  }
   if (log.assignedUnitId) {
     const targetUnit = String(log.assignedUnitId).trim().toLowerCase();
     if (targetUnit === unitId || normSatuan(targetUnit) === userCategory) return true;
@@ -819,8 +967,15 @@ function isLogAssignedToUser(log, user) {
   if (log.assignedNrp && String(log.assignedNrp).trim().toLowerCase() === nrp) return true;
   if (Array.isArray(log.acceptedNrps) && log.acceptedNrps.includes(nrp)) return true;
 
-  // 2. Cek di dalam objek disposisi taktis
+  // 2. Cek di dalam objek disposisi taktis (termasuk multi-unit)
   if (log.disposisi) {
+    if (Array.isArray(log.disposisi.unitIds) && log.disposisi.unitIds.length > 0) {
+      const isDispMatched = log.disposisi.unitIds.some(uId => {
+        const uNorm = normSatuan(uId);
+        return uId === unitId || uNorm === userCategory;
+      });
+      if (isDispMatched) return true;
+    }
     if (log.disposisi.unitId) {
       const dispUnit = String(log.disposisi.unitId).trim().toLowerCase();
       if (dispUnit === unitId || normSatuan(dispUnit) === userCategory) return true;

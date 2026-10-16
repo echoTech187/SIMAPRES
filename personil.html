@@ -9,8 +9,27 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Google Maps JavaScript API without Key (Development Mode fallback) -->
   <script async defer
-    src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry&loading=async&v=quarterly"></script>
+    src="https://maps.googleapis.com/maps/api/js?libraries=places,geometry&loading=async&v=weekly"></script>
   <link rel="stylesheet" href="css/simapres-common.css">
+  <style>
+    /* Paksa sembunyikan semua popup dialog error dan backdrop abu-abu Google Maps */
+    .gm-err-container, .gm-err-content, div:has(> .gm-err-container), div:has(> .gm-err-content) {
+      display: none !important;
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+  </style>
+  <script>
+    // Pembersih otomatis popup dialog Google Maps
+    setInterval(() => {
+      document.querySelectorAll('.dismissButton').forEach(b => b.click());
+      document.querySelectorAll('.gm-err-container, .gm-err-content').forEach(el => {
+        const dialog = el.closest('[role="dialog"]') || el.parentElement;
+        if (dialog) dialog.style.display = 'none';
+      });
+    }, 300);
+  </script>
 </head>
 
 <body>
@@ -94,10 +113,16 @@
                     style="background:#F0FDF4; color:#15803D; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; border:1px solid #BBF7D0; cursor:pointer; transition:0.2s; user-select:none;"
                     onmouseover="this.style.background='#DCFCE7'" onmouseout="this.style.background='#F0FDF4'"
                     title="Klik untuk fokus & detail Patroli Turjawali Satlantas">🚓 4 Lantas R-4</span>
-                  <span onclick="fokusUnitMap('hotspot')"
+                  <span onclick="fokusUnitMap('hotspot')" id="badge-hotspot-count"
                     style="background:#FEF2F2; color:#DC2626; font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:6px; border:1px solid #FECACA; cursor:pointer; transition:0.2s; user-select:none;"
                     onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'"
                     title="Klik untuk fokus & detail Titik Rawan Kejahatan">🔴 3 Titik Rawan Kejahatan</span>
+                  <span onclick="bukaModalCrudTitikRawan()"
+                    style="background:#FFF1F2; color:#BE123C; font-size:10.5px; font-weight:800; padding:4px 9px; border-radius:6px; border:1px solid #FECDD3; cursor:pointer; transition:0.2s; user-select:none; display:inline-flex; align-items:center; gap:4px;"
+                    title="Kelola Data Titik Rawan (Tambah, Edit, Hapus)">⚙️ Kelola Titik Rawan</span>
+                  <span onclick="toggleTrafficLineBerandaBadge(this)" id="badge-traffic-beranda"
+                    style="background:#ECFDF5; color:#047857; font-size:10.5px; font-weight:800; padding:4px 9px; border-radius:6px; border:1px solid #A7F3D0; cursor:pointer; transition:0.2s; user-select:none; display:inline-flex; align-items:center; gap:4px;"
+                    title="Klik untuk menyalakan/mematikan Live Traffic Line">🚦 Live Traffic: ON</span>
                 </div>
               </div>
               <div id="map-beranda-wrapper"
@@ -298,11 +323,23 @@
         <div class="floating-header"
           style="position:absolute; top:16px; left:16px; z-index:10; background:rgba(21,62,117,0.9); color:white; padding:12px 16px; border-radius:8px; font-weight:800; display:flex; flex-direction:column; gap:8px;">
           PETA RUTE PATROLI
-          <label
-            style="font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer; background:rgba(255,255,255,0.2); padding:6px 10px; border-radius:4px;">
-            <input type="checkbox" id="toggle-personel" onchange="toggleSebaranPersonel()" style="cursor:pointer;">
-            Lihat Sebaran Personel Lain
-          </label>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <label
+              style="font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer; background:rgba(255,255,255,0.2); padding:6px 10px; border-radius:4px;">
+              <input type="checkbox" id="toggle-personel" onchange="toggleSebaranPersonel()" style="cursor:pointer;">
+              Lihat Sebaran Personel Lain
+            </label>
+            <label id="container-toggle-traffic"
+              style="font-size:11px; display:flex; align-items:center; gap:6px; cursor:pointer; background:rgba(16,185,129,0.3); border:1px solid rgba(16,185,129,0.4); padding:6px 10px; border-radius:4px;">
+              <input type="checkbox" id="toggle-traffic" checked onchange="toggleTrafficLine(this.checked)" style="cursor:pointer; accent-color:#10B981;">
+              🚦 Tampilkan Traffic Line (Lalu Lintas)
+            </label>
+            <button type="button" onclick="bukaModalCrudTitikRawan()"
+              style="background:rgba(220,38,38,0.85); color:white; border:1px solid rgba(254,202,202,0.4); padding:6px 10px; border-radius:4px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition:0.2s;"
+              onmouseover="this.style.background='#DC2626'" onmouseout="this.style.background='rgba(220,38,38,0.85)'">
+              <span>⚠️</span> Kelola Titik Rawan (CRUD)
+            </button>
+          </div>
         </div>
 
         <!-- Floating Unit Detail Modal untuk Tab Peta Layar Penuh (Sesuai Mockup Gambar 2) -->
@@ -338,6 +375,49 @@
         </div>
 
         <div id="map-fullscreen" style="width:100%; height:100%; position:absolute; top:0; left:0;"></div>
+
+        <!-- Floating Panel Rute & Navigasi Respon Cepat (Muncul saat Menerima Tugas) -->
+        <div id="panel-navigasi-rute-tkp"
+          style="display:none; position:absolute; bottom:20px; left:16px; right:16px; z-index:9999; max-width:440px; margin:0 auto; background:linear-gradient(135deg, #0F172A 0%, #1E293B 100%); color:white; border-radius:14px; box-shadow:0 12px 30px rgba(0,0,0,0.45); border:1.5px solid #334155; padding:14px 16px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="display:inline-block; width:10px; height:10px; background:#10B981; border-radius:50%; box-shadow:0 0 10px #10B981; animation:pulse 1.5s infinite;"></span>
+              <span style="font-size:12px; font-weight:800; color:#38BDF8; letter-spacing:0.5px; text-transform:uppercase;">NAVIGASI MENUJU TKP</span>
+            </div>
+            <button type="button" onclick="document.getElementById('panel-navigasi-rute-tkp').style.display='none'"
+              style="background:rgba(255,255,255,0.1); border:none; color:#94A3B8; font-size:14px; border-radius:50%; width:24px; height:24px; cursor:pointer;">✕</button>
+          </div>
+
+          <div style="font-size:14px; font-weight:800; color:#FFFFFF; margin-bottom:4px;" id="nav-target-judul">
+            Penanganan Tawuran Remaja
+          </div>
+          <div style="font-size:12px; color:#94A3B8; margin-bottom:10px; display:flex; align-items:center; gap:5px;" id="nav-target-lokasi">
+            <span>📍</span> Jl. Sudirman Kav 24, Jakarta Selatan
+          </div>
+
+          <!-- Metrik Estimasi Tercepat & Lalu Lintas -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 10px;">
+              <div style="font-size:10px; color:#94A3B8; font-weight:700;">RUTE TERCEPAT (ETA)</div>
+              <div style="font-size:17px; font-weight:900; color:#10B981;" id="nav-target-eta">± 4 Menit</div>
+              <div style="font-size:10.5px; color:#64748B;" id="nav-target-jarak">Jarak: 1.8 km</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:8px 10px;">
+              <div style="font-size:10px; color:#94A3B8; font-weight:700;">TRAFFIC LINE KORIDOR</div>
+              <div style="font-size:12px; font-weight:800; color:#38BDF8; margin-top:2px;" id="nav-target-traffic">🟢 Lancar Terkendali</div>
+              <div style="font-size:10px; color:#A7F3D0;">Prioritas Sirine Biru</div>
+            </div>
+          </div>
+
+          <!-- Petunjuk Langkah Arah Terkini -->
+          <div style="background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:8px 10px; display:flex; align-items:center; gap:10px;">
+            <span style="font-size:20px;">↗️</span>
+            <div style="font-size:11.5px; line-height:1.4; color:#E2E8F0;" id="nav-target-step">
+              Ambil lajur kiri, arahkan kendaraan patroli menuju arteri barat. Ikuti rute garis biru navigasi.
+            </div>
+          </div>
+        </div>
+
         <div class="map-legend"
           style="position:absolute; bottom:16px; left:16px; z-index:10; background:white; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.2);">
           <span style="color:#EF4444; font-size:16px;">●</span> Titik Rawan
@@ -2156,15 +2236,11 @@
             </span>
           </div>
 
-          <!-- Dropdown Terpadu: Disposisi Satuan Tugas Presisi (5 Satuan Utama) -->
-          <select id="pawas-disp-unit" onchange="onPawasArmadaSelectChange()"
-            style="width:100%; padding:10px 12px; border:2px solid #2563EB; border-radius:8px; font-size:12.5px; font-weight:700; color:#0F172A; background:#FFFFFF; outline:none; box-shadow:0 0 0 3px rgba(37,99,235,0.1); cursor:pointer;">
-            <option value="reskrim">🕵️ Satuan Reserse Kriminal (Satreskrim • Opsnal &amp; Resmob) [📍 2.1 km • ~5 Menit]</option>
-            <option value="intel">👁️ Satuan Intelijen Keamanan (Sat Intelkam • Deteksi Dini) [📍 1.8 km • ~4 Menit]</option>
-            <option value="lantas">🚓 Satuan Lalu Lintas (Satlantas • Turjawali &amp; PJR) [📍 1.5 km • ~4 Menit]</option>
-            <option value="binmas">🤝 Satuan Pembinaan Masyarakat (Sat Binmas / Bhabin) [📍 2.5 km • ~6 Menit]</option>
-            <option value="sabhara">🚔 Satuan Sabhara / Samapta Presisi (Patroli R4 &amp; Raimas) [📍 1.2 km • ~3 Menit]</option>
-          </select>
+          <!-- Pemilihan Multi-Satuan Tugas Presisi (Bisa Memilih Lebih dari 1 Satuan) -->
+          <div id="pawas-multi-unit-container" style="display:flex; flex-direction:column; gap:6px;">
+            <!-- Akan dirender dinamis: Grup Satuan Utama SOP & Grup Satuan Pendukung/Back-up -->
+          </div>
+          <input type="hidden" id="pawas-disp-unit" value="sabhara">
 
           <!-- Kartu Preview Rincian Armada Terpilih & Estimasi Jarak Live -->
           <div id="pawas-fleet-card"
@@ -2244,7 +2320,51 @@
                 <span id="pawas-card-kekuatan" style="color:#0F172A; margin-left:4px;">4 Personel • Sedan Sabhara •
                   Senpi V2 • Bodycam On</span>
               </div>
+
+              <!-- Tupoksi Satuan Sesuai SOP Polri -->
+              <div id="pawas-card-tupoksi-box" style="margin-top:4px; padding:6px 8px; background:#F8FAFC; border-radius:6px; border:1px dashed #CBD5E1; font-size:11px; line-height:1.4;">
+                <span style="color:#1E3A8A; font-weight:800;">📋 Tupoksi SOP:</span>
+                <span id="pawas-card-tupoksi-text" style="color:#334155; margin-left:4px;">-</span>
+              </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 2. Alokasi Kuat Personel SOP (Pembatasan Kuota Maksimal Anggota ke TKP) -->
+        <div style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="font-size:11.5px; font-weight:800; color:#1E293B;">
+              2. Alokasi Kuat Personel (Batas Maksimal Anggota ke TKP): <span style="color:#DC2626;">*</span>
+            </label>
+            <span style="font-size:10px; font-weight:700; color:#2563EB; background:#EFF6FF; padding:2px 8px; border-radius:10px; border:1px solid #BFDBFE;">
+              ⚖️ Doktrin Proporsional Perkap Polri
+            </span>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px;">
+            <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 6px; border:2px solid #E2E8F0; border-radius:6px; cursor:pointer; background:white; text-align:center; transition:all 0.15s;" id="label-kuota-2">
+              <input type="radio" name="pawas-kuota-personel" value="2" onchange="onPawasKuotaChange(2)" style="margin-bottom:4px; accent-color:#2563EB;">
+              <span style="font-size:11px; font-weight:800; color:#0F172A;">2 Personel</span>
+              <span style="font-size:9.5px; color:#64748B;">Buddy System</span>
+            </label>
+
+            <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 6px; border:2px solid #2563EB; border-radius:6px; cursor:pointer; background:#EFF6FF; text-align:center; transition:all 0.15s;" id="label-kuota-4">
+              <input type="radio" name="pawas-kuota-personel" value="4" checked onchange="onPawasKuotaChange(4)" style="margin-bottom:4px; accent-color:#2563EB;">
+              <span style="font-size:11px; font-weight:800; color:#1E40AF;">4 Personel</span>
+              <span style="font-size:9.5px; color:#2563EB; font-weight:700;">1 Unit Patroli ★</span>
+            </label>
+
+            <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 6px; border:2px solid #E2E8F0; border-radius:6px; cursor:pointer; background:white; text-align:center; transition:all 0.15s;" id="label-kuota-6">
+              <input type="radio" name="pawas-kuota-personel" value="6" onchange="onPawasKuotaChange(6)" style="margin-bottom:4px; accent-color:#2563EB;">
+              <span style="font-size:11px; font-weight:800; color:#0F172A;">6 Personel</span>
+              <span style="font-size:9.5px; color:#64748B;">Regu Terpadu</span>
+            </label>
+
+            <label style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8px 6px; border:2px solid #E2E8F0; border-radius:6px; cursor:pointer; background:white; text-align:center; transition:all 0.15s;" id="label-kuota-8">
+              <input type="radio" name="pawas-kuota-personel" value="8" onchange="onPawasKuotaChange(8)" style="margin-bottom:4px; accent-color:#2563EB;">
+              <span style="font-size:11px; font-weight:800; color:#0F172A;">8 Personel</span>
+              <span style="font-size:9.5px; color:#DC2626; font-weight:700;">Kontinjensi</span>
+            </label>
           </div>
         </div>
 
@@ -2252,7 +2372,7 @@
         <div style="margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
             <label style="font-size:11.5px; font-weight:800; color:#1E293B;">
-              2. Instruksi Taktis &amp; Petunjuk Khusus Pawas: <span style="color:#DC2626;">*</span>
+              3. Instruksi Taktis &amp; Petunjuk Khusus Pawas: <span style="color:#DC2626;">*</span>
             </label>
             <span style="font-size:10px; color:#64748B;">Klik template untuk arahan cepat:</span>
           </div>
@@ -3296,7 +3416,7 @@
 
   <!-- MODAL: TIMEPICKER RENTANG WAKTU KEGIATAN -->
   <div id="modal-timepicker-log" onclick="tutupTimePickerLog()"
-    style="display:none; position:fixed; inset:0; z-index:99999; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    style="display:none; position:fixed; inset:0; z-index:1000000; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
     <div
       style="background:white; border-radius:14px; max-width:390px; width:100%; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35); overflow:hidden; border-top:5px solid #153E75;"
       onclick="event.stopPropagation()">
@@ -3509,6 +3629,153 @@
           </button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL CRUD TITIK RAWAN KAMTIHMAS (TAMBAH / EDIT / HAPUS HOTSPOT)           -->
+  <!-- ========================================================================= -->
+  <div id="modal-crud-titik-rawan"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:999999; backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:16px;">
+    <div
+      style="background:white; border-radius:14px; width:100%; max-width:680px; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 40px rgba(0,0,0,0.3); border:1px solid #CBD5E1; overflow:hidden; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+      
+      <!-- Modal Header -->
+      <div style="background:linear-gradient(135deg, #1E293B, #0F172A); color:white; padding:16px 20px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:22px; background:rgba(239,68,68,0.2); padding:6px; border-radius:8px; border:1px solid rgba(239,68,68,0.4);">🔴</span>
+          <div>
+            <div style="font-size:15px; font-weight:800; letter-spacing:0.3px;">MANAJEMEN TITIK RAWAN KAMTIBMAS</div>
+            <div style="font-size:11.5px; color:#94A3B8;">Kelola peta hotspot kerawanan, balap liar, tawuran & kejahatan jalanan</div>
+          </div>
+        </div>
+        <button type="button" onclick="tutupModalCrudTitikRawan()"
+          style="background:rgba(255,255,255,0.1); border:none; color:#CBD5E1; font-size:16px; font-weight:700; width:30px; height:30px; border-radius:6px; cursor:pointer;">✕</button>
+      </div>
+
+      <!-- Action Sub-header -->
+      <div style="padding:12px 20px; background:#F8FAFC; border-bottom:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:12px; font-weight:700; color:#334155;">
+          Daftar Hotspot Aktif: <span id="crud-total-rawan-badge" style="background:#EF4444; color:white; padding:2px 8px; border-radius:10px; font-size:11px;">0</span>
+        </div>
+        <button type="button" onclick="bukaFormTambahTitikRawan()"
+          style="background:#153E75; color:white; border:none; padding:8px 14px; border-radius:6px; font-size:11.5px; font-weight:800; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 2px 6px rgba(21,62,117,0.25);">
+          <span>➕</span> Tambah Titik Rawan Baru
+        </button>
+      </div>
+
+      <!-- Modal Body (Form & List) -->
+      <div style="padding:16px 20px; overflow-y:auto; flex:1;">
+        <!-- Form Tambah / Edit (Collapsible) -->
+        <div id="form-crud-rawan-container" style="display:none; background:#FFF7ED; border:1.5px solid #FDBA74; border-radius:10px; padding:14px; margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div id="form-crud-rawan-title" style="font-size:13px; font-weight:800; color:#9A3412;">➕ TAMBAH TITIK RAWAN BARU</div>
+            <button type="button" onclick="tutupFormCrudRawan()" style="background:none; border:none; color:#9A3412; font-size:13px; font-weight:700; cursor:pointer;">✕ Batal</button>
+          </div>
+          <input type="hidden" id="rawan-input-key" value="">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">🔍 Cari Alamat / Lokasi Rawan *</label>
+              <div style="position:relative;">
+                <input type="text" id="rawan-input-nama" placeholder="Ketik nama jalan / gedung / kawasan (contoh: Kemang, Tebet)..."
+                  oninput="handlePencarianLokasiRawan(this.value)"
+                  autocomplete="off"
+                  style="width:100%; padding:8px 30px 8px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+                <span style="position:absolute; right:8px; top:8px; font-size:13px; color:#94A3B8; pointer-events:none;">📍</span>
+              </div>
+              <div id="rawan-search-status" style="font-size:10.5px; color:#0284C7; margin-top:3px; display:none;">🔍 Mencari titik peta...</div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Wilayah / Polsek Pengampu *</label>
+              <input type="text" id="rawan-input-wilayah" placeholder="Contoh: Polsek Tebet / Sektor Timur"
+                style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Kategori Kerawanan *</label>
+              <select id="rawan-input-kategori" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+                <option value="Rawan Tawuran Warga & Gesekan Kelompok">Rawan Tawuran Warga & Gesekan Kelompok</option>
+                <option value="Rawan Tawuran Pelajar Ber-sajam">Rawan Tawuran Pelajar Ber-sajam</option>
+                <option value="Rawan Balap Liar & Gangguan Knalpot Brong">Rawan Balap Liar & Gangguan Knalpot</option>
+                <option value="Rawan Curas, Curat & Begal Jalanan (3C)">Rawan 3C (Curas, Curat, Begal)</option>
+                <option value="Rawan Narkoba & Miras Oplosan">Rawan Peredaran Narkoba / Miras</option>
+                <option value="Rawan Kemacetan Parah & Pasar Tumpah">Rawan Kemacetan & Pasar Tumpah</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Tingkat Status Bahaya *</label>
+              <select id="rawan-input-status" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+                <option value="Status: PENGAWASAN PRIORITAS (RAWAN)">Status: PENGAWASAN PRIORITAS (🔴 Merah)</option>
+                <option value="Status: SIAGA PATROLI BLUE LIGHT">Status: SIAGA PATROLI (🟠 Oranye)</option>
+                <option value="Status: INSIDEN DARURAT AKTIF (SIAGA 110)">Status: INSIDEN DARURAT 110 (🔴 Darurat)</option>
+                <option value="Status: PEMANTAUAN RUTIN">Status: PEMANTAUAN RUTIN (🟡 Kuning)</option>
+              </select>
+            </div>
+          </div>
+          <!-- Koordinat Latitude & Longitude tersembunyi (Hidden) -->
+          <input type="hidden" id="rawan-input-lat" value="-6.2443">
+          <input type="hidden" id="rawan-input-lng" value="106.8078">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">🕒 Jadwal / Jam Rawan *</label>
+              <div style="position:relative; cursor:pointer;" onclick="bukaTimePickerLog('rawan')">
+                <input type="text" id="rawan-input-jadwal" placeholder="Pilih rentang jam rawan..." readonly
+                  value="23:00 - 04:30"
+                  style="width:100%; padding:8px 30px 8px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px; background:#F8FAFC; cursor:pointer; font-weight:700; color:#1E293B;">
+                <span style="position:absolute; right:8px; top:8px; font-size:13px; color:#153E75;">📅</span>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Unit Patroli Terdekat / Penanggung Jawab</label>
+              <input type="text" id="rawan-input-telemetri" placeholder="Contoh: Patroli Samapta 110-A (600m)"
+                style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #CBD5E1; font-size:12px;">
+            </div>
+          </div>
+          <!-- Interactive Maps Picker Box (Bisa Ambil Titik Langsung dari Maps) -->
+          <div id="rawan-mini-map-box" style="display:none; margin-bottom:12px; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:8px; padding:10px; box-shadow:inset 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:11.5px; font-weight:800; color:#1E293B;">🗺️ Klik lokasi pada peta di bawah ini untuk mengambil titik:</span>
+              <button type="button" onclick="tutupMiniMapPickerRawan()" style="background:none; border:none; color:#DC2626; font-size:11.5px; font-weight:700; cursor:pointer;">✕ Tutup Peta</button>
+            </div>
+            <div id="map-picker-rawan-canvas" style="width:100%; height:220px; border-radius:6px; border:1px solid #E2E8F0;"></div>
+            <div style="margin-top:6px; font-size:11px; color:#475569; display:flex; justify-content:space-between; align-items:center;">
+              <span id="picker-rawan-status-text">📌 Silakan klik / seret pin merah ke lokasi rawan yang diinginkan</span>
+              <button type="button" onclick="ambilLokasiSaatIniKeMiniPicker()" style="background:#F1F5F9; border:1px solid #CBD5E1; color:#334155; font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;">📍 Pusatkan ke Saya</button>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+            <button type="button" onclick="bukaMiniMapPickerRawan()"
+              style="background:#0284C7; color:white; border:none; padding:7px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:5px; box-shadow:0 2px 5px rgba(2,132,199,0.25);">
+              🗺️ Pilih Titik dari Maps
+            </button>
+            <button type="button" onclick="ambilKoordinatGpsSaatIniUntukRawan()"
+              style="background:#E2E8F0; color:#334155; border:none; padding:7px 12px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+              📍 Lokasi Saya (GPS)
+            </button>
+            <button type="button" onclick="simpanDataTitikRawan()"
+              style="background:#16A34A; color:white; border:none; padding:7px 16px; border-radius:6px; font-size:11.5px; font-weight:800; cursor:pointer;">
+              💾 Simpan Titik Rawan
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabel Daftar Titik Rawan -->
+        <div id="crud-rawan-list-container">
+          <!-- Diisi via renderCrudTitikRawanList() -->
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="padding:12px 20px; background:#F8FAFC; border-top:1px solid #E2E8F0; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:11px; color:#64748B;">Data tersimpan permanen di memori lokal & langsung terupdate di kedua peta (Beranda & Tab Peta).</span>
+        <button type="button" onclick="tutupModalCrudTitikRawan()"
+          style="background:#334155; color:white; border:none; padding:8px 16px; border-radius:6px; font-size:12px; font-weight:700; cursor:pointer;">
+          Tutup
+        </button>
+      </div>
+
     </div>
   </div>
 

@@ -16,8 +16,8 @@ function initMaps() {
 
   try {
     const mapOptions = {
-      zoom: 13,
-      center: { lat: -6.1980, lng: 106.8245 },
+      zoom: 14,
+      center: { lat: -6.2443, lng: 106.8078 },
       disableDefaultUI: true, // Clean interface like the mockup
       mapTypeId: 'roadmap',
       styles: [
@@ -38,6 +38,13 @@ function initMaps() {
       scrollwheel: true,
       gestureHandling: 'greedy'
     }));
+
+    // Inisialisasi Google Maps Live Traffic Layer langsung aktif di peta (Fullscreen & Beranda)
+    activeTrafficLayer = new google.maps.TrafficLayer();
+    activeTrafficLayer.setMap(mapFullscreen);
+
+    activeTrafficLayerBeranda = new google.maps.TrafficLayer();
+    activeTrafficLayerBeranda.setMap(mapBeranda);
 
     // 1:1 Map Elements based on mockup:
     // Green line, Yellow line, Red line, Red pins, Big Police Car
@@ -70,9 +77,10 @@ function initMaps() {
       }
     }
 
-    fetchRouteAndDraw([p1, p2, p3], '#10B981'); // Green
-    fetchRouteAndDraw([p3, p4], '#EF4444');     // Red
-    fetchRouteAndDraw([p4, p5, p6], '#F59E0B'); // Orange
+    // Jalur polylines statis (hijau, merah, oranye) dibersihkan agar peta hanya menampilkan traffic line & rute dinamis aktual
+    // fetchRouteAndDraw([p1, p2, p3], '#10B981');
+    // fetchRouteAndDraw([p3, p4], '#EF4444');
+    // fetchRouteAndDraw([p4, p5, p6], '#F59E0B');
 
     // Draw classic Red Pins
     const redPin = {
@@ -309,11 +317,11 @@ function initMaps() {
         }
       ];
 
-      // 4. Data 3 Titik Hotspot Rawan (Sesuai Label "🔴 3 Titik Hotspot")
-      const hotspotUnits = [
+      // 4. Data Titik Hotspot Rawan (Dinamis dari LocalStorage dengan fallback default 3 Titik)
+      const defaultHotspotUnits = [
         {
           key: 'hotspot1',
-          pos: p1, // -6.1800, 106.8200
+          pos: { lat: -6.2100, lng: 106.8400 },
           iconEmoji: '🔴',
           title: 'Titik Hotspot 1 (Manggarai)',
           petugas: 'Wilayah Polsek Tebet / Sektor Timur',
@@ -325,7 +333,7 @@ function initMaps() {
         },
         {
           key: 'hotspot2',
-          pos: p3, // -6.2100, 106.8180
+          pos: { lat: -6.2250, lng: 106.8200 },
           iconEmoji: '🔴',
           title: 'Titik Hotspot 2 (Sudirman)',
           petugas: 'Wilayah Polsek Setiabudi / Sektor Pusat',
@@ -337,7 +345,7 @@ function initMaps() {
         },
         {
           key: 'hotspot3',
-          pos: p6, // -6.1850, 106.8300
+          pos: { lat: -6.2480, lng: 106.8020 },
           iconEmoji: '🔴',
           title: 'Titik Hotspot 3 (Panglima Polim)',
           petugas: 'Wilayah Polsek Kebayoran Baru / Sektor Selatan',
@@ -349,14 +357,28 @@ function initMaps() {
         }
       ];
 
+      if (!localStorage.getItem('simapres_titik_rawan')) {
+        localStorage.setItem('simapres_titik_rawan', JSON.stringify(defaultHotspotUnits));
+      }
+
+      let activeHotspotUnits = [];
+      try {
+        activeHotspotUnits = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]');
+      } catch(e) {
+        activeHotspotUnits = defaultHotspotUnits;
+      }
+      if (!Array.isArray(activeHotspotUnits) || activeHotspotUnits.length === 0) {
+        activeHotspotUnits = defaultHotspotUnits;
+      }
+
       // 5. Mako Polres Metro
       const makoUnit = {
         key: 'mako',
-        pos: { lat: -6.2220, lng: 106.8020 },
+        pos: { lat: -6.2443, lng: 106.8078 },
         iconEmoji: '🏢',
-        title: 'Mako Polres Metro Jakarta Pusat',
+        title: 'Mako Polres Metro Jakarta Selatan',
         petugas: 'Komando & Pengendalian Operasi (KODAL)',
-        sub: 'Jl. Kramat Raya No.61, Senen',
+        sub: 'Jl. Wijaya II No.42, Kebayoran Baru, Jakarta Selatan',
         status: 'Status: MAKO SIAGA 1',
         statusColor: '#10B981',
         tugas: 'Pusat Komando & SPKT Pelayanan 110 Terpadu',
@@ -384,6 +406,7 @@ function initMaps() {
       const iconMako = makeHaloBadgeIcon('🏢', '#1E3A8A', '#93C5FD');
 
       window.markerDataMap = {};
+      window.hotspotMarkerList = [];
 
       function registerAndAddMarker(data, icon) {
         window.markerDataMap[data.key] = data;
@@ -391,12 +414,54 @@ function initMaps() {
         data._markerFs = addInteractiveMarker(mapFullscreen, data.pos, icon, data, data.title);
       }
 
-      // Render seluruh armada sehingga persis sesuai label & sidebar (4 Samapta, 6 Perintis, 4 Lantas, 3 Hotspot, 1 Mako)
+      window.refreshAllHotspotMarkersOnMap = function() {
+        if (!mapBeranda || !mapFullscreen) return;
+        // Bersihkan marker hotspot lama jika ada
+        if (window.hotspotMarkerList && window.hotspotMarkerList.length > 0) {
+          window.hotspotMarkerList.forEach(m => {
+            if (m._markerB) m._markerB.setMap(null);
+            if (m._markerFs) m._markerFs.setMap(null);
+            if (window.markerDataMap && window.markerDataMap[m.key]) delete window.markerDataMap[m.key];
+          });
+        }
+        window.hotspotMarkerList = [];
+
+        let currentHotspots = [];
+        try {
+          currentHotspots = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]');
+        } catch(e) {
+          currentHotspots = defaultHotspotUnits;
+        }
+
+        currentHotspots.forEach(u => {
+          registerAndAddMarker(u, iconHotspot);
+          window.hotspotMarkerList.push(u);
+        });
+
+        // Update badge total hotspot di peta
+        const badgeHotspot = document.getElementById('badge-hotspot-count');
+        if (badgeHotspot) {
+          badgeHotspot.innerHTML = `🔴 ${currentHotspots.length} Titik Rawan Kejahatan`;
+        }
+      };
+
+      // Render seluruh armada sehingga persis sesuai label & sidebar (4 Samapta, 6 Perintis, 4 Lantas, Mako, dan Hotspot)
       samaptaUnits.forEach(u => registerAndAddMarker(u, iconSamapta));
       perintisUnits.forEach(u => registerAndAddMarker(u, iconPerintis));
       lantasUnits.forEach(u => registerAndAddMarker(u, iconLantas));
-      hotspotUnits.forEach(u => registerAndAddMarker(u, iconHotspot));
       registerAndAddMarker(makoUnit, iconMako);
+
+      // Render titik hotspot rawan dinamis
+      window.refreshAllHotspotMarkersOnMap();
+
+      // Fokus awal kamera langsung ke Mako Polres dan buka modal detail Mako secara otomatis (Sesuai Gambar 2)
+      setTimeout(() => {
+        if (makoUnit._markerFs && mapFullscreen) {
+          mapFullscreen.setCenter(makoUnit.pos);
+          mapFullscreen.setZoom(13.8);
+          bukaModalMapUnit(makoUnit, makoUnit._markerFs, mapFullscreen);
+        }
+      }, 600);
 
       // Render unit tambahan hasil pendaftaran baru atau scan QR device HP
       try {
@@ -869,9 +934,687 @@ function fokusUnitMap(tipe) {
     bukaModalMapUnit(window.markerDataMap.perintis1);
   } else if (tipe === 'lantas' && window.markerDataMap.lantas1) {
     bukaModalMapUnit(window.markerDataMap.lantas1);
-  } else if (tipe === 'hotspot' && window.markerDataMap.hotspot3) {
-    bukaModalMapUnit(window.markerDataMap.hotspot3);
+  } else if (tipe === 'hotspot') {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]'); } catch(e) {}
+    const firstKey = (list && list.length > 0) ? list[0].key : 'hotspot1';
+    if (window.markerDataMap && window.markerDataMap[firstKey]) {
+      bukaModalMapUnit(window.markerDataMap[firstKey]);
+    } else {
+      bukaModalCrudTitikRawan();
+    }
   }
+}
+
+// =========================================================================
+// FITUR CRUD TITIK RAWAN KAMTIBMAS (LOCALSTORAGE & MAP SYNC)
+// =========================================================================
+function bukaModalCrudTitikRawan() {
+  const modal = document.getElementById('modal-crud-titik-rawan');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  tutupFormCrudRawan();
+  renderCrudTitikRawanList();
+}
+
+function tutupModalCrudTitikRawan() {
+  const modal = document.getElementById('modal-crud-titik-rawan');
+  if (modal) modal.style.display = 'none';
+}
+
+function bukaFormTambahTitikRawan() {
+  const container = document.getElementById('form-crud-rawan-container');
+  const title = document.getElementById('form-crud-rawan-title');
+  if (!container) return;
+
+  document.getElementById('rawan-input-key').value = '';
+  document.getElementById('rawan-input-nama').value = '';
+  document.getElementById('rawan-input-wilayah').value = '';
+  document.getElementById('rawan-input-kategori').selectedIndex = 0;
+  document.getElementById('rawan-input-status').selectedIndex = 0;
+  document.getElementById('rawan-input-lat').value = '-6.2443';
+  document.getElementById('rawan-input-lng').value = '106.8078';
+  document.getElementById('rawan-input-jadwal').value = '23:00 - 04:30 WIB';
+  document.getElementById('rawan-input-telemetri').value = 'Patroli Samapta 110 (Siaga)';
+
+  if (title) title.innerHTML = '➕ TAMBAH TITIK RAWAN BARU';
+  container.style.display = 'block';
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function tutupFormCrudRawan() {
+  const container = document.getElementById('form-crud-rawan-container');
+  if (container) container.style.display = 'none';
+  tutupMiniMapPickerRawan();
+}
+
+// =========================================================================
+// PICKER LOKASI LANGSUNG DARI GOOGLE MAPS UNTUK TITIK RAWAN
+// =========================================================================
+let miniPickerMap = null;
+let miniPickerMarker = null;
+
+function bukaMiniMapPickerRawan() {
+  const box = document.getElementById('rawan-mini-map-box');
+  if (!box) return;
+  box.style.display = 'block';
+
+  let currentLat = parseFloat(document.getElementById('rawan-input-lat').value) || -6.2443;
+  let currentLng = parseFloat(document.getElementById('rawan-input-lng').value) || 106.8078;
+  const initialPos = { lat: currentLat, lng: currentLng };
+
+  const canvas = document.getElementById('map-picker-rawan-canvas');
+  if (!canvas) return;
+
+  setTimeout(() => {
+    if (!miniPickerMap) {
+      miniPickerMap = new google.maps.Map(canvas, {
+        center: initialPos,
+        zoom: 15,
+        disableDefaultUI: false,
+        zoomControl: true,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        gestureHandling: 'greedy'
+      });
+
+      miniPickerMarker = new google.maps.Marker({
+        position: initialPos,
+        map: miniPickerMap,
+        draggable: true,
+        animation: google.maps.Animation.DROP,
+        title: 'Geser pin atau klik peta untuk menentukan titik rawan'
+      });
+
+      // Event klik peta
+      google.maps.event.addListener(miniPickerMap, 'click', (e) => {
+        const clickedPos = e.latLng;
+        miniPickerMarker.setPosition(clickedPos);
+        setTitikRawanFromLatLng(clickedPos.lat(), clickedPos.lng());
+      });
+
+      // Event geser pin (drag)
+      google.maps.event.addListener(miniPickerMarker, 'dragend', (e) => {
+        const draggedPos = e.latLng;
+        setTitikRawanFromLatLng(draggedPos.lat(), draggedPos.lng());
+      });
+    } else {
+      google.maps.event.trigger(miniPickerMap, 'resize');
+      miniPickerMap.setCenter(initialPos);
+      miniPickerMarker.setPosition(initialPos);
+    }
+  }, 100);
+}
+
+function tutupMiniMapPickerRawan() {
+  const box = document.getElementById('rawan-mini-map-box');
+  if (box) box.style.display = 'none';
+}
+
+function setTitikRawanFromLatLng(lat, lng) {
+  document.getElementById('rawan-input-lat').value = lat.toFixed(6);
+  document.getElementById('rawan-input-lng').value = lng.toFixed(6);
+
+  const statusText = document.getElementById('picker-rawan-status-text');
+  if (statusText) {
+    statusText.innerHTML = `📌 Titik dipilih: <b>${lat.toFixed(5)}, ${lng.toFixed(5)}</b> (Mencari nama jalan...)`;
+  }
+
+  // Reverse Geocoding untuk mengisi nama lokasi secara otomatis
+  if (typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        const fullAddr = results[0].formatted_address;
+        const inputNama = document.getElementById('rawan-input-nama');
+        const inputWilayah = document.getElementById('rawan-input-wilayah');
+        
+        // Hanya isi jika nama lokasi masih kosong atau default
+        if (inputNama && (!inputNama.value || inputNama.value.startsWith('Simpang') || inputNama.value.startsWith('Jl.'))) {
+          // Ambil nama jalan terdekat
+          const parts = fullAddr.split(',');
+          inputNama.value = parts[0].trim();
+        }
+
+        // Cari kecamatan/kota untuk wilayah polsek
+        if (inputWilayah && !inputWilayah.value) {
+          const comp = results[0].address_components;
+          const subloc = comp.find(c => c.types.includes('administrative_area_level_3') || c.types.includes('locality'));
+          if (subloc) {
+            inputWilayah.value = 'Polsek ' + subloc.long_name;
+          }
+        }
+
+        if (statusText) {
+          statusText.innerHTML = `✅ Terpilih: <b>${fullAddr.split(',')[0]}</b>`;
+        }
+      } else {
+        if (statusText) {
+          statusText.innerHTML = `✅ Titik tersimpan pada peta`;
+        }
+      }
+    });
+  }
+}
+
+// -------------------------------------------------------------
+// Live Geocoding Pencarian Lokasi dari Input Teks Pengguna
+// Mengubah input alamat user menjadi koordinat Latitude & Longitude tersembunyi
+// -------------------------------------------------------------
+let rawanSearchTimer = null;
+function handlePencarianLokasiRawan(query) {
+  if (!query || query.trim().length < 3) return;
+
+  const statusEl = document.getElementById('rawan-search-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = `🔍 Mencari lokasi "${query}" di peta...`;
+  }
+
+  clearTimeout(rawanSearchTimer);
+  rawanSearchTimer = setTimeout(() => {
+    if (typeof google === 'undefined' || !google.maps || !google.maps.Geocoder) return;
+
+    const geocoder = new google.maps.Geocoder();
+    // Tambahkan context wilayah Jakarta Selatan / Jabodetabek agar hasil pencarian presisi
+    const searchQuery = query.includes('Jakarta') ? query : `${query}, Jakarta Selatan`;
+
+    geocoder.geocode({ address: searchQuery }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        const loc = results[0].geometry.location;
+        const lat = loc.lat();
+        const lng = loc.lng();
+
+        // Simpan ke hidden input
+        document.getElementById('rawan-input-lat').value = lat.toFixed(6);
+        document.getElementById('rawan-input-lng').value = lng.toFixed(6);
+
+        // Auto isi Polsek jika wilayah kosong
+        const inputWilayah = document.getElementById('rawan-input-wilayah');
+        if (inputWilayah && !inputWilayah.value) {
+          const comp = results[0].address_components;
+          const subloc = comp.find(c => c.types.includes('administrative_area_level_3') || c.types.includes('locality'));
+          if (subloc) {
+            inputWilayah.value = 'Polsek ' + subloc.long_name;
+          }
+        }
+
+        // Jika mini map picker sedang dibuka, sinkronkan posisi pin
+        if (miniPickerMap && miniPickerMarker) {
+          miniPickerMap.panTo(loc);
+          miniPickerMap.setZoom(15);
+          miniPickerMarker.setPosition(loc);
+        }
+
+        if (statusEl) {
+          statusEl.innerHTML = `✅ Titik peta ditemukan: ${results[0].formatted_address.split(',')[0]}`;
+          setTimeout(() => { statusEl.style.display = 'none'; }, 3500);
+        }
+      } else {
+        if (statusEl) {
+          statusEl.innerHTML = `⚠️ Lokasi spesifik belum ditemukan, silakan perjelas atau gunakan tombol "Pilih Titik dari Maps"`;
+        }
+      }
+    });
+  }, 600);
+}
+
+function ambilLokasiSaatIniKeMiniPicker() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        if (miniPickerMap && miniPickerMarker) {
+          const newPos = new google.maps.LatLng(lat, lng);
+          miniPickerMap.panTo(newPos);
+          miniPickerMap.setZoom(16);
+          miniPickerMarker.setPosition(newPos);
+        }
+        setTitikRawanFromLatLng(lat, lng);
+      },
+      (err) => {
+        alert('Gagal mendeteksi lokasi GPS: ' + err.message);
+      },
+      { enableHighAccuracy: true }
+    );
+  }
+}
+
+// ==========================================
+// TIMEPICKER MODAL HANDLER UNTUK LOG & TITIK RAWAN
+// ==========================================
+let tpFormat = '24h';
+let activeTimePickerTarget = 'log';
+
+function formatTo12hTimePicker(timeStr) {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length < 2) return timeStr;
+  let h = parseInt(parts[0], 10);
+  const m = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12;
+  h = h ? h : 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function bukaTimePickerLog(target = 'log') {
+  activeTimePickerTarget = target;
+  const modal = document.getElementById('modal-timepicker-log');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  let val = '';
+  if (target === 'rawan') {
+    const inputRawan = document.getElementById('rawan-input-jadwal');
+    val = inputRawan ? inputRawan.value.trim() : '23:00 - 04:30';
+  } else {
+    const isResponActive = document.getElementById('view-respon')?.classList.contains('active');
+    const inputRespon = document.getElementById('respon-waktu-perekaman');
+    const inputLog = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
+    const inputWaktu = (isResponActive && inputRespon) ? inputRespon : (inputRespon || inputLog);
+    val = inputWaktu ? inputWaktu.value.trim() : '';
+  }
+
+  const elMulai = document.getElementById('tp-jam-mulai');
+  const elSelesai = document.getElementById('tp-jam-selesai');
+
+  if (val && val.includes('-')) {
+    const parts = val.split('-');
+    const p1 = parts[0].trim();
+    const p2 = parts[1].trim();
+
+    if (val.toUpperCase().includes('AM') || val.toUpperCase().includes('PM')) {
+      tpFormat = '12h';
+    } else {
+      tpFormat = '24h';
+    }
+
+    const parseTo24 = (t) => {
+      const isPm = t.toUpperCase().includes('PM');
+      const isAm = t.toUpperCase().includes('AM');
+      const clean = t.replace(/(AM|PM|WIB)/gi, '').trim();
+      const spl = clean.split(':');
+      if (spl.length >= 2) {
+        let hr = parseInt(spl[0], 10);
+        const mn = spl[1].substring(0, 2);
+        if (isPm && hr < 12) hr += 12;
+        if (isAm && hr === 12) hr = 0;
+        return `${hr < 10 ? '0' + hr : hr}:${mn}`;
+      }
+      return null;
+    };
+
+    const parsedStart = parseTo24(p1);
+    const parsedEnd = parseTo24(p2);
+    if (parsedStart && elMulai) elMulai.value = parsedStart;
+    if (parsedEnd && elSelesai) elSelesai.value = parsedEnd;
+  }
+
+  setTimePickerFormat(tpFormat);
+  updateTimePickerPreview();
+}
+
+function tutupTimePickerLog() {
+  const modal = document.getElementById('modal-timepicker-log');
+  if (modal) modal.style.display = 'none';
+}
+
+function setTimePickerFormat(fmt) {
+  tpFormat = fmt;
+  const btn12 = document.getElementById('tp-btn-fmt-12h');
+  const btn24 = document.getElementById('tp-btn-fmt-24h');
+  if (btn12 && btn24) {
+    if (fmt === '12h') {
+      btn12.style.background = '#153E75';
+      btn12.style.color = '#FFFFFF';
+      btn12.style.borderColor = '#153E75';
+      btn24.style.background = '#FFFFFF';
+      btn24.style.color = '#1E293B';
+      btn24.style.borderColor = '#CBD5E1';
+    } else {
+      btn24.style.background = '#153E75';
+      btn24.style.color = '#FFFFFF';
+      btn24.style.borderColor = '#153E75';
+      btn12.style.background = '#FFFFFF';
+      btn12.style.color = '#1E293B';
+      btn12.style.borderColor = '#CBD5E1';
+    }
+  }
+  updateTimePickerPreview();
+}
+
+function updateTimePickerPreview() {
+  const elMulai = document.getElementById('tp-jam-mulai');
+  const elSelesai = document.getElementById('tp-jam-selesai');
+  const elPrevText = document.getElementById('tp-preview-text');
+  const elPrevDurasi = document.getElementById('tp-preview-durasi');
+
+  const startVal = (elMulai && elMulai.value) ? elMulai.value : '09:00';
+  const endVal = (elSelesai && elSelesai.value) ? elSelesai.value : '14:30';
+
+  const [sH, sM] = startVal.split(':').map(Number);
+  const [eH, eM] = endVal.split(':').map(Number);
+  let totalStart = (sH || 0) * 60 + (sM || 0);
+  let totalEnd = (eH || 0) * 60 + (eM || 0);
+  let diff = totalEnd - totalStart;
+  if (diff < 0) diff += 24 * 60;
+
+  const diffHours = Math.floor(diff / 60);
+  const diffMins = diff % 60;
+  let durasiStr = `${diffHours} Jam`;
+  if (diffMins > 0) durasiStr += ` ${diffMins} Menit`;
+
+  let formattedResult = '';
+  if (tpFormat === '12h') {
+    formattedResult = `${formatTo12hTimePicker(startVal)} - ${formatTo12hTimePicker(endVal)}`;
+  } else {
+    formattedResult = `${startVal} - ${endVal}`;
+  }
+
+  if (elPrevText) elPrevText.textContent = formattedResult;
+  if (elPrevDurasi) elPrevDurasi.textContent = `⏱️ Durasi: ${durasiStr}`;
+}
+
+function setPresetTimePicker(start, end) {
+  const elMulai = document.getElementById('tp-jam-mulai');
+  const elSelesai = document.getElementById('tp-jam-selesai');
+  if (elMulai) elMulai.value = start;
+  if (elSelesai) elSelesai.value = end;
+  updateTimePickerPreview();
+}
+
+function setPresetRelativeTimePicker(hours) {
+  const now = new Date();
+  const past = new Date(now.getTime() - hours * 60 * 60 * 1000);
+  const pad = n => n < 10 ? '0' + n : '' + n;
+  const startStr = `${pad(past.getHours())}:${pad(past.getMinutes())}`;
+  const endStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  setPresetTimePicker(startStr, endStr);
+}
+
+function terapkanTimePickerLog() {
+  const elPrevText = document.getElementById('tp-preview-text');
+  const resultText = elPrevText ? elPrevText.textContent : '09:00 - 14:30';
+
+  if (activeTimePickerTarget === 'rawan') {
+    const inputRawan = document.getElementById('rawan-input-jadwal');
+    if (inputRawan) {
+      inputRawan.value = `${resultText} WIB`;
+    }
+  } else {
+    const inputResponWaktu = document.getElementById('respon-waktu-perekaman');
+    if (inputResponWaktu) {
+      inputResponWaktu.value = resultText;
+    }
+
+    const inputWaktu = document.getElementById('log-input-waktu') || document.querySelector('#view-log input[readonly]');
+    if (inputWaktu) {
+      inputWaktu.value = resultText;
+    }
+  }
+
+  tutupTimePickerLog();
+  if (typeof tampilkanToast === 'function') {
+    tampilkanToast(`Rentang waktu disetel: ${resultText}`, 'success');
+  } else if (typeof showToastNotification === 'function') {
+    showToastNotification(`Rentang waktu disetel: ${resultText}`, 'success');
+  }
+}
+
+// Global window exposure
+window.bukaTimePickerLog = bukaTimePickerLog;
+window.tutupTimePickerLog = tutupTimePickerLog;
+window.setTimePickerFormat = setTimePickerFormat;
+window.updateTimePickerPreview = updateTimePickerPreview;
+window.setPresetTimePicker = setPresetTimePicker;
+window.setPresetRelativeTimePicker = setPresetRelativeTimePicker;
+window.terapkanTimePickerLog = terapkanTimePickerLog;
+
+function ambilKoordinatGpsSaatIniUntukRawan() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        document.getElementById('rawan-input-lat').value = pos.coords.latitude.toFixed(6);
+        document.getElementById('rawan-input-lng').value = pos.coords.longitude.toFixed(6);
+        alert('Koordinat GPS terkini berhasil disematkan!');
+      },
+      (err) => {
+        alert('Gagal mengambil sinyal GPS: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  } else {
+    alert('Browser tidak mendukung Geolocation.');
+  }
+}
+
+function simpanDataTitikRawan() {
+  const key = document.getElementById('rawan-input-key').value.trim();
+  const nama = document.getElementById('rawan-input-nama').value.trim();
+  const wilayah = document.getElementById('rawan-input-wilayah').value.trim();
+  const kategori = document.getElementById('rawan-input-kategori').value;
+  const status = document.getElementById('rawan-input-status').value;
+  const lat = parseFloat(document.getElementById('rawan-input-lat').value);
+  const lng = parseFloat(document.getElementById('rawan-input-lng').value);
+  const jadwal = document.getElementById('rawan-input-jadwal').value.trim();
+  const telemetri = document.getElementById('rawan-input-telemetri').value.trim();
+
+  if (!nama) {
+    alert('Harap isi Nama Titik / Lokasi Rawan!');
+    return;
+  }
+  if (isNaN(lat) || isNaN(lng)) {
+    alert('Harap masukkan koordinat Latitude & Longitude yang valid!');
+    return;
+  }
+
+  let statusColor = '#DC2626';
+  if (status.includes('PATROLI')) statusColor = '#D97706';
+  else if (status.includes('RUTIN')) statusColor = '#EAB308';
+
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]');
+  } catch(e) {
+    list = [];
+  }
+
+  if (key) {
+    // Mode EDIT
+    const idx = list.findIndex(item => item.key === key);
+    if (idx !== -1) {
+      list[idx] = {
+        ...list[idx],
+        title: nama,
+        petugas: wilayah || 'Sektor Wilayah Hukum Polres',
+        sub: 'Kategori: ' + kategori,
+        status: status,
+        statusColor: statusColor,
+        pos: { lat: lat, lng: lng },
+        tugas: jadwal ? ('Jadwal Rawan: ' + jadwal) : 'Pengawasan 24 Jam',
+        telemetri: telemetri || 'Unit Terdekat: Patroli Presisi'
+      };
+    }
+  } else {
+    // Mode TAMBAH
+    const newKey = 'hotspot_' + Date.now();
+    const newItem = {
+      key: newKey,
+      iconEmoji: '🔴',
+      title: nama,
+      petugas: wilayah || 'Sektor Wilayah Hukum Polres',
+      sub: 'Kategori: ' + kategori,
+      status: status,
+      statusColor: statusColor,
+      pos: { lat: lat, lng: lng },
+      tugas: jadwal ? ('Jadwal Rawan: ' + jadwal) : 'Pengawasan 24 Jam',
+      telemetri: telemetri || 'Unit Terdekat: Patroli Presisi'
+    };
+    list.unshift(newItem);
+  }
+
+  localStorage.setItem('simapres_titik_rawan', JSON.stringify(list));
+  tutupFormCrudRawan();
+  renderCrudTitikRawanList();
+
+  // Sinkronkan marker ke peta
+  if (typeof window.refreshAllHotspotMarkersOnMap === 'function') {
+    window.refreshAllHotspotMarkersOnMap();
+  }
+
+  alert(key ? 'Data Titik Rawan berhasil diperbarui!' : 'Titik Rawan baru berhasil ditambahkan ke peta!');
+}
+
+function editTitikRawan(key) {
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]');
+  } catch(e) {
+    list = [];
+  }
+  const item = list.find(r => r.key === key);
+  if (!item) return;
+
+  const container = document.getElementById('form-crud-rawan-container');
+  const title = document.getElementById('form-crud-rawan-title');
+  if (!container) return;
+
+  document.getElementById('rawan-input-key').value = item.key;
+  document.getElementById('rawan-input-nama').value = item.title || '';
+  document.getElementById('rawan-input-wilayah').value = item.petugas || '';
+  
+  const katVal = (item.sub || '').replace('Kategori: ', '').trim();
+  const katSelect = document.getElementById('rawan-input-kategori');
+  if (katSelect) {
+    for (let i = 0; i < katSelect.options.length; i++) {
+      if (katSelect.options[i].value.includes(katVal) || katVal.includes(katSelect.options[i].value)) {
+        katSelect.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  const statSelect = document.getElementById('rawan-input-status');
+  if (statSelect && item.status) {
+    for (let i = 0; i < statSelect.options.length; i++) {
+      if (statSelect.options[i].value === item.status) {
+        statSelect.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  document.getElementById('rawan-input-lat').value = item.pos?.lat || '-6.2443';
+  document.getElementById('rawan-input-lng').value = item.pos?.lng || '106.8078';
+  document.getElementById('rawan-input-jadwal').value = (item.tugas || '').replace('Jadwal Rawan: ', '').trim();
+  document.getElementById('rawan-input-telemetri').value = item.telemetri || '';
+
+  if (title) title.innerHTML = '✏️ EDIT DATA TITIK RAWAN';
+  container.style.display = 'block';
+  container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function hapusTitikRawan(key, nama) {
+  if (!confirm(`Yakin ingin menghapus titik rawan "${nama || key}" dari peta operasional?`)) return;
+
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]');
+  } catch(e) {
+    list = [];
+  }
+
+  const filtered = list.filter(r => r.key !== key);
+  localStorage.setItem('simapres_titik_rawan', JSON.stringify(filtered));
+
+  renderCrudTitikRawanList();
+
+  if (typeof window.refreshAllHotspotMarkersOnMap === 'function') {
+    window.refreshAllHotspotMarkersOnMap();
+  }
+}
+
+function fokusKeTitikRawanDariModal(key) {
+  tutupModalCrudTitikRawan();
+  if (window.markerDataMap && window.markerDataMap[key]) {
+    bukaModalMapUnit(window.markerDataMap[key]);
+  }
+}
+
+function renderCrudTitikRawanList() {
+  const container = document.getElementById('crud-rawan-list-container');
+  const badgeTotal = document.getElementById('crud-total-rawan-badge');
+  if (!container) return;
+
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem('simapres_titik_rawan') || '[]');
+  } catch(e) {
+    list = [];
+  }
+
+  if (badgeTotal) badgeTotal.textContent = list.length;
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:30px 10px; color:#94A3B8;">
+        <span style="font-size:36px; display:block; margin-bottom:8px;">📍</span>
+        <div style="font-weight:700; font-size:13px; color:#475569;">Belum Ada Titik Rawan</div>
+        <div style="font-size:11.5px; margin-top:2px;">Klik tombol "Tambah Titik Rawan Baru" di atas untuk menambahkan.</div>
+      </div>
+    `;
+    return;
+  }
+
+  let html = `
+    <div style="display:flex; flex-direction:column; gap:10px;">
+  `;
+
+  list.forEach((item, idx) => {
+    const latStr = item.pos?.lat?.toFixed(5) || '-';
+    const lngStr = item.pos?.lng?.toFixed(5) || '-';
+    html += `
+      <div style="background:white; border:1px solid #E2E8F0; border-radius:10px; padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:0.15s;"
+        onmouseover="this.style.borderColor='#CBD5E1'; this.style.boxShadow='0 4px 10px rgba(0,0,0,0.06)';"
+        onmouseout="this.style.borderColor='#E2E8F0'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.04)';">
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <div style="font-size:20px; line-height:1; background:#FEF2F2; padding:8px; border-radius:8px; border:1px solid #FECACA;">🔴</div>
+          <div>
+            <div style="font-size:13.5px; font-weight:800; color:#0F172A; display:flex; align-items:center; gap:8px;">
+              <span>${item.title}</span>
+              <span style="font-size:10px; font-weight:700; color:${item.statusColor || '#DC2626'}; background:#FFF1F2; border:1px solid #FECDD3; padding:1px 6px; border-radius:4px;">${item.status || 'RAWAN'}</span>
+            </div>
+            <div style="font-size:11.5px; color:#64748B; margin-top:3px; line-height:1.4;">
+              <b>Wilayah:</b> ${item.petugas || '-'} • <b>Kategori:</b> ${item.sub || '-'}
+            </div>
+            <div style="font-size:11px; color:#94A3B8; margin-top:2px;">
+              📍 Koordinat: <code style="background:#F1F5F9; padding:2px 5px; border-radius:4px; color:#334155;">${latStr}, ${lngStr}</code> • ${item.tugas || '-'}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+          <button type="button" onclick="fokusKeTitikRawanDariModal('${item.key}')" title="Lihat di Peta"
+            style="background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD; padding:6px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+            🎯 Peta
+          </button>
+          <button type="button" onclick="editTitikRawan('${item.key}')" title="Edit Data"
+            style="background:#FEF3C7; color:#B45309; border:1px solid #FDE68A; padding:6px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+            ✏️ Edit
+          </button>
+          <button type="button" onclick="hapusTitikRawan('${item.key}', '${item.title.replace(/'/g, "\\'")}')" title="Hapus Titik"
+            style="background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; padding:6px 10px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer;">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
 }
 
 window.onload = () => {
@@ -931,17 +1674,31 @@ function switchTab(viewId, navElement) {
   }
   if (viewId === 'view-peta' && mapFullscreen && typeof google !== 'undefined') {
     google.maps.event.trigger(mapFullscreen, 'resize');
-    let liveCenter = { lat: -6.1950, lng: 106.8200 };
-    let liveZoom = 13;
-    try {
-      const scan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device') || 'null');
-      if (scan && scan.coords) {
-        liveCenter = scan.coords;
-        liveZoom = 14;
-      }
-    } catch(e) {}
-    mapFullscreen.setCenter(liveCenter);
-    mapFullscreen.setZoom(liveZoom);
+    const isPimpinanUser = (role === 'pimpinan' || role === 'pawas' || (activeUser && (activeUser.role === 'pimpinan' || activeUser.role === 'pawas' || activeUser.nrp === '88010234')));
+    
+    if (isPimpinanUser) {
+      // Fokus Mako Polres Metro Jakarta Selatan
+      const makoPos = { lat: -6.2443, lng: 106.8078 };
+      mapFullscreen.setCenter(makoPos);
+      mapFullscreen.setZoom(14.5);
+      setTimeout(() => {
+        if (window.markerDataMap && window.markerDataMap['mako'] && window.markerDataMap['mako']._markerFs) {
+          bukaModalMapUnit(window.markerDataMap['mako'], window.markerDataMap['mako']._markerFs, mapFullscreen);
+        }
+      }, 300);
+    } else {
+      let liveCenter = { lat: -6.1950, lng: 106.8200 };
+      let liveZoom = 13;
+      try {
+        const scan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device') || 'null');
+        if (scan && scan.coords) {
+          liveCenter = scan.coords;
+          liveZoom = 14;
+        }
+      } catch(e) {}
+      mapFullscreen.setCenter(liveCenter);
+      mapFullscreen.setZoom(liveZoom);
+    }
   }
   if (viewId === 'view-operator') {
     renderEbOperatorQueue();
@@ -2262,77 +3019,49 @@ function isUserPawas() {
 let selectedPawasDisposisiLogId = null;
 let currentModalArmadaList = [];
 
-// Fungsi Hitung Estimasi Jarak GPS & Waktu Tiba (ETA) Realistis Berdasarkan TKP Kasus
+// Fungsi Hitung Estimasi Jarak GPS & Rekomendasi Satuan Berdasarkan SOP Tupoksi Polri
 function hitungEstimasiArmadaUntukLog(log) {
   const sektor = (log.sektor || 'Sektor Selatan').toLowerCase();
-  const judul = (log.title || '').toLowerCase();
+  const text = ((log.title || '') + ' ' + (log.jenisInsiden || '') + ' ' + (log.kategoriInsiden || '') + ' ' + (log.deskripsi || '')).toLowerCase();
+
+  const sop = (typeof getSopRecommendationByIncident === 'function') ? getSopRecommendationByIncident(log) : null;
+  const primaryId = sop?.primarySatuanId || 'sabhara';
+  const secondaryIds = sop?.secondarySatuanIds || ['binmas', 'reskrim'];
 
   return DAFTAR_ARMADA_PRESISI.map((armada) => {
-    let jarak = armada.jarakBase;
-    let eta = armada.etaBase;
-
-    // Penyesuaian jarak berdasarkan kedekatan sektor wilayah
-    if (sektor.includes('selatan')) {
-      if (armada.sektorUtama === 'Sektor Selatan') {
-        jarak = armada.id === 'samapta-r4-selatan' ? 1.2 : 1.7;
-        eta = armada.id === 'samapta-r4-selatan' ? 3 : 4;
-      } else {
-        jarak += 1.4;
-        eta += 3;
-      }
-    } else if (sektor.includes('barat')) {
-      if (armada.sektorUtama === 'Sektor Barat') {
-        jarak = 1.3;
-        eta = 4;
-      } else {
-        jarak += 1.2;
-        eta += 2;
-      }
-    } else if (sektor.includes('timur')) {
-      if (armada.sektorUtama === 'Sektor Timur') {
-        jarak = 1.4;
-        eta = 4;
-      } else {
-        jarak += 1.6;
-        eta += 3;
-      }
-    } else if (sektor.includes('utara')) {
-      jarak = +(jarak + 0.9).toFixed(1);
-      eta += 2;
+    let multiplier = 1.0;
+    if (armada.sektorUtama.toLowerCase().includes(sektor.replace('sektor ', ''))) {
+      multiplier = 0.8;
+    } else {
+      multiplier = 1.4;
     }
 
-    // Penyesuaian tipe kasus (Laka Lantas -> Satlantas, Tawuran/Darurat -> Raimas / Samapta, Curanmor/Narkoba -> Reskrim)
-    if (judul.includes('laka') || judul.includes('lalu lintas') || judul.includes('macet') || judul.includes('kendaraan')) {
-      if (armada.id === 'lantas' || armada.satuanId === 'lantas') {
-        jarak = 1.1;
-        eta = 3;
-      }
-    } else if (judul.includes('tawuran') || judul.includes('balap') || judul.includes('darurat') || judul.includes('senjata')) {
-      if (armada.id === 'samapta' || armada.satuanId === 'samapta') {
-        jarak = 1.0;
-        eta = 3; // Reaksi Cepat Samapta
-      }
-    } else if (judul.includes('curat') || judul.includes('curanmor') || judul.includes('narkoba') || judul.includes('pencurian')) {
-      if (armada.id === 'reskrim' || armada.satuanId === 'reskrim') {
-        jarak = Math.max(1.8, +(jarak * 0.6).toFixed(1));
-        eta = Math.max(4, eta - 3);
-      }
-    }
+    const isPrimarySop = armada.id === primaryId || armada.satuanId === primaryId;
+    const isSecondarySop = secondaryIds.includes(armada.id) || secondaryIds.includes(armada.satuanId);
 
-    const jarakFinal = +jarak.toFixed(1);
-    const etaFinal = Math.max(2, Math.round(eta));
-    const jarakTeks = jarakFinal + ' km';
-    const etaTeks = '± ' + etaFinal + ' Menit';
+    if (isPrimarySop) multiplier *= 0.7;
+    else if (isSecondarySop) multiplier *= 0.85;
+
+    const jarakFinal = +(armada.jarakBase * multiplier).toFixed(1);
+    const etaFinal = Math.max(2, Math.round(armada.etaBase * multiplier));
 
     return {
       ...armada,
       jarakCalc: jarakFinal,
       etaCalc: etaFinal,
-      jarakTeks: jarakTeks,
-      etaTeks: etaTeks,
-      isSlaAman: etaFinal <= 10
+      jarakTeks: jarakFinal + ' km',
+      etaTeks: '± ' + etaFinal + ' Menit',
+      isSlaAman: etaFinal <= 10,
+      isPrimarySop: isPrimarySop,
+      isSecondarySop: isSecondarySop
     };
-  }).sort((a, b) => a.jarakCalc - b.jarakCalc); // Urutkan yang paling dekat di urutan teratas
+  }).sort((a, b) => {
+    if (a.isPrimarySop && !b.isPrimarySop) return -1;
+    if (!a.isPrimarySop && b.isPrimarySop) return 1;
+    if (a.isSecondarySop && !b.isSecondarySop) return -1;
+    if (!a.isSecondarySop && b.isSecondarySop) return 1;
+    return a.jarakCalc - b.jarakCalc;
+  });
 }
 
 // Update Tampilan Preview Armada Terpilih
@@ -2385,13 +3114,27 @@ function renderPawasFleetPreview(armada) {
     }
   }
 
-  // Badge Rekomendasi Terdekat
+  // Tampilkan Tupoksi Resmi SOP Satuan
+  const tupoksiEl = document.getElementById('pawas-card-tupoksi-text');
+  if (tupoksiEl) {
+    const infoSop = (typeof TUPOKSI_SATUAN_POLRI !== 'undefined' && TUPOKSI_SATUAN_POLRI[armada.satuanId || armada.id])
+      ? TUPOKSI_SATUAN_POLRI[armada.satuanId || armada.id].tupoksi
+      : (armada.sopInfo?.tupoksi || 'Melaksanakan tugas operasional kepolisian sesuai SOP komando.');
+    tupoksiEl.innerText = infoSop;
+  }
+
+  // Badge Rekomendasi SOP / Terdekat
   if (recBadgeEl) {
-    if (currentModalArmadaList.length > 0 && armada.id === currentModalArmadaList[0].id) {
-      recBadgeEl.innerText = '⚡ REKOMENDASI TERDEKAT';
-      recBadgeEl.style.background = '#DCFCE7';
-      recBadgeEl.style.color = '#15803D';
-      recBadgeEl.style.borderColor = '#BBF7D0';
+    if (armada.isPrimarySop) {
+      recBadgeEl.innerText = '⭐ REKOMENDASI UTAMA SOP';
+      recBadgeEl.style.background = '#FEF3C7';
+      recBadgeEl.style.color = '#B45309';
+      recBadgeEl.style.borderColor = '#FCD34D';
+    } else if (armada.isSecondarySop) {
+      recBadgeEl.innerText = '🛡️ SATUAN PERKUATAN (BACK-UP)';
+      recBadgeEl.style.background = '#EFF6FF';
+      recBadgeEl.style.color = '#1D4ED8';
+      recBadgeEl.style.borderColor = '#BFDBFE';
     } else {
       recBadgeEl.innerText = 'ARMADA CADANGAN';
       recBadgeEl.style.background = '#F1F5F9';
@@ -2408,6 +3151,15 @@ function onPawasArmadaSelectChange() {
   const selectedId = selectEl.value;
   const armada = currentModalArmadaList.find(a => a.id === selectedId) || currentModalArmadaList[0];
   renderPawasFleetPreview(armada);
+
+  // Perbarui arahan taktis otomatis sesuai SOP satuan bila ada
+  const arahanEl = document.getElementById('pawas-disp-arahan');
+  if (arahanEl && typeof TUPOKSI_SATUAN_POLRI !== 'undefined' && TUPOKSI_SATUAN_POLRI[armada.satuanId || armada.id]) {
+    const sopItem = TUPOKSI_SATUAN_POLRI[armada.satuanId || armada.id];
+    if (sopItem.arahanDefault) {
+      arahanEl.value = sopItem.arahanDefault;
+    }
+  }
 }
 
 // Toggle Input Manual Nama Personel
@@ -2469,32 +3221,181 @@ function bukaModalDisposisiPawas(id) {
     pelaporInfoEl.style.color = isWarga ? '#1E40AF' : '#92400E';
   }
 
+  // State pilihan multi-satuan taktis
+  selectedPawasUnitIds = [];
+
   // Hitung daftar armada terdekat dan urutkan
   currentModalArmadaList = hitungEstimasiArmadaUntukLog(log);
 
-  // Render Dropdown Terpadu
-  const unitSelect = document.getElementById('pawas-disp-unit');
-  if (unitSelect) {
-    unitSelect.innerHTML = currentModalArmadaList.map((a, index) => {
-      const isNearest = index === 0;
-      const labelTerdekat = isNearest ? ' ★ TERDEKAT' : '';
-      return `<option value="${a.id}" ${isNearest ? 'selected' : ''}>
-            ${a.icon} ${a.namaSingkat} — ${a.komandan.split('(')[0].trim()} [📍 ${a.jarakTeks} • ${a.etaTeks}${labelTerdekat}]
-          </option>`;
-    }).join('');
+  // Default pilih Satuan Utama SOP (jika ada), atau armada pertama
+  const primaryUnits = currentModalArmadaList.filter(a => a.isPrimarySop);
+  if (primaryUnits.length > 0) {
+    selectedPawasUnitIds = [primaryUnits[0].id];
+  } else if (currentModalArmadaList.length > 0) {
+    selectedPawasUnitIds = [currentModalArmadaList[0].id];
   }
+
+  // Default kuota kuat personel SOP (berdasarkan urgensi laporan)
+  const urgensiStr = (log.urgensi || '').toLowerCase();
+  const textKasus = ((log.title || '') + ' ' + (log.jenisInsiden || '')).toLowerCase();
+  if (urgensiStr === 'darurat' || textKasus.includes('tawuran') || textKasus.includes('curas') || textKasus.includes('begal')) {
+    selectedPawasKuotaPersonel = 8;
+  } else if (textKasus.includes('curanmor') || textKasus.includes('kriminal') || textKasus.includes('sajam')) {
+    selectedPawasKuotaPersonel = 6;
+  } else if (urgensiStr === 'normal' || textKasus.includes('mediasi') || textKasus.includes('sambang')) {
+    selectedPawasKuotaPersonel = 2;
+  } else {
+    selectedPawasKuotaPersonel = 4; // Standar 1 Unit Patroli
+  }
+  syncPawasKuotaUi(selectedPawasKuotaPersonel);
+
+  // Render Pemilihan Multi-Satuan (Bisa memilih lebih dari 1 satuan tugas)
+  renderPawasMultiUnitSelector();
 
   // Pastikan wrapper edit personel tertutup secara default
   const wrapEdit = document.getElementById('pawas-edit-personel-wrap');
   if (wrapEdit) wrapEdit.style.display = 'none';
 
-  // Render preview armada pertama (terdekat)
-  if (currentModalArmadaList.length > 0) {
-    renderPawasFleetPreview(currentModalArmadaList[0]);
+  // Render preview armada pertama yang terpilih
+  const activeArmada = currentModalArmadaList.find(a => selectedPawasUnitIds.includes(a.id)) || currentModalArmadaList[0];
+  if (activeArmada) {
+    renderPawasFleetPreview(activeArmada);
+
+    // Otomatis isi arahan taktis sesuai SOP satuan yang terpilih
+    const arahanEl = document.getElementById('pawas-disp-arahan');
+    if (arahanEl && typeof TUPOKSI_SATUAN_POLRI !== 'undefined' && TUPOKSI_SATUAN_POLRI[activeArmada.satuanId || activeArmada.id]) {
+      arahanEl.value = TUPOKSI_SATUAN_POLRI[activeArmada.satuanId || activeArmada.id].arahanDefault;
+    }
   }
 
   const modal = document.getElementById('modal-disposisi-pawas');
   if (modal) modal.style.display = 'flex';
+}
+
+let selectedPawasUnitIds = [];
+let selectedPawasKuotaPersonel = 4;
+
+function onPawasKuotaChange(val) {
+  selectedPawasKuotaPersonel = parseInt(val) || 4;
+  syncPawasKuotaUi(selectedPawasKuotaPersonel);
+}
+
+function syncPawasKuotaUi(val) {
+  const radio = document.querySelector(`input[name="pawas-kuota-personel"][value="${val}"]`);
+  if (radio) radio.checked = true;
+
+  [2, 4, 6, 8].forEach(k => {
+    const lbl = document.getElementById(`label-kuota-${k}`);
+    if (lbl) {
+      if (k === val) {
+        lbl.style.borderColor = '#2563EB';
+        lbl.style.background = '#EFF6FF';
+        lbl.querySelector('span').style.color = '#1E40AF';
+      } else {
+        lbl.style.borderColor = '#E2E8F0';
+        lbl.style.background = '#FFFFFF';
+        lbl.querySelector('span').style.color = '#0F172A';
+      }
+    }
+  });
+}
+
+// Fungsi Render UI Seleksi Multi-Satuan (Grup Satuan Utama SOP & Satuan Pendukung / Back-up)
+function renderPawasMultiUnitSelector() {
+  const container = document.getElementById('pawas-multi-unit-container');
+  if (!container) return;
+
+  const primaryUnits = currentModalArmadaList.filter(a => a.isPrimarySop);
+  const backupUnits = currentModalArmadaList.filter(a => !a.isPrimarySop);
+
+  let html = '';
+
+  // 1. Kelompok Satuan Utama (SOP)
+  if (primaryUnits.length > 0) {
+    html += `<div style="font-size:11px; font-weight:800; color:#B45309; margin-top:2px; display:flex; align-items:center; gap:4px;">
+      <span>⭐</span> SATUAN RESPON UTAMA (SESUAI SOP TUPOKSI):
+    </div>`;
+    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:6px; margin-bottom:6px;">`;
+    primaryUnits.forEach(a => {
+      const isChecked = selectedPawasUnitIds.includes(a.id);
+      html += `
+        <div onclick="togglePawasUnitSelection('${a.id}')"
+          style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-radius:8px; cursor:pointer; transition:all 0.15s;
+          background:${isChecked ? '#EFF6FF' : '#FFFFFF'}; border:2px solid ${isChecked ? '#2563EB' : '#E2E8F0'}; box-shadow:${isChecked ? '0 2px 6px rgba(37,99,235,0.15)' : 'none'};">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px; accent-color:#2563EB;" onclick="event.stopPropagation(); togglePawasUnitSelection('${a.id}')">
+            <span style="font-size:13px; font-weight:800; color:${isChecked ? '#1E40AF' : '#1E293B'};">
+              ${a.icon} ${a.namaSingkat || a.nama}
+            </span>
+          </div>
+          <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:#FEF3C7; color:#B45309; border:1px solid #FCD34D;">
+            UTAMA
+          </span>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // 2. Kelompok Satuan Pendukung / Cadangan (Back-up)
+  if (backupUnits.length > 0) {
+    html += `<div style="font-size:11px; font-weight:800; color:#475569; margin-top:4px; display:flex; align-items:center; gap:4px;">
+      <span>🛡️</span> SATUAN PENDUKUNG / PERKUATAN (BACK-UP OPS):
+    </div>`;
+    html += `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:6px;">`;
+    backupUnits.forEach(a => {
+      const isChecked = selectedPawasUnitIds.includes(a.id);
+      html += `
+        <div onclick="togglePawasUnitSelection('${a.id}')"
+          style="display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-radius:8px; cursor:pointer; transition:all 0.15s;
+          background:${isChecked ? '#F0FDF4' : '#FFFFFF'}; border:2px solid ${isChecked ? '#16A34A' : '#E2E8F0'}; box-shadow:${isChecked ? '0 2px 6px rgba(22,163,74,0.15)' : 'none'};">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px; accent-color:#16A34A;" onclick="event.stopPropagation(); togglePawasUnitSelection('${a.id}')">
+            <span style="font-size:13px; font-weight:700; color:${isChecked ? '#15803D' : '#334155'};">
+              ${a.icon} ${a.namaSingkat || a.nama}
+            </span>
+          </div>
+          <span style="font-size:10px; font-weight:700; padding:2px 6px; border-radius:4px; background:#F1F5F9; color:#64748B;">
+            ${a.isSecondarySop ? 'REKOMENDASI' : 'CADANGAN'}
+          </span>
+        </div>`;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+
+  // Update input hidden untuk kompatibilitas
+  const hiddenInput = document.getElementById('pawas-disp-unit');
+  if (hiddenInput && selectedPawasUnitIds.length > 0) {
+    hiddenInput.value = selectedPawasUnitIds[0];
+  }
+}
+
+// Handler Toggle Pilihan Multi-Satuan
+function togglePawasUnitSelection(unitId) {
+  const index = selectedPawasUnitIds.indexOf(unitId);
+  if (index > -1) {
+    // Cegah uncheck jika ini satu-satunya satuan yang dipilih (harus ada minimal 1 satuan)
+    if (selectedPawasUnitIds.length === 1) {
+      if (typeof showSimapresNotification === 'function') {
+        showSimapresNotification('⚠️ Minimal 1 Satuan Tugas harus dipilih untuk menerima disposisi.', 'warning');
+      } else {
+        alert('Minimal 1 Satuan Tugas harus dipilih untuk menerima disposisi.');
+      }
+      return;
+    }
+    selectedPawasUnitIds.splice(index, 1);
+  } else {
+    selectedPawasUnitIds.push(unitId);
+  }
+
+  renderPawasMultiUnitSelector();
+
+  // Update preview armada ke satuan terakhir yang diklik
+  const targetArmada = currentModalArmadaList.find(a => a.id === unitId) || currentModalArmadaList[0];
+  if (targetArmada) {
+    renderPawasFleetPreview(targetArmada);
+  }
 }
 
 function tutupModalDisposisiPawas() {
@@ -2508,17 +3409,29 @@ function konfirmasiDisposisiPawas() {
   const log = appLogs.find(l => l.id === selectedPawasDisposisiLogId);
   if (!log) return;
 
-  const unitSelect = document.getElementById('pawas-disp-unit');
-  const selectedArmadaId = unitSelect ? unitSelect.value : (currentModalArmadaList[0]?.id || 'samapta');
-  const armada = currentModalArmadaList.find(a => a.id === selectedArmadaId) || currentModalArmadaList[0] || DAFTAR_ARMADA_PRESISI[0];
+  if (!selectedPawasUnitIds || selectedPawasUnitIds.length === 0) {
+    selectedPawasUnitIds = [currentModalArmadaList[0]?.id || 'sabhara'];
+  }
 
-  const unitVal = armada.nama;
-  const personelVal = document.getElementById('pawas-disp-personel').value.trim() || armada.komandan;
+  // Kumpulkan objek armada dari semua satuan yang dipilih
+  const chosenArmadas = currentModalArmadaList.filter(a => selectedPawasUnitIds.includes(a.id));
+  const leadArmada = chosenArmadas[0] || currentModalArmadaList[0] || DAFTAR_ARMADA_PRESISI[0];
+
+  // Kumpulkan list ID dan Nama Satuan
+  const assignedUnitIds = chosenArmadas.map(a => {
+    const rawId = (a.satuanId || a.id || '').toLowerCase();
+    return rawId.includes('reskrim') ? 'reskrim' : (rawId.includes('intel') ? 'intel' : (rawId.includes('lantas') ? 'lantas' : (rawId.includes('binmas') || rawId.includes('polsek') ? 'binmas' : 'sabhara')));
+  });
+
+  const assignedSatuanNames = chosenArmadas.map(a => a.namaSingkat || a.nama).join(', ');
+  const unitVal = chosenArmadas.map(a => a.nama).join(' + ');
+
+  const personelVal = document.getElementById('pawas-disp-personel').value.trim() || leadArmada.komandan;
   const arahanVal = document.getElementById('pawas-disp-arahan').value.trim() || 'Segera datangi TKP, amankan perimeter & prioritaskan keselamatan warga.';
-  const jarakVal = armada.jarakTeks;
-  const etaVal = armada.etaTeks;
-  const posisiVal = armada.posisiSaatIni;
-  const kekuatanVal = armada.kekuatan;
+  const jarakVal = leadArmada.jarakTeks;
+  const etaVal = leadArmada.etaTeks;
+  const posisiVal = leadArmada.posisiSaatIni;
+  const kekuatanVal = chosenArmadas.map(a => `${a.namaSingkat}: ${a.kekuatan}`).join(' • ');
 
   const waktuSekarang = formatWaktuHhMmWib();
 
@@ -2526,21 +3439,23 @@ function konfirmasiDisposisiPawas() {
   log.statusText = 'Sedang Diproses';
   log.tahap = 3; // Meluncur ke TKP
 
-  // Normalisasi id satuan (5 Satuan Utama: reskrim, intel, lantas, binmas, sabhara)
-  const rawId = (armada.satuanId || armada.id || '').toLowerCase();
-  const sId = rawId.includes('reskrim') ? 'reskrim' : (rawId.includes('intel') ? 'intel' : (rawId.includes('lantas') ? 'lantas' : (rawId.includes('binmas') || rawId.includes('polsek') ? 'binmas' : 'sabhara')));
-
-  log.assignedUnitId = sId;
-  log.assignedSatuan = armada.satuan || unitVal;
-  log.assignedNrp = armada.nrpKomandan || '95020123';
+  // Simpan Multi-Unit Assignment & Batas Kuat Personel SOP
+  const kuotaMaksimal = selectedPawasKuotaPersonel || 4;
+  log.maxPersonel = kuotaMaksimal;
+  log.assignedUnitId = assignedUnitIds[0]; // Unit Utama
+  log.assignedUnitIds = assignedUnitIds;   // Seluruh Unit Terpilih
+  log.assignedSatuan = assignedSatuanNames;
+  log.assignedNrp = leadArmada.nrpKomandan || '95020123';
   log.assignedNama = personelVal;
   log.acceptedNrps = []; // Wadah bagi setiap personel satuan yang menerima tugas
   log.acceptedPersonels = []; // Detail nama dan pangkat personel yang bergabung
 
   log.disposisi = {
     unit: unitVal,
-    unitId: sId,
-    satuan: armada.satuan || unitVal,
+    unitId: assignedUnitIds[0],
+    unitIds: assignedUnitIds,
+    satuan: assignedSatuanNames,
+    maxPersonel: kuotaMaksimal,
     komandan: personelVal,
     nrpKomandan: log.assignedNrp,
     estimasiJarak: jarakVal,
@@ -2557,8 +3472,8 @@ function konfirmasiDisposisiPawas() {
   log.riwayatValidasi.push({
     waktu: waktuSekarang,
     aktor: (typeof getActiveSessionUser === 'function' && getActiveSessionUser() && getActiveSessionUser().nama ? getActiveSessionUser().nama + ' (Pawas)' : 'Kombes Pol Budi Santoso (Pawas)'),
-    aksi: 'Disposisi Satuan Diterbitkan (Broadcast Persatuan)',
-    catatan: 'Disiarkan ke: ' + (armada.satuan || unitVal) + ' • Estimasi Jarak: ' + jarakVal + ' (' + etaVal + ' ke TKP). Arahan: "' + arahanVal + '"'
+    aksi: 'Disposisi Multi-Satuan Diterbitkan (Broadcast Bersama)',
+    catatan: 'Disiarkan ke: ' + assignedSatuanNames + ' • Kuota Maks: ' + kuotaMaksimal + ' Personel • Estimasi Respon Tercepat: ' + jarakVal + ' (' + etaVal + ' ke TKP). Arahan: "' + arahanVal + '"'
   });
 
   log._updatedAt = Date.now();
@@ -2575,7 +3490,7 @@ function konfirmasiDisposisiPawas() {
   // Buka Modal Sukses Disposisi Presisi Modern (Menggantikan Alert Bawaan Browser)
   bukaModalSuksesDisposisi({
     nomorTiket: log.nomorTiket,
-    unit: unitVal,
+    unit: assignedSatuanNames,
     komandan: personelVal,
     jarak: jarakVal,
     eta: etaVal,
@@ -2670,7 +3585,9 @@ function normSatuanETribrata(satuanStr) {
   if (s.includes('lantas') || s.includes('lalu') || s.includes('pjr') || s.includes('turjawali')) return 'lantas';
   if (s.includes('samapta') || s.includes('sabhara') || s.includes('raimas') || s.includes('patroli')) return 'samapta';
   if (s.includes('reskrim') || s.includes('reserse') || s.includes('penyidik') || s.includes('opsnal') || s.includes('resmob')) return 'reskrim';
-  if (s.includes('polsek') || s.includes('bhabin')) return 'polsek';
+  if (s.includes('intel') || s.includes('intelkam')) return 'intel';
+  if (s.includes('binmas') || s.includes('bhabin') || s.includes('polmas')) return 'binmas';
+  if (s.includes('polsek')) return 'binmas';
   return 'samapta';
 }
 
@@ -2684,8 +3601,22 @@ function cekNotifikasiBroadcastSatuan() {
 
   const matchingLog = appLogs.find(l => {
     if (l.status !== 'diproses') return false;
-    const targetSatuan = l.assignedUnitId || normSatuanETribrata(l.disposisi?.satuan || l.disposisi?.unit || l.assignedSatuan);
-    if (targetSatuan !== userCategory) return false;
+
+    // Cek kecocokan target satuan (Tunggal atau Multi-Satuan yang dipilih Pawas)
+    let isUnitMatch = false;
+    if (Array.isArray(l.assignedUnitIds) && l.assignedUnitIds.length > 0) {
+      isUnitMatch = l.assignedUnitIds.some(uid => {
+        const normUid = uid.toLowerCase();
+        return normUid === userCategory || normSatuanETribrata(normUid) === userCategory;
+      });
+    }
+
+    if (!isUnitMatch) {
+      const targetSatuan = l.assignedUnitId || normSatuanETribrata(l.disposisi?.satuan || l.disposisi?.unit || l.assignedSatuan);
+      if (targetSatuan === userCategory) isUnitMatch = true;
+    }
+
+    if (!isUnitMatch) return false;
 
     const isAlreadyAccepted = Array.isArray(l.acceptedNrps) && l.acceptedNrps.includes(user.nrp);
     const isDismissed = sessionStorage.getItem('bcast_dismissed_' + l.id);
@@ -2720,18 +3651,56 @@ function bukaModalBroadcastSatuan(log) {
   if (lokasiEl) lokasiEl.innerHTML = `<span>📍 TKP:</span> <strong>${log.lokasiKejadian || log.sektor || 'Wilayah Penugasan'}</strong>`;
   if (arahanEl) arahanEl.innerText = `"${log.disposisi?.arahan || 'Segera meluncur ke TKP dan lakukan tindakan taktis.'}"`;
 
+  const kuotaMax = log.maxPersonel || log.disposisi?.maxPersonel || 4;
+  const currentCount = Array.isArray(log.acceptedNrps) ? log.acceptedNrps.length : 0;
+  const isFull = currentCount >= kuotaMax;
+  const curActiveUser = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
+  const alreadyAccepted = curActiveUser && Array.isArray(log.acceptedNrps) && log.acceptedNrps.includes(curActiveUser.nrp);
+
   if (petugasListEl) {
     if (Array.isArray(log.acceptedPersonels) && log.acceptedPersonels.length > 0) {
       const names = log.acceptedPersonels.map(p => `👮 ${p.nama} (${p.pangkat || 'Personel'})`).join('<br>');
-      petugasListEl.innerHTML = `<span style="color:#15803D; font-weight:800;">${log.acceptedPersonels.length} Anggota Telah Siap:</span><br>${names}`;
+      petugasListEl.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <span style="color:#15803D; font-weight:800;">👥 Personel Bergabung: ${currentCount} / ${kuotaMax} Kuota</span>
+          <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; ${isFull ? 'background:#FEE2E2; color:#DC2626; border:1px solid #FECACA;' : 'background:#DCFCE7; color:#15803D; border:1px solid #BBF7D0;'}">
+            ${isFull ? '🔒 KUOTA PENUH' : '🟢 KUOTA TERSEDIA'}
+          </span>
+        </div>
+        <div style="font-size:11px; line-height:1.4;">${names}</div>
+      `;
     } else {
-      petugasListEl.innerHTML = `<span style="color:#B45309; font-weight:700;">Belum ada anggota yang klik terima (Jadilah personel pertama yang merespon)</span>`;
+      petugasListEl.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:#B45309; font-weight:700;">Belum ada anggota yang klik terima (0 / ${kuotaMax} Kuota)</span>
+          <span style="font-size:10px; font-weight:800; background:#EFF6FF; color:#1D4ED8; padding:2px 6px; border-radius:4px; border:1px solid #BFDBFE;">KUOTA: ${kuotaMax} PERS</span>
+        </div>
+      `;
     }
   }
 
   if (btnTerima) {
-    btnTerima.innerHTML = '<span>🛡️</span> TERIMA PENGADUAN INI ➔';
-    btnTerima.disabled = false;
+    if (alreadyAccepted) {
+      btnTerima.innerHTML = '<span>✅</span> ANDA SUDAH MENERIMA TUGAS INI';
+      btnTerima.disabled = true;
+      btnTerima.style.background = '#059669';
+      btnTerima.style.cursor = 'default';
+      btnTerima.style.opacity = '0.9';
+    } else if (isFull) {
+      btnTerima.innerHTML = `<span>⛔</span> KUOTA MAKSIMAL TERPENUHI (${currentCount}/${kuotaMax})`;
+      btnTerima.disabled = true;
+      btnTerima.style.background = '#64748B';
+      btnTerima.style.cursor = 'not-allowed';
+      btnTerima.style.boxShadow = 'none';
+      btnTerima.style.opacity = '0.85';
+    } else {
+      btnTerima.innerHTML = `<span>🛡️</span> TERIMA PENGADUAN INI (${currentCount}/${kuotaMax}) ➔`;
+      btnTerima.disabled = false;
+      btnTerima.style.background = 'linear-gradient(135deg, #059669 0%, #10B981 100%)';
+      btnTerima.style.cursor = 'pointer';
+      btnTerima.style.boxShadow = '0 4px 12px rgba(16,185,129,0.35)';
+      btnTerima.style.opacity = '1';
+    }
   }
 
   modal.style.display = 'flex';
@@ -2760,6 +3729,19 @@ function terimaTugasSatuanDariModal() {
   if (!Array.isArray(log.acceptedNrps)) log.acceptedNrps = [];
   if (!Array.isArray(log.acceptedPersonels)) log.acceptedPersonels = [];
 
+  const kuotaMax = log.maxPersonel || log.disposisi?.maxPersonel || 4;
+
+  // Cek apakah kuota sudah penuh
+  if (!log.acceptedNrps.includes(userNrp) && log.acceptedNrps.length >= kuotaMax) {
+    if (typeof showSimapresNotification === 'function') {
+      showSimapresNotification(`⛔ Kuota personel untuk tugas ini sudah penuh (Maksimal ${kuotaMax} Personel sesuai SOP).`, 'warning');
+    } else {
+      alert(`⛔ Kuota personel untuk tugas ini sudah penuh (Maksimal ${kuotaMax} Personel sesuai SOP).`);
+    }
+    bukaModalBroadcastSatuan(log);
+    return;
+  }
+
   if (!log.acceptedNrps.includes(userNrp)) {
     log.acceptedNrps.push(userNrp);
     log.acceptedPersonels.push({
@@ -2785,24 +3767,203 @@ function terimaTugasSatuanDariModal() {
   const modal = document.getElementById('modal-broadcast-satuan');
   if (modal) modal.style.display = 'none';
 
-  if (typeof openValidasiList === 'function') {
-    openValidasiList('diproses', true);
-  }
-  if (typeof selectLogCard === 'function') {
-    selectLogCard(log.id);
-  }
-
-  if (typeof tampilkanModalAlertPresisi === 'function') {
-    tampilkanModalAlertPresisi(
-      `✓ Tugas Pengaduan Diterima!\n\n` +
-      `Anda (${userNama}) telah resmi bergabung menangani tiket ${log.nomorTiket || log.id}.\n` +
-      `Seluruh rekan di satuan Anda dapat melihat status keterlibatan ini secara real-time.`
-    );
-  } else {
-    alert(`Tugas ${log.nomorTiket} berhasil diterima.`);
-  }
+  // Otomatis arahkan personel langsung ke Tab PETA & aktifkan navigasi rute tercepat
+  aktifkanNavigasiRuteKeTkp(log, userNama);
 
   currentBroadcastLogId = null;
+}
+
+// ============================================================
+// SISTEM NAVIGASI TAKTIS & LIVE ROUTE DISPATCH (KE TKP)
+// Menampilkan posisi anggota, rute tercepat, directions & live traffic
+// ============================================================
+let activeNavPolyline = null;
+let activeNavDestMarker = null;
+let activeNavOriginMarker = null;
+let activeTrafficLayer = null;
+let activeTrafficLayerBeranda = null;
+
+function toggleTrafficLine(enable) {
+  if (typeof google === 'undefined' || !google.maps) return;
+  if (!activeTrafficLayer && mapFullscreen) {
+    activeTrafficLayer = new google.maps.TrafficLayer();
+  }
+  if (!activeTrafficLayerBeranda && mapBeranda) {
+    activeTrafficLayerBeranda = new google.maps.TrafficLayer();
+  }
+  if (activeTrafficLayer) activeTrafficLayer.setMap(enable ? mapFullscreen : null);
+  if (activeTrafficLayerBeranda) activeTrafficLayerBeranda.setMap(enable ? mapBeranda : null);
+}
+
+let isTrafficBerandaActive = true;
+function toggleTrafficLineBerandaBadge(el) {
+  isTrafficBerandaActive = !isTrafficBerandaActive;
+  if (mapBeranda) {
+    if (!activeTrafficLayerBeranda) {
+      activeTrafficLayerBeranda = new google.maps.TrafficLayer();
+    }
+    activeTrafficLayerBeranda.setMap(isTrafficBerandaActive ? mapBeranda : null);
+  }
+  if (el) {
+    if (isTrafficBerandaActive) {
+      el.style.background = '#ECFDF5';
+      el.style.color = '#047857';
+      el.style.borderColor = '#A7F3D0';
+      el.innerHTML = '🚦 Live Traffic: ON';
+    } else {
+      el.style.background = '#F1F5F9';
+      el.style.color = '#64748B';
+      el.style.borderColor = '#CBD5E1';
+      el.innerHTML = '🚦 Live Traffic: OFF';
+    }
+  }
+}
+
+function aktifkanNavigasiRuteKeTkp(log, userNama) {
+  // 1. Pindah tab ke Layar Peta Layar Penuh
+  switchTab('view-peta');
+
+  // 2. Dapatkan koordinat personel saat ini (dari scan HP atau fallback Jakarta Pusat)
+  let originPos = { lat: -6.2150, lng: 106.8300 }; // Default Pos Pantau Kuningan / Menteng
+  try {
+    const scan = JSON.parse(localStorage.getItem('simapres_latest_hp_scan') || sessionStorage.getItem('simapres_scanned_device') || 'null');
+    if (scan && scan.coords && scan.coords.lat) {
+      originPos = { lat: parseFloat(scan.coords.lat), lng: parseFloat(scan.coords.lng) };
+    }
+  } catch(e) {}
+
+  // 3. Tentukan koordinat TKP dari data log
+  let destPos = { lat: -6.2088, lng: 106.8456 }; // Default TKP
+  if (log.gpsCoords) {
+    const parts = log.gpsCoords.split(',').map(s => parseFloat(s.trim()));
+    if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      destPos = { lat: parts[0], lng: parts[1] };
+    }
+  } else {
+    // Variasi acak sekitar sektor agar rute realistis
+    destPos = { lat: originPos.lat + 0.015, lng: originPos.lng + 0.012 };
+  }
+
+  // 4. Update Floating Card Navigasi di layar peta
+  const navPanel = document.getElementById('panel-navigasi-rute-tkp');
+  if (navPanel) {
+    navPanel.style.display = 'block';
+    const elJdl = document.getElementById('nav-target-judul');
+    const elLok = document.getElementById('nav-target-lokasi');
+    const elEta = document.getElementById('nav-target-eta');
+    const elJrk = document.getElementById('nav-target-jarak');
+    const elTrf = document.getElementById('nav-target-traffic');
+    const elStp = document.getElementById('nav-target-step');
+
+    if (elJdl) elJdl.innerText = log.title || log.jenisInsiden || 'Penanganan Pengaduan';
+    if (elLok) elLok.innerHTML = `<span>📍 TKP:</span> ${log.lokasiKejadian || log.sektor || 'Jakarta'}`;
+    if (elEta) elEta.innerText = log.disposisi?.estimasiEta || '± 4 Menit';
+    if (elJrk) elJrk.innerText = `Jarak: ${log.disposisi?.estimasiJarak || '1.8 km'}`;
+    if (elTrf) elTrf.innerText = '🟢 Jalur Hijau (Sirine Aktif)';
+    if (elStp) elStp.innerText = `Halo ${userNama || 'Petugas'}, rute tercepat siap. Segera meluncur via jalan protokol, lampu rotator biru aktif.`;
+  }
+
+  // 5. Gambar Rute di Google Maps & Pasang Traffic Layer
+  if (typeof google !== 'undefined' && google.maps && mapFullscreen) {
+    // Aktifkan Live Traffic Layer
+    if (!activeTrafficLayer) {
+      activeTrafficLayer = new google.maps.TrafficLayer();
+    }
+    activeTrafficLayer.setMap(mapFullscreen);
+
+    // Hapus rute lama jika ada
+    if (activeNavPolyline) {
+      activeNavPolyline.setMap(null);
+    }
+    if (activeNavDestMarker) {
+      activeNavDestMarker.setMap(null);
+    }
+    if (activeNavOriginMarker) {
+      activeNavOriginMarker.setMap(null);
+    }
+
+    // Pasang Marker Posisi Terkini Personel
+    activeNavOriginMarker = new google.maps.Marker({
+      position: originPos,
+      map: mapFullscreen,
+      title: 'Posisi Anda Saat Ini',
+      icon: {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 46 46">
+            <circle cx="23" cy="23" r="20" fill="#2563EB" fill-opacity="0.3" stroke="#2563EB" stroke-width="2"/>
+            <circle cx="23" cy="23" r="14" fill="#2563EB" stroke="#FFFFFF" stroke-width="2.5"/>
+            <text x="23" y="28" font-size="14" text-anchor="middle" fill="#FFFFFF">👮</text>
+          </svg>
+        `),
+        scaledSize: new google.maps.Size(46, 46),
+        anchor: new google.maps.Point(23, 23)
+      }
+    });
+
+    // Pasang Marker TKP Tujuan
+    activeNavDestMarker = new google.maps.Marker({
+      position: destPos,
+      map: mapFullscreen,
+      title: 'TKP Insiden: ' + (log.title || 'Kejadian'),
+      icon: {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg xmlns="http://www.w3.org/2000/svg" width="46" height="46" viewBox="0 0 46 46">
+            <circle cx="23" cy="23" r="20" fill="#DC2626" fill-opacity="0.3" stroke="#DC2626" stroke-width="2"/>
+            <circle cx="23" cy="23" r="14" fill="#DC2626" stroke="#FFFFFF" stroke-width="2.5"/>
+            <text x="23" y="28" font-size="14" text-anchor="middle" fill="#FFFFFF">🎯</text>
+          </svg>
+        `),
+        scaledSize: new google.maps.Size(46, 46),
+        anchor: new google.maps.Point(23, 23)
+      }
+    });
+
+    // Panggil OSRM Routing untuk mendapatkan jalan yang sesungguhnya (road-snapped)
+    const url = `https://router.project-osrm.org/route/v1/driving/${originPos.lng},${originPos.lat};${destPos.lng},${destPos.lat}?overview=full&geometries=polyline`;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        let path = [originPos, destPos];
+        if (data.routes && data.routes.length > 0) {
+          path = google.maps.geometry.encoding.decodePath(data.routes[0].geometry);
+          const durasiMenit = Math.max(2, Math.round(data.routes[0].duration / 60));
+          const jarakKm = (data.routes[0].distance / 1000).toFixed(1);
+          const elEta = document.getElementById('nav-target-eta');
+          const elJrk = document.getElementById('nav-target-jarak');
+          if (elEta) elEta.innerText = `± ${durasiMenit} Menit`;
+          if (elJrk) elJrk.innerText = `Jarak: ${jarakKm} km`;
+        }
+        activeNavPolyline = new google.maps.Polyline({
+          path: path,
+          strokeColor: '#2563EB',
+          strokeOpacity: 0.9,
+          strokeWeight: 6,
+          map: mapFullscreen
+        });
+
+        // Fit Bounds agar kedua titik terlihat nyaman di layar
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend(originPos);
+        bounds.extend(destPos);
+        mapFullscreen.fitBounds(bounds, { top: 70, bottom: 180, left: 40, right: 40 });
+      })
+      .catch(err => {
+        console.warn('Nav routing fallback straight line:', err);
+        activeNavPolyline = new google.maps.Polyline({
+          path: [originPos, destPos],
+          strokeColor: '#2563EB',
+          strokeOpacity: 0.85,
+          strokeWeight: 6,
+          map: mapFullscreen
+        });
+        mapFullscreen.setCenter(originPos);
+        mapFullscreen.setZoom(14);
+      });
+  }
+
+  if (typeof showSimapresNotification === 'function') {
+    showSimapresNotification(`🗺️ Rute Navigasi Menuju TKP Aktif: Rute tercepat & traffic line telah ditampilkan di peta.`, 'success');
+  }
 }
 
 // ============================================================
@@ -4439,13 +5600,21 @@ function displayLogDetail(id) {
           // Field Officer View (Bripka Ahmad & Regu Lapangan)
           const curActiveUser = (typeof getActiveSessionUser === 'function') ? getActiveSessionUser() : null;
           const userAlreadyAccepted = curActiveUser && Array.isArray(log.acceptedNrps) && log.acceptedNrps.includes(curActiveUser.nrp);
+          const kuotaMax = log.maxPersonel || log.disposisi?.maxPersonel || 4;
+          const currentCount = Array.isArray(log.acceptedNrps) ? log.acceptedNrps.length : 0;
+          const isFull = currentCount >= kuotaMax;
 
           let timSatuanHtml = '';
           if (Array.isArray(log.acceptedPersonels) && log.acceptedPersonels.length > 0) {
             const listNama = log.acceptedPersonels.map(p => `<span style="display:inline-block; background:#DCFCE7; color:#166534; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px; margin:2px;">👮 ${p.nama}</span>`).join(' ');
             timSatuanHtml = `
               <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:8px; padding:8px 12px; margin-bottom:4px;">
-                <div style="font-size:11px; font-weight:800; color:#166534; margin-bottom:4px;">👥 Anggota Satuan yang Menangani (${log.acceptedPersonels.length} Personel):</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                  <span style="font-size:11px; font-weight:800; color:#166534;">👥 Anggota Satuan yang Menangani (${currentCount} / ${kuotaMax} Personel):</span>
+                  <span style="font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:4px; ${isFull ? 'background:#FEE2E2; color:#DC2626; border:1px solid #FECACA;' : 'background:#DCFCE7; color:#15803D; border:1px solid #BBF7D0;'}">
+                    ${isFull ? '🔒 KUOTA PENUH' : '🟢 KUOTA TERSEDIA'}
+                  </span>
+                </div>
                 <div>${listNama}</div>
               </div>
             `;
@@ -4453,11 +5622,24 @@ function displayLogDetail(id) {
 
           let tombolAksiPersonelHtml = '';
           if (!userAlreadyAccepted && (log.status === 'diproses' && log.tahap < 5)) {
-            tombolAksiPersonelHtml = `
-              <button type="button" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #059669 0%, #10B981 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 4px 12px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="currentBroadcastLogId = ${log.id}; terimaTugasSatuanDariModal();">
-                <span>🛡️</span> Terima Penugasan Satuan Ini ➔
-              </button>
-            `;
+            if (isFull) {
+              tombolAksiPersonelHtml = `
+                <div style="background:#F1F5F9; border:1.5px solid #CBD5E1; border-radius:8px; padding:12px; text-align:center;">
+                  <div style="font-size:13px; font-weight:800; color:#475569; display:flex; align-items:center; justify-content:center; gap:6px;">
+                    <span>🔒</span> Kuota Regu Maksimal Terpenuhi (${currentCount}/${kuotaMax} Personel)
+                  </div>
+                  <div style="font-size:11px; color:#64748B; margin-top:3px;">
+                    Kuat personel di TKP sudah mencukupi SOP taktis Polri. Silakan lanjutkan patroli &amp; siaga di sektor Anda.
+                  </div>
+                </div>
+              `;
+            } else {
+              tombolAksiPersonelHtml = `
+                <button type="button" style="width:100%; margin:0; padding:13px; background:linear-gradient(135deg, #059669 0%, #10B981 100%); color:white; font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:8px; box-shadow:0 4px 12px rgba(16,185,129,0.3); cursor:pointer; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'" onclick="currentBroadcastLogId = ${log.id}; terimaTugasSatuanDariModal();">
+                  <span>🛡️</span> Terima Penugasan Satuan Ini (${currentCount}/${kuotaMax}) ➔
+                </button>
+              `;
+            }
           } else if (log.status === 'menunggu_pengesahan' || (log.tahap >= 5 && (log.catatanSelesai || log.waktuSelesai))) {
             tombolAksiPersonelHtml = `
               <div style="background:#FEF9C3; border:1.5px solid #FDE047; border-radius:10px; padding:13px; display:flex; align-items:flex-start; gap:10px;">
@@ -5213,7 +6395,15 @@ function initCharts() {
 
   const gSla = document.getElementById('gauge-sla-pimpinan');
   if (gSla) {
-    new Chart(gSla, {
+    if (chartGaugeSlaPimpinanInstance) {
+      try { chartGaugeSlaPimpinanInstance.destroy(); } catch (e) {}
+    } else {
+      const existing = Chart.getChart(gSla);
+      if (existing) {
+        try { existing.destroy(); } catch (e) {}
+      }
+    }
+    chartGaugeSlaPimpinanInstance = new Chart(gSla, {
       type: 'doughnut',
       data: {
         datasets: [{
@@ -5231,42 +6421,54 @@ function initCharts() {
     });
   }
 
-  const gaugeOpts2 = {
-    type: 'doughnut',
-    data: { datasets: [{ data: [92, 8], backgroundColor: ['#EF4444', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
-    options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
-  };
-  new Chart(document.getElementById('gauge2'), gaugeOpts2);
+  const g2 = document.getElementById('gauge2');
+  if (g2) {
+    const gaugeOpts2 = {
+      type: 'doughnut',
+      data: { datasets: [{ data: [92, 8], backgroundColor: ['#EF4444', '#E2E8F0'], borderWidth: 0, circumference: 180, rotation: 270 }] },
+      options: { maintainAspectRatio: false, cutout: '80%', plugins: { tooltip: { enabled: false } } }
+    };
+    new Chart(g2, gaugeOpts2);
+  }
 
   // Chart 1: Distribusi Jenis Kegiatan (Pie)
-  myChart1 = new Chart(document.getElementById('chart1'), {
-    type: 'pie',
-    data: {
-      labels: ['Patroli', 'TPTKP', 'Sambang', 'Pengamanan'],
-      datasets: [{ data: [40, 10, 30, 20], backgroundColor: ['#1D4ED8', '#EF4444', '#F59E0B', '#10B981'], borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: { maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
-  });
+  const elChart1 = document.getElementById('chart1');
+  if (elChart1) {
+    myChart1 = new Chart(elChart1, {
+      type: 'pie',
+      data: {
+        labels: ['Patroli', 'TPTKP', 'Sambang', 'Pengamanan'],
+        datasets: [{ data: [40, 10, 30, 20], backgroundColor: ['#1D4ED8', '#EF4444', '#F59E0B', '#10B981'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+    });
+  }
 
   // Chart 2: Status Validasi (Doughnut)
-  myChart2 = new Chart(document.getElementById('chart2'), {
-    type: 'doughnut',
-    data: {
-      labels: ['Disetujui', 'Menunggu', 'Ditolak'],
-      datasets: [{ data: [38, 5, 2], backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
-    },
-    options: { maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
-  });
+  const elChart2 = document.getElementById('chart2');
+  if (elChart2) {
+    myChart2 = new Chart(elChart2, {
+      type: 'doughnut',
+      data: {
+        labels: ['Disetujui', 'Menunggu', 'Ditolak'],
+        datasets: [{ data: [38, 5, 2], backgroundColor: ['#10B981', '#F59E0B', '#EF4444'], borderWidth: 2, borderColor: '#fff' }]
+      },
+      options: { maintainAspectRatio: false, cutout: '60%', plugins: { legend: { display: true, position: 'bottom', labels: { boxWidth: 10 } } } }
+    });
+  }
 
   // Chart 3: Tren Volume Kegiatan (Bar)
-  myChart3 = new Chart(document.getElementById('chart3'), {
-    type: 'bar',
-    data: {
-      labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-      datasets: [{ label: 'Jumlah Log', data: [8, 10, 5, 12, 15, 6, 4], backgroundColor: '#153E75', borderRadius: 4 }]
-    },
-    options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
-  });
+  const elChart3 = document.getElementById('chart3');
+  if (elChart3) {
+    myChart3 = new Chart(elChart3, {
+      type: 'bar',
+      data: {
+        labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+        datasets: [{ label: 'Jumlah Log', data: [8, 10, 5, 12, 15, 6, 4], backgroundColor: '#153E75', borderRadius: 4 }]
+      },
+      options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true }, x: { grid: { display: false } } } }
+    });
+  }
 
   // Panggil inisialisasi chart Pawas jika diakses pimpinan
   renderPimpinanExecutiveDashboard();

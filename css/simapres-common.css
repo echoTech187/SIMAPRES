@@ -1536,4 +1536,33 @@
       .mobile-drawer-handle {
         display: none !important;
       }
+    }
+
+    /* ============================================================ */
+    /* HIDE GOOGLE MAPS DEV OVERLAYS & ERROR POPUPS FOR DEMO        */
+    /* ============================================================ */
+    .dismissButton,
+    .gm-err-container,
+    .gm-err-content,
+    div[aria-labelledby*="gm-err"],
+    div[tabindex="0"][role="dialog"]:has(.gm-err-content) {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
+    /* Hilangkan background abu-abu gelap overlay saat error dialog muncul */
+    #map-fullscreen > div:last-child > div:has(.gm-err-container),
+    #map-beranda > div:last-child > div:has(.gm-err-container) {
+      display: none !important;
+    }
+
+    /* Hilangkan tulisan berulang For development purposes only */
+    .gm-style-cc,
+    a[href^="https://maps.google.com/maps"],
+    .gmnoprint a,
+    .gm-style iframe + div,
+    .gm-style div:empty[style*="background-color: rgba(0, 0, 0, 0.5)"] {
+      display: none !important;
     }
