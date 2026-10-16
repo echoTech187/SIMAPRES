@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aktivasi Device ID GPS - SIMAPRES 110</title>
+  <link rel="icon" type="image/png" href="assets/images/polri_pengaduan_tkp.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    body {
+      background: #0B1120;
+      color: #F8FAFC;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 16px;
+    }
+    .card-terminal {
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      max-width: 440px;
+      width: 100%;
+      overflow: hidden;
+      box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.6);
+      text-align: center;
+    }
+    .header-band {
+      background: linear-gradient(135deg, #153E75 0%, #1D4ED8 100%);
+      padding: 24px 20px;
+      color: white;
+      position: relative;
+    }
+    .pulse-ring {
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      margin-bottom: 10px;
+      box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+      animation: pulseGps 2s infinite ease-in-out;
+    }
+    @keyframes pulseGps {
+      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+      70% { transform: scale(1.08); box-shadow: 0 0 0 15px rgba(56, 189, 248, 0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    }
+    .card-body {
+      padding: 24px 20px;
+    }
+    .dev-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 800;
+      color: #38BDF8;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 10px 16px;
+      border-radius: 10px;
+      display: inline-block;
+      margin: 12px 0 18px 0;
+      letter-spacing: 0.5px;
+    }
+    .telemetry-box {
+      background: #0F172A;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .btn-act {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+      color: white;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .btn-outline {
+      background: transparent;
+      color: #94A3B8;
+      border: 1px solid #475569;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card-terminal">
+    <!-- Header Band -->
+    <div class="header-band">
+      <div class="pulse-ring">📡</div>
+      <h2 style="font-size: 18px; font-weight: 900; letter-spacing: 0.5px;">TERMINAL GPS PERSONIL AKTIF</h2>
+      <p style="font-size: 12px; color: #BFDBFE; margin-top: 4px;">Sistem Pengawasan Presisi Terpadu (SIMAPRES 110)</p>
+    </div>
+
+    <!-- Body Info -->
+    <div class="card-body">
+      <div style="font-size: 11px; font-weight: 800; color: #94A3B8; text-transform: uppercase;">
+        Device ID Terkunci
+      </div>
+      <div id="disp-device-id" class="dev-badge" onclick="salinDeviceIdHp()" style="cursor:pointer;" title="Ketuk untuk menyalin Device ID">
+        MEMUAT DEVICE ID...
+      </div>
+      <div style="font-size:11px; color:#38BDF8; margin-top:-10px; margin-bottom:12px; cursor:pointer;" onclick="salinDeviceIdHp()">
+        📋 <u>Ketuk di sini untuk Salin Device ID</u>
+      </div>
+
+      <div id="disp-unit-box" style="margin-bottom:14px; font-size:12px; font-weight:700; color:#93C5FD; background:rgba(37,99,235,0.15); border:1px solid rgba(59,130,246,0.3); padding:6px 12px; border-radius:8px; display:inline-block;">
+        Unit: <span id="disp-unit-name">Mendeteksi Satuan...</span>
+      </div>
+
+      <!-- Telemetri GPS Live Sensor HP -->
+      <div class="telemetry-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:800; color:#38BDF8;">🛰️ STATUS SENSOR HP:</span>
+          <span id="gps-status-badge" style="font-size:10px; font-weight:800; background:#065F46; color:#34D399; padding:2px 8px; border-radius:4px;">
+            MENGUNCI TITIK...
+          </span>
+        </div>
+        <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Koordinat Satelit HP Anda:</div>
+        <div id="disp-coords" style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:800; color:#F8FAFC;">
+          Mencari sinyal GPS...
+        </div>
+        <div id="disp-accuracy" style="font-size:10.5px; color:#64748B; margin-top:4px;">
+          Sensor aktif • Standar Akurasi Tinggi
+        </div>
+      </div>
+
+      <div style="font-size:12px; color:#94A3B8; line-height:1.5; margin-bottom:16px;">
+        ✅ <strong>HP Personel Berhasil Diikat!</strong> Lokasi patroli Anda kini tersinkronisasi secara real-time dengan radar peta komando Pawas dan E-Tribrata Log.
+      </div>
+
+      <button type="button" class="btn-act btn-primary" onclick="salinDanKirim()" style="margin-bottom:10px;">
+        <span>📋</span> Salin Device ID HP Anda
+      </button>
+
+      <button type="button" class="btn-act" onclick="bukaLayarPersonel()" style="background:#1E293B; border:1px solid #3B82F6; color:#93C5FD;">
+        <span>🛡️</span> Masuk ke Layar Tugas Personel ➔
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let activeCoords = { lat: -6.208800, lng: 106.845600 };
+    let physicalDeviceId = '';
+    let targetNrp = null;
+    let targetUnit = null;
+    let deviceModelName = '';
+
+    const UNIT_NAMES = {
+      'reskrim': 'Satuan Reserse Kriminal (Satreskrim)',
+      'intel': 'Satuan Intelijen Keamanan (Sat Intelkam)',
+      'lantas': 'Satuan Lalu Lintas (Satlantas)',
+      'binmas': 'Satuan Pembinaan Masyarakat (Sat Binmas)',
+      'sabhara': 'Satuan Sabhara / Samapta Presisi'
+    };
+
+    // Fungsi ekstraksi sidik jari perangkat keras HP (Hardware Device ID Fingerprint)
+    function extractHardwareDeviceId() {
+      // 1. Cek apakah HP ini sudah pernah menghasilkan Hardware Device ID sebelumnya
+      const storedHwId = localStorage.getItem('simapres_hardware_device_id');
+      if (storedHwId) {
+        return storedHwId;
+      }
+
+      // 2. Ekstraksi karakteristik hardware fisik HP
+      const ua = navigator.userAgent;
+      const screenRes = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+      const cores = navigator.hardwareConcurrency || 4;
+      const mem = navigator.deviceMemory || 4;
+      const lang = navigator.language || 'id-ID';
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta';
+
+      // Ekstraksi vendor GPU WebGL
+      let gpuVendor = 'GENERIC-GPU';
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            gpuVendor = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || 'MALI-ADRENO';
+          }
+        }
+      } catch (e) {
+        gpuVendor = 'EMBEDDED-GPU';
+      }
+
+      // Deteksi Model Brand HP dari UserAgent
+      if (/iPhone/i.test(ua)) deviceModelName = 'Apple iPhone';
+      else if (/Samsung/i.test(ua)) deviceModelName = 'Samsung Galaxy';
+      else if (/Xiaomi|Redmi|POCO/i.test(ua)) deviceModelName = 'Xiaomi / Redmi';
+      else if (/Oppo/i.test(ua)) deviceModelName = 'Oppo Mobile';
+      else if (/Vivo/i.test(ua)) deviceModelName = 'Vivo Mobile';
+      else if (/Realme/i.test(ua)) deviceModelName = 'Realme Mobile';
+      else if (/Android/i.test(ua)) deviceModelName = 'Android Smartphone';
+      else deviceModelName = 'Mobile Terminal';
+
+      // Gabungkan signature fisik dan hash menjadi Device ID unik 8-digit Hexadecimal
+      const rawEntropy = `${ua}_${screenRes}_${cores}_${mem}_${lang}_${timezone}_${gpuVendor}`;
+      let hash = 0;
+      for (let i = 0; i < rawEntropy.length; i++) {
+        hash = ((hash << 5) - hash) + rawEntropy.charCodeAt(i);
+        hash |= 0;
+      }
+
+      // Hasilkan kode format hardware HP unik: DEV-HP-XXXXXXXX
+      const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(-8);
+      const generatedId = `DEV-HP-${hex}`;
+      localStorage.setItem('simapres_hardware_device_id', generatedId);
+      localStorage.setItem('simapres_device_brand_name', deviceModelName);
+      return generatedId;
+    }
+
+    let activeSessionToken = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      targetNrp = params.get('nrp');
+      targetUnit = params.get('unit');
+      activeSessionToken = params.get('session');
+
+      // Ambil Device ID Hardware Asli dari Perangkat HP Fisik
+      physicalDeviceId = extractHardwareDeviceId();
+      document.getElementById('disp-device-id').innerText = physicalDeviceId;
+
+      // Model HP
+      const brand = localStorage.getItem('simapres_device_brand_name') || 'Smartphone Presisi';
+      const unitLabel = UNIT_NAMES[targetUnit] || (targetUnit ? targetUnit.toUpperCase() : 'Satuan Tugas');
+      document.getElementById('disp-unit-name').innerText = `${unitLabel} • ${brand}`;
+
+      // Ambil Koordinat Satelit GPS Asli dari HP & Pasang Real-Time Live Tracking (watchPosition)
+      if (navigator.geolocation) {
+        const updateGpsUI = (pos) => {
+          activeCoords = {
+            lat: Number(pos.coords.latitude.toFixed(6)),
+            lng: Number(pos.coords.longitude.toFixed(6))
+          };
+          const elCoords = document.getElementById('disp-coords');
+          const elAcc = document.getElementById('disp-accuracy');
+          const elBadge = document.getElementById('gps-status-badge');
+          if (elCoords) elCoords.innerText = `${activeCoords.lat}, ${activeCoords.lng}`;
+          if (elAcc) elAcc.innerText = `Akurasi Satelit HP: ± ${Math.round(pos.coords.accuracy || 3)} Meter (Sinyal Satelit Live)`;
+          if (elBadge) {
+            elBadge.innerText = 'TERHUBUNG (LIVE GPS BERGERAK)';
+            elBadge.style.background = '#065F46';
+          }
+          simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
+        };
+
+        navigator.geolocation.getCurrentPosition(
+          updateGpsUI,
+          (err) => {
+            console.warn('Geolocation initial error / fallback:', err);
+            activeCoords = { lat: -6.208800, lng: 106.845600 };
+            document.getElementById('disp-coords').innerText = `${activeCoords.lat}, ${activeCoords.lng} (Simulasi Lokasi Mako)`;
+            document.getElementById('gps-status-badge').innerText = 'STANDBY GPS';
+            simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+
+        // Pasang sensor pemantau pergerakan dinamis (Real-Time GPS Tracker)
+        try {
+          navigator.geolocation.watchPosition(
+            updateGpsUI,
+            (err) => console.warn('watchPosition warning:', err),
+            { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+          );
+        } catch(e) {
+          console.warn('watchPosition not available:', e);
+        }
+      } else {
+        simpanKeDatabase(physicalDeviceId, activeCoords, targetNrp);
+      }
+    });
+
+    function simpanKeDatabase(devId, coords, nrp) {
+      const scanData = {
+        deviceID: devId,
+        coords: coords,
+        nrp: nrp,
+        unitId: targetUnit,
+        brand: deviceModelName || 'Smartphone Android/iOS',
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' WIB',
+        timeUpdated: Date.now(),
+        isScanned: true
+      };
+
+      // 1. Simpan secara lokal di HP
+      localStorage.setItem('simapres_latest_hp_scan', JSON.stringify(scanData));
+      sessionStorage.setItem('simapres_scanned_device', JSON.stringify(scanData));
+
+      // 2. Transmisikan secara ONLINE REAL-TIME ke Laptop melalui Cloud Relay ntfy.sh
+      if (activeSessionToken) {
+        console.log('Broadcasting payload to cloud relay session:', activeSessionToken);
+        fetch(`https://ntfy.sh/${activeSessionToken}`, {
+          method: 'POST',
+          body: JSON.stringify(scanData),
+          headers: {
+            'Title': 'SIMAPRES Device ID Link',
+            'Priority': 'urgent',
+            'Tags': 'shield,mobile_phone'
+          }
+        }).then(res => {
+          console.log('Cloud Relay Success:', res.status);
+          const toast = document.createElement('div');
+          toast.style.cssText = 'position:fixed; top:20px; left:20px; right:20px; background:#065F46; color:#ECFDF5; padding:12px; border-radius:10px; font-size:12px; font-weight:700; z-index:99999; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.4);';
+          toast.innerText = '⚡ Sukses! Device ID fisik HP Anda telah terkirim ke layar laptop.';
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 4000);
+        }).catch(err => {
+          console.warn('Cloud relay broadcast error:', err);
+        });
+      }
+
+      // 3. Perbarui ke localStorage daftar unit jika NRP sudah cocok
+      try {
+        let list = JSON.parse(localStorage.getItem('simapres_registered_units') || '[]');
+        let updated = false;
+        list.forEach(u => {
+          if ((nrp && u.nrp === nrp) || u.deviceID === devId) {
+            u.gpsCoords = coords;
+            u.deviceID = devId;
+            if (targetUnit) {
+              u.unitId = targetUnit;
+              u.satuanNama = UNIT_NAMES[targetUnit] || u.satuanNama;
+            }
+            u.status = 'Aktif';
+            u.tanggalUpdate = new Date().toISOString().split('T')[0];
+            updated = true;
+          }
+        });
+        if (updated) {
+          localStorage.setItem('simapres_registered_units', JSON.stringify(list));
+        }
+      } catch (e) {
+        console.warn('Gagal sync registered units:', e);
+      }
+    }
+
+    function salinDeviceIdHp() {
+      if (!physicalDeviceId) return;
+      navigator.clipboard.writeText(physicalDeviceId).then(() => {
+        alert(`✓ Device ID HP Anda (${physicalDeviceId}) berhasil disalin! Silakan tempelkan di form laptop jika belum terisi.`);
+      }).catch(() => {
+        prompt('Salin Device ID HP Anda berikut:', physicalDeviceId);
+      });
+    }
+
+    function salinDanKirim() {
+      salinDeviceIdHp();
+    }
+
+    function bukaLayarPersonel() {
+      if (targetNrp) {
+        window.location.href = `personil.html?nrp=${encodeURIComponent(targetNrp)}`;
+      } else {
+        window.location.href = 'personil.html';
+      }
+    }
+
+    function kembaliKeRegistrasi() {
+      window.location.href = 'registrasi-unit.html';
+    }
+  </script>
+</body>
+</html>

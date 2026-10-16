@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Internal - E TRIBRATA LOG</title>
+  <style>
+    :root {
+      --primary: #153E75;
+      --primary-dark: #0F2D56;
+      --secondary: #FBBF24;
+      --bg: #F1F5F9;
+      --text: #1E293B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background-color: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    
+    .login-card {
+      background: white;
+      width: 100%;
+      max-width: 400px;
+      border-radius: 16px;
+      padding: 32px 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .shield {
+      width: 40px; height: 40px;
+      background: var(--secondary);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .shield::after { content: "🛡️"; font-size: 20px; }
+    .brand-title { font-size: 22px; font-weight: 800; color: var(--primary); letter-spacing: 1px; }
+    
+    .form-group { margin-bottom: 16px; text-align: left; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #475569; }
+    .form-control {
+      width: 100%; padding: 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 14px;
+    }
+    
+    .btn-login {
+      width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px;
+      font-weight: 700; font-size: 15px; cursor: pointer; margin-top: 8px;
+    }
+    
+    .demo-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 2px dashed #E2E8F0;
+    }
+    .demo-title { font-size: 12px; color: #64748B; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; }
+    
+    .btn-demo {
+      width: 100%; padding: 12px; border: 2px solid var(--primary); background: transparent; color: var(--primary);
+      border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; margin-bottom: 10px;
+      transition: all 0.2s;
+    }
+    .btn-demo:hover { background: var(--primary); color: white; }
+
+    /* Responsiveness Desktop & Mobile */
+    @media (min-width: 1200px) {
+      .login-card {
+        max-width: 460px;
+        padding: 40px 32px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+      }
+      .brand-title {
+        font-size: 24px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px;
+      }
+      .login-card {
+        padding: 24px 16px;
+        border-radius: 14px;
+      }
+      .brand-title {
+        font-size: 20px;
+      }
+      .btn-demo {
+        font-size: 13px;
+        padding: 10px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+    <div class="logo-container">
+      <div class="shield"></div>
+      <div>
+        <div class="brand-title">E TRIBRATA LOG</div>
+        <div style="font-size: 11px; color: #64748B; font-weight: 600; letter-spacing: 0.5px;">SISTEM LOGBOOK & OPERASIONAL PRESISI</div>
+      </div>
+    </div>
+    
+    <div id="login-alert-error" style="display:none; margin-bottom:16px; padding:12px 14px; background:#FEF2F2; border:1.5px solid #FCA5A5; border-radius:10px; color:#991B1B; font-size:12.5px; line-height:1.4;">
+      <div style="font-weight:800; display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+        <span>⛔</span>
+        <span>Akses Ditolak / NRP Tidak Terdaftar</span>
+      </div>
+      <div id="login-alert-text">NRP yang Anda masukkan tidak terdaftar pada Data Personel & Satuan Unit Aktif. Silakan daftarkan terlebih dahulu di menu Pendaftaran Satuan Unit Baru.</div>
+    </div>
+
+    <form id="login-form" onsubmit="handleInternalLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="login-nrp">NRP / ID Petugas</label>
+        <input type="text" id="login-nrp" class="form-control" placeholder="Masukkan NRP Petugas Terdaftar" value="">
+      </div>
+
+      <div class="form-group" style="margin-top: 14px;">
+        <label class="form-label" for="login-pass">Kata Sandi</label>
+        <input type="password" id="login-pass" class="form-control" placeholder="••••••••" value="polripresisi2026">
+      </div>
+      
+      <button type="submit" class="btn-login" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+        <span>MASUK</span>
+        <span>➔</span>
+      </button>
+    </form>
+    
+    <div class="demo-section">
+      <div class="demo-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>⚡ Akses Cepat Unit Aktif Terdaftar</span>
+        <span id="badge-total-unit-login" style="font-size:10px; font-weight:800; background:#EFF6FF; color:#1D4ED8; padding:2px 8px; border-radius:12px; border:1px solid #BFDBFE;">Memuat...</span>
+      </div>
+      
+      <!-- Container Dinamis: Dirender Otomatis dari Data Personel & Satuan Unit Aktif -->
+      <div id="dynamic-registered-units-list" style="display:flex; flex-direction:column; gap:8px;">
+        <!-- Di-render oleh fungsi renderDynamicQuickLoginButtons() -->
+      </div>
+
+      <div class="demo-title" style="margin-top:16px;">⚙️ Pendaftaran & Administrasi Satuan</div>
+      <button class="btn-demo" style="border-color:#059669; color:#047857; background:#ECFDF5; text-align:left; padding:10px 14px; margin-bottom:12px;" onclick="window.location.href='registrasi-unit.html'">
+        <div style="font-size:13px; font-weight:800;">📝 Pendaftaran & Manajemen Satuan Unit Baru</div>
+        <div style="font-size:11px; font-weight:500; color:#059669;">Daftarkan NRP, Pangkat, Unit Satuan, Regu, Password, Device ID & Status</div>
+      </button>
+
+      <div class="demo-title" style="margin-top:16px;">🌐 Portal Publik Warga</div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+        <button class="btn-demo" style="border-color:#DC2626; color:#DC2626; background:#FEF2F2; font-size:11.5px; padding:10px 8px; margin:0;" onclick="window.location.href='masyarakat.html?mode=lapor'">
+          🚨 Lapor Cepat & SOS Warga
+        </button>
+        <button class="btn-demo" style="border-color:#10B981; color:#047857; background:#F0FDF4; font-size:11.5px; padding:10px 8px; margin:0;" onclick="window.location.href='masyarakat.html?mode=lacak'">
+          ⭐ Lacak Tiket & Evaluasi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/simapres-roster.js"></script>
+  <script>
+    function routeUserToPage(user) {
+      if (!user) return;
+      sessionStorage.setItem('simapres_active_user', JSON.stringify(user));
+
+      if (user.role === 'pawas' || user.role === 'pimpinan' || user.unitId === 'pawas_spkt') {
+        window.location.href = `e-tribrata-log.html?role=pawas&nrp=${encodeURIComponent(user.nrp)}`;
+      } else if (user.role === 'operator') {
+        window.location.href = `e-tribrata-log.html?role=operator&nrp=${encodeURIComponent(user.nrp)}`;
+      } else {
+        // Personel Lapangan (diarahkan ke modul personil.html terdedikasi)
+        window.location.href = `personil.html?nrp=${encodeURIComponent(user.nrp)}`;
+      }
+    }
+
+    function showLoginError(pesan) {
+      const errBox = document.getElementById('login-alert-error');
+      const errTxt = document.getElementById('login-alert-text');
+      const nrpInput = document.getElementById('login-nrp');
+      if (errTxt) errTxt.innerText = pesan;
+      if (errBox) {
+        errBox.style.display = 'block';
+        errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      if (nrpInput) {
+        nrpInput.style.borderColor = '#EF4444';
+        nrpInput.style.backgroundColor = '#FEF2F2';
+        nrpInput.focus();
+      }
+    }
+
+    function hideLoginError() {
+      const errBox = document.getElementById('login-alert-error');
+      const nrpInput = document.getElementById('login-nrp');
+      if (errBox) errBox.style.display = 'none';
+      if (nrpInput) {
+        nrpInput.style.borderColor = '#CBD5E1';
+        nrpInput.style.backgroundColor = '#FFFFFF';
+      }
+    }
+
+    function quickLoginRole(nrp) {
+      hideLoginError();
+      const input = document.getElementById('login-nrp');
+      if (input) input.value = nrp;
+
+      // Cek apakah NRP terdaftar murni di Data Personel & Satuan Unit Aktif (Gambar 1)
+      const isRegisteredUnit = (typeof isNrpTerdaftarDiTabelUnit === 'function') ? isNrpTerdaftarDiTabelUnit(nrp) : false;
+      const user = (typeof cariPersonelByNrp === 'function') ? cariPersonelByNrp(nrp) : null;
+
+      if (isRegisteredUnit && user) {
+        routeUserToPage(user);
+      } else {
+        showLoginError(`Akses Ditolak: NRP "${nrp}" TIDAK TERDAFTAR pada Data Personel & Satuan Unit Aktif (Gambar 1)! Daftarkan unit baru terlebih dahulu.`);
+      }
+    }
+
+    function handleInternalLogin(e) {
+      e.preventDefault();
+      hideLoginError();
+      const nrpVal = document.getElementById('login-nrp').value.trim();
+
+      if (!nrpVal) {
+        showLoginError('Silakan masukkan NRP / ID Petugas terlebih dahulu!');
+        return;
+      }
+
+      // Validasi mutlak: Wajib terdaftar di Data Personel & Satuan Unit Aktif (Gambar 1)
+      const isRegisteredUnit = (typeof isNrpTerdaftarDiTabelUnit === 'function') ? isNrpTerdaftarDiTabelUnit(nrpVal) : false;
+      const user = (typeof cariPersonelByNrp === 'function') ? cariPersonelByNrp(nrpVal) : null;
+
+      if (isRegisteredUnit && user) {
+        routeUserToPage(user);
+      } else {
+        // Blokir akses jika NRP tidak terdaftar di Gambar 1
+        showLoginError(`Akses Ditolak: NRP "${nrpVal}" TIDAK TERDAFTAR pada Data Personel & Satuan Unit Aktif (Gambar 1)! Daftarkan unit baru terlebih dahulu di menu Pendaftaran Satuan Unit.`);
+      }
+    }
+
+    // ========================================================
+    // RENDER DINAMIS TOMBOL LOGIN BERDASARKAN DATA UNIT AKTIF
+    // ========================================================
+    function renderDynamicQuickLoginButtons() {
+      const container = document.getElementById('dynamic-registered-units-list');
+      const badgeTot = document.getElementById('badge-total-unit-login');
+      if (!container) return;
+
+      // Ambil daftar unit resmi dari storage
+      let list = [];
+      try {
+        const raw = localStorage.getItem('simapres_registered_units');
+        if (raw) {
+          list = JSON.parse(raw);
+        }
+      } catch (e) {
+        console.warn('Gagal membaca unit login:', e);
+      }
+
+      // Jika belum terinisialisasi di storage, inisialisasi dari roster default
+      if (!list || list.length === 0) {
+        if (typeof getCombinedRosterPersonel === 'function') {
+          getCombinedRosterPersonel();
+          try {
+            const raw = localStorage.getItem('simapres_registered_units');
+            list = raw ? JSON.parse(raw) : [];
+          } catch(e) {}
+        }
+      }
+
+      if (badgeTot) {
+        badgeTot.innerText = `${list.length} Unit Terdaftar`;
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div style="padding:16px; background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; font-size:12px; color:#991B1B; text-align:center;">
+            Belum ada unit terdaftar di sistem. Silakan registrasikan unit baru melalui tombol di bawah.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map(u => {
+        let borderColor = '#153E75';
+        let bgGrad = '#F8FAFC';
+        let textColor = '#153E75';
+        let icon = '👮';
+        let subColor = '#64748B';
+
+        const unitLow = (u.unitId || '').toLowerCase();
+        const roleLow = (u.role || '').toLowerCase();
+
+        if (unitLow.includes('pawas') || unitLow.includes('spkt') || unitLow.includes('komando') || roleLow === 'pawas' || roleLow === 'pimpinan') {
+          borderColor = '#D97706';
+          bgGrad = 'linear-gradient(135deg, #EFF6FF 0%, #FFFBEB 100%)';
+          textColor = '#1E3A8A';
+          subColor = '#B45309';
+          icon = '🎧';
+        } else if (unitLow.includes('lantas')) {
+          borderColor = '#1D4ED8';
+          bgGrad = '#EFF6FF';
+          textColor = '#1E40AF';
+          subColor = '#2563EB';
+          icon = '🚓';
+        } else if (unitLow.includes('reskrim')) {
+          borderColor = '#7C3AED';
+          bgGrad = '#F5F3FF';
+          textColor = '#6D28D9';
+          subColor = '#5B21B6';
+          icon = '🕵️';
+        } else if (unitLow.includes('raimas') || unitLow.includes('motor')) {
+          borderColor = '#D97706';
+          bgGrad = '#FEF3C7';
+          textColor = '#92400E';
+          subColor = '#B45309';
+          icon = '🏍️';
+        } else if (unitLow.includes('intel')) {
+          borderColor = '#EA580C';
+          bgGrad = '#FFF7ED';
+          textColor = '#C2410C';
+          subColor = '#9A3412';
+          icon = '📡';
+        }
+
+        const pangkatLabel = u.pangkat ? u.pangkat.toUpperCase() : 'PETUGAS';
+        const namaLengkap = u.nama || 'Petugas Satuan';
+        const satuanNama = u.satuanNama || u.satuan || u.unitId || 'Satuan Aktif';
+        const reguNama = u.kelompokRegu ? ` • ${u.kelompokRegu}` : '';
+
+        return `
+          <button type="button" class="btn-demo" 
+            style="border-color:${borderColor}; color:${textColor}; background:${bgGrad}; text-align:left; padding:10px 14px; margin-bottom:2px; border-width:1.5px; transition:0.2s;" 
+            onclick="quickLoginRole('${u.nrp}')">
+            <div style="font-size:13px; font-weight:800; display:flex; align-items:center; justify-content:space-between; gap:6px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span>${icon}</span>
+                <span>${pangkatLabel} ${namaLengkap}</span>
+              </div>
+              <span style="font-size:9.5px; background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px; border:1px solid #BBF7D0; font-weight:800; white-space:nowrap;">
+                ✓ Terdaftar
+              </span>
+            </div>
+            <div style="font-size:11px; font-weight:500; color:${subColor}; margin-top:2px;">
+              NRP: <strong>${u.nrp}</strong> • ${satuanNama}${reguNama}
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderDynamicQuickLoginButtons();
+    });
+  </script>
+</body>
+</html>
