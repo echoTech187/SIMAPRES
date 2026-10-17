@@ -228,17 +228,33 @@ export async function getRegisteredUnitsAction() {
       orderBy: { created_at: 'asc' },
     });
     
-    // Ambil data role terbaru dari tabel users untuk menjamin akurasi peran / hak akses
+    // Ambil data role dan station terbaru dari tabel users untuk menjamin akurasi peran & mako
     const users = await prisma.user.findMany({
-      select: { identifier: true, role: true },
+      select: {
+        identifier: true,
+        role: true,
+        station_id: true,
+        station: {
+          select: { id: true, station_name: true, station_code: true, station_level: true },
+        },
+      },
     });
     const roleMap = new Map<string, string>();
-    users.forEach((usr) => roleMap.set(usr.identifier, usr.role));
+    const stationMap = new Map<string, any>();
+    users.forEach((usr) => {
+      roleMap.set(usr.identifier, usr.role);
+      if (usr.station) {
+        stationMap.set(usr.identifier, usr.station);
+      }
+    });
 
     // Jangan pernah ekspos password hash ke client
     const safeUnits = units.map((u: any) => ({
       ...u,
       role: roleMap.get(u.nrp) || u.role || 'PERSONIL',
+      stationId: stationMap.get(u.nrp)?.id || null,
+      stationName: stationMap.get(u.nrp)?.station_name || null,
+      stationCode: stationMap.get(u.nrp)?.station_code || null,
       password: '••••••••',
     }));
     return { success: true, data: serializeBigInt(safeUnits) };
@@ -255,6 +271,7 @@ export async function registerNewUnitAction(input: {
   unitId: string;
   satuanNama: string;
   kelompokRegu: string;
+  stationId?: number | string | null;
   password?: string;
   deviceID?: string;
   liveLat?: number;
@@ -273,6 +290,8 @@ export async function registerNewUnitAction(input: {
         : 'PERSONIL'
     );
 
+    const parsedStationId = input.stationId ? Number(input.stationId) : null;
+
     // 1. Sinkronisasi Akun User (Credentials & Role di Tabel users)
     const user = await prisma.user.upsert({
       where: { identifier: input.nrp },
@@ -280,6 +299,7 @@ export async function registerNewUnitAction(input: {
         full_name: input.nama,
         role: assignedRole,
         password_hash: hashedPassword,
+        station_id: parsedStationId,
       },
       create: {
         identifier: input.nrp,
@@ -287,6 +307,7 @@ export async function registerNewUnitAction(input: {
         full_name: input.nama,
         phone_number: '0812' + Math.floor(10000000 + Math.random() * 90000000),
         role: assignedRole,
+        station_id: parsedStationId,
       },
     });
 
@@ -299,6 +320,7 @@ export async function registerNewUnitAction(input: {
         rank_pangkat: input.pangkat,
         jabatan: `${input.satuanNama} • ${input.kelompokRegu}`.slice(0, 95),
         device_id: devId,
+        station_id: parsedStationId,
       },
       create: {
         user_id: user.id,
@@ -310,6 +332,7 @@ export async function registerNewUnitAction(input: {
         device_id: devId,
         current_gps_lat: input.liveLat || -6.2415,
         current_gps_lng: input.liveLng || 106.8021,
+        station_id: parsedStationId,
       },
     });
 
@@ -402,7 +425,7 @@ export async function updateDeviceTelemetryAction(input: {
 
 export async function getMasterDropdownsAction() {
   try {
-    const [units, ranks, roles] = await Promise.all([
+    const [units, ranks, roles, stations] = await Promise.all([
       prisma.masterOperationalUnit.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
@@ -414,6 +437,9 @@ export async function getMasterDropdownsAction() {
       prisma.masterRole.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
+      }),
+      prisma.policeStation.findMany({
+        orderBy: { id: 'asc' },
       }),
     ]);
 
@@ -438,6 +464,15 @@ export async function getMasterDropdownsAction() {
         code: ro.key,
         label: ro.label,
         urutan: ro.display_order,
+      })),
+      ...stations.map((st: any) => ({
+        id: `station-${st.id}`,
+        numericId: st.id,
+        tipe: 'station',
+        code: st.station_code,
+        label: `${st.station_name} (${st.station_level})`,
+        name: st.station_name,
+        level: st.station_level,
       })),
     ];
     return { success: true, data: items };

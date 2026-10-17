@@ -101,6 +101,7 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
   const [satuanNama, setSatuanNama] = useState('Satuan Samapta Presisi');
   const [kelompokRegu, setKelompokRegu] = useState('Regu Alpha Presisi');
   const [password, setPassword] = useState('polripresisi2026');
+  const [stationId, setStationId] = useState<string>('');
   const [deviceId, setDeviceId] = useState('');
   const [liveLat, setLiveLat] = useState<number>(-6.2415);
   const [liveLng, setLiveLng] = useState<number>(106.8021);
@@ -109,6 +110,7 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSatuan, setFilterSatuan] = useState('all');
   const [filterRole, setFilterRole] = useState('all');
+  const [filterMako, setFilterMako] = useState('all');
 
   // Modal states
   const [showQrModal, setShowQrModal] = useState(false);
@@ -400,6 +402,7 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
       unitId,
       satuanNama,
       kelompokRegu,
+      stationId: stationId ? Number(stationId) : null,
       password,
       deviceID: deviceId,
       liveLat,
@@ -426,6 +429,7 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
     setSatuanNama('Satuan Samapta Presisi');
     setKelompokRegu('Regu Alpha Presisi');
     setPassword('polripresisi2026');
+    setStationId('');
     setDeviceId(`DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
   };
 
@@ -438,6 +442,7 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
     setUnitId(u.unitId || 'sabhara');
     setSatuanNama(u.satuanNama || 'Satuan Samapta Presisi');
     setKelompokRegu(u.kelompokRegu || 'Regu Alpha Presisi');
+    setStationId(u.stationId ? String(u.stationId) : '');
     setDeviceId(u.deviceID || `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -496,11 +501,13 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
       u.nrp?.toLowerCase().includes(q) ||
       (u.role && u.role.toLowerCase().includes(q)) ||
       u.satuanNama?.toLowerCase().includes(q) ||
+      u.stationName?.toLowerCase().includes(q) ||
       u.deviceID?.toLowerCase().includes(q);
 
     const matchSatuan = filterSatuan === 'all' || u.unitId?.toLowerCase() === filterSatuan.toLowerCase();
     const matchRole = filterRole === 'all' || (u.role || 'PERSONIL').toUpperCase() === filterRole.toUpperCase();
-    return matchSearch && matchSatuan && matchRole;
+    const matchMako = filterMako === 'all' || String(u.stationId) === String(filterMako) || u.stationCode?.toLowerCase() === filterMako.toLowerCase();
+    return matchSearch && matchSatuan && matchRole && matchMako;
   });
 
   const getRoleBadgeInfo = (roleStr?: string) => {
@@ -1090,6 +1097,48 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
                   </select>
                 </div>
 
+                {/* 5b. Pilihan Mako (Kantor Polisi) */}
+                <div className="form-group-reg">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label className="form-label-reg" htmlFor="reg-station" style={{ marginBottom: 0 }}>
+                      Kantor Polisi / Wilayah Mako <span className="req">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => switchTab('station')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#2563EB',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                      }}
+                    >
+                      <span>⚙️ Kelola Mako</span>
+                    </button>
+                  </div>
+                  <select
+                    id="reg-station"
+                    className="form-control-reg"
+                    value={stationId}
+                    onChange={(e) => setStationId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Pilih Kantor Polisi (Mako) --</option>
+                    {masterItems
+                      .filter((m) => m.tipe === 'station')
+                      .map((m) => (
+                        <option key={m.id} value={m.numericId || m.code}>
+                          🏢 {m.label || m.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
                 {/* 6. Kelompok Regu / Beat */}
                 <div className="form-group-reg">
                   <label className="form-label-reg" htmlFor="reg-regu">
@@ -1223,6 +1272,21 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
                 <select
                   className="form-control-reg"
                   style={{ flex: 1 }}
+                  value={filterMako}
+                  onChange={(e) => setFilterMako(e.target.value)}
+                >
+                  <option value="all">Semua Mako</option>
+                  {masterItems
+                    .filter((m) => m.tipe === 'station')
+                    .map((m) => (
+                      <option key={m.id} value={m.numericId || m.code}>
+                        {m.name || m.label}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  className="form-control-reg"
+                  style={{ flex: 1 }}
                   value={filterRole}
                   onChange={(e) => setFilterRole(e.target.value)}
                 >
@@ -1292,6 +1356,11 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
                             </td>
                             <td>
                               <span className={getSatuanBadgeClass(u.unitId || '')}>{u.satuanNama || u.unitId}</span>
+                              {u.stationName && (
+                                <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '3px', fontWeight: 600 }}>
+                                  🏢 {u.stationName}
+                                </div>
+                              )}
                             </td>
                             <td style={{ fontWeight: 600, color: '#475569' }}>{u.kelompokRegu || '-'}</td>
                             <td>
