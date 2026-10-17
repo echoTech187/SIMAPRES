@@ -1076,7 +1076,7 @@ export async function createMasterHotspotAction(data: {
         schedule_display:
           data.schedule_display?.trim() ||
           `${data.active_start || '23:00'} - ${data.active_end || '04:30'} WIB`,
-        nearest_unit: data.nearest_unit?.trim() || 'Patroli Samapta 110-A',
+        nearest_unit: data.nearest_unit?.trim() || '-',
       },
     });
 
@@ -1122,7 +1122,7 @@ export async function updateMasterHotspotAction(
         schedule_display:
           data.schedule_display?.trim() ||
           `${data.active_start || '23:00'} - ${data.active_end || '04:30'} WIB`,
-        nearest_unit: data.nearest_unit?.trim() || 'Patroli Samapta 110-A',
+        nearest_unit: data.nearest_unit?.trim() || '-',
       },
     });
 
@@ -1298,8 +1298,8 @@ export async function createMasterVehicleAction(data: {
         status_operasional: statusOp,
         status_color: statusColors[statusOp] || '#10B981',
         driver_officer_nrp: data.driver_officer_nrp?.trim() || null,
-        current_lat: data.current_lat ? Number(data.current_lat) : -6.2415,
-        current_lng: data.current_lng ? Number(data.current_lng) : 106.8021,
+        current_lat: data.current_lat != null ? Number(data.current_lat) : null,
+        current_lng: data.current_lng != null ? Number(data.current_lng) : null,
       },
     });
 
@@ -1345,8 +1345,8 @@ export async function updateMasterVehicleAction(
         status_operasional: statusOp,
         status_color: statusColors[statusOp] || '#10B981',
         driver_officer_nrp: data.driver_officer_nrp?.trim() || null,
-        current_lat: data.current_lat ? Number(data.current_lat) : -6.2415,
-        current_lng: data.current_lng ? Number(data.current_lng) : 106.8021,
+        current_lat: data.current_lat != null ? Number(data.current_lat) : null,
+        current_lng: data.current_lng != null ? Number(data.current_lng) : null,
       },
     });
 

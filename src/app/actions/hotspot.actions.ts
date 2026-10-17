@@ -47,7 +47,7 @@ export async function createHotspotAction(input: {
       jadwalMulai: input.jadwalMulai || '23:00',
       jadwalSelesai: input.jadwalSelesai || '04:30',
       jadwalDisplay: input.jadwalDisplay || `${input.jadwalMulai || '23:00'} - ${input.jadwalSelesai || '04:30'} WIB`,
-      unitTerdekat: input.unitTerdekat || 'Patroli Samapta 110-A',
+      unitTerdekat: input.unitTerdekat || '-',
     });
     revalidatePath('/personil');
     revalidatePath('/command-center');

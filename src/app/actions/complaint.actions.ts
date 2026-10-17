@@ -511,8 +511,8 @@ export async function scanArmadaQrAction(input: {
           driver_officer_nrp: officer.nrp,
           current_lat: input.scanLat,
           current_lng: input.scanLng,
-          status_operasional: '',
-          status_color: '',
+          status_operasional: 'PATROLI',
+          status_color: '#10B981',
           last_heartbeat_at: new Date(),
         },
       });
@@ -522,7 +522,7 @@ export async function scanArmadaQrAction(input: {
         where: { id: officer.id },
         data: {
           assigned_patrol_vehicle: vehicle.nomor_lambung,
-          duty_status: '',
+          duty_status: 'DINAS_PATROLI',
           current_gps_lat: input.scanLat,
           current_gps_lng: input.scanLng,
           last_gps_heartbeat_at: new Date(),
@@ -555,8 +555,8 @@ export async function scanArmadaQrAction(input: {
           driver_officer_nrp: null,
           current_lat: input.scanLat,
           current_lng: input.scanLng,
-          status_operasional: '',
-          status_color: '',
+          status_operasional: 'SIAGA',
+          status_color: '#2563EB',
           last_heartbeat_at: new Date(),
         },
       });
@@ -565,7 +565,7 @@ export async function scanArmadaQrAction(input: {
         where: { id: officer.id },
         data: {
           assigned_patrol_vehicle: null,
-          duty_status: '',
+          duty_status: 'LEPAS_DINAS',
         },
       });
 

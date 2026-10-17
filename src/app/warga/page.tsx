@@ -167,8 +167,8 @@ export default function PortalWargaPage() {
 
     try {
       const dbRes = await createComplaintAction({
-        pelaporNama: 'Warga Pelapor (Tombol SOS Darurat)',
-        pelaporHp: '0812-9988-7711',
+        pelaporNama: nama.trim() || 'Warga (Tombol SOS Darurat)',
+        pelaporHp: telp.trim() || '-',
         jenisKejadian: 'Peringatan Darurat SOS 110',
         kategoriKey: 'Kamtibmas',
         platformKey: 'sos',
