@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -53,8 +53,8 @@ const DAFTAR_ARMADA_PRESISI = [
     namaSingkat: 'Sat Reskrim',
     satuan: 'Satuan Reserse Kriminal (Satreskrim)',
     sektorUtama: 'Pusat Komando',
-    komandan: 'Ipda Reza Pratama, S.H. (Panit Opsnal)',
-    nrpKomandan: '51044321',
+    komandan: 'Ipda Rian Mahendra, S.H. (Unit Resmob)',
+    nrpKomandan: '89110255',
     posisiSaatIni: 'Mako Polres (Standby Tim Tindak Gakkum Resmob)',
     kekuatan: 'Siaga 8 Personel Opsnal • Minibus Taktis • Senpi HS-9 & Kit Olah TKP Inafis',
     jarakBase: 2.1,
@@ -87,8 +87,8 @@ const DAFTAR_ARMADA_PRESISI = [
     namaSingkat: 'Sat Intelkam',
     satuan: 'Satuan Intelijen Keamanan (Sat Intelkam)',
     sektorUtama: 'Wilayah Hukum Polres',
-    komandan: 'Ipda Dimas Wicaksono (Unit Analis Intel)',
-    nrpKomandan: '52011234',
+    komandan: 'Bripka Dedi Prasetya (Unit Intelkam)',
+    nrpKomandan: '91040822',
     posisiSaatIni: 'Wilayah Pantau Tertutup & Mako Sat Intelkam',
     kekuatan: 'Siaga 6 Personel Tertutup • Alkom Terenkripsi • Alat Pantau Siber & Deteksi Dini',
     jarakBase: 1.8,
@@ -104,8 +104,8 @@ const DAFTAR_ARMADA_PRESISI = [
     namaSingkat: 'Satlantas (Turjawali)',
     satuan: 'Satuan Lalu Lintas (Satlantas)',
     sektorUtama: 'Sektor Barat & Jalur Protokol',
-    komandan: 'Aiptu Bambang Sudrajat (Piket Turjawali Lantas)',
-    nrpKomandan: '49112233',
+    komandan: 'Aipda Bambang Triyono (Unit Patroli Lantas)',
+    nrpKomandan: '82050411',
     posisiSaatIni: 'Pos Pol Koridor Protokol Sudirman - Thamrin',
     kekuatan: 'Siaga 10 Personel • Mobil Sedan PJR & Motor Patwal • Traffic Kit • Bodycam Live',
     jarakBase: 1.5,
@@ -121,8 +121,8 @@ const DAFTAR_ARMADA_PRESISI = [
     namaSingkat: 'Sat Binmas',
     satuan: 'Satuan Pembinaan Masyarakat (Sat Binmas)',
     sektorUtama: 'Sektor Timur & Kelurahan Binaan',
-    komandan: 'Aipda Hendra Gunawan (Piket Binmas Bhabinkamtibmas)',
-    nrpKomandan: '48099881',
+    komandan: 'Aiptu Joko Susilo (Bhabinkamtibmas)',
+    nrpKomandan: '79030219',
     posisiSaatIni: 'Balai Warga / Kelurahan Binaan Bhabinkamtibmas',
     kekuatan: 'Siaga 6 Personel Sambang • Mobil Penyuluhan Binmas • Tablet BOS • Mediasi Warga',
     jarakBase: 2.5,
@@ -264,7 +264,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     pangkat: session?.rankPangkat,
     title: session?.title,
     roleBadge: session?.roleBadge,
-    avatar: session?.avatar,
+    avatar: session?.avatar_url,
   });
 
   // Data Collections
@@ -341,12 +341,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [showHotspotAddForm, setShowHotspotAddForm] = useState(false);
   const [showMiniPickerRawan, setShowMiniPickerRawan] = useState(false);
   const [newHotspotTitle, setNewHotspotTitle] = useState('');
-  const [newHotspotWilayah, setNewHotspotWilayah] = useState('Polsek Metro Kebayoran Baru');
-  const [newHotspotKategori, setNewHotspotKategori] = useState('Rawan Tawuran Warga & Gesekan Kelompok');
-  const [newHotspotStatus, setNewHotspotStatus] = useState('Status: PENGAWASAN PRIORITAS (RAWAN)');
-  const [newHotspotJadwal, setNewHotspotJadwal] = useState('23:00 - 04:30');
-  const [newHotspotLat, setNewHotspotLat] = useState(-6.2443);
-  const [newHotspotLng, setNewHotspotLng] = useState(106.8078);
+  const [newHotspotWilayah, setNewHotspotWilayah] = useState('');
+  const [newHotspotKategori, setNewHotspotKategori] = useState('');
+  const [newHotspotStatus, setNewHotspotStatus] = useState('');
+  const [newHotspotJadwal, setNewHotspotJadwal] = useState('');
+  const [newHotspotLat, setNewHotspotLat] = useState(0);
+  const [newHotspotLng, setNewHotspotLng] = useState(0);
 
   // Supervisi & Validasi State (Default 'menunggu' 1:1 Prototype e-tribrata-log)
   const [valFilterStatus, setValFilterStatus] = useState<string>('menunggu');
@@ -392,11 +392,11 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [tolakAlasan, setTolakAlasan] = useState('');
 
   // Buat Log (+) Form State (Screen 3)
-  const [logWaktuMulai, setLogWaktuMulai] = useState('09:00 - 14:30 WIB');
-  const [logSektor, setLogSektor] = useState('Sektor Kebayoran Baru');
-  const [logJenis, setLogJenis] = useState<'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN'>('PATROLI');
-  const [logDeskripsi, setLogDeskripsi] = useState('Melaksanakan patroli kewilayahan di area obvit dan sentra ekonomi...');
-  const [logFotoPreview, setLogFotoPreview] = useState('/assets/images/polri_pengaduan_tkp.jpg');
+  const [logWaktuMulai, setLogWaktuMulai] = useState('');
+  const [logSektor, setLogSektor] = useState('');
+  const [logJenis, setLogJenis] = useState<string>('');
+  const [logDeskripsi, setLogDeskripsi] = useState('');
+  const [logFotoPreview, setLogFotoPreview] = useState<string | null>(null);
 
   // Profil Riwayat Log Filters
   const [profilLogSearch, setProfilLogSearch] = useState('');
@@ -406,6 +406,54 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [dbPlatforms, setDbPlatforms] = useState<any[]>([]);
   const [dbGiats, setDbGiats] = useState<any[]>([]);
+  const [dbSatuans, setDbSatuans] = useState<any[]>([]);
+
+  // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
+  const daftarArmadaAktif = useMemo(() => {
+    if (dbSatuans.length > 0) {
+      return dbSatuans.map((mu) => {
+        const officer = registeredUnits.find(
+          (u) => (u.unitId || '').toLowerCase() === mu.key.toLowerCase()
+        );
+        const vehicle = fleetUnits.find(
+          (f) => (f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase()
+        );
+        const fallback = DAFTAR_ARMADA_PRESISI.find((d) => d.id === mu.key) || DAFTAR_ARMADA_PRESISI[0];
+
+        const komandan = officer
+          ? `${officer.pangkat ? officer.pangkat + ' ' : ''}${officer.nama}`.trim() + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
+          : fallback.komandan;
+
+        const nrpKomandan = officer?.nrp || fallback.nrpKomandan;
+        const posisiSaatIni = officer?.kelompokRegu
+          ? `${officer.kelompokRegu}`
+          : fallback.posisiSaatIni;
+
+        const kekuatan = vehicle
+          ? `Siaga Tim Presisi • ${vehicle.vehicle_name || vehicle.call_sign} (${vehicle.plate_number})`
+          : fallback.kekuatan;
+
+        return {
+          id: mu.key,
+          satuanId: mu.key,
+          nama: mu.unit_name || fallback.nama,
+          namaSingkat: mu.short_name || fallback.namaSingkat,
+          satuan: mu.unit_name || fallback.satuan,
+          sektorUtama: fallback.sektorUtama,
+          komandan,
+          nrpKomandan,
+          posisiSaatIni,
+          kekuatan,
+          jarakBase: fallback.jarakBase || 1.5,
+          etaBase: fallback.etaBase || 4,
+          icon: mu.icon_emoji || fallback.icon,
+          tupoksi: mu.duties || fallback.tupoksi,
+          arahanDefault: mu.default_orders || fallback.arahanDefault,
+        };
+      });
+    }
+    return DAFTAR_ARMADA_PRESISI;
+  }, [dbSatuans, registeredUnits, fleetUnits]);
 
   // Kinerja Period Filter
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
@@ -419,24 +467,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         setDbCategories(filterRes.data.categories || []);
         setDbPlatforms(filterRes.data.platforms || []);
         setDbGiats(filterRes.data.giats || []);
+        setDbSatuans(filterRes.data.satuans || []);
       }
 
       const qRes = await getPendingComplaintsAction();
       if (qRes.success && qRes.data) {
         setAntreanPawas(qRes.data);
-        if (qRes.data.length > 0) {
-          const topCall = qRes.data[0];
-          setSimCaller({
-            nama: topCall.pelaporNama ,
-            telepon: topCall.pelaporHp,
-            alamat: topCall.tkpAlamatTeks,
-            kategori: topCall.jenisKejadian,
-            urgensi: topCall.urgensi,
-            uraian: topCall.ringkasanKeterangan,
-            lat: topCall.tkpLat,
-            lng: topCall.tkpLng,
-          });
-        }
       }
 
       const allRes = await getAllRecentComplaintsAction(100);
@@ -933,7 +969,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     setActivePreviewSatuanKey(primaryId);
     setShowEditPersonel(false);
 
-    const leadArmada = DAFTAR_ARMADA_PRESISI.find((a) => a.id === primaryId) || DAFTAR_ARMADA_PRESISI[0];
+    const leadArmada = daftarArmadaAktif.find((a) => a.id === primaryId) || daftarArmadaAktif[0] || DAFTAR_ARMADA_PRESISI[0];
     setCustomPersonelNama(leadArmada.komandan);
 
     // Kuota kuat personel SOP (berdasarkan urgensi laporan)
@@ -971,7 +1007,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     });
 
     setActivePreviewSatuanKey(unitId);
-    const target = DAFTAR_ARMADA_PRESISI.find((a) => a.id === unitId);
+    const target = daftarArmadaAktif.find((a) => a.id === unitId) || DAFTAR_ARMADA_PRESISI.find((a) => a.id === unitId);
     if (target) {
       setCustomPersonelNama(target.komandan);
       if (target.arahanDefault) {
@@ -985,8 +1021,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (!selectedDisposisiItem) return;
     setLoading(true);
     try {
-      const chosenArmadas = DAFTAR_ARMADA_PRESISI.filter((a) => selectedSatuanKeys.includes(a.id));
-      const leadArmada = DAFTAR_ARMADA_PRESISI.find((a) => a.id === activePreviewSatuanKey) || chosenArmadas[0] || DAFTAR_ARMADA_PRESISI[0];
+      const chosenArmadas = (daftarArmadaAktif.length > 0 ? daftarArmadaAktif : DAFTAR_ARMADA_PRESISI).filter((a) => selectedSatuanKeys.includes(a.id));
+      const leadArmada = (daftarArmadaAktif.length > 0 ? daftarArmadaAktif : DAFTAR_ARMADA_PRESISI).find((a) => a.id === activePreviewSatuanKey) || chosenArmadas[0] || DAFTAR_ARMADA_PRESISI[0];
 
       const res = await disposisiMultiSatuanAction({
         complaintId: selectedDisposisiItem.id.toString(),
@@ -1033,7 +1069,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     try {
       const res = await createLogbookAction({
         officerId: '1',
-        jenisAksi: logJenis,
+        jenisAksi: (logJenis as any) || 'PATROLI',
         lokasiKlaimAlamat: logSektor,
         lokasiKlaimLat: -6.2443,
         lokasiKlaimLng: 106.8078,
@@ -1041,7 +1077,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         lokasiGpsAktualLng: 106.8078,
         jamMulai: '09:00',
         jamSelesai: '14:30',
-        fotoBuktiUrl: logFotoPreview,
+        fotoBuktiUrl: logFotoPreview || undefined,
         deskripsiKegiatan: logDeskripsi,
       });
 
@@ -2346,10 +2382,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   value={logJenis}
                   onChange={(e) => setLogJenis(e.target.value as any)}
                 >
-                  <option value="PATROLI">Patroli</option>
-                  <option value="SAMBANG">Sambang</option>
-                  <option value="TPTKP">TPTKP</option>
-                  <option value="PENGAMANAN">Pengamanan</option>
+                  <option value="">-- Pilih Jenis Kegiatan --</option>
+                  {dbGiats.map((g) => (
+                    <option key={g.id || g.key} value={g.key}>
+                      {g.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -2390,13 +2428,19 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                 >
                   📸 Pilih Foto dari Perangkat
                 </button>
-                <div style={{ width: '200px', height: '150px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #CBD5E1' }}>
-                  <img
-                    src={logFotoPreview}
-                    alt="Preview"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                </div>
+                {logFotoPreview ? (
+                  <div style={{ width: '200px', height: '150px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #CBD5E1' }}>
+                    <img
+                      src={logFotoPreview}
+                      alt="Preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ width: '200px', height: '70px', borderRadius: '8px', border: '1px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '11px' }}>
+                    Belum ada foto dipilih
+                  </div>
+                )}
               </div>
 
               <button
@@ -4547,11 +4591,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         value={simCaller.kategori}
                         onChange={(e) => setSimCaller({ ...simCaller, kategori: e.target.value })}
                       >
-                        <option value="Kriminalitas (Pencurian / Begal / Curas)">⚔️ Kriminalitas (Pencurian / Begal / Curas)</option>
-                        <option value="Kamtibmas (Tawuran / Keributan Warga)">💥 Kamtibmas (Tawuran / Keributan Warga)</option>
-                        <option value="Laka Lantas (Tabrakan / Kemacetan)">🚗 Laka Lantas (Tabrakan / Kemacetan)</option>
-                        <option value="Darurat Bencana (Pohon Tumbang / Kebakaran)">🔥 Darurat Bencana (Pohon Tumbang / Kebakaran)</option>
-                        <option value="Pelayanan Publik (Bantuan Warga / Mediasi)">🤝 Pelayanan Publik (Bantuan Warga / Mediasi)</option>
+                        <option value="">-- Pilih Kategori Insiden --</option>
+                        {dbCategories.map((cat) => (
+                          <option key={cat.id || cat.key} value={cat.label || cat.key}>
+                            {cat.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -4570,9 +4615,9 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                             borderRadius: '6px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            border: (simCaller.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
-                            background: (simCaller.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? '#FEF2F2' : 'white',
-                            color: (simCaller.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? '#DC2626' : '#64748B',
+                            border: simCaller.urgensi === 'DARURAT' ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                            background: simCaller.urgensi === 'DARURAT' ? '#FEF2F2' : 'white',
+                            color: simCaller.urgensi === 'DARURAT' ? '#DC2626' : '#64748B',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease',
                           }}
@@ -4588,9 +4633,9 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                             borderRadius: '6px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            border: (simCaller.urgensi || '').toUpperCase() === 'SEDANG' ? '1.5px solid #F59E0B' : '1px solid #CBD5E1',
-                            background: (simCaller.urgensi || '').toUpperCase() === 'SEDANG' ? '#FFFBEB' : 'white',
-                            color: (simCaller.urgensi || '').toUpperCase() === 'SEDANG' ? '#D97706' : '#64748B',
+                            border: simCaller.urgensi === 'SEDANG' ? '1.5px solid #F59E0B' : '1px solid #CBD5E1',
+                            background: simCaller.urgensi === 'SEDANG' ? '#FFFBEB' : 'white',
+                            color: simCaller.urgensi === 'SEDANG' ? '#D97706' : '#64748B',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease',
                           }}
@@ -4606,9 +4651,9 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                             borderRadius: '6px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            border: (simCaller.urgensi || '').toUpperCase() === 'NORMAL' ? '1.5px solid #3B82F6' : '1px solid #CBD5E1',
-                            background: (simCaller.urgensi || '').toUpperCase() === 'NORMAL' ? '#EFF6FF' : 'white',
-                            color: (simCaller.urgensi || '').toUpperCase() === 'NORMAL' ? '#1D4ED8' : '#64748B',
+                            border: simCaller.urgensi === 'NORMAL' ? '1.5px solid #3B82F6' : '1px solid #CBD5E1',
+                            background: simCaller.urgensi === 'NORMAL' ? '#EFF6FF' : 'white',
+                            color: simCaller.urgensi === 'NORMAL' ? '#1D4ED8' : '#64748B',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease',
                           }}
@@ -4639,7 +4684,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         type="text"
                         id="eb-op-gps"
                         className="form-control"
-                        value={`${simCaller.lat ?? 0}, ${simCaller.lng ?? 0}`}
+                        placeholder="Koordinat GPS (Otomatis saat terisi)"
+                        value={simCaller.lat && simCaller.lng ? `${simCaller.lat}, ${simCaller.lng}` : ''}
                         readOnly
                         style={{
                           background: '#F8FAFC',
@@ -4686,6 +4732,16 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           setLoading(false);
                           if (res.success) {
                             alert('✓ Laporan darurat 110 berhasil disimpan ke antrean Pawas!');
+                            setSimCaller({
+                              nama: '',
+                              telepon: '',
+                              alamat: '',
+                              kategori: '',
+                              urgensi: '',
+                              uraian: '',
+                              lat: 0,
+                              lng: 0,
+                            });
                             loadData();
                           } else {
                             alert(res.error || 'Gagal menyimpan antrean.');
@@ -4712,11 +4768,21 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                             tkpLng: simCaller.lng,
                             deskripsiKejadian: simCaller.uraian,
                             saluranLaporan: 'CALL_110',
-                            operatorId: session?.userId ? String(session.userId) : '1',
+                            operatorId: session?.userId ? String(session.userId) : null,
                           });
                           setLoading(false);
                           if (res.success && res.data) {
                             bukaModalDisposisi(res.data);
+                            setSimCaller({
+                              nama: '',
+                              telepon: '',
+                              alamat: '',
+                              kategori: '',
+                              urgensi: '',
+                              uraian: '',
+                              lat: 0,
+                              lng: 0,
+                            });
                             loadData();
                           }
                         }}
@@ -5448,7 +5514,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
             {/* Body */}
             {(() => {
               const sopRecommendation = getSopRecommendationByIncident(selectedDisposisiItem);
-              const calculatedArmadas = DAFTAR_ARMADA_PRESISI.map((armada) => {
+              const calculatedArmadas = (daftarArmadaAktif.length > 0 ? daftarArmadaAktif : DAFTAR_ARMADA_PRESISI).map((armada) => {
                 const isPrimarySop = armada.id === sopRecommendation.primarySatuanId;
                 const isSecondarySop = sopRecommendation.secondarySatuanIds.includes(armada.id);
 
@@ -5535,7 +5601,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       {selectedDisposisiItem.jenisKejadian || selectedDisposisiItem.title}
                     </div>
                     <div style={{ fontSize: '11.5px', color: '#475569', marginBottom: '6px' }}>
-                      📍 {selectedDisposisiItem.tkpAlamatTeks || selectedDisposisiItem.alamatTeks || 'Sektor Selatan, Jakarta'}
+                      📍 {selectedDisposisiItem.tkpAlamatTeks || selectedDisposisiItem.alamatTeks}
                     </div>
                     <div
                       style={{
@@ -6519,10 +6585,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         onChange={(e) => setNewHotspotKategori(e.target.value)}
                         style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
                       >
-                        <option value="Rawan Tawuran Warga & Gesekan Kelompok">Rawan Tawuran Warga &amp; Gesekan</option>
-                        <option value="Rawan Tawuran Pelajar Ber-sajam">Rawan Tawuran Pelajar</option>
-                        <option value="Rawan Balap Liar & Gangguan Knalpot Brong">Rawan Balap Liar</option>
-                        <option value="Rawan 3C (Curas, Curat, Begal)">Rawan Begal / 3C</option>
+                        <option value="">-- Pilih Kategori Kerawanan --</option>
+                        {dbCategories.map((c) => (
+                          <option key={c.id || c.key} value={c.label || c.key}>
+                            {c.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
