@@ -469,7 +469,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
     });
     if (!reg && !user) return { success: false, error: 'Data personel tidak ditemukan.' };
 
-    const roleStr = (user?.role || reg?.role || 'PERSONIL').toLowerCase();
+    const roleStr = user?.role?.toLowerCase();
 
     const officerProfile =
       user?.officer_profile ||
@@ -521,7 +521,7 @@ export async function getPoliceOfficesAction() {
       data: rawOffices.map((o: any) => {
         const userNames = (o.users || []).map((u: any) => u.full_name).filter(Boolean);
         const petugasStr = userNames.length > 0 ? userNames.join(', ') : '-';
-        const levelLabel = o.station_level || 'KANTOR POLISI';
+        const levelLabel = o.station_level;
 
         return {
           id: o.id,
@@ -533,10 +533,10 @@ export async function getPoliceOfficesAction() {
           lng: Number(o.office_lng),
           radius: Number(o.geofence_radius_meters || 500),
           petugas: petugasStr,
-          status: `${levelLabel} SIAGA`,
+          status: levelLabel,
           statusColor: '#1E3A8A',
           tugas: o.station_name,
-          telemetri: o.geofence_radius_meters ? `Geofence: ${o.geofence_radius_meters}m` : '-',
+          telemetri: o.geofence_radius_meters,
         };
       }),
     };

@@ -955,10 +955,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         setSuksesDisposisiData({
           nomorTiket: selectedDisposisiItem.nomorTiket,
           unitName: chosenArmadas.map((a) => a.namaSingkat).join(' & '),
-          komandan: customPersonelNama || leadArmada.komandan,
-          jarak: leadArmada.jarakBase + ' km',
-          eta: '± ' + leadArmada.etaBase + ' Menit',
-          posisi: leadArmada.posisiSaatIni,
+          komandan: customPersonelNama || leadArmada?.komandan || '-',
+          jarak: leadArmada?.jarakBase ? `${leadArmada.jarakBase} km` : 'Terkonfirmasi di Sektor',
+          eta: leadArmada?.etaBase ? `± ${leadArmada.etaBase} Menit` : 'Siaga Meluncur',
+          posisi: leadArmada?.posisiSaatIni || '-',
         });
         setShowDisposisiModal(false);
         setShowSuksesModal(true);

@@ -317,6 +317,8 @@ export async function disposisiMultiSatuanAction(input: {
   arahanTaktis: string;
   pawasNama: string;
   pawasUserId?: string;
+  estimatedDistance?: string | null;
+  estimatedEta?: string | null;
 }) {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
@@ -333,6 +335,15 @@ export async function disposisiMultiSatuanAction(input: {
     const leadSatuan = satuans[0];
     const satuanNames = satuans.map((s: any) => s.short_name).join(', ');
 
+    // Ambil koordinat TKP complaint untuk perhitungan jarak real-time
+    const complaint = await prisma.complaint.findUnique({
+      where: { id: complaintIdBig },
+      select: { tkp_lat: true, tkp_lng: true },
+    });
+
+    const tkpLat = complaint?.tkp_lat ? Number(complaint.tkp_lat) : null;
+    const tkpLng = complaint?.tkp_lng ? Number(complaint.tkp_lng) : null;
+
     // Update Complaint Status
     await prisma.complaint.update({
       where: { id: complaintIdBig },
@@ -345,6 +356,37 @@ export async function disposisiMultiSatuanAction(input: {
     // Buat Dispatch Records
     for (let i = 0; i < satuans.length; i++) {
       const s = satuans[i];
+      let distStr: string | null = input.estimatedDistance || null;
+      let etaStr: string | null = input.estimatedEta || null;
+
+      if (!distStr && tkpLat && tkpLng) {
+        // Cari personil aktif terdekat di satuan ini yang memiliki live GPS
+        const nearestOfficer = await prisma.policeOfficer.findFirst({
+          where: {
+            unit_id: s.id,
+            current_gps_lat: { not: null },
+            current_gps_lng: { not: null },
+          },
+          select: {
+            current_gps_lat: true,
+            current_gps_lng: true,
+          },
+        });
+
+        if (nearestOfficer?.current_gps_lat && nearestOfficer?.current_gps_lng) {
+          const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+          const distKm = HaversineService.calculateDistanceKm(
+            tkpLat,
+            tkpLng,
+            Number(nearestOfficer.current_gps_lat),
+            Number(nearestOfficer.current_gps_lng)
+          );
+          distStr = `${distKm} km`;
+          const etaMin = Math.max(2, Math.round((distKm / 30) * 60));
+          etaStr = `± ${etaMin} Menit`;
+        }
+      }
+
       await prisma.complaintDispatch.create({
         data: {
           complaint_id: complaintIdBig,
@@ -354,8 +396,8 @@ export async function disposisiMultiSatuanAction(input: {
           tactical_orders: input.arahanTaktis || s.default_orders,
           dispatch_status: 'DISPATCHED',
           dispatched_at: new Date(),
-          estimated_distance: '1.4 km',
-          estimated_eta: '± 5 Menit',
+          estimated_distance: distStr,
+          estimated_eta: etaStr,
         },
       });
     }
@@ -469,8 +511,8 @@ export async function scanArmadaQrAction(input: {
           driver_officer_nrp: officer.nrp,
           current_lat: input.scanLat,
           current_lng: input.scanLng,
-          status_operasional: 'PATROLI',
-          status_color: '#10B981',
+          status_operasional: '',
+          status_color: '',
           last_heartbeat_at: new Date(),
         },
       });
@@ -480,7 +522,7 @@ export async function scanArmadaQrAction(input: {
         where: { id: officer.id },
         data: {
           assigned_patrol_vehicle: vehicle.nomor_lambung,
-          duty_status: 'DINAS_PATROLI',
+          duty_status: '',
           current_gps_lat: input.scanLat,
           current_gps_lng: input.scanLng,
           last_gps_heartbeat_at: new Date(),
@@ -513,8 +555,8 @@ export async function scanArmadaQrAction(input: {
           driver_officer_nrp: null,
           current_lat: input.scanLat,
           current_lng: input.scanLng,
-          status_operasional: 'SIAGA',
-          status_color: '#2563EB',
+          status_operasional: '',
+          status_color: '',
           last_heartbeat_at: new Date(),
         },
       });
@@ -523,7 +565,7 @@ export async function scanArmadaQrAction(input: {
         where: { id: officer.id },
         data: {
           assigned_patrol_vehicle: null,
-          duty_status: 'LEPAS_DINAS',
+          duty_status: '',
         },
       });
 

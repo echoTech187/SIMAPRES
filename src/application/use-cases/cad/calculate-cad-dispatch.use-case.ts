@@ -68,8 +68,9 @@ export class CalculateCadDispatchUseCase {
     const recommendations: CadDispatchRecommendation[] = [];
 
     for (const officer of activeOfficers) {
-      const offLat = officer.currentGpsLat || -6.2415;
-      const offLng = officer.currentGpsLng || 106.8021;
+      if (officer.currentGpsLat == null || officer.currentGpsLng == null) continue;
+      const offLat = Number(officer.currentGpsLat);
+      const offLng = Number(officer.currentGpsLng);
 
       const jarakKm = HaversineService.calculateDistanceKm(
         incidentLat,
