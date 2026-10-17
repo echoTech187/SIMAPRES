@@ -1,6 +1,7 @@
 node_modules
 Prototype
 .next
+.next-dev
 scratch
 .env
 .env*.local
