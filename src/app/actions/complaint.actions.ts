@@ -19,7 +19,7 @@ export async function createComplaintAction(input: {
   noHpPelapor?: string;
   jenisKejadian?: string;
   kategoriLaporan?: string;
-  urgensi?: 'PRIORITAS_TINGGI' | 'SEDANG' | 'NORMAL' | string;
+  urgensi?: 'DARURAT' | 'SEDANG' | 'NORMAL' | string;
   tkpAlamatTeks: string;
   tkpLat: number;
   tkpLng: number;
@@ -36,7 +36,7 @@ export async function createComplaintAction(input: {
       pelaporNama: input.pelaporNama || input.namaPelapor || 'Masyarakat (Layanan 110)',
       pelaporHp: input.pelaporHp || input.noHpPelapor || '-',
       jenisKejadian: input.jenisKejadian || input.kategoriLaporan || 'Pengaduan Presisi 110',
-      urgensi: (input.urgensi as any) === 'DARURAT' ? 'PRIORITAS_TINGGI' : (input.urgensi as any) || 'PRIORITAS_TINGGI',
+      urgensi: (input.urgensi as any) === 'PRIORITAS_TINGGI' ? 'DARURAT' : (input.urgensi as any) || 'DARURAT',
       tkpAlamatTeks: input.tkpAlamatTeks,
       tkpLat: input.tkpLat,
       tkpLng: input.tkpLng,

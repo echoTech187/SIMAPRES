@@ -3,7 +3,7 @@
  * Lapisan: Domain (Pure TypeScript, Zero Framework Dependency)
  */
 
-export type UrgensiLevel = 'PRIORITAS_TINGGI' | 'SEDANG' | 'NORMAL';
+export type UrgensiLevel = 'DARURAT' | 'SEDANG' | 'NORMAL';
 
 export type ComplaintStatus =
   | 'MENUNGGU'

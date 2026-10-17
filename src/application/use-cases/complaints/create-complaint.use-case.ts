@@ -34,7 +34,7 @@ export class CreateComplaintUseCase {
       pelaporNama: input.pelaporNama.trim(),
       pelaporHp: input.pelaporHp.trim(),
       jenisKejadian: input.jenisKejadian.trim(),
-      urgensi: input.urgensi || 'SEDANG',
+      urgensi: ((input.urgensi as any) === 'PRIORITAS_TINGGI' ? 'DARURAT' : input.urgensi) || 'SEDANG',
       tkpAlamatTeks: input.tkpAlamatTeks.trim(),
       tkpLat: input.tkpLat,
       tkpLng: input.tkpLng,

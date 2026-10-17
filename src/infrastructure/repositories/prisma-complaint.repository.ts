@@ -38,7 +38,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       pelaporNama: record.pelapor_nama,
       pelaporHp: record.pelapor_hp,
       jenisKejadian: record.jenis_kejadian,
-      urgensi: record.urgensi as UrgensiLevel,
+      urgensi: (record.urgensi === 'PRIORITAS_TINGGI' ? 'DARURAT' : (record.urgensi || 'DARURAT')) as UrgensiLevel,
       kategoriId: record.category_id,
       kategoriKey: record.kategori_key,
       kategoriRel: record.category_rel,

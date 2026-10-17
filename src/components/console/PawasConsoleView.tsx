@@ -1254,7 +1254,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     : '0.0';
 
   // Prominent Breaking Incident
-  const highPriorityIncident = antreanPawas.find((c) => c.urgensi === 'PRIORITAS_TINGGI') || antreanPawas[0] || allRecentComplaints[0];
+  const highPriorityIncident = antreanPawas.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI') || antreanPawas[0] || allRecentComplaints[0];
 
   // Filtered Complaints for Screen 4 (view-validasi)
   const filteredValidasiComplaints = filterComplaintList(
@@ -1804,7 +1804,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         const isSelesai = inc.status === 'SELESAI';
                         const isMeluncur = inc.status === 'MENUJU_TKP';
                         const isPenanganan = inc.status === 'PENANGANAN_TKP';
-                        const isDarurat = inc.urgensi === 'PRIORITAS_TINGGI';
+                        const isDarurat = inc.urgensi === 'DARURAT' || inc.urgensi === 'PRIORITAS_TINGGI';
 
                         const borderColor = isSelesai ? '#10B981' : isMeluncur ? '#3B82F6' : isPenanganan ? '#8B5CF6' : isDarurat ? '#EF4444' : '#F59E0B';
                         const badgeBg = isSelesai ? '#F0FDF4' : isMeluncur ? '#EFF6FF' : isPenanganan ? '#F5F3FF' : isDarurat ? '#FEF2F2' : '#FFFBEB';
@@ -3037,11 +3037,11 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                 padding: '1.5px 6px',
                                 borderRadius: '4px',
                                 whiteSpace: 'nowrap',
-                                background: log.urgensi === 'PRIORITAS_TINGGI' ? '#FEE2E2' : log.urgensi === 'SEDANG' ? '#FEF3C7' : '#EFF6FF',
-                                color: log.urgensi === 'PRIORITAS_TINGGI' ? '#DC2626' : log.urgensi === 'SEDANG' ? '#D97706' : '#1D4ED8',
+                                background: (log.urgensi === 'DARURAT' || log.urgensi === 'PRIORITAS_TINGGI') ? '#FEE2E2' : log.urgensi === 'SEDANG' ? '#FEF3C7' : '#EFF6FF',
+                                color: (log.urgensi === 'DARURAT' || log.urgensi === 'PRIORITAS_TINGGI') ? '#DC2626' : log.urgensi === 'SEDANG' ? '#D97706' : '#1D4ED8',
                               }}
                             >
-                              {log.urgensi === 'PRIORITAS_TINGGI' ? '🚨 Darurat Prioritas Tinggi' : log.urgensi === 'SEDANG' ? '⚠️ Prioritas Sedang' : 'ℹ️ Normal'}
+                              {(log.urgensi === 'DARURAT' || log.urgensi === 'PRIORITAS_TINGGI') ? '🚨 Darurat' : log.urgensi === 'SEDANG' ? '⚠️ Sedang' : 'ℹ️ Normal'}
                             </span>
                           </div>
 
@@ -4882,9 +4882,16 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                               <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '11.5px', color: '#153E75' }}>
                                 {item.nomorTiket}
                               </span>
-                              <span style={{ fontSize: '10px', background: '#FEE2E2', color: '#DC2626', fontWeight: 800, padding: '1px 6px', borderRadius: '4px' }}>
-                                {item.urgensi}
-                              </span>
+                              {(() => {
+                                const urgKey = (item.urgensi === 'DARURAT' || item.urgensi === 'PRIORITAS_TINGGI') ? 'DARURAT' : item.urgensi === 'SEDANG' ? 'SEDANG' : 'NORMAL';
+                                const urgBg = urgKey === 'DARURAT' ? '#FEE2E2' : urgKey === 'SEDANG' ? '#FEF3C7' : '#EFF6FF';
+                                const urgColor = urgKey === 'DARURAT' ? '#DC2626' : urgKey === 'SEDANG' ? '#D97706' : '#1D4ED8';
+                                return (
+                                  <span style={{ fontSize: '10px', background: urgBg, color: urgColor, fontWeight: 800, padding: '1px 6px', borderRadius: '4px' }}>
+                                    {urgKey}
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <div style={{ fontWeight: 800, fontSize: '12.5px', color: '#1E293B', marginBottom: '2px' }}>
                               {item.jenisKejadian}

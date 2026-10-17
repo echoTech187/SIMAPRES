@@ -21,9 +21,9 @@ async function seed() {
 
   // 2. Master Urgency Levels
   const urgencies = [
-    { key: 'DARURAT', label: 'Darurat / Prioritas Tinggi', icon_emoji: '🚨', badge_color: '#EF4444', badge_bg: '#FEF2F2', display_order: 1 },
-    { key: 'SEDANG', label: 'Siaga / Prioritas Sedang', icon_emoji: '⚠️', badge_color: '#F59E0B', badge_bg: '#FFFBEB', display_order: 2 },
-    { key: 'NORMAL', label: 'Rutin / Normal', icon_emoji: 'ℹ️', badge_color: '#10B981', badge_bg: '#ECFDF5', display_order: 3 },
+    { key: 'DARURAT', label: 'Darurat', icon_emoji: '🚨', badge_color: '#EF4444', badge_bg: '#FEF2F2', display_order: 1 },
+    { key: 'SEDANG', label: 'Sedang', icon_emoji: '⚠️', badge_color: '#F59E0B', badge_bg: '#FFFBEB', display_order: 2 },
+    { key: 'NORMAL', label: 'Normal', icon_emoji: 'ℹ️', badge_color: '#10B981', badge_bg: '#ECFDF5', display_order: 3 },
   ];
   for (const urg of urgencies) {
     await prisma.masterUrgencyLevel.upsert({
