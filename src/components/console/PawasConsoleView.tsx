@@ -4536,23 +4536,33 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           const scenarios = [
                             {
                               nama: 'Pak Agus Supriyadi',
-                              telepon: '+62 813-8821-4991',
-                              alamat: 'Jl. Margonda Raya No. 100, Depok',
-                              kategori: 'Laka Lantas (Tabrakan Beruntun)',
-                              urgensi: 'DARURAT',
-                              uraian: 'Tabrakan beruntun 3 mobil mengakibatkan 1 lajur tertutup. Arus lalu lintas macet total.',
-                              lat: -6.2255,
-                              lng: 106.8012,
+                              telepon: '+62 813-7722-1109',
+                              alamat: 'Jl. Jend. Sudirman Kav. 28, Jakarta Pusat',
+                              kategori: 'Laka Lantas (Tabrakan / Kemacetan)',
+                              urgensi: 'SEDANG',
+                              uraian: 'Tabrakan antara sedan dan sepeda motor di jalur cepat, arus lalu lintas padat.',
+                              lat: -6.2150,
+                              lng: 106.8200,
                             },
                             {
-                              nama: 'Sdri. Cindy Lestari',
-                              telepon: '+62 856-7788-9901',
-                              alamat: 'Kawasan Stasiun Sudirman, Menteng',
-                              kategori: 'Tindak Pidana (Curanmor / Begal / Jambret)',
-                              urgensi: 'TINGGI',
-                              uraian: 'Penjambretan tas pejalan kaki oleh 2 orang menggunakan motor bebek hitam tanpa plat.',
-                              lat: -6.2088,
-                              lng: 106.8228,
+                              nama: 'Ibu Maya Suryani',
+                              telepon: '+62 856-1199-8833',
+                              alamat: 'Jl. Tomang Asri Blok C No. 12, Jakarta Barat',
+                              kategori: 'Kriminalitas (Pencurian / Begal / Curas)',
+                              urgensi: 'DARURAT',
+                              uraian: 'Percobaan pencurian sepeda motor di halaman rumah warga, pelaku melarikan diri.',
+                              lat: -6.1750,
+                              lng: 106.7900,
+                            },
+                            {
+                              nama: 'Ibu Ratna Dewi',
+                              telepon: '+62 812-9844-3210',
+                              alamat: 'Jl. Panglima Polim Raya No. 42, Kebayoran Baru, Jakarta Selatan',
+                              kategori: 'Kamtibmas (Tawuran / Keributan Warga)',
+                              urgensi: 'DARURAT',
+                              uraian: 'Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok.',
+                              lat: -6.2415,
+                              lng: 106.8021,
                             },
                           ];
                           const picked = scenarios[Math.floor(Math.random() * scenarios.length)];
@@ -4563,6 +4573,43 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         <span>🔄</span> Acak Skenario
                       </button>
                     </div>
+
+                    {/* Banner Telepon Terhubung (Prototype L2030-2038) */}
+                    {isCallActive && (
+                      <div
+                        id="eb-call-connected-bar"
+                        style={{
+                          marginTop: '10px',
+                          padding: '8px 12px',
+                          background: '#DCFCE7',
+                          border: '1px solid #86EFAC',
+                          borderRadius: '8px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          color: '#166534',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>🎙️</span>
+                          <span>Panggilan Terhubung Aktif</span>
+                        </div>
+                        <span
+                          id="eb-live-timer"
+                          style={{
+                            fontFamily: 'monospace',
+                            fontSize: '12px',
+                            background: '#BBF7D0',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          {callTimer}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Formulir Penerimaan Laporan */}
@@ -4573,29 +4620,58 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Nomor Telepon Penelepon</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={simCaller.telepon}
-                        onChange={(e) => setSimCaller({ ...simCaller, telepon: e.target.value })}
-                      />
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Nomor Telepon Penelepon (Pelapor) <span style={{ color: 'red' }}>*</span>
+                      </label>
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={simCaller.telepon}
+                          onChange={(e) => setSimCaller({ ...simCaller, telepon: e.target.value })}
+                          placeholder="0812xxxx"
+                        />
+                        <span
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '8px',
+                            bottom: '8px',
+                            background: '#EFF6FF',
+                            color: '#1D4ED8',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          ✓ Terverifikasi
+                        </span>
+                      </div>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Nama Warga Pelapor</label>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Nama Warga Pelapor <span style={{ color: 'red' }}>*</span>
+                      </label>
                       <input
                         type="text"
                         className="form-control"
                         value={simCaller.nama}
                         onChange={(e) => setSimCaller({ ...simCaller, nama: e.target.value })}
+                        placeholder="Nama pelapor"
                       />
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Kategori / Jenis Insiden</label>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Kategori / Jenis Insiden <span style={{ color: 'red' }}>*</span>
+                      </label>
                       <select
                         className="form-control"
+                        style={{ fontWeight: 600 }}
                         value={simCaller.kategori}
                         onChange={(e) => setSimCaller({ ...simCaller, kategori: e.target.value })}
                       >
@@ -4607,8 +4683,73 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       </select>
                     </div>
 
+                    {/* Tingkat Urgensi Presisi (Prototype L2088-2106) */}
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Lokasi Kejadian (TKP)</label>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Tingkat Urgensi Penanganan <span style={{ color: 'red' }}>*</span>
+                      </label>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                        <button
+                          type="button"
+                          id="eb-urg-darurat"
+                          onClick={() => setSimCaller({ ...simCaller, urgensi: 'DARURAT' })}
+                          style={{
+                            padding: '8px 4px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            border: (simCaller.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                            background: (simCaller.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? '#FEF2F2' : 'white',
+                            color: (simCaller.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? '#DC2626' : '#64748B',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          🚨 DARURAT
+                        </button>
+                        <button
+                          type="button"
+                          id="eb-urg-sedang"
+                          onClick={() => setSimCaller({ ...simCaller, urgensi: 'SEDANG' })}
+                          style={{
+                            padding: '8px 4px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            border: (simCaller.urgensi || '').toUpperCase() === 'SEDANG' ? '1.5px solid #F59E0B' : '1px solid #CBD5E1',
+                            background: (simCaller.urgensi || '').toUpperCase() === 'SEDANG' ? '#FFFBEB' : 'white',
+                            color: (simCaller.urgensi || '').toUpperCase() === 'SEDANG' ? '#D97706' : '#64748B',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          ⚠️ SEDANG
+                        </button>
+                        <button
+                          type="button"
+                          id="eb-urg-normal"
+                          onClick={() => setSimCaller({ ...simCaller, urgensi: 'NORMAL' })}
+                          style={{
+                            padding: '8px 4px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            border: (simCaller.urgensi || '').toUpperCase() === 'NORMAL' ? '1.5px solid #3B82F6' : '1px solid #CBD5E1',
+                            background: (simCaller.urgensi || '').toUpperCase() === 'NORMAL' ? '#EFF6FF' : 'white',
+                            color: (simCaller.urgensi || '').toUpperCase() === 'NORMAL' ? '#1D4ED8' : '#64748B',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          ℹ️ NORMAL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Lokasi Kejadian (TKP) &amp; Sektor <span style={{ color: 'red' }}>*</span>
+                      </label>
                       <input
                         type="text"
                         className="form-control"
@@ -4617,11 +4758,35 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       />
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: '14px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>Ringkasan Uraian Kejadian</label>
+                    {/* Koordinat GPS Satelit Terkunci Otomatis (Prototype L2115-2119) */}
+                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Koordinat GPS Satelit (Terkunci Otomatis)
+                      </label>
+                      <input
+                        type="text"
+                        id="eb-op-gps"
+                        className="form-control"
+                        value={`${simCaller.lat ?? -6.2415}, ${simCaller.lng ?? 106.8021}`}
+                        readOnly
+                        style={{
+                          background: '#F8FAFC',
+                          color: '#2563EB',
+                          fontFamily: 'monospace',
+                          fontWeight: 600,
+                        }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: '16px' }}>
+                      <label className="form-label" style={{ fontSize: '11.5px' }}>
+                        Ringkasan Uraian Kejadian Dari Penelepon <span style={{ color: 'red' }}>*</span>
+                      </label>
                       <textarea
                         className="form-control"
                         rows={3}
+                        style={{ minHeight: '85px', fontSize: '12.5px', lineHeight: 1.5 }}
+                        placeholder="Tuliskan keterangan pelapor..."
                         value={simCaller.uraian}
                         onChange={(e) => setSimCaller({ ...simCaller, uraian: e.target.value })}
                       />
