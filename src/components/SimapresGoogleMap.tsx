@@ -362,11 +362,11 @@ export default function SimapresGoogleMap({
           pos: hotspotPos,
           iconEmoji: h.ikonEmoji || h.iconEmoji || '🔴',
           title: h.title,
-          petugas: h.wilayahPolsek || h.wilayah_polsek || h.wilayah || h.petugas || 'Wilayah Hukum Sektor Terkait',
-          sub: h.kategori || h.sub || 'Titik Rawan Kamtibmas',
-          status: h.statusBahaya || h.status_bahaya || h.status || 'Status: PENGAWASAN PRIORITAS (RAWAN)',
+          petugas: h.wilayahPolsek || h.wilayah_polsek || h.wilayah || h.petugas,
+          sub: h.kategori || h.sub,
+          status: h.statusBahaya || h.status_bahaya || h.status,
           statusColor: '#DC2626',
-          tugas: (h.jadwalDisplay || h.jadwal_display || h.jadwal || h.tugas) ? `Jadwal Rawan: ${h.jadwalDisplay || h.jadwal_display || h.jadwal || h.tugas}` : 'Jadwal Rawan: Sesuai Kalender Kamtibmas',
+          tugas: h.jadwalDisplay || h.jadwal_display || h.jadwal || h.tugas,
           telemetri: `Koordinat: ${hotspotPos.lat.toFixed(4)}, ${hotspotPos.lng.toFixed(4)}`,
         };
 
@@ -390,7 +390,7 @@ const handleCenterGps = () => {
   if (!mapInstanceRef.current) return;
   const target = myUnit?.pos
     ? { lat: myUnit.pos.lat, lng: myUnit.pos.lng }
-    : { lat: -6.2443, lng: 106.8078 };
+    : {lat:0,lng:0};
   mapInstanceRef.current.panTo(target);
   mapInstanceRef.current.setZoom(15);
 };
