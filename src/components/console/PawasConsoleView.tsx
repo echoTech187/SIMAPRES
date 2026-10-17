@@ -44,95 +44,6 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
 });
 
-// Standar Satuan Operasional Presisi (1:1 Prototype)
-const DAFTAR_ARMADA_PRESISI = [
-  {
-    id: 'reskrim',
-    satuanId: 'reskrim',
-    nama: 'Satuan Reserse Kriminal',
-    namaSingkat: 'Sat Reskrim',
-    satuan: 'Satuan Reserse Kriminal',
-    sektorUtama: '',
-    komandan: '-',
-    nrpKomandan: '-',
-    posisiSaatIni: '-',
-    kekuatan: '-',
-    jarakBase: 0,
-    etaBase: 0,
-    icon: '🕵️',
-    tupoksi: '',
-    arahanDefault: '',
-  },
-  {
-    id: 'sabhara',
-    satuanId: 'sabhara',
-    nama: 'Satuan Samapta Presisi',
-    namaSingkat: 'Sat Sabhara',
-    satuan: 'Satuan Samapta Presisi',
-    sektorUtama: '',
-    komandan: '-',
-    nrpKomandan: '-',
-    posisiSaatIni: '-',
-    kekuatan: '-',
-    jarakBase: 0,
-    etaBase: 0,
-    icon: '🚔',
-    tupoksi: '',
-    arahanDefault: '',
-  },
-  {
-    id: 'intel',
-    satuanId: 'intel',
-    nama: 'Satuan Intelijen Keamanan',
-    namaSingkat: 'Sat Intelkam',
-    satuan: 'Satuan Intelijen Keamanan',
-    sektorUtama: '',
-    komandan: '-',
-    nrpKomandan: '-',
-    posisiSaatIni: '-',
-    kekuatan: '-',
-    jarakBase: 0,
-    etaBase: 0,
-    icon: '👁️',
-    tupoksi: '',
-    arahanDefault: '',
-  },
-  {
-    id: 'lantas',
-    satuanId: 'lantas',
-    nama: 'Satuan Lalu Lintas',
-    namaSingkat: 'Satlantas',
-    satuan: 'Satuan Lalu Lintas',
-    sektorUtama: '',
-    komandan: '-',
-    nrpKomandan: '-',
-    posisiSaatIni: '-',
-    kekuatan: '-',
-    jarakBase: 0,
-    etaBase: 0,
-    icon: '🚓',
-    tupoksi: '',
-    arahanDefault: '',
-  },
-  {
-    id: 'binmas',
-    satuanId: 'binmas',
-    nama: 'Satuan Pembinaan Masyarakat',
-    namaSingkat: 'Sat Binmas',
-    satuan: 'Satuan Pembinaan Masyarakat',
-    sektorUtama: '',
-    komandan: '-',
-    nrpKomandan: '-',
-    posisiSaatIni: '-',
-    kekuatan: '-',
-    jarakBase: 0,
-    etaBase: 0,
-    icon: '🤝',
-    tupoksi: '',
-    arahanDefault: '',
-  },
-];
-
 function getSopRecommendationByIncident(item: any) {
   if (!item) return { primarySatuanId: 'sabhara', secondarySatuanIds: ['binmas', 'reskrim'] };
   const text = ((item.jenisKejadian || item.title || '') + ' ' + (item.kategori || item.kategoriInsiden || '') + ' ' + (item.deskripsiKejadian || item.deskripsi || '')).toLowerCase();
@@ -423,41 +334,38 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         const vehicle = fleetUnits.find(
           (f) => (f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase()
         );
-        const fallback = DAFTAR_ARMADA_PRESISI.find((d) => d.id === mu.key) || DAFTAR_ARMADA_PRESISI[0];
 
         const komandan = officer
           ? `${officer.pangkat ? officer.pangkat + ' ' : ''}${officer.nama}`.trim() + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
-          : fallback.komandan;
+          : '-';
 
-        const nrpKomandan = officer?.nrp || fallback.nrpKomandan;
-        const posisiSaatIni = officer?.kelompokRegu
-          ? `${officer.kelompokRegu}`
-          : fallback.posisiSaatIni;
+        const nrpKomandan = officer?.nrp || '-';
+        const posisiSaatIni = officer?.kelompokRegu || '-';
 
         const kekuatan = vehicle
           ? `Siaga Tim Presisi • ${vehicle.vehicle_name || vehicle.call_sign} (${vehicle.plate_number})`
-          : fallback.kekuatan;
+          : '-';
 
         return {
           id: mu.key,
           satuanId: mu.key,
-          nama: mu.unit_name || fallback.nama,
-          namaSingkat: mu.short_name || fallback.namaSingkat,
-          satuan: mu.unit_name || fallback.satuan,
-          sektorUtama: fallback.sektorUtama,
+          nama: mu.unit_name || '-',
+          namaSingkat: mu.short_name || mu.unit_name || '-',
+          satuan: mu.unit_name || '-',
+          sektorUtama: '-',
           komandan,
           nrpKomandan,
           posisiSaatIni,
           kekuatan,
-          jarakBase: fallback.jarakBase || 1.5,
-          etaBase: fallback.etaBase || 4,
-          icon: mu.icon_emoji || fallback.icon,
-          tupoksi: mu.duties || fallback.tupoksi,
-          arahanDefault: mu.default_orders || fallback.arahanDefault,
+          jarakBase: 0,
+          etaBase: 0,
+          icon: mu.icon_emoji || '🚔',
+          tupoksi: mu.duties || '',
+          arahanDefault: mu.default_orders || '',
         };
       });
     }
-    return DAFTAR_ARMADA_PRESISI;
+    return [];
   }, [dbSatuans, registeredUnits, fleetUnits]);
 
   // Kinerja Period Filter
@@ -975,8 +883,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     setActivePreviewSatuanKey(primaryId);
     setShowEditPersonel(false);
 
-    const leadArmada = daftarArmadaAktif.find((a) => a.id === primaryId) || daftarArmadaAktif[0] || DAFTAR_ARMADA_PRESISI[0];
-    setCustomPersonelNama(leadArmada.komandan);
+    const leadArmada = daftarArmadaAktif.find((a) => a.id === primaryId) || daftarArmadaAktif[0];
+    setCustomPersonelNama(leadArmada ? leadArmada.komandan : '-');
 
     // Kuota kuat personel SOP (berdasarkan urgensi laporan)
     const urgensiStr = (item.urgensi || '').toLowerCase();
@@ -1013,7 +921,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     });
 
     setActivePreviewSatuanKey(unitId);
-    const target = daftarArmadaAktif.find((a) => a.id === unitId) || DAFTAR_ARMADA_PRESISI.find((a) => a.id === unitId);
+    const target = daftarArmadaAktif.find((a) => a.id === unitId);
     if (target) {
       setCustomPersonelNama(target.komandan);
       if (target.arahanDefault) {
@@ -1027,8 +935,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (!selectedDisposisiItem) return;
     setLoading(true);
     try {
-      const chosenArmadas = (daftarArmadaAktif.length > 0 ? daftarArmadaAktif : DAFTAR_ARMADA_PRESISI).filter((a) => selectedSatuanKeys.includes(a.id));
-      const leadArmada = (daftarArmadaAktif.length > 0 ? daftarArmadaAktif : DAFTAR_ARMADA_PRESISI).find((a) => a.id === activePreviewSatuanKey) || chosenArmadas[0] || DAFTAR_ARMADA_PRESISI[0];
+      const chosenArmadas = daftarArmadaAktif.filter((a) => selectedSatuanKeys.includes(a.id));
+      const leadArmada = daftarArmadaAktif.find((a) => a.id === activePreviewSatuanKey) || chosenArmadas[0];
 
       const res = await disposisiMultiSatuanAction({
         complaintId: selectedDisposisiItem.id.toString(),
@@ -5532,7 +5440,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
             {/* Body */}
             {(() => {
               const sopRecommendation = getSopRecommendationByIncident(selectedDisposisiItem);
-              const calculatedArmadas = (daftarArmadaAktif.length > 0 ? daftarArmadaAktif : DAFTAR_ARMADA_PRESISI).map((armada) => {
+              const calculatedArmadas = daftarArmadaAktif.map((armada) => {
                 const isPrimarySop = armada.id === sopRecommendation.primarySatuanId;
                 const isSecondarySop = sopRecommendation.secondarySatuanIds.includes(armada.id);
 
