@@ -8,7 +8,6 @@ import {
   getComplaintByTiketAction,
   getComplaintsByPhoneAction,
   submitRatingAction,
-  getAllRecentComplaintsAction,
   getMasterFilterOptionsAction,
 } from '@/app/actions/complaint.actions';
 
@@ -64,13 +63,12 @@ export default function PortalWargaPage() {
   const [categoryOptions, setCategoryOptions] = useState<
     Array<{ id: number; key: string; label: string; icon?: string | null }>
   >([]);
-  const [recentTickets, setRecentTickets] = useState<Array<{ nomorTiket: string; status: string; jenisKejadian: string }>>([]);
   const [kategori, setKategori] = useState('');
   const [nama, setNama] = useState('');
   const [telp, setTelp] = useState('');
   const [lokasi, setLokasi] = useState('');
-  const [gpsCoords, setGpsCoords] = useState('-6.2415, 106.8021');
-  const [gpsStatusText, setGpsStatusText] = useState('🛰️ Koordinat Terkunci: -6.2415, 106.8021 (Akurasi Tinggi)');
+  const [gpsCoords, setGpsCoords] = useState('');
+  const [gpsStatusText, setGpsStatusText] = useState('');
   const [uraian, setUraian] = useState('');
   const [fotoBukti, setFotoBukti] = useState<string | null>(null);
 
@@ -120,26 +118,13 @@ export default function PortalWargaPage() {
 
     async function loadDbMasters() {
       try {
-        const [filterRes, recentRes] = await Promise.all([
-          getMasterFilterOptionsAction(),
-          getAllRecentComplaintsAction(5),
-        ]);
+        const filterRes = await getMasterFilterOptionsAction();
 
         if (filterRes.success && filterRes.data?.categories) {
           setCategoryOptions(filterRes.data.categories);
           if (filterRes.data.categories.length > 0) {
             setKategori(filterRes.data.categories[0].label);
           }
-        }
-
-        if (recentRes.success && Array.isArray(recentRes.data)) {
-          setRecentTickets(
-            recentRes.data.map((item: any) => ({
-              nomorTiket: item.nomorTiket,
-              status: item.status,
-              jenisKejadian: item.jenisKejadian,
-            }))
-          );
         }
       } catch (err) {
         console.error('Error loading master data:', err);
@@ -163,8 +148,8 @@ export default function PortalWargaPage() {
           }
         },
         () => {
-          setGpsCoords('-6.2415, 106.8021');
-          setGpsStatusText('🛰️ Koordinat Terkunci: -6.2415, 106.8021 (Default Mako)');
+          setGpsCoords('');
+          setGpsStatusText('');
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
@@ -736,38 +721,12 @@ export default function PortalWargaPage() {
                 <input
                   type="text"
                   id="ticket-input"
-                  placeholder={
-                    recentTickets[0]
-                      ? `Masukkan Nomor Tiket (Contoh: ${recentTickets[0].nomorTiket})`
-                      : 'Masukkan Nomor Tiket 110 Anda'
-                  }
+                  placeholder="Masukkan Nomor Tiket 110 Anda (Contoh: LP-110-202610-0001)"
                   value={ticketInput}
                   onChange={(e) => setTicketInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleLacakLaporan()}
                 />
               </div>
-
-              {/* Quick Pills from Active Database */}
-              {recentTickets.length > 0 && (
-                <>
-                  <div className="quick-pills-label">Tiket Pengaduan Terkini (Database Aktif):</div>
-                  <div className="quick-pills">
-                    {recentTickets.map((t) => (
-                      <button
-                        key={t.nomorTiket}
-                        type="button"
-                        className={`quick-pill ${t.status === 'SELESAI' ? 'done' : ''}`}
-                        onClick={() => {
-                          setTicketInput(t.nomorTiket);
-                          handleLacakLaporan(t.nomorTiket);
-                        }}
-                      >
-                        ⚡ {t.nomorTiket} ({t.status === 'SELESAI' ? 'Selesai' : t.status === 'MENUJU_TKP' ? 'Meluncur' : t.status === 'PENANGANAN_TKP' ? 'Di TKP' : 'Diproses'})
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
 
               <button
                 type="button"

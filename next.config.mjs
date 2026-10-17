@@ -4,6 +4,7 @@ const nextConfig = {
   images: {
     domains: ['localhost', 'maps.googleapis.com'],
   },
+  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
     outputFileTracingIncludes: {
