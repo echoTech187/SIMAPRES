@@ -1441,7 +1441,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         <span
                           onClick={() => setFocusedFleet('samapta')}
                           style={{
-                            background: focusedFleet === 'samapta' ? '#DBEAFE' : '#EFF6FF',
+                            background: focusedFleet === 'samapta' ? '#BFDBFE' : '#EFF6FF',
                             color: '#1D4ED8',
                             fontSize: '10.5px',
                             fontWeight: 700,
@@ -1453,7 +1453,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           }}
                           title="Klik untuk fokus Unit Patroli Samapta R-4"
                         >
-                          🚔 4 Samapta R-4
+                          🚔 {fleetUnits.filter((u) => u.category === 'samapta' || (u.key && u.key.toLowerCase().includes('samapta'))).length} Samapta R-4
                         </span>
                         <span
                           onClick={() => setFocusedFleet('perintis')}
@@ -1470,7 +1470,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           }}
                           title="Klik untuk fokus Tim Perintis Presisi R-2"
                         >
-                          🏍️ 6 Perintis R-2
+                          🏍️ {fleetUnits.filter((u) => u.category === 'perintis' || (u.key && u.key.toLowerCase().includes('perintis'))).length} Perintis R-2
                         </span>
                         <span
                           onClick={() => setFocusedFleet('lantas')}
@@ -1487,7 +1487,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           }}
                           title="Klik untuk fokus Patroli Turjawali Satlantas"
                         >
-                          🚓 4 Lantas R-4
+                          🚓 {fleetUnits.filter((u) => u.category === 'lantas' || (u.key && (u.key.toLowerCase().includes('lantas') || u.key.toLowerCase().includes('pjr')))).length} Lantas R-4
                         </span>
                         <span
                           onClick={() => setFocusedFleet('hotspot')}
@@ -1845,15 +1845,15 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
                         <div style={{ width: '75px', height: '75px', position: 'relative', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', borderRadius: '50%', border: '4px solid #1D4ED8' }}>
-                          <span style={{ fontSize: '18px', fontWeight: 900, color: '#153E75', lineHeight: 1 }}>{avgResponseTime}</span>
-                          <span style={{ fontSize: '9px', color: '#64748B', fontWeight: 700 }}>MENIT</span>
+                          <span style={{ fontSize: '18px', fontWeight: 900, color: '#153E75', lineHeight: 1 }}>{completedWithTime.length > 0 ? avgResponseTime : '-'}</span>
+                          <span style={{ fontSize: '9px', color: '#64748B', fontWeight: 700 }}>{completedWithTime.length > 0 ? 'MENIT' : 'STANDBY'}</span>
                         </div>
                         <div>
                           <div style={{ fontSize: '12px', fontWeight: 800, color: '#15803D', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>✓</span> Tepat Waktu: {onTimeRate}%
+                            <span>✓</span> {completedWithTime.length > 0 ? `Tepat Waktu: ${onTimeRate}%` : 'Standar Respon Siaga Presisi 110'}
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4, marginTop: '2px' }}>
-                            Rata-rata kecepatan tiba unit patroli di TKP sejak laporan diterima.
+                            {completedWithTime.length > 0 ? 'Rata-rata kecepatan tiba unit patroli di TKP sejak laporan diterima.' : 'Waktu respon tanggap dihitung otomatis saat kasus selesai ditangani.'}
                           </div>
                         </div>
                       </div>
@@ -1908,20 +1908,32 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         </span>
                       </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #16A34A' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#166534' }}>🟢 Siaga di Mako Polres</span>
-                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#166534' }}>{Math.max(0, registeredUnits.length - diprosesCount * 2 - Math.floor(registeredUnits.length * 0.25))} Pers</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#EFF6FF', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #2563EB' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#1E40AF' }}>🔵 Meluncur / Di TKP</span>
-                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#1E40AF' }}>{Math.min(registeredUnits.length, diprosesCount * 2)} Pers</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFBEB', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #D97706' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#92400E' }}>🟡 Cadangan Siaga Piket</span>
-                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#92400E' }}>{Math.floor(registeredUnits.length * 0.25)} Pers</span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const meluncurCount = registeredUnits.filter(
+                          (u) => u.dutyStatus === 'DINAS_PATROLI' || u.dutyStatus === 'MENUJU_TKP'
+                        ).length;
+                        const cadanganCount = registeredUnits.filter(
+                          (u) => u.dutyStatus === 'CADANGAN' || u.dutyStatus === 'LEPAS_DINAS'
+                        ).length;
+                        const siagaCount = Math.max(0, registeredUnits.length - meluncurCount - cadanganCount);
+
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #16A34A' }}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#166534' }}>🟢 Siaga di Mako Polres</span>
+                              <span style={{ fontSize: '12px', fontWeight: 800, color: '#166534' }}>{siagaCount} Pers</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#EFF6FF', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #2563EB' }}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#1E40AF' }}>🔵 Meluncur / Di TKP</span>
+                              <span style={{ fontSize: '12px', fontWeight: 800, color: '#1E40AF' }}>{meluncurCount} Pers</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFBEB', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #D97706' }}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#92400E' }}>🟡 Cadangan Siaga Piket</span>
+                              <span style={{ fontSize: '12px', fontWeight: 800, color: '#92400E' }}>{cadanganCount} Pers</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '10px' }}>
                         <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
@@ -1929,13 +1941,13 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#F1F5F9', color: '#334155', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-                            🚔 Samapta R-4: {fleetUnits.filter(u => u.category === 'samapta').length} Unit
+                            🚔 Samapta R-4: {fleetUnits.filter((u) => u.category === 'samapta' || (u.key && u.key.toLowerCase().includes('samapta'))).length} Unit
                           </span>
                           <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#F1F5F9', color: '#334155', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-                            🏍️ Perintis R-2: {fleetUnits.filter(u => u.category === 'perintis').length} Unit
+                            🏍️ Perintis R-2: {fleetUnits.filter((u) => u.category === 'perintis' || (u.key && u.key.toLowerCase().includes('perintis'))).length} Unit
                           </span>
                           <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#F1F5F9', color: '#334155', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-                            🚓 Lantas R-4: {fleetUnits.filter(u => u.category === 'lantas').length} Unit
+                            🚓 Lantas R-4: {fleetUnits.filter((u) => u.category === 'lantas' || (u.key && (u.key.toLowerCase().includes('lantas') || u.key.toLowerCase().includes('pjr')))).length} Unit
                           </span>
                         </div>
                       </div>
@@ -2208,32 +2220,40 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   </button>
                 </div>
 
-                <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
-                  {highPriorityIncident ? `${highPriorityIncident.jenisKejadian} - ${highPriorityIncident.tkpAlamatTeks}` : 'Penanganan Tawuran Remaja'}
-                </div>
-                <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <span>📍</span> {highPriorityIncident ? highPriorityIncident.tkpAlamatTeks : 'Jl. Panglima Polim Raya No. 42, Kebayoran Baru'}
-                </div>
+                {highPriorityIncident && (
+                  <>
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
+                      {highPriorityIncident.jenisKejadian} - {highPriorityIncident.tkpAlamatTeks}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span>📍</span> {highPriorityIncident.tkpAlamatTeks}
+                    </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                    <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>RUTE TERCEPAT (ETA)</div>
-                    <div style={{ fontSize: '17px', fontWeight: 900, color: '#10B981' }}>± 4 Menit</div>
-                    <div style={{ fontSize: '10.5px', color: '#64748B' }}>Jarak: 1.8 km</div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                    <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>TRAFFIC LINE KORIDOR</div>
-                    <div style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>🟢 Lancar Terkendali</div>
-                    <div style={{ fontSize: '10px', color: '#A7F3D0' }}>Prioritas Sirine Biru</div>
-                  </div>
-                </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
+                        <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>STATUS RESPON</div>
+                        <div style={{ fontSize: '14px', fontWeight: 900, color: '#10B981', marginTop: '2px' }}>
+                          {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi' : highPriorityIncident.status}
+                        </div>
+                        <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {highPriorityIncident.urgensi || 'NORMAL'}</div>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
+                        <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>SALURAN PENGADUAN</div>
+                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>
+                          {highPriorityIncident.platformRel?.label || highPriorityIncident.platformKey || 'Layanan 110'}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#A7F3D0' }}>Pelapor: {highPriorityIncident.pelaporNama}</div>
+                      </div>
+                    </div>
 
-                <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '20px' }}>↗️</span>
-                  <div style={{ fontSize: '11.5px', lineHeight: 1.4, color: '#E2E8F0' }}>
-                    Ambil lajur kiri, arahkan kendaraan patroli menuju arteri barat. Ikuti rute garis biru navigasi.
-                  </div>
-                </div>
+                    <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontSize: '20px' }}>📢</span>
+                      <div style={{ fontSize: '11.5px', lineHeight: 1.4, color: '#E2E8F0' }}>
+                        {highPriorityIncident.ringkasanKeterangan || 'Petugas piket siaga bersiap menerima komando arahan taktis lapangan.'}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Map Legend */}
@@ -4119,10 +4139,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           </td>
                           <td style={{ padding: '8px' }}><strong>{inc.jenisKejadian}</strong> - {inc.tkpAlamatTeks}</td>
                           <td style={{ padding: '8px' }}>
-                            {inc.assignedOfficer?.assignedPatrolVehicle || (inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat} ${inc.assignedOfficer.namaLengkap}` : 'Patroli Samapta')}
+                            {inc.assignedOfficer?.assignedPatrolVehicle || (inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat} ${inc.assignedOfficer.namaLengkap}` : '-')}
                           </td>
                           <td style={{ padding: '8px', color: '#16A34A', fontWeight: 700 }}>
-                            {inc.responseTimeMinutes ? `± ${inc.responseTimeMinutes} Menit` : '± 6 Menit'}
+                            {inc.responseTimeMinutes ? `± ${inc.responseTimeMinutes} Menit` : '-'}
                           </td>
                           <td style={{ padding: '8px' }}>
                             <span style={{
@@ -6188,18 +6208,32 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8' }}>TOTAL KUAT</div>
                   <div style={{ fontSize: '20px', fontWeight: 900, color: '#1E3A8A' }}>{registeredUnits.length} PERS</div>
                 </div>
-                <div style={{ background: 'white', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>🟢 Siaga Mako</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#16A34A' }}>{Math.max(0, registeredUnits.length - diprosesCount * 2 - Math.floor(registeredUnits.length * 0.25))} Pers</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF' }}>🔵 Meluncur/TKP</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#2563EB' }}>{Math.min(registeredUnits.length, diprosesCount * 2)} Pers</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #FDE68A', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400E' }}>🟡 Cadangan</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#D97706' }}>{Math.floor(registeredUnits.length * 0.25)} Pers</div>
-                </div>
+                {(() => {
+                  const meluncurCount = registeredUnits.filter(
+                    (u) => u.dutyStatus === 'DINAS_PATROLI' || u.dutyStatus === 'MENUJU_TKP'
+                  ).length;
+                  const cadanganCount = registeredUnits.filter(
+                    (u) => u.dutyStatus === 'CADANGAN' || u.dutyStatus === 'LEPAS_DINAS'
+                  ).length;
+                  const siagaCount = Math.max(0, registeredUnits.length - meluncurCount - cadanganCount);
+
+                  return (
+                    <>
+                      <div style={{ background: 'white', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>🟢 Siaga Mako</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#16A34A' }}>{siagaCount} Pers</div>
+                      </div>
+                      <div style={{ background: 'white', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF' }}>🔵 Meluncur/TKP</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#2563EB' }}>{meluncurCount} Pers</div>
+                      </div>
+                      <div style={{ background: 'white', border: '1px solid #FDE68A', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400E' }}>🟡 Cadangan</div>
+                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#D97706' }}>{cadanganCount} Pers</div>
+                      </div>
+                    </>
+                  );
+                })()}
                 <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
                   <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569' }}>🚔 Ranmor Dinas</div>
                   <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A' }}>{fleetUnits.length} UNIT</div>

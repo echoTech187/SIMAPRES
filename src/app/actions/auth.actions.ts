@@ -211,16 +211,28 @@ export async function getRegisteredUnitsAction() {
     });
     
     // Ambil data role dan station terbaru dari tabel users untuk menjamin akurasi peran & mako
-    const users = await prisma.user.findMany({
-      select: {
-        identifier: true,
-        role: true,
-        station_id: true,
-        station: {
-          select: { id: true, station_name: true, station_code: true, station_level: true },
+    const [users, officers] = await Promise.all([
+      prisma.user.findMany({
+        select: {
+          identifier: true,
+          role: true,
+          station_id: true,
+          station: {
+            select: { id: true, station_name: true, station_code: true, station_level: true },
+          },
         },
-      },
-    });
+      }),
+      prisma.policeOfficer.findMany({
+        select: {
+          nrp: true,
+          duty_status: true,
+          current_gps_lat: true,
+          current_gps_lng: true,
+          assigned_patrol_vehicle: true,
+        },
+      }),
+    ]);
+
     const roleMap = new Map<string, string>();
     const stationMap = new Map<string, any>();
     users.forEach((usr) => {
@@ -230,15 +242,23 @@ export async function getRegisteredUnitsAction() {
       }
     });
 
+    const officerMap = new Map(officers.map((o) => [o.nrp, o]));
+
     // Jangan pernah ekspos password hash ke client
-    const safeUnits = units.map((u: any) => ({
-      ...u,
-      role: roleMap.get(u.nrp) || u.role || null,
-      stationId: stationMap.get(u.nrp)?.id || null,
-      stationName: stationMap.get(u.nrp)?.station_name || null,
-      stationCode: stationMap.get(u.nrp)?.station_code || null,
-      password: null,
-    }));
+    const safeUnits = units.map((u: any) => {
+      const off = officerMap.get(u.nrp);
+      return {
+        ...u,
+        role: roleMap.get(u.nrp) || u.role || null,
+        stationId: stationMap.get(u.nrp)?.id || null,
+        stationName: stationMap.get(u.nrp)?.station_name || null,
+        stationCode: stationMap.get(u.nrp)?.station_code || null,
+        dutyStatus: off?.duty_status || 'LEPAS_DINAS',
+        assignedVehicle: off?.assigned_patrol_vehicle || null,
+        hasLiveGps: Boolean(off?.current_gps_lat && off?.current_gps_lng),
+        password: null,
+      };
+    });
     return { success: true, data: serializeBigInt(safeUnits) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data unit.' };

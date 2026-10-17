@@ -450,13 +450,16 @@ export async function sahkanKasusPawasAction(input: {
         completed_at: new Date(),
       },
     });
-
+    const officer = await prisma.policeOfficer.findUnique({
+      where: { user_id: Number(input.pawasUserId) },
+      include: { user: true },
+    });
     // Catat Audit Log
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
-        actor_name: input.pawasNama || 'Pawas',
-        actor_role: 'PAWAS',
+        actor_name: input.pawasNama,
+        actor_role:officer?.user?.role as string,
         action: 'Pengesahan BAP & Kasus Selesai',
         notes: input.catatanPengesahan || 'Pawas mengesahkan penyelesaian penanganan aduan.',
       },

@@ -14,6 +14,7 @@ export interface MapUnitData {
   statusColor: string;
   tugas: string;
   telemetri: string;
+  category?: string;
 }
 
 interface SimapresGoogleMapProps {
@@ -168,7 +169,7 @@ export default function SimapresGoogleMap({
         ? { lat: centerLat, lng: centerLng }
         : (myUnit?.pos
           ? { lat: myUnit.pos.lat, lng: myUnit.pos.lng }
-          : { lat: -6.2443, lng: 106.8078 });
+          : null);
 
       const mapOptions = {
         zoom: mode === 'fullscreen' ? 14 : 13,
@@ -306,18 +307,20 @@ export default function SimapresGoogleMap({
       (fleetUnits || []).forEach((unit) => {
         if (myUnit && unit.key === myUnit.key) return;
 
+        const cat =unit.key;
+
         // Apply active filter
-        if (activeFilter === 'samapta' && !unit.key.startsWith('samapta')) return;
-        if (activeFilter === 'perintis' && !unit.key.startsWith('perintis')) return;
-        if (activeFilter === 'lantas' && !unit.key.startsWith('lantas')) return;
+        if (activeFilter === 'samapta' && !cat.includes('samapta')) return;
+        if (activeFilter === 'perintis' && !cat.includes('perintis')) return;
+        if (activeFilter === 'lantas' && !cat.includes('lantas') && !cat.includes('pjr')) return;
         if (activeFilter === 'hotspot') return;
 
         let strokeColor = '#0284C7';
         let haloColor = '#38BDF8';
-        if (unit.key.startsWith('perintis')) {
+        if (cat.includes('perintis')) {
           strokeColor = '#D97706';
           haloColor = '#FBBF24';
-        } else if (unit.key.startsWith('lantas')) {
+        } else if (cat.includes('lantas') || cat.includes('pjr')) {
           strokeColor = '#1D4ED8';
           haloColor = '#60A5FA';
         }
