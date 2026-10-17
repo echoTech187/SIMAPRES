@@ -259,12 +259,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
   // User Profile
   const [userProfile, setUserProfile] = useState<any>({
-    fullName: session?.fullName || 'Kompol Hendra Wijaya, S.I.K., M.Si.',
-    nrp: session?.identifier || '95010100',
-    pangkat: session?.rankPangkat || 'KOMPOL',
-    title: 'Perwira Pengawas (PAWAS)',
-    roleBadge: 'PAWAS',
-    avatar: '/assets/images/polri_pengaduan_tkp.jpg',
+    fullName: session?.fullName,
+    nrp: session?.identifier,
+    pangkat: session?.rankPangkat,
+    title: session?.title,
+    roleBadge: session?.roleBadge,
+    avatar: session?.avatar,
   });
 
   // Data Collections
@@ -4639,7 +4639,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         type="text"
                         id="eb-op-gps"
                         className="form-control"
-                        value={`${simCaller.lat ?? -6.2415}, ${simCaller.lng ?? 106.8021}`}
+                        value={`${simCaller.lat ?? 0}, ${simCaller.lng ?? 0}`}
                         readOnly
                         style={{
                           background: '#F8FAFC',
