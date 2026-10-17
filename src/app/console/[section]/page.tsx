@@ -1,4 +1,6 @@
 // SIMAPRES 110 - Console Section Page (Per-Halaman URL Architecture)
+export const dynamic = 'force-dynamic';
+
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
