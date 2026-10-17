@@ -839,7 +839,42 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
             </span>
           </button>
 
-          {/* Sembunyikan untuk saat ini sesuai permintaan: Kategori Rawan, Kategori Insiden, Status Tugas */}
+          {/* TAB 8: MASTER KATEGORI INSIDEN */}
+          <button
+            type="button"
+            onClick={() => switchTab('kategori')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'kategori' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'kategori' ? 'white' : '#475569',
+              border: activeTab === 'kategori' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>🚨 Kategori Insiden</span>
+            <span
+              style={{
+                background: activeTab === 'kategori' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'kategori' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              {counters.categories}
+            </span>
+          </button>
+
+          {/* Sembunyikan untuk saat ini sesuai permintaan: Kategori Rawan, Status Tugas */}
         </div>
       </div>
 
