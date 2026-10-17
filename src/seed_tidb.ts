@@ -2,7 +2,7 @@ import { prisma } from './infrastructure/db/prisma.client';
 import bcrypt from 'bcryptjs';
 
 async function seed() {
-  console.log('🌱 Seeding initial SIMAPRES accounts to TiDB Cloud...');
+  console.log('🌱 Seeding Master Data & Accounts to TiDB Cloud...');
   const defaultHash = await bcrypt.hash('polripresisi2026', 10);
 
   // 1. Master Roles
@@ -19,7 +19,106 @@ async function seed() {
     });
   }
 
-  // 2. Default Station (Polres Metro Jakarta Selatan)
+  // 2. Master Urgency Levels
+  const urgencies = [
+    { key: 'DARURAT', label: 'Darurat / Prioritas Tinggi', icon_emoji: '🚨', badge_color: '#EF4444', badge_bg: '#FEF2F2', display_order: 1 },
+    { key: 'SEDANG', label: 'Siaga / Prioritas Sedang', icon_emoji: '⚠️', badge_color: '#F59E0B', badge_bg: '#FFFBEB', display_order: 2 },
+    { key: 'NORMAL', label: 'Rutin / Normal', icon_emoji: 'ℹ️', badge_color: '#10B981', badge_bg: '#ECFDF5', display_order: 3 },
+  ];
+  for (const urg of urgencies) {
+    await prisma.masterUrgencyLevel.upsert({
+      where: { key: urg.key },
+      update: {},
+      create: { ...urg, is_active: true },
+    });
+  }
+
+  // 3. Master Complaint Statuses
+  const statuses = [
+    { key: 'MENUNGGU', label: 'Menunggu Penanganan', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
+    { key: 'DIPROSES', label: 'Sedang Ditangani', badge_color: '#D97706', badge_bg: '#FFFBEB', badge_border: '#FDE68A', display_order: 2 },
+    { key: 'MENUNGGU_PENGESAHAN', label: 'Menunggu Pengesahan Pawas', badge_color: '#7C3AED', badge_bg: '#F5F3FF', badge_border: '#DDD6FE', display_order: 3 },
+    { key: 'SELESAI', label: 'Selesai & Kondusif', badge_color: '#059669', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 4 },
+    { key: 'DITOLAK', label: 'Ditolak / Tidak Valid', badge_color: '#DC2626', badge_bg: '#FEF2F2', badge_border: '#FECACA', display_order: 5 },
+  ];
+  for (const st of statuses) {
+    await prisma.masterComplaintStatus.upsert({
+      where: { key: st.key },
+      update: {},
+      create: { ...st, is_active: true },
+    });
+  }
+
+  // 4. Master Incident Categories
+  const categories = [
+    { key: 'KRIMINALITAS', label: 'Kriminalitas & 3C', icon: '🚨', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA', display_order: 1 },
+    { key: 'KAMTIBMAS', label: 'Kamtibmas & Tawuran', icon: '👥', badge_bg: '#FFFBEB', badge_color: '#D97706', badge_border: '#FDE68A', display_order: 2 },
+    { key: 'LAKALANTAS', label: 'Laka & Kemacetan Lantas', icon: '🚦', badge_bg: '#EFF6FF', badge_color: '#2563EB', badge_border: '#BFDBFE', display_order: 3 },
+    { key: 'BENCANA', label: 'Darurat & Bencana Alam', icon: '🔥', badge_bg: '#FEF2F2', badge_color: '#EA580C', badge_border: '#FED7AA', display_order: 4 },
+    { key: 'PELAYANAN_PUBLIK', label: 'Pelayanan Publik & Walk-in', icon: '📋', badge_bg: '#F8FAFC', badge_color: '#475569', badge_border: '#CBD5E1', display_order: 5 },
+  ];
+  for (const cat of categories) {
+    await prisma.masterIncidentCategory.upsert({
+      where: { key: cat.key },
+      update: {},
+      create: { ...cat, is_active: true },
+    });
+  }
+
+  // 5. Master Report Sources
+  const sources = [
+    { key: 'SOS', label: 'Tombol Panik Darurat (SOS)', icon: '🚨', active_bg: '#DC2626', active_text: '#FFFFFF', inactive_bg: '#FEF2F2', inactive_text: '#DC2626', inactive_border: '#FECACA', display_order: 1 },
+    { key: 'PORTAL_WARGA', label: 'Portal Pengaduan Warga Presisi', icon: '📱', active_bg: '#2563EB', active_text: '#FFFFFF', inactive_bg: '#EFF6FF', inactive_text: '#2563EB', inactive_border: '#BFDBFE', display_order: 2 },
+    { key: 'CALL_110', label: 'Pusat Panggilan SPKT 110', icon: '📞', active_bg: '#059669', active_text: '#FFFFFF', inactive_bg: '#ECFDF5', inactive_text: '#059669', inactive_border: '#A7F3D0', display_order: 3 },
+    { key: 'PERSONEL_LAPANGAN', label: 'Laporan Mandiri Personel Lapangan', icon: '👮', active_bg: '#7C3AED', active_text: '#FFFFFF', inactive_bg: '#F5F3FF', inactive_text: '#7C3AED', inactive_border: '#DDD6FE', display_order: 4 },
+  ];
+  for (const src of sources) {
+    await prisma.masterReportSource.upsert({
+      where: { key: src.key },
+      update: {},
+      create: { ...src, is_active: true },
+    });
+  }
+
+  // 6. Master Duty Statuses
+  const dutyStatuses = [
+    { key: 'DINAS_PATROLI', label: 'Dinas Patroli', badge_color: '#10B981', badge_bg: '#ECFDF5', display_order: 1 },
+    { key: 'PIKET_SPKT', label: 'Piket SPKT / Penjagaan', badge_color: '#2563EB', badge_bg: '#EFF6FF', display_order: 2 },
+    { key: 'CADANGAN', label: 'Cadangan Siaga', badge_color: '#F59E0B', badge_bg: '#FFFBEB', display_order: 3 },
+    { key: 'LEPAS_DINAS', label: 'Lepas Dinas', badge_color: '#64748B', badge_bg: '#F1F5F9', display_order: 4 },
+  ];
+  for (const ds of dutyStatuses) {
+    await prisma.masterDutyStatus.upsert({
+      where: { key: ds.key },
+      update: {},
+      create: { ...ds, is_active: true },
+    });
+  }
+
+  // 7. Master Ranks
+  const ranks = [
+    { key: 'BRIPDA', label: 'Bripda (Brigadir Polisi Dua)', display_order: 1 },
+    { key: 'BRIPTU', label: 'Briptu (Brigadir Polisi Satu)', display_order: 2 },
+    { key: 'BRIGADIR', label: 'Brigadir (Brigadir Polisi)', display_order: 3 },
+    { key: 'BRIPKA', label: 'Bripka (Brigadir Polisi Kepala)', display_order: 4 },
+    { key: 'AIPDA', label: 'Aipda (Ajun Inspektur Polisi Dua)', display_order: 5 },
+    { key: 'AIPTU', label: 'Aiptu (Ajun Inspektur Polisi Satu)', display_order: 6 },
+    { key: 'IPDA', label: 'Ipda (Inspektur Polisi Dua)', display_order: 7 },
+    { key: 'IPTU', label: 'Iptu (Inspektur Polisi Satu)', display_order: 8 },
+    { key: 'AKP', label: 'AKP (Ajun Komisaris Polisi)', display_order: 9 },
+    { key: 'KOMPOL', label: 'Kompol (Komisaris Polisi)', display_order: 10 },
+    { key: 'AKBP', label: 'AKBP (Ajun Komisaris Besar Polisi)', display_order: 11 },
+    { key: 'KOMBES', label: 'Kombes Pol (Komisaris Besar Polisi)', display_order: 12 },
+  ];
+  for (const rk of ranks) {
+    await prisma.masterRank.upsert({
+      where: { key: rk.key },
+      update: {},
+      create: { ...rk, is_active: true },
+    });
+  }
+
+  // 8. Default Station (Polres Metro Jakarta Selatan)
   const station = await prisma.policeStation.upsert({
     where: { station_code: 'POLRES-JAKSEL' },
     update: {},
@@ -34,7 +133,7 @@ async function seed() {
     },
   });
 
-  // 3. Operational Units
+  // 9. Operational Units
   const units = [
     { key: 'reskrim', unit_name: 'Satuan Reserse Kriminal', short_name: 'Sat Reskrim', icon_emoji: '🔍', duties: 'Penyelidikan & Penyidikan', default_orders: 'Tindak tegas pelaku tindak pidana' },
     { key: 'intel', unit_name: 'Satuan Intelijen Keamanan', short_name: 'Sat Intelkam', icon_emoji: '🕵️', duties: 'Deteksi Dini & Penggalangan', default_orders: 'Monitoring perkembangan situasi' },
@@ -50,7 +149,7 @@ async function seed() {
     });
   }
 
-  // 4. Default Users
+  // 10. Default Users
   const seedUsers = [
     {
       identifier: '88010234',
@@ -152,7 +251,7 @@ async function seed() {
     console.log(`✓ Seeded user: ${su.identifier} (${su.fullName}) - Role: ${su.role}`);
   }
 
-  console.log('🎉 Seed to TiDB Cloud completed successfully!');
+  console.log('🎉 Seed Master Data & Users to TiDB Cloud completed successfully!');
 }
 
 seed()

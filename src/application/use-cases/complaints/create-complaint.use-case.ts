@@ -39,7 +39,7 @@ export class CreateComplaintUseCase {
       tkpLat: input.tkpLat,
       tkpLng: input.tkpLng,
       ringkasanKeterangan: input.ringkasanKeterangan.trim(),
-      status: 'BELUM_DITANGANI',
+      status: 'MENUNGGU',
       operatorId: input.operatorId || null,
       kategoriKey: input.kategoriKey || null,
       platformKey: input.platformKey || null,

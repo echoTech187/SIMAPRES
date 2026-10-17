@@ -186,13 +186,33 @@ export class ComplaintEntity {
     return this.props.citizenTags;
   }
 
+  get kategoriId(): number | null | undefined {
+    return this.props.kategoriId;
+  }
+
+  get kategoriKey(): string | null | undefined {
+    return this.props.kategoriKey;
+  }
+
+  get platformId(): number | null | undefined {
+    return this.props.platformId;
+  }
+
+  get platformKey(): string | null | undefined {
+    return this.props.platformKey;
+  }
+
+  get responseTimeMinutes(): number | null | undefined {
+    return this.props.responseTimeMinutes;
+  }
+
   // --- LOGIKA BISNIS & STATE TRANSITIONS (SOP POLRI) ---
 
   /**
    * Disposisi oleh Pawas / Pimpinan (Fase 2)
    */
   public disposisiKePetugas(officerId: bigint, pawasId: bigint): void {
-    if (this.props.status !== 'BELUM_DITANGANI') {
+    if (this.props.status !== 'BELUM_DITANGANI' && this.props.status !== 'MENUNGGU') {
       throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status antrean verifikasi.`);
     }
     this.props.status = 'DISPOSISI';
@@ -266,7 +286,7 @@ export class ComplaintEntity {
    * Input Rating & Evaluasi Kepuasan Warga (IKM)
    */
   public berikanRatingWarga(rating: number, review?: string, tags?: string): void {
-    if (this.props.status !== 'SELESAI') {
+    if (this.props.status !== 'SELESAI' && this.props.status !== 'MENUNGGU_PENGESAHAN') {
       throw new Error('Rating hanya dapat diberikan pada pengaduan yang telah tuntas selesai.');
     }
     if (rating < 1 || rating > 5) {
