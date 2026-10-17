@@ -57,31 +57,13 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
     if (user.password_hash) {
       isMatch = await bcrypt.compare(kataSandi.trim(), user.password_hash);
     }
-    // Fallback kompatibilitas seeder lama jika hash belum sinkron
-    if (!isMatch && kataSandi.trim() === 'polripresisi2026') {
-      isMatch = true;
-    }
 
     if (!isMatch) {
       return { success: false, error: 'Kata sandi yang Anda masukkan tidak sesuai. Silakan periksa kembali!' };
     }
 
-    // 4. Standarisasi RBAC (SUPERADMIN, PAWAS, PERSONIL)
-    let userRole: 'SUPERADMIN' | 'PAWAS' | 'PERSONIL' = 'PERSONIL';
-    const rawRole = (user.role || '').toUpperCase();
-    if (rawRole === 'SUPERADMIN' || rawRole.includes('ADMIN')) {
-      userRole = 'SUPERADMIN';
-    } else if (
-      rawRole === 'PAWAS' ||
-      rawRole === 'KAPOLRES' ||
-      rawRole === 'KABAG_OPS' ||
-      rawRole === 'KANIT' ||
-      rawRole === 'PROPAM'
-    ) {
-      userRole = 'PAWAS';
-    } else {
-      userRole = 'PERSONIL';
-    }
+    // 4. Standarisasi RBAC murni dari database (SUPERADMIN, PAWAS, PERSONIL)
+    const userRole = (user.role?.toUpperCase() as 'SUPERADMIN' | 'PAWAS' | 'PERSONIL') || 'PERSONIL';
 
     // 5. Rute Navigasi Terpadu (Single Console URL Presisi 110)
     const targetRoute = '/console';
@@ -251,11 +233,11 @@ export async function getRegisteredUnitsAction() {
     // Jangan pernah ekspos password hash ke client
     const safeUnits = units.map((u: any) => ({
       ...u,
-      role: roleMap.get(u.nrp) || u.role || 'PERSONIL',
+      role: roleMap.get(u.nrp) || u.role || null,
       stationId: stationMap.get(u.nrp)?.id || null,
       stationName: stationMap.get(u.nrp)?.station_name || null,
       stationCode: stationMap.get(u.nrp)?.station_code || null,
-      password: '••••••••',
+      password: null,
     }));
     return { success: true, data: serializeBigInt(safeUnits) };
   } catch (error: any) {
@@ -299,7 +281,7 @@ export async function registerNewUnitAction(input: {
         identifier: input.nrp,
         password_hash: hashedPassword,
         full_name: input.nama,
-        phone_number: input.phone_number,
+        phone_number: '',
         role: assignedRole || '',
         station_id: parsedStationId,
       },
