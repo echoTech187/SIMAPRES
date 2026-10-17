@@ -291,14 +291,14 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
   // Operator Simulation
   const [simCaller, setSimCaller] = useState({
-    nama: 'Ibu Ratna Dewi',
-    telepon: '+62 812-9844-3210',
-    alamat: 'Jl. Panglima Polim Raya No. 42, Kebayoran Baru, Jakarta Selatan',
-    kategori: 'Kamtibmas (Tawuran / Keributan Warga)',
-    urgensi: 'DARURAT',
-    uraian: 'Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok.',
-    lat: -6.2415,
-    lng: 106.8021,
+    nama: '',
+    telepon: '',
+    alamat: '',
+    kategori: '',
+    urgensi: '',
+    uraian: '',
+    lat: 0,
+    lng: 0,
   });
   const [isCallActive, setIsCallActive] = useState(false);
   const [callTimer, setCallTimer] = useState('00:15');
@@ -427,14 +427,14 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         if (qRes.data.length > 0) {
           const topCall = qRes.data[0];
           setSimCaller({
-            nama: topCall.pelaporNama || 'Warga Masyarakat',
-            telepon: topCall.pelaporHp || '0812-9844-3210',
-            alamat: topCall.tkpAlamatTeks || 'Wilayah Hukum Polda Metro Jaya',
-            kategori: topCall.jenisKejadian || 'Kamtibmas',
-            urgensi: topCall.urgensi || 'DARURAT',
-            uraian: topCall.ringkasanKeterangan || 'Laporan panggilan 110 masuk.',
-            lat: topCall.tkpLat || -6.2415,
-            lng: topCall.tkpLng || 106.8021,
+            nama: topCall.pelaporNama ,
+            telepon: topCall.pelaporHp,
+            alamat: topCall.tkpAlamatTeks,
+            kategori: topCall.jenisKejadian,
+            urgensi: topCall.urgensi,
+            uraian: topCall.ringkasanKeterangan,
+            lat: topCall.tkpLat,
+            lng: topCall.tkpLng,
           });
         }
       }
@@ -4482,135 +4482,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                 {/* Kolom Kiri: Panggilan Masuk & Form */}
                 <div style={{ flex: '1 1 500px' }}>
 
-                  {/* Kotak Simulasi Panggilan Masuk */}
-                  <div
-                    style={{
-                      background: '#FEF2F2',
-                      border: '1.5px solid #FECACA',
-                      borderLeft: '5px solid #EF4444',
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      marginBottom: '14px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <span style={{ fontSize: '10.5px', fontWeight: 800, background: '#FEE2E2', color: '#DC2626', padding: '2px 8px', borderRadius: '4px' }}>
-                        ● PANGGILAN LAPORAN MASUK
-                      </span>
-                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#991B1B' }}>
-                        {isCallActive ? `Terhubung (${callTimer})` : 'Siap Menerima'}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'monospace', color: '#991B1B', margin: '4px 0 2px' }}>
-                      {simCaller.telepon}
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#7F1D1D', marginBottom: '12px' }}>
-                      Pelapor: {simCaller.nama} • {simCaller.alamat}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsCallActive(true);
-                          alert('📞 Panggilan 110 Terhubung! Formulir di bawah telah terisi otomatis dengan data pelapor.');
-                        }}
-                        style={{
-                          flex: 1,
-                          padding: '10px 14px',
-                          background: '#10B981',
-                          color: 'white',
-                          fontWeight: 800,
-                          fontSize: '12.5px',
-                          border: 'none',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <span>📞</span> Angkat &amp; Muat ke Form
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const scenarios = [
-                            {
-                              nama: 'Pak Agus Supriyadi',
-                              telepon: '+62 813-7722-1109',
-                              alamat: 'Jl. Jend. Sudirman Kav. 28, Jakarta Pusat',
-                              kategori: 'Laka Lantas (Tabrakan / Kemacetan)',
-                              urgensi: 'SEDANG',
-                              uraian: 'Tabrakan antara sedan dan sepeda motor di jalur cepat, arus lalu lintas padat.',
-                              lat: -6.2150,
-                              lng: 106.8200,
-                            },
-                            {
-                              nama: 'Ibu Maya Suryani',
-                              telepon: '+62 856-1199-8833',
-                              alamat: 'Jl. Tomang Asri Blok C No. 12, Jakarta Barat',
-                              kategori: 'Kriminalitas (Pencurian / Begal / Curas)',
-                              urgensi: 'DARURAT',
-                              uraian: 'Percobaan pencurian sepeda motor di halaman rumah warga, pelaku melarikan diri.',
-                              lat: -6.1750,
-                              lng: 106.7900,
-                            },
-                            {
-                              nama: 'Ibu Ratna Dewi',
-                              telepon: '+62 812-9844-3210',
-                              alamat: 'Jl. Panglima Polim Raya No. 42, Kebayoran Baru, Jakarta Selatan',
-                              kategori: 'Kamtibmas (Tawuran / Keributan Warga)',
-                              urgensi: 'DARURAT',
-                              uraian: 'Pelapor melaporkan adanya sekelompok remaja berkumpul sekitar 15 orang membawa balok kayu di depan pertokoan. Dikhawatirkan terjadi bentrok.',
-                              lat: -6.2415,
-                              lng: 106.8021,
-                            },
-                          ];
-                          const picked = scenarios[Math.floor(Math.random() * scenarios.length)];
-                          setSimCaller(picked);
-                        }}
-                        style={{ padding: '10px 14px', background: 'white', color: '#475569', fontWeight: 700, fontSize: '12px', border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer' }}
-                      >
-                        <span>🔄</span> Acak Skenario
-                      </button>
-                    </div>
-
-                    {/* Banner Telepon Terhubung (Prototype L2030-2038) */}
-                    {isCallActive && (
-                      <div
-                        id="eb-call-connected-bar"
-                        style={{
-                          marginTop: '10px',
-                          padding: '8px 12px',
-                          background: '#DCFCE7',
-                          border: '1px solid #86EFAC',
-                          borderRadius: '8px',
-                          fontSize: '11.5px',
-                          fontWeight: 700,
-                          color: '#166534',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>🎙️</span>
-                          <span>Panggilan Terhubung Aktif</span>
-                        </div>
-                        <span
-                          id="eb-live-timer"
-                          style={{
-                            fontFamily: 'monospace',
-                            fontSize: '12px',
-                            background: '#BBF7D0',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                          }}
-                        >
-                          {callTimer}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                 
 
                   {/* Formulir Penerimaan Laporan */}
                   <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
@@ -4803,13 +4675,13 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                             kategoriLaporan: simCaller.kategori,
                             kategoriKey: simCaller.kategori,
                             platformKey: 'layanan110',
-                            urgensi: (simCaller as any).urgensi || 'DARURAT',
+                            urgensi: (simCaller as any).urgensi,
                             tkpAlamatTeks: simCaller.alamat,
-                            tkpLat: simCaller.lat || -6.2415,
-                            tkpLng: simCaller.lng || 106.8021,
+                            tkpLat: simCaller.lat,
+                            tkpLng: simCaller.lng,
                             deskripsiKejadian: simCaller.uraian,
                             saluranLaporan: 'CALL_110',
-                            operatorId: '1',
+                            operatorId: session?.userId ? String(session.userId) : null,
                           });
                           setLoading(false);
                           if (res.success) {
@@ -4834,13 +4706,13 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                             kategoriLaporan: simCaller.kategori,
                             kategoriKey: simCaller.kategori,
                             platformKey: 'layanan110',
-                            urgensi: (simCaller as any).urgensi || 'DARURAT',
+                            urgensi: (simCaller as any).urgensi,
                             tkpAlamatTeks: simCaller.alamat,
-                            tkpLat: simCaller.lat || -6.2415,
-                            tkpLng: simCaller.lng || 106.8021,
+                            tkpLat: simCaller.lat,
+                            tkpLng: simCaller.lng,
                             deskripsiKejadian: simCaller.uraian,
                             saluranLaporan: 'CALL_110',
-                            operatorId: '1',
+                            operatorId: session?.userId ? String(session.userId) : '1',
                           });
                           setLoading(false);
                           if (res.success && res.data) {
