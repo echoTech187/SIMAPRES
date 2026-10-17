@@ -63,7 +63,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
     }
 
     // 4. Standarisasi RBAC murni dari database (SUPERADMIN, PAWAS, PERSONIL)
-    const userRole = (user.role?.toUpperCase() as 'SUPERADMIN' | 'PAWAS' | 'PERSONIL') || 'PERSONIL';
+    const userRole = user.role;
 
     // 5. Rute Navigasi Terpadu (Single Console URL Presisi 110)
     const targetRoute = '/console';
@@ -74,7 +74,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
       userId: user.id.toString(),
       identifier: user.identifier,
       fullName: registeredUnit?.nama || user.full_name,
-      role: userRole,
+      role: userRole as any,
       rankPangkat: registeredUnit?.pangkat || user.officer_profile?.rank_pangkat || '',
       satuanNama: registeredUnit?.satuanNama || user.officer_profile?.jabatan || '',
       kelompokRegu: registeredUnit?.kelompokRegu || '',
@@ -287,7 +287,7 @@ export async function registerNewUnitAction(input: {
       },
     });
 
-    const devId = input.deviceID && input.deviceID.trim() ? input.deviceID.trim() : `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`;
+    const devId = input.deviceID && input.deviceID.trim() ? input.deviceID.trim() : null;
 
     // 2. Sinkronisasi Profil Personil Polisi (Tabel police_officers)
     await prisma.policeOfficer.upsert({
@@ -303,11 +303,11 @@ export async function registerNewUnitAction(input: {
         nrp: input.nrp,
         rank_pangkat: input.pangkat,
         jabatan: `${input.satuanNama} • ${input.kelompokRegu}`.slice(0, 95),
-        duty_status: 'DINAS_PATROLI',
-        assigned_patrol_vehicle: `Ranmor Dinas ${input.pangkat} (Plat VII-${input.nrp.slice(0, 4)}-01)`.slice(0, 48),
+        duty_status: 'LEPAS_DINAS',
+        assigned_patrol_vehicle: null,
         device_id: devId,
-        current_gps_lat: input.liveLat || -6.2415,
-        current_gps_lng: input.liveLng || 106.8021,
+        current_gps_lat: input.liveLat ?? null,
+        current_gps_lng: input.liveLng ?? null,
         station_id: parsedStationId,
       },
     });
@@ -322,9 +322,9 @@ export async function registerNewUnitAction(input: {
         satuanNama: input.satuanNama,
         kelompokRegu: input.kelompokRegu,
         password: hashedPassword,
-        deviceID: devId,
-        live_lat: input.liveLat,
-        live_lng: input.liveLng,
+        deviceID: devId || '',
+        live_lat: input.liveLat ?? null,
+        live_lng: input.liveLng ?? null,
         tanggalUpdate: now,
       },
       create: {
@@ -336,9 +336,9 @@ export async function registerNewUnitAction(input: {
         satuanNama: input.satuanNama,
         kelompokRegu: input.kelompokRegu,
         password: hashedPassword,
-        deviceID: devId,
-        live_lat: input.liveLat,
-        live_lng: input.liveLng,
+        deviceID: devId || '',
+        live_lat: input.liveLat ?? null,
+        live_lng: input.liveLng ?? null,
         status: 'Aktif',
         tanggalDaftar: now,
         tanggalUpdate: now,
@@ -469,10 +469,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
     });
     if (!reg && !user) return { success: false, error: 'Data personel tidak ditemukan.' };
 
-    const unitLow = (reg?.unitId || '').toLowerCase();
-    const isPawas = user?.role_id == 2;
-
-    const isOperator = user?.role_id == 4;
+    const roleStr = (user?.role || reg?.role || 'PERSONIL').toLowerCase();
 
     const officerProfile =
       user?.officer_profile ||
@@ -482,7 +479,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
 
     const kpiScore = officerProfile?.kpi_score
       ? Number(officerProfile.kpi_score)
-      : 96.0;
+      : 100;
 
     return {
       success: true,
@@ -494,7 +491,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
         satuan: reg?.satuanNama || officerProfile?.jabatan || '',
         jabatan: reg?.kelompokRegu || '',
         unitId: reg?.unitId || '',
-        role: isPawas ? 'pawas' : isOperator ? 'operator' : 'anggota',
+        role: roleStr,
         avatar: user?.officer_profile?.avatar_url || null,
         kpi: kpiScore,
       },
@@ -508,25 +505,40 @@ export async function getPoliceOfficesAction() {
   try {
     const rawOffices = await prisma.policeStation.findMany({
       orderBy: { id: 'asc' },
+      include: {
+        users: {
+          select: {
+            full_name: true,
+            role: true,
+          },
+          take: 5,
+        },
+      },
     });
 
     return {
       success: true,
-      data: rawOffices.map((o: any) => ({
-        id: o.id,
-        code: o.station_code,
-        name: o.station_name,
-        type: o.station_level,
-        address: o.address,
-        lat: Number(o.office_lat),
-        lng: Number(o.office_lng),
-        radius: Number(o.geofence_radius_meters || 500),
-        petugas: `SPKT & Posko Siaga (${o.station_name})`,
-        status: 'Status: KANTOR POLSEK SIAGA OPERASIONAL',
-        statusColor: '#1E3A8A',
-        tugas: `Pelayanan SPKT & Respons Pengaduan 110 Wilayah ${o.station_name}`,
-        telemetri: `Radius Geofence: ${o.geofence_radius_meters || 500}m • Siaga Radio Komunikasi`,
-      })),
+      data: rawOffices.map((o: any) => {
+        const userNames = (o.users || []).map((u: any) => u.full_name).filter(Boolean);
+        const petugasStr = userNames.length > 0 ? userNames.join(', ') : '-';
+        const levelLabel = o.station_level || 'KANTOR POLISI';
+
+        return {
+          id: o.id,
+          code: o.station_code,
+          name: o.station_name,
+          type: o.station_level,
+          address: o.address,
+          lat: Number(o.office_lat),
+          lng: Number(o.office_lng),
+          radius: Number(o.geofence_radius_meters || 500),
+          petugas: petugasStr,
+          status: `${levelLabel} SIAGA`,
+          statusColor: '#1E3A8A',
+          tugas: o.station_name,
+          telemetri: o.geofence_radius_meters ? `Geofence: ${o.geofence_radius_meters}m` : '-',
+        };
+      }),
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data kantor kepolisian.' };
