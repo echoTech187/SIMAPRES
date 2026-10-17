@@ -245,6 +245,9 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [showLightboxModal, setShowLightboxModal] = useState(false);
   const [lightboxImg, setLightboxImg] = useState({ url: '', title: '', meta: '', desc: '' });
+  const wizardFileRef1 = useRef<HTMLInputElement>(null);
+  const wizardFileRef2 = useRef<HTMLInputElement>(null);
+  const wizardFileRef3 = useRef<HTMLInputElement>(null);
 
   // Hotspot CRUD Modal
   const [showHotspotModal, setShowHotspotModal] = useState(false);
@@ -2952,11 +2955,19 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                           {/* Header Kartu: Avatar Pelapor, Nama, Waktu, Status, Platform */}
                           <div className="val-user" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                             <div style={{ position: 'relative', flexShrink: 0 }}>
-                              <img
-                                src="/assets/images/avatar_polisi.jpg"
-                                alt="User"
-                                style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${avatarBorder}`, display: 'block' }}
-                              />
+                              {log.pelaporAvatarUrl ? (
+                                <img
+                                  src={log.pelaporAvatarUrl}
+                                  alt="User"
+                                  style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${avatarBorder}`, display: 'block' }}
+                                />
+                              ) : (
+                                <div
+                                  style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F1F5F9', border: `2px solid ${avatarBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
+                                >
+                                  {log.platformKey === 'sos' ? '🚨' : log.platformKey === 'personil' ? '👮' : '👤'}
+                                </div>
+                              )}
                               <span
                                 style={{
                                   position: 'absolute',
@@ -3192,25 +3203,31 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   {activeComplaint.jenisKejadian}
                                 </div>
 
-                                <div style={{ position: 'relative', marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', height: '180px', background: '#0F172A' }}>
-                                  <img
-                                    src="/assets/images/polri_pengaduan_tkp.jpg"
-                                    alt="Foto Bukti"
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                                    onClick={() => {
-                                      setLightboxImg({
-                                        url: '/assets/images/polri_pengaduan_tkp.jpg',
-                                        title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
-                                        meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
-                                        desc: activeComplaint.ringkasanKeterangan,
-                                      });
-                                      setShowLightboxModal(true);
-                                    }}
-                                  />
-                                  <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.65)', color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                                    📷 Foto Lampiran
+                                {activeComplaint.fotoTkpUrl ? (
+                                  <div style={{ position: 'relative', marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', height: '180px', background: '#0F172A' }}>
+                                    <img
+                                      src={activeComplaint.fotoTkpUrl}
+                                      alt="Foto Bukti"
+                                      style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
+                                      onClick={() => {
+                                        setLightboxImg({
+                                          url: activeComplaint.fotoTkpUrl,
+                                          title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
+                                          meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
+                                          desc: activeComplaint.ringkasanKeterangan,
+                                        });
+                                        setShowLightboxModal(true);
+                                      }}
+                                    />
+                                    <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.65)', color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                                      📷 Foto Lampiran
+                                    </div>
                                   </div>
-                                </div>
+                                ) : (
+                                  <div style={{ padding: '16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', textAlign: 'center', color: '#94A3B8', fontSize: '12px', marginBottom: '12px' }}>
+                                    📷 Tidak ada foto bukti yang dilampirkan
+                                  </div>
+                                )}
 
                                 <div className="detail-text" style={{ fontSize: '12px', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                                   <div>
@@ -3398,44 +3415,50 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   </div>
 
                                   {/* Foto Bukti Laporan Warga Full-Width dengan Tombol Perbesar */}
-                                  <div
-                                    style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
-                                    onClick={() => {
-                                      setLightboxImg({
-                                        url: '/assets/images/polri_pengaduan_tkp.jpg',
-                                        title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
-                                        meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
-                                        desc: activeComplaint.ringkasanKeterangan,
-                                      });
-                                      setShowLightboxModal(true);
-                                    }}
-                                    title="Klik untuk perbesar foto laporan"
-                                  >
-                                    <img
-                                      src="/assets/images/polri_pengaduan_tkp.jpg"
-                                      alt="Bukti TKP"
-                                      style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                                    />
+                                  {activeComplaint.fotoTkpUrl ? (
                                     <div
-                                      style={{
-                                        position: 'absolute',
-                                        inset: 0,
-                                        background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
-                                        display: 'flex',
-                                        alignItems: 'flex-end',
-                                        justifyContent: 'space-between',
-                                        padding: '8px 10px',
-                                        color: 'white',
-                                        fontSize: '10px',
-                                        fontWeight: 600,
+                                      style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
+                                      onClick={() => {
+                                        setLightboxImg({
+                                          url: activeComplaint.fotoTkpUrl,
+                                          title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
+                                          meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
+                                          desc: activeComplaint.ringkasanKeterangan,
+                                        });
+                                        setShowLightboxModal(true);
                                       }}
+                                      title="Klik untuk perbesar foto laporan"
                                     >
-                                      <span>Foto Bukti Laporan 110 • {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
-                                      <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
-                                        🔍 Perbesar
-                                      </span>
+                                      <img
+                                        src={activeComplaint.fotoTkpUrl}
+                                        alt="Bukti TKP"
+                                        style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                                      />
+                                      <div
+                                        style={{
+                                          position: 'absolute',
+                                          inset: 0,
+                                          background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
+                                          display: 'flex',
+                                          alignItems: 'flex-end',
+                                          justifyContent: 'space-between',
+                                          padding: '8px 10px',
+                                          color: 'white',
+                                          fontSize: '10px',
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        <span>Foto Bukti Laporan 110 • {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
+                                        <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
+                                          🔍 Perbesar
+                                        </span>
+                                      </div>
                                     </div>
-                                  </div>
+                                  ) : (
+                                    <div style={{ padding: '16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
+                                      📷 Tidak ada foto bukti laporan yang dilampirkan
+                                    </div>
+                                  )}
 
                                   <div style={{ fontSize: '11px', color: '#1E293B', lineHeight: 1.4, marginTop: '8px', fontStyle: 'italic' }}>
                                     "{activeComplaint.ringkasanKeterangan}"
@@ -3457,20 +3480,22 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                       <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
                                         📅 Waktu: {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                       </span>
-                                      <span
-                                        onClick={() => {
-                                          setLightboxImg({
-                                            url: '/assets/images/polri_pengaduan_tkp.jpg',
-                                            title: 'Foto Bukti SPKT 110',
-                                            meta: activeComplaint.nomorTiket,
-                                            desc: activeComplaint.ringkasanKeterangan,
-                                          });
-                                          setShowLightboxModal(true);
-                                        }}
-                                        style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                      >
-                                        📷 Bukti Laporan 110 ➔
-                                      </span>
+                                      {activeComplaint.fotoTkpUrl && (
+                                        <span
+                                          onClick={() => {
+                                            setLightboxImg({
+                                              url: activeComplaint.fotoTkpUrl,
+                                              title: 'Foto Bukti SPKT 110',
+                                              meta: activeComplaint.nomorTiket,
+                                              desc: activeComplaint.ringkasanKeterangan,
+                                            });
+                                            setShowLightboxModal(true);
+                                          }}
+                                          style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                        >
+                                          📷 Bukti Laporan 110 ➔
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
 
@@ -3529,43 +3554,46 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                       <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
                                         📅 Meluncur: {activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}
                                       </span>
-                                      <span
-                                        onClick={() => {
-                                          setLightboxImg({
-                                            url: '/assets/images/polri_patrol_car.jpg',
-                                            title: 'Bukti Persiapan & GPS Lapangan',
-                                            meta: activeComplaint.assignedOfficer?.assignedPatrolVehicle || 'Patroli Samapta Presisi',
-                                            desc: 'Armada dalam perjalanan menuju TKP',
-                                          });
-                                          setShowLightboxModal(true);
-                                        }}
-                                        style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                      >
-                                        📷 Bukti Persiapan &amp; GPS ➔
-                                      </span>
+                                      {activeComplaint.fotoPersiapan && (
+                                        <span
+                                          onClick={() => {
+                                            setLightboxImg({
+                                              url: activeComplaint.fotoPersiapan,
+                                              title: 'Bukti Persiapan & GPS Lapangan',
+                                              meta: activeComplaint.assignedOfficer?.assignedPatrolVehicle || '-',
+                                              desc: 'Armada dalam perjalanan menuju TKP',
+                                            });
+                                            setShowLightboxModal(true);
+                                          }}
+                                          style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                        >
+                                          📷 Bukti Persiapan &amp; GPS ➔
+                                        </span>
+                                      )}
                                     </div>
 
                                     {/* Tracking Map Card */}
                                     <div
-                                      style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', height: '110px', background: '#0F172A', cursor: 'pointer' }}
-                                      onClick={() => {
-                                        setLightboxImg({
-                                          url: '/assets/images/polri_patrol_car.jpg',
-                                          title: 'Armada Patroli Meluncur ke TKP',
-                                          meta: activeComplaint.assignedOfficer?.assignedPatrolVehicle || 'Unit Presisi',
-                                          desc: 'Estimasi tiba di TKP: 3-5 menit',
-                                        });
-                                        setShowLightboxModal(true);
-                                      }}
+                                      style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', height: '110px', background: 'radial-gradient(circle at center, #1E3A8A 0%, #0F172A 100%)' }}
                                     >
-                                      <img src="/assets/images/polri_patrol_car.jpg" alt="Patrol Car" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      {activeComplaint.fotoPersiapan ? (
+                                        <img src={activeComplaint.fotoPersiapan} alt="Patrol Car" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      ) : (
+                                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#93C5FD', fontSize: '11px', fontWeight: 700 }}>
+                                          🛰️ Tracking Satelit Armada Aktif
+                                        </div>
+                                      )}
                                       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <img src={activeComplaint.assignedOfficer?.avatarUrl || '/assets/images/avatar_polisi.jpg'} alt="Petugas" style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid white' }} />
+                                        {activeComplaint.assignedOfficer?.avatarUrl ? (
+                                          <img src={activeComplaint.assignedOfficer.avatarUrl} alt="Petugas" style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid white' }} />
+                                        ) : (
+                                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1E3A8A', border: '1.5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👮</div>
+                                        )}
                                         <div>
                                           <div style={{ color: 'white', fontSize: '11px', fontWeight: 800 }}>
                                             {activeComplaint.assignedOfficer ? `${activeComplaint.assignedOfficer.assignedPatrolVehicle || 'Unit Presisi'} (${activeComplaint.assignedOfficer.rankPangkat} ${activeComplaint.assignedOfficer.namaLengkap})` : 'Unit Patroli Presisi'}
                                           </div>
-                                          <div style={{ color: '#38BDF8', fontSize: '9.5px' }}>Estimasi Tiba: {activeComplaint.status === 'MENUJU_TKP' ? '3-5 Menit' : 'Tepat Waktu'} • 🔍 Klik perbesar foto</div>
+                                          <div style={{ color: '#38BDF8', fontSize: '9.5px' }}>Status: {activeComplaint.status === 'MENUJU_TKP' ? 'Menuju Lokasi' : 'Tepat Waktu'}</div>
                                         </div>
                                       </div>
                                     </div>
@@ -3619,20 +3647,22 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                           <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
                                             📅 Tiba di TKP: {activeComplaint.responTibaTkpAt ? new Date(activeComplaint.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
                                           </span>
-                                          <span
-                                            onClick={() => {
-                                              setLightboxImg({
-                                                url: '/assets/images/polri_pengaduan_tkp.jpg',
-                                                title: 'Foto Tindakan Kepolisian di TKP',
-                                                meta: activeComplaint.nomorTiket,
-                                                desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
-                                              });
-                                              setShowLightboxModal(true);
-                                            }}
-                                            style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                          >
-                                            📸 Bukti Tindakan TKP ➔
-                                          </span>
+                                          {activeComplaint.fotoTindakan && (
+                                            <span
+                                              onClick={() => {
+                                                setLightboxImg({
+                                                  url: activeComplaint.fotoTindakan,
+                                                  title: 'Foto Tindakan Kepolisian di TKP',
+                                                  meta: activeComplaint.nomorTiket,
+                                                  desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
+                                                });
+                                                setShowLightboxModal(true);
+                                              }}
+                                              style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                            >
+                                              📸 Bukti Tindakan TKP ➔
+                                            </span>
+                                          )}
                                         </div>
                                         <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                                           <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
@@ -4896,7 +4926,11 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         "{activeWizardLog.ringkasanKeterangan}"
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-                        <img src="/assets/images/polri_pengaduan_tkp.jpg" alt="Foto TKP" style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }} />
+                        {activeWizardLog.fotoTkpUrl ? (
+                          <img src={activeWizardLog.fotoTkpUrl} alt="Foto TKP" style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ width: '48px', height: '48px', borderRadius: '6px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📷</div>
+                        )}
                         <div style={{ fontSize: '11px', color: '#64748B' }}>
                           <strong style={{ color: '#1E293B' }}>Dokumentasi Laporan Awal</strong>
                           <div>Terverifikasi Operator 110 &bull; {activeWizardLog.pelaporNama}</div>
@@ -4918,17 +4952,29 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       </div>
                     )}
 
-                    <div
-                      onClick={() => {
-                        setWizardFoto1('/assets/images/polri_patrol_car.jpg');
-                        alert('📸 Foto persiapan armada patroli berhasil diperbarui dengan watermark GPS terkunci!');
+                    <input
+                      type="file"
+                      ref={wizardFileRef1}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (re) => setWizardFoto1(re.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
                       }}
+                    />
+
+                    <div
+                      onClick={() => wizardFileRef1.current?.click()}
                       style={{
                         padding: '12px',
                         border: '2px dashed #93C5FD',
                         borderRadius: '8px',
                         background: '#F0F9FF',
-                        color: '#0284C7',
+                        color: '#1D4ED8',
                         fontWeight: 700,
                         fontSize: '12px',
                         textAlign: 'center',
@@ -4936,7 +4982,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         marginBottom: '14px',
                       }}
                     >
-                      📸 Ambil / Ganti Foto Persiapan (Watermark GPS)
+                      {wizardFoto1 ? '📷 Ubah Foto Persiapan' : '📷 Unggah Foto Persiapan Armada'}
                     </div>
 
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
@@ -5046,11 +5092,23 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       </div>
                     )}
 
-                    <div
-                      onClick={() => {
-                        setWizardFoto2('/assets/images/polri_pengaduan_tkp.jpg');
-                        alert('📸 Foto tindakan di TKP berhasil diperbarui dengan watermark GPS terkunci!');
+                    <input
+                      type="file"
+                      ref={wizardFileRef2}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (re) => setWizardFoto2(re.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
                       }}
+                    />
+
+                    <div
+                      onClick={() => wizardFileRef2.current?.click()}
                       style={{
                         padding: '12px',
                         border: '2px dashed #86EFAC',
@@ -5064,7 +5122,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         marginBottom: '14px',
                       }}
                     >
-                      📸 Ambil / Ganti Foto Kondisi TKP (Watermark GPS)
+                      {wizardFoto2 ? '📸 Ubah Foto Tindakan TKP' : '📸 Unggah Foto Tindakan TKP'}
                     </div>
 
                     <button
@@ -5150,11 +5208,23 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       </div>
                     )}
 
-                    <div
-                      onClick={() => {
-                        setWizardFoto3('/assets/images/polri_pengaduan_tkp.jpg');
-                        alert('📸 Foto situasi kondusif berhasil diperbarui dengan watermark GPS terkunci!');
+                    <input
+                      type="file"
+                      ref={wizardFileRef3}
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (re) => setWizardFoto3(re.target?.result as string);
+                          reader.readAsDataURL(file);
+                        }
                       }}
+                    />
+
+                    <div
+                      onClick={() => wizardFileRef3.current?.click()}
                       style={{
                         padding: '12px',
                         border: '2px dashed #86EFAC',
@@ -5168,7 +5238,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         marginBottom: '14px',
                       }}
                     >
-                      📸 Ambil / Ganti Foto Situasi Akhir (Watermark GPS)
+                      {wizardFoto3 ? '📸 Ubah Foto Situasi Akhir' : '📸 Unggah Foto Situasi Akhir'}
                     </div>
 
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>

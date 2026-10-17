@@ -170,6 +170,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   const [logLng, setLogLng] = useState(0);
   const [logDeskripsi, setLogDeskripsi] = useState('');
   const [logFoto, setLogFoto] = useState<string | null>(null);
+  const logPhotoInputRef = useRef<HTMLInputElement>(null);
   const [isSubmittingLog, setIsSubmittingLog] = useState(false);
 
   // Timepicker Modal
@@ -359,7 +360,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
         jamMulai: jamMulai,
         jamSelesai: jamSelesai,
         deskripsiKegiatan: logDeskripsi,
-        fotoBuktiUrl: logFoto || '/assets/images/polri_pengaduan_tkp.jpg',
+        fotoBuktiUrl: logFoto || null,
       });
 
       if (res.success) {
@@ -1397,19 +1398,29 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                     fontWeight: 600,
                     color: '#153E75',
                   }}
-                  onClick={() => {
-                    const sample = '/assets/images/polri_pengaduan_tkp.jpg';
-                    setLogFoto(sample);
-                    alert('✓ Foto berhasil diambil via kamera live petugas dengan watermark GPS satelit!');
-                  }}
+                  onClick={() => logPhotoInputRef.current?.click()}
                 >
+                  <input
+                    type="file"
+                    ref={logPhotoInputRef}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (re) => setLogFoto(re.target?.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
                   {logFoto ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <img src={logFoto} alt="Preview" style={{ width: '80px', height: '80px', borderRadius: '6px', objectFit: 'cover' }} />
-                      <span style={{ color: '#059669', fontWeight: 800 }}>✓ Foto Live Siap Dikirim</span>
+                      <span style={{ color: '#059669', fontWeight: 800 }}>✓ Foto Terpilih</span>
                     </div>
                   ) : (
-                    <span>📸 Ambil Foto Kegiatan (Watermark GPS)</span>
+                    <span>📸 Pilih / Unggah Foto Kegiatan</span>
                   )}
                 </div>
               </div>
@@ -1597,7 +1608,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                         onClick={() => setSelectedTask(t)}
                       >
                         <div className="val-user">
-                          <img src="/assets/images/polri_pengaduan_tkp.jpg" alt="Task" />
+                          {t.fotoBuktiUrl ? (
+                            <img src={t.fotoBuktiUrl} alt="Task" />
+                          ) : (
+                            <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🚨</div>
+                          )}
                           <div>
                             <div style={{ fontWeight: 800, fontSize: '13px', color: '#0F172A' }}>
                               {t.jenisKejadian}
@@ -1646,7 +1661,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           <div style={{ textAlign: 'right' }}>
                             <div className="incident-meta-label">Waktu Lapor</div>
                             <div className="incident-meta-val" style={{ fontSize: '12px' }}>
-                              Hari ini, 10:45 WIB
+                              {selectedTask.waktuLapor ? new Date(selectedTask.waktuLapor).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : '-'}
                             </div>
                           </div>
                         </div>
@@ -1658,42 +1673,45 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                         </div>
 
                         {/* Foto Bukti Laporan Warga with Lightbox */}
-                        <div
-                          style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
-                          onClick={() =>
-                            setLightboxFoto({
-                              src: selectedTask.fotoBuktiUrl || '/assets/images/polri_pengaduan_tkp.jpg',
-                              title: `Dokumentasi TKP - ${selectedTask.nomorTiket}`,
-                              meta: selectedTask.tkpAlamatTeks,
-                            })
-                          }
-                          title="Klik untuk perbesar foto"
-                        >
-                          <img
-                            src={selectedTask.fotoBuktiUrl || '/assets/images/polri_pengaduan_tkp.jpg'}
-                            alt="Bukti Laporan"
-                            style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                          />
+                        {selectedTask.fotoBuktiUrl ? (
                           <div
-                            style={{
-                              position: 'absolute',
-                              inset: 0,
-                              background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
-                              display: 'flex',
-                              alignItems: 'flex-end',
-                              justifyContent: 'space-between',
-                              padding: '8px 10px',
-                              color: 'white',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                            }}
+                            style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
+                            onClick={() =>
+                              setLightboxFoto({
+                                src: selectedTask.fotoBuktiUrl,
+                                title: `Dokumentasi TKP - ${selectedTask.nomorTiket}`,
+                                meta: selectedTask.tkpAlamatTeks,
+                              })
+                            }
+                            title="Klik untuk perbesar foto"
                           >
-                            <span>Bukti Laporan Warga</span>
-                            <span style={{ background: 'rgba(255,255,255,0.25)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
-                              🔍 Perbesar
-                            </span>
+                            <img
+                              src={selectedTask.fotoBuktiUrl}
+                              alt="Bukti Laporan"
+                              style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                            />
+                            <div
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 40%)',
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'space-between',
+                                padding: '8px 10px',
+                                color: 'white',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <span>🔍 Klik untuk Perbesar</span>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div style={{ padding: '16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', textAlign: 'center', color: '#94A3B8', fontSize: '12px', marginTop: '8px' }}>
+                            📷 Tidak ada foto bukti yang dilampirkan
+                          </div>
+                        )}
                       </div>
 
                       {/* 5-Step Vertical Timeline */}

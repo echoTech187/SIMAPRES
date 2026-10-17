@@ -203,14 +203,9 @@ export default function PortalWargaPage() {
       sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
       deskripsi: 'Aktivasi Tombol Darurat SOS Presisi: Warga membutuhkan bantuan polisi segera di lokasi. Koordinat satelit GPS telah terkunci real-time.',
       koordinatGps: gpsCoords,
-      fotoPengaduan: '/assets/images/polri_pengaduan_tkp.jpg',
+      fotoPengaduan: '',
       ratingKepuasan: null,
-      disposisi: {
-        satuan: 'Satuan Samapta Presisi',
-        komandan: 'Aipda Rudi',
-        estimasiJarak: '1.0 km',
-        estimasiEta: '3-4 Menit',
-      },
+      disposisi: undefined,
     };
 
     showAlert(
@@ -253,7 +248,7 @@ export default function PortalWargaPage() {
         jenisKejadian: kategori,
         kategoriKey: kategori,
         platformKey: 'warga',
-        urgensi: 'SEDANG',
+        urgensi: null as any,
         tkpAlamatTeks: lokasiVal,
         tkpLat: lat,
         tkpLng: lng,
@@ -284,14 +279,9 @@ export default function PortalWargaPage() {
       sumberLaporan: '📱 Portal Presisi Warga Online',
       deskripsi: uraianVal,
       koordinatGps: gpsCoords,
-      fotoPengaduan: fotoBukti || '/assets/images/polri_pengaduan_tkp.jpg',
+      fotoPengaduan: fotoBukti || '',
       ratingKepuasan: null,
-      disposisi: {
-        satuan: 'Satuan Sabhara / Samapta Presisi',
-        komandan: 'Bripka Ahmad',
-        estimasiJarak: '1.8 km',
-        estimasiEta: '5 Menit',
-      },
+      disposisi: undefined,
     };
 
     showAlert(
@@ -456,24 +446,39 @@ export default function PortalWargaPage() {
 
   const openPhotoModal = (type: string) => {
     if (type === 'pengaduan') {
+      const img = currentActiveLog?.fotoPengaduan;
+      if (!img) {
+        alert('Tidak ada foto bukti pengaduan yang dilampirkan.');
+        return;
+      }
       setLightboxData({
         open: true,
         title: 'Foto Bukti Pengaduan Awal',
-        img: currentActiveLog?.fotoPengaduan || '/assets/images/polri_pengaduan_tkp.jpg',
+        img,
         desc: 'Dokumentasi kejadian yang diunggah saat laporan pertama kali dibuat.',
       });
     } else if (type === 'persiapan') {
+      const img = currentActiveLog?.fotoPersiapan;
+      if (!img) {
+        alert('Tidak ada foto persiapan yang dilampirkan.');
+        return;
+      }
       setLightboxData({
         open: true,
         title: 'Bukti Keberangkatan & GPS Personel',
-        img: currentActiveLog?.fotoPersiapan || '/assets/images/polri_patrol_car.jpg',
+        img,
         desc: 'Dokumentasi personel meluncur dengan kesiapan ranmor patroli dan GPS aktif.',
       });
     } else {
+      const img = currentActiveLog?.fotoTindakan;
+      if (!img) {
+        alert('Tidak ada foto penanganan TKP yang dilampirkan.');
+        return;
+      }
       setLightboxData({
         open: true,
         title: 'Dokumentasi Penanganan di TKP',
-        img: currentActiveLog?.fotoTindakan || '/assets/images/polri_tindakan_tkp.jpg',
+        img,
         desc: 'Dokumentasi tindakan mediasi, olah TKP, dan penanganan oleh petugas di lokasi.',
       });
     }
@@ -1111,23 +1116,49 @@ export default function PortalWargaPage() {
 
                       {/* Live Map with Police Avatar */}
                       <div className="tracking-map" id="step-3-map" style={{ display: 'block' }}>
-                        <img
-                          src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80"
-                          alt="Map Route"
-                          className="map-placeholder"
-                        />
+                        <div
+                          style={{
+                            width: '100%',
+                            height: '180px',
+                            background: 'radial-gradient(circle at center, #1E3A8A 0%, #0F172A 100%)',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            position: 'relative',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <div style={{ fontSize: '32px', marginBottom: '6px' }}>🛰️</div>
+                          <div style={{ fontSize: '13px', fontWeight: 800 }}>Radar GPS Satelit Presisi Terkunci</div>
+                          <div style={{ fontSize: '11px', color: '#93C5FD', marginTop: '2px' }}>
+                            {currentActiveLog.disposisi?.satuan || 'Unit Samapta Presisi'} • Meluncur ke Titik Aduan
+                          </div>
+                        </div>
                         <div className="map-overlay">
-                          <img
-                            src="/assets/images/polri_personil_lapangan.jpg"
-                            alt="Police"
-                            className="police-avatar"
-                          />
+                          <div
+                            style={{
+                              width: '36px',
+                              height: '36px',
+                              borderRadius: '50%',
+                              background: '#153E75',
+                              border: '2px solid white',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '18px',
+                            }}
+                          >
+                            👮
+                          </div>
                           <div className="police-info">
                             <h4 id="map-police-name">
                               {currentActiveLog.disposisi?.komandan || currentActiveLog.nama}
                             </h4>
                             <p id="map-police-eta">
-                              ⚡ Status: {currentActiveLog.tahap >= 5 ? 'Tuntas di Lokasi' : 'Menuju Lokasi (ETA: 4-5 Menit)'}
+                              ⚡ Status: {currentActiveLog.tahap >= 5 ? 'Tuntas di Lokasi' : 'Menuju Lokasi (Dalam Penanganan)'}
                             </p>
                           </div>
                         </div>

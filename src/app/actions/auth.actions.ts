@@ -93,10 +93,10 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
       identifier: user.identifier,
       fullName: registeredUnit?.nama || user.full_name,
       role: userRole,
-      rankPangkat: registeredUnit?.pangkat || user.officer_profile?.rank_pangkat || 'BRIPKA',
-      satuanNama: registeredUnit?.satuanNama || user.officer_profile?.jabatan || 'Satuan Samapta Presisi',
-      kelompokRegu: registeredUnit?.kelompokRegu || 'Regu Alpha Presisi',
-      unitId: registeredUnit?.unitId || 'sabhara',
+      rankPangkat: registeredUnit?.pangkat || user.officer_profile?.rank_pangkat || '',
+      satuanNama: registeredUnit?.satuanNama || user.officer_profile?.jabatan || '',
+      kelompokRegu: registeredUnit?.kelompokRegu || '',
+      unitId: registeredUnit?.unitId || '',
       avatar: user.officer_profile?.avatar_url || '',
       issuedAt: now,
       expiresAt: now + SESSION_MAX_AGE_SECONDS * 1000,
@@ -129,10 +129,10 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
         nrp: user.identifier,
         fullName: registeredUnit?.nama || user.full_name,
         nama: registeredUnit?.nama || user.full_name,
-        pangkat: registeredUnit?.pangkat || user.officer_profile?.rank_pangkat || 'BRIPKA',
-        satuanNama: registeredUnit?.satuanNama || user.officer_profile?.jabatan || 'Satuan Samapta Presisi',
-        kelompokRegu: registeredUnit?.kelompokRegu || 'Regu Alpha Presisi',
-        unitId: registeredUnit?.unitId || 'sabhara',
+        pangkat: registeredUnit?.pangkat || user.officer_profile?.rank_pangkat || '',
+        satuanNama: registeredUnit?.satuanNama || user.officer_profile?.jabatan || '',
+        kelompokRegu: registeredUnit?.kelompokRegu || '',
+        unitId: registeredUnit?.unitId || '',
         role: userRole,
         userRole: userRole,
         officer: user.officer_profile ? serializeBigInt(user.officer_profile) : null,
@@ -282,13 +282,7 @@ export async function registerNewUnitAction(input: {
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
     const now = new Date();
 
-    const assignedRole = input.role || (
-      (input.unitId.includes('pawas') || input.unitId.includes('komando'))
-        ? 'PAWAS'
-        : input.unitId.includes('operator')
-        ? 'OPERATOR_110'
-        : 'PERSONIL'
-    );
+    const assignedRole = input.role;
 
     const parsedStationId = input.stationId ? Number(input.stationId) : null;
 
@@ -305,8 +299,8 @@ export async function registerNewUnitAction(input: {
         identifier: input.nrp,
         password_hash: hashedPassword,
         full_name: input.nama,
-        phone_number: '0812' + Math.floor(10000000 + Math.random() * 90000000),
-        role: assignedRole,
+        phone_number: input.phone_number,
+        role: assignedRole || '',
         station_id: parsedStationId,
       },
     });
@@ -494,15 +488,9 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
     if (!reg && !user) return { success: false, error: 'Data personel tidak ditemukan.' };
 
     const unitLow = (reg?.unitId || '').toLowerCase();
-    const isPawas =
-      user?.role === 'KAPOLRES' ||
-      user?.role === 'KABAG_OPS' ||
-      user?.role === 'KANIT' ||
-      user?.role === 'PAWAS' ||
-      unitLow.includes('pawas') ||
-      unitLow.includes('komando');
+    const isPawas = user?.role_id == 2;
 
-    const isOperator = user?.role === 'OPERATOR_110' || unitLow.includes('operator');
+    const isOperator = user?.role_id == 4;
 
     const officerProfile =
       user?.officer_profile ||
@@ -517,15 +505,15 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
     return {
       success: true,
       data: {
-        id: user?.id ? user.id.toString() : officerProfile?.id ? officerProfile.id.toString() : '1',
+        id: user?.id ? user.id.toString() : officerProfile?.id ? officerProfile.id.toString() : '',
         nrp: clean,
-        fullName: reg?.nama || user?.full_name || 'Petugas Patroli Presisi',
-        pangkat: reg?.pangkat || officerProfile?.rank_pangkat || 'BRIPKA',
-        satuan: reg?.satuanNama || officerProfile?.jabatan || 'Satuan Sabhara / Samapta Presisi',
-        jabatan: reg?.kelompokRegu || 'Regu Alpha Presisi',
-        unitId: reg?.unitId || 'sabhara',
+        fullName: reg?.nama || user?.full_name || '',
+        pangkat: reg?.pangkat || officerProfile?.rank_pangkat || '',
+        satuan: reg?.satuanNama || officerProfile?.jabatan || '',
+        jabatan: reg?.kelompokRegu || '',
+        unitId: reg?.unitId || '',
         role: isPawas ? 'pawas' : isOperator ? 'operator' : 'anggota',
-        avatar: '/assets/images/polri_pengaduan_tkp.jpg',
+        avatar: user?.officer_profile?.avatar_url || null,
         kpi: kpiScore,
       },
     };

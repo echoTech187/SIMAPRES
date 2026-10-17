@@ -36,7 +36,7 @@ export async function createComplaintAction(input: {
       pelaporNama: input.pelaporNama || input.namaPelapor || 'Masyarakat (Layanan 110)',
       pelaporHp: input.pelaporHp || input.noHpPelapor || '-',
       jenisKejadian: input.jenisKejadian || input.kategoriLaporan || 'Pengaduan Presisi 110',
-      urgensi: (input.urgensi as any) === 'PRIORITAS_TINGGI' ? 'DARURAT' : (input.urgensi as any) || 'DARURAT',
+      urgensi: (input.urgensi as any) === 'PRIORITAS_TINGGI' ? 'DARURAT' : (input.urgensi as any) || 'NORMAL',
       tkpAlamatTeks: input.tkpAlamatTeks,
       tkpLat: input.tkpLat,
       tkpLng: input.tkpLng,
@@ -91,11 +91,15 @@ export async function assignComplaintAction(input: {
         officerId = officer.id.toString();
       }
     }
+
+    if (!officerId) throw new Error('Personel tujuan disposisi tidak ditemukan.');
+    if (!input.pawasUserId) throw new Error('ID Pawas otorisasi tidak ditemukan.');
+
     const useCase = UseCaseFactory.getDispatchComplaintUseCase();
     const result = await useCase.execute({
       complaintId: BigInt(input.complaintId),
-      assignedOfficerId: BigInt(officerId || '1'),
-      pawasUserId: BigInt(input.pawasUserId || '1'),
+      assignedOfficerId: BigInt(officerId),
+      pawasUserId: BigInt(input.pawasUserId),
       arahanPawas: input.arahanPawas,
     });
     revalidatePath('/command-center');
@@ -360,7 +364,7 @@ export async function disposisiMultiSatuanAction(input: {
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
-        actor_name: input.pawasNama || 'Pawas Command Center',
+        actor_name: input.pawasNama || 'Pawas',
         actor_role: 'PAWAS',
         action: 'Disposisi Multi-Satuan Diterbitkan',
         notes: `Disiarkan ke: ${satuanNames} • Kuota: ${input.kuotaPersonel} Personel. Arahan: "${input.arahanTaktis}"`,
@@ -409,10 +413,10 @@ export async function sahkanKasusPawasAction(input: {
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
-        actor_name: input.pawasNama || 'Pawas Command Center',
+        actor_name: input.pawasNama || 'Pawas',
         actor_role: 'PAWAS',
         action: 'Pengesahan BAP & Kasus Selesai',
-        notes: input.catatanPengesahan || 'Pawas telah memverifikasi seluruh dokumentasi TKP dan mengesahkan penutupan kasus.',
+        notes: input.catatanPengesahan || 'Pawas mengesahkan penyelesaian penanganan aduan.',
       },
     });
 
@@ -491,7 +495,7 @@ export async function scanArmadaQrAction(input: {
           check_in_lat: input.scanLat,
           check_in_lng: input.scanLng,
           status_sesi: 'ACTIVE',
-          catatan_kondisi: input.catatanKondisi || 'Kondisi awal kendaraan siap operasional.',
+          catatan_kondisi: input.catatanKondisi || '',
         },
       });
 
@@ -535,7 +539,7 @@ export async function scanArmadaQrAction(input: {
           check_out_lat: input.scanLat,
           check_out_lng: input.scanLng,
           status_sesi: 'COMPLETED',
-          catatan_kondisi: input.catatanKondisi || 'Piket tuntas, kendaraan diparkir kembali di Mako.',
+          catatan_kondisi: input.catatanKondisi || '',
         },
       });
 

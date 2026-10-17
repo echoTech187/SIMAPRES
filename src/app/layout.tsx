@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'SIMAPRES 110 - Sistem Monitoring & Akuntabilitas Pengaduan Presisi',
   description: 'Sistem Terpadu Pelayanan, Pemantauan, dan Akuntabilitas Pengaduan Polri Presisi 110',
   icons: {
-    icon: '/assets/images/polri_pengaduan_tkp.jpg',
+    icon: '/favicon.ico',
   },
 };
 
