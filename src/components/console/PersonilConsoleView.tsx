@@ -94,7 +94,7 @@ function personilTabToSlug(tabId: string): string {
 function PersonilContent({ session, initialSection = 'beranda' }: { session?: any; initialSection?: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const nrpParam = searchParams.get('nrp') || session?.identifier || '95020123';
+  const nrpParam = searchParams.get('nrp') || session?.identifier || '';
 
   // Navigation tab: Sinkronkan dengan URL halaman (/console/buat-pengaduan, /console/peta, dll.)
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -119,20 +119,20 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const [focusedFleet, setFocusedFleet] = useState<'all' | 'samapta' | 'perintis' | 'lantas' | 'hotspot'>('all');
-  const [newHotspotLat, setNewHotspotLat] = useState<number>(-6.2443);
-  const [newHotspotLng, setNewHotspotLng] = useState<number>(106.8078);
+  const [newHotspotLat, setNewHotspotLat] = useState<number>(0);
+  const [newHotspotLng, setNewHotspotLng] = useState<number>(0);
   const [showMiniPickerRawan, setShowMiniPickerRawan] = useState<boolean>(false);
 
   // Officer Profile (Dimuat secara dinamis 100% dari Database MySQL)
   const [officer, setOfficer] = useState<any>({
-    id: '',
+    id: session?.userId ? String(session.userId) : '',
     nrp: nrpParam,
-    fullName: 'Memuat Personel...',
-    pangkat: '',
-    jabatan: 'Personel Presisi',
-    satuan: 'Polda Metro Jaya',
-    kendaraan: 'Ranmor Dinas Patroli',
-    avatar: '/assets/images/polri_pengaduan_tkp.jpg',
+    fullName: session?.fullName || '',
+    pangkat: session?.rankPangkat || '',
+    jabatan: session?.title || '',
+    satuan: '',
+    kendaraan: '',
+    avatar: session?.avatar_url || null,
     kpi: 0,
   });
 
@@ -156,18 +156,18 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   const [showHotspotModal, setShowHotspotModal] = useState<boolean>(false);
   const [showHotspotAddForm, setShowHotspotAddForm] = useState(false);
   const [newHotspotTitle, setNewHotspotTitle] = useState('');
-  const [newHotspotWilayah, setNewHotspotWilayah] = useState('Polsek Metro Setiabudi');
-  const [newHotspotKategori, setNewHotspotKategori] = useState('Rawan Tawuran Remaja & Geng Motor');
-  const [newHotspotStatus, setNewHotspotStatus] = useState('Status: PENGAWASAN PRIORITAS (RAWAN)');
-  const [newHotspotJadwal, setNewHotspotJadwal] = useState('23:00 - 04:30');
+  const [newHotspotWilayah, setNewHotspotWilayah] = useState('');
+  const [newHotspotKategori, setNewHotspotKategori] = useState('');
+  const [newHotspotStatus, setNewHotspotStatus] = useState('');
+  const [newHotspotJadwal, setNewHotspotJadwal] = useState('');
 
   // Form Logbook State
   const [logJenis, setLogJenis] = useState<'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN'>('PATROLI');
-  const [jamMulai, setJamMulai] = useState('09:00');
-  const [jamSelesai, setJamSelesai] = useState('14:30');
-  const [logLokasi, setLogLokasi] = useState('Bundaran Senayan, Jakarta Pusat');
-  const [logLat, setLogLat] = useState(-6.2255);
-  const [logLng, setLogLng] = useState(106.8012);
+  const [jamMulai, setJamMulai] = useState('');
+  const [jamSelesai, setJamSelesai] = useState('');
+  const [logLokasi, setLogLokasi] = useState('');
+  const [logLat, setLogLat] = useState(0);
+  const [logLng, setLogLng] = useState(0);
   const [logDeskripsi, setLogDeskripsi] = useState('');
   const [logFoto, setLogFoto] = useState<string | null>(null);
   const [isSubmittingLog, setIsSubmittingLog] = useState(false);
@@ -192,12 +192,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   const [mapUnitDetail, setMapUnitDetail] = useState<any | null>(null);
 
   // Presensi & Clock
-  const [presensiMasukTime, setPresensiMasukTime] = useState<string>('08:00 WIB');
+  const [presensiMasukTime, setPresensiMasukTime] = useState<string>('-');
   const [presensiPulangTime, setPresensiPulangTime] = useState<string | null>(null);
   const [liveClock, setLiveClock] = useState('');
   const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number }>({
-    lat: -6.2255,
-    lng: 106.8012,
+    lat: 0,
+    lng: 0,
   });
 
   // Layer Toggles

@@ -95,16 +95,16 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
   const [editId, setEditId] = useState<string | null>(null);
   const [nrp, setNrp] = useState('');
   const [nama, setNama] = useState('');
-  const [pangkat, setPangkat] = useState('BRIPKA');
-  const [role, setRole] = useState('PERSONIL');
-  const [unitId, setUnitId] = useState('sabhara');
-  const [satuanNama, setSatuanNama] = useState('Satuan Samapta Presisi');
-  const [kelompokRegu, setKelompokRegu] = useState('Regu Alpha Presisi');
-  const [password, setPassword] = useState('polripresisi2026');
+  const [pangkat, setPangkat] = useState('');
+  const [role, setRole] = useState('');
+  const [unitId, setUnitId] = useState('');
+  const [satuanNama, setSatuanNama] = useState('');
+  const [kelompokRegu, setKelompokRegu] = useState('');
+  const [password, setPassword] = useState('');
   const [stationId, setStationId] = useState<string>('');
   const [deviceId, setDeviceId] = useState('');
-  const [liveLat, setLiveLat] = useState<number>(-6.2415);
-  const [liveLng, setLiveLng] = useState<number>(106.8021);
+  const [liveLat, setLiveLat] = useState<number>(0);
+  const [liveLng, setLiveLng] = useState<number>(0);
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
@@ -118,9 +118,9 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
 
   // Profile, Presensi & Audit States (Konsep Layar Profil Superadmin)
   const [liveClock, setLiveClock] = useState<string>('');
-  const [presensiStatus, setPresensiStatus] = useState<'SUDAH_MASUK' | 'BELUM_MASUK'>('SUDAH_MASUK');
-  const [jamMasukPiket, setJamMasukPiket] = useState<string>('07:30 WIB');
-  const [jamPulangPiket, setJamPulangPiket] = useState<string>('Belum Presensi');
+  const [presensiStatus, setPresensiStatus] = useState<'SUDAH_MASUK' | 'BELUM_MASUK'>('BELUM_MASUK');
+  const [jamMasukPiket, setJamMasukPiket] = useState<string>('-');
+  const [jamPulangPiket, setJamPulangPiket] = useState<string>('-');
   const [showPresensiPulangModal, setShowPresensiPulangModal] = useState<boolean>(false);
 
   // Tab Menu Aktif di Layar Profil (Inline Layout Kanan: 'profil' | 'keamanan' | 'log')
@@ -128,9 +128,9 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
 
   // Profile Edit & Avatar States
   const [editFullName, setEditFullName] = useState<string>('');
-  const [editPangkat, setEditPangkat] = useState<string>('KOMISARIS BESAR POLISI');
-  const [editPhone, setEditPhone] = useState<string>('081288991100');
-  const [editEmail, setEditEmail] = useState<string>('superadmin@polri.go.id');
+  const [editPangkat, setEditPangkat] = useState<string>('');
+  const [editPhone, setEditPhone] = useState<string>('');
+  const [editEmail, setEditEmail] = useState<string>('');
   const [editAvatar, setEditAvatar] = useState<string | null>(null);
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [editSubmitting, setEditSubmitting] = useState<boolean>(false);
@@ -139,15 +139,15 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
   // Keamanan & PIN States
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [pinKomando, setPinKomando] = useState<string[]>(['8', '8', '0', '1', '0', '2']);
+  const [pinKomando, setPinKomando] = useState<string[]>(['', '', '', '', '', '']);
 
   // Sinkronkan data form profil saat currentUser termuat
   useEffect(() => {
     if (currentUser) {
-      setEditFullName(currentUser.fullName || currentUser.nama || 'Eko Susanto');
-      setEditPangkat(currentUser.pangkat || currentUser.rankPangkat || 'KOMISARIS BESAR POLISI');
-      setEditPhone(currentUser.phone || currentUser.phoneNumber || '081288991100');
-      setEditEmail(currentUser.email || 'superadmin@polri.go.id');
+      setEditFullName(currentUser.fullName || currentUser.nama || '');
+      setEditPangkat(currentUser.pangkat || currentUser.rankPangkat || '');
+      setEditPhone(currentUser.phone || currentUser.phoneNumber || '');
+      setEditEmail(currentUser.email || '');
       setEditAvatar(currentUser.avatar || null);
       setSelectedAvatarFile(null);
     }
@@ -155,10 +155,10 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
 
   const handleResetProfile = () => {
     if (currentUser) {
-      setEditFullName(currentUser.fullName || currentUser.nama || 'Eko Susanto');
-      setEditPangkat(currentUser.pangkat || currentUser.rankPangkat || 'KOMISARIS BESAR POLISI');
-      setEditPhone(currentUser.phone || currentUser.phoneNumber || '081288991100');
-      setEditEmail(currentUser.email || 'superadmin@polri.go.id');
+      setEditFullName(currentUser.fullName || currentUser.nama || '');
+      setEditPangkat(currentUser.pangkat || currentUser.rankPangkat || '');
+      setEditPhone(currentUser.phone || currentUser.phoneNumber || '');
+      setEditEmail(currentUser.email || '');
       setEditAvatar(currentUser.avatar || null);
       setSelectedAvatarFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';

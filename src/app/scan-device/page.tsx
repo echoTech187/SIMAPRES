@@ -32,11 +32,11 @@ function ScanDeviceContent() {
 
   const [physicalDeviceId, setPhysicalDeviceId] = useState<string>('MEMUAT DEVICE ID...');
   const [deviceModel, setDeviceModel] = useState<string>('Smartphone Presisi');
-  const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: -6.2088, lng: 106.8456 });
-  const [accuracyText, setAccuracyText] = useState<string>('Sensor aktif • Standar Akurasi Tinggi');
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
+  const [accuracyText, setAccuracyText] = useState<string>('');
   const [statusBadge, setStatusBadge] = useState<{ text: string; bg: string }>({
-    text: 'MENGUNCI TITIK...',
-    bg: '#065F46',
+    text: '',
+    bg: '',
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 

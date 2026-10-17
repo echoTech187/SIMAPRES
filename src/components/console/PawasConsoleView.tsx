@@ -49,87 +49,87 @@ const DAFTAR_ARMADA_PRESISI = [
   {
     id: 'reskrim',
     satuanId: 'reskrim',
-    nama: 'Satuan Reserse Kriminal (Satreskrim • Opsnal & Resmob)',
+    nama: 'Satuan Reserse Kriminal',
     namaSingkat: 'Sat Reskrim',
-    satuan: 'Satuan Reserse Kriminal (Satreskrim)',
-    sektorUtama: 'Pusat Komando',
-    komandan: 'Ipda Rian Mahendra, S.H. (Unit Resmob)',
-    nrpKomandan: '89110255',
-    posisiSaatIni: 'Mako Polres (Standby Tim Tindak Gakkum Resmob)',
-    kekuatan: 'Siaga 8 Personel Opsnal • Minibus Taktis • Senpi HS-9 & Kit Olah TKP Inafis',
-    jarakBase: 2.1,
-    etaBase: 5,
+    satuan: 'Satuan Reserse Kriminal',
+    sektorUtama: '',
+    komandan: '-',
+    nrpKomandan: '-',
+    posisiSaatIni: '-',
+    kekuatan: '-',
+    jarakBase: 0,
+    etaBase: 0,
     icon: '🕵️',
-    tupoksi: 'Melakukan olah TKP, penyelidikan, penyidikan, penangkapan tersangka, dan penyelesaian berkas perkara pidana untuk diserahkan ke kejaksaan.',
-    arahanDefault: 'Segera datangi TKP, pasang garis polisi (Police Line), lakukan olah TKP awal dan identifikasi Inafis, kumpulkan barang bukti, serta lakukan pengejaran terhadap pelaku tindak pidana.',
+    tupoksi: '',
+    arahanDefault: '',
   },
   {
     id: 'sabhara',
     satuanId: 'sabhara',
-    nama: 'Satuan Sabhara / Samapta Presisi (Patroli Perintis Presisi & Raimas)',
+    nama: 'Satuan Samapta Presisi',
     namaSingkat: 'Sat Sabhara',
-    satuan: 'Satuan Samapta Bhayangkara (Sabhara)',
-    sektorUtama: 'Sektor Selatan & Rute Patroli Beat',
-    komandan: 'Bripka Ahmad Subagyo (Piket Sabhara Perintis)',
-    nrpKomandan: '95020123',
-    posisiSaatIni: 'Pos Pantau Senayan / Patroli Mobile Beat Sabhara',
-    kekuatan: 'Siaga 10 Personel • Armada R4 Sedan & R2 Trail Raimas • Senpi V2 • Bodycam Live',
-    jarakBase: 1.2,
-    etaBase: 3,
+    satuan: 'Satuan Samapta Presisi',
+    sektorUtama: '',
+    komandan: '-',
+    nrpKomandan: '-',
+    posisiSaatIni: '-',
+    kekuatan: '-',
+    jarakBase: 0,
+    etaBase: 0,
     icon: '🚔',
-    tupoksi: 'Melakukan patroli pencegahan kejahatan di area rawan, pengamanan objek vital, serta pengendalian massa (Dalmas) saat unjuk rasa atau gangguan nyata.',
-    arahanDefault: 'Nyalakan rotator sirine biru (Blue Light Patrol), datangi TKP < 10 menit, lakukan tindakan preventif pembubaran/pengamanan perimeter, serta lindungi warga sekitar.',
+    tupoksi: '',
+    arahanDefault: '',
   },
   {
     id: 'intel',
     satuanId: 'intel',
-    nama: 'Satuan Intelijen Keamanan (Sat Intelkam • Deteksi Dini & Pulbaket)',
+    nama: 'Satuan Intelijen Keamanan',
     namaSingkat: 'Sat Intelkam',
-    satuan: 'Satuan Intelijen Keamanan (Sat Intelkam)',
-    sektorUtama: 'Wilayah Hukum Polres',
-    komandan: 'Bripka Dedi Prasetya (Unit Intelkam)',
-    nrpKomandan: '91040822',
-    posisiSaatIni: 'Wilayah Pantau Tertutup & Mako Sat Intelkam',
-    kekuatan: 'Siaga 6 Personel Tertutup • Alkom Terenkripsi • Alat Pantau Siber & Deteksi Dini',
-    jarakBase: 1.8,
-    etaBase: 4,
+    satuan: 'Satuan Intelijen Keamanan',
+    sektorUtama: '',
+    komandan: '-',
+    nrpKomandan: '-',
+    posisiSaatIni: '-',
+    kekuatan: '-',
+    jarakBase: 0,
+    etaBase: 0,
     icon: '👁️',
-    tupoksi: 'Melakukan deteksi dini potensi gangguan keamanan (early warning), memetakan konflik, serta melayani perizinan keramaian.',
-    arahanDefault: 'Lakukan penggalangan dan pulbaket tertutup, petakan aktor penggerak dan eskalasi massa, pantau pergerakan situasi serta laporkan perkembangan berkala ke Posko Intel.',
+    tupoksi: '',
+    arahanDefault: '',
   },
   {
     id: 'lantas',
     satuanId: 'lantas',
-    nama: 'Satuan Lalu Lintas (Satlantas • Turjawali & PJR)',
-    namaSingkat: 'Satlantas (Turjawali)',
-    satuan: 'Satuan Lalu Lintas (Satlantas)',
-    sektorUtama: 'Sektor Barat & Jalur Protokol',
-    komandan: 'Aipda Bambang Triyono (Unit Patroli Lantas)',
-    nrpKomandan: '82050411',
-    posisiSaatIni: 'Pos Pol Koridor Protokol Sudirman - Thamrin',
-    kekuatan: 'Siaga 10 Personel • Mobil Sedan PJR & Motor Patwal • Traffic Kit • Bodycam Live',
-    jarakBase: 1.5,
-    etaBase: 4,
+    nama: 'Satuan Lalu Lintas',
+    namaSingkat: 'Satlantas',
+    satuan: 'Satuan Lalu Lintas',
+    sektorUtama: '',
+    komandan: '-',
+    nrpKomandan: '-',
+    posisiSaatIni: '-',
+    kekuatan: '-',
+    jarakBase: 0,
+    etaBase: 0,
     icon: '🚓',
-    tupoksi: 'Mengatur kelancaran lalu lintas, menindak pelanggaran, serta menangani kecelakaan jalan raya.',
-    arahanDefault: 'Prioritaskan evakuasi dan pertolongan korban laka lantas, amankan dan tandai posisi ranmor di TKP, lakukan rekayasa lalu lintas dan urai simpul kemacetan.',
+    tupoksi: '',
+    arahanDefault: '',
   },
   {
     id: 'binmas',
     satuanId: 'binmas',
-    nama: 'Satuan Pembinaan Masyarakat (Sat Binmas & Bhabinkamtibmas)',
+    nama: 'Satuan Pembinaan Masyarakat',
     namaSingkat: 'Sat Binmas',
-    satuan: 'Satuan Pembinaan Masyarakat (Sat Binmas)',
-    sektorUtama: 'Sektor Timur & Kelurahan Binaan',
-    komandan: 'Aiptu Joko Susilo (Bhabinkamtibmas)',
-    nrpKomandan: '79030219',
-    posisiSaatIni: 'Balai Warga / Kelurahan Binaan Bhabinkamtibmas',
-    kekuatan: 'Siaga 6 Personel Sambang • Mobil Penyuluhan Binmas • Tablet BOS • Mediasi Warga',
-    jarakBase: 2.5,
-    etaBase: 6,
+    satuan: 'Satuan Pembinaan Masyarakat',
+    sektorUtama: '',
+    komandan: '-',
+    nrpKomandan: '-',
+    posisiSaatIni: '-',
+    kekuatan: '-',
+    jarakBase: 0,
+    etaBase: 0,
     icon: '🤝',
-    tupoksi: 'Melakukan problem solving kamtibmas, mediasi warga, sambang kemasyarakatan, serta penyuluhan hukum.',
-    arahanDefault: 'Lakukan pendekatan humanis, dampingi tokoh masyarakat / perangkat RT/RW untuk problem solving mediasi damai, dan jaga kondusifitas lingkungan warga.',
+    tupoksi: '',
+    arahanDefault: '',
   },
 ];
 
@@ -284,10 +284,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [mapUnitDetail, setMapUnitDetail] = useState<any | null>(null);
 
   // Time & Attendance State
-  const [liveClock, setLiveClock] = useState('08:00:00 WIB');
+  const [liveClock, setLiveClock] = useState('');
   const [presensiStatus, setPresensiStatus] = useState('BELUM_MASUK'); // 'BELUM_MASUK' | 'SUDAH_MASUK' | 'SUDAH_PULANG'
   const [jamMasukPiket, setJamMasukPiket] = useState('-');
-  const [jamPulangPiket, setJamPulangPiket] = useState('Belum Presensi Pulang');
+  const [jamPulangPiket, setJamPulangPiket] = useState('-');
 
   // Operator Simulation
   const [simCaller, setSimCaller] = useState({
@@ -301,19 +301,17 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     lng: 0,
   });
   const [isCallActive, setIsCallActive] = useState(false);
-  const [callTimer, setCallTimer] = useState('00:15');
+  const [callTimer, setCallTimer] = useState('');
 
   // Disposisi Modal State
   const [showDisposisiModal, setShowDisposisiModal] = useState(false);
   const [selectedDisposisiItem, setSelectedDisposisiItem] = useState<any | null>(null);
-  const [selectedSatuanKeys, setSelectedSatuanKeys] = useState<string[]>(['sabhara']);
-  const [activePreviewSatuanKey, setActivePreviewSatuanKey] = useState<string>('sabhara');
+  const [selectedSatuanKeys, setSelectedSatuanKeys] = useState<string[]>([]);
+  const [activePreviewSatuanKey, setActivePreviewSatuanKey] = useState<string>('');
   const [showEditPersonel, setShowEditPersonel] = useState(false);
   const [customPersonelNama, setCustomPersonelNama] = useState('');
   const [kuotaPersonel, setKuotaPersonel] = useState(4);
-  const [arahanPawas, setArahanPawas] = useState(
-    'Segera meluncur ke TKP dengan lampu sirine biru. Prioritaskan keselamatan warga, amankan perimeter TKP, dan laporkan berkala via HT ke Pawas.'
-  );
+  const [arahanPawas, setArahanPawas] = useState('');
 
   // Sukses Disposisi Modal State
   const [showSuksesModal, setShowSuksesModal] = useState(false);
@@ -357,16 +355,16 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   // Wizard Penanganan Terpadu State (Screen 7)
   const [activeWizardLog, setActiveWizardLog] = useState<any | null>(null);
   const [wizardStep, setWizardStep] = useState<number>(1);
-  const [wizardGps, setWizardGps] = useState<string>('-6.2443, 106.8078');
-  const [wizardCatatan1, setWizardCatatan1] = useState<string>('Unit Samapta Presisi R-4 telah bergerak dari Pos Pantau Tebet menuju TKP');
-  const [wizardFoto1, setWizardFoto1] = useState<string | null>('/assets/images/polri_patrol_car.jpg');
-  const [wizardCatatan2, setWizardCatatan2] = useState<string>('Personel tiba di TKP, mengamankan perimeter dan membubarkan kerumunan pemuda');
-  const [wizardFoto2, setWizardFoto2] = useState<string | null>('/assets/images/polri_pengaduan_tkp.jpg');
-  const [wizardCatatan3, setWizardCatatan3] = useState<string>('Situasi telah aman dan kondusif. Kerumunan dibubarkan dan barang bukti diamankan.');
-  const [wizardFoto3, setWizardFoto3] = useState<string | null>('/assets/images/polri_pengaduan_tkp.jpg');
+  const [wizardGps, setWizardGps] = useState<string>('');
+  const [wizardCatatan1, setWizardCatatan1] = useState<string>('');
+  const [wizardFoto1, setWizardFoto1] = useState<string | null>(null);
+  const [wizardCatatan2, setWizardCatatan2] = useState<string>('');
+  const [wizardFoto2, setWizardFoto2] = useState<string | null>(null);
+  const [wizardCatatan3, setWizardCatatan3] = useState<string>('');
+  const [wizardFoto3, setWizardFoto3] = useState<string | null>(null);
 
   // Live Stopwatch SLA 3 Cockpit
-  const [slaClockSeconds, setSlaClockSeconds] = useState<number>(400); // 06:40
+  const [slaClockSeconds, setSlaClockSeconds] = useState<number>(0);
   useEffect(() => {
     const timer = setInterval(() => {
       setSlaClockSeconds((s) => s + 1);
@@ -383,12 +381,19 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const openWizardForLog = (complaint: any) => {
     setActiveWizardLog(complaint);
     setWizardStep(complaint.status === 'MENUJU_TKP' ? 1 : complaint.status === 'PENANGANAN_TKP' ? 2 : 3);
+    setWizardGps(complaint.koordinatGps || '');
+    setWizardCatatan1(complaint.catatanPersiapan || '');
+    setWizardFoto1(complaint.fotoPersiapan || null);
+    setWizardCatatan2(complaint.catatanTindakan || '');
+    setWizardFoto2(complaint.fotoTindakan || null);
+    setWizardCatatan3(complaint.catatanSelesai || '');
+    setWizardFoto3(complaint.fotoSelesai || null);
     switchTab('view-wizard');
   };
 
   // Penolakan Form State (Screen 8)
   const [tolakComplaint, setTolakComplaint] = useState<any | null>(null);
-  const [tolakKategori, setTolakKategori] = useState('Foto Bukti Tidak Jelas / Buram');
+  const [tolakKategori, setTolakKategori] = useState('');
   const [tolakAlasan, setTolakAlasan] = useState('');
 
   // Buat Log (+) Form State (Screen 3)
@@ -457,7 +462,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
   // Kinerja Period Filter
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
-  const [kinerjaDate, setKinerjaDate] = useState('2026-10-16');
+  const [kinerjaDate, setKinerjaDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   // Load Real Data from Server Actions
   const loadData = async () => {
@@ -537,48 +542,49 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
       if (stored) sessionUser = JSON.parse(stored);
     } catch {}
 
-    const effectiveRole = roleParam || sessionUser?.role || 'pawas';
-    const effectiveNrp = nrpParam || sessionUser?.nrp || '95010100';
+    const effectiveRole = roleParam || sessionUser?.role || session?.role || '';
+    const effectiveNrp = nrpParam || sessionUser?.nrp || session?.identifier || '';
 
     if (sessionUser && sessionUser.fullName) {
       const isOp = effectiveRole === 'operator' || sessionUser.role === 'operator';
       setUserProfile({
-        fullName: sessionUser.fullName || sessionUser.nama,
-        nrp: sessionUser.nrp,
-        pangkat: sessionUser.pangkat || 'KOMPOL',
+        fullName: sessionUser.fullName || sessionUser.nama || '',
+        nrp: sessionUser.nrp || '',
+        pangkat: sessionUser.pangkat || '',
         title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
         roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
-        avatar: sessionUser.avatar || '/assets/images/polri_pengaduan_tkp.jpg',
+        avatar: sessionUser.avatar || null,
       });
       if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
     }
 
-    getOfficerProfileByNrpAction(effectiveNrp).then((res) => {
-      if (res.success && res.data) {
-        const isOp = effectiveRole === 'operator' || res.data.role === 'operator';
-        setUserProfile({
-          fullName: res.data.fullName,
-          nrp: res.data.nrp,
-          pangkat: res.data.pangkat || 'KOMPOL',
-          title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
-          roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
-          avatar: res.data.avatar || '/assets/images/polri_pengaduan_tkp.jpg',
-        });
-        if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
-      } else if (!sessionUser) {
-        if (effectiveRole === 'operator') {
+    if (effectiveNrp) {
+      getOfficerProfileByNrpAction(effectiveNrp).then((res) => {
+        if (res.success && res.data) {
+          const isOp = effectiveRole === 'operator' || res.data.role === 'operator';
           setUserProfile({
-            fullName: 'Briptu Dian Lestari',
-            nrp: effectiveNrp,
-            pangkat: 'BRIPTU',
-            title: 'Operator CAD Sentra 110',
-            roleBadge: 'OPERATOR 110',
-            avatar: '/assets/images/polri_pengaduan_tkp.jpg',
+            fullName: res.data.fullName || '',
+            nrp: res.data.nrp || '',
+            pangkat: res.data.pangkat || '',
+            title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
+            roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
+            avatar: res.data.avatar || null,
           });
-          if (initialSection === 'beranda') setActiveTab('view-operator');
+          if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
+        } else if (!sessionUser) {
+          const isOp = effectiveRole === 'operator';
+          setUserProfile({
+            fullName: session?.fullName || '',
+            nrp: effectiveNrp,
+            pangkat: session?.rankPangkat || '',
+            title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
+            roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
+            avatar: session?.avatar_url || null,
+          });
+          if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
         }
-      }
-    });
+      });
+    }
 
     loadData();
     return () => clearInterval(timer);
@@ -1029,8 +1035,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         satuanKeys: selectedSatuanKeys,
         kuotaPersonel: kuotaPersonel,
         arahanTaktis: arahanPawas,
-        pawasNama: userProfile?.fullName || 'Kompol Hendra Wijaya, S.I.K., M.Si.',
-        pawasUserId: '1',
+        pawasNama: userProfile?.fullName || session?.fullName || '',
+        pawasUserId: session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : ''),
       });
 
       if (res.success) {
@@ -1065,20 +1071,26 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
   // Simpan Log Kegiatan Mandiri
   const handleSimpanLogKegiatan = async () => {
+    const activeUserId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
+    if (!activeUserId) {
+      alert('Sesi pengguna tidak valid. Silakan login kembali.');
+      return;
+    }
     setLoading(true);
     try {
+      const nowTime = new Date().toTimeString().slice(0, 5);
       const res = await createLogbookAction({
-        officerId: '1',
+        officerId: activeUserId,
         jenisAksi: (logJenis as any) || 'PATROLI',
-        lokasiKlaimAlamat: logSektor,
-        lokasiKlaimLat: -6.2443,
-        lokasiKlaimLng: 106.8078,
-        lokasiGpsAktualLat: -6.2443,
-        lokasiGpsAktualLng: 106.8078,
-        jamMulai: '09:00',
-        jamSelesai: '14:30',
+        lokasiKlaimAlamat: logSektor || '',
+        lokasiKlaimLat: 0,
+        lokasiKlaimLng: 0,
+        lokasiGpsAktualLat: 0,
+        lokasiGpsAktualLng: 0,
+        jamMulai: logWaktuMulai || nowTime,
+        jamSelesai: nowTime,
         fotoBuktiUrl: logFotoPreview || undefined,
-        deskripsiKegiatan: logDeskripsi,
+        deskripsiKegiatan: logDeskripsi || '',
       });
 
       if (res.success) {
@@ -1100,12 +1112,13 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (!tolakComplaint) return;
     setLoading(true);
     try {
+      const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
       const rejectNote = `[DITOLAK PAWAS]: ${tolakKategori}. Catatan: ${tolakAlasan}`;
       await updateComplaintStatusAction({
         complaintId: tolakComplaint.id.toString(),
         status: 'BELUM_DITANGANI',
         catatan: rejectNote,
-        pawasUserId: '1',
+        pawasUserId: activePawasId,
       });
       alert('✓ Permintaan revisi/penolakan berhasil diteruskan ke petugas penanggung jawab!\nLaporan masuk ke tab Ditolak.');
       const rejectedComplaint = {
@@ -1130,18 +1143,19 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (!complaint) return;
     const catatanRevisi = prompt(
       `📝 PENGAJUAN PERBAIKAN / REVISI LAPORAN\n\nMasukkan catatan perbaikan dokumen / klarifikasi revisi:\n(Catatan penolakan sebelumnya: "${complaint.ringkasanKeterangan || ''}")`,
-      'Foto bukti dan uraian kronologi telah diperbarui sesuai arahan SOP.'
+      ''
     );
     if (!catatanRevisi) return;
     setLoading(true);
     try {
+      const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
       const cleanPrev = (complaint.ringkasanKeterangan || '').replace(/\[DITOLAK PAWAS\]:.*?(Catatan:|$)/i, '').trim();
       const newKeterangan = `[PENGAJUAN REVISI]: ${catatanRevisi}. ${cleanPrev}`;
       const res = await updateComplaintStatusAction({
         complaintId: complaint.id.toString(),
         status: 'BELUM_DITANGANI',
         catatan: newKeterangan,
-        pawasUserId: '1',
+        pawasUserId: activePawasId,
       });
       if (res.success) {
         alert(`✓ Laporan #${complaint.nomorTiket || complaint.id} telah diajukan ulang ke Atasan untuk divalidasi kembali!\n\nStatus laporan kembali menjadi MENUNGGU TINDAKAN.`);
@@ -1169,11 +1183,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (!confirm(`⚖️ OTORISASI PENUTUPAN KASUS (PAWAS)\n\nApakah Anda yakin ingin mengesahkan Berita Acara Penanganan kasus #${complaint.nomorTiket || complaint.id} dan menutup kasus ini secara resmi?`)) return;
     setLoading(true);
     try {
+      const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
       const res = await updateComplaintStatusAction({
         complaintId: complaint.id.toString(),
         status: 'SELESAI',
         catatan: 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi 110. Tiket resmi ditutup oleh Pawas.',
-        pawasUserId: '1',
+        pawasUserId: activePawasId,
       });
       if (res.success) {
         alert(`🏆 KASUS RESMI DISAHKAN & DITUTUP OLEH PAWAS!\n\n• Nomor Tiket: ${complaint.nomorTiket || complaint.id}\n• Otoritas Pengesah: ${userProfile.fullName || 'Pawas'} (Pawas)\n• Berita Acara: Lengkap & Sah secara Hukum\n• Status Akhir: SELESAI (Masuk ke Arsip Log Selesai)\n\nTerima kasih atas kepemimpinan & pengawasan Presisi!`);
@@ -5031,11 +5046,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       type="button"
                       onClick={async () => {
                         setLoading(true);
+                        const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
                         await updateComplaintStatusAction({
                           complaintId: activeWizardLog.id.toString(),
                           status: 'MENUJU_TKP',
                           catatan: `[Meluncur ke TKP]: ${wizardCatatan1}`,
-                          pawasUserId: '1',
+                          pawasUserId: activePawasId,
                         });
                         setLoading(false);
                         setWizardStep(2);
@@ -5146,11 +5162,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       type="button"
                       onClick={async () => {
                         setLoading(true);
+                        const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
                         await updateComplaintStatusAction({
                           complaintId: activeWizardLog.id.toString(),
                           status: 'PENANGANAN_TKP',
                           catatan: `[Tindakan TKP]: ${wizardCatatan2}`,
-                          pawasUserId: '1',
+                          pawasUserId: activePawasId,
                         });
                         setLoading(false);
                         setWizardStep(3);
@@ -5261,11 +5278,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       type="button"
                       onClick={async () => {
                         setLoading(true);
+                        const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
                         await updateComplaintStatusAction({
                           complaintId: activeWizardLog.id.toString(),
                           status: 'SELESAI',
                           catatan: `[Kasus Ditutup]: ${wizardCatatan3}`,
-                          pawasUserId: '1',
+                          pawasUserId: activePawasId,
                         });
                         setLoading(false);
                         alert('✅ Kasus telah berhasil diselesaikan dan status diperbarui ke SELESAI!');

@@ -79,10 +79,7 @@ export default function PortalWargaPage() {
 
   // Survey Rating State
   const [ratingScore, setRatingScore] = useState<number>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>([
-    '⚡ Respon Sangat Cepat',
-    '👮 Petugas Ramah & Humanis',
-  ]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [ulasanText, setUlasanText] = useState('');
   const [isEditingRating, setIsEditingRating] = useState(false);
 
@@ -234,16 +231,20 @@ export default function PortalWargaPage() {
 
   const handleKirimLaporanManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    const namaVal = nama.trim() || 'Warga Masyarakat';
-    const telpVal = telp.trim() || '0856-9123-8842';
-    const lokasiVal = lokasi.trim() || 'Jl. Panglima Polim Raya No. 42, Jakarta Selatan';
-    const uraianVal = uraian.trim() || 'Laporan pengaduan warga melalui portal presisi.';
+    if (!nama.trim() || !telp.trim() || !lokasi.trim() || !uraian.trim()) {
+      alert('Mohon lengkapi nama pelapor, nomor telepon, lokasi kejadian, dan uraian pengaduan.');
+      return;
+    }
+    const namaVal = nama.trim();
+    const telpVal = telp.trim();
+    const lokasiVal = lokasi.trim();
+    const uraianVal = uraian.trim();
     const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const [latStr, lngStr] = gpsCoords.split(',').map((s) => s.trim());
-    const lat = parseFloat(latStr) || -6.2415;
-    const lng = parseFloat(lngStr) || 106.8021;
+    const lat = parseFloat(latStr) || 0;
+    const lng = parseFloat(lngStr) || 0;
 
     try {
       const dbRes = await createComplaintAction({
@@ -339,29 +340,29 @@ export default function PortalWargaPage() {
           jenisInsiden: dbItem.jenisKejadian,
           kategoriInsiden: dbItem.jenisKejadian,
           kategoriBadge: '📱 Portal Warga (Database)',
-          nama: dbItem.assignedOfficer?.user?.fullName || dbItem.pelaporNama || 'Petugas Patroli',
+          nama: dbItem.assignedOfficer?.user?.fullName || dbItem.pelaporNama || '-',
           nrp: dbItem.assignedOfficer?.nrp || '-',
           status: isDone ? 'selesai' : 'diproses',
           statusText: isDone ? 'Kasus Selesai' : 'Sedang Diproses',
           tahap: isDone ? 5 : dbItem.status === 'DI_TKP' ? 4 : 3,
           waktu: new Date(dbItem.waktuLaporDiterima || dbItem.createdAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-          sektor: 'Wilayah Hukum Metro Jakarta Selatan',
-          lokasiKejadian: dbItem.tkpAlamatTeks,
+          sektor: '-',
+          lokasiKejadian: dbItem.tkpAlamatTeks || '-',
           sumberLaporan: '📱 Portal Presisi 110',
-          deskripsi: dbItem.ringkasanKeterangan,
-          koordinatGps: `${dbItem.tkpLat}, ${dbItem.tkpLng}`,
-          fotoPengaduan: '/assets/images/polri_pengaduan_tkp.jpg',
+          deskripsi: dbItem.ringkasanKeterangan || '-',
+          koordinatGps: `${dbItem.tkpLat || 0}, ${dbItem.tkpLng || 0}`,
+          fotoPengaduan: dbItem.fotoTkpUrl || '',
           disposisi: {
-            satuan: 'Satuan Samapta Presisi',
-            komandan: dbItem.assignedOfficer?.user?.fullName || 'Bripka Ahmad Subagyo',
-            estimasiJarak: '1.2 km',
-            estimasiEta: '4-5 Menit',
+            satuan: dbItem.assignedOfficer?.unitNama || '-',
+            komandan: dbItem.assignedOfficer?.user?.fullName || '-',
+            estimasiJarak: '-',
+            estimasiEta: '-',
           },
           ratingKepuasan: dbItem.citizenRating
             ? {
                 skor: dbItem.citizenRating,
                 tags: dbItem.citizenTags ? dbItem.citizenTags.split(', ') : [],
-                ulasan: dbItem.citizenReview || 'Pelayanan memuaskan.',
+                ulasan: dbItem.citizenReview || '',
                 waktu: 'Hari ini',
                 sudahDinilai: true,
               }
@@ -401,7 +402,7 @@ export default function PortalWargaPage() {
   const handleSubmitSurvey = async () => {
     if (!currentActiveLog) return;
     const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    const finalReview = ulasanText.trim() || 'Penanganan kepolisian sangat memuaskan, cepat, dan profesional.';
+    const finalReview = ulasanText.trim();
 
     try {
       await submitRatingAction({
@@ -1026,8 +1027,8 @@ export default function PortalWargaPage() {
                   <div className="ticket-row">
                     <span className="ticket-label">Personel Ditugaskan</span>
                     <span className="ticket-value" id="th-petugas">
-                      {currentActiveLog.disposisi?.satuan || 'Satuan Tugas Presisi'} (
-                      {currentActiveLog.disposisi?.komandan || currentActiveLog.nama})
+                      {currentActiveLog.disposisi?.satuan || '-'} (
+                      {currentActiveLog.disposisi?.komandan || currentActiveLog.nama || '-'})
                     </span>
                   </div>
                 </div>
@@ -1065,8 +1066,8 @@ export default function PortalWargaPage() {
                       <div className="step-title">2. Disposisi Satuan Patroli Lapangan</div>
                       <div className="step-desc" id="step-2-desc">
                         Tugas penanganan telah diserahkan kepada{' '}
-                        {currentActiveLog.disposisi?.satuan || 'Satuan Samapta Presisi'} (
-                        {currentActiveLog.disposisi?.komandan || 'Bripka Ahmad'}).
+                        {currentActiveLog.disposisi?.satuan || '-'} (
+                        {currentActiveLog.disposisi?.komandan || '-'}).
                       </div>
                       <div className="step-time" id="step-2-time">
                         {currentActiveLog.waktu}
@@ -1152,14 +1153,13 @@ export default function PortalWargaPage() {
                         Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.
                       </div>
                       <div className="step-time" id="step-4-time">
-                        {currentActiveLog.waktuTiba || '11:15 WIB'}
+                        {currentActiveLog.waktuTiba || '-'}
                       </div>
                       <div className="quote-box" id="step-4-quote">
                         <strong>Berita Acara Tindakan:</strong>
                         <br />
                         <span id="step-4-quote-text">
-                          {currentActiveLog.deskripsiTindakan ||
-                            'Telah tiba di TKP, mengamankan perimeter lokasi kejadian, pendataan saksi dan situasi terkendali aman.'}
+                          {currentActiveLog.deskripsiTindakan || '-'}
                         </span>
                       </div>
                       <div style={{ marginTop: '6px' }}>
@@ -1181,11 +1181,10 @@ export default function PortalWargaPage() {
                     <div className="step-content">
                       <div className="step-title">5. Kasus Selesai &amp; Berita Acara Disahkan</div>
                       <div className="step-desc" id="step-5-desc">
-                        {currentActiveLog.catatanSelesai ||
-                          'Penanganan selesai, situasi wilayah telah kondusif, dan berita acara telah disahkan oleh pimpinan.'}
+                        {currentActiveLog.catatanSelesai || '-'}
                       </div>
                       <div className="step-time" id="step-5-time">
-                        {currentActiveLog.waktuSelesai || '11:45 WIB'}
+                        {currentActiveLog.waktuSelesai || '-'}
                       </div>
                     </div>
                   </div>
