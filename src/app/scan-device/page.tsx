@@ -1,0 +1,301 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { updateDeviceTelemetryAction, getMasterDropdownsAction } from '@/app/actions/auth.actions';
+import { pairDeviceSessionAction } from '@/app/actions/device.actions';
+import './scan-device.css';
+
+function ScanDeviceContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const targetNrp = searchParams.get('nrp');
+  const targetUnit = searchParams.get('unit');
+  const activeSessionToken = searchParams.get('session');
+
+  const [unitMap, setUnitMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getMasterDropdownsAction().then((res) => {
+      if (res.success && res.data) {
+        const mapping: Record<string, string> = {};
+        res.data
+          .filter((m: any) => m.tipe === 'satuan')
+          .forEach((m: any) => {
+            if (m.code) mapping[m.code.toLowerCase()] = m.label;
+          });
+        setUnitMap(mapping);
+      }
+    });
+  }, []);
+
+  const [physicalDeviceId, setPhysicalDeviceId] = useState<string>('MEMUAT DEVICE ID...');
+  const [deviceModel, setDeviceModel] = useState<string>('Smartphone Presisi');
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: -6.2088, lng: 106.8456 });
+  const [accuracyText, setAccuracyText] = useState<string>('Sensor aktif • Standar Akurasi Tinggi');
+  const [statusBadge, setStatusBadge] = useState<{ text: string; bg: string }>({
+    text: 'MENGUNCI TITIK...',
+    bg: '#065F46',
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Ekstraksi sidik jari hardware
+  useEffect(() => {
+    let brand = 'Smartphone Presisi';
+    const storedHwId = localStorage.getItem('simapres_hardware_device_id');
+    const storedBrand = localStorage.getItem('simapres_device_brand_name');
+
+    if (storedHwId) {
+      setPhysicalDeviceId(storedHwId);
+      if (storedBrand) setDeviceModel(storedBrand);
+      return;
+    }
+
+    if (typeof window !== 'undefined') {
+      const ua = navigator.userAgent;
+      const screenRes = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
+      const cores = navigator.hardwareConcurrency || 4;
+      const mem = (navigator as any).deviceMemory || 4;
+      const lang = navigator.language || 'id-ID';
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta';
+
+      let gpuVendor = 'GENERIC-GPU';
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const debugInfo = (gl as any).getExtension('WEBGL_debug_renderer_info');
+          if (debugInfo) {
+            gpuVendor = (gl as any).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || 'MALI-ADRENO';
+          }
+        }
+      } catch (e) {
+        gpuVendor = 'EMBEDDED-GPU';
+      }
+
+      if (/iPhone/i.test(ua)) brand = 'Apple iPhone';
+      else if (/Samsung/i.test(ua)) brand = 'Samsung Galaxy';
+      else if (/Xiaomi|Redmi|POCO/i.test(ua)) brand = 'Xiaomi / Redmi';
+      else if (/Oppo/i.test(ua)) brand = 'Oppo Mobile';
+      else if (/Vivo/i.test(ua)) brand = 'Vivo Mobile';
+      else if (/Realme/i.test(ua)) brand = 'Realme Mobile';
+      else if (/Android/i.test(ua)) brand = 'Android Smartphone';
+      else brand = 'Mobile Terminal';
+
+      const rawEntropy = `${ua}_${screenRes}_${cores}_${mem}_${lang}_${timezone}_${gpuVendor}`;
+      let hash = 0;
+      for (let i = 0; i < rawEntropy.length; i++) {
+        hash = (hash << 5) - hash + rawEntropy.charCodeAt(i);
+        hash |= 0;
+      }
+
+      const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(-8);
+      const generatedId = `DEV-HP-${hex}`;
+
+      localStorage.setItem('simapres_hardware_device_id', generatedId);
+      localStorage.setItem('simapres_device_brand_name', brand);
+
+      setPhysicalDeviceId(generatedId);
+      setDeviceModel(brand);
+    }
+  }, []);
+
+  const syncTelemetry = async (devId: string, currentCoords: { lat: number; lng: number }) => {
+    try {
+      // 1. Simpan langsung ke Database MySQL (tabel device_pairing_sessions & registered_units)
+      await pairDeviceSessionAction({
+        sessionToken: activeSessionToken,
+        deviceId: devId,
+        deviceBrand: deviceModel,
+        nrp: targetNrp,
+        unitId: targetUnit,
+        lat: currentCoords.lat,
+        lng: currentCoords.lng,
+      });
+
+      // 2. Update telemetri perwira/personel di database
+      await updateDeviceTelemetryAction({
+        deviceId: devId,
+        nrp: targetNrp || undefined,
+        lat: currentCoords.lat,
+        lng: currentCoords.lng,
+      });
+    } catch (err) {
+      console.warn('Failed to sync telemetry to server database:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = parseFloat(pos.coords.latitude.toFixed(6));
+          const lng = parseFloat(pos.coords.longitude.toFixed(6));
+          const currentPos = { lat, lng };
+          setCoords(currentPos);
+          setAccuracyText(`Akurasi GPS Fisik: ±${Math.round(pos.coords.accuracy)}m (${deviceModel})`);
+          setStatusBadge({
+            text: 'TERHUBUNG (LIVE)',
+            bg: '#059669',
+          });
+
+          if (physicalDeviceId && physicalDeviceId !== 'MEMUAT DEVICE ID...') {
+            syncTelemetry(physicalDeviceId, currentPos);
+          }
+        },
+        (err) => {
+          console.warn('GPS Error:', err);
+          setAccuracyText(`Sensor aktif: Default Mako Jakarta (Izin GPS belum diaktifkan)`);
+          setStatusBadge({
+            text: 'SIMULASI KORDINAT',
+            bg: '#D97706',
+          });
+        },
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
+
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, [physicalDeviceId, deviceModel]);
+
+  const handleCopyId = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(physicalDeviceId);
+      setToastMessage('✓ Device ID berhasil disalin ke clipboard!');
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const unitDisplayName = targetUnit ? unitMap[targetUnit.toLowerCase()] || targetUnit.toUpperCase() : 'Satuan Tugas Presisi';
+
+  return (
+    <div className="scan-device-body">
+      <div className="card-terminal">
+        {/* Header Band */}
+        <div className="header-band">
+          <div className="pulse-ring">📡</div>
+          <h2 style={{ fontSize: '18px', fontWeight: 900, letterSpacing: '0.5px' }}>TERMINAL GPS PERSONIL AKTIF</h2>
+          <p style={{ fontSize: '12px', color: '#BFDBFE', marginTop: '4px' }}>Sistem Pengawasan Presisi Terpadu (SIMAPRES 110)</p>
+        </div>
+
+        {/* Body Info */}
+        <div className="card-body">
+          <div style={{ fontSize: '11px', fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase' }}>
+            Device ID Terkunci
+          </div>
+          <div id="disp-device-id" className="dev-badge" onClick={handleCopyId} style={{ cursor: 'pointer' }} title="Ketuk untuk menyalin Device ID">
+            {physicalDeviceId}
+          </div>
+          <div
+            style={{ fontSize: '11px', color: '#38BDF8', marginTop: '-10px', marginBottom: '12px', cursor: 'pointer' }}
+            onClick={handleCopyId}
+          >
+            📋 <u>Ketuk di sini untuk Salin Device ID</u>
+          </div>
+
+          <div
+            id="disp-unit-box"
+            style={{
+              marginBottom: '14px',
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#93C5FD',
+              background: 'rgba(37,99,235,0.15)',
+              border: '1px solid rgba(59,130,246,0.3)',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              display: 'inline-block',
+            }}
+          >
+            Unit: <span id="disp-unit-name">{unitDisplayName}</span>
+          </div>
+
+          {/* Telemetri GPS Live Sensor HP */}
+          <div className="telemetry-box">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#38BDF8' }}>🛰️ STATUS SENSOR HP:</span>
+              <span
+                id="gps-status-badge"
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  background: statusBadge.bg,
+                  color: '#FFFFFF',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                }}
+              >
+                {statusBadge.text}
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '4px' }}>Koordinat Satelit HP Anda:</div>
+            <div
+              id="disp-coords"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: '14px',
+                fontWeight: 800,
+                color: '#F8FAFC',
+              }}
+            >
+              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+            </div>
+            <div id="disp-accuracy" style={{ fontSize: '10.5px', color: '#64748B', marginTop: '4px' }}>
+              {accuracyText}
+            </div>
+          </div>
+
+          <div style={{ fontSize: '12px', color: '#94A3B8', lineHeight: 1.5, marginBottom: '16px', textAlign: 'left' }}>
+            ✅ <strong>HP Personel Berhasil Diikat!</strong> Lokasi patroli Anda kini tersinkronisasi secara real-time dengan radar peta komando Pawas dan E-Tribrata Log.
+          </div>
+
+          <button
+            type="button"
+            className="btn-act btn-primary-act"
+            onClick={handleCopyId}
+            style={{ marginBottom: '10px' }}
+          >
+            <span>📋</span> Salin Device ID HP Anda
+          </button>
+
+          <button
+            type="button"
+            className="btn-act btn-secondary-act"
+            onClick={() => router.push(targetNrp ? `/personil?nrp=${encodeURIComponent(targetNrp)}` : '/personil')}
+          >
+            <span>🛡️</span> Masuk ke Layar Tugas Personel ➔
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            background: '#059669',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            fontWeight: 800,
+            fontSize: '13px',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.4)',
+            zIndex: 9999,
+          }}
+        >
+          {toastMessage}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ScanDevicePage() {
+  return (
+    <React.Suspense fallback={<div className="scan-device-body">Memuat Terminal GPS...</div>}>
+      <ScanDeviceContent />
+    </React.Suspense>
+  );
+}

@@ -1,0 +1,750 @@
+// ==============================================================================
+// SIMAPRES 110 - PRISMA SCHEMA (STANDAR ENTERPRISE v3.3 - FULL ENGLISH CONVENTION)
+// Database Engine: MySQL 8.0+ / MariaDB (simapres_110_spkt_db)
+// Standard: Clean English Domain Naming (No arbitrary prefixes like 'c110' or 'AuthMako')
+// ==============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ==============================================================================
+// 1. CENTRALIZED MASTER LOOKUP TABLES (MANAGED BY SUPERADMIN)
+// ==============================================================================
+
+// 1.1 Master User Roles
+model MasterRole {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "SUPERADMIN", "PAWAS", "PERSONIL"
+  label           String          @db.VarChar(100)
+  description     String?         @db.VarChar(255)
+  is_active       Boolean         @default(true)
+  display_order   Int             @default(1)
+  created_at      DateTime        @default(now())
+
+  users           User[]
+
+  @@map("master_roles")
+}
+
+// 1.2 Master Police Station / Office Hierarchy Levels
+model MasterStationLevel {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "MABES", "POLDA", "POLRES", "POLSEK", "POSPOL"
+  label           String          @db.VarChar(100)
+  level_order     Int             @default(1)
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+
+  stations        PoliceStation[]
+
+  @@map("master_station_levels")
+}
+
+// 1.3 Master 5 SOP Operational Units (Reskrim, Intelkam, Lantas, Binmas, Samapta)
+model MasterOperationalUnit {
+  id              Int                     @id @default(autoincrement())
+  key             String                  @unique @db.VarChar(50) // "reskrim", "intel", "lantas", "binmas", "sabhara"
+  unit_name       String                  @db.VarChar(120)        // "Satuan Samapta Presisi"
+  short_name      String                  @db.VarChar(50)         // "Sat Samapta"
+  icon_emoji      String                  @default("🚔") @db.VarChar(10)
+  duties          String                  @db.Text
+  default_orders  String                  @db.Text
+  is_active       Boolean                 @default(true)
+  display_order   Int                     @default(1)
+  created_at      DateTime                @default(now())
+
+  officers        PoliceOfficer[]
+  vehicles        PatrolVehicle[]
+  dispatches      ComplaintDispatch[]
+
+  @@map("master_operational_units")
+}
+
+// 1.4 Master Duty Statuses for Officers
+model MasterDutyStatus {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "DINAS_PATROLI", "PIKET_SPKT", "CADANGAN", "LEPAS_DINAS", "CUTI", "BKO", "SAKIT", "IZIN"
+  label           String          @db.VarChar(100)
+  badge_color     String          @default("#10B981") @db.VarChar(20)
+  badge_bg        String          @default("#ECFDF5") @db.VarChar(20)
+  is_active       Boolean         @default(true)
+  display_order   Int             @default(1)
+  created_at      DateTime        @default(now())
+
+  officers        PoliceOfficer[]
+
+  @@map("master_duty_statuses")
+}
+
+// 1.5 Master Incident Categories
+model MasterIncidentCategory {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "TAWURAN", "CURANMOR", "BEGAL", "NARKOBA", etc.
+  label           String          @db.VarChar(100)
+  icon            String          @db.VarChar(10)
+  badge_bg        String          @db.VarChar(20)
+  badge_color     String          @db.VarChar(20)
+  badge_border    String          @db.VarChar(20)
+  display_order   Int             @default(1)
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+
+  complaints      Complaint[]
+
+  @@map("master_incident_categories")
+}
+
+// 1.6 Master Reporting Sources / Channels
+model MasterReportSource {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "CALL_110", "WHATSAPP_PRESISI", "MOBILE_APP", "SPKT_WALK_IN"
+  label           String          @db.VarChar(100)
+  icon            String          @db.VarChar(10)
+  active_bg       String          @db.VarChar(20)
+  active_text     String          @db.VarChar(20)
+  inactive_bg     String          @db.VarChar(20)
+  inactive_text   String          @db.VarChar(20)
+  inactive_border String          @db.VarChar(20)
+  display_order   Int             @default(1)
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+
+  complaints      Complaint[]
+
+  @@map("master_report_sources")
+}
+
+// 1.7 Master Complaint Lifecycle Statuses
+model MasterComplaintStatus {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "MENUNGGU", "DIPROSES", "MENUNGGU_PENGESAHAN", "SELESAI", "DITOLAK"
+  label           String          @db.VarChar(100)
+  badge_color     String          @default("#2563EB") @db.VarChar(20)
+  badge_bg        String          @default("#EFF6FF") @db.VarChar(20)
+  badge_border    String          @default("#BFDBFE") @db.VarChar(20)
+  display_order   Int             @default(1)
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+
+  complaints      Complaint[]
+
+  @@map("master_complaint_statuses")
+}
+
+// 1.8 Master Urgency Levels
+model MasterUrgencyLevel {
+  id              Int             @id @default(autoincrement())
+  key             String          @unique @db.VarChar(50) // "DARURAT", "SEDANG", "NORMAL"
+  label           String          @db.VarChar(100)
+  icon_emoji      String          @default("⚠️") @db.VarChar(10)
+  badge_color     String          @default("#EF4444") @db.VarChar(20)
+  badge_bg        String          @default("#FEF2F2") @db.VarChar(20)
+  display_order   Int             @default(1)
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+
+  complaints      Complaint[]
+
+  @@map("master_urgency_levels")
+}
+
+// 1.9 Master Field Activity Types
+model MasterActivityType {
+  id              Int                @id @default(autoincrement())
+  key             String             @unique @db.VarChar(50) // "PATROLI", "TPTKP", "SAMBANG", "PENGAMANAN"
+  label           String             @db.VarChar(100)
+  icon            String             @db.VarChar(10)
+  active_bg       String             @db.VarChar(20)
+  inactive_bg     String             @db.VarChar(20)
+  inactive_color  String             @db.VarChar(20)
+  border_color    String             @db.VarChar(20)
+  display_order   Int                @default(1)
+  is_active       Boolean            @default(true)
+  created_at      DateTime           @default(now())
+
+  logbooks        OfficerLogbook[]
+
+  @@map("master_activity_types")
+}
+
+// 1.10 Master Logbook Validation Statuses
+model MasterValidationStatus {
+  id              Int                @id @default(autoincrement())
+  key             String             @unique @db.VarChar(50) // "BELUM_DIVALIDASI", "VALID", "FLAGGED_AUDIT", "DITOLAK"
+  label           String             @db.VarChar(100)
+  badge_color     String             @default("#64748B") @db.VarChar(20)
+  badge_bg        String             @default("#F1F5F9") @db.VarChar(20)
+  is_active       Boolean            @default(true)
+  created_at      DateTime           @default(now())
+
+  logbooks        OfficerLogbook[]
+
+  @@map("master_validation_statuses")
+}
+
+// 1.11 Master Hotspot Categories
+model MasterHotspotCategory {
+  id              Int                  @id @default(autoincrement())
+  key             String               @unique @db.VarChar(50) // "TAWURAN", "BALAP_LIAR", "TIGA_C", "NARKOBA", "KEMACETAN"
+  label           String               @db.VarChar(100)
+  icon_emoji      String               @default("🔴") @db.VarChar(10)
+  display_order   Int                  @default(1)
+  is_active       Boolean              @default(true)
+
+  hotspots        HotspotLocation[]
+
+  @@map("master_hotspot_categories")
+}
+
+// 1.12 Master Hotspot Danger Levels
+model MasterHotspotDangerLevel {
+  id              Int                  @id @default(autoincrement())
+  key             String               @unique @db.VarChar(50) // "PENGAWASAN_PRIORITAS", "SIAGA_BLUE_LIGHT", "DARURAT_110", "PEMANTAUAN_RUTIN"
+  label           String               @db.VarChar(100)
+  badge_color     String               @default("#DC2626") @db.VarChar(20)
+  badge_bg        String               @default("#FEF2F2") @db.VarChar(20)
+  icon_emoji      String               @default("🔴") @db.VarChar(10)
+  display_order   Int                  @default(1)
+  is_active       Boolean              @default(true)
+  created_at      DateTime             @default(now())
+
+  hotspots        HotspotLocation[]
+
+  @@map("master_hotspot_danger_levels")
+}
+
+// 1.13 Master Police Ranks (Pangkat Kepolisian)
+model MasterRank {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(50) // "BRIPDA", "BRIPTU", "BRIGADIR", "BRIPKA", "AIPDA", "AIPTU", "IPDA", "IPTU", "AKP", "KOMPOL", "AKBP", "KOMBES"
+  label         String   @db.VarChar(100)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  @@map("master_ranks")
+}
+
+// ==============================================================================
+// 2. POLICE STATIONS & REGIONAL JURISDICTIONS (MAKO)
+// Table: police_stations
+// ==============================================================================
+
+model PoliceStation {
+  id                     Int                 @id @default(autoincrement())
+  station_code           String              @unique @db.VarChar(30)   // "POLRES-JAKSEL", "POLSEK-KBY-BARU"
+  station_name           String              @db.VarChar(100)          // "Polres Metro Jakarta Selatan"
+  
+  station_level_id       Int?
+  station_level_rel      MasterStationLevel? @relation(fields: [station_level_id], references: [id], onDelete: SetNull)
+  station_level          String              @default("POLRES") @db.VarChar(30)
+  
+  parent_station_id      Int?
+  parent_station         PoliceStation?      @relation("StationHierarchy", fields: [parent_station_id], references: [id], onDelete: SetNull)
+  child_stations         PoliceStation[]     @relation("StationHierarchy")
+  
+  address                String              @db.VarChar(255)
+  office_lat             Decimal             @db.Decimal(10, 8)        // Station Headquarters GPS
+  office_lng             Decimal             @db.Decimal(11, 8)        // Station Headquarters GPS
+  geofence_radius_meters Int                 @default(500)
+
+  users                  User[]
+  officers               PoliceOfficer[]
+  vehicles               PatrolVehicle[]
+  complaints             Complaint[]
+  hotspots               HotspotLocation[]
+
+  created_at             DateTime            @default(now())
+  updated_at             DateTime            @updatedAt
+
+  @@index([parent_station_id], map: "idx_station_parent")
+  @@index([station_level_id], map: "idx_station_level")
+  @@map("police_stations")
+}
+
+// ==============================================================================
+// 3. SYSTEM USERS & POLICE OFFICERS
+// Tables: users (Credentials), police_officers (Profiles & Live Tracking)
+// ==============================================================================
+
+model User {
+  id                    BigInt          @id @default(autoincrement())
+  identifier            String          @unique @db.VarChar(50)   // Officer NRP or Admin Username
+  password_hash         String          @db.VarChar(255)
+  full_name             String          @db.VarChar(120)
+  phone_number          String          @db.VarChar(30)
+  email                 String?         @db.VarChar(100)
+  avatar_url            String?         @db.VarChar(255)
+  
+  role_id               Int?
+  role_rel              MasterRole?     @relation(fields: [role_id], references: [id], onDelete: SetNull)
+  role                  String          @db.VarChar(50)           // "SUPERADMIN" | "PAWAS" | "PERSONIL"
+  
+  station_id            Int?
+  station               PoliceStation?  @relation(fields: [station_id], references: [id], onDelete: SetNull)
+  
+  is_active             Boolean         @default(true)
+  last_login_at         DateTime?
+  
+  officer_profile       PoliceOfficer?
+  complaints_operator   Complaint[]     @relation("OperatorComplaints")
+  log_activities        UserLogActivity[]
+  
+  created_at            DateTime        @default(now())
+  updated_at            DateTime        @updatedAt
+
+  @@index([role], map: "idx_users_role")
+  @@index([role_id], map: "idx_users_role_id")
+  @@index([station_id], map: "idx_users_station")
+  @@map("users")
+}
+
+model PoliceOfficer {
+  id                      BigInt                  @id @default(autoincrement())
+  user_id                 BigInt                  @unique
+  user                    User                    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  nrp                     String                  @unique @db.VarChar(20)
+  rank_pangkat            String                  @db.VarChar(50)   // "Kompol", "Bripka", "Aipda"
+  jabatan                 String                  @db.VarChar(100)  // "Ba Turjawali Samapta", "Pawas Piket Komando"
+  
+  station_id              Int?
+  station                 PoliceStation?          @relation(fields: [station_id], references: [id], onDelete: SetNull)
+  unit_id                 Int?
+  unit                    MasterOperationalUnit?  @relation(fields: [unit_id], references: [id], onDelete: SetNull)
+  
+  duty_status_id          Int?
+  duty_status_rel         MasterDutyStatus?       @relation(fields: [duty_status_id], references: [id], onDelete: SetNull)
+  duty_status             String                  @default("LEPAS_DINAS") @db.VarChar(50)
+  
+  assigned_patrol_vehicle String?                 @db.VarChar(50)   // "R4-Samapta-81"
+  
+  // Single Source of Truth for Live GPS
+  current_gps_lat         Decimal?                @db.Decimal(10, 8)
+  current_gps_lng         Decimal?                @db.Decimal(11, 8)
+  last_gps_heartbeat_at   DateTime?
+  
+  kpi_score               Decimal                 @default(100.00) @db.Decimal(5, 2)
+  avatar_url              String?                 @db.VarChar(255)
+  device_id               String?                 @db.VarChar(64)   // Bound to Official Police Device
+  
+  logbooks                OfficerLogbook[]
+  dispatches              ComplaintDispatch[]
+  vehicle_sessions        VehicleUsageLog[]
+  created_hotspots        HotspotLocation[]       @relation("HotspotCreator")
+  
+  created_at              DateTime                @default(now())
+  updated_at              DateTime                @updatedAt
+
+  @@index([duty_status, last_gps_heartbeat_at], map: "idx_officers_duty_gps")
+  @@index([duty_status_id], map: "idx_officers_duty_id")
+  @@index([station_id], map: "idx_officers_station")
+  @@index([unit_id], map: "idx_officers_unit")
+  @@index([device_id], map: "idx_officers_device")
+  @@map("police_officers")
+}
+
+// ==============================================================================
+// 4. PATROL FLEET & VEHICLE USAGE QR CODE AUDIT
+// Tables: patrol_vehicles, vehicle_usage_logs
+// ==============================================================================
+
+model PatrolVehicle {
+  id                 Int                    @id @default(autoincrement())
+  nomor_lambung      String                 @unique @db.VarChar(50)  // "R4-SAMAPTA-81", "SEDAN-PJR-01"
+  nama_armada        String                 @db.VarChar(100)         // "Patroli Samapta 110-A"
+  jenis_kendaraan    String                 @default("RODA_4") @db.VarChar(30) // "RODA_4", "RODA_2", "MINIBUS"
+  plat_nomor_polisi  String?                @db.VarChar(30)          // "1001-VII"
+  qr_token           String                 @unique @db.VarChar(64)  // Secret cryptographic token on physical vehicle sticker
+  icon_emoji         String                 @default("🚔") @db.VarChar(10)
+  
+  station_id         Int?
+  station            PoliceStation?         @relation(fields: [station_id], references: [id], onDelete: SetNull)
+  unit_id            Int?
+  unit               MasterOperationalUnit? @relation(fields: [unit_id], references: [id], onDelete: SetNull)
+  
+  driver_officer_id  BigInt?
+  driver_officer_nrp String?                @db.VarChar(20)
+  
+  current_lat        Decimal?               @db.Decimal(10, 8)
+  current_lng        Decimal?               @db.Decimal(11, 8)
+  speed_kmh          Int                    @default(0)
+  status_operasional String                 @default("SIAGA") @db.VarChar(50) // "SIAGA", "PATROLI", "MENUJU_TKP"
+  status_color       String                 @default("#10B981") @db.VarChar(20)
+  last_heartbeat_at  DateTime?
+  
+  usage_logs         VehicleUsageLog[]
+  
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
+
+  @@index([unit_id], map: "idx_vehicles_unit")
+  @@index([station_id], map: "idx_vehicles_station")
+  @@index([status_operasional], map: "idx_vehicles_status")
+  @@map("patrol_vehicles")
+}
+
+model VehicleUsageLog {
+  id              BigInt         @id @default(autoincrement())
+  vehicle_id      Int
+  vehicle         PatrolVehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  officer_id      BigInt
+  officer         PoliceOfficer  @relation(fields: [officer_id], references: [id], onDelete: Cascade)
+  
+  // Check-in (Start Driving Shift)
+  check_in_at     DateTime       @default(now())
+  check_in_lat    Decimal        @db.Decimal(10, 8)
+  check_in_lng    Decimal        @db.Decimal(11, 8)
+  
+  // Check-out (Return to Station)
+  check_out_at    DateTime?
+  check_out_lat   Decimal?       @db.Decimal(10, 8)
+  check_out_lng   Decimal?       @db.Decimal(11, 8)
+  
+  status_sesi     String         @default("ACTIVE") @db.VarChar(30) // "ACTIVE", "COMPLETED", "AUTO_TERMINATED"
+  catatan_kondisi String?        @db.Text
+
+  created_at      DateTime       @default(now())
+
+  @@index([vehicle_id, status_sesi], map: "idx_usage_vehicle_status")
+  @@index([officer_id, status_sesi], map: "idx_usage_officer_status")
+  @@map("vehicle_usage_logs")
+}
+
+// ==============================================================================
+// 5. CITIZEN COMPLAINTS & INCIDENT TIMELINE LIFECYCLE
+// Tables: complaints, complaint_dispatches, complaint_audit_logs, complaint_evidences, citizen_reviews
+// ==============================================================================
+
+model Complaint {
+  id                    BigInt                  @id @default(autoincrement())
+  nomor_tiket           String                  @unique @db.VarChar(35) // "C110-20261016-0001"
+  pelapor_nama          String                  @db.VarChar(120)
+  pelapor_hp            String                  @db.VarChar(50)
+  jenis_kejadian        String                  @db.VarChar(100)
+  
+  urgency_id            Int?
+  urgency_rel           MasterUrgencyLevel?     @relation(fields: [urgency_id], references: [id], onDelete: SetNull)
+  urgensi               String                  @default("SEDANG") @db.VarChar(30)
+  
+  tkp_alamat_teks       String                  @db.VarChar(255)
+  tkp_lat               Decimal                 @db.Decimal(10, 8)
+  tkp_lng               Decimal                 @db.Decimal(11, 8)
+  
+  ringkasan_keterangan  String                  @db.Text
+  
+  status_id             Int?
+  status_rel            MasterComplaintStatus?  @relation(fields: [status_id], references: [id], onDelete: SetNull)
+  status                String                  @default("MENUNGGU") @db.VarChar(50)
+  
+  tahap                 Int                     @default(1)
+  alasan_tolak          String?                 @db.Text
+  
+  category_id           Int?
+  category_rel          MasterIncidentCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  kategori_key          String?                 @db.VarChar(50)
+
+  source_id             Int?
+  source_rel            MasterReportSource?     @relation(fields: [source_id], references: [id], onDelete: SetNull)
+  platform_key          String?                 @db.VarChar(50)
+
+  station_id            Int?
+  station               PoliceStation?          @relation(fields: [station_id], references: [id], onDelete: SetNull)
+
+  operator_id           BigInt?
+  operator              User?                   @relation("OperatorComplaints", fields: [operator_id], references: [id], onDelete: SetNull)
+
+  dispatches            ComplaintDispatch[]
+  complaint_logs        ComplaintAuditLog[]
+  evidences             ComplaintEvidence[]
+  citizen_review_rel    CitizenReview?
+  logbooks              OfficerLogbook[]
+
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+
+  @@index([status, created_at], map: "idx_complaints_status_created")
+  @@index([status_id], map: "idx_complaints_status_id")
+  @@index([urgency_id], map: "idx_complaints_urgency_id")
+  @@index([pelapor_hp, created_at], map: "idx_complaints_reporter_created")
+  @@index([tkp_lat, tkp_lng], map: "idx_complaints_scene_coords")
+  @@index([kategori_key], map: "idx_complaints_category_key")
+  @@index([platform_key], map: "idx_complaints_source_key")
+  @@map("complaints")
+}
+
+model ComplaintDispatch {
+  id                    BigInt                @id @default(autoincrement())
+  complaint_id          BigInt
+  complaint             Complaint             @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  
+  unit_id               Int
+  unit                  MasterOperationalUnit @relation(fields: [unit_id], references: [id])
+  
+  officer_id            BigInt?
+  officer               PoliceOfficer?        @relation(fields: [officer_id], references: [id], onDelete: SetNull)
+  
+  is_primary_unit       Boolean               @default(true)
+  personnel_quota       Int                   @default(4)
+  tactical_orders       String?               @db.Text
+  
+  dispatch_status       String                @default("DISPATCHED") @db.VarChar(30)
+  dispatched_at         DateTime              @default(now())
+  accepted_at           DateTime?
+  departed_at           DateTime?
+  arrived_at            DateTime?
+  completed_at          DateTime?
+  
+  estimated_distance    String?               @db.VarChar(30)
+  estimated_eta         String?               @db.VarChar(30)
+
+  @@index([complaint_id], map: "idx_dispatches_complaint")
+  @@index([unit_id], map: "idx_dispatches_unit")
+  @@index([officer_id], map: "idx_dispatches_officer")
+  @@map("complaint_dispatches")
+}
+
+model ComplaintAuditLog {
+  id                    BigInt        @id @default(autoincrement())
+  complaint_id          BigInt
+  complaint             Complaint     @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  
+  actor_name            String        @db.VarChar(120)
+  actor_role            String        @db.VarChar(50)
+  action                String        @db.VarChar(150)
+  notes                 String?       @db.Text
+  
+  action_lat            Decimal?      @db.Decimal(10, 8)
+  action_lng            Decimal?      @db.Decimal(11, 8)
+  
+  created_at            DateTime      @default(now())
+
+  @@index([complaint_id, created_at], map: "idx_audit_logs_created")
+  @@map("complaint_audit_logs")
+}
+
+model ComplaintEvidence {
+  id                    BigInt        @id @default(autoincrement())
+  complaint_id          BigInt
+  complaint             Complaint     @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  
+  incident_phase        String        @db.VarChar(50) // "TIBA_TKP", "PENANGANAN", "SELESAI_KONDUSIF"
+  file_url              String        @db.VarChar(255)
+  caption               String?       @db.VarChar(255)
+  watermark_text        String?       @db.VarChar(255)
+  
+  exif_lat              Decimal?      @db.Decimal(10, 8)
+  exif_lng              Decimal?      @db.Decimal(11, 8)
+  uploaded_at           DateTime      @default(now())
+
+  @@index([complaint_id, incident_phase], map: "idx_evidences_phase")
+  @@map("complaint_evidences")
+}
+
+model CitizenReview {
+  id                    BigInt        @id @default(autoincrement())
+  complaint_id          BigInt        @unique
+  complaint             Complaint     @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  
+  star_rating           Int
+  feedback_tags         String?       @db.VarChar(255)
+  review_text           String?       @db.Text
+  reporter_name         String?       @db.VarChar(120)
+  
+  created_at            DateTime      @default(now())
+
+  @@index([star_rating], map: "idx_reviews_rating")
+  @@map("citizen_reviews")
+}
+
+// ==============================================================================
+// 6. POLICE OFFICER FIELD LOGBOOK & DUAL-GPS AUDIT
+// Table: officer_logbooks
+// ==============================================================================
+
+model OfficerLogbook {
+  id                    BigInt                  @id @default(autoincrement())
+  officer_id            BigInt
+  officer               PoliceOfficer           @relation(fields: [officer_id], references: [id], onDelete: Cascade)
+  complaint_id          BigInt?
+  complaint             Complaint?              @relation(fields: [complaint_id], references: [id], onDelete: SetNull)
+  
+  activity_type_id      Int?
+  activity_type_rel     MasterActivityType?     @relation(fields: [activity_type_id], references: [id], onDelete: SetNull)
+  action_type           String                  @db.VarChar(50) // "PATROLI", "TPTKP", "SAMBANG"
+  
+  claimed_address       String                  @db.VarChar(255)
+  claimed_lat           Decimal                 @db.Decimal(10, 8)
+  claimed_lng           Decimal                 @db.Decimal(11, 8)
+  
+  actual_lat            Decimal                 @db.Decimal(10, 8)
+  actual_lng            Decimal                 @db.Decimal(11, 8)
+  
+  deviation_meters      Decimal                 @db.Decimal(10, 2)
+  is_deviation_flagged  Boolean                 @default(false)
+  
+  start_time            String                  @db.VarChar(10)
+  end_time              String                  @db.VarChar(10)
+  
+  photo_url             String?                 @db.VarChar(255)
+  photo_exif_lat        Decimal?                @db.Decimal(10, 8)
+  photo_exif_lng        Decimal?                @db.Decimal(11, 8)
+  
+  activity_description  String                  @db.Text
+  
+  validation_status_id  Int?
+  validation_status_rel MasterValidationStatus? @relation(fields: [validation_status_id], references: [id], onDelete: SetNull)
+  validation_status     String                  @default("BELUM_DIVALIDASI") @db.VarChar(50)
+  
+  created_at            DateTime                @default(now())
+
+  @@index([officer_id, created_at], map: "idx_logbook_officer_created")
+  @@index([is_deviation_flagged, validation_status, created_at], map: "idx_logbook_audit_flag")
+  @@index([officer_id, action_type, created_at], map: "idx_logbook_officer_action")
+  @@map("officer_logbooks")
+}
+
+// ==============================================================================
+// 7. CRIME & TRAFFIC HOTSPOTS (GIS)
+// Table: hotspot_locations
+// ==============================================================================
+
+model HotspotLocation {
+  id                    BigInt                    @id @default(autoincrement())
+  key                   String                    @unique @db.VarChar(64)
+  title                 String                    @db.VarChar(120)
+  police_sector         String                    @db.VarChar(100)
+  
+  station_id            Int?
+  station               PoliceStation?            @relation(fields: [station_id], references: [id], onDelete: SetNull)
+  
+  category_id           Int?
+  category_rel          MasterHotspotCategory?    @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  category              String                    @db.VarChar(50)
+  
+  danger_level_id       Int?
+  danger_level_rel      MasterHotspotDangerLevel? @relation(fields: [danger_level_id], references: [id], onDelete: SetNull)
+  danger_level          String                    @db.VarChar(50)
+  
+  icon_emoji            String                    @default("🔴") @db.VarChar(10)
+  
+  lat                   Decimal                   @db.Decimal(10, 8)
+  lng                   Decimal                   @db.Decimal(11, 8)
+  
+  active_start          String                    @default("23:00") @db.VarChar(10)
+  active_end            String                    @default("04:30") @db.VarChar(10)
+  schedule_display      String                    @default("23:00 - 04:30 WIB") @db.VarChar(50)
+  
+  nearest_unit          String                    @default("Patroli Samapta 110-A") @db.VarChar(100)
+  
+  created_by_id         BigInt?
+  created_by            PoliceOfficer?            @relation("HotspotCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  
+  created_at            DateTime                  @default(now())
+  updated_at            DateTime                  @updatedAt
+
+  @@index([lat, lng], map: "idx_hotspot_coords")
+  @@index([police_sector], map: "idx_hotspot_sector")
+  @@index([category], map: "idx_hotspot_category")
+  @@index([danger_level], map: "idx_hotspot_danger")
+  @@map("hotspot_locations")
+}
+
+// ==============================================================================
+// 8. DEVICE PAIRING SESSIONS & COMPATIBILITY
+// ==============================================================================
+
+model DevicePairingSession {
+  session_token String   @id @db.VarChar(64)
+  device_id     String?  @db.VarChar(64)
+  device_brand  String?  @db.VarChar(100)
+  nrp           String?  @db.VarChar(20)
+  unit_id       String?  @db.VarChar(50)
+  lat           Decimal? @db.Decimal(10, 8)
+  lng           Decimal? @db.Decimal(11, 8)
+  status        String   @default("WAITING") @db.VarChar(30)
+  scanned_at    DateTime?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([status], map: "idx_pairing_status")
+  @@map("device_pairing_sessions")
+}
+
+// ==============================================================================
+// 9. PROTOTYPE LEGACY COMPATIBILITY TABLES
+// ==============================================================================
+
+model PatrolFleetUnit {
+  id           Int      @id @default(autoincrement())
+  unit_key     String   @unique @db.VarChar(50)
+  nrp          String?  @db.VarChar(20)
+  category     String   @db.VarChar(30)
+  icon_emoji   String   @default("🚔") @db.VarChar(10)
+  title        String   @db.VarChar(100)
+  petugas      String   @db.VarChar(150)
+  sub          String   @db.VarChar(150)
+  status       String   @db.VarChar(100)
+  status_color String   @default("#10B981") @db.VarChar(20)
+  tugas        String   @db.VarChar(255)
+  telemetri    String   @db.VarChar(255)
+  lat          Decimal  @db.Decimal(10, 8)
+  lng          Decimal  @db.Decimal(11, 8)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([category], map: "idx_fleet_category")
+  @@map("patrol_fleet_units")
+}
+
+model RegisteredUnit {
+  id            String   @id @db.VarChar(64)
+  nrp           String   @unique @db.VarChar(20)
+  nama          String   @db.VarChar(120)
+  pangkat       String   @db.VarChar(50)
+  role          String   @default("PERSONIL") @db.VarChar(50)
+  unitId        String   @map("unit_id") @db.VarChar(50)
+  satuanNama    String   @map("satuan_nama") @db.VarChar(100)
+  kelompokRegu  String   @map("kelompok_regu") @db.VarChar(100)
+  password      String   @db.VarChar(100)
+  deviceID      String   @map("device_id") @db.VarChar(64)
+  live_lat      Decimal? @db.Decimal(10, 8)
+  live_lng      Decimal? @db.Decimal(11, 8)
+  status        String   @default("Aktif") @db.VarChar(30)
+  avatar_url    String?  @db.VarChar(255)
+  tanggalDaftar DateTime @map("tanggal_daftar") @db.Date
+  tanggalUpdate DateTime @map("tanggal_update") @db.Date
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([deviceID], map: "idx_reg_dev")
+  @@index([status, unitId], map: "idx_reg_status_unit")
+  @@map("registered_units")
+}
+
+model UserLogActivity {
+  id            BigInt    @id @default(autoincrement())
+  user_id       BigInt?
+  user          User?     @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  identifier    String    @db.VarChar(50)
+  user_name     String    @db.VarChar(120)
+  role          String    @db.VarChar(50)
+  activity_type String    @db.VarChar(60)
+  description   String    @db.Text
+  endpoint      String?   @db.VarChar(255)
+  ip_address    String?   @db.VarChar(45)
+  user_agent    String?   @db.VarChar(255)
+  created_at    DateTime  @default(now())
+
+  @@index([user_id], map: "idx_user_log_user_id")
+  @@index([identifier], map: "idx_user_log_identifier")
+  @@index([activity_type], map: "idx_user_log_type")
+  @@index([created_at], map: "idx_user_log_created")
+  @@map("user_log_activities")
+}
+

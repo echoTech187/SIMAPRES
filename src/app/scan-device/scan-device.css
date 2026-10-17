@@ -1,0 +1,115 @@
+.scan-device-body {
+  background: #0B1120;
+  color: #F8FAFC;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-sizing: border-box;
+}
+
+.card-terminal {
+  background: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 20px;
+  max-width: 440px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.6);
+  text-align: center;
+}
+
+.header-band {
+  background: linear-gradient(135deg, #153E75 0%, #1D4ED8 100%);
+  padding: 24px 20px;
+  color: white;
+  position: relative;
+}
+
+.pulse-ring {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  margin-bottom: 10px;
+  box-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
+  animation: pulseGps 2s infinite ease-in-out;
+}
+
+@keyframes pulseGps {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+  70% { transform: scale(1.08); box-shadow: 0 0 0 15px rgba(56, 189, 248, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+
+.card-body {
+  padding: 24px 20px;
+}
+
+.dev-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 800;
+  color: #38BDF8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 10px 16px;
+  border-radius: 10px;
+  display: inline-block;
+  margin: 12px 0 18px 0;
+  letter-spacing: 0.5px;
+}
+
+.telemetry-box {
+  background: #0F172A;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.btn-act {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-primary-act {
+  background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+  color: white;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+}
+
+.btn-primary-act:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.btn-secondary-act {
+  background: #1E293B;
+  border: 1px solid #3B82F6;
+  color: #93C5FD;
+}
+
+.btn-secondary-act:hover {
+  background: #2563EB;
+  color: white;
+}
