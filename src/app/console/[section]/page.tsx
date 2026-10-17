@@ -36,8 +36,8 @@ const sectionTitleMap: Record<string, string> = {
   duty: 'Master Status Kedinasan',
 };
 
-export async function generateMetadata({ params }: { params: { section: string } }) {
-  const section = params.section?.toLowerCase() || 'beranda';
+export async function generateMetadata({ params }: { params?: { section?: string } }) {
+  const section = params?.section?.toLowerCase() || 'beranda';
   const title = sectionTitleMap[section] || 'Konsol Operasional';
   return {
     title: `${title} - SIMAPRES 110 Presisi`,
@@ -49,17 +49,18 @@ export default async function ConsoleSectionPage({
   params,
   searchParams,
 }: {
-  params: { section: string };
+  params?: { section?: string };
   searchParams?: { tab?: string; page?: string };
 }) {
   // 1. Verifikasi Autentikasi Server-Side
   const session = await getSession();
 
+  const currentSection = params?.section || 'beranda';
   if (!session) {
-    redirect(`/?alert=unauthenticated&from=/console/${params.section}`);
+    redirect(`/?alert=unauthenticated&from=/console/${encodeURIComponent(currentSection)}`);
   }
 
-  const section = params.section?.toLowerCase() || searchParams?.page || searchParams?.tab || 'beranda';
+  const section = params?.section?.toLowerCase() || searchParams?.page || searchParams?.tab || 'beranda';
 
   // 2. Audit Trail: Catat akses halaman spesifik ke tabel user_log_activities
   try {

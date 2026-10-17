@@ -3,3 +3,5 @@ Prototype
 .next
 scratch
 .env
+.env*.local
+*.tsbuildinfo
