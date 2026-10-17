@@ -2854,13 +2854,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                     minWidth: '340px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px',
-                    position: 'sticky',
-                    top: '12px',
-                    alignSelf: 'flex-start',
-                    maxHeight: 'calc(100vh - 120px)',
-                    overflowY: 'auto',
-                    paddingRight: '4px',
+                    gap: '12px',
                   }}
                 >
                   {filteredValidasiComplaints.length === 0 ? (
