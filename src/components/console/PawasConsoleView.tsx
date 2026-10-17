@@ -241,6 +241,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [showCetakModal, setShowCetakModal] = useState(false);
   const [showPresensiPulangModal, setShowPresensiPulangModal] = useState(false);
   const [showKeamananModal, setShowKeamananModal] = useState(false);
+  const [pinOtorisasiPawas, setPinOtorisasiPawas] = useState<string[]>(['', '', '', '', '', '']);
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [showLightboxModal, setShowLightboxModal] = useState(false);
   const [lightboxImg, setLightboxImg] = useState({ url: '', title: '', meta: '', desc: '' });
@@ -459,8 +460,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         fullName: sessionUser.fullName || sessionUser.nama || '',
         nrp: sessionUser.nrp || '',
         pangkat: sessionUser.pangkat || '',
-        title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
-        roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
+        title: isOp,
+        roleBadge: isOp,
         avatar: sessionUser.avatar || null,
       });
       if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
@@ -474,8 +475,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
             fullName: res.data.fullName || '',
             nrp: res.data.nrp || '',
             pangkat: res.data.pangkat || '',
-            title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
-            roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
+            title: isOp,
+            roleBadge: isOp,
             avatar: res.data.avatar || null,
           });
           if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
@@ -485,8 +486,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
             fullName: session?.fullName || '',
             nrp: effectiveNrp,
             pangkat: session?.rankPangkat || '',
-            title: isOp ? 'Operator CAD Sentra 110' : 'Perwira Pengawas (PAWAS)',
-            roleBadge: isOp ? 'OPERATOR 110' : 'PAWAS',
+            title: isOp,
+            roleBadge: isOp,
             avatar: session?.avatar_url || null,
           });
           if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
@@ -6357,10 +6358,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   LAPORAN HASIL PELAKSANAAN TUGAS PERWIRA PENGAWAS (PAWAS)
                 </div>
                 <div style={{ fontSize: '11pt', fontWeight: 'bold', marginTop: '3px' }}>
-                  Nomor: LAP-PAWAS / 10 / X / 2026 / SPKT-METRO
+                  Nomor: LAP-PAWAS / {new Date().getMonth() + 1} / {new Date().getFullYear()} / SPKT-METRO
                 </div>
                 <div style={{ fontSize: '10pt', fontStyle: 'italic', marginTop: '3px' }}>
-                  Masa Dinas Piket: Jumat, 16 Oktober 2026 (08.00 WIB) s/d Sabtu, 17 Oktober 2026 (08.00 WIB)
+                  Masa Dinas Piket: {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
               </div>
 
@@ -6368,30 +6369,30 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                 <strong>I. DASAR HUKUM &amp; PENUGASAN:</strong>
                 <div style={{ paddingLeft: '18px', textAlign: 'justify' }}>
                   1. Peraturan Kepala Kepolisian Negara Republik Indonesia Nomor 2 Tahun 2021 tentang Susunan Organisasi dan Tata Kerja Pada Tingkat Kepolisian Resor.<br />
-                  2. Surat Perintah Kapolres Metro Jakarta Selatan Nomor: Sprin / 1420 / X / PAM.3.3 / 2026 tentang Penunjukan Perwira Pengawas (PAWAS) Piket Siaga Markas Komando dan Sentra Pelayanan Kepolisian Terpadu 110.
+                  2. Surat Perintah Penunjukan Perwira Pengawas (PAWAS) Piket Siaga Markas Komando dan Sentra Pelayanan Kepolisian Terpadu 110.
                 </div>
               </div>
 
               <div style={{ marginBottom: '14px' }}>
                 <strong>II. KUAT PERSONEL &amp; KESIAPSIAGAAN SARPRAS:</strong>
                 <div style={{ paddingLeft: '18px' }}>
-                  a. <strong>Kekuatan Riil Personel Piket:</strong> 46 Personel hadir lengkap.<br />
-                  b. <strong>Kesiapan Armada Taktis:</strong> 14 Unit Ranmor Dinas (4 Samapta, 6 Perintis Presisi, 4 Turjawali Lantas) seluruhnya dalam kondisi prima dan terhubung GPS.<br />
-                  c. <strong>Inventaris Senpi &amp; Alkom:</strong> Gudang jaga lengkap terkunci, radio HT repeater Channel 110 jernih dan aktif.
+                  a. <strong>Kekuatan Riil Personel Piket:</strong> {registeredUnits.length} Personel terdaftar aktif di sistem.<br />
+                  b. <strong>Kesiapan Armada Taktis:</strong> {fleetUnits.length} Unit Ranmor Dinas Presisi aktif.<br />
+                  c. <strong>Inventaris Senpi &amp; Alkom:</strong> Gudang jaga lengkap terkunci, radio HT repeater Channel 110 aktif.
                 </div>
               </div>
 
               <div style={{ marginBottom: '14px' }}>
                 <strong>III. INDEKS KEPUASAN MASYARAKAT &amp; VALIDITAS ADUAN 110:</strong>
                 <div style={{ paddingLeft: '18px' }}>
-                  Berdasarkan evaluasi survei masyarakat melalui portal publik SIMAPRES, diperoleh <strong>Indeks Kepuasan Masyarakat (IKM) sebesar 4.9 / 5.0 (98.2% Puas)</strong> terhadap kecepatan tiba petugas di TKP.
+                  Berdasarkan evaluasi survei masyarakat melalui portal publik SIMAPRES, diperoleh <strong>Indeks Kepuasan Masyarakat (IKM): {ikmStats?.avgRating ? ikmStats.avgRating.toFixed(1) + ' / 5.0' : '-'}</strong>.
                 </div>
               </div>
 
               <div style={{ marginBottom: '14px' }}>
                 <strong>IV. REKAPITULASI PELAYANAN PANGGILAN DARURAT 110:</strong>
                 <div style={{ paddingLeft: '18px' }}>
-                  Selama masa dinas telah diterima dan dikendalikan sebanyak <strong>{totalLaporan} Laporan Pengaduan Warga</strong> melalui Call Center 110. Rata-rata kecepatan tiba di TKP mencapai <strong>7.4 Menit</strong> dengan kepatuhan standar SLA (&lt; 10 Menit) sebesar <strong>94.8%</strong>.
+                  Selama masa dinas telah diterima dan dikendalikan sebanyak <strong>{totalLaporan} Laporan Pengaduan Warga</strong> melalui Call Center 110.
                 </div>
               </div>
 
@@ -6404,7 +6405,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   4. Kasi Propam Polres Metro Jakarta Selatan
                 </div>
                 <div style={{ textAlign: 'center', minWidth: '240px' }}>
-                  <div>Jakarta, 16 Oktober 2026</div>
+                  <div>Jakarta, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
                   <div style={{ fontWeight: 'bold', marginTop: '2px' }}>PERWIRA PENGAWAS (PAWAS),</div>
                   <div style={{ height: '55px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#153E75', fontSize: '11px', fontWeight: 'bold', border: '1px dashed #94A3B8', margin: '8px auto', width: '180px', borderRadius: '6px', background: '#F8FAFC' }}>
                     [ TERVERIFIKASI DIGITAL ]
@@ -6664,7 +6665,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Jam Mulai</label>
                   <input
                     type="time"
-                    defaultValue="09:00"
+                    defaultValue=""
                     id="tp-jam-mulai"
                     style={{ width: '100%', padding: '10px 8px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}
                   />
@@ -6674,7 +6675,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Sampai Jam</label>
                   <input
                     type="time"
-                    defaultValue="14:30"
+                    defaultValue=""
                     id="tp-jam-selesai"
                     style={{ width: '100%', padding: '10px 8px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}
                   />
@@ -6786,26 +6787,33 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
               <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: '12px', fontWeight: 800, color: '#166534' }}>Autentikasi 2-Faktor (2FA) Aktif</div>
-                  <div style={{ fontSize: '11px', color: '#15803D' }}>Token Terverifikasi • ID Perangkat: CAD-METRO-01</div>
+                  <div style={{ fontSize: '11px', color: '#15803D' }}>Token Terverifikasi • {session?.identifier ? `NRP: ${session.identifier}` : '-'}</div>
                 </div>
                 <span style={{ background: '#15803D', color: 'white', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '10px' }}>SIAP</span>
               </div>
 
               <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Kata Sandi Saat Ini</label>
-                <input type="password" value="••••••••" readOnly style={{ width: '100%', padding: '9px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }} />
+                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Kata Sandi</label>
+                <input type="password" placeholder="Masukkan kata sandi baru..." style={{ width: '100%', padding: '9px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }} />
               </div>
 
               <div style={{ marginBottom: '14px' }}>
                 <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>PIN Otorisasi Disposisi (6-Digit)</label>
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                  {['8', '8', '0', '1', '0', '2'].map((d, i) => (
+                  {pinOtorisasiPawas.map((d, i) => (
                     <input
                       key={i}
                       type="password"
                       maxLength={1}
                       value={d}
-                      readOnly
+                      onChange={(e) => {
+                        const val = e.target.value.slice(-1);
+                        setPinOtorisasiPawas((prev) => {
+                          const next = [...prev];
+                          next[i] = val;
+                          return next;
+                        });
+                      }}
                       style={{ width: '40px', height: '45px', textAlign: 'center', fontSize: '18px', fontWeight: 800, border: '2px solid #CBD5E1', borderRadius: '8px', background: '#F8FAFC' }}
                     />
                   ))}
@@ -6885,11 +6893,11 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="checkbox" defaultChecked style={{ accentColor: '#15803D', width: '16px', height: '16px' }} />
+                  <input type="checkbox" style={{ accentColor: '#15803D', width: '16px', height: '16px' }} />
                   <span>Seluruh laporan penugasan aktif telah diperbarui statusnya.</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="checkbox" defaultChecked style={{ accentColor: '#15803D', width: '16px', height: '16px' }} />
+                  <input type="checkbox" style={{ accentColor: '#15803D', width: '16px', height: '16px' }} />
                   <span>Siap melakukan apel serah terima kepada regu piket pengganti.</span>
                 </label>
               </div>

@@ -537,7 +537,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       </div>
                       <div style={{ fontSize: '15px', fontWeight: 800 }}>{activeComplaint.jenisKejadian}</div>
                       <div style={{ fontSize: '11.5px', color: '#FEE2E2', marginTop: '3px' }}>
-                        📍 {activeComplaint.tkpAlamatTeks} • <strong>Instruksi Pawas:</strong> {activeComplaint.arahanPawas || 'Segera meluncur & amankan TKP'}
+                        📍 {activeComplaint.tkpAlamatTeks} • <strong>Instruksi Pawas:</strong> {activeComplaint.arahanPawas || '-'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1782,51 +1782,66 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                   type="date"
                   className="form-control"
                   style={{ width: '140px', padding: '8px', fontSize: '12px', background: 'white', fontWeight: 'bold', color: '#153E75' }}
-                  defaultValue="2026-10-16"
+                  defaultValue={new Date().toISOString().split('T')[0]}
                 />
               </div>
 
               {/* Charts Grid */}
-              <div className="charts-grid">
-                <div className="chart-card">
-                  <div className="chart-title">Distribusi Jenis Kegiatan</div>
-                  <div className="chart-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center' }}>
-                      🚔 Patroli: <strong>14</strong> | 🛡️ TPTKP: <strong>6</strong><br />
-                      🤝 Sambang: <strong>8</strong> | ⚠️ Pengamanan: <strong>5</strong>
-                    </div>
-                  </div>
-                </div>
-                <div className="chart-card">
-                  <div className="chart-title">Status Validasi Log</div>
-                  <div className="chart-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ fontSize: '12px', color: '#059669', textAlign: 'center' }}>
-                      ✅ <strong>38</strong> Disetujui Pawas<br />
-                      ⏳ <strong>5</strong> Menunggu Review
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {(() => {
+                const totalLogs = logbooks.length;
+                const approvedLogs = logbooks.filter((l) => (l.statusValidasi || '').toUpperCase() === 'DISETUJUI').length;
+                const pendingLogs = logbooks.filter((l) => !l.statusValidasi || (l.statusValidasi || '').toUpperCase() === 'MENUNGGU').length;
+                const rejectedLogs = logbooks.filter((l) => (l.statusValidasi || '').toUpperCase() === 'DITOLAK').length;
+                const patroliCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'PATROLI').length;
+                const tptkpCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'TPTKP').length;
+                const sambangCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'SAMBANG').length;
+                const pengamananCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'PENGAMANAN').length;
 
-              {/* Stats Row */}
-              <div className="stats-row" style={{ marginTop: '16px' }}>
-                <div className="stats-col">
-                  <div className="stat-item">
-                    <span>Total Log Kirim</span> <span style={{ color: '#153E75', fontWeight: 800 }}>45</span>
-                  </div>
-                  <div className="stat-item">
-                    <span>Log Disetujui</span> <span style={{ color: '#10B981', fontWeight: 800 }}>38</span>
-                  </div>
-                </div>
-                <div className="stats-col">
-                  <div className="stat-item">
-                    <span>Log Menunggu</span> <span style={{ color: '#F59E0B', fontWeight: 800 }}>5</span>
-                  </div>
-                  <div className="stat-item">
-                    <span>Log Ditolak</span> <span style={{ color: '#EF4444', fontWeight: 800 }}>2</span>
-                  </div>
-                </div>
-              </div>
+                return (
+                  <>
+                    <div className="charts-grid">
+                      <div className="chart-card">
+                        <div className="chart-title">Distribusi Jenis Kegiatan</div>
+                        <div className="chart-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center' }}>
+                            🚔 Patroli: <strong>{patroliCount}</strong> | 🛡️ TPTKP: <strong>{tptkpCount}</strong><br />
+                            🤝 Sambang: <strong>{sambangCount}</strong> | ⚠️ Pengamanan: <strong>{pengamananCount}</strong>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="chart-card">
+                        <div className="chart-title">Status Validasi Log</div>
+                        <div className="chart-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ fontSize: '12px', color: '#059669', textAlign: 'center' }}>
+                            ✅ <strong>{approvedLogs}</strong> Disetujui Pawas<br />
+                            ⏳ <strong>{pendingLogs}</strong> Menunggu Review
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats Row */}
+                    <div className="stats-row" style={{ marginTop: '16px' }}>
+                      <div className="stats-col">
+                        <div className="stat-item">
+                          <span>Total Log Kirim</span> <span style={{ color: '#153E75', fontWeight: 800 }}>{totalLogs}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span>Log Disetujui</span> <span style={{ color: '#10B981', fontWeight: 800 }}>{approvedLogs}</span>
+                        </div>
+                      </div>
+                      <div className="stats-col">
+                        <div className="stat-item">
+                          <span>Log Menunggu</span> <span style={{ color: '#F59E0B', fontWeight: 800 }}>{pendingLogs}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span>Log Ditolak</span> <span style={{ color: '#EF4444', fontWeight: 800 }}>{rejectedLogs}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
 
               <div style={{ padding: '0 16px 20px' }}>
                 <button
@@ -2139,7 +2154,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px', marginBottom: '14px', fontSize: '12px' }}>
                   <div><strong>Lokasi TKP:</strong> {activeComplaint.tkpAlamatTeks}</div>
                   <div style={{ marginTop: '4px' }}><strong>Pelapor:</strong> {activeComplaint.namaPelapor} ({activeComplaint.noHpPelapor})</div>
-                  <div style={{ marginTop: '4px' }}><strong>Arahan Pawas:</strong> {activeComplaint.arahanPawas || 'Segera meluncur & amankan TKP'}</div>
+                  <div style={{ marginTop: '4px' }}><strong>Arahan Pawas:</strong> {activeComplaint.arahanPawas || '-'}</div>
                 </div>
 
                 <div className="form-group" style={{ margin: 0, marginBottom: '12px' }}>

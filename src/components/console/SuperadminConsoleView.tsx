@@ -423,12 +423,12 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
     setEditId(null);
     setNrp('');
     setNama('');
-    setPangkat('BRIPKA');
-    setRole('PERSONIL');
-    setUnitId('sabhara');
-    setSatuanNama('Satuan Samapta Presisi');
-    setKelompokRegu('Regu Alpha Presisi');
-    setPassword('polripresisi2026');
+    setPangkat('');
+    setRole('');
+    setUnitId('');
+    setSatuanNama('');
+    setKelompokRegu('');
+    setPassword('');
     setStationId('');
     setDeviceId(`DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
   };
@@ -437,11 +437,11 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
     setEditId(u.id);
     setNrp(u.nrp);
     setNama(u.nama);
-    setPangkat(u.pangkat || 'BRIPKA');
-    setRole(u.role || (u.unitId?.includes('pawas') ? 'PAWAS' : u.unitId?.includes('operator') ? 'OPERATOR_110' : 'PERSONIL'));
-    setUnitId(u.unitId || 'sabhara');
-    setSatuanNama(u.satuanNama || 'Satuan Samapta Presisi');
-    setKelompokRegu(u.kelompokRegu || 'Regu Alpha Presisi');
+    setPangkat(u.pangkat || '');
+    setRole(u.role || '');
+    setUnitId(u.unitId || '');
+    setSatuanNama(u.satuanNama || '');
+    setKelompokRegu(u.kelompokRegu || '');
     setStationId(u.stationId ? String(u.stationId) : '');
     setDeviceId(u.deviceID || `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2236,8 +2236,7 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
                         </label>
                         <input
                           type="password"
-                          value="••••••••••••"
-                          readOnly
+                          placeholder="••••••••••••"
                           style={{ width: '100%', padding: '9px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', background: '#F8FAFC', color: '#64748B' }}
                         />
                       </div>
@@ -2287,7 +2286,14 @@ export default function SuperadminConsoleView({ session, initialSection }: { ses
                               type="password"
                               maxLength={1}
                               value={d}
-                              readOnly
+                              onChange={(e) => {
+                                const val = e.target.value.slice(-1);
+                                setPinKomando((prev) => {
+                                  const next = [...prev];
+                                  next[i] = val;
+                                  return next;
+                                });
+                              }}
                               style={{
                                 width: '44px',
                                 height: '50px',
