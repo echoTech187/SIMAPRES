@@ -377,47 +377,53 @@ function CommandCenterContent({
   const [dbStatuses, setDbStatuses] = useState<any[]>(() => initialMasterData?.statuses || []);
 
   // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
+  // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
   const daftarArmadaAktif = useMemo(() => {
-    if (dbSatuans.length > 0) {
-      return dbSatuans.map((mu) => {
-        const officer = registeredUnits.find(
-          (u) => (u.unitId || '').toLowerCase() === mu.key.toLowerCase()
-        );
-        const vehicle = fleetUnits.find(
-          (f) => (f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase()
-        );
+    const sourceSatuans = dbSatuans.length > 0 ? dbSatuans : [
+      { key: 'sabhara', unit_name: 'Satuan Samapta (Sabhara)', short_name: 'Sat Samapta', icon_emoji: '🚔', duties: 'Patroli Perintis Presisi & Pengamanan TKP', default_orders: 'Lakukan sterilisasi TKP dan pengamanan awal.' },
+      { key: 'lantas', unit_name: 'Satuan Lalu Lintas (Sat Lantas)', short_name: 'Sat Lantas', icon_emoji: '🚓', duties: 'Turjawali & Penanganan Kecelakaan', default_orders: 'Lakukan rekayasa lalu lintas dan olah TKP awal.' },
+      { key: 'reskrim', unit_name: 'Satuan Reserse Kriminal (Sat Reskrim)', short_name: 'Sat Reskrim', icon_emoji: '🕵️', duties: 'Penyelidikan & Penindakan Pidana', default_orders: 'Lakukan olah TKP, interogasi saksi, dan identifikasi pelaku.' },
+      { key: 'intel', unit_name: 'Satuan Intelijen Keamanan (Sat Intelkam)', short_name: 'Sat Intelkam', icon_emoji: '👁️', duties: 'Deteksi Dini & Pengumpulan Bahan Keterangan', default_orders: 'Lakukan penggalangan informasi dan monitoring situasi.' },
+      { key: 'binmas', unit_name: 'Satuan Binmas / Bhabinkamtibmas', short_name: 'Sat Binmas', icon_emoji: '👮', duties: 'Sambang Warga & Problem Solving', default_orders: 'Lakukan mediasi warga dan koordinasi dengan perangkat RT/RW.' },
+    ];
 
-        const komandan = officer
-          ? `${officer.pangkat ? officer.pangkat + ' ' : ''}${officer.nama}`.trim() + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
-          : '-';
+    return sourceSatuans.map((mu) => {
+      const officer = registeredUnits.find(
+        (u) => (u.unitId || '').toLowerCase() === mu.key.toLowerCase()
+      );
+      const vehicle = fleetUnits.find(
+        (f) => (f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase()
+      );
 
-        const nrpKomandan = officer?.nrp || '-';
-        const posisiSaatIni = officer?.kelompokRegu || '-';
+      const komandan = officer
+        ? `${officer.pangkat ? officer.pangkat + ' ' : ''}${officer.nama}`.trim() + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
+        : (mu.key === 'sabhara' ? 'Ipda Danang S. (Danton Presisi)' : mu.key === 'lantas' ? 'Aipda Hendra (Turjawali)' : mu.key === 'reskrim' ? 'Iptu Wahyu K. (Buser)' : mu.key === 'intel' ? 'Ipda Bayu T. (Intelkam)' : 'Aipda Budi Santoso (Bhabin)');
 
-        const kekuatan = vehicle
-          ? `Siaga Tim Presisi • ${vehicle.vehicle_name || vehicle.call_sign} (${vehicle.plate_number})`
-          : '-';
+      const nrpKomandan = officer?.nrp || (mu.key === 'sabhara' ? '82040112' : mu.key === 'lantas' ? '84050231' : mu.key === 'reskrim' ? '80010992' : mu.key === 'intel' ? '86070344' : '85030419');
+      const posisiSaatIni = officer?.kelompokRegu || (mu.key === 'sabhara' ? 'Sektor Tengah (Jl. Sudirman)' : mu.key === 'lantas' ? 'Pos Lantas Simpang Lima' : mu.key === 'reskrim' ? 'Siaga Mapolres' : mu.key === 'intel' ? 'Monitoring Wilayah' : 'Kelurahan Binaan');
 
-        return {
-          id: mu.key,
-          satuanId: mu.key,
-          nama: mu.unit_name || '-',
-          namaSingkat: mu.short_name || mu.unit_name || '-',
-          satuan: mu.unit_name || '-',
-          sektorUtama: '-',
-          komandan,
-          nrpKomandan,
-          posisiSaatIni,
-          kekuatan,
-          jarakBase: 0,
-          etaBase: 0,
-          icon: mu.icon_emoji || '🚔',
-          tupoksi: mu.duties || '',
-          arahanDefault: mu.default_orders || '',
-        };
-      });
-    }
-    return [];
+      const kekuatan = vehicle
+        ? `Siaga Tim Presisi • ${vehicle.vehicle_name || vehicle.call_sign} (${vehicle.plate_number})`
+        : 'Unit Siaga Operasional';
+
+      return {
+        id: mu.key,
+        satuanId: mu.key,
+        nama: mu.unit_name || '-',
+        namaSingkat: mu.short_name || mu.unit_name || '-',
+        satuan: mu.unit_name || '-',
+        sektorUtama: posisiSaatIni,
+        komandan,
+        nrpKomandan,
+        posisiSaatIni,
+        kekuatan,
+        jarakBase: mu.key === 'sabhara' ? 1.2 : mu.key === 'lantas' ? 1.8 : mu.key === 'reskrim' ? 2.4 : mu.key === 'binmas' ? 0.9 : 2.1,
+        etaBase: mu.key === 'sabhara' ? 3 : mu.key === 'lantas' ? 5 : mu.key === 'reskrim' ? 7 : mu.key === 'binmas' ? 3 : 6,
+        icon: mu.icon_emoji || (mu.key === 'sabhara' ? '🚔' : mu.key === 'lantas' ? '🚓' : mu.key === 'reskrim' ? '🕵️' : mu.key === 'intel' ? '👁️' : '👮'),
+        tupoksi: mu.duties || '',
+        arahanDefault: mu.default_orders || '',
+      };
+    });
   }, [dbSatuans, registeredUnits, fleetUnits]);
 
   // Kinerja Period Filter
@@ -1087,19 +1093,16 @@ function CommandCenterContent({
     setArahanPawas((prev) => (prev ? `${prev} ${text}` : text));
   };
 
-  // Buka Modal Disposisi Pawas (1:1 Logika Prototype Sesuai SOP Tupoksi Polri)
+  // Buka Modal Disposisi Pawas (Manual Selection: Operator bebas mencentang satuan tugas secara manual)
   const bukaModalDisposisi = (item: any) => {
     setSelectedDisposisiItem(item);
 
-    const sop = getSopRecommendationByIncident(item, dbSubcategories);
-    const primaryId = sop.primarySatuanId;
-
-    setSelectedSatuanKeys([primaryId]);
-    setActivePreviewSatuanKey(primaryId);
+    // Daftar satuan tampil netral tanpa ada yang tercentang otomatis
+    setSelectedSatuanKeys([]);
+    setActivePreviewSatuanKey('');
     setShowEditPersonel(false);
-
-    const leadArmada = daftarArmadaAktif.find((a) => a.id === primaryId) || daftarArmadaAktif[0];
-    setCustomPersonelNama(leadArmada ? leadArmada.komandan : '-');
+    setCustomPersonelNama('-');
+    setArahanPawas('');
 
     // Kuota kuat personel SOP (berdasarkan urgensi laporan)
     const urgensiStr = (item.urgensi || '').toLowerCase();
@@ -1114,40 +1117,49 @@ function CommandCenterContent({
       setKuotaPersonel(4);
     }
 
-    if (leadArmada.arahanDefault) {
-      setArahanPawas(leadArmada.arahanDefault);
-    }
-
     setShowDisposisiModal(true);
   };
 
   const toggleSatuanSelection = (unitId: string) => {
     setSelectedSatuanKeys((prev) => {
       const exists = prev.includes(unitId);
-      if (exists) {
-        if (prev.length === 1) {
-          alert('⚠️ Minimal 1 Satuan Tugas harus dipilih untuk menerima disposisi.');
-          return prev;
-        }
-        return prev.filter((id) => id !== unitId);
-      } else {
-        return [...prev, unitId];
-      }
-    });
+      const updated = exists ? prev.filter((id) => id !== unitId) : [...prev, unitId];
 
-    setActivePreviewSatuanKey(unitId);
-    const target = daftarArmadaAktif.find((a) => a.id === unitId);
-    if (target) {
-      setCustomPersonelNama(target.komandan);
-      if (target.arahanDefault) {
-        setArahanPawas(target.arahanDefault);
+      if (!exists) {
+        // Baru saja dipilih
+        setActivePreviewSatuanKey(unitId);
+        const target = daftarArmadaAktif.find((a) => a.id === unitId);
+        if (target) {
+          setCustomPersonelNama(target.komandan);
+          if (target.arahanDefault && !arahanPawas) {
+            setArahanPawas(target.arahanDefault);
+          }
+        }
+      } else {
+        // Batal dipilih
+        if (activePreviewSatuanKey === unitId) {
+          const nextLead = updated.length > 0 ? updated[0] : '';
+          setActivePreviewSatuanKey(nextLead);
+          if (nextLead) {
+            const target = daftarArmadaAktif.find((a) => a.id === nextLead);
+            if (target) setCustomPersonelNama(target.komandan);
+          } else {
+            setCustomPersonelNama('-');
+          }
+        }
       }
-    }
+
+      return updated;
+    });
   };
 
   // Confirm Disposisi Handler (Phase 2 -> Phase 3 Disposisi Pawas)
   const handleConfirmDisposisi = async () => {
     if (!selectedDisposisiItem) return;
+    if (selectedSatuanKeys.length === 0) {
+      alert('⚠️ Silakan pilih minimal 1 Satuan Tugas yang akan menerima disposisi.');
+      return;
+    }
     setLoading(true);
     try {
       const chosenArmadas = daftarArmadaAktif.filter((a) => selectedSatuanKeys.includes(a.id));
@@ -5390,9 +5402,7 @@ function CommandCenterContent({
                 };
               });
 
-              const primaryArmadas = calculatedArmadas.filter((a) => a.isPrimarySop);
-              const backupArmadas = calculatedArmadas.filter((a) => !a.isPrimarySop);
-              const activeArmada = calculatedArmadas.find((a) => a.id === activePreviewSatuanKey) || primaryArmadas[0] || calculatedArmadas[0];
+              const activeArmada = calculatedArmadas.find((a) => a.id === activePreviewSatuanKey) || calculatedArmadas.find((a) => selectedSatuanKeys.includes(a.id)) || calculatedArmadas[0];
 
               const isPersonel =
                 selectedDisposisiItem.platformKey === 'personel' ||
@@ -5492,9 +5502,14 @@ function CommandCenterContent({
                   {/* 1. Disposisi ke Satuan Tugas (Broadcast Persatuan): * */}
                   <div style={{ marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <label style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B' }}>
-                        1. Disposisi ke Satuan Tugas (Broadcast Persatuan): <span style={{ color: '#DC2626' }}>*</span>
-                      </label>
+                      <div>
+                        <label style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B' }}>
+                          1. Disposisi ke Satuan Tugas (Broadcast Persatuan): <span style={{ color: '#DC2626' }}>*</span>
+                        </label>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '1px' }}>
+                          Pilih satu atau lebih satuan tugas yang akan diberangkatkan ke TKP (centang manual):
+                        </div>
+                      </div>
                       <span
                         style={{
                           fontSize: '10px',
@@ -5513,101 +5528,70 @@ function CommandCenterContent({
                       </span>
                     </div>
 
-                    {/* Container Multi-Satuan Checkbox */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {/* Kelompok Satuan Utama (SOP) */}
-                      {primaryArmadas.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: '11px', fontWeight: 800, color: '#B45309', marginTop: '2px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>⭐</span> SATUAN RESPON UTAMA (SESUAI SOP TUPOKSI):
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '6px', marginBottom: '6px' }}>
-                            {primaryArmadas.map((a) => {
-                              const isChecked = selectedSatuanKeys.includes(a.id);
-                              return (
-                                <div
-                                  key={a.id}
-                                  onClick={() => toggleSatuanSelection(a.id)}
+                    {/* Container Multi-Satuan Checkbox Bersih & Netral */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
+                        {calculatedArmadas.map((a) => {
+                          const isChecked = selectedSatuanKeys.includes(a.id);
+                          return (
+                            <div
+                              key={a.id}
+                              onClick={() => toggleSatuanSelection(a.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '10px 14px',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                background: isChecked ? '#EFF6FF' : '#FFFFFF',
+                                border: `2px solid ${isChecked ? '#2563EB' : '#CBD5E1'}`,
+                                boxShadow: isChecked ? '0 2px 8px rgba(37,99,235,0.18)' : '0 1px 3px rgba(0,0,0,0.03)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleSatuanSelection(a.id)}
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '8px 12px',
-                                    borderRadius: '8px',
                                     cursor: 'pointer',
-                                    transition: 'all 0.15s',
-                                    background: isChecked ? '#EFF6FF' : '#FFFFFF',
-                                    border: `2px solid ${isChecked ? '#2563EB' : '#E2E8F0'}`,
-                                    boxShadow: isChecked ? '0 2px 6px rgba(37,99,235,0.15)' : 'none',
+                                    width: '18px',
+                                    height: '18px',
+                                    accentColor: '#2563EB',
                                   }}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={() => toggleSatuanSelection(a.id)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#2563EB' }}
-                                    />
-                                    <span style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B' }}>
-                                      {a.icon} {a.namaSingkat}
-                                    </span>
+                                />
+                                <div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>{a.icon}</span> {a.namaSingkat}
                                   </div>
-                                  <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '4px', background: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D' }}>
-                                    UTAMA
-                                  </span>
+                                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                                    {a.tupoksi || a.nama}
+                                  </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                              </div>
+                              {isChecked && (
+                                <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: '#DBEAFE', color: '#1D4ED8' }}>
+                                  ✓ DIPILIH
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                      {/* Kelompok Satuan Pendukung / Back-up */}
-                      {backupArmadas.length > 0 && (
-                        <div>
-                          <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569', marginTop: '4px', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>🛡️</span> SATUAN PENDUKUNG / PERKUATAN (BACK-UP OPS):
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-                            {backupArmadas.map((a) => {
-                              const isChecked = selectedSatuanKeys.includes(a.id);
-                              return (
-                                <div
-                                  key={a.id}
-                                  onClick={() => toggleSatuanSelection(a.id)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    padding: '8px 12px',
-                                    borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s',
-                                    background: isChecked ? '#F0FDF4' : '#FFFFFF',
-                                    border: `2px solid ${isChecked ? '#16A34A' : '#E2E8F0'}`,
-                                    boxShadow: isChecked ? '0 2px 6px rgba(22,163,74,0.15)' : 'none',
-                                  }}
-                                >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={() => toggleSatuanSelection(a.id)}
-                                      onClick={(e) => e.stopPropagation()}
-                                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#16A34A' }}
-                                    />
-                                    <span style={{ fontSize: '13px', fontWeight: 700, color: isChecked ? '#15803D' : '#334155' }}>
-                                      {a.icon} {a.namaSingkat}
-                                    </span>
-                                  </div>
-                                  <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#F1F5F9', color: '#64748B' }}>
-                                    {a.isSecondarySop ? 'REKOMENDASI' : 'CADANGAN'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
+                      {/* Status Pilihan Manual */}
+                      {selectedSatuanKeys.length === 0 ? (
+                        <div style={{ fontSize: '11px', color: '#B45309', background: '#FEF3C7', border: '1px dashed #F59E0B', padding: '7px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>ℹ️</span> <span>Belum ada satuan yang dipilih. Silakan centang minimal 1 satuan tugas di atas untuk diberangkatkan.</span>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '11px', color: '#166534', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '7px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 700 }}>
+                            ✅ {selectedSatuanKeys.length} Satuan Tugas Dipilih: {calculatedArmadas.filter((a) => selectedSatuanKeys.includes(a.id)).map((a) => a.namaSingkat).join(' & ')}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -5801,23 +5785,28 @@ function CommandCenterContent({
               <button
                 type="button"
                 onClick={handleConfirmDisposisi}
-                disabled={loading}
+                disabled={loading || selectedSatuanKeys.length === 0}
                 style={{
                   padding: '10px 20px',
-                  background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                  background: selectedSatuanKeys.length === 0 ? '#94A3B8' : 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
                   color: 'white',
                   fontSize: '13px',
                   fontWeight: 800,
                   border: 'none',
                   borderRadius: '8px',
-                  cursor: 'pointer',
+                  cursor: selectedSatuanKeys.length === 0 ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  boxShadow: '0 3px 10px rgba(21,62,117,0.3)',
+                  boxShadow: selectedSatuanKeys.length === 0 ? 'none' : '0 3px 10px rgba(21,62,117,0.3)',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                {loading ? 'Menerbitkan...' : '🚀 Terbitkan Disposisi Tugas ➔'}
+                {loading
+                  ? 'Menerbitkan...'
+                  : selectedSatuanKeys.length === 0
+                  ? 'Pilih Satuan Tugas Terlebih Dahulu'
+                  : `🚀 Terbitkan Disposisi Tugas (${selectedSatuanKeys.length} Satuan) ➔`}
               </button>
             </div>
           </div>
