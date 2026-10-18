@@ -612,13 +612,11 @@ export async function getMasterIncidentCategoriesAction() {
 
     if (rows.length === 0) {
       const defaults = [
-        { key: 'TAWURAN', label: 'Tawuran Warga & Bentrok Massa', icon: '⚔️', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA', display_order: 1 },
-        { key: 'CURANMOR', label: 'Pencurian Kendaraan Bermotor (Curanmor)', icon: '🏍️', badge_bg: '#FFFBEB', badge_color: '#D97706', badge_border: '#FDE68A', display_order: 2 },
-        { key: 'BEGAL', label: 'Pembegalan & Kejahatan Jalanan (3C)', icon: '🗡️', badge_bg: '#FEF2F2', badge_color: '#B91C1C', badge_border: '#FCA5A5', display_order: 3 },
-        { key: 'NARKOBA', label: 'Penyalahgunaan & Peredaran Narkotika', icon: '💊', badge_bg: '#F5F3FF', badge_color: '#7C3AED', badge_border: '#DDD6FE', display_order: 4 },
-        { key: 'LAKA_LANTAS', label: 'Kecelakaan Lalu Lintas & Kemacetan Parah', icon: '🚗', badge_bg: '#EFF6FF', badge_color: '#2563EB', badge_border: '#BFDBFE', display_order: 5 },
-        { key: 'BENCANA', label: 'Pohon Tumbang, Kebakaran & Banjir', icon: '🌊', badge_bg: '#ECFDF5', badge_color: '#059669', badge_border: '#A7F3D0', display_order: 6 },
-        { key: 'KDRT_MEDIASI', label: 'Sengketa Warga & Problem Solving', icon: '👥', badge_bg: '#F8FAFC', badge_color: '#475569', badge_border: '#E2E8F0', display_order: 7 },
+        { key: 'KRIMINALITAS', label: 'Kriminalitas & 3C', icon: '🚨', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA', display_order: 1 },
+        { key: 'KAMTIBMAS', label: 'Kamtibmas & Tawuran', icon: '👥', badge_bg: '#FFFBEB', badge_color: '#D97706', badge_border: '#FDE68A', display_order: 2 },
+        { key: 'LAKALANTAS', label: 'Laka & Kemacetan Lantas', icon: '🚦', badge_bg: '#EFF6FF', badge_color: '#2563EB', badge_border: '#BFDBFE', display_order: 3 },
+        { key: 'BENCANA', label: 'Darurat & Bencana Alam', icon: '🔥', badge_bg: '#FEF2F2', badge_color: '#EA580C', badge_border: '#FED7AA', display_order: 4 },
+        { key: 'PELAYANAN_PUBLIK', label: 'Pelayanan Publik & Walk-in', icon: '📋', badge_bg: '#F8FAFC', badge_color: '#475569', badge_border: '#CBD5E1', display_order: 5 },
       ];
       for (const cat of defaults) {
         await prisma.masterIncidentCategory.create({ data: { ...cat, is_active: true } });
@@ -711,6 +709,124 @@ export async function deleteMasterIncidentCategoryAction(id: number) {
       where: { id: Number(id) },
     });
     await auditLog('DELETE_INCIDENT_CATEGORY', `Menghapus kategori insiden ID ${id}: ${deleted.key} - ${deleted.label}`);
+    revalidatePath('/console');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 6.1 MASTER SUB-KATEGORI KASUS SATUAN UNIT (master_incident_subcategories - SMART CAD)
+// ==============================================================================
+export async function getMasterIncidentSubcategoriesAction(params?: {
+  categoryId?: number;
+  categoryKey?: string;
+  unitKey?: string;
+}) {
+  try {
+    const where: any = { is_active: true };
+    if (params?.categoryId) where.category_id = Number(params.categoryId);
+    if (params?.categoryKey) where.category_key = params.categoryKey.toUpperCase();
+    if (params?.unitKey) where.unit_key = params.unitKey.toLowerCase();
+
+    const rows = await prisma.masterIncidentSubcategory.findMany({
+      where,
+      orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }],
+      include: {
+        category_rel: {
+          select: { id: true, key: true, label: true, icon: true, badge_bg: true, badge_color: true },
+        },
+        unit_rel: {
+          select: { id: true, key: true, short_name: true, unit_name: true, icon_emoji: true },
+        },
+      },
+    });
+
+    return { success: true, data: serializeBigInt(rows) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function createMasterIncidentSubcategoryAction(data: {
+  category_id: number;
+  category_key: string;
+  unit_id: number;
+  unit_key: string;
+  nama_kasus: string;
+  default_urgensi: string;
+  deskripsi_sop?: string;
+  display_order: number;
+  is_active: boolean;
+}) {
+  try {
+    const created = await prisma.masterIncidentSubcategory.create({
+      data: {
+        category_id: Number(data.category_id),
+        category_key: data.category_key.toUpperCase(),
+        unit_id: Number(data.unit_id),
+        unit_key: data.unit_key.toLowerCase(),
+        nama_kasus: data.nama_kasus.trim(),
+        default_urgensi: data.default_urgensi || 'SEDANG',
+        deskripsi_sop: data.deskripsi_sop?.trim(),
+        display_order: Number(data.display_order) || 1,
+        is_active: Boolean(data.is_active),
+      },
+    });
+
+    await auditLog('CREATE_INCIDENT_SUBCATEGORY', `Menambahkan sub-kategori kasus baru: ${created.nama_kasus} (${created.unit_key})`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(created) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateMasterIncidentSubcategoryAction(
+  id: number,
+  data: Partial<{
+    category_id: number;
+    category_key: string;
+    unit_id: number;
+    unit_key: string;
+    nama_kasus: string;
+    default_urgensi: string;
+    deskripsi_sop: string;
+    display_order: number;
+    is_active: boolean;
+  }>
+) {
+  try {
+    const updated = await prisma.masterIncidentSubcategory.update({
+      where: { id: Number(id) },
+      data: {
+        ...(data.category_id ? { category_id: Number(data.category_id) } : {}),
+        ...(data.category_key ? { category_key: data.category_key.toUpperCase() } : {}),
+        ...(data.unit_id ? { unit_id: Number(data.unit_id) } : {}),
+        ...(data.unit_key ? { unit_key: data.unit_key.toLowerCase() } : {}),
+        ...(data.nama_kasus ? { nama_kasus: data.nama_kasus.trim() } : {}),
+        ...(data.default_urgensi ? { default_urgensi: data.default_urgensi } : {}),
+        ...(data.deskripsi_sop !== undefined ? { deskripsi_sop: data.deskripsi_sop?.trim() } : {}),
+        ...(data.display_order ? { display_order: Number(data.display_order) } : {}),
+        ...(data.is_active !== undefined ? { is_active: Boolean(data.is_active) } : {}),
+      },
+    });
+
+    await auditLog('UPDATE_INCIDENT_SUBCATEGORY', `Memperbarui sub-kategori kasus ID ${id}: ${updated.nama_kasus}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteMasterIncidentSubcategoryAction(id: number) {
+  try {
+    const deleted = await prisma.masterIncidentSubcategory.delete({
+      where: { id: Number(id) },
+    });
+    await auditLog('DELETE_INCIDENT_SUBCATEGORY', `Menghapus sub-kategori kasus ID ${id}: ${deleted.nama_kasus}`);
     revalidatePath('/console');
     return { success: true };
   } catch (error: any) {

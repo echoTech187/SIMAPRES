@@ -45,53 +45,112 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
 });
 
 function getSopRecommendationByIncident(item: any) {
-  if (!item) return { primarySatuanId: 'sabhara', secondarySatuanIds: ['binmas', 'reskrim'] };
-  const text = ((item.jenisKejadian || item.title || '') + ' ' + (item.kategori || item.kategoriInsiden || '') + ' ' + (item.deskripsiKejadian || item.deskripsi || '')).toLowerCase();
+  if (!item) return { primarySatuanId: 'sabhara', secondarySatuanIds: ['binmas', 'reskrim'], kasusSpesifik: null, sopText: null };
 
-  // 1. Kamseltibcarlantas (Laka, macet, tabrakan, balap liar) -> Utama: Lantas, Pendukung: Sabhara
-  if (text.includes('laka') || text.includes('tabrakan') || text.includes('macet') || text.includes('lalu lintas') || text.includes('derek') || text.includes('rem blong') || text.includes('senggolan') || text.includes('balap liar')) {
+  // 0. Cek Subkategori Kasus dari Database
+  const sub = item?.subcategory || item?.subcategory_rel;
+  const unitKey = sub?.unit_key || item?.subUnitKey;
+  if (unitKey) {
+    const primarySatuanId = unitKey === 'samapta' ? 'sabhara' : unitKey;
+    const secondaryMap: Record<string, string[]> = {
+      lantas: ['sabhara'],
+      reskrim: ['sabhara', 'intel'],
+      intel: ['binmas', 'sabhara'],
+      binmas: ['sabhara'],
+      sabhara: ['binmas', 'reskrim'],
+    };
+    return {
+      primarySatuanId,
+      secondarySatuanIds: secondaryMap[primarySatuanId] || ['sabhara'],
+      kasusSpesifik: sub?.nama_kasus || item?.subKasus || null,
+      sopText: sub?.deskripsi_sop || null,
+    };
+  }
+
+  const text = ((item.jenisKejadian || item.title || '') + ' ' + (item.kategori || item.kategoriInsiden || '') + ' ' + (item.deskripsiKejadian || item.deskripsi || '') + ' ' + (item.ringkasanKeterangan || '')).toLowerCase();
+
+  // 1. Kamseltibcarlantas (Wewenang Mutlak: Sat Lantas)
+  // Termasuk: Laka, macet, tabrak lari, balap liar, knalpot brong, odol, sim/stnk palsu
+  if (
+    text.includes('laka') || text.includes('tabrak') || text.includes('macet') || text.includes('lalu lintas') ||
+    text.includes('derek') || text.includes('rem blong') || text.includes('balap liar') || text.includes('balapan') ||
+    text.includes('brong') || text.includes('knalpot') || text.includes('odol') || text.includes('marka jalan')
+  ) {
     return {
       primarySatuanId: 'lantas',
       secondarySatuanIds: ['sabhara'],
+      kasusSpesifik: 'Penanganan Kamseltibcarlantas / Sat Lantas',
+      sopText: 'Urai kemacetan, penindakan balap liar/knalpot brong, atau TPTKP laka lantas.',
     };
   }
 
-  // 2. Tindak Pidana & Kriminalitas (Curanmor, curas, sajam, pencurian, begal) -> Utama: Reskrim, Pendukung: Sabhara, Intelkam
-  if (text.includes('curanmor') || text.includes('curas') || text.includes('curat') || text.includes('pencuri') || text.includes('curian') || text.includes('rampok') || text.includes('senjata tajam') || text.includes('sajam') || text.includes('begal') || text.includes('penodong') || text.includes('narkoba') || text.includes('penjambret') || text.includes('tindak pidana') || text.includes('bobol') || text.includes('kotak amal')) {
+  // 2. Tindak Pidana & Penegakan Hukum (Wewenang Mutlak: Sat Reskrim)
+  // Termasuk: Pembunuhan, Curas/Begal, Curat, Curanmor, Anirat, KDRT berat, Penipuan, Tipidkor, Siber, Lingkungan
+  if (
+    text.includes('curanmor') || text.includes('curas') || text.includes('curat') || text.includes('pencuri') ||
+    text.includes('curian') || text.includes('rampok') || text.includes('begal') || text.includes('penodong') ||
+    text.includes('anirat') || text.includes('aniaya') || text.includes('pembunuhan') || text.includes('mayat') ||
+    text.includes('kdrt') || text.includes('penipuan') || text.includes('penggelapan') || text.includes('korupsi') ||
+    text.includes('siber') || text.includes('pemerasan') || text.includes('jambret')
+  ) {
     return {
       primarySatuanId: 'reskrim',
       secondarySatuanIds: ['sabhara', 'intel'],
+      kasusSpesifik: 'Penyelidikan / Penyidikan Tindak Pidana Sat Reskrim',
+      sopText: 'Olah TKP Inafis, visum medis, dan penindakan pro justitia.',
     };
   }
 
-  // 3. Potensi Konflik & Deteksi Dini (Isu SARA, provokasi, unjuk rasa, demo, intel) -> Utama: Intelkam, Pendukung: Binmas, Sabhara
-  if (text.includes('intel') || text.includes('konflik') || text.includes('sara') || text.includes('provokasi') || text.includes('unjuk rasa') || text.includes('demo') || text.includes('keramaian') || text.includes('izin') || text.includes('ancaman bom') || text.includes('deteksi')) {
+  // 3. Deteksi Dini & Pengawasan Keamanan (Wewenang Mutlak: Sat Intelkam)
+  // Termasuk: Terorisme, radikalisme, konflik SARA, ancaman unjuk rasa anarkis, senpi ilegal, bahan peledak, ormas ilegal, orang asing
+  if (
+    text.includes('intel') || text.includes('teror') || text.includes('radikal') || text.includes('sara') ||
+    text.includes('unjuk rasa') || text.includes('demo') || text.includes('senpi') || text.includes('handak') ||
+    text.includes('peledak') || text.includes('ormas') || text.includes('orang asing') || text.includes('provokasi')
+  ) {
     return {
       primarySatuanId: 'intel',
       secondarySatuanIds: ['binmas', 'sabhara'],
+      kasusSpesifik: 'Deteksi Dini & Monitoring Sat Intelkam',
+      sopText: 'Pulbaket tertutup, early warning system, dan pengamanan cegah eskalasi.',
     };
   }
 
-  // 4. Kemasyarakatan & Problem Solving (Mediasi warga, sengketa, anak hilang, bansos) -> Utama: Binmas, Pendukung: Sabhara
-  if (text.includes('mediasi') || text.includes('problem solving') || text.includes('sengketa') || text.includes('keluarga') || text.includes('anak hilang') || text.includes('tetangga') || text.includes('bantuan') || text.includes('sosial') || text.includes('bansos')) {
+  // 4. Mediasi Warga & Pembinaan Komunitas (Wewenang Mutlak: Sat Binmas / Bhabinkamtibmas)
+  // Termasuk: Sengketa batas tanah, utang non-pidana, kenakalan remaja awal, cekcok keluarga, kebisingan lingkungan
+  if (
+    text.includes('mediasi') || text.includes('problem solving') || text.includes('sengketa') || text.includes('batas tanah') ||
+    text.includes('utang') || text.includes('kenakalan') || text.includes('cekcok') || text.includes('bising') ||
+    text.includes('kebisingan') || text.includes('bantuan') || text.includes('sosial') || text.includes('bansos') ||
+    text.includes('bhabin') || text.includes('sambang')
+  ) {
     return {
       primarySatuanId: 'binmas',
       secondarySatuanIds: ['sabhara'],
+      kasusSpesifik: 'Problem Solving & Mediasi Sat Binmas',
+      sopText: 'Fasilitasi mediasi persuasif bersama 3 Pilar (Bhabinkamtibmas, Babinsa, Lurah/Kades).',
     };
   }
 
-  // 5. Bencana & Situasi Darurat Khusus (Pohon tumbang, banjir, kebakaran, evakuasi, SAR) -> Utama: Sabhara, Pendukung: Lantas
-  if (text.includes('pohon') || text.includes('tumbang') || text.includes('bencana') || text.includes('banjir') || text.includes('kebakaran') || text.includes('evakuasi') || text.includes('sar')) {
+  // 5. Bencana Alam, Kebakaran & SAR Presisi (Sat Samapta Presisi)
+  if (
+    text.includes('pohon') || text.includes('tumbang') || text.includes('bencana') || text.includes('banjir') ||
+    text.includes('kebakaran') || text.includes('evakuasi') || text.includes('sar') || text.includes('longsor')
+  ) {
     return {
       primarySatuanId: 'sabhara',
       secondarySatuanIds: ['lantas'],
+      kasusSpesifik: 'Tanggap Darurat SAR & Evakuasi Sat Samapta',
+      sopText: 'Pengerahan SAR Perintis Presisi, buka perimeter aman dan evakuasi korban.',
     };
   }
 
-  // 6. Kamtibmas & Gangguan Nyata -> Utama: Sabhara, Pendukung: Binmas, Reskrim
+  // 6. Tipiring, Miras, Premanisme & Patroli Perintis (Sat Samapta Presisi)
   return {
     primarySatuanId: 'sabhara',
     secondarySatuanIds: ['binmas', 'reskrim'],
+    kasusSpesifik: 'Patroli Perintis Presisi & Tipiring Sat Samapta',
+    sopText: 'Patroli blue light, sterilisasi premanisme/miras, dan pembubaran kerumunan.',
   };
 }
 
@@ -210,6 +269,7 @@ function CommandCenterContent({
     telepon: '',
     alamat: '',
     kategori: '',
+    subcategoryId: undefined as number | undefined,
     urgensi: '',
     uraian: '',
     lat: 0,
@@ -300,6 +360,7 @@ function CommandCenterContent({
 
   // Master Filter Options from Database (Preloaded via Server Component, refreshed on mount)
   const [dbCategories, setDbCategories] = useState<any[]>(() => initialMasterData?.categories || []);
+  const [dbSubcategories, setDbSubcategories] = useState<any[]>(() => initialMasterData?.subcategories || []);
   const [dbPlatforms, setDbPlatforms] = useState<any[]>(() => initialMasterData?.platforms || []);
   const [dbGiats, setDbGiats] = useState<any[]>(() => initialMasterData?.giats || []);
   const [dbSatuans, setDbSatuans] = useState<any[]>(() => initialMasterData?.satuans || []);
@@ -359,6 +420,7 @@ function CommandCenterContent({
       const filterRes = await getMasterFilterOptionsAction();
       if (filterRes.success && filterRes.data) {
         setDbCategories(filterRes.data.categories || []);
+        setDbSubcategories(filterRes.data.subcategories || []);
         setDbPlatforms(filterRes.data.platforms || []);
         setDbGiats(filterRes.data.giats || []);
         setDbSatuans(filterRes.data.satuans || []);
@@ -638,8 +700,59 @@ function CommandCenterContent({
     return getComplaintPlatform(c) === platform;
   };
 
-  // Dynamic Category & Badge Info Resolver (100% Master-driven from DB master_incident_categories & master_activity_types)
+  // Dynamic Category & Badge Info Resolver (100% Master-driven from DB master_incident_categories & master_incident_subcategories)
   const getComplaintKategoriInfo = (c: any) => {
+    // 0. Direct Subcategory relation from Database (c.subcategory / c.subcategory_rel)
+    const sub = c?.subcategory || c?.subcategory_rel;
+    if (sub) {
+      const subCat = sub.category_rel || dbCategories.find((cat: any) => cat.key === sub.category_key || cat.id === sub.category_id);
+      if (subCat) {
+        const rawLabel = subCat.label || subCat.key || '';
+        const icon = subCat.icon || '';
+        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        return {
+          key: subCat.key,
+          kategori: rawLabel,
+          label: rawLabel,
+          subKasus: sub.nama_kasus,
+          subUnitKey: sub.unit_key,
+          badgeText,
+          badgeStyle: {
+            background: subCat.badge_bg || '#F1F5F9',
+            color: subCat.badge_color || '#1E293B',
+            border: `1px solid ${subCat.badge_border || '#CBD5E1'}`,
+          },
+        };
+      }
+    }
+
+    // 0.1 Check if subcategoryId is provided and match in loaded dbSubcategories
+    const targetSubId = c?.subcategory_id || c?.subcategoryId;
+    if (targetSubId && dbSubcategories.length > 0) {
+      const foundSub = dbSubcategories.find((s: any) => s.id === targetSubId);
+      if (foundSub) {
+        const subCat = foundSub.category_rel || dbCategories.find((cat: any) => cat.key === foundSub.category_key || cat.id === foundSub.category_id);
+        if (subCat) {
+          const rawLabel = subCat.label || subCat.key || '';
+          const icon = subCat.icon || '';
+          const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+          return {
+            key: subCat.key,
+            kategori: rawLabel,
+            label: rawLabel,
+            subKasus: foundSub.nama_kasus,
+            subUnitKey: foundSub.unit_key,
+            badgeText,
+            badgeStyle: {
+              background: subCat.badge_bg || '#F1F5F9',
+              color: subCat.badge_color || '#1E293B',
+              border: `1px solid ${subCat.badge_border || '#CBD5E1'}`,
+            },
+          };
+        }
+      }
+    }
+
     // 1. Direct relation from Database (c.kategoriRel / c.category_rel)
     const rel = c?.kategoriRel || c?.category_rel;
     if (rel) {
@@ -747,30 +860,65 @@ function CommandCenterContent({
       }
     }
 
-    // 5. Intelligent Classifier to Master DB Category
+    // 5. Intelligent Classifier Fallback (Synchronized with SOP Wewenang Satuan Unit Kepolisian)
     const jenis = (c?.jenisKejadian || '').toLowerCase();
     const katLaporan = (c?.kategoriLaporan || '').toLowerCase();
     const combined = `${jenis} ${katLaporan}`;
     const ringkasan = (c?.ringkasanKeterangan || '').toLowerCase();
 
+    // Cek kecocokan dengan masterIncidentSubcategories jika ada
+    if (dbSubcategories.length > 0) {
+      const matchedSub = dbSubcategories.find((s: any) => {
+        const subName = (s.nama_kasus || '').toLowerCase();
+        return combined.includes(subName) || ringkasan.includes(subName) || subName.includes(jenis);
+      });
+      if (matchedSub) {
+        const subCat = matchedSub.category_rel || dbCategories.find((cat: any) => cat.key === matchedSub.category_key || cat.id === matchedSub.category_id);
+        if (subCat) {
+          const rawLabel = subCat.label || subCat.key || '';
+          const icon = subCat.icon || '';
+          const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+          return {
+            key: subCat.key,
+            kategori: rawLabel,
+            label: rawLabel,
+            subKasus: matchedSub.nama_kasus,
+            subUnitKey: matchedSub.unit_key,
+            badgeText,
+            badgeStyle: {
+              background: subCat.badge_bg || '#F1F5F9',
+              color: subCat.badge_color || '#1E293B',
+              border: `1px solid ${subCat.badge_border || '#CBD5E1'}`,
+            },
+          };
+        }
+      }
+    }
+
     let resolvedMasterKey = 'KAMTIBMAS';
 
-    if (['tawuran', 'kerumunan', 'kamtibmas', 'miras', 'ribut', 'keributan', 'balap liar', 'balapan', 'kenakalan'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+    // A. LAKALANTAS (Sat Lantas)
+    if (['laka', 'lantas', 'kecelakaan', 'tabrak', 'macet', 'kemacetan', 'lalu lintas', 'balap liar', 'balapan', 'knalpot', 'brong', 'odol', 'sim', 'stnk', 'tnkb'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+      resolvedMasterKey = 'LAKALANTAS';
+    }
+    // B. KRIMINALITAS & 3C (Sat Reskrim)
+    else if (
+      (combined.includes('curi') && !combined.includes('curiga')) || combined.includes('pencurian') || combined.includes('mencuri') ||
+      ['kriminal', 'begal', 'curat', 'curas', 'curanmor', 'rampok', 'perampokan', 'jambret', 'penjambretan', 'celurit', 'todong', 'penodongan', 'aniaya', 'penganiayaan', 'copet', 'pemerasan', 'sajam', 'pembunuhan', 'mayat', 'kdrt', 'penipuan', 'penggelapan', 'korupsi', 'siber', 'lingkungan'].some((k) => combined.includes(k) || ringkasan.includes(k))
+    ) {
+      resolvedMasterKey = 'KRIMINALITAS';
+    }
+    // C. BENCANA & DAMKAR (SAR Samapta)
+    else if (['kebakaran', 'bencana', 'darurat', 'medis', 'banjir', 'tumbang', 'damkar', 'ambulans', 'longsor'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+      resolvedMasterKey = 'BENCANA';
+    }
+    // D. PELAYANAN PUBLIK & PEMBINAAN (Sat Binmas / SPKT)
+    else if (['pelayanan', 'mediasi', 'hilang', 'kehilangan', 'tersesat', 'ijazah', 'ktp', 'pengawalan', 'hewan', 'bantuan warga', 'sengketa', 'batas tanah', 'utang'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+      resolvedMasterKey = 'PELAYANAN_PUBLIK';
+    }
+    // E. KAMTIBMAS (Sat Intelkam, Sat Samapta, Sat Binmas)
+    else {
       resolvedMasterKey = 'KAMTIBMAS';
-    } else {
-      const hasCuri = (combined.includes('curi') && !combined.includes('curiga')) || combined.includes('pencurian') || combined.includes('mencuri');
-      if (
-        hasCuri ||
-        ['kriminal', 'begal', 'curat', 'curas', 'curanmor', 'rampok', 'perampokan', 'jambret', 'penjambretan', 'celurit', 'senpi', 'todong', 'penodongan', 'aniaya', 'penganiayaan', 'copet', 'pemerasan', 'sajam'].some((k) => combined.includes(k) || ringkasan.includes(k))
-      ) {
-        resolvedMasterKey = 'KRIMINALITAS';
-      } else if (['laka', 'lantas', 'kecelakaan', 'tabrak', 'macet', 'kemacetan', 'lalu lintas'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
-        resolvedMasterKey = 'LAKALANTAS';
-      } else if (['kebakaran', 'bencana', 'darurat', 'medis', 'banjir', 'tumbang', 'damkar', 'ambulans'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
-        resolvedMasterKey = 'BENCANA';
-      } else if (['pelayanan', 'mediasi', 'hilang', 'kehilangan', 'tersesat', 'ijazah', 'ktp', 'pengawalan', 'hewan', 'bantuan warga'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
-        resolvedMasterKey = 'PELAYANAN_PUBLIK';
-      }
     }
 
     // Resolve purely from dbCategories (from DB)
@@ -4580,6 +4728,47 @@ function CommandCenterContent({
                       </select>
                     </div>
 
+                    {/* Sub-Kategori Kasus Mutlak Satuan SOP (Option B - Smart CAD 110) */}
+                    <div className="form-group" style={{ marginBottom: '12px' }}>
+                      <label className="form-label" style={{ fontSize: '11.5px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Rincian Sub-Kasus Spesifik (SOP Polri)</span>
+                        <span style={{ fontSize: '10px', color: '#0284C7', fontWeight: 600 }}>Smart CAD Auto-Recommend</span>
+                      </label>
+                      <select
+                        className="form-control"
+                        style={{ fontSize: '12.5px', fontWeight: 600 }}
+                        value={simCaller.subcategoryId || ''}
+                        onChange={(e) => {
+                          const subId = Number(e.target.value);
+                          const chosenSub = dbSubcategories.find((s) => s.id === subId);
+                          if (chosenSub) {
+                            setSimCaller({
+                              ...simCaller,
+                              subcategoryId: subId,
+                              kategori: chosenSub.category_key,
+                              urgensi: chosenSub.default_urgensi || simCaller.urgensi || 'SEDANG',
+                              uraian: simCaller.uraian ? simCaller.uraian : (chosenSub.deskripsi_sop ? `[SOP ${chosenSub.nama_kasus}] ${chosenSub.deskripsi_sop}` : ''),
+                            });
+                          } else {
+                            setSimCaller({ ...simCaller, subcategoryId: undefined });
+                          }
+                        }}
+                      >
+                        <option value="">-- Pilih Rincian Kasus Spesifik (Opsional) --</option>
+                        {dbSubcategories
+                          .filter((s) => {
+                            if (!simCaller.kategori) return true;
+                            const catKey = simCaller.kategori.toUpperCase();
+                            return s.category_key === catKey || (s.category_rel && s.category_rel.label === simCaller.kategori);
+                          })
+                          .map((sub) => (
+                            <option key={sub.id} value={sub.id}>
+                              {sub.unit_rel?.short_name ? `[${sub.unit_rel.short_name}] ` : ''}{sub.nama_kasus} (Prioritas: {sub.default_urgensi})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
                     {/* Tingkat Urgensi Presisi (Prototype L2088-2106) */}
                     <div className="form-group" style={{ marginBottom: '12px' }}>
                       <label className="form-label" style={{ fontSize: '11.5px' }}>
@@ -4700,6 +4889,7 @@ function CommandCenterContent({
                             noHpPelapor: simCaller.telepon,
                             kategoriLaporan: simCaller.kategori,
                             kategoriKey: simCaller.kategori,
+                            subcategoryId: simCaller.subcategoryId,
                             platformKey: 'layanan110',
                             urgensi: (simCaller as any).urgensi,
                             tkpAlamatTeks: simCaller.alamat,
@@ -4717,6 +4907,7 @@ function CommandCenterContent({
                               telepon: '',
                               alamat: '',
                               kategori: '',
+                              subcategoryId: undefined,
                               urgensi: '',
                               uraian: '',
                               lat: 0,
@@ -4741,6 +4932,7 @@ function CommandCenterContent({
                             noHpPelapor: simCaller.telepon,
                             kategoriLaporan: simCaller.kategori,
                             kategoriKey: simCaller.kategori,
+                            subcategoryId: simCaller.subcategoryId,
                             platformKey: 'layanan110',
                             urgensi: (simCaller as any).urgensi,
                             tkpAlamatTeks: simCaller.alamat,
@@ -4758,6 +4950,7 @@ function CommandCenterContent({
                               telepon: '',
                               alamat: '',
                               kategori: '',
+                              subcategoryId: undefined,
                               urgensi: '',
                               uraian: '',
                               lat: 0,
@@ -5140,9 +5333,21 @@ function CommandCenterContent({
                         {badgePelapor}
                       </span>
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '2px' }}>
-                      {selectedDisposisiItem.jenisKejadian || selectedDisposisiItem.title}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#0F172A' }}>
+                        {selectedDisposisiItem.jenisKejadian || selectedDisposisiItem.title}
+                      </div>
+                      {(sopRecommendation.kasusSpesifik || selectedDisposisiItem.subcategory?.nama_kasus) && (
+                        <span style={{ fontSize: '10.5px', background: '#F1F5F9', color: '#0F172A', border: '1px solid #CBD5E1', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
+                          🎯 SOP Spesifik: {sopRecommendation.kasusSpesifik || selectedDisposisiItem.subcategory?.nama_kasus}
+                        </span>
+                      )}
                     </div>
+                    {sopRecommendation.sopText && (
+                      <div style={{ fontSize: '11px', color: '#0369A1', background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '5px 10px', borderRadius: '6px', marginBottom: '6px' }}>
+                        📋 <strong>Panduan SOP Penanganan:</strong> {sopRecommendation.sopText}
+                      </div>
+                    )}
                     <div style={{ fontSize: '11.5px', color: '#475569', marginBottom: '6px' }}>
                       📍 {selectedDisposisiItem.tkpAlamatTeks || selectedDisposisiItem.alamatTeks}
                     </div>

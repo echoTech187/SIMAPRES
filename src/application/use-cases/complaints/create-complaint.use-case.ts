@@ -12,6 +12,7 @@ export interface CreateComplaintInput {
   ringkasanKeterangan: string;
   operatorId?: bigint | null;
   kategoriKey?: string;
+  subcategoryId?: number | null;
   platformKey?: string;
 }
 
@@ -42,6 +43,7 @@ export class CreateComplaintUseCase {
       status: 'MENUNGGU',
       operatorId: input.operatorId || null,
       kategoriKey: input.kategoriKey || null,
+      subcategoryId: input.subcategoryId || null,
       platformKey: input.platformKey || null,
       timelines: [
         {

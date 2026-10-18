@@ -28,6 +28,7 @@ export async function createComplaintAction(input: {
   saluranLaporan?: string;
   operatorId?: string | null;
   kategoriKey?: string;
+  subcategoryId?: number | string | null;
   platformKey?: string;
 }) {
   try {
@@ -43,6 +44,7 @@ export async function createComplaintAction(input: {
       ringkasanKeterangan: input.ringkasanKeterangan || input.deskripsiKejadian || '-',
       operatorId: input.operatorId ? BigInt(input.operatorId) : null,
       kategoriKey: input.kategoriKey || input.kategoriLaporan,
+      subcategoryId: input.subcategoryId ? Number(input.subcategoryId) : null,
       platformKey: input.platformKey || input.saluranLaporan,
     });
     revalidatePath('/command-center');
@@ -274,7 +276,7 @@ export async function updateComplaintStatusAction(input: {
 export async function getMasterFilterOptionsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
-    const [categories, platforms, giats, satuans, statuses, dispatchStatuses] = await Promise.all([
+    const [categories, platforms, giats, satuans, statuses, dispatchStatuses, subcategories] = await Promise.all([
       prisma.masterIncidentCategory.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
@@ -299,6 +301,14 @@ export async function getMasterFilterOptionsAction() {
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
+      prisma.masterIncidentSubcategory.findMany({
+        where: { is_active: true },
+        orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }],
+        include: {
+          category_rel: true,
+          unit_rel: true,
+        },
+      }),
     ]);
 
     return {
@@ -310,6 +320,7 @@ export async function getMasterFilterOptionsAction() {
         satuans: serializeBigInt(satuans),
         statuses: serializeBigInt(statuses),
         dispatchStatuses: serializeBigInt(dispatchStatuses),
+        subcategories: serializeBigInt(subcategories),
       },
     };
   } catch (error: any) {

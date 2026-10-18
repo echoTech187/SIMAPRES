@@ -63,6 +63,7 @@ model MasterOperationalUnit {
   officers        PoliceOfficer[]
   vehicles        PatrolVehicle[]
   dispatches      ComplaintDispatch[]
+  subcategories   MasterIncidentSubcategory[]
 
   @@map("master_operational_units")
 }
@@ -97,8 +98,34 @@ model MasterIncidentCategory {
   created_at      DateTime        @default(now())
 
   complaints      Complaint[]
+  subcategories   MasterIncidentSubcategory[]
 
   @@map("master_incident_categories")
+}
+
+// 1.5.1 Master Incident Subcategories (Rincian Mutlak Kasus Satuan Unit - Presisi CAD)
+model MasterIncidentSubcategory {
+  id              Int                    @id @default(autoincrement())
+  category_id     Int
+  category_rel    MasterIncidentCategory @relation(fields: [category_id], references: [id], onDelete: Cascade)
+  category_key    String                 @db.VarChar(50) // "KRIMINALITAS", "KAMTIBMAS", "LAKALANTAS", "BENCANA", "PELAYANAN_PUBLIK"
+
+  unit_id         Int
+  unit_rel        MasterOperationalUnit  @relation(fields: [unit_id], references: [id], onDelete: Cascade)
+  unit_key        String                 @db.VarChar(50) // "lantas", "reskrim", "intel", "binmas", "sabhara"
+
+  nama_kasus      String                 @db.VarChar(150)
+  default_urgensi String                 @default("SEDANG") @db.VarChar(30) // "DARURAT", "SEDANG", "NORMAL"
+  deskripsi_sop   String?                @db.Text
+  is_active       Boolean                @default(true)
+  display_order   Int                    @default(1)
+  created_at      DateTime               @default(now())
+
+  complaints      Complaint[]
+
+  @@index([category_id], map: "idx_subcat_category")
+  @@index([unit_id], map: "idx_subcat_unit")
+  @@map("master_incident_subcategories")
 }
 
 // 1.6 Master Reporting Sources / Channels
@@ -469,6 +496,9 @@ model Complaint {
   category_rel          MasterIncidentCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
   kategori_key          String?                 @db.VarChar(50)
 
+  subcategory_id        Int?
+  subcategory_rel       MasterIncidentSubcategory? @relation(fields: [subcategory_id], references: [id], onDelete: SetNull)
+
   source_id             Int?
   source_rel            MasterReportSource?     @relation(fields: [source_id], references: [id], onDelete: SetNull)
   platform_key          String?                 @db.VarChar(50)
@@ -491,6 +521,7 @@ model Complaint {
   @@index([status, created_at], map: "idx_complaints_status_created")
   @@index([status_id], map: "idx_complaints_status_id")
   @@index([urgency_id], map: "idx_complaints_urgency_id")
+  @@index([subcategory_id], map: "idx_complaints_subcategory_id")
   @@index([pelapor_hp, created_at], map: "idx_complaints_reporter_created")
   @@index([tkp_lat, tkp_lng], map: "idx_complaints_scene_coords")
   @@index([kategori_key], map: "idx_complaints_category_key")

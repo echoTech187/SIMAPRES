@@ -78,6 +78,8 @@ export interface ComplaintProps {
   kategoriId?: number | null;
   kategoriKey?: string | null;
   kategoriRel?: any | null;
+  subcategoryId?: number | null;
+  subcategory?: any | null;
   platformId?: number | null;
   platformKey?: string | null;
   platformRel?: any | null;
@@ -195,6 +197,14 @@ export class ComplaintEntity {
 
   get kategoriKey(): string | null | undefined {
     return this.props.kategoriKey;
+  }
+
+  get subcategoryId(): number | null | undefined {
+    return this.props.subcategoryId;
+  }
+
+  get subcategory(): any | null | undefined {
+    return this.props.subcategory;
   }
 
   get platformId(): number | null | undefined {

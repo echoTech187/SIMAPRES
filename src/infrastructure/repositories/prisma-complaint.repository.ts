@@ -10,6 +10,7 @@ const COMPLAINT_INCLUDE = {
   citizen_review_rel: true,
   operator: true,
   category_rel: true,
+  subcategory_rel: { include: { unit_rel: true, category_rel: true } },
   source_rel: true,
 } as const;
 
@@ -42,6 +43,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       kategoriId: record.category_id,
       kategoriKey: record.kategori_key,
       kategoriRel: record.category_rel,
+      subcategoryId: record.subcategory_id,
+      subcategory: record.subcategory_rel,
       platformId: record.source_id,
       platformKey: record.platform_key,
       platformRel: record.source_rel,
@@ -268,6 +271,27 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|\uFE0F|[\u2600-\u27BF]/g, '')
       .trim() || data.jenisKejadian;
 
+    // Resolve subcategory_id
+    let subcategoryId: number | null = (data as any).subcategoryId || null;
+    if (!subcategoryId && (data.jenisKejadian || data.ringkasanKeterangan)) {
+      try {
+        const foundSub = await prisma.masterIncidentSubcategory.findFirst({
+          where: {
+            OR: [
+              { nama_kasus: { contains: cleanJenisKejadian } },
+              { nama_kasus: { contains: data.ringkasanKeterangan.slice(0, 50) } },
+            ],
+          },
+          select: { id: true, category_id: true, category_key: true },
+        });
+        if (foundSub) {
+          subcategoryId = foundSub.id;
+          if (!categoryId) categoryId = foundSub.category_id;
+          if (!kategoriKey) kategoriKey = foundSub.category_key;
+        }
+      } catch (_) {}
+    }
+
     const created = await prisma.complaint.create({
       data: {
         nomor_tiket: data.nomorTiket,
@@ -278,6 +302,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         urgency_id: urgencyId,
         category_id: categoryId,
         kategori_key: kategoriKey,
+        subcategory_id: subcategoryId,
         source_id: sourceId,
         platform_key: platformKey,
         status_id: statusId,
