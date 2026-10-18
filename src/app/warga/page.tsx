@@ -1188,48 +1188,9 @@ export default function PortalWargaPage() {
                     </div>
                   )}
 
-                  {/* Status & Inputan Koordinat GPS TKP (Wajib Dikirim saat Submit) */}
-                  <div
-                    style={{
-                      marginTop: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: (lat && lng) ? '#F0FDF4' : '#F8FAFC',
-                      border: (lat && lng) ? '1px solid #BBF7D0' : '1px dashed #CBD5E1',
-                      borderRadius: '8px',
-                      padding: '7px 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                      <span style={{ fontSize: '13px' }}>{(lat && lng) ? '🛰️' : '📍'}</span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: (lat && lng) ? '#166534' : '#64748B' }}>
-                          {(lat && lng) ? 'Koordinat GPS Terkunci (Wajib Dikirim saat Submit)' : 'Koordinat GPS Belum Terkunci'}
-                        </div>
-                        <div style={{ fontSize: '10.5px', color: (lat && lng) ? '#15803D' : '#94A3B8', fontFamily: 'monospace' }}>
-                          {(lat && lng) ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : 'Klik tombol GPS untuk mengunci titik'}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => ambilLokasiSaatIni(true)}
-                      style={{
-                        background: (lat && lng) ? '#DCFCE7' : '#EFF6FF',
-                        color: (lat && lng) ? '#15803D' : '#2563EB',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        fontSize: '10.5px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {(lat && lng) ? '🔄 Perbarui GPS' : '📍 Ambil GPS'}
-                    </button>
-                  </div>
+                  {/* Koordinat GPS TKP disimpan di state secara background (warga/operator tidak perlu melihat koordinatnya, tetap terkirim saat submit) */}
+                  <input type="hidden" name="tkpLat" value={lat || ''} />
+                  <input type="hidden" name="tkpLng" value={lng || ''} />
 
                   {/* Interactive Map Picker (Opsi Pilih Titik di Peta Langsung) */}
                   {showMapPicker && (

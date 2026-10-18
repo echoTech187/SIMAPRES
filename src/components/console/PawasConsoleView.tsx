@@ -519,13 +519,7 @@ function CommandCenterContent({
 
   // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
   const daftarArmadaAktif = useMemo(() => {
-    const sourceSatuans = dbSatuans.length > 0 ? dbSatuans : [
-      { key: 'sabhara', unit_name: 'Satuan Samapta (Sabhara)', short_name: 'Sat Samapta', icon_emoji: '🚔', duties: 'Patroli Perintis Presisi & Pengamanan TKP', default_orders: 'Lakukan sterilisasi TKP dan pengamanan awal.' },
-      { key: 'lantas', unit_name: 'Satuan Lalu Lintas (Sat Lantas)', short_name: 'Sat Lantas', icon_emoji: '🚓', duties: 'Turjawali & Penanganan Kecelakaan', default_orders: 'Lakukan rekayasa lalu lintas dan olah TKP awal.' },
-      { key: 'reskrim', unit_name: 'Satuan Reserse Kriminal (Sat Reskrim)', short_name: 'Sat Reskrim', icon_emoji: '🕵️', duties: 'Penyelidikan & Penindakan Pidana', default_orders: 'Lakukan olah TKP, interogasi saksi, dan identifikasi pelaku.' },
-      { key: 'intel', unit_name: 'Satuan Intelijen Keamanan (Sat Intelkam)', short_name: 'Sat Intelkam', icon_emoji: '👁️', duties: 'Deteksi Dini & Pengumpulan Bahan Keterangan', default_orders: 'Lakukan penggalangan informasi dan monitoring situasi.' },
-      { key: 'binmas', unit_name: 'Satuan Binmas / Bhabinkamtibmas', short_name: 'Sat Binmas', icon_emoji: '👮', duties: 'Sambang Warga & Problem Solving', default_orders: 'Lakukan mediasi warga dan koordinasi dengan perangkat RT/RW.' },
-    ];
+    const sourceSatuans = dbSatuans.length > 0 ? dbSatuans : [];
 
     return sourceSatuans.map((mu) => {
       const officer = registeredUnits.find(
@@ -2623,7 +2617,7 @@ function CommandCenterContent({
                         <div style={{ fontSize: '14px', fontWeight: 900, color: '#10B981', marginTop: '2px' }}>
                           {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi' : highPriorityIncident.status}
                         </div>
-                        <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {highPriorityIncident.urgensi || 'NORMAL'}</div>
+                        <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {resolveUrgencyLevel(highPriorityIncident.urgensi).label}</div>
                       </div>
                       <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
                         <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>SALURAN PENGADUAN</div>
@@ -5280,14 +5274,6 @@ function CommandCenterContent({
                             }
                           }}
                         />
-                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', background: '#EFF6FF', padding: '6px 10px', borderRadius: '6px', border: '1px solid #DBEAFE' }}>
-                          <span style={{ color: '#1E40AF', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>
-                            🏠 {simCaller.alamat || 'Titik koordinat terpilih'}
-                          </span>
-                          <span style={{ color: '#2563EB', fontFamily: 'monospace', fontWeight: 700 }}>
-                            {simCaller.lat && simCaller.lng ? `${simCaller.lat.toFixed(4)}, ${simCaller.lng.toFixed(4)}` : 'Belum Terkunci'}
-                          </span>
-                        </div>
                       </div>
                     )}
 
@@ -5901,22 +5887,7 @@ function CommandCenterContent({
                           Pilih satu atau lebih satuan tugas yang akan diberangkatkan ke TKP (centang manual):
                         </div>
                       </div>
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 800,
-                          background: '#DCFCE7',
-                          color: '#166534',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                          border: '1px solid #86EFAC',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <span>⚡</span> BROADCAST SATUAN AKTIF
-                      </span>
+                      
                     </div>
 
                     {/* Container Multi-Satuan Checkbox Bersih & Netral */}
@@ -5955,20 +5926,16 @@ function CommandCenterContent({
                                     flexShrink: 0,
                                   }}
                                 />
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                    <span>{a.icon}</span> <span>{a.namaSingkat}</span>
+                                <div style={{ minWidth: 0, width: '100%' }}>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}><span>{a.icon}</span> <span>{a.namaSingkat}</span></div>
                                     {a.isPrimarySop && (
                                       <span style={{ fontSize: '9px', fontWeight: 800, background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC', padding: '1px 5px', borderRadius: '4px' }}>
-                                        ★ SOP UTAMA
+                                        ★ UTAMA
                                       </span>
                                     )}
                                   </div>
-                                  <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    <span>👤 {a.komandan}</span>
-                                    <span>•</span>
-                                    <span style={{ color: '#0284C7', fontWeight: 700 }}>📍 {a.jarakCalc} km ({a.etaCalc} mnt)</span>
-                                  </div>
+                                  
                                 </div>
                               </div>
                               {isChecked && (
