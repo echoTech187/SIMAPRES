@@ -218,7 +218,7 @@ export class ComplaintEntity {
     if (this.props.status !== 'BELUM_DITANGANI' && this.props.status !== 'MENUNGGU') {
       throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status antrean verifikasi.`);
     }
-    this.props.status = 'DISPOSISI';
+    this.props.status = 'DIPROSES';
     this.props.assignedOfficerId = officerId;
     this.props.pawasValidasiId = pawasId;
     this.props.disposisiAt = new Date();
@@ -228,10 +228,10 @@ export class ComplaintEntity {
    * Personel Mengkonfirmasi Meluncur ke TKP (Fase 3 - Step 1)
    */
   public personilMeluncur(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
-    if (this.props.status !== 'DISPOSISI') {
+    if (this.props.status !== 'DIPROSES' && this.props.status !== 'DISPOSISI') {
       throw new Error(`Tiket ${this.props.nomorTiket} belum didisposisikan.`);
     }
-    this.props.status = 'MENUJU_TKP';
+    this.props.status = 'DIPROSES';
     this.props.timelines?.push({
       tahapKe: 1,
       tahapTitle: 'Personel Meluncur ke TKP',
@@ -247,11 +247,11 @@ export class ComplaintEntity {
    * Personel Tiba di Lokasi & Amankan TKP (Fase 3 - Step 2)
    */
   public tibaDiTkp(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
-    if (this.props.status !== 'MENUJU_TKP' && this.props.status !== 'DISPOSISI' && this.props.status !== 'DIPROSES') {
+    if (this.props.status !== 'DIPROSES' && this.props.status !== 'MENUJU_TKP' && this.props.status !== 'DISPOSISI') {
       throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam perjalanan.`);
     }
     const now = new Date();
-    this.props.status = 'TIBA_DI_TKP';
+    this.props.status = 'DIPROSES';
     this.props.responTibaTkpAt = now;
 
     if (this.props.disposisiAt) {

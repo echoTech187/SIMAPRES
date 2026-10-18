@@ -116,8 +116,6 @@ function parsePawasTab(section?: string, roleParam?: string | null): string {
     case 'buat-log':
     case 'log':
       return 'view-log';
-    case 'wizard':
-      return 'view-wizard';
     case 'tolak':
       return 'view-tolak';
     case 'beranda':
@@ -140,8 +138,6 @@ function pawasTabToSlug(tabId: string): string {
       return 'operator';
     case 'view-log':
       return 'buat-pengaduan';
-    case 'view-wizard':
-      return 'wizard';
     case 'view-tolak':
       return 'tolak';
     case 'view-beranda':
@@ -245,10 +241,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [showLightboxModal, setShowLightboxModal] = useState(false);
   const [lightboxImg, setLightboxImg] = useState({ url: '', title: '', meta: '', desc: '' });
-  const wizardFileRef1 = useRef<HTMLInputElement>(null);
-  const wizardFileRef2 = useRef<HTMLInputElement>(null);
-  const wizardFileRef3 = useRef<HTMLInputElement>(null);
-
   // Hotspot CRUD Modal
   const [showHotspotModal, setShowHotspotModal] = useState(false);
   const [showHotspotAddForm, setShowHotspotAddForm] = useState(false);
@@ -267,17 +259,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [valFilterKategori, setValFilterKategori] = useState<string>('all');
   const [selectedValComplaint, setSelectedValComplaint] = useState<any | null>(null);
 
-  // Wizard Penanganan Terpadu State (Screen 7)
-  const [activeWizardLog, setActiveWizardLog] = useState<any | null>(null);
-  const [wizardStep, setWizardStep] = useState<number>(1);
-  const [wizardGps, setWizardGps] = useState<string>('');
-  const [wizardCatatan1, setWizardCatatan1] = useState<string>('');
-  const [wizardFoto1, setWizardFoto1] = useState<string | null>(null);
-  const [wizardCatatan2, setWizardCatatan2] = useState<string>('');
-  const [wizardFoto2, setWizardFoto2] = useState<string | null>(null);
-  const [wizardCatatan3, setWizardCatatan3] = useState<string>('');
-  const [wizardFoto3, setWizardFoto3] = useState<string | null>(null);
-
   // Live Stopwatch SLA 3 Cockpit
   const [slaClockSeconds, setSlaClockSeconds] = useState<number>(0);
   useEffect(() => {
@@ -291,19 +272,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     const m = Math.floor(sec / 60);
     const s = sec % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
-
-  const openWizardForLog = (complaint: any) => {
-    setActiveWizardLog(complaint);
-    setWizardStep(complaint.status === 'MENUJU_TKP' ? 1 : complaint.status === 'PENANGANAN_TKP' ? 2 : 3);
-    setWizardGps(complaint.koordinatGps || '');
-    setWizardCatatan1(complaint.catatanPersiapan || '');
-    setWizardFoto1(complaint.fotoPersiapan || null);
-    setWizardCatatan2(complaint.catatanTindakan || '');
-    setWizardFoto2(complaint.fotoTindakan || null);
-    setWizardCatatan3(complaint.catatanSelesai || '');
-    setWizardFoto3(complaint.fotoSelesai || null);
-    switchTab('view-wizard');
   };
 
   // Penolakan Form State (Screen 8)
@@ -574,6 +542,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         display_order: dbItem.display_order ?? 1,
         icon:
           dbItem.key === 'MENUNGGU' ? '⏳' :
+          dbItem.key === 'DIPROSES' ? '🚔' :
           dbItem.key === 'DISPOSISI' ? '📋' :
           dbItem.key === 'MENUJU_TKP' ? '🚔' :
           dbItem.key === 'TIBA_DI_TKP' ? '📍' :
@@ -584,13 +553,14 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
 
     // Dynamic fallback when dbStatuses is still loading
     const fallbackColors: Record<string, { color: string; bg: string; border: string; icon: string }> = {
-      MENUNGGU: { color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', icon: '⏳' },
-      DISPOSISI: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '📋' },
+      MENUNGGU: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '⏳' },
+      DIPROSES: { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: '🚔' },
+      DISPOSISI: { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: '📋' },
       MENUJU_TKP: { color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', icon: '🚔' },
       TIBA_DI_TKP: { color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', icon: '📍' },
-      MENUNGGU_PENGESAHAN: { color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', icon: '📝' },
-      SELESAI: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '✓' },
-      DITOLAK: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '✕' },
+      MENUNGGU_PENGESAHAN: { color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', icon: '📝' },
+      SELESAI: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', icon: '✓' },
+      DITOLAK: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', icon: '✕' },
     };
     const fb = fallbackColors[targetKey] || { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: 'ℹ️' };
 
@@ -614,7 +584,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (stUpper === meta.key) return true;
     if (status.toLowerCase() === meta.key.toLowerCase()) return true;
     if (status.toLowerCase() === 'diproses') {
-      return ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(meta.key);
+      return ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(meta.key);
     }
     return false;
   };
@@ -4024,32 +3994,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                       </div>
                                     </div>
                                   )}
-
-                                  {/* Tombol Buka Wizard Penanganan Kasus */}
-                                  {activeComplaint.status !== 'SELESAI' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => openWizardForLog(activeComplaint)}
-                                      style={{
-                                        width: '100%',
-                                        padding: '11px',
-                                        background: '#153E75',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        fontSize: '12px',
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        marginTop: '4px',
-                                      }}
-                                    >
-                                      <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             )}
@@ -4913,486 +4857,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   </div>
                 </div>
 
-              </div>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 7: RESPON 110 / WIZARD PENANGANAN (view-wizard)   */}
-          {/* ======================================================== */}
-          {activeTab === 'view-wizard' && activeWizardLog && (
-            <section id="view-wizard" className="view active" style={{ padding: '16px', maxWidth: '850px', margin: '0 auto' }}>
-              {/* Back Navigation Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div
-                  onClick={() => switchTab('view-validasi')}
-                  style={{
-                    fontSize: '13px',
-                    fontWeight: 700,
-                    color: '#153E75',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    background: '#EFF6FF',
-                    border: '1px solid #BFDBFE',
-                  }}
-                >
-                  <span>←</span> Kembali ke Timeline Pelacakan
-                </div>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    background: activeWizardLog.status === 'SELESAI' ? '#DCFCE7' : activeWizardLog.status === 'PENANGANAN_TKP' ? '#F3E8FF' : '#EDE9FE',
-                    color: activeWizardLog.status === 'SELESAI' ? '#16A34A' : activeWizardLog.status === 'PENANGANAN_TKP' ? '#7C3AED' : '#6D28D9',
-                    fontWeight: 700,
-                    padding: '5px 14px',
-                    borderRadius: '20px',
-                  }}
-                >
-                  {activeWizardLog.status === 'SELESAI'
-                    ? '✓ Selesai Ditangani'
-                    : activeWizardLog.status === 'PENANGANAN_TKP'
-                      ? '⚖️ Menunggu Pengesahan'
-                      : '⚡ Diproses (Meluncur)'}
-                </span>
-              </div>
-
-              <h2 className="page-title" style={{ marginTop: '6px', marginBottom: '4px', fontSize: '20px', fontWeight: 800, color: '#1E293B' }}>
-                Wizard Penanganan Kasus Lapangan
-              </h2>
-              <div className="page-subtitle" style={{ marginBottom: '12px', fontSize: '12px', color: '#64748B' }}>
-                ID Kasus: <strong style={{ fontFamily: 'monospace', color: '#153E75' }}>{activeWizardLog.nomorTiket}</strong> • Pelapor: <strong>{activeWizardLog.pelaporNama}</strong>
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <div
-                  style={{
-                    background: '#153E75',
-                    color: 'white',
-                    fontWeight: 800,
-                    fontSize: '13px',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  🚨 {activeWizardLog.jenisKejadian}
-                </div>
-              </div>
-
-              {/* STEP 1: Menuju Lokasi (Meluncur) */}
-              <div
-                className="wiz-card"
-                style={{
-                  background: 'white',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  marginBottom: '16px',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                }}
-              >
-                <div
-                  onClick={() => setWizardStep(1)}
-                  style={{
-                    padding: '14px 16px',
-                    fontWeight: 800,
-                    fontSize: '14px',
-                    borderBottom: '1px solid #E2E8F0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    background: wizardStep === 1 ? '#EFF6FF' : wizardStep > 1 ? '#ECFDF5' : '#F8FAFC',
-                    color: wizardStep === 1 ? '#1D4ED8' : wizardStep > 1 ? '#10B981' : '#64748B',
-                  }}
-                >
-                  <span>1. Menuju Lokasi (Meluncur ke TKP)</span>
-                  <span>{wizardStep > 1 ? '✓ Selesai' : wizardStep === 1 ? '⏳ Aktif' : '🔒'}</span>
-                </div>
-
-                {wizardStep === 1 && (
-                  <div style={{ padding: '16px' }}>
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px', marginBottom: '14px' }}>
-                      <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '8px' }}>
-                        Detail Laporan Warga
-                      </div>
-                      <div style={{ fontSize: '12px', marginBottom: '4px' }}>
-                        <span style={{ color: '#64748B' }}>Jenis Insiden:</span> <strong>{activeWizardLog.jenisKejadian}</strong>
-                      </div>
-                      <div style={{ fontSize: '12px', marginBottom: '6px' }}>
-                        <span style={{ color: '#64748B' }}>Lokasi TKP:</span> <strong>{activeWizardLog.tkpAlamatTeks}</strong>
-                      </div>
-                      <div style={{ fontSize: '11.5px', color: '#334155', background: 'white', border: '1px solid #E2E8F0', padding: '8px 10px', borderRadius: '6px', fontStyle: 'italic', marginBottom: '8px' }}>
-                        "{activeWizardLog.ringkasanKeterangan}"
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-                        {activeWizardLog.fotoTkpUrl ? (
-                          <img src={activeWizardLog.fotoTkpUrl} alt="Foto TKP" style={{ width: '48px', height: '48px', borderRadius: '6px', objectFit: 'cover' }} />
-                        ) : (
-                          <div style={{ width: '48px', height: '48px', borderRadius: '6px', background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>📷</div>
-                        )}
-                        <div style={{ fontSize: '11px', color: '#64748B' }}>
-                          <strong style={{ color: '#1E293B' }}>Dokumentasi Laporan Awal</strong>
-                          <div>Terverifikasi Operator 110 &bull; {activeWizardLog.pelaporNama}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Bukti Foto Persiapan Armada / Personel <span style={{ color: 'red' }}>*</span>
-                    </div>
-
-                    {wizardFoto1 && (
-                      <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', height: '140px', background: '#0F172A', marginBottom: '10px' }}>
-                        <img src={wizardFoto1} alt="Foto Persiapan" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.85))', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#93C5FD', fontSize: '10px', fontWeight: 700 }}>📍 GPS: {wizardGps}</span>
-                          <span style={{ color: 'white', fontSize: '10px', background: 'rgba(30,64,175,0.8)', padding: '2px 6px', borderRadius: '4px' }}>✓ Siap Meluncur</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <input
-                      type="file"
-                      ref={wizardFileRef1}
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (re) => setWizardFoto1(re.target?.result as string);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-
-                    <div
-                      onClick={() => wizardFileRef1.current?.click()}
-                      style={{
-                        padding: '12px',
-                        border: '2px dashed #93C5FD',
-                        borderRadius: '8px',
-                        background: '#F0F9FF',
-                        color: '#1D4ED8',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        marginBottom: '14px',
-                      }}
-                    >
-                      {wizardFoto1 ? '📷 Ubah Foto Persiapan' : '📷 Unggah Foto Persiapan Armada'}
-                    </div>
-
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Keterangan Persiapan Keberangkatan <span style={{ color: 'red' }}>*</span>
-                    </div>
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      value={wizardCatatan1}
-                      onChange={(e) => setWizardCatatan1(e.target.value)}
-                      placeholder="Cth: Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP..."
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', marginBottom: '14px' }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setLoading(true);
-                        const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
-                        await updateComplaintStatusAction({
-                          complaintId: activeWizardLog.id.toString(),
-                          status: 'MENUJU_TKP',
-                          catatan: `[Meluncur ke TKP]: ${wizardCatatan1}`,
-                          pawasUserId: activePawasId,
-                        });
-                        setLoading(false);
-                        setWizardStep(2);
-                        loadData();
-                        alert('⚡ Status berhasil diperbarui: Personel Sedang Meluncur ke Lokasi!');
-                      }}
-                      disabled={loading}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        background: '#153E75',
-                        color: 'white',
-                        fontWeight: 800,
-                        fontSize: '13px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        boxShadow: '0 3px 10px rgba(21,62,117,0.25)',
-                      }}
-                    >
-                      Meluncur ke Lokasi ➔
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* STEP 2: Tiba & Penanganan di TKP */}
-              <div
-                className="wiz-card"
-                style={{
-                  background: 'white',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  marginBottom: '16px',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                }}
-              >
-                <div
-                  onClick={() => setWizardStep(2)}
-                  style={{
-                    padding: '14px 16px',
-                    fontWeight: 800,
-                    fontSize: '14px',
-                    borderBottom: '1px solid #E2E8F0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    background: wizardStep === 2 ? '#EFF6FF' : wizardStep > 2 ? '#ECFDF5' : '#F8FAFC',
-                    color: wizardStep === 2 ? '#1D4ED8' : wizardStep > 2 ? '#10B981' : '#64748B',
-                  }}
-                >
-                  <span>2. Tiba &amp; Penanganan Tindakan di TKP</span>
-                  <span>{wizardStep > 2 ? '✓ Selesai' : wizardStep === 2 ? '⏳ Aktif' : '🔒'}</span>
-                </div>
-
-                {wizardStep === 2 && (
-                  <div style={{ padding: '16px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Keterangan Tindakan Kepolisian (Berita Acara Lapangan) <span style={{ color: 'red' }}>*</span>
-                    </div>
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      value={wizardCatatan2}
-                      onChange={(e) => setWizardCatatan2(e.target.value)}
-                      placeholder="Jelaskan tindakan pengamanan, pengaturan lalu lintas, atau pembinaan yang dilakukan..."
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', marginBottom: '14px' }}
-                    />
-
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Bukti Foto Penanganan Petugas di TKP <span style={{ color: 'red' }}>*</span>
-                    </div>
-
-                    {wizardFoto2 && (
-                      <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', height: '140px', background: '#0F172A', marginBottom: '10px' }}>
-                        <img src={wizardFoto2} alt="Foto Tindakan TKP" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.85))', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#A7F3D0', fontSize: '10px', fontWeight: 700 }}>📍 TKP Terverifikasi</span>
-                          <span style={{ color: 'white', fontSize: '10px', background: 'rgba(6,78,59,0.8)', padding: '2px 6px', borderRadius: '4px' }}>✓ Dokumentasi Tindakan</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <input
-                      type="file"
-                      ref={wizardFileRef2}
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (re) => setWizardFoto2(re.target?.result as string);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-
-                    <div
-                      onClick={() => wizardFileRef2.current?.click()}
-                      style={{
-                        padding: '12px',
-                        border: '2px dashed #86EFAC',
-                        borderRadius: '8px',
-                        background: '#F0FDF4',
-                        color: '#16A34A',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        marginBottom: '14px',
-                      }}
-                    >
-                      {wizardFoto2 ? '📸 Ubah Foto Tindakan TKP' : '📸 Unggah Foto Tindakan TKP'}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setLoading(true);
-                        const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
-                        await updateComplaintStatusAction({
-                          complaintId: activeWizardLog.id.toString(),
-                          status: 'PENANGANAN_TKP',
-                          catatan: `[Tindakan TKP]: ${wizardCatatan2}`,
-                          pawasUserId: activePawasId,
-                        });
-                        setLoading(false);
-                        setWizardStep(3);
-                        loadData();
-                        alert('✓ Berita acara tindakan TKP berhasil disimpan! Menunggu otorisasi penyelesaian.');
-                      }}
-                      disabled={loading}
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        background: '#D97706',
-                        color: 'white',
-                        fontWeight: 800,
-                        fontSize: '13px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        boxShadow: '0 3px 10px rgba(217,119,6,0.25)',
-                      }}
-                    >
-                      Kirim Laporan Penanganan ➔
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* STEP 3: Kasus Selesai Ditangani */}
-              <div
-                className="wiz-card"
-                style={{
-                  background: 'white',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  marginBottom: '16px',
-                  overflow: 'hidden',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                }}
-              >
-                <div
-                  onClick={() => setWizardStep(3)}
-                  style={{
-                    padding: '14px 16px',
-                    fontWeight: 800,
-                    fontSize: '14px',
-                    borderBottom: '1px solid #E2E8F0',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    cursor: 'pointer',
-                    background: wizardStep === 3 ? '#EFF6FF' : activeWizardLog.status === 'SELESAI' ? '#ECFDF5' : '#F8FAFC',
-                    color: wizardStep === 3 ? '#1D4ED8' : activeWizardLog.status === 'SELESAI' ? '#10B981' : '#64748B',
-                  }}
-                >
-                  <span>3. Kasus Selesai Ditangani (Otorisasi Akhir)</span>
-                  <span>{activeWizardLog.status === 'SELESAI' ? '✓ Disahkan' : wizardStep === 3 ? '⏳ Aktif' : '🔒'}</span>
-                </div>
-
-                {wizardStep === 3 && (
-                  <div style={{ padding: '16px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Bukti Foto Situasi Kondusif / Akhir <span style={{ color: 'red' }}>*</span>
-                    </div>
-
-                    {wizardFoto3 && (
-                      <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', height: '140px', background: '#0F172A', marginBottom: '10px' }}>
-                        <img src={wizardFoto3} alt="Foto Akhir" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.85))', padding: '6px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ color: '#A7F3D0', fontSize: '10px', fontWeight: 700 }}>📍 Lokasi Kondusif</span>
-                          <span style={{ color: 'white', fontSize: '10px', background: 'rgba(6,78,59,0.8)', padding: '2px 6px', borderRadius: '4px' }}>✓ Dokumentasi Akhir</span>
-                        </div>
-                      </div>
-                    )}
-
-                    <input
-                      type="file"
-                      ref={wizardFileRef3}
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (re) => setWizardFoto3(re.target?.result as string);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-
-                    <div
-                      onClick={() => wizardFileRef3.current?.click()}
-                      style={{
-                        padding: '12px',
-                        border: '2px dashed #86EFAC',
-                        borderRadius: '8px',
-                        background: '#F0FDF4',
-                        color: '#16A34A',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        marginBottom: '14px',
-                      }}
-                    >
-                      {wizardFoto3 ? '📸 Ubah Foto Situasi Akhir' : '📸 Unggah Foto Situasi Akhir'}
-                    </div>
-
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
-                      Keterangan Penyelesaian &amp; Kesimpulan Akhir <span style={{ color: 'red' }}>*</span>
-                    </div>
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      value={wizardCatatan3}
-                      onChange={(e) => setWizardCatatan3(e.target.value)}
-                      placeholder="Cth: Situasi telah aman dan kondusif, arus lalu lintas lancar kembali, warga kembali beraktivitas normal..."
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', marginBottom: '16px' }}
-                    />
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setLoading(true);
-                        const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
-                        await updateComplaintStatusAction({
-                          complaintId: activeWizardLog.id.toString(),
-                          status: 'SELESAI',
-                          catatan: `[Kasus Ditutup]: ${wizardCatatan3}`,
-                          pawasUserId: activePawasId,
-                        });
-                        setLoading(false);
-                        alert('✅ Kasus telah berhasil diselesaikan dan status diperbarui ke SELESAI!');
-                        loadData();
-                        switchTab('view-validasi');
-                      }}
-                      disabled={loading}
-                      style={{
-                        width: '100%',
-                        padding: '13px',
-                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                        color: 'white',
-                        fontWeight: 800,
-                        fontSize: '13px',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        boxShadow: '0 3px 10px rgba(16,185,129,0.3)',
-                      }}
-                    >
-                      ✅ Tutup Kasus &amp; Sahkan Berita Acara
-                    </button>
-                  </div>
-                )}
               </div>
             </section>
           )}

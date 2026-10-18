@@ -274,7 +274,7 @@ export async function updateComplaintStatusAction(input: {
 export async function getMasterFilterOptionsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
-    const [categories, platforms, giats, satuans, statuses] = await Promise.all([
+    const [categories, platforms, giats, satuans, statuses, dispatchStatuses] = await Promise.all([
       prisma.masterIncidentCategory.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
@@ -295,6 +295,10 @@ export async function getMasterFilterOptionsAction() {
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
+      prisma.masterDispatchStatus.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
     ]);
 
     return {
@@ -305,6 +309,7 @@ export async function getMasterFilterOptionsAction() {
         giats: serializeBigInt(giats),
         satuans: serializeBigInt(satuans),
         statuses: serializeBigInt(statuses),
+        dispatchStatuses: serializeBigInt(dispatchStatuses),
       },
     };
   } catch (error: any) {

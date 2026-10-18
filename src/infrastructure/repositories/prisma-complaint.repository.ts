@@ -373,18 +373,25 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         let completedAt: Date | null = data.selesaiAt || null;
         let departedAt: Date | null = null;
 
-        if (data.status === 'MENUJU_TKP') {
-          dispatchStatus = 'DEPARTED';
-          departedAt = new Date();
-        } else if (data.status === 'TIBA_DI_TKP' || data.status === 'PENANGANAN_TKP') {
-          dispatchStatus = 'ARRIVED';
-          arrivedAt = data.responTibaTkpAt || new Date();
-        } else if (data.status === 'MENUNGGU_PENGESAHAN') {
-          dispatchStatus = 'REPORT_SUBMITTED';
-        } else if (data.status === 'SELESAI') {
+        if (data.status === 'SELESAI') {
           dispatchStatus = 'COMPLETED';
           completedAt = data.selesaiAt || new Date();
+        } else if (data.status === 'MENUNGGU_PENGESAHAN') {
+          dispatchStatus = 'REPORT_SUBMITTED';
+        } else if (data.responTibaTkpAt || data.status === 'TIBA_DI_TKP' || data.status === 'PENANGANAN_TKP') {
+          dispatchStatus = 'ARRIVED';
+          arrivedAt = data.responTibaTkpAt || new Date();
+        } else if (data.status === 'MENUJU_TKP' || (data.timelines && data.timelines.some((t: any) => t.tahapTitle?.includes('Meluncur')))) {
+          dispatchStatus = 'DEPARTED';
+          departedAt = new Date();
+        } else {
+          dispatchStatus = 'DISPATCHED';
         }
+
+        const dispatchMaster = await prisma.masterDispatchStatus.findUnique({
+          where: { key: dispatchStatus },
+        });
+        const dispatchStatusId = dispatchMaster?.id || null;
 
         if (existingDispatch) {
           await prisma.complaintDispatch.update({
@@ -392,6 +399,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             data: {
               officer_id: data.assignedOfficerId,
               dispatch_status: dispatchStatus,
+              dispatch_status_id: dispatchStatusId,
               ...(departedAt ? { departed_at: departedAt } : {}),
               ...(arrivedAt ? { arrived_at: arrivedAt } : {}),
               ...(completedAt ? { completed_at: completedAt } : {}),
@@ -407,6 +415,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               personnel_quota: 2,
               tactical_orders: 'Penugasan Unit Siaga Patroli Presisi Lapangan',
               dispatch_status: dispatchStatus,
+              dispatch_status_id: dispatchStatusId,
               dispatched_at: data.disposisiAt || new Date(),
               ...(departedAt ? { departed_at: departedAt } : {}),
               ...(arrivedAt ? { arrived_at: arrivedAt } : {}),

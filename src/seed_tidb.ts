@@ -33,21 +33,20 @@ async function seed() {
     });
   }
 
-  // 3. Master Complaint Statuses (7 Status Resmi SIMAPRES 110)
+  // 3. Master Complaint Statuses (5 Status Utama Siklus Hidup Kasus SIMAPRES 110)
   const statuses = [
-    { key: 'MENUNGGU', label: 'Menunggu Penugasan Pawas', badge_color: '#F59E0B', badge_bg: '#FFFBEB', badge_border: '#FDE68A', display_order: 1 },
-    { key: 'DISPOSISI', label: 'Personil sudah ditugaskan', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 2 },
-    { key: 'MENUJU_TKP', label: 'Personil Menuju Lokasi / TKP', badge_color: '#8B5CF6', badge_bg: '#F5F3FF', badge_border: '#DDD6FE', display_order: 3 },
-    { key: 'TIBA_DI_TKP', label: 'Personil tiba dilokasi', badge_color: '#10B981', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 4 },
-    { key: 'MENUNGGU_PENGESAHAN', label: 'Laporan telah selesai ditangani dan BAP terbit', badge_color: '#EF4444', badge_bg: '#FEF2F2', badge_border: '#FECACA', display_order: 5 },
-    { key: 'SELESAI', label: 'Laporan Selesai', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
-    { key: 'DITOLAK', label: 'Laporan ditolak', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
+    { key: 'MENUNGGU', label: 'Menunggu Tindakan', keterangan: 'Menunggu Penanganan & Validasi Pawas', badge_color: '#F59E0B', badge_bg: '#FFFBEB', badge_border: '#FDE68A', display_order: 1 },
+    { key: 'DITOLAK', label: 'Ditolak', keterangan: 'Ditolak / Tidak Valid oleh Pawas', badge_color: '#DC2626', badge_bg: '#FEF2F2', badge_border: '#FECACA', display_order: 2 },
+    { key: 'DIPROSES', label: 'Sedang Ditangani', keterangan: 'Sedang Ditangani Unit Siaga Lapangan', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 3 },
+    { key: 'MENUNGGU_PENGESAHAN', label: 'Menunggu Pengesahan', keterangan: 'Menunggu Pengesahan Pawas', badge_color: '#7C3AED', badge_bg: '#F5F3FF', badge_border: '#DDD6FE', display_order: 4 },
+    { key: 'SELESAI', label: 'Selesai', keterangan: 'Selesai & Kondusif', badge_color: '#059669', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 5 },
   ];
   for (const st of statuses) {
     await prisma.masterComplaintStatus.upsert({
       where: { key: st.key },
       update: {
         label: st.label,
+        keterangan: st.keterangan,
         badge_color: st.badge_color,
         badge_bg: st.badge_bg,
         badge_border: st.badge_border,
@@ -55,6 +54,30 @@ async function seed() {
         is_active: true,
       },
       create: { ...st, is_active: true },
+    });
+  }
+
+  // 3.1 Master Dispatch Statuses (5 Status Taktis Penugasan Lapangan / Dispatches)
+  const dispatchStatuses = [
+    { key: 'DISPATCHED', label: 'Disposisi', keterangan: 'Personil Menerima Disposisi dari Pawas', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
+    { key: 'DEPARTED', label: 'Meluncur', keterangan: 'Petugas Meluncur ke TKP', badge_color: '#8B5CF6', badge_bg: '#F5F3FF', badge_border: '#DDD6FE', display_order: 2 },
+    { key: 'ARRIVED', label: 'Tiba di TKP', keterangan: 'Petugas Tiba di Lokasi / Olah TKP', badge_color: '#10B981', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 3 },
+    { key: 'REPORT_SUBMITTED', label: 'BAP Terbit', keterangan: 'Tindakan Selesai & BAP Diterbitkan Petugas Lapangan', badge_color: '#F59E0B', badge_bg: '#FFFBEB', badge_border: '#FDE68A', display_order: 4 },
+    { key: 'COMPLETED', label: 'Selesai', keterangan: 'BAP Disahkan oleh Pawas & Kasus Ditutup', badge_color: '#059669', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 5 },
+  ];
+  for (const ds of dispatchStatuses) {
+    await prisma.masterDispatchStatus.upsert({
+      where: { key: ds.key },
+      update: {
+        label: ds.label,
+        keterangan: ds.keterangan,
+        badge_color: ds.badge_color,
+        badge_bg: ds.badge_bg,
+        badge_border: ds.badge_border,
+        display_order: ds.display_order,
+        is_active: true,
+      },
+      create: { ...ds, is_active: true },
     });
   }
 

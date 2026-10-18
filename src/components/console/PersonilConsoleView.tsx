@@ -423,7 +423,8 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   // Filtered tasks in Validasi tab
   const filteredTasks = complaints.filter((c) => {
     if (validasiFilter === 'diproses') {
-      if (c.status === 'SELESAI') return false;
+      const isDiproses = ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(c.status);
+      if (!isDiproses) return false;
     } else if (validasiFilter === 'menunggu_pengesahan') {
       if (c.status !== 'MENUNGGU_PENGESAHAN' && c.status !== 'PENANGANAN_TKP') return false;
     }
@@ -1494,7 +1495,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 >
                   Sedang Ditangani{' '}
                   <span className="val-tab-badge primary">
-                    {complaints.filter((c) => c.status !== 'SELESAI').length}
+                    {complaints.filter((c) => ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(c.status)).length}
                   </span>
                 </button>
                 <button
@@ -1504,7 +1505,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 >
                   Menunggu Pengesahan{' '}
                   <span className="val-tab-badge purple">
-                    {complaints.filter((c) => c.status === 'PENANGANAN_TKP').length}
+                    {complaints.filter((c) => c.status === 'MENUNGGU_PENGESAHAN' || c.status === 'PENANGANAN_TKP').length}
                   </span>
                 </button>
               </div>

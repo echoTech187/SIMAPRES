@@ -126,6 +126,7 @@ model MasterComplaintStatus {
   id              Int             @id @default(autoincrement())
   key             String          @unique @db.VarChar(50) // "MENUNGGU", "DIPROSES", "MENUNGGU_PENGESAHAN", "SELESAI", "DITOLAK"
   label           String          @db.VarChar(100)
+  keterangan      String?         @db.VarChar(255)
   badge_color     String          @default("#2563EB") @db.VarChar(20)
   badge_bg        String          @default("#EFF6FF") @db.VarChar(20)
   badge_border    String          @default("#BFDBFE") @db.VarChar(20)
@@ -230,6 +231,24 @@ model MasterRank {
   created_at    DateTime @default(now())
 
   @@map("master_ranks")
+}
+
+// 1.14 Master Dispatch & Field Movement Statuses
+model MasterDispatchStatus {
+  id              Int                 @id @default(autoincrement())
+  key             String              @unique @db.VarChar(50) // "DISPATCHED", "DEPARTED", "ARRIVED", "REPORT_SUBMITTED", "COMPLETED"
+  label           String              @db.VarChar(100)
+  keterangan      String?             @db.VarChar(255)
+  badge_color     String              @default("#2563EB") @db.VarChar(20)
+  badge_bg        String              @default("#EFF6FF") @db.VarChar(20)
+  badge_border    String              @default("#BFDBFE") @db.VarChar(20)
+  display_order   Int                 @default(1)
+  is_active       Boolean             @default(true)
+  created_at      DateTime            @default(now())
+
+  dispatches      ComplaintDispatch[]
+
+  @@map("master_dispatch_statuses")
 }
 
 // ==============================================================================
@@ -494,6 +513,8 @@ model ComplaintDispatch {
   personnel_quota       Int                   @default(4)
   tactical_orders       String?               @db.Text
   
+  dispatch_status_id    Int?
+  dispatch_status_rel   MasterDispatchStatus? @relation(fields: [dispatch_status_id], references: [id], onDelete: SetNull)
   dispatch_status       String                @default("DISPATCHED") @db.VarChar(30)
   dispatched_at         DateTime              @default(now())
   accepted_at           DateTime?
@@ -507,6 +528,7 @@ model ComplaintDispatch {
   @@index([complaint_id], map: "idx_dispatches_complaint")
   @@index([unit_id], map: "idx_dispatches_unit")
   @@index([officer_id], map: "idx_dispatches_officer")
+  @@index([dispatch_status_id], map: "idx_dispatches_status_id")
   @@map("complaint_dispatches")
 }
 
