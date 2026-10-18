@@ -48,7 +48,7 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
   if (!item) {
     return {
       primarySatuanId: 'sabhara',
-      secondarySatuanIds: ['binmas', 'reskrim'],
+      secondarySatuanIds: ['binmas', 'reskrim', 'lantas'],
       kasusSpesifik: null,
       sopText: null,
     };
@@ -75,9 +75,9 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
   const secondaryMap: Record<string, string[]> = {
     lantas: ['sabhara'],
     reskrim: ['sabhara', 'intel'],
-    intel: ['binmas', 'sabhara'],
+    intel: ['reskrim', 'binmas', 'sabhara'],
     binmas: ['sabhara'],
-    sabhara: ['binmas', 'reskrim'],
+    sabhara: ['binmas', 'lantas', 'reskrim'],
   };
 
   if (unitKey) {
@@ -86,16 +86,43 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
       primarySatuanId,
       secondarySatuanIds: secondaryMap[primarySatuanId] || ['sabhara'],
       kasusSpesifik: matchedSub?.nama_kasus || item?.subKasus || item?.jenisKejadian || null,
-      sopText: matchedSub?.deskripsi_sop || null,
+      sopText: matchedSub?.deskripsi_sop || item?.deskripsi_sop || null,
     };
   }
 
-  // Fallback standar Presisi jika laporan umum tanpa subkategori spesifik
+  // 3. Intelligent Classifier Fallback berdasarkan kata kunci kasus/pengaduan
+  const textCheck = `${item?.jenisKejadian || ''} ${item?.title || ''} ${item?.kategori || ''} ${item?.deskripsiKejadian || ''} ${item?.uraian || ''}`.toLowerCase();
+  let fallbackPrimary = 'sabhara';
+  let fallbackSecondary = ['binmas', 'reskrim', 'lantas'];
+  let fallbackSop = 'Lakukan patroli presisi, sterilisasi area dan pengamanan TKP.';
+
+  if (textCheck.includes('kebakaran') || textCheck.includes('api') || textCheck.includes('damkar')) {
+    fallbackPrimary = 'sabhara';
+    fallbackSecondary = ['lantas', 'binmas'];
+    fallbackSop = 'Buka jalur evakuasi mobil Damkar, pengamanan perimeter TKP dari penjarahan, evakuasi korban ke tenda darurat.';
+  } else if (textCheck.includes('curas') || textCheck.includes('begal') || textCheck.includes('curat') || textCheck.includes('curanmor') || textCheck.includes('pencurian') || textCheck.includes('bunuh') || textCheck.includes('jambret') || textCheck.includes('pidana')) {
+    fallbackPrimary = 'reskrim';
+    fallbackSecondary = ['sabhara', 'intel'];
+    fallbackSop = 'Lakukan olah TKP, pasang garis polisi (Police Line), kumpulkan rekaman CCTV dan keterangan saksi, serta kejar pelaku.';
+  } else if (textCheck.includes('tabrak') || textCheck.includes('lantas') || textCheck.includes('kecelakaan') || textCheck.includes('macet') || textCheck.includes('balap') || textCheck.includes('lalu lintas')) {
+    fallbackPrimary = 'lantas';
+    fallbackSecondary = ['sabhara'];
+    fallbackSop = 'Lakukan pertolongan pertama pada korban lakalantas, amankan barang bukti kendaraan, dan urai kepadatan lalu lintas di lokasi.';
+  } else if (textCheck.includes('mediasi') || textCheck.includes('sengketa') || textCheck.includes('tetangga') || textCheck.includes('bising') || textCheck.includes('utang') || textCheck.includes('warga')) {
+    fallbackPrimary = 'binmas';
+    fallbackSecondary = ['sabhara'];
+    fallbackSop = 'Lakukan mediasi musyawarah mufakat bersama Bhabinkamtibmas dan perangkat RT/RW setempat, redam eskalasi konflik.';
+  } else if (textCheck.includes('teror') || textCheck.includes('senpi') || textCheck.includes('demo') || textCheck.includes('unjuk rasa') || textCheck.includes('sara') || textCheck.includes('intel')) {
+    fallbackPrimary = 'intel';
+    fallbackSecondary = ['reskrim', 'sabhara'];
+    fallbackSop = 'Lakukan deteksi dini, penggalangan bahan keterangan, dan monitoring pergerakan situasi di lapangan.';
+  }
+
   return {
-    primarySatuanId: 'sabhara',
-    secondarySatuanIds: ['binmas', 'reskrim'],
-    kasusSpesifik: item?.jenisKejadian || 'Patroli Presisi',
-    sopText: 'Lakukan patroli presisi, sterilisasi area dan pengamanan TKP.',
+    primarySatuanId: fallbackPrimary,
+    secondarySatuanIds: secondaryMap[fallbackPrimary] || fallbackSecondary,
+    kasusSpesifik: item?.jenisKejadian || item?.title || 'Patroli Presisi',
+    sopText: fallbackSop,
   };
 }
 
@@ -1218,12 +1245,11 @@ function CommandCenterContent({
     setActivePreviewSatuanKey('');
     setShowEditPersonel(false);
     setCustomPersonelNama('-');
-    setArahanPawas('');
 
     // Kuota kuat personel SOP (berdasarkan urgensi laporan)
     const urgensiStr = (item.urgensi || '').toLowerCase();
     const textKasus = ((item.jenisKejadian || item.title || '') + ' ' + (item.kategori || '') + ' ' + (item.deskripsiKejadian || '')).toLowerCase();
-    if (urgensiStr === 'darurat' || textKasus.includes('tawuran') || textKasus.includes('curas') || textKasus.includes('begal')) {
+    if (urgensiStr === 'darurat' || textKasus.includes('tawuran') || textKasus.includes('curas') || textKasus.includes('begal') || textKasus.includes('kebakaran')) {
       setKuotaPersonel(8);
     } else if (textKasus.includes('curanmor') || textKasus.includes('kriminal') || textKasus.includes('sajam')) {
       setKuotaPersonel(6);
@@ -1232,6 +1258,14 @@ function CommandCenterContent({
     } else {
       setKuotaPersonel(4);
     }
+
+    // Set instruksi taktis otomatis yang mewakili kasus/pengaduan di tiket
+    const sopRec = getSopRecommendationByIncident(item, dbSubcategories);
+    const initialInstruksi =
+      sopRec.sopText ||
+      item.deskripsi_sop ||
+      `Lakukan penanganan cepat di TKP terkait ${item.jenisKejadian || item.title || 'laporan warga'}, sterilisasi perimeter dan berikan pertolongan segera kepada warga/korban.`;
+    setArahanPawas(initialInstruksi);
 
     setShowDisposisiModal(true);
   };
@@ -5779,19 +5813,35 @@ function CommandCenterContent({
                   <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                       <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>Kasus / Lokasi TKP:</div>
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: isWarga ? '#EFF6FF' : '#FEF3C7',
-                          color: isWarga ? '#1D4ED8' : '#92400E',
-                          border: isWarga ? '1px solid #BFDBFE' : '1px solid #FDE68A',
-                        }}
-                      >
-                        {badgePelapor}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {(() => {
+                          const u = (selectedDisposisiItem.urgensi || '').toUpperCase();
+                          const isD = u === 'DARURAT' || u === 'PRIORITAS_TINGGI';
+                          const isS = u === 'SEDANG';
+                          const label = isD ? '🚨 DARURAT' : isS ? '⚠️ SEDANG' : 'ℹ️ NORMAL';
+                          const bg = isD ? '#FEE2E2' : isS ? '#FEF3C7' : '#EFF6FF';
+                          const color = isD ? '#DC2626' : isS ? '#D97706' : '#1D4ED8';
+                          const border = isD ? '1px solid #FECACA' : isS ? '1px solid #FDE68A' : '1px solid #BFDBFE';
+                          return (
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: bg, color, border }}>
+                              {label}
+                            </span>
+                          );
+                        })()}
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            background: isWarga ? '#EFF6FF' : '#FEF3C7',
+                            color: isWarga ? '#1D4ED8' : '#92400E',
+                            border: isWarga ? '1px solid #BFDBFE' : '1px solid #FDE68A',
+                          }}
+                        >
+                          {badgePelapor}
+                        </span>
+                      </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
                       <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#0F172A' }}>
@@ -5871,16 +5921,16 @@ function CommandCenterContent({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                padding: '10px 14px',
+                                padding: '10px 12px',
                                 borderRadius: '8px',
                                 cursor: 'pointer',
                                 transition: 'all 0.15s ease',
                                 background: isChecked ? '#EFF6FF' : '#FFFFFF',
-                                border: `2px solid ${isChecked ? '#2563EB' : '#CBD5E1'}`,
+                                border: `2px solid ${isChecked ? '#2563EB' : a.isPrimarySop ? '#93C5FD' : '#CBD5E1'}`,
                                 boxShadow: isChecked ? '0 2px 8px rgba(37,99,235,0.18)' : '0 1px 3px rgba(0,0,0,0.03)',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
@@ -5891,14 +5941,27 @@ function CommandCenterContent({
                                     width: '18px',
                                     height: '18px',
                                     accentColor: '#2563EB',
+                                    flexShrink: 0,
                                   }}
                                 />
-                                <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>{a.icon}</span> {a.namaSingkat}
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                    <span>{a.icon}</span> <span>{a.namaSingkat}</span>
+                                    {a.isPrimarySop && (
+                                      <span style={{ fontSize: '9px', fontWeight: 800, background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC', padding: '1px 5px', borderRadius: '4px' }}>
+                                        ★ SOP UTAMA
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                    <span>👤 {a.komandan}</span>
+                                    <span>•</span>
+                                    <span style={{ color: '#0284C7', fontWeight: 700 }}>📍 {a.jarakCalc} km ({a.etaCalc} mnt)</span>
+                                  </div>
                                 </div>
                               </div>
                               {isChecked && (
-                                <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: '#DBEAFE', color: '#1D4ED8' }}>
+                                <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: '#DBEAFE', color: '#1D4ED8', flexShrink: 0, marginLeft: '6px' }}>
                                   ✓ DIPILIH
                                 </span>
                               )}

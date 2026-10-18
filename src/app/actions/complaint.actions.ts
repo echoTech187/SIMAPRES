@@ -297,11 +297,11 @@ export async function getMasterFilterOptionsAction() {
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
-      prisma.masterDispatchStatus.findMany({
+      (prisma as any).masterDispatchStatus.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
-      prisma.masterIncidentSubcategory.findMany({
+      (prisma as any).masterIncidentSubcategory.findMany({
         where: { is_active: true },
         orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }],
         include: {
@@ -436,6 +436,7 @@ export async function disposisiMultiSatuanAction(input: {
 
     revalidatePath('/command-center');
     revalidatePath('/personil');
+    revalidatePath('/console/operator');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menerbitkan disposisi.' };
