@@ -1104,3 +1104,76 @@
       border-top: 1px solid #E2E8F0;
       background: white;
     }
+
+    /* Portal Warga Toast Notifications */
+    .warga-toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 99999999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 420px;
+      width: calc(100% - 40px);
+      pointer-events: none;
+    }
+
+    .warga-toast-card {
+      pointer-events: auto;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08);
+      border: 1px solid #E2E8F0;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      animation: toastSlideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      position: relative;
+      overflow: hidden;
+    }
+
+    @keyframes toastSlideInRight {
+      from {
+        transform: translateY(-20px) scale(0.95);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    .warga-toast-success {
+      border-left: 5px solid #10B981;
+    }
+
+    .warga-toast-warning {
+      border-left: 5px solid #F59E0B;
+    }
+
+    .warga-toast-error {
+      border-left: 5px solid #EF4444;
+    }
+
+    .warga-toast-info {
+      border-left: 5px solid #3B82F6;
+    }
+
+    /* Modal Animation */
+    @keyframes modalPopIn {
+      from {
+        transform: scale(0.92);
+        opacity: 0;
+      }
+      to {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .animate-pop-in {
+      animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+

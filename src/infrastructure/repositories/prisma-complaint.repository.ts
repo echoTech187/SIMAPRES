@@ -275,7 +275,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     let subcategoryId: number | null = (data as any).subcategoryId || null;
     if (subcategoryId) {
       try {
-        const foundSub = await prisma.masterIncidentSubcategory.findUnique({
+        const foundSub = await (prisma as any).masterIncidentSubcategory.findUnique({
           where: { id: Number(subcategoryId) },
           select: { id: true, category_id: true, category_key: true },
         });
@@ -286,7 +286,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       } catch (_) {}
     } else if (data.jenisKejadian || data.ringkasanKeterangan) {
       try {
-        const foundSub = await prisma.masterIncidentSubcategory.findFirst({
+        const foundSub = await (prisma as any).masterIncidentSubcategory.findFirst({
           where: {
             OR: [
               { nama_kasus: { contains: cleanJenisKejadian } },
@@ -323,7 +323,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         ringkasan_keterangan: data.ringkasanKeterangan,
         status: data.status,
         operator_id: data.operatorId,
-      },
+      } as any,
       include: COMPLAINT_INCLUDE,
     });
 
@@ -424,7 +424,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           dispatchStatus = 'DISPATCHED';
         }
 
-        const dispatchMaster = await prisma.masterDispatchStatus.findUnique({
+        const dispatchMaster = await (prisma as any).masterDispatchStatus.findUnique({
           where: { key: dispatchStatus },
         });
         const dispatchStatusId = dispatchMaster?.id || null;
@@ -439,7 +439,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               ...(departedAt ? { departed_at: departedAt } : {}),
               ...(arrivedAt ? { arrived_at: arrivedAt } : {}),
               ...(completedAt ? { completed_at: completedAt } : {}),
-            },
+            } as any,
           });
         } else {
           await prisma.complaintDispatch.create({
@@ -456,7 +456,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               ...(departedAt ? { departed_at: departedAt } : {}),
               ...(arrivedAt ? { arrived_at: arrivedAt } : {}),
               ...(completedAt ? { completed_at: completedAt } : {}),
-            },
+            } as any,
           });
         }
       } catch (e) {

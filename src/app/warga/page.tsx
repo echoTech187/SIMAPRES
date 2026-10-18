@@ -127,6 +127,106 @@ export default function PortalWargaPage() {
     icon: 'ℹ️',
   });
 
+  // Form Validation & Submitting State
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Friendly Toast Notification State
+  const [toastNotification, setToastNotification] = useState<{
+    visible: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+  }>({ visible: false, type: 'info', title: '', message: '' });
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showFriendlyToast = (
+    type: 'success' | 'error' | 'warning' | 'info',
+    title: string,
+    message: string
+  ) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastNotification({ visible: true, type, title, message });
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastNotification((prev) => ({ ...prev, visible: false }));
+    }, 4500);
+  };
+
+  // Success Confirmation Modal State (dengan fitur Salin Nomor Tiket)
+  const [successModal, setSuccessModal] = useState<{
+    open: boolean;
+    nomorTiket: string;
+    kategori: string;
+    pelapor: string;
+    lokasi: string;
+    waktu: string;
+    newLog: DemoLog | null;
+  }>({
+    open: false,
+    nomorTiket: '',
+    kategori: '',
+    pelapor: '',
+    lokasi: '',
+    waktu: '',
+    newLog: null,
+  });
+  const [copiedTicket, setCopiedTicket] = useState(false);
+
+  const handleCopyTicket = (ticketNum: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(ticketNum);
+      setCopiedTicket(true);
+      showFriendlyToast('success', 'Nomor Tiket Tersalin', `Tiket ${ticketNum} berhasil disalin ke papan klip.`);
+      setTimeout(() => setCopiedTicket(false), 2500);
+    }
+  };
+
+  // Validasi Formulir Warga Secara Menyeluruh & Ramah
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+
+    // 1. Kategori Kasus
+    if (!subcategoryId && !kategori.trim()) {
+      errors.kategori = 'Silakan pilih kategori kasus laporan.';
+    }
+
+    // 2. Nama Lengkap Pelapor
+    const namaTrim = nama.trim();
+    if (!namaTrim) {
+      errors.nama = 'Nama lengkap pelapor wajib diisi.';
+    } else if (namaTrim.length < 3) {
+      errors.nama = 'Nama pelapor minimal 3 karakter.';
+    }
+
+    // 3. Nomor Telepon / WA
+    const telpTrim = telp.trim();
+    const cleanTelp = telpTrim.replace(/[\s\-]/g, '');
+    const phoneRegex = /^(\+62|62|08)[0-9]{8,13}$/;
+    if (!telpTrim) {
+      errors.telp = 'Nomor WhatsApp / HP wajib diisi.';
+    } else if (!phoneRegex.test(cleanTelp)) {
+      errors.telp = 'Format nomor HP tidak valid. Gunakan format 08xx atau +62xx (9–14 digit) agar petugas dapat menghubungi Anda.';
+    }
+
+    // 4. Lokasi Kejadian (TKP)
+    const lokasiTrim = lokasi.trim();
+    if (!lokasiTrim) {
+      errors.lokasi = 'Alamat atau patokan lokasi kejadian (TKP) wajib diisi.';
+    } else if (lokasiTrim.length < 5) {
+      errors.lokasi = 'Mohon masukkan alamat lokasi lebih jelas (minimal 5 karakter).';
+    }
+
+    // 5. Uraian Keterangan
+    const uraianTrim = uraian.trim();
+    if (!uraianTrim) {
+      errors.uraian = 'Keterangan ringkas kejadian wajib diisi.';
+    } else if (uraianTrim.length < 10) {
+      errors.uraian = 'Uraian keterangan minimal 10 karakter agar petugas memahami situasi lapangan.';
+    }
+
+    return errors;
+  };
+
   // Load database master categories and recent active tickets
   useEffect(() => {
     ambilLokasiSaatIni();
@@ -301,10 +401,21 @@ export default function PortalWargaPage() {
 
   const handleKirimLaporanManual = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nama.trim() || !telp.trim() || !lokasi.trim() || !uraian.trim()) {
-      alert('Mohon lengkapi nama pelapor, nomor telepon, lokasi kejadian, dan uraian pengaduan.');
+    const errors = validateForm();
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      showFriendlyToast(
+        'warning',
+        'Formulir Belum Lengkap',
+        Object.values(errors)[0]
+      );
+      const errEl = document.getElementById('form-error-summary') || document.getElementById('form-lapor-warga');
+      if (errEl) errEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
+
+    setFormErrors({});
+    setIsSubmitting(true);
     const namaVal = nama.trim();
     const telpVal = telp.trim();
     const lokasiVal = lokasi.trim();
@@ -334,6 +445,8 @@ export default function PortalWargaPage() {
       }
     } catch (e) {
       console.warn('Backend sync warning:', e);
+    } finally {
+      setIsSubmitting(false);
     }
 
     const newLog: DemoLog = {
@@ -359,27 +472,28 @@ export default function PortalWargaPage() {
       disposisi: undefined,
     };
 
-    showAlert(
-      `✓ Laporan Pengaduan Berhasil Terkirim!\n\n` +
-        `• Nomor Tiket Resmi: ${noTiket}\n` +
-        `• Kategori: ${kategori}\n` +
-        `• Status: Diterima & Diverifikasi SPKT 110\n\n` +
-        `Gunakan Nomor Tiket di atas pada tab "Lacak Tiket" untuk memantau kehadiran petugas.`,
-      'LAPORAN DITERIMA',
-      '✅'
+    showFriendlyToast(
+      'success',
+      'Laporan Berhasil Diterima',
+      `Tiket resmi: ${noTiket}. Tim Command Center SPKT 110 telah menerima laporan Anda.`
     );
+
+    // Buka Modal Sukses Lapor dengan tombol Salin Nomor Tiket
+    setSuccessModal({
+      open: true,
+      nomorTiket: noTiket,
+      kategori: kategori,
+      pelapor: namaVal,
+      lokasi: lokasiVal,
+      waktu: waktu,
+      newLog: newLog,
+    });
 
     setNama('');
     setTelp('');
     setLokasi('');
     setUraian('');
     setFotoBukti(null);
-
-    setTimeout(() => {
-      setActiveTab('lacak');
-      setTicketInput(noTiket);
-      setCurrentActiveLog(newLog);
-    }, 600);
   };
 
   const handleLacakLaporan = async (overrideTiket?: string) => {
@@ -523,7 +637,7 @@ export default function PortalWargaPage() {
     if (type === 'pengaduan') {
       const img = currentActiveLog?.fotoPengaduan;
       if (!img) {
-        alert('Tidak ada foto bukti pengaduan yang dilampirkan.');
+        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi foto bukti pengaduan yang dilampirkan.');
         return;
       }
       setLightboxData({
@@ -535,7 +649,7 @@ export default function PortalWargaPage() {
     } else if (type === 'persiapan') {
       const img = currentActiveLog?.fotoPersiapan;
       if (!img) {
-        alert('Tidak ada foto persiapan yang dilampirkan.');
+        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi persiapan keberangkatan armada patroli.');
         return;
       }
       setLightboxData({
@@ -547,7 +661,7 @@ export default function PortalWargaPage() {
     } else {
       const img = currentActiveLog?.fotoTindakan;
       if (!img) {
-        alert('Tidak ada foto penanganan TKP yang dilampirkan.');
+        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi penanganan di TKP yang diunggah oleh petugas.');
         return;
       }
       setLightboxData({
@@ -646,9 +760,39 @@ export default function PortalWargaPage() {
                 agar segera ditindaklanjuti.
               </p>
 
-              <form id="form-lapor-warga" onSubmit={handleKirimLaporanManual}>
+              <form id="form-lapor-warga" onSubmit={handleKirimLaporanManual} noValidate>
+                {/* Error Summary Box Ramah Pengguna */}
+                {Object.keys(formErrors).length > 0 && (
+                  <div
+                    id="form-error-summary"
+                    style={{
+                      background: '#FEF2F2',
+                      border: '1.5px solid #FECACA',
+                      borderRadius: '12px',
+                      padding: '14px 16px',
+                      marginBottom: '18px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)',
+                    }}
+                  >
+                    <span style={{ fontSize: '20px', lineHeight: 1 }}>⚠️</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#991B1B', marginBottom: '4px' }}>
+                        Mohon Lengkapi {Object.keys(formErrors).length} Informasi yang Diperlukan:
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#B91C1C', lineHeight: 1.6 }}>
+                        {Object.values(formErrors).map((msg, i) => (
+                          <li key={i}>{msg}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+
                 {/* Kategori Laporan (Select2 Style Searchable) */}
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: '14px' }}>
                   <label className="form-label" htmlFor="lapor-kategori">
                     Kategori Laporan <span className="req">*</span>
                   </label>
@@ -659,6 +803,13 @@ export default function PortalWargaPage() {
                       if (item) {
                         setSubcategoryId(item.id);
                         setKategori(item.nama_kasus);
+                        if (formErrors.kategori) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.kategori;
+                            return next;
+                          });
+                        }
                       } else {
                         setSubcategoryId(null);
                         setKategori('');
@@ -666,12 +817,21 @@ export default function PortalWargaPage() {
                     }}
                     placeholder="-- Cari / Pilih Kategori Kasus Laporan --"
                     required
+                    style={{
+                      border: formErrors.kategori ? '1.5px solid #EF4444' : undefined,
+                      background: formErrors.kategori ? '#FEF2F2' : undefined,
+                    }}
                   />
+                  {formErrors.kategori && (
+                    <div style={{ marginTop: '5px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <span>⚠️</span> {formErrors.kategori}
+                    </div>
+                  )}
                 </div>
 
                 {/* Nama Pelapor & No HP */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <div className="form-group">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '14px' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" htmlFor="lapor-nama">
                       Nama Lengkap Pelapor <span className="req">*</span>
                     </label>
@@ -681,11 +841,29 @@ export default function PortalWargaPage() {
                       className="form-control"
                       placeholder="Masukkan nama lengkap Anda"
                       value={nama}
-                      onChange={(e) => setNama(e.target.value)}
+                      onChange={(e) => {
+                        setNama(e.target.value);
+                        if (formErrors.nama) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.nama;
+                            return next;
+                          });
+                        }
+                      }}
+                      style={{
+                        border: formErrors.nama ? '1.5px solid #EF4444' : undefined,
+                        background: formErrors.nama ? '#FEF2F2' : undefined,
+                      }}
                       required
                     />
+                    {formErrors.nama && (
+                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <span>⚠️</span> {formErrors.nama}
+                      </div>
+                    )}
                   </div>
-                  <div className="form-group">
+                  <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label" htmlFor="lapor-telp">
                       Nomor WhatsApp / HP <span className="req">*</span>
                     </label>
@@ -695,14 +873,32 @@ export default function PortalWargaPage() {
                       className="form-control"
                       placeholder="Contoh: 081234567890"
                       value={telp}
-                      onChange={(e) => setTelp(e.target.value)}
+                      onChange={(e) => {
+                        setTelp(e.target.value);
+                        if (formErrors.telp) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.telp;
+                            return next;
+                          });
+                        }
+                      }}
+                      style={{
+                        border: formErrors.telp ? '1.5px solid #EF4444' : undefined,
+                        background: formErrors.telp ? '#FEF2F2' : undefined,
+                      }}
                       required
                     />
+                    {formErrors.telp && (
+                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <span>⚠️</span> {formErrors.telp}
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Lokasi Kejadian (TKP) dengan Google-style Search & Peta Interaktif */}
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: '14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                     <label className="form-label" htmlFor="lapor-lokasi" style={{ marginBottom: 0 }}>
                       Lokasi Kejadian (TKP) <span className="req">*</span>
@@ -737,12 +933,25 @@ export default function PortalWargaPage() {
                       className="form-control"
                       placeholder="Ketik alamat TKP atau cari nama tempat..."
                       value={lokasi}
-                      onChange={(e) => handleLocationSearch(e.target.value)}
+                      onChange={(e) => {
+                        handleLocationSearch(e.target.value);
+                        if (formErrors.lokasi) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.lokasi;
+                            return next;
+                          });
+                        }
+                      }}
                       onFocus={() => {
                         if (locationSuggestions.length > 0) setShowSuggestions(true);
                       }}
                       required
-                      style={{ paddingRight: '60px' }}
+                      style={{
+                        paddingRight: '60px',
+                        border: formErrors.lokasi ? '1.5px solid #EF4444' : undefined,
+                        background: formErrors.lokasi ? '#FEF2F2' : undefined,
+                      }}
                     />
                     {isSearchingLocation && (
                       <div
@@ -818,7 +1027,16 @@ export default function PortalWargaPage() {
                         {locationSuggestions.map((item, idx) => (
                           <div
                             key={idx}
-                            onClick={() => handleSelectSuggestion(item)}
+                            onClick={() => {
+                              handleSelectSuggestion(item);
+                              if (formErrors.lokasi) {
+                                setFormErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.lokasi;
+                                  return next;
+                                });
+                              }
+                            }}
                             style={{
                               padding: '9px 12px',
                               cursor: 'pointer',
@@ -876,6 +1094,11 @@ export default function PortalWargaPage() {
                       </div>
                     )}
                   </div>
+                  {formErrors.lokasi && (
+                    <div style={{ marginTop: '5px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <span>⚠️</span> {formErrors.lokasi}
+                    </div>
+                  )}
 
                   {/* Interactive Map Picker (Opsi Pilih Titik di Peta Langsung) */}
                   {showMapPicker && (
@@ -926,6 +1149,13 @@ export default function PortalWargaPage() {
                         }}
                         onAddressChange={(alamat) => {
                           setLokasi(alamat);
+                          if (formErrors.lokasi) {
+                            setFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.lokasi;
+                              return next;
+                            });
+                          }
                         }}
                       />
                     </div>
@@ -933,7 +1163,7 @@ export default function PortalWargaPage() {
                 </div>
 
                 {/* Keterangan Kejadian */}
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: '14px' }}>
                   <label className="form-label" htmlFor="lapor-uraian">
                     Keterangan / Uraian Singkat Kejadian <span className="req">*</span>
                   </label>
@@ -942,13 +1172,36 @@ export default function PortalWargaPage() {
                     className="form-control"
                     placeholder="Jelaskan secara ringkas apa yang terjadi, situasi di lapangan, korban, atau bantuan yang dibutuhkan..."
                     value={uraian}
-                    onChange={(e) => setUraian(e.target.value)}
+                    onChange={(e) => {
+                      setUraian(e.target.value);
+                      if (formErrors.uraian) {
+                        setFormErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.uraian;
+                          return next;
+                        });
+                      }
+                    }}
+                    style={{
+                      border: formErrors.uraian ? '1.5px solid #EF4444' : undefined,
+                      background: formErrors.uraian ? '#FEF2F2' : undefined,
+                      minHeight: '90px',
+                    }}
                     required
                   ></textarea>
+                  {formErrors.uraian ? (
+                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <span>⚠️</span> {formErrors.uraian}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
+                      Minimal 10 karakter. Uraian yang jelas mempercepat penugasan regu kepolisian.
+                    </div>
+                  )}
                 </div>
 
                 {/* Lampiran Foto */}
-                <div className="form-group">
+                <div className="form-group" style={{ marginBottom: '18px' }}>
                   <label className="form-label" htmlFor="lapor-foto">
                     Lampiran Foto Lokasi / Bukti (Opsional)
                   </label>
@@ -973,8 +1226,31 @@ export default function PortalWargaPage() {
                 </div>
 
                 {/* Tombol Kirim */}
-                <button type="submit" className="btn-submit-lapor" id="btn-kirim-laporan">
-                  <span>🚀</span> Kirim Laporan
+                <button
+                  type="submit"
+                  className="btn-submit-lapor"
+                  id="btn-kirim-laporan"
+                  disabled={isSubmitting}
+                  style={{
+                    opacity: isSubmitting ? 0.75 : 1,
+                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span>🔄</span>
+                      <span>Sedang Mengirim Laporan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🚀</span>
+                      <span>Kirim Laporan Pengaduan</span>
+                    </>
+                  )}
                 </button>
               </form>
             </section>
@@ -1755,6 +2031,223 @@ export default function PortalWargaPage() {
               >
                 Mengerti &amp; Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Friendly Toast Notifications */}
+      {toastNotification.visible && (
+        <div className="warga-toast-container" id="warga-toast-box">
+          <div className={`warga-toast-card warga-toast-${toastNotification.type}`}>
+            <span style={{ fontSize: '22px', flexShrink: 0 }}>
+              {toastNotification.type === 'success' ? '✅' : toastNotification.type === 'warning' ? '⚠️' : toastNotification.type === 'error' ? '❌' : 'ℹ️'}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '2px' }}>
+                {toastNotification.title}
+              </div>
+              <div style={{ fontSize: '11.5px', color: '#475569', lineHeight: 1.45 }}>
+                {toastNotification.message}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToastNotification((prev) => ({ ...prev, visible: false }))}
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: '16px',
+                color: '#94A3B8',
+                cursor: 'pointer',
+                padding: '2px',
+                lineHeight: 1,
+                alignSelf: 'flex-start',
+              }}
+              title="Tutup Notifikasi"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sukses Lapor Warga (User-Friendly dengan Tombol Salin Tiket & Lacak) */}
+      {successModal.open && (
+        <div
+          id="modal-sukses-warga"
+          style={{
+            display: 'flex',
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999999,
+            background: 'rgba(15,23,42,0.8)',
+            backdropFilter: 'blur(6px)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setSuccessModal((prev) => ({ ...prev, open: false }))}
+        >
+          <div
+            className="animate-pop-in"
+            style={{
+              background: 'white',
+              width: '100%',
+              maxWidth: '480px',
+              borderRadius: '20px',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
+              overflow: 'hidden',
+              border: '1px solid #E2E8F0',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)',
+                color: 'white',
+                padding: '24px 20px 20px 20px',
+                textAlign: 'center',
+                position: 'relative',
+              }}
+            >
+              <div
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  background: 'rgba(255,255,255,0.2)',
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '28px',
+                  marginBottom: '10px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                }}
+              >
+                ✅
+              </div>
+              <div style={{ fontSize: '17px', fontWeight: 800 }}>
+                Laporan Berhasil Diterima SPKT 110
+              </div>
+              <div style={{ fontSize: '11.5px', opacity: 0.9, marginTop: '3px' }}>
+                Sistem Monitoring &amp; Akuntabilitas Pengaduan Presisi
+              </div>
+            </div>
+
+            {/* Body Modal */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ textAlign: 'center', fontSize: '12.5px', color: '#475569', lineHeight: 1.5 }}>
+                Terima kasih atas laporan Anda. Laporan pengaduan telah tercatat di sistem Command Center dan sedang dalam proses verifikasi &amp; penugasan regu kepolisian.
+              </div>
+
+              {/* Nomor Tiket Card dengan Salin Nomor Tiket */}
+              <div
+                style={{
+                  background: '#F0F9FF',
+                  border: '1.5px solid #BAE6FD',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0369A1', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+                  Nomor Tiket Resmi Anda
+                </div>
+                <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'monospace', color: '#0C4A6E', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                  {successModal.nomorTiket}
+                </div>
+                <button
+                  type="button"
+                  id="btn-copy-ticket"
+                  onClick={() => handleCopyTicket(successModal.nomorTiket)}
+                  style={{
+                    padding: '7px 16px',
+                    background: copiedTicket ? '#10B981' : '#0284C7',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{copiedTicket ? '✓' : '📋'}</span>
+                  <span>{copiedTicket ? 'Nomor Tiket Tersalin!' : 'Salin Nomor Tiket'}</span>
+                </button>
+              </div>
+
+              {/* Rincian Singkat Laporan */}
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Pelapor:</span>
+                  <span style={{ fontWeight: 700, color: '#1E293B' }}>{successModal.pelapor}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Kategori Kasus:</span>
+                  <span style={{ fontWeight: 700, color: '#1E293B' }}>{successModal.kategori}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748B' }}>Lokasi TKP:</span>
+                  <span style={{ fontWeight: 700, color: '#1E293B', maxWidth: '240px', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {successModal.lokasi}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSuccessModal((prev) => ({ ...prev, open: false }))}
+                  style={{
+                    flex: 1,
+                    padding: '11px',
+                    background: '#F1F5F9',
+                    color: '#475569',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '10px',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  id="btn-modal-lacak-sekarang"
+                  onClick={() => {
+                    const ticketNum = successModal.nomorTiket;
+                    const log = successModal.newLog;
+                    setSuccessModal((prev) => ({ ...prev, open: false }));
+                    setActiveTab('lacak');
+                    setTicketInput(ticketNum);
+                    if (log) setCurrentActiveLog(log);
+                  }}
+                  style={{
+                    flex: 1.6,
+                    padding: '11px',
+                    background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(29, 78, 216, 0.25)',
+                  }}
+                >
+                  🔍 Lacak Status Sekarang ➔
+                </button>
+              </div>
             </div>
           </div>
         </div>
