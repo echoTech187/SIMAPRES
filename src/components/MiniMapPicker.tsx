@@ -7,6 +7,7 @@ interface MiniMapPickerProps {
   lat: number;
   lng: number;
   onChange: (lat: number, lng: number) => void;
+  onAddressChange?: (address: string) => void;
   height?: string;
 }
 
@@ -14,17 +15,20 @@ export default function MiniMapPicker({
   lat,
   lng,
   onChange,
+  onAddressChange,
   height = '220px',
 }: MiniMapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const mapsRef = useRef<any>(null);
 
   useEffect(() => {
     let isSubscribed = true;
 
     loadGoogleMaps().then((maps) => {
       if (!isSubscribed || !maps || !containerRef.current) return;
+      mapsRef.current = maps;
 
       const initialPos = {
         lat: lat || -6.2443,
@@ -52,17 +56,35 @@ export default function MiniMapPicker({
       });
       markerRef.current = marker;
 
+      const geocodeLatLng = (targetLat: number, targetLng: number) => {
+        if (!onAddressChange) return;
+        try {
+          const geocoder = new maps.Geocoder();
+          geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
+            if (status === 'OK' && results && results[0]) {
+              onAddressChange(results[0].formatted_address);
+            }
+          });
+        } catch (_) {}
+      };
+
       // Event click on map
       map.addListener('click', (e: any) => {
         const clickedPos = e.latLng;
         marker.setPosition(clickedPos);
-        onChange(Number(clickedPos.lat().toFixed(6)), Number(clickedPos.lng().toFixed(6)));
+        const newLat = Number(clickedPos.lat().toFixed(6));
+        const newLng = Number(clickedPos.lng().toFixed(6));
+        onChange(newLat, newLng);
+        geocodeLatLng(newLat, newLng);
       });
 
       // Event drag marker
       marker.addListener('dragend', (e: any) => {
         const draggedPos = e.latLng;
-        onChange(Number(draggedPos.lat().toFixed(6)), Number(draggedPos.lng().toFixed(6)));
+        const newLat = Number(draggedPos.lat().toFixed(6));
+        const newLng = Number(draggedPos.lng().toFixed(6));
+        onChange(newLat, newLng);
+        geocodeLatLng(newLat, newLng);
       });
     });
 
@@ -94,6 +116,16 @@ export default function MiniMapPicker({
         if (mapRef.current) {
           mapRef.current.panTo({ lat: curLat, lng: curLng });
           mapRef.current.setZoom(16);
+        }
+        if (mapsRef.current && onAddressChange) {
+          try {
+            const geocoder = new mapsRef.current.Geocoder();
+            geocoder.geocode({ location: { lat: curLat, lng: curLng } }, (results: any, status: any) => {
+              if (status === 'OK' && results && results[0]) {
+                onAddressChange(results[0].formatted_address);
+              }
+            });
+          } catch (_) {}
         }
       });
     }

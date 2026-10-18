@@ -11,6 +11,39 @@
   pointer-events: none !important;
 }
 
+/* Google Maps Places Autocomplete Dropdown Styling */
+.pac-container {
+  z-index: 999999 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid #CBD5E1 !important;
+  font-family: inherit !important;
+  margin-top: 4px !important;
+  background-color: #FFFFFF !important;
+}
+.pac-item {
+  padding: 8px 12px !important;
+  cursor: pointer !important;
+  font-size: 12.5px !important;
+  border-top: 1px solid #F1F5F9 !important;
+  display: flex !important;
+  align-items: center !important;
+  line-height: 1.4 !important;
+}
+.pac-item:hover, .pac-item-selected {
+  background-color: #F8FAFC !important;
+}
+.pac-item-query {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #1E293B !important;
+  padding-right: 4px !important;
+}
+.pac-matched {
+  font-weight: 800 !important;
+  color: #1D4ED8 !important;
+}
+
 :root {
   --primary: #153E75;
       /* Deep Police Blue */

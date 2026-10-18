@@ -29,6 +29,7 @@ import {
   deleteHotspotAction,
 } from '@/app/actions/hotspot.actions';
 import { createLogbookAction } from '@/app/actions/logbook.actions';
+import { loadGoogleMaps } from '@/components/SimapresGoogleMap';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
   ssr: false,
@@ -277,6 +278,61 @@ function CommandCenterContent({
   });
   const [isCallActive, setIsCallActive] = useState(false);
   const [callTimer, setCallTimer] = useState('');
+
+  // Operator CAD Location & Map Picker State
+  const [showMapPickerCad, setShowMapPickerCad] = useState(false);
+  const inputAlamatCadRef = useRef<HTMLInputElement>(null);
+  const autocompleteCadRef = useRef<any>(null);
+
+  useEffect(() => {
+    let isSubscribed = true;
+
+    loadGoogleMaps().then((maps) => {
+      if (!isSubscribed || !maps) return;
+
+      const initAutocomplete = () => {
+        if (!inputAlamatCadRef.current) return;
+        if (autocompleteCadRef.current) return;
+
+        try {
+          if (maps.places?.Autocomplete) {
+            const autocomplete = new maps.places.Autocomplete(inputAlamatCadRef.current, {
+              componentRestrictions: { country: 'id' },
+              fields: ['address_components', 'geometry', 'formatted_address', 'name'],
+            });
+
+            autocomplete.addListener('place_changed', () => {
+              const place = autocomplete.getPlace();
+              if (!place || !place.geometry || !place.geometry.location) return;
+
+              const lat = Number(place.geometry.location.lat().toFixed(6));
+              const lng = Number(place.geometry.location.lng().toFixed(6));
+              const address = place.formatted_address || place.name || '';
+
+              setSimCaller((prev) => ({
+                ...prev,
+                alamat: address,
+                lat,
+                lng,
+              }));
+            });
+
+            autocompleteCadRef.current = autocomplete;
+          }
+        } catch (err) {
+          console.warn('Google Places Autocomplete initialization notice:', err);
+        }
+      };
+
+      initAutocomplete();
+      const retryTimer = setTimeout(initAutocomplete, 400);
+      return () => clearTimeout(retryTimer);
+    });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [activeTab]);
 
   // Disposisi Modal State
   const [showDisposisiModal, setShowDisposisiModal] = useState(false);
@@ -4833,22 +4889,113 @@ function CommandCenterContent({
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Lokasi Kejadian (TKP) &amp; Sektor <span style={{ color: 'red' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={simCaller.alamat}
-                        onChange={(e) => setSimCaller({ ...simCaller, alamat: e.target.value })}
-                      />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
+                          Lokasi Kejadian (TKP) &amp; Sektor <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <button
+                          type="button"
+                          id="btn-toggle-cad-map"
+                          onClick={() => setShowMapPickerCad(!showMapPickerCad)}
+                          style={{
+                            background: showMapPickerCad ? '#EFF6FF' : '#F8FAFC',
+                            border: showMapPickerCad ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                            color: showMapPickerCad ? '#1D4ED8' : '#334155',
+                            padding: '3px 9px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            boxShadow: showMapPickerCad ? '0 1px 4px rgba(37, 99, 235, 0.2)' : 'none',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span>🗺️</span> {showMapPickerCad ? 'Tutup Peta' : 'Pilih Titik di Peta'}
+                        </button>
+                      </div>
+
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          ref={inputAlamatCadRef}
+                          type="text"
+                          className="form-control"
+                          placeholder="Ketik alamat TKP atau cari nama tempat..."
+                          value={simCaller.alamat}
+                          onChange={(e) => setSimCaller({ ...simCaller, alamat: e.target.value })}
+                          style={{ paddingRight: '32px' }}
+                        />
+                        {simCaller.alamat && (
+                          <button
+                            type="button"
+                            onClick={() => setSimCaller({ ...simCaller, alamat: '', lat: 0, lng: 0 })}
+                            style={{
+                              position: 'absolute',
+                              right: '8px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#94A3B8',
+                              cursor: 'pointer',
+                              fontSize: '14px',
+                              fontWeight: 700,
+                            }}
+                            title="Hapus alamat"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* Interactive Google Map Picker (Opsi Pilih Titik di Peta Langsung) */}
+                    {showMapPickerCad && (
+                      <div style={{ marginBottom: '14px', border: '1.5px solid #93C5FD', borderRadius: '10px', overflow: 'hidden', background: '#F8FAFC', padding: '10px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            📍 Klik peta atau geser pin merah untuk mengunci titik TKP
+                          </span>
+                          <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 600 }}>
+                            Google Maps Live
+                          </span>
+                        </div>
+                        <MiniMapPicker
+                          lat={simCaller.lat || -6.2615}
+                          lng={simCaller.lng || 106.8106}
+                          height="240px"
+                          onChange={(lat, lng) => {
+                            setSimCaller((prev) => ({ ...prev, lat, lng }));
+                          }}
+                          onAddressChange={(alamat) => {
+                            setSimCaller((prev) => ({ ...prev, alamat }));
+                          }}
+                        />
+                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', background: '#EFF6FF', padding: '6px 10px', borderRadius: '6px', border: '1px solid #DBEAFE' }}>
+                          <span style={{ color: '#1E40AF', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '75%' }}>
+                            🏠 {simCaller.alamat || 'Titik koordinat terpilih'}
+                          </span>
+                          <span style={{ color: '#2563EB', fontFamily: 'monospace', fontWeight: 700 }}>
+                            {simCaller.lat && simCaller.lng ? `${simCaller.lat.toFixed(4)}, ${simCaller.lng.toFixed(4)}` : 'Belum Terkunci'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Koordinat GPS Satelit Terkunci Otomatis (Prototype L2115-2119) */}
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Koordinat GPS Satelit (Terkunci Otomatis)
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
+                          Koordinat GPS Satelit (Terkunci Otomatis)
+                        </label>
+                        {simCaller.lat !== 0 && simCaller.lng !== 0 && (
+                          <span style={{ fontSize: '10.5px', color: '#15803D', fontWeight: 700, background: '#DCFCE7', padding: '1px 6px', borderRadius: '4px' }}>
+                            ✓ Terkunci Akurat
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         id="eb-op-gps"
