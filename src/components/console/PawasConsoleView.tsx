@@ -1347,7 +1347,7 @@ function CommandCenterContent({
   const handleSimpanLogKegiatan = async () => {
     const activeUserId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
     if (!activeUserId) {
-      alert('Sesi pengguna tidak valid. Silakan login kembali.');
+      showFriendlyToast('error', 'Sesi Berakhir', 'Sesi pengguna tidak valid. Silakan login kembali.');
       return;
     }
     setLoading(true);
@@ -1368,14 +1368,14 @@ function CommandCenterContent({
       });
 
       if (res.success) {
-        alert('✓ Log kegiatan dinas berhasil disimpan ke buku mutasi dan terverifikasi GPS!');
+        showFriendlyToast('success', 'Buku Mutasi Berhasil', 'Log kegiatan dinas berhasil disimpan ke buku mutasi dan terverifikasi GPS.');
         switchTab('view-beranda');
         loadData();
       } else {
-        alert(res.error || 'Gagal menyimpan log.');
+        showFriendlyToast('error', 'Gagal Menyimpan Log', res.error || 'Gagal menyimpan log.');
       }
     } catch (e: any) {
-      alert(e.message || 'Gagal menyimpan log kegiatan.');
+      showFriendlyToast('error', 'Terjadi Kendala', e.message || 'Gagal menyimpan log kegiatan.');
     } finally {
       setLoading(false);
     }
@@ -1394,7 +1394,7 @@ function CommandCenterContent({
         catatan: rejectNote,
         pawasUserId: activePawasId,
       });
-      alert('✓ Permintaan revisi/penolakan berhasil diteruskan ke petugas penanggung jawab!\nLaporan masuk ke tab Ditolak.');
+      showFriendlyToast('success', 'Penolakan Berhasil Diteruskan', 'Permintaan revisi/penolakan berhasil diteruskan ke petugas penanggung jawab. Laporan masuk ke tab Ditolak.');
       const rejectedComplaint = {
         ...tolakComplaint,
         ringkasanKeterangan: rejectNote,
@@ -1406,7 +1406,7 @@ function CommandCenterContent({
       setSelectedValComplaint(rejectedComplaint);
       switchTab('view-validasi');
     } catch (e: any) {
-      alert(e.message || 'Gagal mengirim penolakan.');
+      showFriendlyToast('error', 'Gagal Mengirim Penolakan', e.message || 'Gagal mengirim penolakan.');
     } finally {
       setLoading(false);
     }
@@ -1432,7 +1432,7 @@ function CommandCenterContent({
         pawasUserId: activePawasId,
       });
       if (res.success) {
-        alert(`✓ Laporan #${complaint.nomorTiket || complaint.id} telah diajukan ulang ke Atasan untuk divalidasi kembali!\n\nStatus laporan kembali menjadi MENUNGGU TINDAKAN.`);
+        showFriendlyToast('success', 'Revisi Berhasil Diajukan', `Laporan #${complaint.nomorTiket || complaint.id} diajukan ulang ke Atasan. Status kembali MENUNGGU TINDAKAN.`);
         await loadData();
         setValFilterStatus('menunggu');
         setSelectedValComplaint({
@@ -1441,10 +1441,10 @@ function CommandCenterContent({
           ringkasanKeterangan: newKeterangan,
         });
       } else {
-        alert(res.error || 'Gagal mengajukan revisi.');
+        showFriendlyToast('error', 'Gagal Mengajukan Revisi', res.error || 'Gagal mengajukan revisi.');
       }
     } catch (e: any) {
-      alert(e.message || 'Gagal mengajukan revisi.');
+      showFriendlyToast('error', 'Terjadi Kendala', e.message || 'Gagal mengajukan revisi.');
     } finally {
       setLoading(false);
     }
@@ -1465,7 +1465,7 @@ function CommandCenterContent({
         pawasUserId: activePawasId,
       });
       if (res.success) {
-        alert(`🏆 KASUS RESMI DISAHKAN & DITUTUP OLEH PAWAS!\n\n• Nomor Tiket: ${complaint.nomorTiket || complaint.id}\n• Otoritas Pengesah: ${userProfile.fullName || 'Pawas'} (Pawas)\n• Berita Acara: Lengkap & Sah secara Hukum\n• Status Akhir: SELESAI (Masuk ke Arsip Log Selesai)\n\nTerima kasih atas kepemimpinan & pengawasan Presisi!`);
+        showFriendlyToast('success', 'Kasus Resmi Disahkan & Ditutup', `Tiket #${complaint.nomorTiket || complaint.id} resmi disahkan & berstatus SELESAI.`);
         await loadData();
         setValFilterStatus('selesai');
         setSelectedValComplaint({
@@ -1474,10 +1474,10 @@ function CommandCenterContent({
           selesaiAt: new Date().toISOString(),
         });
       } else {
-        alert(res.error || 'Gagal mengesahkan penutupan kasus.');
+        showFriendlyToast('error', 'Gagal Mengesahkan Kasus', res.error || 'Gagal mengesahkan penutupan kasus.');
       }
     } catch (e: any) {
-      alert(e.message || 'Gagal mengesahkan kasus.');
+      showFriendlyToast('error', 'Terjadi Kendala', e.message || 'Gagal mengesahkan kasus.');
     } finally {
       setLoading(false);
     }
@@ -1488,7 +1488,7 @@ function CommandCenterContent({
     setPresensiStatus('SUDAH_MASUK');
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     setJamMasukPiket(jam + ' (Tervalidasi)');
-    alert(`✅ Presensi Masuk Berhasil!\n\nJam: ${jam}\nLokasi: Area Mako Polres (Radius 50m)\nStatus: SIAGA PIKET AKTIF`);
+    showFriendlyToast('success', 'Presensi Masuk Berhasil', `Jam: ${jam} • Area Mako Polres (Radius 50m) • Status: SIAGA PIKET AKTIF`);
   };
 
   const handlePresensiPulang = () => {
@@ -1500,7 +1500,7 @@ function CommandCenterContent({
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     setJamPulangPiket(jam);
     setShowPresensiPulangModal(false);
-    alert(`🚪 Presensi Pulang Berhasil!\n\nJam: ${jam}\nTerima kasih atas pelaksanaan dinas supervisi.`);
+    showFriendlyToast('info', 'Presensi Pulang Berhasil', `Pukul ${jam}. Terima kasih atas pelaksanaan dinas supervisi.`);
   };
 
   // 1. Global Summary for Beranda & General Statistics (1:1 Prototype e-tribrata-log Section 1)
@@ -4934,7 +4934,7 @@ function CommandCenterContent({
                                 subcategoryId: item.id,
                                 kategori: item.nama_kasus,
                                 urgensi: (item.default_urgensi as any) || simCaller.urgensi || 'SEDANG',
-                                uraian: simCaller.uraian ? simCaller.uraian : (item.deskripsi_sop ? `[SOP ${item.nama_kasus}] ${item.deskripsi_sop}` : ''),
+                                uraian: simCaller.uraian,
                               });
                               if (cadFormErrors.kategori || cadFormErrors.urgensi) {
                                 setCadFormErrors((prev) => {
@@ -6830,7 +6830,7 @@ function CommandCenterContent({
                       type="button"
                       onClick={async () => {
                         if (!newHotspotTitle.trim()) {
-                          alert('Mohon isi nama kawasan rawan terlebih dahulu!');
+                          showFriendlyToast('warning', 'Formulir Belum Lengkap', 'Mohon isi nama kawasan rawan terlebih dahulu.');
                           return;
                         }
                         await createHotspotAction({
@@ -6842,7 +6842,7 @@ function CommandCenterContent({
                           lat: newHotspotLat,
                           lng: newHotspotLng,
                         });
-                        alert('✓ Titik rawan berhasil ditambahkan ke database!');
+                        showFriendlyToast('success', 'Titik Rawan Tersimpan', 'Titik rawan berhasil ditambahkan ke database.');
                         setNewHotspotTitle('');
                         setShowHotspotAddForm(false);
                         loadData();
@@ -7105,7 +7105,7 @@ function CommandCenterContent({
                 <button
                   type="button"
                   onClick={() => {
-                    alert('✓ Kredensial akun & PIN otorisasi dinas berhasil diperbarui!');
+                    showFriendlyToast('success', 'Kredensial Diperbarui', 'Kredensial akun & PIN otorisasi dinas berhasil diperbarui.');
                     setShowKeamananModal(false);
                   }}
                   style={{ flex: 2, padding: '10px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer' }}

@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 };
 
 import InactivityMonitor from '@/components/auth/InactivityMonitor';
+import ToastContainer from '@/components/ui/Toast';
 
 export default function RootLayout({
   children,
@@ -28,6 +29,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased bg-[#F8FAFC] text-[#0F172A] min-h-screen">
         <InactivityMonitor />
+        <ToastContainer />
         {children}
       </body>
     </html>

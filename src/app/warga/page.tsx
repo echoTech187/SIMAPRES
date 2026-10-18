@@ -255,21 +255,109 @@ export default function PortalWargaPage() {
     loadDbMasters();
   }, []);
 
-  const ambilLokasiSaatIni = () => {
+  // Reverse Geocoding: Mengubah koordinat GPS (lat, lng) menjadi alamat riil (jalan, kelurahan, kecamatan, kota)
+  const resolveAddressFromCoords = async (targetLat: number, targetLng: number): Promise<string> => {
+    let resolved = '';
+
+    // 1. Coba Google Maps Geocoder jika library Google Maps tersedia
+    if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+      try {
+        const geocoder = new (window as any).google.maps.Geocoder();
+        await new Promise<void>((res) => {
+          geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
+            if (status === 'OK' && results && results[0]) {
+              resolved = results[0].formatted_address;
+            }
+            res();
+          });
+        });
+      } catch (_) {}
+    }
+
+    // 2. Fallback Photon Komoot reverse geocoding
+    if (!resolved) {
+      try {
+        const res = await fetch(`https://photon.komoot.io/reverse?lat=${targetLat}&lon=${targetLng}`);
+        if (res.ok) {
+          const data = await res.json();
+          const feat = data?.features?.[0]?.properties;
+          if (feat) {
+            const parts = [
+              feat.name,
+              feat.housenumber ? `No. ${feat.housenumber}` : '',
+              feat.street,
+              feat.district,
+              feat.city || feat.county,
+              feat.state,
+            ].filter(Boolean);
+            const uniqueParts = Array.from(new Set(parts));
+            if (uniqueParts.length > 0) {
+              resolved = uniqueParts.join(', ');
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 3. Fallback OpenStreetMap Nominatim reverse geocoding
+    if (!resolved) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${targetLat}&lon=${targetLng}&zoom=18&addressdetails=1`,
+          { headers: { 'Accept-Language': 'id' } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.display_name) {
+            resolved = data.display_name;
+          }
+        }
+      } catch (_) {}
+    }
+
+    return resolved;
+  };
+
+  const ambilLokasiSaatIni = (showFeedback = false) => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
+      setIsSearchingLocation(true);
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
           const latVal = Number(pos.coords.latitude.toFixed(6));
           const lngVal = Number(pos.coords.longitude.toFixed(6));
           setLat(latVal);
           setLng(lngVal);
           setGpsCoords(`${latVal}, ${lngVal}`);
-          if (!lokasi) {
-            setLokasi(`Titik Lokasi Terkini (${latVal.toFixed(4)}, ${lngVal.toFixed(4)})`);
+
+          try {
+            const realAddress = await resolveAddressFromCoords(latVal, lngVal);
+            if (realAddress) {
+              setLokasi(realAddress);
+              if (showFeedback) {
+                showFriendlyToast('success', 'Lokasi GPS Terkunci', `Alamat terdeteksi: ${realAddress}`);
+              }
+            } else if (!lokasi) {
+              setLokasi(`Jl. Sekitar (${latVal.toFixed(4)}, ${lngVal.toFixed(4)})`);
+            }
+          } catch (_) {
+            if (!lokasi) {
+              setLokasi(`Jl. Sekitar (${latVal.toFixed(4)}, ${lngVal.toFixed(4)})`);
+            }
+          } finally {
+            setIsSearchingLocation(false);
           }
         },
-        () => {},
-        { enableHighAccuracy: true, timeout: 5000 }
+        () => {
+          setIsSearchingLocation(false);
+          if (showFeedback) {
+            showFriendlyToast(
+              'warning',
+              'Izin Lokasi Belum Aktif',
+              'Mohon aktifkan izin GPS di peramban Anda atau ketik nama jalan/lokasi secara manual.'
+            );
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     }
   };
@@ -970,7 +1058,7 @@ export default function PortalWargaPage() {
                     <button
                       type="button"
                       className="input-icon-btn"
-                      onClick={ambilLokasiSaatIni}
+                      onClick={() => ambilLokasiSaatIni(true)}
                       title="Dapatkan Lokasi GPS Saat Ini"
                       style={{
                         position: 'absolute',
@@ -1099,6 +1187,49 @@ export default function PortalWargaPage() {
                       <span>⚠️</span> {formErrors.lokasi}
                     </div>
                   )}
+
+                  {/* Status & Inputan Koordinat GPS TKP (Wajib Dikirim saat Submit) */}
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: (lat && lng) ? '#F0FDF4' : '#F8FAFC',
+                      border: (lat && lng) ? '1px solid #BBF7D0' : '1px dashed #CBD5E1',
+                      borderRadius: '8px',
+                      padding: '7px 12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <span style={{ fontSize: '13px' }}>{(lat && lng) ? '🛰️' : '📍'}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: (lat && lng) ? '#166534' : '#64748B' }}>
+                          {(lat && lng) ? 'Koordinat GPS Terkunci (Wajib Dikirim saat Submit)' : 'Koordinat GPS Belum Terkunci'}
+                        </div>
+                        <div style={{ fontSize: '10.5px', color: (lat && lng) ? '#15803D' : '#94A3B8', fontFamily: 'monospace' }}>
+                          {(lat && lng) ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : 'Klik tombol GPS untuk mengunci titik'}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => ambilLokasiSaatIni(true)}
+                      style={{
+                        background: (lat && lng) ? '#DCFCE7' : '#EFF6FF',
+                        color: (lat && lng) ? '#15803D' : '#2563EB',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '4px 8px',
+                        fontSize: '10.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {(lat && lng) ? '🔄 Perbarui GPS' : '📍 Ambil GPS'}
+                    </button>
+                  </div>
 
                   {/* Interactive Map Picker (Opsi Pilih Titik di Peta Langsung) */}
                   {showMapPicker && (
