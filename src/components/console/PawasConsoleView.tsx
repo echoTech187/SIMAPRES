@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -223,6 +223,115 @@ function CommandCenterContent({
   const [isCallActive, setIsCallActive] = useState(false);
   const [callTimer, setCallTimer] = useState('');
 
+  // Friendly Toast Notification State
+  const [toastList, setToastList] = useState<
+    Array<{ id: string; type: 'success' | 'warning' | 'error' | 'info'; title: string; message: string; duration?: number }>
+  >([]);
+
+  const showFriendlyToast = useCallback((
+    type: 'success' | 'warning' | 'error' | 'info',
+    title: string,
+    message: string,
+    duration = 5000
+  ) => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+    setToastList((prev) => [...prev, { id, type, title, message, duration }]);
+    setTimeout(() => {
+      setToastList((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  }, []);
+
+  const removeFriendlyToast = useCallback((id: string) => {
+    setToastList((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // CAD Form Validation Errors
+  const [cadFormErrors, setCadFormErrors] = useState<Record<string, string>>({});
+
+  // Disposisi Modal Validation Errors
+  const [disposisiFormErrors, setDisposisiFormErrors] = useState<Record<string, string>>({});
+
+  // Validasi Formulir Penerimaan Laporan (CAD 110)
+  const validateCadForm = () => {
+    const errors: Record<string, string> = {};
+
+    // 1. Nomor Telepon Pelapor
+    const rawPhone = (simCaller.telepon || '').trim();
+    const digitsOnly = rawPhone.replace(/\D/g, '');
+    if (!rawPhone) {
+      errors.telepon = 'Nomor telepon pelapor wajib diisi agar petugas dapat melakukan panggilan balik atau konfirmasi.';
+    } else if (digitsOnly.length < 9) {
+      errors.telepon = 'Nomor telepon terlalu pendek. Masukkan minimal 9–14 digit nomor telepon aktif.';
+    } else if (digitsOnly.length > 15) {
+      errors.telepon = 'Nomor telepon terlalu panjang (maksimal 15 digit). Mohon periksa kembali.';
+    } else if (!/^(0|62|\+62)/.test(rawPhone)) {
+      errors.telepon = 'Format nomor belum sesuai. Awali dengan 08... atau +62... (contoh: 08123456789).';
+    }
+
+    // 2. Nama Warga Pelapor
+    const cleanNama = (simCaller.nama || '').trim();
+    if (!cleanNama) {
+      errors.nama = 'Nama warga pelapor wajib diisi.';
+    } else if (cleanNama.length < 3) {
+      errors.nama = 'Nama pelapor minimal 3 karakter huruf (contoh: Bpk. Budi Santoso).';
+    } else if (/^\d+$/.test(cleanNama)) {
+      errors.nama = 'Nama pelapor tidak boleh hanya berupa angka. Silakan masukkan nama yang benar.';
+    }
+
+    // 3. Kategori Laporan Kejadian
+    if (!simCaller.subcategoryId && !simCaller.kategori) {
+      errors.kategori = 'Silakan pilih kategori laporan kejadian sesuai keterangan penelepon agar SOP penanganan tepat.';
+    }
+
+    // 4. Tingkat Urgensi Penanganan
+    if (!simCaller.urgensi) {
+      errors.urgensi = 'Silakan tentukan tingkat urgensi penanganan (Darurat, Sedang, atau Normal).';
+    }
+
+    // 5. Lokasi Kejadian (TKP)
+    const cleanAlamat = (simCaller.alamat || '').trim();
+    if (!cleanAlamat) {
+      errors.alamat = 'Alamat TKP atau patokan lokasi wajib diisi (atau klik "Pilih Titik di Peta").';
+    } else if (cleanAlamat.length < 5) {
+      errors.alamat = 'Keterangan alamat terlalu singkat (minimal 5 karakter, misal nama jalan, RT/RW, atau nama gedung).';
+    }
+
+    // 6. Ringkasan Uraian Kejadian
+    const cleanUraian = (simCaller.uraian || '').trim();
+    if (!cleanUraian) {
+      errors.uraian = 'Ringkasan uraian kejadian wajib diisi sebagai informasi awal bagi petugas patroli.';
+    } else if (cleanUraian.length < 10) {
+      errors.uraian = 'Uraian terlalu singkat (minimal 10 karakter agar situasi di lokasi dapat dipahami dengan baik).';
+    }
+
+    return errors;
+  };
+
+  // Validasi Lembar Disposisi Taktis
+  const validateDisposisiForm = () => {
+    const errors: Record<string, string> = {};
+
+    // 1. Satuan Tugas
+    if (selectedSatuanKeys.length === 0) {
+      errors.satuan = 'Silakan pilih minimal 1 Satuan Tugas (Unit Patroli) yang siap diterjunkan ke TKP.';
+    }
+
+    // 2. Kuota Personel
+    if (!kuotaPersonel || kuotaPersonel < 1) {
+      errors.kuota = 'Alokasi kuat personel minimal 2 orang.';
+    }
+
+    // 3. Arahan Taktis Pawas
+    const cleanArahan = (arahanPawas || '').trim();
+    if (!cleanArahan) {
+      errors.arahan = 'Mohon sertakan petunjuk khusus / instruksi taktis (minimal 5 karakter), atau pilih salah satu template cepat di atas.';
+    } else if (cleanArahan.length < 5) {
+      errors.arahan = 'Arahan taktis terlalu singkat (minimal 5 karakter) demi kejelasan instruksi kepada personel di lapangan.';
+    }
+
+    return errors;
+  };
+
   // Operator CAD Location & Map Picker State
   const [showMapPickerCad, setShowMapPickerCad] = useState(false);
   const [cadLocationSuggestions, setCadLocationSuggestions] = useState<
@@ -285,6 +394,11 @@ function CommandCenterContent({
       lat: item.lat,
       lng: item.lng,
     }));
+    setCadFormErrors((prev) => {
+      const next = { ...prev };
+      delete next.alamat;
+      return next;
+    });
     setShowCadSuggestions(false);
   };
 
@@ -1096,6 +1210,9 @@ function CommandCenterContent({
   const bukaModalDisposisi = (item: any) => {
     setSelectedDisposisiItem(item);
 
+    // Reset error validasi disposisi
+    setDisposisiFormErrors({});
+
     // Daftar satuan tampil netral tanpa ada yang tercentang otomatis
     setSelectedSatuanKeys([]);
     setActivePreviewSatuanKey('');
@@ -1124,6 +1241,14 @@ function CommandCenterContent({
       const exists = prev.includes(unitId);
       const updated = exists ? prev.filter((id) => id !== unitId) : [...prev, unitId];
 
+      if (updated.length > 0) {
+        setDisposisiFormErrors((ePrev) => {
+          const next = { ...ePrev };
+          delete next.satuan;
+          return next;
+        });
+      }
+
       if (!exists) {
         // Baru saja dipilih
         setActivePreviewSatuanKey(unitId);
@@ -1132,6 +1257,11 @@ function CommandCenterContent({
           setCustomPersonelNama(target.komandan);
           if (target.arahanDefault && !arahanPawas) {
             setArahanPawas(target.arahanDefault);
+            setDisposisiFormErrors((ePrev) => {
+              const next = { ...ePrev };
+              delete next.arahan;
+              return next;
+            });
           }
         }
       } else {
@@ -1155,10 +1285,15 @@ function CommandCenterContent({
   // Confirm Disposisi Handler (Phase 2 -> Phase 3 Disposisi Pawas)
   const handleConfirmDisposisi = async () => {
     if (!selectedDisposisiItem) return;
-    if (selectedSatuanKeys.length === 0) {
-      alert('⚠️ Silakan pilih minimal 1 Satuan Tugas yang akan menerima disposisi.');
+
+    const errors = validateDisposisiForm();
+    if (Object.keys(errors).length > 0) {
+      setDisposisiFormErrors(errors);
+      showFriendlyToast('warning', 'Disposisi Belum Lengkap', Object.values(errors)[0]);
       return;
     }
+
+    setDisposisiFormErrors({});
     setLoading(true);
     try {
       const chosenArmadas = daftarArmadaAktif.filter((a) => selectedSatuanKeys.includes(a.id));
@@ -1174,6 +1309,11 @@ function CommandCenterContent({
       });
 
       if (res.success) {
+        showFriendlyToast(
+          'success',
+          'Disposisi Taktis Berhasil Diterbitkan',
+          `Tiket #${selectedDisposisiItem.nomorTiket} telah ditugaskan ke ${chosenArmadas.map((a) => a.namaSingkat).join(' & ')}. Personel segera meluncur ke TKP.`
+        );
         setSuksesDisposisiData({
           nomorTiket: selectedDisposisiItem.nomorTiket,
           unitName: chosenArmadas.map((a) => a.namaSingkat).join(' & '),
@@ -1194,10 +1334,10 @@ function CommandCenterContent({
           disposisi_at: new Date().toISOString(),
         });
       } else {
-        alert(res.error || 'Gagal menerbitkan disposisi.');
+        showFriendlyToast('error', 'Gagal Menerbitkan Disposisi', res.error || 'Terjadi kendala saat menerbitkan disposisi. Silakan coba kembali.');
       }
     } catch (e: any) {
-      alert(e.message || 'Terjadi kesalahan sistem.');
+      showFriendlyToast('error', 'Terjadi Kendala Sistem', e.message || 'Sistem tidak dapat memproses disposisi saat ini.');
     } finally {
       setLoading(false);
     }
@@ -4675,23 +4815,75 @@ function CommandCenterContent({
                  
 
                   {/* Formulir Penerimaan Laporan */}
-                  <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
+                  <div id="cad-form-container" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>📝 Formulir Penerimaan Laporan</span>
                       <span style={{ fontSize: '11px', color: '#64748B' }}>Petugas: <strong>{userProfile.fullName}</strong></span>
                     </div>
 
+                    {/* Ringkasan Kesalahan Validasi CAD (jika ada) */}
+                    {Object.keys(cadFormErrors).length > 0 && (
+                      <div
+                        style={{
+                          background: '#FEF2F2',
+                          border: '1px solid #FECACA',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          marginBottom: '14px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '10px',
+                          boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
+                        }}
+                      >
+                        <span style={{ fontSize: '16px', lineHeight: 1 }}>⚠️</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#991B1B' }}>
+                            Mohon lengkapi {Object.keys(cadFormErrors).length} kolom wajib berikut:
+                          </div>
+                          <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '11.5px', color: '#B91C1C', lineHeight: 1.5 }}>
+                            {Object.values(cadFormErrors).map((msg, i) => (
+                              <li key={i}>{msg}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Nomor Telepon Penelepon (Pelapor) <span style={{ color: 'red' }}>*</span>
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
+                          Nomor Telepon Penelepon (Pelapor) <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <span style={{ fontSize: '10px', color: '#64748B' }}>Format: 08xx / +62xx (9–14 digit)</span>
+                      </div>
                       <input
-                        type="text"
+                        type="tel"
                         className="form-control"
                         value={simCaller.telepon}
-                        onChange={(e) => setSimCaller({ ...simCaller, telepon: e.target.value })}
-                        placeholder="0812xxxx"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^\d+-\s]/g, '');
+                          setSimCaller({ ...simCaller, telepon: val });
+                          if (cadFormErrors.telepon) {
+                            setCadFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.telepon;
+                              return next;
+                            });
+                          }
+                        }}
+                        placeholder="Contoh: 08123456789"
+                        style={{
+                          border: cadFormErrors.telepon ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                          background: cadFormErrors.telepon ? '#FEF2F2' : 'white',
+                          transition: 'all 0.15s ease',
+                        }}
                       />
+                      {cadFormErrors.telepon && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <span>⚠️</span> {cadFormErrors.telepon}
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
@@ -4702,36 +4894,71 @@ function CommandCenterContent({
                         type="text"
                         className="form-control"
                         value={simCaller.nama}
-                        onChange={(e) => setSimCaller({ ...simCaller, nama: e.target.value })}
-                        placeholder="Nama pelapor"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSimCaller({ ...simCaller, nama: val });
+                          if (cadFormErrors.nama) {
+                            setCadFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.nama;
+                              return next;
+                            });
+                          }
+                        }}
+                        placeholder="Contoh: Bpk. Budi Santoso"
+                        style={{
+                          border: cadFormErrors.nama ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                          background: cadFormErrors.nama ? '#FEF2F2' : 'white',
+                          transition: 'all 0.15s ease',
+                        }}
                       />
+                      {cadFormErrors.nama && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <span>⚠️</span> {cadFormErrors.nama}
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
                       <label className="form-label" style={{ fontSize: '11.5px' }}>
                         Kategori Laporan Kejadian <span style={{ color: 'red' }}>*</span>
                       </label>
-                      <Select2CategoryDropdown
-                        subcategories={dbSubcategories}
-                        selectedId={simCaller.subcategoryId}
-                        onSelect={(item) => {
-                          if (item) {
-                            setSimCaller({
-                              ...simCaller,
-                              subcategoryId: item.id,
-                              kategori: item.nama_kasus,
-                              urgensi: (item.default_urgensi as any) || simCaller.urgensi || 'SEDANG',
-                              uraian: simCaller.uraian ? simCaller.uraian : (item.deskripsi_sop ? `[SOP ${item.nama_kasus}] ${item.deskripsi_sop}` : ''),
-                            });
-                          } else {
-                            setSimCaller({
-                              ...simCaller,
-                              subcategoryId: undefined,
-                              kategori: '',
-                            });
-                          }
-                        }}
-                      />
+                      <div style={{ border: cadFormErrors.kategori ? '1.5px solid #EF4444' : 'none', borderRadius: '8px' }}>
+                        <Select2CategoryDropdown
+                          subcategories={dbSubcategories}
+                          selectedId={simCaller.subcategoryId}
+                          onSelect={(item) => {
+                            if (item) {
+                              setSimCaller({
+                                ...simCaller,
+                                subcategoryId: item.id,
+                                kategori: item.nama_kasus,
+                                urgensi: (item.default_urgensi as any) || simCaller.urgensi || 'SEDANG',
+                                uraian: simCaller.uraian ? simCaller.uraian : (item.deskripsi_sop ? `[SOP ${item.nama_kasus}] ${item.deskripsi_sop}` : ''),
+                              });
+                              if (cadFormErrors.kategori || cadFormErrors.urgensi) {
+                                setCadFormErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.kategori;
+                                  delete next.urgensi;
+                                  return next;
+                                });
+                              }
+                            } else {
+                              setSimCaller({
+                                ...simCaller,
+                                subcategoryId: undefined,
+                                kategori: '',
+                              });
+                            }
+                          }}
+                        />
+                      </div>
+                      {cadFormErrors.kategori && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <span>⚠️</span> {cadFormErrors.kategori}
+                        </div>
+                      )}
                     </div>
 
                     {/* Tingkat Urgensi Presisi (Prototype L2088-2106) */}
@@ -4743,7 +4970,16 @@ function CommandCenterContent({
                         <button
                           type="button"
                           id="eb-urg-darurat"
-                          onClick={() => setSimCaller({ ...simCaller, urgensi: 'DARURAT' })}
+                          onClick={() => {
+                            setSimCaller({ ...simCaller, urgensi: 'DARURAT' });
+                            if (cadFormErrors.urgensi) {
+                              setCadFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.urgensi;
+                                return next;
+                              });
+                            }
+                          }}
                           style={{
                             padding: '8px 4px',
                             borderRadius: '6px',
@@ -4761,7 +4997,16 @@ function CommandCenterContent({
                         <button
                           type="button"
                           id="eb-urg-sedang"
-                          onClick={() => setSimCaller({ ...simCaller, urgensi: 'SEDANG' })}
+                          onClick={() => {
+                            setSimCaller({ ...simCaller, urgensi: 'SEDANG' });
+                            if (cadFormErrors.urgensi) {
+                              setCadFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.urgensi;
+                                return next;
+                              });
+                            }
+                          }}
                           style={{
                             padding: '8px 4px',
                             borderRadius: '6px',
@@ -4779,7 +5024,16 @@ function CommandCenterContent({
                         <button
                           type="button"
                           id="eb-urg-normal"
-                          onClick={() => setSimCaller({ ...simCaller, urgensi: 'NORMAL' })}
+                          onClick={() => {
+                            setSimCaller({ ...simCaller, urgensi: 'NORMAL' });
+                            if (cadFormErrors.urgensi) {
+                              setCadFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.urgensi;
+                                return next;
+                              });
+                            }
+                          }}
                           style={{
                             padding: '8px 4px',
                             borderRadius: '6px',
@@ -4795,6 +5049,11 @@ function CommandCenterContent({
                           ℹ️ NORMAL
                         </button>
                       </div>
+                      {cadFormErrors.urgensi && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <span>⚠️</span> {cadFormErrors.urgensi}
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
@@ -4832,11 +5091,25 @@ function CommandCenterContent({
                           className="form-control"
                           placeholder="Ketik alamat TKP atau cari nama tempat..."
                           value={simCaller.alamat}
-                          onChange={(e) => handleCadLocationSearch(e.target.value)}
+                          onChange={(e) => {
+                            handleCadLocationSearch(e.target.value);
+                            if (cadFormErrors.alamat) {
+                              setCadFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.alamat;
+                                return next;
+                              });
+                            }
+                          }}
                           onFocus={() => {
                             if (cadLocationSuggestions.length > 0) setShowCadSuggestions(true);
                           }}
-                          style={{ paddingRight: '32px' }}
+                          style={{
+                            paddingRight: '32px',
+                            border: cadFormErrors.alamat ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                            background: cadFormErrors.alamat ? '#FEF2F2' : 'white',
+                            transition: 'all 0.15s ease',
+                          }}
                         />
                         {isSearchingCadLocation && (
                           <div
@@ -4937,6 +5210,11 @@ function CommandCenterContent({
                           </div>
                         )}
                       </div>
+                      {cadFormErrors.alamat && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <span>⚠️</span> {cadFormErrors.alamat}
+                        </div>
+                      )}
                     </div>
 
                     {/* Interactive Google Map Picker (Opsi Pilih Titik di Peta Langsung) */}
@@ -4959,6 +5237,13 @@ function CommandCenterContent({
                           }}
                           onAddressChange={(alamat) => {
                             setSimCaller((prev) => ({ ...prev, alamat }));
+                            if (cadFormErrors.alamat) {
+                              setCadFormErrors((prev) => {
+                                const next = { ...prev };
+                                delete next.alamat;
+                                return next;
+                              });
+                            }
                           }}
                         />
                         <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', background: '#EFF6FF', padding: '6px 10px', borderRadius: '6px', border: '1px solid #DBEAFE' }}>
@@ -4972,102 +5257,171 @@ function CommandCenterContent({
                       </div>
                     )}
 
-
                     <div className="form-group" style={{ marginBottom: '16px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Ringkasan Uraian Kejadian Dari Penelepon <span style={{ color: 'red' }}>*</span>
-                      </label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
+                          Ringkasan Uraian Kejadian Dari Penelepon <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <span style={{ fontSize: '10px', color: '#64748B' }}>Minimal 10 karakter</span>
+                      </div>
                       <textarea
                         className="form-control"
                         rows={3}
-                        style={{ minHeight: '85px', fontSize: '12.5px', lineHeight: 1.5 }}
-                        placeholder="Tuliskan keterangan pelapor..."
+                        style={{
+                          minHeight: '85px',
+                          fontSize: '12.5px',
+                          lineHeight: 1.5,
+                          border: cadFormErrors.uraian ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                          background: cadFormErrors.uraian ? '#FEF2F2' : 'white',
+                          transition: 'all 0.15s ease',
+                        }}
+                        placeholder="Tuliskan keterangan pelapor secara jelas (kronologi singkat, ciri-ciri pelaku jika ada, situasi terkini di TKP)..."
                         value={simCaller.uraian}
-                        onChange={(e) => setSimCaller({ ...simCaller, uraian: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setSimCaller({ ...simCaller, uraian: val });
+                          if (cadFormErrors.uraian) {
+                            setCadFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.uraian;
+                              return next;
+                            });
+                          }
+                        }}
                       />
+                      {cadFormErrors.uraian && (
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <span>⚠️</span> {cadFormErrors.uraian}
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
                       <button
                         type="button"
+                        id="btn-cad-simpan-antrean"
                         onClick={async () => {
+                          const errors = validateCadForm();
+                          if (Object.keys(errors).length > 0) {
+                            setCadFormErrors(errors);
+                            showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
+                            const el = document.getElementById('cad-form-container');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            return;
+                          }
+
+                          setCadFormErrors({});
                           setLoading(true);
-                          const res = await createComplaintAction({
-                            namaPelapor: simCaller.nama,
-                            noHpPelapor: simCaller.telepon,
-                            kategoriLaporan: simCaller.kategori,
-                            kategoriKey: simCaller.kategori,
-                            subcategoryId: simCaller.subcategoryId,
-                            platformKey: 'layanan110',
-                            urgensi: (simCaller as any).urgensi,
-                            tkpAlamatTeks: simCaller.alamat,
-                            tkpLat: simCaller.lat,
-                            tkpLng: simCaller.lng,
-                            deskripsiKejadian: simCaller.uraian,
-                            saluranLaporan: 'CALL_110',
-                            operatorId: session?.userId ? String(session.userId) : null,
-                          });
-                          setLoading(false);
-                          if (res.success) {
-                            alert('✓ Laporan darurat 110 berhasil disimpan ke antrean Pawas!');
-                            setSimCaller({
-                              nama: '',
-                              telepon: '',
-                              alamat: '',
-                              kategori: '',
-                              subcategoryId: undefined,
-                              urgensi: '',
-                              uraian: '',
-                              lat: 0,
-                              lng: 0,
+                          try {
+                            const res = await createComplaintAction({
+                              namaPelapor: simCaller.nama,
+                              noHpPelapor: simCaller.telepon,
+                              kategoriLaporan: simCaller.kategori,
+                              kategoriKey: simCaller.kategori,
+                              subcategoryId: simCaller.subcategoryId,
+                              platformKey: 'layanan110',
+                              urgensi: (simCaller as any).urgensi,
+                              tkpAlamatTeks: simCaller.alamat,
+                              tkpLat: simCaller.lat,
+                              tkpLng: simCaller.lng,
+                              deskripsiKejadian: simCaller.uraian,
+                              saluranLaporan: 'CALL_110',
+                              operatorId: session?.userId ? String(session.userId) : null,
                             });
-                            loadData();
-                          } else {
-                            alert(res.error || 'Gagal menyimpan antrean.');
+                            if (res.success) {
+                              showFriendlyToast(
+                                'success',
+                                'Laporan Berhasil Disimpan',
+                                `Laporan dari ${simCaller.nama} berhasil dicatat dan masuk ke Antrean Menunggu Disposisi.`
+                              );
+                              setSimCaller({
+                                nama: '',
+                                telepon: '',
+                                alamat: '',
+                                kategori: '',
+                                subcategoryId: undefined,
+                                urgensi: '',
+                                uraian: '',
+                                lat: 0,
+                                lng: 0,
+                              });
+                              await loadData();
+                            } else {
+                              showFriendlyToast('error', 'Gagal Menyimpan Laporan', res.error || 'Terjadi kendala saat menyimpan laporan. Silakan coba kembali.');
+                            }
+                          } catch (err: any) {
+                            showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat menyimpan laporan saat ini.');
+                          } finally {
+                            setLoading(false);
                           }
                         }}
-                        style={{ flex: 1, padding: '12px', background: '#0F766E', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer' }}
+                        style={{ flex: 1, padding: '12px', background: '#0F766E', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', transition: 'background 0.15s ease' }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#0D9488')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = '#0F766E')}
                       >
                         💾 Simpan ke Antrean
                       </button>
 
                       <button
                         type="button"
+                        id="btn-cad-simpan-disposisi"
                         onClick={async () => {
+                          const errors = validateCadForm();
+                          if (Object.keys(errors).length > 0) {
+                            setCadFormErrors(errors);
+                            showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
+                            const el = document.getElementById('cad-form-container');
+                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            return;
+                          }
+
+                          setCadFormErrors({});
                           setLoading(true);
-                          const res = await createComplaintAction({
-                            namaPelapor: simCaller.nama,
-                            noHpPelapor: simCaller.telepon,
-                            kategoriLaporan: simCaller.kategori,
-                            kategoriKey: simCaller.kategori,
-                            subcategoryId: simCaller.subcategoryId,
-                            platformKey: 'layanan110',
-                            urgensi: (simCaller as any).urgensi,
-                            tkpAlamatTeks: simCaller.alamat,
-                            tkpLat: simCaller.lat,
-                            tkpLng: simCaller.lng,
-                            deskripsiKejadian: simCaller.uraian,
-                            saluranLaporan: 'CALL_110',
-                            operatorId: session?.userId ? String(session.userId) : null,
-                          });
-                          setLoading(false);
-                          if (res.success && res.data) {
-                            bukaModalDisposisi(res.data);
-                            setSimCaller({
-                              nama: '',
-                              telepon: '',
-                              alamat: '',
-                              kategori: '',
-                              subcategoryId: undefined,
-                              urgensi: '',
-                              uraian: '',
-                              lat: 0,
-                              lng: 0,
+                          try {
+                            const res = await createComplaintAction({
+                              namaPelapor: simCaller.nama,
+                              noHpPelapor: simCaller.telepon,
+                              kategoriLaporan: simCaller.kategori,
+                              kategoriKey: simCaller.kategori,
+                              subcategoryId: simCaller.subcategoryId,
+                              platformKey: 'layanan110',
+                              urgensi: (simCaller as any).urgensi,
+                              tkpAlamatTeks: simCaller.alamat,
+                              tkpLat: simCaller.lat,
+                              tkpLng: simCaller.lng,
+                              deskripsiKejadian: simCaller.uraian,
+                              saluranLaporan: 'CALL_110',
+                              operatorId: session?.userId ? String(session.userId) : null,
                             });
-                            loadData();
+                            if (res.success && res.data) {
+                              showFriendlyToast(
+                                'success',
+                                'Laporan Berhasil Disimpan',
+                                `Membuka Lembar Disposisi Taktis untuk penugasan unit patroli...`
+                              );
+                              bukaModalDisposisi(res.data);
+                              setSimCaller({
+                                nama: '',
+                                telepon: '',
+                                alamat: '',
+                                kategori: '',
+                                subcategoryId: undefined,
+                                urgensi: '',
+                                uraian: '',
+                                lat: 0,
+                                lng: 0,
+                              });
+                              await loadData();
+                            } else {
+                              showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyimpan laporan.');
+                            }
+                          } catch (err: any) {
+                            showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat memproses laporan saat ini.');
+                          } finally {
+                            setLoading(false);
                           }
                         }}
-                        style={{ flex: 1.4, padding: '12px', background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }}
+                        style={{ flex: 1.4, padding: '12px', background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(29, 78, 216, 0.25)' }}
                       >
                         ⚡ Simpan &amp; Disposisi ➔
                       </button>
