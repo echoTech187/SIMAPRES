@@ -146,7 +146,15 @@ function pawasTabToSlug(tabId: string): string {
   }
 }
 
-function CommandCenterContent({ session, initialSection = 'beranda' }: { session?: any; initialSection?: string }) {
+function CommandCenterContent({
+  session,
+  initialSection = 'beranda',
+  initialMasterData,
+}: {
+  session?: any;
+  initialSection?: string;
+  initialMasterData?: any;
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const roleParam = searchParams.get('role');
@@ -290,12 +298,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [profilLogSearch, setProfilLogSearch] = useState('');
   const [profilLogFilter, setProfilLogFilter] = useState('semua');
 
-  // Master Filter Options from Database
-  const [dbCategories, setDbCategories] = useState<any[]>([]);
-  const [dbPlatforms, setDbPlatforms] = useState<any[]>([]);
-  const [dbGiats, setDbGiats] = useState<any[]>([]);
-  const [dbSatuans, setDbSatuans] = useState<any[]>([]);
-  const [dbStatuses, setDbStatuses] = useState<any[]>([]);
+  // Master Filter Options from Database (Preloaded via Server Component, refreshed on mount)
+  const [dbCategories, setDbCategories] = useState<any[]>(() => initialMasterData?.categories || []);
+  const [dbPlatforms, setDbPlatforms] = useState<any[]>(() => initialMasterData?.platforms || []);
+  const [dbGiats, setDbGiats] = useState<any[]>(() => initialMasterData?.giats || []);
+  const [dbSatuans, setDbSatuans] = useState<any[]>(() => initialMasterData?.satuans || []);
+  const [dbStatuses, setDbStatuses] = useState<any[]>(() => initialMasterData?.statuses || []);
 
   // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
   const daftarArmadaAktif = useMemo(() => {
@@ -630,44 +638,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     return getComplaintPlatform(c) === platform;
   };
 
-  // Master Incident Categories Reference (Mirror of master_incident_categories table in DB)
-  const DEFAULT_MASTER_INCIDENT_CATEGORIES = [
-    { key: 'KRIMINALITAS', label: 'Kriminalitas & 3C', icon: '🚨', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA' },
-    { key: 'KAMTIBMAS', label: 'Kamtibmas & Tawuran', icon: '👥', badge_bg: '#FFFBEB', badge_color: '#D97706', badge_border: '#FDE68A' },
-    { key: 'LAKALANTAS', label: 'Laka & Kemacetan Lantas', icon: '🚦', badge_bg: '#EFF6FF', badge_color: '#2563EB', badge_border: '#BFDBFE' },
-    { key: 'BENCANA', label: 'Darurat & Bencana Alam', icon: '🔥', badge_bg: '#FEF2F2', badge_color: '#EA580C', badge_border: '#FED7AA' },
-    { key: 'PELAYANAN_PUBLIK', label: 'Pelayanan Publik & Walk-in', icon: '📋', badge_bg: '#F8FAFC', badge_color: '#475569', badge_border: '#CBD5E1' },
-  ];
-
-  // Master Activity Types Reference (Mirror of master_activity_types table in DB)
-  const DEFAULT_MASTER_ACTIVITY_TYPES = [
-    { key: 'PATROLI', label: 'Patroli', icon: '🚔', badge_bg: '#EFF6FF', badge_color: '#1D4ED8', badge_border: '#BFDBFE' },
-    { key: 'SAMBANG', label: 'Sambang', icon: '🤝', badge_bg: '#F0FDF4', badge_color: '#15803D', badge_border: '#BBF7D0' },
-    { key: 'TPTKP', label: 'TPTKP', icon: '🛡️', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA' },
-    { key: 'PENGAMANAN', label: 'Pengamanan', icon: '⚠️', badge_bg: '#FFFBEB', badge_color: '#B45309', badge_border: '#FDE68A' },
-  ];
-
-  // Dynamic Category & Badge Info Resolver (100% Master-driven from DB master_incident_categories)
+  // Dynamic Category & Badge Info Resolver (100% Master-driven from DB master_incident_categories & master_activity_types)
   const getComplaintKategoriInfo = (c: any) => {
-    const catList = dbCategories.length > 0 ? dbCategories : DEFAULT_MASTER_INCIDENT_CATEGORIES;
-
-    if (!c) {
-      const def = catList[1] || DEFAULT_MASTER_INCIDENT_CATEGORIES[1];
-      return {
-        key: def.key,
-        kategori: def.label,
-        label: def.label,
-        badgeText: `${def.icon} ${def.label}`,
-        badgeStyle: {
-          background: def.badge_bg,
-          color: def.badge_color,
-          border: `1px solid ${def.badge_border}`,
-        },
-      };
-    }
-
     // 1. Direct relation from Database (c.kategoriRel / c.category_rel)
-    const rel = c.kategoriRel || c.category_rel;
+    const rel = c?.kategoriRel || c?.category_rel;
     if (rel) {
       const rawLabel = rel.label || rel.key || '';
       const icon = rel.icon || '';
@@ -685,10 +659,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
       };
     }
 
-    // 2. Lookup in loaded master dbCategories by ID
-    const targetId = c.category_id || c.kategoriId;
-    if (targetId) {
-      const foundById = catList.find((cat: any) => cat.id === targetId);
+    // 2. Lookup in loaded master dbCategories from DB by ID
+    const targetId = c?.category_id || c?.kategoriId;
+    if (targetId && dbCategories.length > 0) {
+      const foundById = dbCategories.find((cat: any) => cat.id === targetId);
       if (foundById) {
         const rawLabel = foundById.label || foundById.key || '';
         const icon = foundById.icon || '';
@@ -707,10 +681,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
       }
     }
 
-    // 3. Lookup by kategoriKey if present
-    const rawKey = (c.kategoriKey || c.kategori_key || '').toUpperCase();
-    if (rawKey) {
-      const foundByKey = catList.find((cat: any) => cat.key.toUpperCase() === rawKey || cat.label.toUpperCase() === rawKey);
+    // 3. Lookup in loaded master dbCategories by key or label
+    const rawKey = (c?.kategoriKey || c?.kategori_key || '').toUpperCase();
+    if (rawKey && dbCategories.length > 0) {
+      const foundByKey = dbCategories.find((cat: any) => cat.key.toUpperCase() === rawKey || cat.label.toUpperCase() === rawKey);
       if (foundByKey) {
         const rawLabel = foundByKey.label || foundByKey.key || '';
         const icon = foundByKey.icon || '';
@@ -727,9 +701,34 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
           },
         };
       }
-      // Check if it matches Giat Personel
-      const giatList = dbGiats.length > 0 ? dbGiats : DEFAULT_MASTER_ACTIVITY_TYPES;
-      const foundGiat = giatList.find((g: any) => g.key.toUpperCase() === rawKey || g.label.toUpperCase() === rawKey);
+      // Check if it matches master Giat Personel (masterActivityType) from DB
+      if (dbGiats.length > 0) {
+        const foundGiat = dbGiats.find((g: any) => g.key.toUpperCase() === rawKey || g.label.toUpperCase() === rawKey);
+        if (foundGiat) {
+          const rawLabel = foundGiat.label || foundGiat.key || '';
+          const icon = foundGiat.icon || '';
+          const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+          return {
+            key: foundGiat.key,
+            kategori: rawLabel,
+            label: rawLabel,
+            badgeText,
+            badgeStyle: {
+              background: foundGiat.badge_bg || foundGiat.active_bg || '#EFF6FF',
+              color: foundGiat.badge_color || foundGiat.inactive_color || '#1D4ED8',
+              border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || '#BFDBFE'}`,
+            },
+          };
+        }
+      }
+    }
+
+    // 4. Giat Personel (Platform: personel) from master DB
+    const platform = getComplaintPlatform(c);
+    if (platform === 'personel' && dbGiats.length > 0) {
+      const textGiat = `${c?.jenisAksi || ''} ${c?.jenisKejadian || ''} ${c?.ringkasanKeterangan || ''}`.toLowerCase();
+      const giatKey = textGiat.includes('sambang') ? 'SAMBANG' : textGiat.includes('tptkp') ? 'TPTKP' : textGiat.includes('pengamanan') || textGiat.includes('pam') ? 'PENGAMANAN' : 'PATROLI';
+      const foundGiat = dbGiats.find((g: any) => g.key === giatKey) || dbGiats[0];
       if (foundGiat) {
         const rawLabel = foundGiat.label || foundGiat.key || '';
         const icon = foundGiat.icon || '';
@@ -748,34 +747,11 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
       }
     }
 
-    // 4. Giat Personel fallback (Platform: personel)
-    const platform = getComplaintPlatform(c);
-    if (platform === 'personel') {
-      const textGiat = `${c.jenisAksi || ''} ${c.jenisKejadian || ''} ${c.ringkasanKeterangan || ''}`.toLowerCase();
-      const giatKey = textGiat.includes('sambang') ? 'SAMBANG' : textGiat.includes('tptkp') ? 'TPTKP' : textGiat.includes('pengamanan') || textGiat.includes('pam') ? 'PENGAMANAN' : 'PATROLI';
-      const giatList = dbGiats.length > 0 ? dbGiats : DEFAULT_MASTER_ACTIVITY_TYPES;
-      const foundGiat = giatList.find((g: any) => g.key === giatKey) || DEFAULT_MASTER_ACTIVITY_TYPES[0];
-      const rawLabel = foundGiat.label || foundGiat.key || '';
-      const icon = foundGiat.icon || '';
-      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
-      return {
-        key: foundGiat.key,
-        kategori: rawLabel,
-        label: rawLabel,
-        badgeText,
-        badgeStyle: {
-          background: foundGiat.badge_bg || foundGiat.active_bg || '#EFF6FF',
-          color: foundGiat.badge_color || foundGiat.inactive_color || '#1D4ED8',
-          border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || '#BFDBFE'}`,
-        },
-      };
-    }
-
-    // 5. Intelligent Keyword Classifier to Master Category Key
-    const jenis = (c.jenisKejadian || '').toLowerCase();
-    const katLaporan = (c.kategoriLaporan || '').toLowerCase();
+    // 5. Intelligent Classifier to Master DB Category
+    const jenis = (c?.jenisKejadian || '').toLowerCase();
+    const katLaporan = (c?.kategoriLaporan || '').toLowerCase();
     const combined = `${jenis} ${katLaporan}`;
-    const ringkasan = (c.ringkasanKeterangan || '').toLowerCase();
+    const ringkasan = (c?.ringkasanKeterangan || '').toLowerCase();
 
     let resolvedMasterKey = 'KAMTIBMAS';
 
@@ -797,20 +773,34 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
       }
     }
 
-    const matchedCat = catList.find((cat: any) => cat.key === resolvedMasterKey) || catList[1] || DEFAULT_MASTER_INCIDENT_CATEGORIES[1];
-    const rawLabel = matchedCat.label || matchedCat.key || '';
-    const icon = matchedCat.icon || '';
-    const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+    // Resolve purely from dbCategories (from DB)
+    const matchedCat = dbCategories.find((cat: any) => cat.key === resolvedMasterKey) || dbCategories[0];
+    if (matchedCat) {
+      const rawLabel = matchedCat.label || matchedCat.key || '';
+      const icon = matchedCat.icon || '';
+      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+      return {
+        key: matchedCat.key,
+        kategori: rawLabel,
+        label: rawLabel,
+        badgeText,
+        badgeStyle: {
+          background: matchedCat.badge_bg || '#F1F5F9',
+          color: matchedCat.badge_color || '#1E293B',
+          border: `1px solid ${matchedCat.badge_border || '#CBD5E1'}`,
+        },
+      };
+    }
 
     return {
-      key: matchedCat.key,
-      kategori: rawLabel,
-      label: rawLabel,
-      badgeText,
+      key: resolvedMasterKey,
+      kategori: resolvedMasterKey,
+      label: resolvedMasterKey,
+      badgeText: resolvedMasterKey,
       badgeStyle: {
-        background: matchedCat.badge_bg || '#F1F5F9',
-        color: matchedCat.badge_color || '#1E293B',
-        border: `1px solid ${matchedCat.badge_border || '#CBD5E1'}`,
+        background: '#F1F5F9',
+        color: '#1E293B',
+        border: '1px solid #CBD5E1',
       },
     };
   };
@@ -827,7 +817,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     if (catInfo.key && catInfo.key.toUpperCase() === target) return true;
     if (catInfo.label && catInfo.label.toUpperCase().includes(target)) return true;
 
-    // Fallback checks on complaint properties
+    // Direct match against dbCategories from DB
     if (c?.category_id && dbCategories.length > 0) {
       const dbCat = dbCategories.find((dc) => dc.key.toUpperCase() === target);
       if (dbCat && c.category_id === dbCat.id) return true;
@@ -1246,12 +1236,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     (c) => matchesStatus(c, valFilterStatus) && matchesPlatform(c, valFilterPlatform)
   );
   const katCountAll = logsForKategori.length;
-
-  // Giat counts for when Platform is 'personel'
-  const giatCountPatroli = logsForKategori.filter((c) => matchesKategori(c, 'PATROLI')).length;
-  const giatCountSambang = logsForKategori.filter((c) => matchesKategori(c, 'SAMBANG')).length;
-  const giatCountTptkp = logsForKategori.filter((c) => matchesKategori(c, 'TPTKP')).length;
-  const giatCountPam = logsForKategori.filter((c) => matchesKategori(c, 'PENGAMANAN')).length;
 
   // Dynamic SLA & IKM Metrics derived 100% from database
   const completedWithTime = allRecentComplaints.filter((c) => typeof c.responseTimeMinutes === 'number' && c.responseTimeMinutes > 0);
@@ -2774,24 +2758,18 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       <span id="filter-kat-label" style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span>👮</span> JENIS GIAT:
                       </span>
-                      {(dbGiats.length > 0 ? [
+                      {[
                         { key: 'all', label: 'Semua Giat', count: katCountAll, activeBg: '#1E293B', inactiveBg: '#F8FAFC', inactiveColor: '#64748B', border: 'transparent' },
                         ...dbGiats.map((g) => ({
                           key: g.key,
-                          label: `${g.icon} ${g.label}`,
+                          label: `${g.icon || ''} ${g.label || g.key}`,
                           count: logsForKategori.filter((c) => matchesKategori(c, g.key)).length,
-                          activeBg: g.active_bg,
-                          inactiveBg: g.inactive_bg,
-                          inactiveColor: g.inactive_color,
-                          border: g.border_color,
+                          activeBg: g.active_bg || '#1D4ED8',
+                          inactiveBg: g.inactive_bg || '#EFF6FF',
+                          inactiveColor: g.inactive_color || '#1D4ED8',
+                          border: g.border_color ? `1px solid ${g.border_color}` : '1px solid #BFDBFE',
                         }))
-                      ] : [
-                        { key: 'all', label: 'Semua Giat', count: katCountAll, activeBg: '#1E293B', inactiveBg: '#F8FAFC', inactiveColor: '#64748B', border: 'transparent' },
-                        { key: 'PATROLI', label: '🚔 Patroli', count: giatCountPatroli, activeBg: '#1D4ED8', inactiveBg: '#EFF6FF', inactiveColor: '#1D4ED8', border: '#BFDBFE' },
-                        { key: 'SAMBANG', label: '🤝 Sambang', count: giatCountSambang, activeBg: '#15803D', inactiveBg: '#F0FDF4', inactiveColor: '#15803D', border: '#BBF7D0' },
-                        { key: 'TPTKP', label: '🛡️ TPTKP', count: giatCountTptkp, activeBg: '#DC2626', inactiveBg: '#FEF2F2', inactiveColor: '#DC2626', border: '#FECACA' },
-                        { key: 'PENGAMANAN', label: '⚠️ Pengamanan', count: giatCountPam, activeBg: '#D97706', inactiveBg: '#FFFBEB', inactiveColor: '#B45309', border: '#FDE68A' },
-                      ]).map((giat) => {
+                      ].map((giat) => {
                         const isGiatActive = valFilterKategori === giat.key;
                         return (
                           <button
@@ -2838,21 +2816,14 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       <span id="filter-kat-label" style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span>📁</span> JENIS ADUAN:
                       </span>
-                      {(dbCategories.length > 0 ? [
+                      {[
                         { key: 'all', label: 'Semua Jenis', count: katCountAll },
                         ...dbCategories.map((cat) => ({
                           key: cat.key,
-                          label: cat.label.startsWith(cat.icon) ? cat.label : `${cat.icon} ${cat.label}`,
+                          label: cat.label?.startsWith(cat.icon) ? cat.label : `${cat.icon || ''} ${cat.label || cat.key}`,
                           count: logsForKategori.filter((c) => matchesKategori(c, cat.key)).length,
                         }))
-                      ] : [
-                        { key: 'all', label: 'Semua Jenis', count: katCountAll },
-                        ...DEFAULT_MASTER_INCIDENT_CATEGORIES.map((cat) => ({
-                          key: cat.key,
-                          label: `${cat.icon} ${cat.label}`,
-                          count: logsForKategori.filter((c) => matchesKategori(c, cat.key)).length,
-                        }))
-                      ]).map((kat) => {
+                      ].map((kat) => {
                         const isKatActive = valFilterKategori === kat.key;
                         return (
                           <button
@@ -6637,10 +6608,22 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   );
 }
 
-export default function PawasConsoleView({ session, initialSection = 'beranda' }: { session?: any; initialSection?: string }) {
+export default function PawasConsoleView({
+  session,
+  initialSection = 'beranda',
+  initialMasterData,
+}: {
+  session?: any;
+  initialSection?: string;
+  initialMasterData?: any;
+}) {
   return (
     <React.Suspense fallback={<ConsoleSkeleton role="PAWAS" />}>
-      <CommandCenterContent session={session} initialSection={initialSection} />
+      <CommandCenterContent
+        session={session}
+        initialSection={initialSection}
+        initialMasterData={initialMasterData}
+      />
     </React.Suspense>
   );
 }

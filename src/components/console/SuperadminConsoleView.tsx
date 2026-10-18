@@ -48,7 +48,7 @@ function parseSuperadminTab(section?: string): SuperadminTab {
   return 'unit';
 }
 
-export default function SuperadminConsoleView({ session, initialSection }: { session?: any; initialSection?: string }) {
+export default function SuperadminConsoleView({ session, initialSection, initialMasterData }: { session?: any; initialSection?: string; initialMasterData?: any }) {
   const [units, setUnits] = useState<any[]>([]);
   const [masterItems, setMasterItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);

@@ -2806,7 +2806,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   );
 }
 
-export default function PersonilConsoleView({ session, initialSection = 'beranda' }: { session?: any; initialSection?: string }) {
+export default function PersonilConsoleView({ session, initialSection = 'beranda', initialMasterData }: { session?: any; initialSection?: string; initialMasterData?: any }) {
   return (
     <React.Suspense fallback={<ConsoleSkeleton role="PERSONIL" />}>
       <PersonilContent session={session} initialSection={initialSection} />

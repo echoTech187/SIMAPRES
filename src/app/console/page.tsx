@@ -15,6 +15,8 @@ export const metadata = {
   description: 'Pusat Komando dan Operasional Rantai Komando Presisi 110',
 };
 
+import { getMasterFilterOptionsAction } from '@/app/actions/complaint.actions';
+
 export default async function ConsolePage({
   searchParams,
 }: {
@@ -29,7 +31,11 @@ export default async function ConsolePage({
 
   const section = searchParams?.page || searchParams?.tab || 'beranda';
 
-  // 2. Audit Trail: Catat akses konsol ke tabel user_log_activities secara asynchronous
+  // 2. Load Master Data directly from Database on the Server
+  const masterRes = await getMasterFilterOptionsAction();
+  const initialMasterData = masterRes.success ? masterRes.data : null;
+
+  // 3. Audit Trail: Catat akses konsol ke tabel user_log_activities secara asynchronous
   try {
     await logUserActivity({
       userId: session.userId,
@@ -42,17 +48,17 @@ export default async function ConsolePage({
     });
   } catch (_) {}
 
-  // 3. Render Tampilan Client Component Berdasarkan Role
+  // 4. Render Tampilan Client Component Berdasarkan Role dengan Data Master Database Asli
   return (
     <Suspense fallback={<ConsoleSkeleton role={session.role} />}>
       {session.role === 'SUPERADMIN' && (
-        <SuperadminConsoleView session={session} initialSection={section} />
+        <SuperadminConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
       {session.role === 'PAWAS' && (
-        <PawasConsoleView session={session} initialSection={section} />
+        <PawasConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
       {session.role === 'PERSONIL' && (
-        <PersonilConsoleView session={session} initialSection={section} />
+        <PersonilConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
     </Suspense>
   );

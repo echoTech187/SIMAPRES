@@ -45,6 +45,8 @@ export async function generateMetadata({ params }: { params?: { section?: string
   };
 }
 
+import { getMasterFilterOptionsAction } from '@/app/actions/complaint.actions';
+
 export default async function ConsoleSectionPage({
   params,
   searchParams,
@@ -62,7 +64,11 @@ export default async function ConsoleSectionPage({
 
   const section = params?.section?.toLowerCase() || searchParams?.page || searchParams?.tab || 'beranda';
 
-  // 2. Audit Trail: Catat akses halaman spesifik ke tabel user_log_activities
+  // 2. Load Master Data directly from Database on the Server
+  const masterRes = await getMasterFilterOptionsAction();
+  const initialMasterData = masterRes.success ? masterRes.data : null;
+
+  // 3. Audit Trail: Catat akses halaman spesifik ke tabel user_log_activities
   try {
     await logUserActivity({
       userId: session.userId,
@@ -75,17 +81,17 @@ export default async function ConsoleSectionPage({
     });
   } catch (_) {}
 
-  // 3. Render Tampilan Client Component dengan initialSection yang sesuai
+  // 4. Render Tampilan Client Component dengan initialSection dan initialMasterData dari database
   return (
     <Suspense fallback={<ConsoleSkeleton role={session.role} />}>
       {session.role === 'SUPERADMIN' && (
-        <SuperadminConsoleView session={session} initialSection={section} />
+        <SuperadminConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
       {session.role === 'PAWAS' && (
-        <PawasConsoleView session={session} initialSection={section} />
+        <PawasConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
       {session.role === 'PERSONIL' && (
-        <PersonilConsoleView session={session} initialSection={section} />
+        <PersonilConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
     </Suspense>
   );

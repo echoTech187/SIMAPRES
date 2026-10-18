@@ -97,6 +97,30 @@ async function seed() {
     });
   }
 
+  // 4.1 Master Activity Types
+  const activityTypes = [
+    { key: 'PATROLI', label: 'Patroli', icon: '🚔', active_bg: '#1E40AF', inactive_bg: '#EFF6FF', inactive_color: '#1D4ED8', border_color: '#BFDBFE', display_order: 1 },
+    { key: 'SAMBANG', label: 'Sambang', icon: '🤝', active_bg: '#15803D', inactive_bg: '#F0FDF4', inactive_color: '#15803D', border_color: '#BBF7D0', display_order: 2 },
+    { key: 'TPTKP', label: 'TPTKP', icon: '🛡️', active_bg: '#DC2626', inactive_bg: '#FEF2F2', inactive_color: '#DC2626', border_color: '#FECACA', display_order: 3 },
+    { key: 'PENGAMANAN', label: 'Pengamanan', icon: '⚠️', active_bg: '#B45309', inactive_bg: '#FFFBEB', inactive_color: '#B45309', border_color: '#FDE68A', display_order: 4 },
+  ];
+  for (const act of activityTypes) {
+    await prisma.masterActivityType.upsert({
+      where: { key: act.key },
+      update: {
+        label: act.label,
+        icon: act.icon,
+        active_bg: act.active_bg,
+        inactive_bg: act.inactive_bg,
+        inactive_color: act.inactive_color,
+        border_color: act.border_color,
+        display_order: act.display_order,
+        is_active: true,
+      },
+      create: { ...act, is_active: true },
+    });
+  }
+
   // 5. Master Report Sources
   const sources = [
     { key: 'SOS', label: 'Tombol Panik Darurat (SOS)', icon: '🚨', active_bg: '#DC2626', active_text: '#FFFFFF', inactive_bg: '#FEF2F2', inactive_text: '#DC2626', inactive_border: '#FECACA', display_order: 1 },
