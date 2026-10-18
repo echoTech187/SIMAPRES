@@ -56,17 +56,62 @@ export default function MiniMapPicker({
       });
       markerRef.current = marker;
 
-      const geocodeLatLng = (targetLat: number, targetLng: number) => {
+      const geocodeLatLng = async (targetLat: number, targetLng: number) => {
         if (!onAddressChange) return;
-        try {
-          const geocoder = new maps.Geocoder();
-          geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
-            if (status === 'OK' && results && results[0]) {
-              onAddressChange(results[0].formatted_address);
+        let resolved = false;
+
+        // 1. Coba Google Geocoder jika API aktif
+        if (maps.Geocoder) {
+          try {
+            const geocoder = new maps.Geocoder();
+            await new Promise<void>((res) => {
+              geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
+                if (status === 'OK' && results && results[0]) {
+                  onAddressChange(results[0].formatted_address);
+                  resolved = true;
+                }
+                res();
+              });
+            });
+          } catch (_) {}
+        }
+
+        // 2. Fallback otomatis ke reverse geocoder berkecepatan tinggi jika tanpa Google Key
+        if (!resolved) {
+          try {
+            const res = await fetch(`https://photon.komoot.io/reverse?lat=${targetLat}&lon=${targetLng}`);
+            if (res.ok) {
+              const data = await res.json();
+              const feat = data?.features?.[0]?.properties;
+              if (feat) {
+                const parts = [
+                  feat.name,
+                  feat.street,
+                  feat.district,
+                  feat.city,
+                  feat.state,
+                ].filter(Boolean);
+                const uniqueParts = Array.from(new Set(parts));
+                const formatted = uniqueParts.join(', ');
+                if (formatted) {
+                  onAddressChange(formatted);
+                }
+              }
             }
-          });
-        } catch (_) {}
+          } catch (_) {}
+        }
       };
+
+      // Auto-dismiss Google Maps dev popup
+      const dismissInterval = setInterval(() => {
+        if (typeof document !== 'undefined') {
+          document.querySelectorAll('.dismissButton').forEach((btn: any) => btn.click());
+          document.querySelectorAll('.gm-err-container, .gm-err-content').forEach((el: any) => {
+            const dialog = el.closest('[role="dialog"]') || el.parentElement;
+            if (dialog) (dialog as HTMLElement).style.display = 'none';
+          });
+        }
+      }, 350);
 
       // Event click on map
       map.addListener('click', (e: any) => {

@@ -281,58 +281,68 @@ function CommandCenterContent({
 
   // Operator CAD Location & Map Picker State
   const [showMapPickerCad, setShowMapPickerCad] = useState(false);
-  const inputAlamatCadRef = useRef<HTMLInputElement>(null);
-  const autocompleteCadRef = useRef<any>(null);
+  const [cadLocationSuggestions, setCadLocationSuggestions] = useState<
+    Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
+  >([]);
+  const [isSearchingCadLocation, setIsSearchingCadLocation] = useState(false);
+  const [showCadSuggestions, setShowCadSuggestions] = useState(false);
+  const searchTimeoutRef = useRef<any>(null);
 
-  useEffect(() => {
-    let isSubscribed = true;
+  const handleCadLocationSearch = (query: string) => {
+    setSimCaller((prev) => ({ ...prev, alamat: query }));
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
-    loadGoogleMaps().then((maps) => {
-      if (!isSubscribed || !maps) return;
+    if (!query || query.trim().length < 2) {
+      setCadLocationSuggestions([]);
+      setShowCadSuggestions(false);
+      return;
+    }
 
-      const initAutocomplete = () => {
-        if (!inputAlamatCadRef.current) return;
-        if (autocompleteCadRef.current) return;
-
-        try {
-          if (maps.places?.Autocomplete) {
-            const autocomplete = new maps.places.Autocomplete(inputAlamatCadRef.current, {
-              componentRestrictions: { country: 'id' },
-              fields: ['address_components', 'geometry', 'formatted_address', 'name'],
-            });
-
-            autocomplete.addListener('place_changed', () => {
-              const place = autocomplete.getPlace();
-              if (!place || !place.geometry || !place.geometry.location) return;
-
-              const lat = Number(place.geometry.location.lat().toFixed(6));
-              const lng = Number(place.geometry.location.lng().toFixed(6));
-              const address = place.formatted_address || place.name || '';
-
-              setSimCaller((prev) => ({
-                ...prev,
-                alamat: address,
-                lat,
-                lng,
-              }));
-            });
-
-            autocompleteCadRef.current = autocomplete;
-          }
-        } catch (err) {
-          console.warn('Google Places Autocomplete initialization notice:', err);
+    setIsSearchingCadLocation(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const encoded = encodeURIComponent(query.trim());
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&lat=-6.2615&lon=106.8106&limit=6`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = (data?.features || []).map((feat: any) => {
+            const p = feat.properties || {};
+            const coords = feat.geometry?.coordinates || [106.8106, -6.2615];
+            const title = p.name || p.street || query;
+            const subParts = [p.street, p.district, p.city || 'DKI Jakarta'].filter(
+              (part) => part && part !== title
+            );
+            const sub = subParts.join(', ') || 'Wilayah DKI Jakarta & Sekitarnya';
+            const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
+            const full = Array.from(new Set(fullParts)).join(', ') || title;
+            return {
+              label: title,
+              subLabel: sub,
+              fullAddress: full,
+              lat: Number(coords[1].toFixed(6)),
+              lng: Number(coords[0].toFixed(6)),
+            };
+          });
+          setCadLocationSuggestions(items);
+          setShowCadSuggestions(items.length > 0);
         }
-      };
+      } catch (err) {
+        console.warn('Location search error:', err);
+      } finally {
+        setIsSearchingCadLocation(false);
+      }
+    }, 280);
+  };
 
-      initAutocomplete();
-      const retryTimer = setTimeout(initAutocomplete, 400);
-      return () => clearTimeout(retryTimer);
-    });
-
-    return () => {
-      isSubscribed = false;
-    };
-  }, [activeTab]);
+  const handleSelectCadSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
+    setSimCaller((prev) => ({
+      ...prev,
+      alamat: item.fullAddress,
+      lat: item.lat,
+      lng: item.lng,
+    }));
+    setShowCadSuggestions(false);
+  };
 
   // Disposisi Modal State
   const [showDisposisiModal, setShowDisposisiModal] = useState(false);
@@ -4919,18 +4929,38 @@ function CommandCenterContent({
 
                       <div style={{ position: 'relative' }}>
                         <input
-                          ref={inputAlamatCadRef}
                           type="text"
                           className="form-control"
                           placeholder="Ketik alamat TKP atau cari nama tempat..."
                           value={simCaller.alamat}
-                          onChange={(e) => setSimCaller({ ...simCaller, alamat: e.target.value })}
+                          onChange={(e) => handleCadLocationSearch(e.target.value)}
+                          onFocus={() => {
+                            if (cadLocationSuggestions.length > 0) setShowCadSuggestions(true);
+                          }}
                           style={{ paddingRight: '32px' }}
                         />
+                        {isSearchingCadLocation && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              right: simCaller.alamat ? '28px' : '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              fontSize: '11px',
+                              color: '#3B82F6',
+                            }}
+                          >
+                            🔄
+                          </div>
+                        )}
                         {simCaller.alamat && (
                           <button
                             type="button"
-                            onClick={() => setSimCaller({ ...simCaller, alamat: '', lat: 0, lng: 0 })}
+                            onClick={() => {
+                              setSimCaller({ ...simCaller, alamat: '', lat: 0, lng: 0 });
+                              setCadLocationSuggestions([]);
+                              setShowCadSuggestions(false);
+                            }}
                             style={{
                               position: 'absolute',
                               right: '8px',
@@ -4947,6 +4977,65 @@ function CommandCenterContent({
                           >
                             ✕
                           </button>
+                        )}
+
+                        {/* List Popup Lokasi (Google Maps Style Autocomplete Dropdown) */}
+                        {showCadSuggestions && cadLocationSuggestions.length > 0 && (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 'calc(100% + 4px)',
+                              left: 0,
+                              right: 0,
+                              background: '#FFFFFF',
+                              borderRadius: '8px',
+                              border: '1px solid #CBD5E1',
+                              boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25)',
+                              zIndex: 9999,
+                              maxHeight: '260px',
+                              overflowY: 'auto',
+                            }}
+                          >
+                            <div style={{ padding: '6px 10px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '10.5px', fontWeight: 700, color: '#64748B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span>📍 HASIL PENCARIAN TEMPAT &amp; ALAMAT</span>
+                              <span
+                                style={{ cursor: 'pointer', color: '#94A3B8' }}
+                                onClick={() => setShowCadSuggestions(false)}
+                              >
+                                ✕ Tutup
+                              </span>
+                            </div>
+                            {cadLocationSuggestions.map((item, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => handleSelectCadSuggestion(item)}
+                                style={{
+                                  padding: '9px 12px',
+                                  cursor: 'pointer',
+                                  borderBottom: idx < cadLocationSuggestions.length - 1 ? '1px solid #F1F5F9' : 'none',
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: '10px',
+                                  transition: 'background 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+                              >
+                                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>📍</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {item.label}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {item.subLabel}
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '10px', color: '#2563EB', background: '#DBEAFE', padding: '1px 5px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 600, alignSelf: 'center' }}>
+                                  PILIH
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>

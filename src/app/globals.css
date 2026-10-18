@@ -1587,8 +1587,14 @@
     .dismissButton,
     .gm-err-container,
     .gm-err-content,
+    div:has(> .gm-err-container),
+    div:has(> .gm-err-content),
+    div:has(> div > .gm-err-container),
+    div:has(> div > .gm-err-content),
     div[aria-labelledby*="gm-err"],
-    div[tabindex="0"][role="dialog"]:has(.gm-err-content) {
+    div[tabindex="0"][role="dialog"]:has(.gm-err-content),
+    div[role="dialog"]:has(.gm-err-container),
+    div[role="dialog"]:has(.gm-err-content) {
       display: none !important;
       opacity: 0 !important;
       visibility: hidden !important;
@@ -1597,7 +1603,8 @@
 
     /* Hilangkan background abu-abu gelap overlay saat error dialog muncul */
     #map-fullscreen > div:last-child > div:has(.gm-err-container),
-    #map-beranda > div:last-child > div:has(.gm-err-container) {
+    #map-beranda > div:last-child > div:has(.gm-err-container),
+    .gm-style-pbc {
       display: none !important;
     }
 
