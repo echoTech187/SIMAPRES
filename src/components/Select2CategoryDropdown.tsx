@@ -37,33 +37,56 @@ export default function Select2CategoryDropdown({
 }: Select2CategoryDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Deteksi ukuran layar (Mobile Device < 768px)
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Kunci scroll halaman saat bottom drawer terbuka di mobile
+  useEffect(() => {
+    if (isOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen, isMobile]);
 
   // Cari item yang sedang terpilih berdasarkan ID
   const selectedItem = subcategories.find((s) => s.id === selectedId) || null;
 
-  // Tutup dropdown saat klik di luar container
+  // Tutup dropdown saat klik di luar container (hanya untuk mode desktop)
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (!isMobile && containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     }
-    if (isOpen) {
+    if (isOpen && !isMobile) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, isMobile]);
 
-  // Focus ke search input saat dropdown terbuka
+  // Focus ke search input saat dropdown/drawer terbuka
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => {
         searchInputRef.current?.focus();
-      }, 50);
+      }, 80);
     } else {
       setSearchQuery('');
     }
@@ -88,6 +111,21 @@ export default function Select2CategoryDropdown({
         ...style,
       }}
     >
+      <style>{`
+        @keyframes slideUpBottomDrawer {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        @keyframes fadeInOverlay {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes fadeInSelect2 {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+
       {/* Hidden input untuk integrasi form native jika diperlukan */}
       <input
         type="hidden"
@@ -166,7 +204,7 @@ export default function Select2CategoryDropdown({
               color: '#64748B',
               fontSize: '11px',
               transition: 'transform 0.15s ease',
-              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transform: isOpen && !isMobile ? 'rotate(180deg)' : 'rotate(0deg)',
             }}
           >
             ▼
@@ -174,8 +212,219 @@ export default function Select2CategoryDropdown({
         </div>
       </div>
 
-      {/* Select2 Dropdown Panel */}
-      {isOpen && (
+      {/* Render: Khusus Mobile Menggunakan Drawer-Bottom (Bottom Sheet) */}
+      {isOpen && isMobile && (
+        <>
+          {/* Backdrop Overlay */}
+          <div
+            onClick={() => setIsOpen(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(3px)',
+              zIndex: 999998,
+              animation: 'fadeInOverlay 0.2s ease-out',
+            }}
+          />
+
+          {/* Drawer Bottom Panel */}
+          <div
+            style={{
+              position: 'fixed',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              maxHeight: '85vh',
+              height: '75vh',
+              background: '#FFFFFF',
+              borderRadius: '20px 20px 0 0',
+              boxShadow: '0 -10px 30px rgba(0, 0, 0, 0.35)',
+              zIndex: 999999,
+              display: 'flex',
+              flexDirection: 'column',
+              animation: 'slideUpBottomDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Drag Handle Bar */}
+            <div
+              style={{
+                padding: '10px 0 6px',
+                display: 'flex',
+                justifyContent: 'center',
+                cursor: 'grab',
+              }}
+            >
+              <div
+                style={{
+                  width: '42px',
+                  height: '4px',
+                  borderRadius: '2px',
+                  background: '#CBD5E1',
+                }}
+              />
+            </div>
+
+            {/* Drawer Header */}
+            <div
+              style={{
+                padding: '6px 18px 12px',
+                borderBottom: '1px solid #E2E8F0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: '#0F172A' }}>
+                  Pilih Kategori Kasus Laporan
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748B' }}>
+                  Tersedia {filteredList.length} kategori kasus
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: '#64748B',
+                  fontWeight: 700,
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Mobile Search Box */}
+            <div
+              style={{
+                padding: '12px 18px',
+                background: '#F8FAFC',
+                borderBottom: '1px solid #E2E8F0',
+              }}
+            >
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    fontSize: '15px',
+                    color: '#64748B',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  🔍
+                </span>
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Ketik nama kasus (cth: curanmor, tawuran)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '11px 36px 11px 38px',
+                    fontSize: '14px',
+                    border: '1.5px solid #CBD5E1',
+                    borderRadius: '10px',
+                    outline: 'none',
+                    background: '#FFFFFF',
+                    color: '#0F172A',
+                  }}
+                />
+                {searchQuery && (
+                  <span
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      fontSize: '14px',
+                      color: '#94A3B8',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      padding: '4px',
+                    }}
+                  >
+                    ✕
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile List Items */}
+            <div
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                padding: '4px 0',
+              }}
+            >
+              {filteredList.length === 0 ? (
+                <div
+                  style={{
+                    padding: '40px 16px',
+                    textAlign: 'center',
+                    fontSize: '13px',
+                    color: '#94A3B8',
+                  }}
+                >
+                  Tidak ada kategori kasus yang cocok dengan &quot;{searchQuery}&quot;
+                </div>
+              ) : (
+                filteredList.map((item) => {
+                  const isSelected = selectedId === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        onSelect(item);
+                        setIsOpen(false);
+                      }}
+                      style={{
+                        padding: '14px 20px',
+                        fontSize: '14px',
+                        fontWeight: isSelected ? 700 : 500,
+                        color: isSelected ? '#1D4ED8' : '#1E293B',
+                        background: isSelected ? '#EFF6FF' : '#FFFFFF',
+                        borderBottom: '1px solid #F1F5F9',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <span>{item.nama_kasus}</span>
+                      {isSelected && (
+                        <span style={{ color: '#2563EB', fontWeight: 800, fontSize: '16px' }}>
+                          ✓
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Render: Khusus Desktop Menggunakan Floating Dropdown (Select2 Style) */}
+      {isOpen && !isMobile && (
         <div
           style={{
             position: 'absolute',

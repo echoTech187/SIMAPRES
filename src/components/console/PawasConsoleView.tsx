@@ -44,113 +44,58 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
 
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
 
-function getSopRecommendationByIncident(item: any) {
-  if (!item) return { primarySatuanId: 'sabhara', secondarySatuanIds: ['binmas', 'reskrim'], kasusSpesifik: null, sopText: null };
+function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) {
+  if (!item) {
+    return {
+      primarySatuanId: 'sabhara',
+      secondarySatuanIds: ['binmas', 'reskrim'],
+      kasusSpesifik: null,
+      sopText: null,
+    };
+  }
 
-  // 0. Cek Subkategori Kasus dari Database
+  // 1. Ambil relasi subkategori dari database jika sudah ada
   const sub = item?.subcategory || item?.subcategory_rel;
-  const unitKey = sub?.unit_key || item?.subUnitKey;
+
+  // 2. Jika belum ada di relasi, cari di master_incident_subcategories (dbSubcategories)
+  const targetSubId = item?.subcategory_id || item?.subcategoryId;
+  const matchedSub =
+    sub ||
+    (targetSubId && dbSubcategories.length > 0
+      ? dbSubcategories.find((s: any) => s.id === Number(targetSubId))
+      : null) ||
+    (dbSubcategories.length > 0 && item?.jenisKejadian
+      ? dbSubcategories.find(
+          (s: any) => s.nama_kasus?.toLowerCase().trim() === item.jenisKejadian?.toLowerCase().trim()
+        )
+      : null);
+
+  const unitKey = matchedSub?.unit_key || matchedSub?.unit_rel?.key || item?.subUnitKey;
+
+  const secondaryMap: Record<string, string[]> = {
+    lantas: ['sabhara'],
+    reskrim: ['sabhara', 'intel'],
+    intel: ['binmas', 'sabhara'],
+    binmas: ['sabhara'],
+    sabhara: ['binmas', 'reskrim'],
+  };
+
   if (unitKey) {
     const primarySatuanId = unitKey === 'samapta' ? 'sabhara' : unitKey;
-    const secondaryMap: Record<string, string[]> = {
-      lantas: ['sabhara'],
-      reskrim: ['sabhara', 'intel'],
-      intel: ['binmas', 'sabhara'],
-      binmas: ['sabhara'],
-      sabhara: ['binmas', 'reskrim'],
-    };
     return {
       primarySatuanId,
       secondarySatuanIds: secondaryMap[primarySatuanId] || ['sabhara'],
-      kasusSpesifik: sub?.nama_kasus || item?.subKasus || null,
-      sopText: sub?.deskripsi_sop || null,
+      kasusSpesifik: matchedSub?.nama_kasus || item?.subKasus || item?.jenisKejadian || null,
+      sopText: matchedSub?.deskripsi_sop || null,
     };
   }
 
-  const text = ((item.jenisKejadian || item.title || '') + ' ' + (item.kategori || item.kategoriInsiden || '') + ' ' + (item.deskripsiKejadian || item.deskripsi || '') + ' ' + (item.ringkasanKeterangan || '')).toLowerCase();
-
-  // 1. Kamseltibcarlantas (Wewenang Mutlak: Sat Lantas)
-  // Termasuk: Laka, macet, tabrak lari, balap liar, knalpot brong, odol, sim/stnk palsu
-  if (
-    text.includes('laka') || text.includes('tabrak') || text.includes('macet') || text.includes('lalu lintas') ||
-    text.includes('derek') || text.includes('rem blong') || text.includes('balap liar') || text.includes('balapan') ||
-    text.includes('brong') || text.includes('knalpot') || text.includes('odol') || text.includes('marka jalan')
-  ) {
-    return {
-      primarySatuanId: 'lantas',
-      secondarySatuanIds: ['sabhara'],
-      kasusSpesifik: 'Penanganan Kamseltibcarlantas / Sat Lantas',
-      sopText: 'Urai kemacetan, penindakan balap liar/knalpot brong, atau TPTKP laka lantas.',
-    };
-  }
-
-  // 2. Tindak Pidana & Penegakan Hukum (Wewenang Mutlak: Sat Reskrim)
-  // Termasuk: Pembunuhan, Curas/Begal, Curat, Curanmor, Anirat, KDRT berat, Penipuan, Tipidkor, Siber, Lingkungan
-  if (
-    text.includes('curanmor') || text.includes('curas') || text.includes('curat') || text.includes('pencuri') ||
-    text.includes('curian') || text.includes('rampok') || text.includes('begal') || text.includes('penodong') ||
-    text.includes('anirat') || text.includes('aniaya') || text.includes('pembunuhan') || text.includes('mayat') ||
-    text.includes('kdrt') || text.includes('penipuan') || text.includes('penggelapan') || text.includes('korupsi') ||
-    text.includes('siber') || text.includes('pemerasan') || text.includes('jambret')
-  ) {
-    return {
-      primarySatuanId: 'reskrim',
-      secondarySatuanIds: ['sabhara', 'intel'],
-      kasusSpesifik: 'Penyelidikan / Penyidikan Tindak Pidana Sat Reskrim',
-      sopText: 'Olah TKP Inafis, visum medis, dan penindakan pro justitia.',
-    };
-  }
-
-  // 3. Deteksi Dini & Pengawasan Keamanan (Wewenang Mutlak: Sat Intelkam)
-  // Termasuk: Terorisme, radikalisme, konflik SARA, ancaman unjuk rasa anarkis, senpi ilegal, bahan peledak, ormas ilegal, orang asing
-  if (
-    text.includes('intel') || text.includes('teror') || text.includes('radikal') || text.includes('sara') ||
-    text.includes('unjuk rasa') || text.includes('demo') || text.includes('senpi') || text.includes('handak') ||
-    text.includes('peledak') || text.includes('ormas') || text.includes('orang asing') || text.includes('provokasi')
-  ) {
-    return {
-      primarySatuanId: 'intel',
-      secondarySatuanIds: ['binmas', 'sabhara'],
-      kasusSpesifik: 'Deteksi Dini & Monitoring Sat Intelkam',
-      sopText: 'Pulbaket tertutup, early warning system, dan pengamanan cegah eskalasi.',
-    };
-  }
-
-  // 4. Mediasi Warga & Pembinaan Komunitas (Wewenang Mutlak: Sat Binmas / Bhabinkamtibmas)
-  // Termasuk: Sengketa batas tanah, utang non-pidana, kenakalan remaja awal, cekcok keluarga, kebisingan lingkungan
-  if (
-    text.includes('mediasi') || text.includes('problem solving') || text.includes('sengketa') || text.includes('batas tanah') ||
-    text.includes('utang') || text.includes('kenakalan') || text.includes('cekcok') || text.includes('bising') ||
-    text.includes('kebisingan') || text.includes('bantuan') || text.includes('sosial') || text.includes('bansos') ||
-    text.includes('bhabin') || text.includes('sambang')
-  ) {
-    return {
-      primarySatuanId: 'binmas',
-      secondarySatuanIds: ['sabhara'],
-      kasusSpesifik: 'Problem Solving & Mediasi Sat Binmas',
-      sopText: 'Fasilitasi mediasi persuasif bersama 3 Pilar (Bhabinkamtibmas, Babinsa, Lurah/Kades).',
-    };
-  }
-
-  // 5. Bencana Alam, Kebakaran & SAR Presisi (Sat Samapta Presisi)
-  if (
-    text.includes('pohon') || text.includes('tumbang') || text.includes('bencana') || text.includes('banjir') ||
-    text.includes('kebakaran') || text.includes('evakuasi') || text.includes('sar') || text.includes('longsor')
-  ) {
-    return {
-      primarySatuanId: 'sabhara',
-      secondarySatuanIds: ['lantas'],
-      kasusSpesifik: 'Tanggap Darurat SAR & Evakuasi Sat Samapta',
-      sopText: 'Pengerahan SAR Perintis Presisi, buka perimeter aman dan evakuasi korban.',
-    };
-  }
-
-  // 6. Tipiring, Miras, Premanisme & Patroli Perintis (Sat Samapta Presisi)
+  // Fallback standar Presisi jika laporan umum tanpa subkategori spesifik
   return {
     primarySatuanId: 'sabhara',
     secondarySatuanIds: ['binmas', 'reskrim'],
-    kasusSpesifik: 'Patroli Perintis Presisi & Tipiring Sat Samapta',
-    sopText: 'Patroli blue light, sterilisasi premanisme/miras, dan pembubaran kerumunan.',
+    kasusSpesifik: item?.jenisKejadian || 'Patroli Presisi',
+    sopText: 'Lakukan patroli presisi, sterilisasi area dan pengamanan TKP.',
   };
 }
 
@@ -1146,7 +1091,7 @@ function CommandCenterContent({
   const bukaModalDisposisi = (item: any) => {
     setSelectedDisposisiItem(item);
 
-    const sop = getSopRecommendationByIncident(item);
+    const sop = getSopRecommendationByIncident(item, dbSubcategories);
     const primaryId = sop.primarySatuanId;
 
     setSelectedSatuanKeys([primaryId]);
@@ -5424,7 +5369,7 @@ function CommandCenterContent({
 
             {/* Body */}
             {(() => {
-              const sopRecommendation = getSopRecommendationByIncident(selectedDisposisiItem);
+              const sopRecommendation = getSopRecommendationByIncident(selectedDisposisiItem, dbSubcategories);
               const calculatedArmadas = daftarArmadaAktif.map((armada) => {
                 const isPrimarySop = armada.id === sopRecommendation.primarySatuanId;
                 const isSecondarySop = sopRecommendation.secondarySatuanIds.includes(armada.id);
