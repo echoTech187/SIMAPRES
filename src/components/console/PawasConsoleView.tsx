@@ -630,221 +630,231 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     return getComplaintPlatform(c) === platform;
   };
 
-  // Single Source of Truth for Complaint Category Resolution (Database Priority)
-  const getComplaintKategori = (c: any): string => {
-    if (!c) return 'Kamtibmas';
+  // Master Incident Categories Reference (Mirror of master_incident_categories table in DB)
+  const DEFAULT_MASTER_INCIDENT_CATEGORIES = [
+    { key: 'KRIMINALITAS', label: 'Kriminalitas & 3C', icon: '🚨', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA' },
+    { key: 'KAMTIBMAS', label: 'Kamtibmas & Tawuran', icon: '👥', badge_bg: '#FFFBEB', badge_color: '#D97706', badge_border: '#FDE68A' },
+    { key: 'LAKALANTAS', label: 'Laka & Kemacetan Lantas', icon: '🚦', badge_bg: '#EFF6FF', badge_color: '#2563EB', badge_border: '#BFDBFE' },
+    { key: 'BENCANA', label: 'Darurat & Bencana Alam', icon: '🔥', badge_bg: '#FEF2F2', badge_color: '#EA580C', badge_border: '#FED7AA' },
+    { key: 'PELAYANAN_PUBLIK', label: 'Pelayanan Publik & Walk-in', icon: '📋', badge_bg: '#F8FAFC', badge_color: '#475569', badge_border: '#CBD5E1' },
+  ];
 
-    // 1. Direct match from Database kategoriKey
-    if (c.kategoriKey) {
-      if ([
-        'Kriminalitas', 'Kamtibmas', 'Laka Lantas', 'Darurat Bencana', 'Pelayanan Publik',
-        'PATROLI', 'SAMBANG', 'TPTKP', 'PENGAMANAN'
-      ].includes(c.kategoriKey)) {
-        return c.kategoriKey;
-      }
-      switch (c.kategoriKey) {
-        case 'KRIMINALITAS':
-          return 'Kriminalitas';
-        case 'KAMTIBMAS':
-          return 'Kamtibmas';
-        case 'LAKA_LANTAS':
-          return 'Laka Lantas';
-        case 'DARURAT_BENCANA':
-          return 'Darurat Bencana';
-        case 'PELAYANAN_PUBLIK':
-          return 'Pelayanan Publik';
-        case 'PATROLI':
-          return 'PATROLI';
-        case 'SAMBANG':
-          return 'SAMBANG';
-        case 'TPTKP':
-          return 'TPTKP';
-        case 'PENGAMANAN':
-          return 'PENGAMANAN';
+  // Master Activity Types Reference (Mirror of master_activity_types table in DB)
+  const DEFAULT_MASTER_ACTIVITY_TYPES = [
+    { key: 'PATROLI', label: 'Patroli', icon: '🚔', badge_bg: '#EFF6FF', badge_color: '#1D4ED8', badge_border: '#BFDBFE' },
+    { key: 'SAMBANG', label: 'Sambang', icon: '🤝', badge_bg: '#F0FDF4', badge_color: '#15803D', badge_border: '#BBF7D0' },
+    { key: 'TPTKP', label: 'TPTKP', icon: '🛡️', badge_bg: '#FEF2F2', badge_color: '#DC2626', badge_border: '#FECACA' },
+    { key: 'PENGAMANAN', label: 'Pengamanan', icon: '⚠️', badge_bg: '#FFFBEB', badge_color: '#B45309', badge_border: '#FDE68A' },
+  ];
+
+  // Dynamic Category & Badge Info Resolver (100% Master-driven from DB master_incident_categories)
+  const getComplaintKategoriInfo = (c: any) => {
+    const catList = dbCategories.length > 0 ? dbCategories : DEFAULT_MASTER_INCIDENT_CATEGORIES;
+
+    if (!c) {
+      const def = catList[1] || DEFAULT_MASTER_INCIDENT_CATEGORIES[1];
+      return {
+        key: def.key,
+        kategori: def.label,
+        label: def.label,
+        badgeText: `${def.icon} ${def.label}`,
+        badgeStyle: {
+          background: def.badge_bg,
+          color: def.badge_color,
+          border: `1px solid ${def.badge_border}`,
+        },
+      };
+    }
+
+    // 1. Direct relation from Database (c.kategoriRel / c.category_rel)
+    const rel = c.kategoriRel || c.category_rel;
+    if (rel) {
+      const rawLabel = rel.label || rel.key || '';
+      const icon = rel.icon || '';
+      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+      return {
+        key: rel.key,
+        kategori: rawLabel,
+        label: rawLabel,
+        badgeText,
+        badgeStyle: {
+          background: rel.badge_bg || '#F1F5F9',
+          color: rel.badge_color || '#1E293B',
+          border: `1px solid ${rel.badge_border || '#CBD5E1'}`,
+        },
+      };
+    }
+
+    // 2. Lookup in loaded master dbCategories by ID
+    const targetId = c.category_id || c.kategoriId;
+    if (targetId) {
+      const foundById = catList.find((cat: any) => cat.id === targetId);
+      if (foundById) {
+        const rawLabel = foundById.label || foundById.key || '';
+        const icon = foundById.icon || '';
+        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        return {
+          key: foundById.key,
+          kategori: rawLabel,
+          label: rawLabel,
+          badgeText,
+          badgeStyle: {
+            background: foundById.badge_bg || '#F1F5F9',
+            color: foundById.badge_color || '#1E293B',
+            border: `1px solid ${foundById.badge_border || '#CBD5E1'}`,
+          },
+        };
       }
     }
 
-    // 2. Giat Personel (Platform: personel)
+    // 3. Lookup by kategoriKey if present
+    const rawKey = (c.kategoriKey || c.kategori_key || '').toUpperCase();
+    if (rawKey) {
+      const foundByKey = catList.find((cat: any) => cat.key.toUpperCase() === rawKey || cat.label.toUpperCase() === rawKey);
+      if (foundByKey) {
+        const rawLabel = foundByKey.label || foundByKey.key || '';
+        const icon = foundByKey.icon || '';
+        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        return {
+          key: foundByKey.key,
+          kategori: rawLabel,
+          label: rawLabel,
+          badgeText,
+          badgeStyle: {
+            background: foundByKey.badge_bg || '#F1F5F9',
+            color: foundByKey.badge_color || '#1E293B',
+            border: `1px solid ${foundByKey.badge_border || '#CBD5E1'}`,
+          },
+        };
+      }
+      // Check if it matches Giat Personel
+      const giatList = dbGiats.length > 0 ? dbGiats : DEFAULT_MASTER_ACTIVITY_TYPES;
+      const foundGiat = giatList.find((g: any) => g.key.toUpperCase() === rawKey || g.label.toUpperCase() === rawKey);
+      if (foundGiat) {
+        const rawLabel = foundGiat.label || foundGiat.key || '';
+        const icon = foundGiat.icon || '';
+        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        return {
+          key: foundGiat.key,
+          kategori: rawLabel,
+          label: rawLabel,
+          badgeText,
+          badgeStyle: {
+            background: foundGiat.badge_bg || foundGiat.active_bg || '#EFF6FF',
+            color: foundGiat.badge_color || foundGiat.inactive_color || '#1D4ED8',
+            border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || '#BFDBFE'}`,
+          },
+        };
+      }
+    }
+
+    // 4. Giat Personel fallback (Platform: personel)
     const platform = getComplaintPlatform(c);
     if (platform === 'personel') {
       const textGiat = `${c.jenisAksi || ''} ${c.jenisKejadian || ''} ${c.ringkasanKeterangan || ''}`.toLowerCase();
-      if (textGiat.includes('patroli')) return 'PATROLI';
-      if (textGiat.includes('sambang') || textGiat.includes('penyuluhan')) return 'SAMBANG';
-      if (textGiat.includes('tptkp') || textGiat.includes('olah tkp')) return 'TPTKP';
-      if (textGiat.includes('pengamanan') || textGiat.includes('pam') || textGiat.includes('jalur')) return 'PENGAMANAN';
-      return 'PATROLI';
+      const giatKey = textGiat.includes('sambang') ? 'SAMBANG' : textGiat.includes('tptkp') ? 'TPTKP' : textGiat.includes('pengamanan') || textGiat.includes('pam') ? 'PENGAMANAN' : 'PATROLI';
+      const giatList = dbGiats.length > 0 ? dbGiats : DEFAULT_MASTER_ACTIVITY_TYPES;
+      const foundGiat = giatList.find((g: any) => g.key === giatKey) || DEFAULT_MASTER_ACTIVITY_TYPES[0];
+      const rawLabel = foundGiat.label || foundGiat.key || '';
+      const icon = foundGiat.icon || '';
+      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+      return {
+        key: foundGiat.key,
+        kategori: rawLabel,
+        label: rawLabel,
+        badgeText,
+        badgeStyle: {
+          background: foundGiat.badge_bg || foundGiat.active_bg || '#EFF6FF',
+          color: foundGiat.badge_color || foundGiat.inactive_color || '#1D4ED8',
+          border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || '#BFDBFE'}`,
+        },
+      };
     }
 
-    // 2. Citizen / 110 Complaints (Mutually Exclusive Category Classification)
+    // 5. Intelligent Keyword Classifier to Master Category Key
     const jenis = (c.jenisKejadian || '').toLowerCase();
     const katLaporan = (c.kategoriLaporan || '').toLowerCase();
     const combined = `${jenis} ${katLaporan}`;
     const ringkasan = (c.ringkasanKeterangan || '').toLowerCase();
 
-    // 1. Kamtibmas & Tawuran: Tawuran, Kerumunan, Miras, Ribut, Balap Liar, Kenakalan
-    // (Jika laporan menyebut tawuran atau kerumunan massa berindikasi tawuran, diprioritaskan ke Kamtibmas & Tawuran)
-    if (
-      ['tawuran', 'kerumunan', 'kamtibmas', 'miras', 'ribut', 'keributan', 'balap liar', 'balapan', 'kenakalan'].some((k) => combined.includes(k))
-    ) {
-      return 'Kamtibmas';
+    let resolvedMasterKey = 'KAMTIBMAS';
+
+    if (['tawuran', 'kerumunan', 'kamtibmas', 'miras', 'ribut', 'keributan', 'balap liar', 'balapan', 'kenakalan'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+      resolvedMasterKey = 'KAMTIBMAS';
+    } else {
+      const hasCuri = (combined.includes('curi') && !combined.includes('curiga')) || combined.includes('pencurian') || combined.includes('mencuri');
+      if (
+        hasCuri ||
+        ['kriminal', 'begal', 'curat', 'curas', 'curanmor', 'rampok', 'perampokan', 'jambret', 'penjambretan', 'celurit', 'senpi', 'todong', 'penodongan', 'aniaya', 'penganiayaan', 'copet', 'pemerasan', 'sajam'].some((k) => combined.includes(k) || ringkasan.includes(k))
+      ) {
+        resolvedMasterKey = 'KRIMINALITAS';
+      } else if (['laka', 'lantas', 'kecelakaan', 'tabrak', 'macet', 'kemacetan', 'lalu lintas'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+        resolvedMasterKey = 'LAKALANTAS';
+      } else if (['kebakaran', 'bencana', 'darurat', 'medis', 'banjir', 'tumbang', 'damkar', 'ambulans'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+        resolvedMasterKey = 'BENCANA';
+      } else if (['pelayanan', 'mediasi', 'hilang', 'kehilangan', 'tersesat', 'ijazah', 'ktp', 'pengawalan', 'hewan', 'bantuan warga'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
+        resolvedMasterKey = 'PELAYANAN_PUBLIK';
+      }
     }
 
-    // 2. Kriminalitas: Begal, Curas, Curat, Curanmor, Rampok, Jambret, Celurit, Penodongan, Aniaya, Pencurian
-    // Catatan: Hindari 'curi' mencocokkan kata 'curiga' / 'kecurigaan'
-    const hasCuri = (combined.includes('curi') && !combined.includes('curiga')) || combined.includes('pencurian') || combined.includes('mencuri');
-    if (
-      hasCuri ||
-      ['kriminal', 'begal', 'curat', 'curas', 'curanmor', 'rampok', 'perampokan', 'jambret', 'penjambretan', 'celurit', 'senpi', 'todong', 'penodongan', 'aniaya', 'penganiayaan', 'copet', 'pemerasan', 'sajam'].some((k) => combined.includes(k))
-    ) {
-      return 'Kriminalitas';
-    }
+    const matchedCat = catList.find((cat: any) => cat.key === resolvedMasterKey) || catList[1] || DEFAULT_MASTER_INCIDENT_CATEGORIES[1];
+    const rawLabel = matchedCat.label || matchedCat.key || '';
+    const icon = matchedCat.icon || '';
+    const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
 
-    // 3. Laka Lantas: Laka, Lantas, Kecelakaan, Tabrakan, Macet, Kemacetan
-    if (
-      ['laka', 'lantas', 'kecelakaan', 'tabrak', 'macet', 'kemacetan', 'lalu lintas'].some((k) => combined.includes(k))
-    ) {
-      return 'Laka Lantas';
-    }
-
-    // 4. Darurat Bencana: Kebakaran, Bencana, Pohon Tumbang, Medis Darurat, Banjir, Damkar, Ambulans
-    if (
-      ['kebakaran', 'bencana', 'darurat', 'medis', 'banjir', 'tumbang', 'damkar', 'ambulans'].some((k) => combined.includes(k))
-    ) {
-      return 'Darurat Bencana';
-    }
-
-    // 5. Pelayanan Publik: Pelayanan, Bantuan Warga, Mediasi, Orang Hilang, Kehilangan, Ijazah, KTP, Tersesat, Pengawalan
-    // CATATAN: Kata generic 'bantuan' tidak dipakai karena seluruh laporan 110 berisi 'butuh bantuan segera'
-    if (
-      ['pelayanan', 'mediasi', 'hilang', 'kehilangan', 'tersesat', 'ijazah', 'ktp', 'pengawalan', 'hewan', 'bantuan warga'].some((k) => combined.includes(k))
-    ) {
-      return 'Pelayanan Publik';
-    }
-
-    // Fallback evaluasi ringkasan jika jenisKejadian bersifat umum
-    if (['begal', 'curat', 'curas', 'curanmor', 'rampok', 'jambret', 'celurit', 'todong', 'aniaya'].some((k) => ringkasan.includes(k))) {
-      return 'Kriminalitas';
-    }
-    if (['tawuran', 'kerumunan', 'miras', 'ribut', 'balap liar'].some((k) => ringkasan.includes(k))) {
-      return 'Kamtibmas';
-    }
-    if (['laka', 'kecelakaan', 'tabrakan', 'kemacetan'].some((k) => ringkasan.includes(k))) {
-      return 'Laka Lantas';
-    }
-    if (['kebakaran', 'bencana', 'banjir', 'pohon tumbang'].some((k) => ringkasan.includes(k))) {
-      return 'Darurat Bencana';
-    }
-    if (['kehilangan', 'tersesat', 'orang hilang', 'mediasi', 'surat kehilangan'].some((k) => ringkasan.includes(k))) {
-      return 'Pelayanan Publik';
-    }
-
-    return 'Kamtibmas';
+    return {
+      key: matchedCat.key,
+      kategori: rawLabel,
+      label: rawLabel,
+      badgeText,
+      badgeStyle: {
+        background: matchedCat.badge_bg || '#F1F5F9',
+        color: matchedCat.badge_color || '#1E293B',
+        border: `1px solid ${matchedCat.badge_border || '#CBD5E1'}`,
+      },
+    };
   };
 
-  const getComplaintKategoriInfo = (c: any) => {
-    if (c?.kategoriRel) {
-      const rawLabel = c.kategoriRel.label || '';
-      const icon = c.kategoriRel.icon || '';
-      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
-      return {
-        kategori: rawLabel,
-        label: rawLabel,
-        badgeText,
-        badgeStyle: {
-          background: c.kategoriRel.badge_bg || '#F1F5F9',
-          color: c.kategoriRel.badge_color || '#1E293B',
-          border: `1px solid ${c.kategoriRel.badge_border || '#CBD5E1'}`,
-        },
-      };
-    }
-    const kat = getComplaintKategori(c);
-    switch (kat) {
-      case 'Kriminalitas':
-        return {
-          kategori: 'Kriminalitas',
-          label: 'Kriminalitas',
-          badgeText: '⚔️ Kriminalitas',
-          badgeStyle: { background: '#FFF1F2', color: '#BE123C', border: '1px solid #FFE4E6' },
-        };
-      case 'Laka Lantas':
-        return {
-          kategori: 'Laka Lantas',
-          label: 'Laka Lantas',
-          badgeText: '🚗 Laka Lantas',
-          badgeStyle: { background: '#FFFBEB', color: '#B45309', border: '1px solid #FEF3C7' },
-        };
-      case 'Darurat Bencana':
-        return {
-          kategori: 'Darurat Bencana',
-          label: 'Darurat & Bencana',
-          badgeText: '🔥 Darurat & Bencana',
-          badgeStyle: { background: '#FFF7ED', color: '#C2410C', border: '1px solid #FFEDD5' },
-        };
-      case 'Pelayanan Publik':
-        return {
-          kategori: 'Pelayanan Publik',
-          label: 'Pelayanan Publik',
-          badgeText: '🤝 Pelayanan Publik',
-          badgeStyle: { background: '#ECFDF5', color: '#047857', border: '1px solid #D1FAE5' },
-        };
-      case 'PATROLI':
-        return {
-          kategori: 'PATROLI',
-          label: 'Patroli',
-          badgeText: '🚔 Patroli',
-          badgeStyle: { background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' },
-        };
-      case 'SAMBANG':
-        return {
-          kategori: 'SAMBANG',
-          label: 'Sambang',
-          badgeText: '🤝 Sambang',
-          badgeStyle: { background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' },
-        };
-      case 'TPTKP':
-        return {
-          kategori: 'TPTKP',
-          label: 'TPTKP',
-          badgeText: '🛡️ TPTKP',
-          badgeStyle: { background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' },
-        };
-      case 'PENGAMANAN':
-        return {
-          kategori: 'PENGAMANAN',
-          label: 'Pengamanan',
-          badgeText: '⚠️ Pengamanan',
-          badgeStyle: { background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A' },
-        };
-      case 'Kamtibmas':
-      default:
-        return {
-          kategori: 'Kamtibmas',
-          label: 'Kamtibmas & Tawuran',
-          badgeText: '💥 Kamtibmas & Tawuran',
-          badgeStyle: { background: '#FAF5FF', color: '#7E22CE', border: '1px solid #F3E8FF' },
-        };
-    }
+  // Helper returning the category key or label
+  const getComplaintKategori = (c: any): string => {
+    return getComplaintKategoriInfo(c).key;
   };
 
   const matchesKategori = (c: any, kategori: string) => {
     if (kategori === 'all') return true;
+    const catInfo = getComplaintKategoriInfo(c);
+    const target = kategori.toUpperCase().trim();
+    if (catInfo.key && catInfo.key.toUpperCase() === target) return true;
+    if (catInfo.label && catInfo.label.toUpperCase().includes(target)) return true;
+
+    // Fallback checks on complaint properties
     if (c?.category_id && dbCategories.length > 0) {
-      const dbCat = dbCategories.find((dc) => dc.key.toLowerCase() === kategori.toLowerCase());
+      const dbCat = dbCategories.find((dc) => dc.key.toUpperCase() === target);
       if (dbCat && c.category_id === dbCat.id) return true;
     }
     if (c?.kategoriId && dbCategories.length > 0) {
-      const dbCat = dbCategories.find((dc) => dc.key.toLowerCase() === kategori.toLowerCase());
+      const dbCat = dbCategories.find((dc) => dc.key.toUpperCase() === target);
       if (dbCat && c.kategoriId === dbCat.id) return true;
     }
-    if (c?.kategoriRel?.key) {
-      if (c.kategoriRel.key.toLowerCase() === kategori.toLowerCase()) return true;
-    }
-    if (c?.kategoriKey) {
-      const cleanK = c.kategoriKey.toLowerCase().replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|\uFE0F|[\u2600-\u27BF]|\s+/g, '');
-      const cleanTarget = kategori.toLowerCase().replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|\uFE0F|[\u2600-\u27BF]|\s+/g, '');
-      if (cleanK === cleanTarget || cleanK.includes(cleanTarget) || cleanTarget.includes(cleanK)) return true;
-    }
-    return getComplaintKategori(c) === kategori;
+    if (c?.kategoriRel?.key && c.kategoriRel.key.toUpperCase() === target) return true;
+    if (c?.kategoriKey && c.kategoriKey.toUpperCase() === target) return true;
+
+    // Alias mapping (e.g. 'Kriminalitas' vs 'KRIMINALITAS', 'Laka Lantas' vs 'LAKALANTAS', etc.)
+    const aliasMap: Record<string, string> = {
+      'KRIMINALITAS': 'KRIMINALITAS',
+      'KRIMINAL': 'KRIMINALITAS',
+      'KAMTIBMAS': 'KAMTIBMAS',
+      'LAKALANTAS': 'LAKALANTAS',
+      'LAKA LANTAS': 'LAKALANTAS',
+      'BENCANA': 'BENCANA',
+      'DARURAT BENCANA': 'BENCANA',
+      'DARURAT & BENCANA': 'BENCANA',
+      'PELAYANAN_PUBLIK': 'PELAYANAN_PUBLIK',
+      'PELAYANAN PUBLIK': 'PELAYANAN_PUBLIK',
+    };
+    const normTarget = aliasMap[target] || target;
+    const normCurrent = aliasMap[catInfo.key.toUpperCase()] || catInfo.key.toUpperCase();
+    return normTarget === normCurrent;
   };
 
   // 3-way AND filtering: status && platform && kategori
@@ -1236,11 +1246,6 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     (c) => matchesStatus(c, valFilterStatus) && matchesPlatform(c, valFilterPlatform)
   );
   const katCountAll = logsForKategori.length;
-  const katCountKrim = logsForKategori.filter((c) => matchesKategori(c, 'Kriminalitas')).length;
-  const katCountKamtib = logsForKategori.filter((c) => matchesKategori(c, 'Kamtibmas')).length;
-  const katCountLaka = logsForKategori.filter((c) => matchesKategori(c, 'Laka Lantas')).length;
-  const katCountDarurat = logsForKategori.filter((c) => matchesKategori(c, 'Darurat Bencana')).length;
-  const katCountPelayanan = logsForKategori.filter((c) => matchesKategori(c, 'Pelayanan Publik')).length;
 
   // Giat counts for when Platform is 'personel'
   const giatCountPatroli = logsForKategori.filter((c) => matchesKategori(c, 'PATROLI')).length;
@@ -2842,11 +2847,11 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                         }))
                       ] : [
                         { key: 'all', label: 'Semua Jenis', count: katCountAll },
-                        { key: 'Kriminalitas', label: '⚔️ Kriminalitas', count: katCountKrim },
-                        { key: 'Kamtibmas', label: '💥 Kamtibmas & Tawuran', count: katCountKamtib },
-                        { key: 'Laka Lantas', label: '🚗 Laka Lantas', count: katCountLaka },
-                        { key: 'Darurat Bencana', label: '🔥 Darurat & Bencana', count: katCountDarurat },
-                        { key: 'Pelayanan Publik', label: '🤝 Pelayanan Publik', count: katCountPelayanan },
+                        ...DEFAULT_MASTER_INCIDENT_CATEGORIES.map((cat) => ({
+                          key: cat.key,
+                          label: `${cat.icon} ${cat.label}`,
+                          count: logsForKategori.filter((c) => matchesKategori(c, cat.key)).length,
+                        }))
                       ]).map((kat) => {
                         const isKatActive = valFilterKategori === kat.key;
                         return (
