@@ -1,12 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   getPendingComplaintsAction,
-  assignComplaintAction,
   disposisiMultiSatuanAction,
   createComplaintAction,
   getAllRecentComplaintsAction,
@@ -29,7 +27,6 @@ import {
   deleteHotspotAction,
 } from '@/app/actions/hotspot.actions';
 import { createLogbookAction } from '@/app/actions/logbook.actions';
-import { loadGoogleMaps } from '@/components/SimapresGoogleMap';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
   ssr: false,
@@ -44,6 +41,8 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
   loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
 });
+
+import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
 
 function getSopRecommendationByIncident(item: any) {
   if (!item) return { primarySatuanId: 'sabhara', secondarySatuanIds: ['binmas', 'reskrim'], kasusSpesifik: null, sopText: null };
@@ -4777,62 +4776,29 @@ function CommandCenterContent({
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
                       <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Kategori / Jenis Insiden <span style={{ color: 'red' }}>*</span>
+                        Kategori Laporan Kejadian <span style={{ color: 'red' }}>*</span>
                       </label>
-                      <select
-                        className="form-control"
-                        style={{ fontWeight: 600 }}
-                        value={simCaller.kategori}
-                        onChange={(e) => setSimCaller({ ...simCaller, kategori: e.target.value })}
-                      >
-                        <option value="">-- Pilih Kategori Insiden --</option>
-                        {dbCategories.map((cat) => (
-                          <option key={cat.id || cat.key} value={cat.label || cat.key}>
-                            {cat.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Sub-Kategori Kasus Mutlak Satuan SOP (Option B - Smart CAD 110) */}
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Rincian Sub-Kasus Spesifik (SOP Polri)</span>
-                        <span style={{ fontSize: '10px', color: '#0284C7', fontWeight: 600 }}>Smart CAD Auto-Recommend</span>
-                      </label>
-                      <select
-                        className="form-control"
-                        style={{ fontSize: '12.5px', fontWeight: 600 }}
-                        value={simCaller.subcategoryId || ''}
-                        onChange={(e) => {
-                          const subId = Number(e.target.value);
-                          const chosenSub = dbSubcategories.find((s) => s.id === subId);
-                          if (chosenSub) {
+                      <Select2CategoryDropdown
+                        subcategories={dbSubcategories}
+                        selectedId={simCaller.subcategoryId}
+                        onSelect={(item) => {
+                          if (item) {
                             setSimCaller({
                               ...simCaller,
-                              subcategoryId: subId,
-                              kategori: chosenSub.category_key,
-                              urgensi: chosenSub.default_urgensi || simCaller.urgensi || 'SEDANG',
-                              uraian: simCaller.uraian ? simCaller.uraian : (chosenSub.deskripsi_sop ? `[SOP ${chosenSub.nama_kasus}] ${chosenSub.deskripsi_sop}` : ''),
+                              subcategoryId: item.id,
+                              kategori: item.nama_kasus,
+                              urgensi: (item.default_urgensi as any) || simCaller.urgensi || 'SEDANG',
+                              uraian: simCaller.uraian ? simCaller.uraian : (item.deskripsi_sop ? `[SOP ${item.nama_kasus}] ${item.deskripsi_sop}` : ''),
                             });
                           } else {
-                            setSimCaller({ ...simCaller, subcategoryId: undefined });
+                            setSimCaller({
+                              ...simCaller,
+                              subcategoryId: undefined,
+                              kategori: '',
+                            });
                           }
                         }}
-                      >
-                        <option value="">-- Pilih Rincian Kasus Spesifik (Opsional) --</option>
-                        {dbSubcategories
-                          .filter((s) => {
-                            if (!simCaller.kategori) return true;
-                            const catKey = simCaller.kategori.toUpperCase();
-                            return s.category_key === catKey || (s.category_rel && s.category_rel.label === simCaller.kategori);
-                          })
-                          .map((sub) => (
-                            <option key={sub.id} value={sub.id}>
-                              {sub.unit_rel?.short_name ? `[${sub.unit_rel.short_name}] ` : ''}{sub.nama_kasus} (Prioritas: {sub.default_urgensi})
-                            </option>
-                          ))}
-                      </select>
+                      />
                     </div>
 
                     {/* Tingkat Urgensi Presisi (Prototype L2088-2106) */}
@@ -5073,33 +5039,6 @@ function CommandCenterContent({
                       </div>
                     )}
 
-                    {/* Koordinat GPS Satelit Terkunci Otomatis (Prototype L2115-2119) */}
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
-                          Koordinat GPS Satelit (Terkunci Otomatis)
-                        </label>
-                        {simCaller.lat !== 0 && simCaller.lng !== 0 && (
-                          <span style={{ fontSize: '10.5px', color: '#15803D', fontWeight: 700, background: '#DCFCE7', padding: '1px 6px', borderRadius: '4px' }}>
-                            ✓ Terkunci Akurat
-                          </span>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        id="eb-op-gps"
-                        className="form-control"
-                        placeholder="Koordinat GPS (Otomatis saat terisi)"
-                        value={simCaller.lat && simCaller.lng ? `${simCaller.lat}, ${simCaller.lng}` : ''}
-                        readOnly
-                        style={{
-                          background: '#F8FAFC',
-                          color: '#2563EB',
-                          fontFamily: 'monospace',
-                          fontWeight: 600,
-                        }}
-                      />
-                    </div>
 
                     <div className="form-group" style={{ marginBottom: '16px' }}>
                       <label className="form-label" style={{ fontSize: '11.5px' }}>

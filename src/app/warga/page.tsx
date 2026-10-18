@@ -1,8 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import './warga.css';
+import Select2CategoryDropdown, { IncidentSubcategoryOption } from '@/components/Select2CategoryDropdown';
+
+const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
+  ssr: false,
+  loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
+});
+
 import {
   createComplaintAction,
   getComplaintByTiketAction,
@@ -63,12 +71,22 @@ export default function PortalWargaPage() {
   const [categoryOptions, setCategoryOptions] = useState<
     Array<{ id: number; key: string; label: string; icon?: string | null }>
   >([]);
+  const [subcategories, setSubcategories] = useState<IncidentSubcategoryOption[]>([]);
+  const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
   const [kategori, setKategori] = useState('');
   const [nama, setNama] = useState('');
   const [telp, setTelp] = useState('');
   const [lokasi, setLokasi] = useState('');
+  const [lat, setLat] = useState<number>(-6.2415);
+  const [lng, setLng] = useState<number>(106.8021);
   const [gpsCoords, setGpsCoords] = useState('');
-  const [gpsStatusText, setGpsStatusText] = useState('');
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [locationSuggestions, setLocationSuggestions] = useState<
+    Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
+  >([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [uraian, setUraian] = useState('');
   const [fotoBukti, setFotoBukti] = useState<string | null>(null);
 
@@ -117,10 +135,16 @@ export default function PortalWargaPage() {
       try {
         const filterRes = await getMasterFilterOptionsAction();
 
-        if (filterRes.success && filterRes.data?.categories) {
-          setCategoryOptions(filterRes.data.categories);
-          if (filterRes.data.categories.length > 0) {
-            setKategori(filterRes.data.categories[0].label);
+        if (filterRes.success) {
+          if (filterRes.data?.categories) {
+            setCategoryOptions(filterRes.data.categories);
+          }
+          if (filterRes.data?.subcategories) {
+            setSubcategories(filterRes.data.subcategories);
+            if (filterRes.data.subcategories.length > 0) {
+              setSubcategoryId(filterRes.data.subcategories[0].id);
+              setKategori(filterRes.data.subcategories[0].nama_kasus);
+            }
           }
         }
       } catch (err) {
@@ -132,25 +156,76 @@ export default function PortalWargaPage() {
   }, []);
 
   const ambilLokasiSaatIni = () => {
-    setGpsStatusText('🔄 Mengunci sinyal satelit GPS...');
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const lat = pos.coords.latitude.toFixed(4);
-          const lng = pos.coords.longitude.toFixed(4);
-          setGpsCoords(`${lat}, ${lng}`);
-          setGpsStatusText(`🛰️ Koordinat Terkunci: ${lat}, ${lng} (Akurasi Tinggi)`);
+          const latVal = Number(pos.coords.latitude.toFixed(6));
+          const lngVal = Number(pos.coords.longitude.toFixed(6));
+          setLat(latVal);
+          setLng(lngVal);
+          setGpsCoords(`${latVal}, ${lngVal}`);
           if (!lokasi) {
-            setLokasi(`Titik Lokasi Satelit GPS (${lat}, ${lng})`);
+            setLokasi(`Titik Lokasi Terkini (${latVal.toFixed(4)}, ${lngVal.toFixed(4)})`);
           }
         },
-        () => {
-          setGpsCoords('');
-          setGpsStatusText('');
-        },
+        () => {},
         { enableHighAccuracy: true, timeout: 5000 }
       );
     }
+  };
+
+  const handleLocationSearch = (query: string) => {
+    setLokasi(query);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!query || query.trim().length < 2) {
+      setLocationSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsSearchingLocation(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const encoded = encodeURIComponent(query.trim());
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&lat=-6.2415&lon=106.8021&limit=6`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = (data?.features || []).map((feat: any) => {
+            const p = feat.properties || {};
+            const coords = feat.geometry?.coordinates || [106.8021, -6.2415];
+            const title = p.name || p.street || query;
+            const subParts = [p.street, p.district, p.city || 'DKI Jakarta'].filter(
+              (part) => part && part !== title
+            );
+            const sub = subParts.join(', ') || 'Wilayah DKI Jakarta & Sekitarnya';
+            const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
+            const full = Array.from(new Set(fullParts)).join(', ') || title;
+            return {
+              label: title,
+              subLabel: sub,
+              fullAddress: full,
+              lat: Number(coords[1].toFixed(6)),
+              lng: Number(coords[0].toFixed(6)),
+            };
+          });
+          setLocationSuggestions(items);
+          setShowSuggestions(items.length > 0);
+        }
+      } catch (err) {
+        console.warn('Location search error:', err);
+      } finally {
+        setIsSearchingLocation(false);
+      }
+    }, 280);
+  };
+
+  const handleSelectSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
+    setLokasi(item.fullAddress);
+    setLat(item.lat);
+    setLng(item.lng);
+    setGpsCoords(`${item.lat}, ${item.lng}`);
+    setShowSuggestions(false);
   };
 
   const showAlert = (message: string, title = 'Pemberitahuan', icon = 'ℹ️') => {
@@ -237,21 +312,21 @@ export default function PortalWargaPage() {
     const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const [latStr, lngStr] = gpsCoords.split(',').map((s) => s.trim());
-    const lat = parseFloat(latStr) || 0;
-    const lng = parseFloat(lngStr) || 0;
+    const finalLat = lat || -6.2415;
+    const finalLng = lng || 106.8021;
 
     try {
       const dbRes = await createComplaintAction({
         pelaporNama: namaVal,
         pelaporHp: telpVal,
-        jenisKejadian: kategori,
+        jenisKejadian: kategori || 'Pengaduan Warga',
         kategoriKey: kategori,
+        subcategoryId: subcategoryId,
         platformKey: 'warga',
-        urgensi: null as any,
+        urgensi: 'NORMAL',
         tkpAlamatTeks: lokasiVal,
-        tkpLat: lat,
-        tkpLng: lng,
+        tkpLat: finalLat,
+        tkpLng: finalLng,
         ringkasanKeterangan: uraianVal,
       });
       if (dbRes.success && dbRes.data?.nomorTiket) {
@@ -572,29 +647,26 @@ export default function PortalWargaPage() {
               </p>
 
               <form id="form-lapor-warga" onSubmit={handleKirimLaporanManual}>
-                {/* Kategori Laporan */}
+                {/* Kategori Laporan (Select2 Style Searchable) */}
                 <div className="form-group">
                   <label className="form-label" htmlFor="lapor-kategori">
                     Kategori Laporan <span className="req">*</span>
                   </label>
-                  <select
-                    id="lapor-kategori"
-                    className="form-control"
-                    style={{ fontWeight: 600 }}
-                    value={kategori}
-                    onChange={(e) => setKategori(e.target.value)}
+                  <Select2CategoryDropdown
+                    subcategories={subcategories}
+                    selectedId={subcategoryId}
+                    onSelect={(item) => {
+                      if (item) {
+                        setSubcategoryId(item.id);
+                        setKategori(item.nama_kasus);
+                      } else {
+                        setSubcategoryId(null);
+                        setKategori('');
+                      }
+                    }}
+                    placeholder="-- Cari / Pilih Kategori Kasus Laporan --"
                     required
-                  >
-                    {categoryOptions.length > 0 ? (
-                      categoryOptions.map((cat) => (
-                        <option key={cat.id} value={cat.label}>
-                          {cat.icon || '📌'} {cat.label}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">Memuat kategori dari database...</option>
-                    )}
-                  </select>
+                  />
                 </div>
 
                 {/* Nama Pelapor & No HP */}
@@ -629,36 +701,235 @@ export default function PortalWargaPage() {
                   </div>
                 </div>
 
-                {/* Lokasi Kejadian (GPS Auto-lock) */}
+                {/* Lokasi Kejadian (TKP) dengan Google-style Search & Peta Interaktif */}
                 <div className="form-group">
-                  <label className="form-label" htmlFor="lapor-lokasi">
-                    Lokasi Kejadian (TKP) <span className="req">*</span>
-                  </label>
-                  <div className="input-icon-wrap">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label className="form-label" htmlFor="lapor-lokasi" style={{ marginBottom: 0 }}>
+                      Lokasi Kejadian (TKP) <span className="req">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      id="btn-toggle-warga-map"
+                      onClick={() => setShowMapPicker(!showMapPicker)}
+                      style={{
+                        background: showMapPicker ? '#EFF6FF' : '#F8FAFC',
+                        border: showMapPicker ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                        color: showMapPicker ? '#1D4ED8' : '#334155',
+                        padding: '3px 9px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>🗺️</span> {showMapPicker ? 'Tutup Peta' : 'Pilih Titik di Peta'}
+                    </button>
+                  </div>
+
+                  <div style={{ position: 'relative' }}>
                     <input
                       type="text"
                       id="lapor-lokasi"
                       className="form-control"
-                      placeholder="Contoh: Jl. Sudirman Kav. 24, patokan depan Gedung BRI"
+                      placeholder="Ketik alamat TKP atau cari nama tempat..."
                       value={lokasi}
-                      onChange={(e) => setLokasi(e.target.value)}
+                      onChange={(e) => handleLocationSearch(e.target.value)}
+                      onFocus={() => {
+                        if (locationSuggestions.length > 0) setShowSuggestions(true);
+                      }}
                       required
+                      style={{ paddingRight: '60px' }}
                     />
+                    {isSearchingLocation && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: '34px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: '11px',
+                          color: '#3B82F6',
+                        }}
+                      >
+                        🔄
+                      </div>
+                    )}
                     <button
                       type="button"
                       className="input-icon-btn"
                       onClick={ambilLokasiSaatIni}
                       title="Dapatkan Lokasi GPS Saat Ini"
+                      style={{
+                        position: 'absolute',
+                        right: '6px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '16px',
+                      }}
                     >
                       📍
                     </button>
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && locationSuggestions.length > 0 && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          right: 0,
+                          background: '#FFFFFF',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25)',
+                          zIndex: 9999,
+                          maxHeight: '260px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: '6px 10px',
+                            background: '#F8FAFC',
+                            borderBottom: '1px solid #E2E8F0',
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            color: '#64748B',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <span>📍 HASIL PENCARIAN TEMPAT &amp; ALAMAT</span>
+                          <span
+                            style={{ cursor: 'pointer', color: '#94A3B8' }}
+                            onClick={() => setShowSuggestions(false)}
+                          >
+                            ✕ Tutup
+                          </span>
+                        </div>
+                        {locationSuggestions.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => handleSelectSuggestion(item)}
+                            style={{
+                              padding: '9px 12px',
+                              cursor: 'pointer',
+                              borderBottom: idx < locationSuggestions.length - 1 ? '1px solid #F1F5F9' : 'none',
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '10px',
+                              transition: 'background 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+                          >
+                            <span style={{ fontSize: '16px', lineHeight: 1.2 }}>📍</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: '12.5px',
+                                  fontWeight: 700,
+                                  color: '#1E293B',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {item.label}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: '11px',
+                                  color: '#64748B',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {item.subLabel}
+                              </div>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                color: '#2563EB',
+                                background: '#DBEAFE',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                fontFamily: 'monospace',
+                                fontWeight: 600,
+                                alignSelf: 'center',
+                              }}
+                            >
+                              PILIH
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div
-                    id="gps-status-info"
-                    style={{ fontSize: '11px', color: '#059669', fontWeight: 600, marginTop: '4px' }}
-                  >
-                    {gpsStatusText}
-                  </div>
+
+                  {/* Interactive Map Picker (Opsi Pilih Titik di Peta Langsung) */}
+                  {showMapPicker && (
+                    <div
+                      style={{
+                        marginTop: '10px',
+                        marginBottom: '10px',
+                        border: '1.5px solid #93C5FD',
+                        borderRadius: '10px',
+                        overflow: 'hidden',
+                        background: '#F8FAFC',
+                        padding: '10px',
+                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            color: '#1E40AF',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                          }}
+                        >
+                          📍 Klik peta atau geser pin merah untuk mengunci titik TKP
+                        </span>
+                        <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 600 }}>
+                          Google Maps Live
+                        </span>
+                      </div>
+                      <MiniMapPicker
+                        lat={lat || -6.2415}
+                        lng={lng || 106.8021}
+                        height="220px"
+                        onChange={(newLat, newLng) => {
+                          setLat(newLat);
+                          setLng(newLng);
+                          setGpsCoords(`${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
+                        }}
+                        onAddressChange={(alamat) => {
+                          setLokasi(alamat);
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Keterangan Kejadian */}

@@ -271,9 +271,20 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|\uFE0F|[\u2600-\u27BF]/g, '')
       .trim() || data.jenisKejadian;
 
-    // Resolve subcategory_id
+    // Resolve subcategory_id and auto-fill category_id and kategori_key
     let subcategoryId: number | null = (data as any).subcategoryId || null;
-    if (!subcategoryId && (data.jenisKejadian || data.ringkasanKeterangan)) {
+    if (subcategoryId) {
+      try {
+        const foundSub = await prisma.masterIncidentSubcategory.findUnique({
+          where: { id: Number(subcategoryId) },
+          select: { id: true, category_id: true, category_key: true },
+        });
+        if (foundSub) {
+          if (!categoryId) categoryId = foundSub.category_id;
+          if (!kategoriKey) kategoriKey = foundSub.category_key;
+        }
+      } catch (_) {}
+    } else if (data.jenisKejadian || data.ringkasanKeterangan) {
       try {
         const foundSub = await prisma.masterIncidentSubcategory.findFirst({
           where: {
