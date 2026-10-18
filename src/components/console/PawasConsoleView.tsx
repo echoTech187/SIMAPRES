@@ -377,7 +377,6 @@ function CommandCenterContent({
   const [dbStatuses, setDbStatuses] = useState<any[]>(() => initialMasterData?.statuses || []);
 
   // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
-  // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
   const daftarArmadaAktif = useMemo(() => {
     const sourceSatuans = dbSatuans.length > 0 ? dbSatuans : [
       { key: 'sabhara', unit_name: 'Satuan Samapta (Sabhara)', short_name: 'Sat Samapta', icon_emoji: '🚔', duties: 'Patroli Perintis Presisi & Pengamanan TKP', default_orders: 'Lakukan sterilisasi TKP dan pengamanan awal.' },

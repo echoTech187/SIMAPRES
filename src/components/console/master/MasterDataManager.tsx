@@ -23,6 +23,10 @@ import {
   createMasterIncidentCategoryAction,
   updateMasterIncidentCategoryAction,
   deleteMasterIncidentCategoryAction,
+  getMasterIncidentSubcategoriesAction,
+  createMasterIncidentSubcategoryAction,
+  updateMasterIncidentSubcategoryAction,
+  deleteMasterIncidentSubcategoryAction,
   getMasterHotspotCategoriesAction,
   createMasterHotspotCategoryAction,
   updateMasterHotspotCategoryAction,
@@ -70,6 +74,7 @@ export type MasterTabType =
   | 'hotspot'
   | 'hotspot_cat'
   | 'kategori'
+  | 'subkategori'
   | 'duty';
 
 interface MasterDataManagerProps {
@@ -87,6 +92,13 @@ export default function MasterDataManager({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
+
+  // Subkategori Dropdown options & Filter states
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [unitsList, setUnitsList] = useState<any[]>([]);
+  const [filterSubcatCategory, setFilterSubcatCategory] = useState<string>('all');
+  const [filterSubcatUnit, setFilterSubcatUnit] = useState<string>('all');
+  const [filterSubcatUrgensi, setFilterSubcatUrgensi] = useState<string>('all');
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -144,6 +156,14 @@ export default function MasterDataManager({
     badge_bg: '#EFF6FF',
     badge_color: '#1D4ED8',
     badge_border: '#BFDBFE',
+    // Subkategori
+    nama_kasus: '',
+    category_id: 1,
+    category_key: 'KRIMINALITAS',
+    unit_id: 1,
+    unit_key: 'sabhara',
+    default_urgensi: 'SEDANG',
+    deskripsi_sop: '',
   });
 
   // Load Data based on activeTab
@@ -176,6 +196,21 @@ export default function MasterDataManager({
         case 'kategori':
           res = await getMasterIncidentCategoriesAction();
           break;
+        case 'subkategori': {
+          res = await getMasterIncidentSubcategoriesAction();
+          // Muat referensi kategori & satuan jika belum ada
+          if (categoriesList.length === 0) {
+            getMasterIncidentCategoriesAction().then((cRes) => {
+              if (cRes.success && cRes.data) setCategoriesList(cRes.data);
+            });
+          }
+          if (unitsList.length === 0) {
+            getMasterOperationalUnitsAction().then((uRes) => {
+              if (uRes.success && uRes.data) setUnitsList(uRes.data);
+            });
+          }
+          break;
+        }
         case 'duty':
           res = await getMasterDutyStatusesAction();
           break;
@@ -193,6 +228,9 @@ export default function MasterDataManager({
   useEffect(() => {
     setSearchQuery('');
     setFilterActive('all');
+    setFilterSubcatCategory('all');
+    setFilterSubcatUnit('all');
+    setFilterSubcatUrgensi('all');
     setShowMiniPickerRawan(false);
     loadTabData();
   }, [activeTab]);
@@ -247,6 +285,14 @@ export default function MasterDataManager({
       badge_bg: '#EFF6FF',
       badge_color: '#1D4ED8',
       badge_border: '#BFDBFE',
+      // Subkategori
+      nama_kasus: '',
+      category_id: categoriesList[0]?.id || 1,
+      category_key: categoriesList[0]?.key || 'KRIMINALITAS',
+      unit_id: unitsList[0]?.id || 1,
+      unit_key: unitsList[0]?.key || 'sabhara',
+      default_urgensi: 'SEDANG',
+      deskripsi_sop: '',
     });
     setShowModal(true);
   };
@@ -258,7 +304,7 @@ export default function MasterDataManager({
     setShowMiniPickerRawan(false);
     setFormData({
       key: item.key || item.station_code || item.nomor_lambung || '',
-      label: item.label || item.station_name || item.unit_name || item.nama_armada || item.title || '',
+      label: item.label || item.station_name || item.unit_name || item.nama_armada || item.title || item.nama_kasus || '',
       display_order: item.display_order || 1,
       is_active: item.is_active !== undefined ? item.is_active : true,
       unit_name: item.unit_name || '',
@@ -296,6 +342,14 @@ export default function MasterDataManager({
       badge_bg: item.badge_bg || '#EFF6FF',
       badge_color: item.badge_color || '#1D4ED8',
       badge_border: item.badge_border || '#BFDBFE',
+      // Subkategori
+      nama_kasus: item.nama_kasus || '',
+      category_id: item.category_id || item.category_rel?.id || 1,
+      category_key: item.category_key || item.category_rel?.key || 'KRIMINALITAS',
+      unit_id: item.unit_id || item.unit_rel?.id || 1,
+      unit_key: item.unit_key || item.unit_rel?.key || 'sabhara',
+      default_urgensi: item.default_urgensi || 'SEDANG',
+      deskripsi_sop: item.deskripsi_sop || '',
     });
     setShowModal(true);
   };
@@ -339,6 +393,28 @@ export default function MasterDataManager({
           case 'kategori':
             res = await createMasterIncidentCategoryAction(formData);
             break;
+          case 'subkategori': {
+            const cleanKasus = formData.nama_kasus?.trim();
+            if (!cleanKasus) {
+              alert('Nama kasus/subkategori wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            const cat = categoriesList.find((c) => c.key === formData.category_key || c.id === Number(formData.category_id));
+            const unit = unitsList.find((u) => u.key?.toLowerCase() === formData.unit_key?.toLowerCase() || u.id === Number(formData.unit_id));
+            res = await createMasterIncidentSubcategoryAction({
+              category_id: Number(cat?.id || formData.category_id || 1),
+              category_key: cat?.key || formData.category_key || 'KRIMINALITAS',
+              unit_id: Number(unit?.id || formData.unit_id || 1),
+              unit_key: unit?.key || formData.unit_key || 'sabhara',
+              nama_kasus: cleanKasus,
+              default_urgensi: formData.default_urgensi || 'SEDANG',
+              deskripsi_sop: formData.deskripsi_sop?.trim() || '',
+              display_order: Number(formData.display_order) || 1,
+              is_active: Boolean(formData.is_active),
+            });
+            break;
+          }
           case 'duty':
             res = await createMasterDutyStatusAction(formData);
             break;
@@ -370,6 +446,22 @@ export default function MasterDataManager({
           case 'kategori':
             res = await updateMasterIncidentCategoryAction(Number(editingId), formData);
             break;
+          case 'subkategori': {
+            const cat = categoriesList.find((c) => c.key === formData.category_key || c.id === Number(formData.category_id));
+            const unit = unitsList.find((u) => u.key?.toLowerCase() === formData.unit_key?.toLowerCase() || u.id === Number(formData.unit_id));
+            res = await updateMasterIncidentSubcategoryAction(Number(editingId), {
+              category_id: Number(cat?.id || formData.category_id),
+              category_key: cat?.key || formData.category_key,
+              unit_id: Number(unit?.id || formData.unit_id),
+              unit_key: unit?.key || formData.unit_key,
+              nama_kasus: formData.nama_kasus?.trim(),
+              default_urgensi: formData.default_urgensi || 'SEDANG',
+              deskripsi_sop: formData.deskripsi_sop?.trim(),
+              display_order: Number(formData.display_order) || 1,
+              is_active: Boolean(formData.is_active),
+            });
+            break;
+          }
           case 'duty':
             res = await updateMasterDutyStatusAction(Number(editingId), formData);
             break;
@@ -428,6 +520,9 @@ export default function MasterDataManager({
         case 'kategori':
           res = await deleteMasterIncidentCategoryAction(Number(id));
           break;
+        case 'subkategori':
+          res = await deleteMasterIncidentSubcategoryAction(Number(id));
+          break;
         case 'duty':
           res = await deleteMasterDutyStatusAction(Number(id));
           break;
@@ -463,9 +558,23 @@ export default function MasterDataManager({
       (item.unit_name && item.unit_name.toLowerCase().includes(q)) ||
       (item.short_name && item.short_name.toLowerCase().includes(q)) ||
       (item.description && item.description.toLowerCase().includes(q)) ||
-      (item.address && item.address.toLowerCase().includes(q));
+      (item.address && item.address.toLowerCase().includes(q)) ||
+      (item.nama_kasus && item.nama_kasus.toLowerCase().includes(q)) ||
+      (item.category_key && item.category_key.toLowerCase().includes(q)) ||
+      (item.category_rel?.label && item.category_rel.label.toLowerCase().includes(q)) ||
+      (item.unit_key && item.unit_key.toLowerCase().includes(q)) ||
+      (item.unit_rel?.short_name && item.unit_rel.short_name.toLowerCase().includes(q)) ||
+      (item.unit_rel?.unit_name && item.unit_rel.unit_name.toLowerCase().includes(q)) ||
+      (item.deskripsi_sop && item.deskripsi_sop.toLowerCase().includes(q)) ||
+      (item.default_urgensi && item.default_urgensi.toLowerCase().includes(q));
 
     if (!matchQuery) return false;
+
+    if (activeTab === 'subkategori') {
+      if (filterSubcatCategory !== 'all' && item.category_key !== filterSubcatCategory) return false;
+      if (filterSubcatUnit !== 'all' && item.unit_key?.toLowerCase() !== filterSubcatUnit.toLowerCase()) return false;
+      if (filterSubcatUrgensi !== 'all' && item.default_urgensi !== filterSubcatUrgensi) return false;
+    }
 
     if (activeTab !== 'armada' && activeTab !== 'hotspot') {
       if (filterActive === 'active' && item.is_active === false) return false;
@@ -533,6 +642,13 @@ export default function MasterDataManager({
           desc: 'Klasifikasi tindak pidana, gangguan kamtibmas, laka lantas, dan situasi darurat masyarakat aduan 110.',
           addBtn: 'Tambah Kategori Kejadian',
           icon: '🚨',
+        };
+      case 'subkategori':
+        return {
+          title: 'Master Subkategori Insiden & Rincian Kasus (Presisi CAD)',
+          desc: 'Pangkalan data rincian kasus kejahatan, lakalantas, dan kamtibmas terintegrasi SOP penanganan taktis serta satuan penanggung jawab.',
+          addBtn: 'Tambah Subkategori Kasus',
+          icon: '📑',
         };
       case 'duty':
         return {
@@ -673,6 +789,85 @@ export default function MasterDataManager({
           </div>
         )}
 
+        {/* Filter Tambahan Khusus Subkategori */}
+        {activeTab === 'subkategori' && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Kategori:</span>
+              <select
+                value={filterSubcatCategory}
+                onChange={(e) => setFilterSubcatCategory(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  maxWidth: '180px',
+                }}
+              >
+                <option value="all">Semua Kategori</option>
+                {categoriesList.map((cat) => (
+                  <option key={cat.id} value={cat.key}>
+                    {cat.icon} {cat.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Satuan SOP:</span>
+              <select
+                value={filterSubcatUnit}
+                onChange={(e) => setFilterSubcatUnit(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="all">Semua Satuan</option>
+                {unitsList.map((unit) => (
+                  <option key={unit.id} value={unit.key}>
+                    {unit.icon_emoji} {unit.short_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>Urgensi:</span>
+              <select
+                value={filterSubcatUrgensi}
+                onChange={(e) => setFilterSubcatUrgensi(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#334155',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="all">Semua Urgensi</option>
+                <option value="DARURAT">🚨 Darurat</option>
+                <option value="SEDANG">⚠️ Sedang</option>
+                <option value="NORMAL">ℹ️ Normal</option>
+              </select>
+            </div>
+          </>
+        )}
+
         <button
           type="button"
           onClick={loadTabData}
@@ -712,7 +907,16 @@ export default function MasterDataManager({
               <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0', color: '#475569', fontWeight: 800 }}>
                 <th style={{ padding: '12px 16px', width: '50px' }}>NO</th>
                 
-                {activeTab === 'armada' ? (
+                {activeTab === 'subkategori' ? (
+                  <>
+                    <th style={{ padding: '12px 16px' }}>RINCIAN KASUS / SUBKATEGORI</th>
+                    <th style={{ padding: '12px 16px' }}>KATEGORI INDUK</th>
+                    <th style={{ padding: '12px 16px' }}>SATUAN UTAMA (SOP)</th>
+                    <th style={{ padding: '12px 16px' }}>STANDAR SOP PENANGANAN TAKTIS</th>
+                    <th style={{ padding: '12px 16px', width: '80px' }}>URUTAN</th>
+                    <th style={{ padding: '12px 16px', width: '90px' }}>STATUS</th>
+                  </>
+                ) : activeTab === 'armada' ? (
                   <>
                     <th style={{ padding: '12px 16px' }}>NO. LAMBUNG</th>
                     <th style={{ padding: '12px 16px' }}>NAMA ARMADA</th>
@@ -877,6 +1081,101 @@ export default function MasterDataManager({
                           <div style={{ fontSize: '11px', color: '#64748B' }}>🚔 {item.nearest_unit}</div>
                         </td>
                       </>
+                    ) : activeTab === 'subkategori' ? (
+                      /* BARIS KHUSUS SUBKATEGORI INSIDEN */
+                      <>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '13px', marginBottom: '4px' }}>
+                            {item.nama_kasus}
+                          </div>
+                          {(() => {
+                            const urg = item.default_urgensi || 'SEDANG';
+                            const isDarurat = urg === 'DARURAT' || urg === 'PRIORITAS_TINGGI';
+                            const isSedang = urg === 'SEDANG';
+                            const bg = isDarurat ? '#FEE2E2' : isSedang ? '#FEF3C7' : '#EFF6FF';
+                            const text = isDarurat ? '#DC2626' : isSedang ? '#D97706' : '#1D4ED8';
+                            const icon = isDarurat ? '🚨' : isSedang ? '⚠️' : 'ℹ️';
+                            return (
+                              <span
+                                style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 800,
+                                  padding: '2px 7px',
+                                  borderRadius: '4px',
+                                  background: bg,
+                                  color: text,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <span>{icon}</span> {isDarurat ? 'DARURAT' : urg}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              background: item.category_rel?.badge_bg || '#F1F5F9',
+                              color: item.category_rel?.badge_color || '#334155',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                            }}
+                          >
+                            <span>{item.category_rel?.icon || '📁'}</span>
+                            <span>{item.category_rel?.label || item.category_key}</span>
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              background: '#F8FAFC',
+                              color: '#0F172A',
+                              border: '1px solid #E2E8F0',
+                              padding: '3px 8px',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            <span>{item.unit_rel?.icon_emoji || '🚔'}</span>
+                            <span>{item.unit_rel?.short_name || item.unit_key?.toUpperCase()}</span>
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', maxWidth: '300px', fontSize: '11.5px', color: '#475569', lineHeight: 1.4 }}>
+                          {item.deskripsi_sop ? (
+                            <span title={item.deskripsi_sop}>{item.deskripsi_sop}</span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontStyle: 'italic' }}>Belum ada arahan SOP taktis</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: '#64748B' }}>
+                          {item.display_order || 1}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              background: item.is_active ? '#DCFCE7' : '#F1F5F9',
+                              color: item.is_active ? '#15803D' : '#64748B',
+                            }}
+                          >
+                            {item.is_active ? '● AKTIF' : '○ NONAKTIF'}
+                          </span>
+                        </td>
+                      </>
                     ) : (
                       /* BARIS MASTER REGULER */
                       <>
@@ -1019,7 +1318,7 @@ export default function MasterDataManager({
                         onClick={() =>
                           handleDelete(
                             item.id,
-                            item.label || item.station_name || item.unit_name || item.nama_armada || item.title || item.key
+                            item.nama_kasus || item.label || item.station_name || item.unit_name || item.nama_armada || item.title || item.key
                           )
                         }
                         style={{
@@ -1526,6 +1825,128 @@ export default function MasterDataManager({
                         onChange={(e) => setFormData({ ...formData, driver_officer_nrp: e.target.value })}
                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                       />
+                    </div>
+                  </div>
+                </>
+              ) : activeTab === 'subkategori' ? (
+                /* FORM FIELDS KHUSUS SUBKATEGORI INSIDEN */
+                <>
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                      Nama Rincian Kasus / Subkategori Insiden <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: Pencurian dengan Pemberatan (Curat)"
+                      value={formData.nama_kasus || ''}
+                      onChange={(e) => setFormData({ ...formData, nama_kasus: e.target.value })}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', fontWeight: 600, boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Kategori Induk Kejadian <span style={{ color: 'red' }}>*</span>
+                      </label>
+                      <select
+                        value={formData.category_key || ''}
+                        onChange={(e) => {
+                          const selectedCat = categoriesList.find((c) => c.key === e.target.value);
+                          setFormData({
+                            ...formData,
+                            category_key: e.target.value,
+                            category_id: selectedCat?.id || formData.category_id,
+                          });
+                        }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      >
+                        {categoriesList.map((cat) => (
+                          <option key={cat.id} value={cat.key}>
+                            {cat.icon} {cat.label} ({cat.key})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Satuan Unit Utama (SOP) <span style={{ color: 'red' }}>*</span>
+                      </label>
+                      <select
+                        value={formData.unit_key || ''}
+                        onChange={(e) => {
+                          const selectedUnit = unitsList.find((u) => u.key?.toLowerCase() === e.target.value?.toLowerCase());
+                          setFormData({
+                            ...formData,
+                            unit_key: e.target.value,
+                            unit_id: selectedUnit?.id || formData.unit_id,
+                          });
+                        }}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      >
+                        {unitsList.map((unit) => (
+                          <option key={unit.id} value={unit.key}>
+                            {unit.icon_emoji} {unit.short_name} ({unit.unit_name})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                      Default Tingkat Urgensi Presisi <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <select
+                      value={formData.default_urgensi || 'SEDANG'}
+                      onChange={(e) => setFormData({ ...formData, default_urgensi: e.target.value })}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                    >
+                      <option value="DARURAT">🚨 DARURAT (Eskalasi Cepat / Ancaman Jiwa)</option>
+                      <option value="SEDANG">⚠️ SEDANG (Penanganan Standar Tim Presisi)</option>
+                      <option value="NORMAL">ℹ️ NORMAL (Pelayanan / Laporan Administratif)</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: '14px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                      Standar SOP &amp; Arahan Penanganan Taktis Personel Lapangan
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="Contoh: Pasang police line di TKP, amankan rekaman CCTV sekitar, interogasi saksi awal, dan identifikasi pelaku."
+                      value={formData.deskripsi_sop || ''}
+                      onChange={(e) => setFormData({ ...formData, deskripsi_sop: e.target.value })}
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Urutan Tampilan
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.display_order}
+                        onChange={(e) => setFormData({ ...formData, display_order: parseInt(e.target.value) || 1 })}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Status Keaktifan
+                      </label>
+                      <select
+                        value={formData.is_active ? '1' : '0'}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.value === '1' })}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      >
+                        <option value="1">✓ Aktif Digunakan</option>
+                        <option value="0">✕ Nonaktifkan</option>
+                      </select>
                     </div>
                   </div>
                 </>

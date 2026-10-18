@@ -40,6 +40,7 @@ function parseSuperadminTab(section?: string): SuperadminTab {
       'hotspot',
       'hotspot_cat',
       'kategori',
+      'subkategori',
       'duty',
     ].includes(clean)
   ) {
@@ -78,6 +79,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
     hotspots: 0,
     hotspotCategories: 0,
     categories: 0,
+    subcategories: 0,
     dutyStatuses: 0,
   });
 
@@ -878,6 +880,41 @@ export default function SuperadminConsoleView({ session, initialSection, initial
               }}
             >
               {counters.categories}
+            </span>
+          </button>
+
+          {/* TAB 9: MASTER SUBKATEGORI INSIDEN */}
+          <button
+            type="button"
+            onClick={() => switchTab('subkategori')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'subkategori' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'subkategori' ? 'white' : '#475569',
+              border: activeTab === 'subkategori' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>📑 Subkategori Insiden</span>
+            <span
+              style={{
+                background: activeTab === 'subkategori' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'subkategori' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              {counters.subcategories || 44}
             </span>
           </button>
 

@@ -33,6 +33,7 @@ const sectionTitleMap: Record<string, string> = {
   hotspot: 'Master Titik Rawan Kriminalitas & Laka (GIS)',
   hotspot_cat: 'Master Kategori Titik Rawan',
   kategori: 'Master Kategori Kejadian Insiden',
+  subkategori: 'Master Subkategori Insiden & Rincian Kasus',
   duty: 'Master Status Kedinasan',
 };
 

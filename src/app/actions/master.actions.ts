@@ -36,13 +36,14 @@ async function auditLog(activityType: string, description: string) {
 // ==============================================================================
 export async function getMasterCountersAction() {
   try {
-    const [ranks, units, roles, stations, categories, hotspots, hotspotCategories, vehicles, dutyStatuses] =
+    const [ranks, units, roles, stations, categories, subcategories, hotspots, hotspotCategories, vehicles, dutyStatuses] =
       await Promise.all([
         prisma.masterRank.count(),
         prisma.masterOperationalUnit.count(),
         prisma.masterRole.count(),
         prisma.policeStation.count(),
         prisma.masterIncidentCategory.count(),
+        prisma.masterIncidentSubcategory.count(),
         prisma.hotspotLocation.count(),
         prisma.masterHotspotCategory.count(),
         prisma.patrolVehicle.count(),
@@ -57,6 +58,7 @@ export async function getMasterCountersAction() {
         roles,
         stations,
         categories,
+        subcategories,
         hotspots,
         hotspotCategories,
         vehicles,
@@ -723,9 +725,11 @@ export async function getMasterIncidentSubcategoriesAction(params?: {
   categoryId?: number;
   categoryKey?: string;
   unitKey?: string;
+  isActive?: boolean;
 }) {
   try {
-    const where: any = { is_active: true };
+    const where: any = {};
+    if (params?.isActive !== undefined) where.is_active = Boolean(params.isActive);
     if (params?.categoryId) where.category_id = Number(params.categoryId);
     if (params?.categoryKey) where.category_key = params.categoryKey.toUpperCase();
     if (params?.unitKey) where.unit_key = params.unitKey.toLowerCase();
