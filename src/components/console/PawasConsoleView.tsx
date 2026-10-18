@@ -5893,13 +5893,8 @@ function CommandCenterContent({
                                     accentColor: '#2563EB',
                                   }}
                                 />
-                                <div>
-                                  <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>{a.icon}</span> {a.namaSingkat}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                                    {a.tupoksi || a.nama}
-                                  </div>
+                                <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>{a.icon}</span> {a.namaSingkat}
                                 </div>
                               </div>
                               {isChecked && (
