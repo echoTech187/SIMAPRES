@@ -274,7 +274,7 @@ export async function updateComplaintStatusAction(input: {
 export async function getMasterFilterOptionsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
-    const [categories, platforms, giats, satuans] = await Promise.all([
+    const [categories, platforms, giats, satuans, statuses] = await Promise.all([
       prisma.masterIncidentCategory.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
@@ -291,6 +291,10 @@ export async function getMasterFilterOptionsAction() {
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
+      prisma.masterComplaintStatus.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
     ]);
 
     return {
@@ -300,6 +304,7 @@ export async function getMasterFilterOptionsAction() {
         platforms: serializeBigInt(platforms),
         giats: serializeBigInt(giats),
         satuans: serializeBigInt(satuans),
+        statuses: serializeBigInt(statuses),
       },
     };
   } catch (error: any) {
@@ -348,8 +353,8 @@ export async function disposisiMultiSatuanAction(input: {
     await prisma.complaint.update({
       where: { id: complaintIdBig },
       data: {
-        status: 'DIPROSES',
-        tahap: 3,
+        status: 'DISPOSISI',
+        tahap: 2,
       },
     });
 

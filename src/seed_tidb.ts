@@ -33,18 +33,27 @@ async function seed() {
     });
   }
 
-  // 3. Master Complaint Statuses
+  // 3. Master Complaint Statuses (7 Status Resmi SIMAPRES 110)
   const statuses = [
-    { key: 'MENUNGGU', label: 'Menunggu Penanganan', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
-    { key: 'DIPROSES', label: 'Sedang Ditangani', badge_color: '#D97706', badge_bg: '#FFFBEB', badge_border: '#FDE68A', display_order: 2 },
-    { key: 'MENUNGGU_PENGESAHAN', label: 'Menunggu Pengesahan Pawas', badge_color: '#7C3AED', badge_bg: '#F5F3FF', badge_border: '#DDD6FE', display_order: 3 },
-    { key: 'SELESAI', label: 'Selesai & Kondusif', badge_color: '#059669', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 4 },
-    { key: 'DITOLAK', label: 'Ditolak / Tidak Valid', badge_color: '#DC2626', badge_bg: '#FEF2F2', badge_border: '#FECACA', display_order: 5 },
+    { key: 'MENUNGGU', label: 'Menunggu Penugasan Pawas', badge_color: '#F59E0B', badge_bg: '#FFFBEB', badge_border: '#FDE68A', display_order: 1 },
+    { key: 'DISPOSISI', label: 'Personil sudah ditugaskan', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 2 },
+    { key: 'MENUJU_TKP', label: 'Personil Menuju Lokasi / TKP', badge_color: '#8B5CF6', badge_bg: '#F5F3FF', badge_border: '#DDD6FE', display_order: 3 },
+    { key: 'TIBA_DI_TKP', label: 'Personil tiba dilokasi', badge_color: '#10B981', badge_bg: '#ECFDF5', badge_border: '#A7F3D0', display_order: 4 },
+    { key: 'MENUNGGU_PENGESAHAN', label: 'Laporan telah selesai ditangani dan BAP terbit', badge_color: '#EF4444', badge_bg: '#FEF2F2', badge_border: '#FECACA', display_order: 5 },
+    { key: 'SELESAI', label: 'Laporan Selesai', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
+    { key: 'DITOLAK', label: 'Laporan ditolak', badge_color: '#2563EB', badge_bg: '#EFF6FF', badge_border: '#BFDBFE', display_order: 1 },
   ];
   for (const st of statuses) {
     await prisma.masterComplaintStatus.upsert({
       where: { key: st.key },
-      update: {},
+      update: {
+        label: st.label,
+        badge_color: st.badge_color,
+        badge_bg: st.badge_bg,
+        badge_border: st.badge_border,
+        display_order: st.display_order,
+        is_active: true,
+      },
       create: { ...st, is_active: true },
     });
   }
@@ -150,108 +159,108 @@ async function seed() {
   }
 
   // 10. Default Users
-  const seedUsers = [
-    {
-      identifier: '88010234',
-      fullName: 'AKP Eko Susanto, S.I.K.',
-      role: 'PAWAS',
-      pangkat: 'AKP',
-      jabatan: 'Perwira Pengawas Piket Komando SPKT',
-      phone: '081288991100',
-      email: 'pawas@polri.go.id',
-      unitId: 'sabhara',
-      satuanNama: 'Satuan Samapta Presisi',
-      kelompokRegu: 'Regu Alpha Presisi',
-    },
-    {
-      identifier: '78091122',
-      fullName: 'Aiptu Herman Sulistyo',
-      role: 'SUPERADMIN',
-      pangkat: 'KOMISARIS BESAR POLISI',
-      jabatan: 'Super Administrator Pusat Mabes Polri',
-      phone: '081122334455',
-      email: 'superadmin@polri.go.id',
-      unitId: 'reskrim',
-      satuanNama: 'Satuan Pengawas Internal',
-      kelompokRegu: 'Tim Audit Komando',
-    },
-    {
-      identifier: '92031145',
-      fullName: 'Bripka Dedi Prasetyo',
-      role: 'PERSONIL',
-      pangkat: 'BRIPKA',
-      jabatan: 'Ba Turjawali Samapta',
-      phone: '081399887766',
-      email: 'dedi.samapta@polri.go.id',
-      unitId: 'sabhara',
-      satuanNama: 'Satuan Samapta Presisi',
-      kelompokRegu: 'Patroli Perintis Presisi 01',
-    },
-  ];
+  // const seedUsers = [
+  //   {
+  //     identifier: '88010234',
+  //     fullName: 'AKP Eko Susanto, S.I.K.',
+  //     role: 'PAWAS',
+  //     pangkat: 'AKP',
+  //     jabatan: 'Perwira Pengawas Piket Komando SPKT',
+  //     phone: '081288991100',
+  //     email: 'pawas@polri.go.id',
+  //     unitId: 'sabhara',
+  //     satuanNama: 'Satuan Samapta Presisi',
+  //     kelompokRegu: 'Regu Alpha Presisi',
+  //   },
+  //   {
+  //     identifier: '78091122',
+  //     fullName: 'Aiptu Herman Sulistyo',
+  //     role: 'SUPERADMIN',
+  //     pangkat: 'KOMISARIS BESAR POLISI',
+  //     jabatan: 'Super Administrator Pusat Mabes Polri',
+  //     phone: '081122334455',
+  //     email: 'superadmin@polri.go.id',
+  //     unitId: 'reskrim',
+  //     satuanNama: 'Satuan Pengawas Internal',
+  //     kelompokRegu: 'Tim Audit Komando',
+  //   },
+  //   {
+  //     identifier: '92031145',
+  //     fullName: 'Bripka Dedi Prasetyo',
+  //     role: 'PERSONIL',
+  //     pangkat: 'BRIPKA',
+  //     jabatan: 'Ba Turjawali Samapta',
+  //     phone: '081399887766',
+  //     email: 'dedi.samapta@polri.go.id',
+  //     unitId: 'sabhara',
+  //     satuanNama: 'Satuan Samapta Presisi',
+  //     kelompokRegu: 'Patroli Perintis Presisi 01',
+  //   },
+  // ];
 
-  for (const su of seedUsers) {
-    const user = await prisma.user.upsert({
-      where: { identifier: su.identifier },
-      update: {
-        password_hash: defaultHash,
-        full_name: su.fullName,
-        role: su.role,
-      },
-      create: {
-        identifier: su.identifier,
-        password_hash: defaultHash,
-        full_name: su.fullName,
-        phone_number: su.phone,
-        email: su.email,
-        role: su.role,
-        station_id: station.id,
-      },
-    });
+  // for (const su of seedUsers) {
+  //   const user = await prisma.user.upsert({
+  //     where: { identifier: su.identifier },
+  //     update: {
+  //       password_hash: defaultHash,
+  //       full_name: su.fullName,
+  //       role: su.role,
+  //     },
+  //     create: {
+  //       identifier: su.identifier,
+  //       password_hash: defaultHash,
+  //       full_name: su.fullName,
+  //       phone_number: su.phone,
+  //       email: su.email,
+  //       role: su.role,
+  //       station_id: station.id,
+  //     },
+  //   });
 
-    await prisma.policeOfficer.upsert({
-      where: { user_id: user.id },
-      update: {
-        rank_pangkat: su.pangkat,
-        jabatan: su.jabatan,
-      },
-      create: {
-        user_id: user.id,
-        nrp: su.identifier,
-        rank_pangkat: su.pangkat,
-        jabatan: su.jabatan,
-        station_id: station.id,
-        duty_status: 'DINAS_PATROLI',
-      },
-    });
+  //   await prisma.policeOfficer.upsert({
+  //     where: { user_id: user.id },
+  //     update: {
+  //       rank_pangkat: su.pangkat,
+  //       jabatan: su.jabatan,
+  //     },
+  //     create: {
+  //       user_id: user.id,
+  //       nrp: su.identifier,
+  //       rank_pangkat: su.pangkat,
+  //       jabatan: su.jabatan,
+  //       station_id: station.id,
+  //       duty_status: 'DINAS_PATROLI',
+  //     },
+  //   });
 
-    await prisma.registeredUnit.upsert({
-      where: { nrp: su.identifier },
-      update: {
-        nama: su.fullName,
-        pangkat: su.pangkat,
-        role: su.role,
-        password: '••••••••',
-      },
-      create: {
-        id: `UNIT-${su.identifier}`,
-        nrp: su.identifier,
-        nama: su.fullName,
-        pangkat: su.pangkat,
-        role: su.role,
-        unitId: su.unitId,
-        satuanNama: su.satuanNama,
-        kelompokRegu: su.kelompokRegu,
-        password: defaultHash,
-        deviceID: `DEV-${su.identifier}`,
-        tanggalDaftar: new Date(),
-        tanggalUpdate: new Date(),
-      },
-    });
+  //   await prisma.registeredUnit.upsert({
+  //     where: { nrp: su.identifier },
+  //     update: {
+  //       nama: su.fullName,
+  //       pangkat: su.pangkat,
+  //       role: su.role,
+  //       password: '••••••••',
+  //     },
+  //     create: {
+  //       id: `UNIT-${su.identifier}`,
+  //       nrp: su.identifier,
+  //       nama: su.fullName,
+  //       pangkat: su.pangkat,
+  //       role: su.role,
+  //       unitId: su.unitId,
+  //       satuanNama: su.satuanNama,
+  //       kelompokRegu: su.kelompokRegu,
+  //       password: defaultHash,
+  //       deviceID: `DEV-${su.identifier}`,
+  //       tanggalDaftar: new Date(),
+  //       tanggalUpdate: new Date(),
+  //     },
+  //   });
 
-    console.log(`✓ Seeded user: ${su.identifier} (${su.fullName}) - Role: ${su.role}`);
-  }
+  //   console.log(`✓ Seeded user: ${su.identifier} (${su.fullName}) - Role: ${su.role}`);
+  // }
 
-  console.log('🎉 Seed Master Data & Users to TiDB Cloud completed successfully!');
+  console.log('🎉 Seed Master Data to TiDB Cloud completed successfully!');
 }
 
 seed()

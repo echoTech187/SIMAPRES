@@ -327,6 +327,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   const [dbPlatforms, setDbPlatforms] = useState<any[]>([]);
   const [dbGiats, setDbGiats] = useState<any[]>([]);
   const [dbSatuans, setDbSatuans] = useState<any[]>([]);
+  const [dbStatuses, setDbStatuses] = useState<any[]>([]);
 
   // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
   const daftarArmadaAktif = useMemo(() => {
@@ -385,6 +386,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
         setDbPlatforms(filterRes.data.platforms || []);
         setDbGiats(filterRes.data.giats || []);
         setDbSatuans(filterRes.data.satuans || []);
+        setDbStatuses(filterRes.data.statuses || []);
       }
 
       const qRes = await getPendingComplaintsAction();
@@ -530,21 +532,102 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Helper filter matching functions aligning 1:1 with Prototype e-tribrata-log.js
   const isComplaintRejected = (c: any) =>
-    c.ringkasanKeterangan?.includes('[DITOLAK PAWAS]') ||
-    c.status === 'DIBATALKAN' ||
-    c.status === 'DITOLAK';
+    Boolean(
+      c?.ringkasanKeterangan?.includes('[DITOLAK PAWAS]') ||
+      c?.status === 'DIBATALKAN' ||
+      c?.status === 'DITOLAK'
+    );
+
+  // Dynamic complaint status resolver powered 100% by dbStatuses from master_complaint_statuses table
+  const resolveComplaintStatus = (rawStatus?: string | null, isRejectedFlag?: boolean) => {
+    const s = (rawStatus || '').toUpperCase().trim();
+    const isRej = isRejectedFlag || s === 'DITOLAK' || s === 'DIBATALKAN';
+
+    // Canonical key mapped to database keys
+    const targetKey = isRej
+      ? 'DITOLAK'
+      : s === 'SELESAI'
+      ? 'SELESAI'
+      : s === 'MENUNGGU_PENGESAHAN'
+      ? 'MENUNGGU_PENGESAHAN'
+      : s === 'TIBA_DI_TKP' || s === 'PENANGANAN_TKP'
+      ? 'TIBA_DI_TKP'
+      : s === 'MENUJU_TKP'
+      ? 'MENUJU_TKP'
+      : s === 'DISPOSISI' || s === 'DIPROSES'
+      ? 'DISPOSISI'
+      : 'MENUNGGU';
+
+    const dbItem = dbStatuses.find(
+      (item) => item.key?.toUpperCase() === targetKey || item.key?.toUpperCase() === s
+    );
+
+    if (dbItem) {
+      return {
+        id: dbItem.id,
+        key: dbItem.key.toUpperCase(),
+        label: dbItem.label,
+        badge_color: dbItem.badge_color || '#2563EB',
+        badge_bg: dbItem.badge_bg || '#EFF6FF',
+        badge_border: dbItem.badge_border || '#BFDBFE',
+        display_order: dbItem.display_order ?? 1,
+        icon:
+          dbItem.key === 'MENUNGGU' ? '⏳' :
+          dbItem.key === 'DISPOSISI' ? '📋' :
+          dbItem.key === 'MENUJU_TKP' ? '🚔' :
+          dbItem.key === 'TIBA_DI_TKP' ? '📍' :
+          dbItem.key === 'MENUNGGU_PENGESAHAN' ? '📝' :
+          dbItem.key === 'SELESAI' ? '✓' : '✕',
+      };
+    }
+
+    // Dynamic fallback when dbStatuses is still loading
+    const fallbackColors: Record<string, { color: string; bg: string; border: string; icon: string }> = {
+      MENUNGGU: { color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A', icon: '⏳' },
+      DISPOSISI: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '📋' },
+      MENUJU_TKP: { color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', icon: '🚔' },
+      TIBA_DI_TKP: { color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', icon: '📍' },
+      MENUNGGU_PENGESAHAN: { color: '#EF4444', bg: '#FEF2F2', border: '#FECACA', icon: '📝' },
+      SELESAI: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '✓' },
+      DITOLAK: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '✕' },
+    };
+    const fb = fallbackColors[targetKey] || { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: 'ℹ️' };
+
+    return {
+      id: 0,
+      key: targetKey,
+      label: targetKey.replace(/_/g, ' '),
+      badge_color: fb.color,
+      badge_bg: fb.bg,
+      badge_border: fb.border,
+      display_order: 1,
+      icon: fb.icon,
+    };
+  };
 
   const matchesStatus = (c: any, status: string) => {
-    if (status === 'semua') return true;
+    if (!status || status === 'semua') return true;
     const isRejected = isComplaintRejected(c);
-    if (status === 'menunggu') return (c.status === 'BELUM_DITANGANI' || c.status === 'PENDING' || c.status === 'MENUNGGU') && !isRejected;
-    if (status === 'ditolak') return isRejected;
-    if (status === 'diproses') return ['DISPOSISI', 'MENUJU_TKP', 'DIPROSES'].includes(c.status);
-    if (status === 'menunggu_pengesahan') return c.status === 'PENANGANAN_TKP' || c.status === 'MENUNGGU_PENGESAHAN';
-    if (status === 'selesai') return c.status === 'SELESAI';
-    return true;
+    const meta = resolveComplaintStatus(c?.status, isRejected);
+    const stUpper = status.toUpperCase().trim();
+    if (stUpper === meta.key) return true;
+    if (status.toLowerCase() === meta.key.toLowerCase()) return true;
+    if (status.toLowerCase() === 'diproses') {
+      return ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(meta.key);
+    }
+    return false;
+  };
+
+  const resolveUrgencyLevel = (rawUrgensi?: string | null) => {
+    const u = (rawUrgensi || '').toUpperCase().trim();
+    if (u === 'DARURAT' || u === 'PRIORITAS_TINGGI') {
+      return { key: 'DARURAT', label: 'DARURAT', badge_bg: '#FEE2E2', badge_color: '#DC2626' };
+    }
+    if (u === 'SEDANG') {
+      return { key: 'SEDANG', label: 'SEDANG', badge_bg: '#FEF3C7', badge_color: '#D97706' };
+    }
+    return { key: 'NORMAL', label: 'NORMAL', badge_bg: '#EFF6FF', badge_color: '#1D4ED8' };
   };
 
   const getComplaintPlatform = (c: any) => {
@@ -1160,10 +1243,13 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
   );
   const tabCountSemua = logsForStatusTabs.length;
   const tabCountMenunggu = logsForStatusTabs.filter((c) => matchesStatus(c, 'menunggu')).length;
-  const tabCountDitolak = logsForStatusTabs.filter((c) => matchesStatus(c, 'ditolak')).length;
-  const tabCountDiproses = logsForStatusTabs.filter((c) => matchesStatus(c, 'diproses')).length;
+  const tabCountDisposisi = logsForStatusTabs.filter((c) => matchesStatus(c, 'disposisi')).length;
+  const tabCountMenujuTkp = logsForStatusTabs.filter((c) => matchesStatus(c, 'menuju_tkp')).length;
+  const tabCountTibaTkp = logsForStatusTabs.filter((c) => matchesStatus(c, 'tiba_di_tkp')).length;
   const tabCountPengesahan = logsForStatusTabs.filter((c) => matchesStatus(c, 'menunggu_pengesahan')).length;
   const tabCountSelesai = logsForStatusTabs.filter((c) => matchesStatus(c, 'selesai')).length;
+  const tabCountDitolak = logsForStatusTabs.filter((c) => matchesStatus(c, 'ditolak')).length;
+  const tabCountDiproses = logsForStatusTabs.filter((c) => matchesStatus(c, 'diproses')).length;
 
   // 3. Platform Bar Counts (Interconnected with active Status & Kategori - Section 3)
   const logsForPlatform = allRecentComplaints.filter(
@@ -2448,15 +2534,31 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                 </div>
               </div>
 
-              {/* Status Filter Tabs (6 Status Tabs 1:1 Prototype e-tribrata-log) */}
+              {/* Status Filter Tabs (Dynamically Generated from Database dbStatuses) */}
               <div className="val-filter-tabs" style={{ display: 'flex', gap: '6px', margin: '8px 16px', overflowX: 'auto', paddingBottom: '4px' }}>
                 {[
                   { key: 'semua', label: 'Semua', count: tabCountSemua, badgeBg: '#F1F5F9', badgeColor: '#475569' },
-                  { key: 'menunggu', label: 'Menunggu Tindakan', count: tabCountMenunggu, badgeBg: '#FEF3C7', badgeColor: '#D97706' },
-                  { key: 'ditolak', label: 'Ditolak', count: tabCountDitolak, badgeBg: '#FEE2E2', badgeColor: '#DC2626' },
-                  { key: 'diproses', label: 'Sedang Ditangani', count: tabCountDiproses, badgeBg: '#EFF6FF', badgeColor: '#1D4ED8' },
-                  { key: 'menunggu_pengesahan', label: 'Menunggu Pengesahan', count: tabCountPengesahan, badgeBg: '#EDE9FE', badgeColor: '#7C3AED' },
-                  { key: 'selesai', label: 'Selesai', count: tabCountSelesai, badgeBg: '#DCFCE7', badgeColor: '#16A34A' },
+                  ...(dbStatuses.length > 0
+                    ? dbStatuses.map((st: any) => {
+                        const icon =
+                          st.key === 'MENUNGGU' ? '⏳ ' :
+                          st.key === 'DISPOSISI' ? '📋 ' :
+                          st.key === 'MENUJU_TKP' ? '🚔 ' :
+                          st.key === 'TIBA_DI_TKP' ? '📍 ' :
+                          st.key === 'MENUNGGU_PENGESAHAN' ? '📝 ' :
+                          st.key === 'SELESAI' ? '✓ ' :
+                          st.key === 'DITOLAK' ? '✕ ' : '';
+                        return {
+                          key: st.key.toLowerCase(),
+                          label: `${icon}${st.label}`,
+                          count: logsForStatusTabs.filter((c) => matchesStatus(c, st.key)).length,
+                          badgeBg: st.badge_bg || '#EFF6FF',
+                          badgeColor: st.badge_color || '#2563EB',
+                        };
+                      })
+                    : [
+                        { key: 'menunggu', label: '⏳ Menunggu', count: tabCountMenunggu, badgeBg: '#FFFBEB', badgeColor: '#F59E0B' },
+                      ]),
                 ].map((tab) => {
                   const isActive = valFilterStatus === tab.key;
                   return (
@@ -2821,23 +2923,13 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                 </div>
               </div>
 
-              {/* Subtitle Counter Bar (1:1 Prototype e-tribrata-log line 6364) */}
+              {/* Subtitle Counter Bar (Dynamically pulls label from dbStatuses) */}
               <div id="val-subtitle-text" style={{ margin: '0 16px 10px', fontWeight: 700, fontSize: '12px', color: '#475569' }}>
                 Menampilkan: <strong>
                   {filteredValidasiComplaints.length} Data {
                     valFilterStatus === 'semua'
                       ? 'Semua Pengaduan'
-                      : valFilterStatus === 'menunggu'
-                      ? 'Menunggu Tindakan'
-                      : valFilterStatus === 'ditolak'
-                      ? 'Log Ditolak'
-                      : valFilterStatus === 'diproses'
-                      ? 'Sedang Ditangani'
-                      : valFilterStatus === 'menunggu_pengesahan'
-                      ? 'Menunggu Pengesahan'
-                      : valFilterStatus === 'selesai'
-                      ? 'Kasus Selesai'
-                      : 'Laporan'
+                      : (dbStatuses.find((s) => s.key?.toLowerCase() === valFilterStatus.toLowerCase())?.label || valFilterStatus.toUpperCase())
                   }
                 </strong>
               </div>
@@ -2919,33 +3011,32 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                       const katBadgeStyle = katInfo.badgeStyle;
                       const katBadgeText = katInfo.badgeText;
 
-                      // Status text & colors
-                      const isRejected = log.ringkasanKeterangan?.includes('[DITOLAK PAWAS]') || log.status === 'DIBATALKAN';
-                      let statusColor = '#D97706';
-                      let statusText = 'Menunggu Disposisi';
+                      // Status text & colors strictly matching MySQL master_complaint_statuses table
+                      const isRejected = isComplaintRejected(log);
+                      const statMeta = resolveComplaintStatus(log.status, isRejected);
+                      const statusColor = statMeta.badge_color;
+                      const statusText = statMeta.label;
                       let cardFooterText = '⚡ Disposisi Tugas ➔';
                       let cardFooterColor = '#1E40AF';
 
-                      if (isRejected) {
-                        statusColor = '#DC2626';
-                        statusText = 'Ditolak / Revisi';
-                        cardFooterText = '✏️ Ajukan Revisi & Kirim Ulang ke Atasan ➔';
-                        cardFooterColor = '#D97706';
-                      } else if (log.status === 'MENUJU_TKP' || log.status === 'DISPOSISI') {
-                        statusColor = '#1D4ED8';
-                        statusText = 'Diproses (Menuju Lokasi)';
-                        cardFooterText = '⏱️ Konsol Kendali Pawas & Monitor Live SLA (< 10m) ➔';
-                        cardFooterColor = '#1E40AF';
-                      } else if (log.status === 'PENANGANAN_TKP') {
-                        statusColor = '#7C3AED';
-                        statusText = 'Menunggu Pengesahan Pawas';
-                        cardFooterText = '✍️ Tinjau & Sahkan Kasus ➔';
-                        cardFooterColor = '#7C3AED';
-                      } else if (log.status === 'SELESAI') {
-                        statusColor = '#047857';
-                        statusText = 'Kasus Selesai Ditangani';
+                      if (statMeta.key === 'DITOLAK') {
+                        cardFooterText = '✕ Laporan Ditolak Pawas';
+                        cardFooterColor = '#DC2626';
+                      } else if (statMeta.key === 'DISPOSISI') {
+                        cardFooterText = '📋 Personil Sudah Ditugaskan ➔';
+                        cardFooterColor = '#2563EB';
+                      } else if (statMeta.key === 'MENUJU_TKP') {
+                        cardFooterText = '⏱️ Personil Meluncur ke TKP (< 10m) ➔';
+                        cardFooterColor = '#8B5CF6';
+                      } else if (statMeta.key === 'TIBA_DI_TKP') {
+                        cardFooterText = '📍 Personil Tiba & Penanganan di TKP ➔';
+                        cardFooterColor = '#10B981';
+                      } else if (statMeta.key === 'MENUNGGU_PENGESAHAN') {
+                        cardFooterText = '✍️ Tindakan Rampung & Menunggu BAP Disahkan ➔';
+                        cardFooterColor = '#EF4444';
+                      } else if (statMeta.key === 'SELESAI') {
                         cardFooterText = '✓ Berita Acara Disahkan & Ditutup Resmi (Pawas) ➔';
-                        cardFooterColor = '#047857';
+                        cardFooterColor = '#2563EB';
                       }
 
                       const isSelected = activeComplaint?.id === log.id;
@@ -3011,8 +3102,10 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   {new Date(log.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                                 </div>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px' }}>
-                                <div style={{ fontSize: '11px', color: statusColor, fontWeight: 'bold' }}>Status: {statusText}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', gap: '4px', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: statMeta.badge_bg, color: statMeta.badge_color, border: `1px solid ${statMeta.badge_border}` }}>
+                                  {statMeta.icon} {statusText}
+                                </span>
                                 {platformBadge}
                               </div>
                             </div>
@@ -3098,10 +3191,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                   {activeComplaint ? (
                     <div>
                       {(() => {
-                        const isRejected = Boolean(
-                          activeComplaint.ringkasanKeterangan?.includes('[DITOLAK PAWAS]') ||
-                          activeComplaint.status === 'DIBATALKAN'
-                        );
+                        const isRejected = isComplaintRejected(activeComplaint);
+                        const activeStatMeta = resolveComplaintStatus(activeComplaint.status, isRejected);
                         const rejectionReason = activeComplaint.ringkasanKeterangan?.includes('[DITOLAK PAWAS]:')
                           ? activeComplaint.ringkasanKeterangan.split('[DITOLAK PAWAS]:')[1]?.trim()
                           : (activeComplaint.ringkasanKeterangan || 'Laporan dikembalikan untuk melengkapi dokumentasi dan identifikasi pelaku.');
@@ -3131,15 +3222,15 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   textAlign: 'center',
                                   padding: '6px 4px',
                                   borderRadius: '6px',
-                                  background: isRejected ? '#FEE2E2' : activeComplaint.status === 'BELUM_DITANGANI' ? '#FEF3C7' : '#ECFDF5',
-                                  border: isRejected ? '1px solid #EF4444' : activeComplaint.status === 'BELUM_DITANGANI' ? '1px solid #F59E0B' : '1px solid #A7F3D0'
+                                  background: isRejected ? '#FEE2E2' : activeStatMeta.key === 'MENUNGGU' ? '#FEF3C7' : '#ECFDF5',
+                                  border: isRejected ? '1px solid #EF4444' : activeStatMeta.key === 'MENUNGGU' ? '1px solid #F59E0B' : '1px solid #A7F3D0'
                                 }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: isRejected ? '#DC2626' : activeComplaint.status === 'BELUM_DITANGANI' ? '#D97706' : '#10B981' }}>
-                                    {isRejected ? '✕' : activeComplaint.status === 'BELUM_DITANGANI' ? '⏳' : '✓'}
+                                  <div style={{ fontSize: '11px', fontWeight: 800, color: isRejected ? '#DC2626' : activeStatMeta.key === 'MENUNGGU' ? '#D97706' : '#10B981' }}>
+                                    {isRejected ? '✕' : activeStatMeta.key === 'MENUNGGU' ? '⏳' : '✓'}
                                   </div>
                                   <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>2. Validasi</div>
-                                  <div style={{ fontSize: '8.5px', color: isRejected ? '#DC2626' : activeComplaint.status === 'BELUM_DITANGANI' ? '#D97706' : '#059669', fontWeight: 600 }}>
-                                    {isRejected ? 'Ditolak/Revisi' : activeComplaint.status === 'BELUM_DITANGANI' ? 'Review Pawas' : 'Pawas'}
+                                  <div style={{ fontSize: '8.5px', color: isRejected ? '#DC2626' : activeStatMeta.key === 'MENUNGGU' ? '#D97706' : '#059669', fontWeight: 600 }}>
+                                    {isRejected ? 'Ditolak/Revisi' : activeStatMeta.key === 'MENUNGGU' ? 'Review Pawas' : 'Pawas'}
                                   </div>
                                 </div>
                                 {/* Step 3 */}
@@ -3147,16 +3238,16 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   textAlign: 'center',
                                   padding: '6px 4px',
                                   borderRadius: '6px',
-                                  background: ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) ? '#EFF6FF' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '#ECFDF5' : '#F8FAFC',
-                                  border: ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) ? '1px solid #93C5FD' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
-                                  opacity: (isRejected || activeComplaint.status === 'BELUM_DITANGANI') ? 0.6 : 1,
+                                  background: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '#EFF6FF' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#ECFDF5' : '#F8FAFC',
+                                  border: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '1px solid #93C5FD' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
+                                  opacity: (isRejected || activeStatMeta.key === 'MENUNGGU') ? 0.6 : 1,
                                 }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: isRejected ? '#94A3B8' : ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) ? '#2563EB' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '#10B981' : '#94A3B8' }}>
-                                    {isRejected ? '⛔' : activeComplaint.status === 'BELUM_DITANGANI' ? '🔒' : ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) ? '🚔' : '✓'}
+                                  <div style={{ fontSize: '11px', fontWeight: 800, color: isRejected ? '#94A3B8' : ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '#2563EB' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#10B981' : '#94A3B8' }}>
+                                    {isRejected ? '⛔' : activeStatMeta.key === 'MENUNGGU' ? '🔒' : ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '🚔' : '✓'}
                                   </div>
                                   <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>3. Lapangan</div>
-                                  <div style={{ fontSize: '8.5px', color: ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) ? '#2563EB' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '#059669' : '#94A3B8', fontWeight: 600 }}>
-                                    {isRejected ? 'Terkunci' : activeComplaint.status === 'MENUJU_TKP' ? 'Meluncur' : activeComplaint.status === 'PENANGANAN_TKP' ? 'Di TKP' : activeComplaint.status === 'SELESAI' ? 'Tuntas' : 'Menunggu'}
+                                  <div style={{ fontSize: '8.5px', color: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '#2563EB' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#059669' : '#94A3B8', fontWeight: 600 }}>
+                                    {isRejected ? 'Terkunci' : activeStatMeta.key === 'DISPOSISI' ? 'Disposisi' : activeStatMeta.key === 'MENUJU_TKP' ? 'Meluncur' : activeStatMeta.key === 'TIBA_DI_TKP' ? 'Di TKP' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? 'Tuntas' : 'Menunggu'}
                                   </div>
                                 </div>
                                 {/* Step 4 */}
@@ -3164,16 +3255,16 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   textAlign: 'center',
                                   padding: '6px 4px',
                                   borderRadius: '6px',
-                                  background: activeComplaint.status === 'SELESAI' ? '#ECFDF5' : activeComplaint.status === 'PENANGANAN_TKP' ? '#F3E8FF' : '#F8FAFC',
-                                  border: activeComplaint.status === 'SELESAI' ? '1px solid #A7F3D0' : activeComplaint.status === 'PENANGANAN_TKP' ? '1px solid #C084FC' : '1px solid #E2E8F0',
-                                  opacity: (isRejected || activeComplaint.status === 'BELUM_DITANGANI' || ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status)) ? 0.6 : 1,
+                                  background: activeStatMeta.key === 'SELESAI' ? '#ECFDF5' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '#FEF2F2' : '#F8FAFC',
+                                  border: activeStatMeta.key === 'SELESAI' ? '1px solid #A7F3D0' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '1px solid #FECACA' : '1px solid #E2E8F0',
+                                  opacity: (isRejected || activeStatMeta.key === 'MENUNGGU' || ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key)) ? 0.6 : 1,
                                 }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: activeComplaint.status === 'SELESAI' ? '#10B981' : activeComplaint.status === 'PENANGANAN_TKP' ? '#7C3AED' : '#94A3B8' }}>
-                                    {isRejected ? '⛔' : activeComplaint.status === 'SELESAI' ? '✓' : activeComplaint.status === 'PENANGANAN_TKP' ? '⏳' : '🔒'}
+                                  <div style={{ fontSize: '11px', fontWeight: 800, color: activeStatMeta.key === 'SELESAI' ? '#10B981' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '#EF4444' : '#94A3B8' }}>
+                                    {isRejected ? '⛔' : activeStatMeta.key === 'SELESAI' ? '✓' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '📝' : '🔒'}
                                   </div>
                                   <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>4. Selesai</div>
-                                  <div style={{ fontSize: '8.5px', color: activeComplaint.status === 'SELESAI' ? '#059669' : activeComplaint.status === 'PENANGANAN_TKP' ? '#7C3AED' : '#94A3B8', fontWeight: 600 }}>
-                                    {activeComplaint.status === 'SELESAI' ? 'Selesai 100%' : activeComplaint.status === 'PENANGANAN_TKP' ? 'Pengesahan' : 'Menunggu'}
+                                  <div style={{ fontSize: '8.5px', color: activeStatMeta.key === 'SELESAI' ? '#059669' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '#EF4444' : '#94A3B8', fontWeight: 600 }}>
+                                    {activeStatMeta.key === 'SELESAI' ? 'Selesai 100%' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? 'Pengesahan BAP' : 'Menunggu'}
                                   </div>
                                 </div>
                               </div>
@@ -3183,21 +3274,25 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                 <span style={{ fontWeight: 600 }}>
                                   {isRejected ? (
                                     <>⚠️ <strong>Catatan Revisi:</strong> "{rejectionReason}"</>
-                                  ) : activeComplaint.status === 'BELUM_DITANGANI' ? (
-                                    <>🕒 <strong>Menunggu Tindakan Pawas:</strong> Laporan Diterima Operator &amp; Menunggu Validasi Pawas</>
-                                  ) : ['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) ? (
-                                    <>🚀 <strong>Sedang Ditangani:</strong> Satuan Samapta Presisi Meluncur ke TKP (SLA Berjalan)</>
-                                  ) : activeComplaint.status === 'PENANGANAN_TKP' ? (
-                                    <>⚖️ <strong>Menunggu Pengesahan:</strong> Tindakan Lapangan Rampung Dilaporkan (Menunggu Pengesahan Pawas)</>
+                                  ) : activeStatMeta.key === 'MENUNGGU' ? (
+                                    <>🕒 <strong>Menunggu Penugasan Pawas:</strong> Laporan Diterima &amp; Menunggu Verifikasi Pawas</>
+                                  ) : activeStatMeta.key === 'DISPOSISI' ? (
+                                    <>📋 <strong>Disposisi Pawas:</strong> Personel Siaga Telah Ditugaskan Meluncur</>
+                                  ) : activeStatMeta.key === 'MENUJU_TKP' ? (
+                                    <>🚀 <strong>Sedang Ditangani:</strong> Personel Meluncur ke Lokasi TKP (SLA &lt; 10 Menit)</>
+                                  ) : activeStatMeta.key === 'TIBA_DI_TKP' ? (
+                                    <>📍 <strong>Tiba di TKP:</strong> Petugas Tiba di Lokasi &amp; Melakukan Tindakan Kepolisian</>
+                                  ) : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? (
+                                    <>⚖️ <strong>Menunggu Pengesahan:</strong> Laporan Telah Selesai Ditangani dan BAP Terbit (Menunggu Otorisasi Pawas)</>
                                   ) : (
-                                    <>🏆 <strong>Kasus Ditutup:</strong> Berita Acara Disahkan &amp; Kasus Ditutup Resmi</>
+                                    <>🏆 <strong>Kasus Ditutup:</strong> Berita Acara Disahkan &amp; Kasus Selesai Resmi</>
                                   )}
                                 </span>
                               </div>
                             </div>
 
                             {/* CONDITION 1: STANDARD DETAIL VIEW (Menunggu Tindakan / Ditolak) */}
-                            {activeComplaint.status === 'BELUM_DITANGANI' || isRejected ? (
+                            {activeStatMeta.key === 'MENUNGGU' || isRejected ? (
                               <div id="detail-standard-view">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                                   <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>Detail Laporan</div>
@@ -3390,15 +3485,12 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                       fontWeight: 700,
                                       padding: '4px 10px',
                                       borderRadius: '12px',
-                                      background: activeComplaint.status === 'SELESAI' ? '#DCFCE7' : activeComplaint.status === 'PENANGANAN_TKP' ? '#F3E8FF' : '#EDE9FE',
-                                      color: activeComplaint.status === 'SELESAI' ? '#16A34A' : activeComplaint.status === 'PENANGANAN_TKP' ? '#7C3AED' : '#6D28D9',
+                                      background: activeStatMeta.badge_bg,
+                                      color: activeStatMeta.badge_color,
+                                      border: `1px solid ${activeStatMeta.badge_border}`,
                                     }}
                                   >
-                                    {activeComplaint.status === 'SELESAI'
-                                      ? '✓ Selesai Ditangani'
-                                      : activeComplaint.status === 'PENANGANAN_TKP'
-                                        ? '⚖️ Menunggu Pengesahan Pawas'
-                                        : '⚡ Sedang Ditangani (Meluncur)'}
+                                    {activeStatMeta.icon} {activeStatMeta.label}
                                   </span>
                                 </div>
 
@@ -3835,8 +3927,8 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '12px 14px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                                       <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B' }}>🚔 DISPOSISI PASUKAN OLEH PAWAS</span>
-                                      <span style={{ fontSize: '10px', fontWeight: 700, background: activeComplaint.status === 'SELESAI' ? '#ECFDF5' : '#DBEAFE', color: activeComplaint.status === 'SELESAI' ? '#15803D' : '#1E40AF', padding: '2px 6px', borderRadius: '4px' }}>
-                                        {activeComplaint.status === 'SELESAI' ? 'Penanganan Selesai' : activeComplaint.status === 'BELUM_DITANGANI' ? 'Menunggu Penugasan' : 'Sedang Ditangani'}
+                                      <span style={{ fontSize: '10px', fontWeight: 700, background: activeStatMeta.badge_bg, color: activeStatMeta.badge_color, border: `1px solid ${activeStatMeta.badge_border}`, padding: '2px 6px', borderRadius: '4px' }}>
+                                        {activeStatMeta.key === 'SELESAI' ? 'Penanganan Selesai' : activeStatMeta.key === 'MENUNGGU' ? 'Menunggu Penugasan' : activeStatMeta.label}
                                       </span>
                                     </div>
                                     <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.55 }}>
@@ -3854,7 +3946,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   </div>
 
                                   {/* EKSEKUSI OPERASIONAL 1:1 PROTOTYPE (Disposisi Unit Cadangan / Backup) */}
-                                  {['DISPOSISI', 'MENUJU_TKP'].includes(activeComplaint.status) && (
+                                  {['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) && (
                                     <>
                                       {/* Tombol Kerahkan Unit Cadangan / Back-Up */}
                                       <button
@@ -3884,7 +3976,7 @@ function CommandCenterContent({ session, initialSection = 'beranda' }: { session
                                   )}
 
                                   {/* Tombol Sahkan & Tutup Kasus (Pawas) */}
-                                  {activeComplaint.status === 'PENANGANAN_TKP' && (
+                                  {(activeStatMeta.key === 'MENUNGGU_PENGESAHAN' || activeComplaint.status === 'PENANGANAN_TKP') && (
                                     <button
                                       type="button"
                                       onClick={() => handleSahkanPenutupanKasus(activeComplaint)}

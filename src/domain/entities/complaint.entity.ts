@@ -7,14 +7,17 @@ export type UrgensiLevel = 'DARURAT' | 'SEDANG' | 'NORMAL';
 
 export type ComplaintStatus =
   | 'MENUNGGU'
-  | 'DIPROSES'
+  | 'DISPOSISI'
+  | 'MENUJU_TKP'
+  | 'TIBA_DI_TKP'
   | 'MENUNGGU_PENGESAHAN'
   | 'SELESAI'
   | 'DITOLAK'
+  // Backward compatibility:
   | 'BELUM_DITANGANI'
-  | 'DISPOSISI'
-  | 'MENUJU_TKP'
   | 'PENANGANAN_TKP'
+  | 'DIPROSES'
+  | 'DIBATALKAN'
   | string;
 
 export interface TimelineStep {
@@ -244,11 +247,11 @@ export class ComplaintEntity {
    * Personel Tiba di Lokasi & Amankan TKP (Fase 3 - Step 2)
    */
   public tibaDiTkp(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
-    if (this.props.status !== 'MENUJU_TKP' && this.props.status !== 'DISPOSISI') {
+    if (this.props.status !== 'MENUJU_TKP' && this.props.status !== 'DISPOSISI' && this.props.status !== 'DIPROSES') {
       throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam perjalanan.`);
     }
     const now = new Date();
-    this.props.status = 'PENANGANAN_TKP';
+    this.props.status = 'TIBA_DI_TKP';
     this.props.responTibaTkpAt = now;
 
     if (this.props.disposisiAt) {
@@ -268,14 +271,31 @@ export class ComplaintEntity {
   }
 
   /**
-   * Penanganan Tuntas & Pengesahan Kasus (Fase 4)
+   * Penanganan di TKP Selesai & Terbitkan BAP (Fase 3 - Step 3 Menunggu Pengesahan Pawas)
+   */
+  public ajukanPengesahanBap(catatan?: string, fotoBuktiUrl?: string): void {
+    if (this.props.status !== 'TIBA_DI_TKP' && this.props.status !== 'PENANGANAN_TKP' && this.props.status !== 'MENUJU_TKP') {
+      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam penanganan TKP.`);
+    }
+    this.props.status = 'MENUNGGU_PENGESAHAN';
+    this.props.timelines?.push({
+      tahapKe: 3,
+      tahapTitle: 'Penanganan Lapangan Rampung & BAP Diterbitkan',
+      catatan: catatan || 'Tindakan kepolisian selesai, BAP diterbitkan menunggu verifikasi & pengesahan Pawas.',
+      fotoBuktiUrl,
+      createdAt: new Date(),
+    });
+  }
+
+  /**
+   * Penanganan Tuntas & Pengesahan Kasus oleh Pawas (Fase 4 Selesai)
    */
   public selesaikanKasus(catatan?: string, fotoBuktiUrl?: string): void {
     this.props.status = 'SELESAI';
     this.props.selesaiAt = new Date();
     this.props.timelines?.push({
-      tahapKe: 3,
-      tahapTitle: 'Kasus Tuntas Selesai Ditangani',
+      tahapKe: 4,
+      tahapTitle: 'Kasus Tuntas Selesai Ditangani & Berita Acara Disahkan Pawas',
       catatan: catatan || 'Situasi lingkungan aman dan kondusif.',
       fotoBuktiUrl,
       createdAt: new Date(),

@@ -32,7 +32,7 @@ export class FieldStepActionUseCase {
         complaint.tibaDiTkp(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
       case 'selesai':
-        complaint.selesaikanKasus(input.catatan, input.fotoBuktiUrl);
+        complaint.ajukanPengesahanBap(input.catatan, input.fotoBuktiUrl);
         break;
       default:
         throw new Error(`Tahap aksi ${input.step} tidak valid.`);

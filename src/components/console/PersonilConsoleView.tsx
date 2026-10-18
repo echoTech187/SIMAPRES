@@ -425,7 +425,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     if (validasiFilter === 'diproses') {
       if (c.status === 'SELESAI') return false;
     } else if (validasiFilter === 'menunggu_pengesahan') {
-      if (c.status !== 'PENANGANAN_TKP') return false;
+      if (c.status !== 'MENUNGGU_PENGESAHAN' && c.status !== 'PENANGANAN_TKP') return false;
     }
     if (platformFilter === 'sos' && c.saluranLaporan !== 'SOS') return false;
     if (platformFilter === 'warga' && c.saluranLaporan !== 'PORTAL_WARGA') return false;

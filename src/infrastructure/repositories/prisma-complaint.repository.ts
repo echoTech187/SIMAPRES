@@ -188,7 +188,14 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     let statusId: number | null = null;
     const st = (data.status || 'MENUNGGU').toUpperCase();
     try {
-      const targetStatusKey = (st === 'SELESAI') ? 'SELESAI' : (st === 'DITOLAK' || st === 'DIBATALKAN') ? 'DITOLAK' : (st === 'MENUNGGU_PENGESAHAN') ? 'MENUNGGU_PENGESAHAN' : (st === 'MENUNGGU' || st === 'BELUM_DITANGANI') ? 'MENUNGGU' : 'DIPROSES';
+      const targetStatusKey =
+        st === 'SELESAI' ? 'SELESAI' :
+        (st === 'DITOLAK' || st === 'DIBATALKAN') ? 'DITOLAK' :
+        st === 'MENUNGGU_PENGESAHAN' ? 'MENUNGGU_PENGESAHAN' :
+        (st === 'TIBA_DI_TKP' || st === 'PENANGANAN_TKP') ? 'TIBA_DI_TKP' :
+        st === 'MENUJU_TKP' ? 'MENUJU_TKP' :
+        (st === 'DISPOSISI' || st === 'DIPROSES') ? 'DISPOSISI' :
+        'MENUNGGU';
       const mStat = await prisma.masterComplaintStatus.findFirst({
         where: { key: targetStatusKey },
         select: { id: true },
@@ -315,7 +322,14 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     if (data.status) {
       const st = (data.status || '').toUpperCase();
       try {
-        const targetStatusKey = (st === 'SELESAI') ? 'SELESAI' : (st === 'DITOLAK' || st === 'DIBATALKAN') ? 'DITOLAK' : (st === 'MENUNGGU_PENGESAHAN') ? 'MENUNGGU_PENGESAHAN' : (st === 'MENUNGGU' || st === 'BELUM_DITANGANI') ? 'MENUNGGU' : 'DIPROSES';
+        const targetStatusKey =
+          st === 'SELESAI' ? 'SELESAI' :
+          (st === 'DITOLAK' || st === 'DIBATALKAN') ? 'DITOLAK' :
+          st === 'MENUNGGU_PENGESAHAN' ? 'MENUNGGU_PENGESAHAN' :
+          (st === 'TIBA_DI_TKP' || st === 'PENANGANAN_TKP') ? 'TIBA_DI_TKP' :
+          st === 'MENUJU_TKP' ? 'MENUJU_TKP' :
+          (st === 'DISPOSISI' || st === 'DIPROSES') ? 'DISPOSISI' :
+          'MENUNGGU';
         const mStat = await prisma.masterComplaintStatus.findFirst({
           where: { key: targetStatusKey },
           select: { id: true },
@@ -362,9 +376,11 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         if (data.status === 'MENUJU_TKP') {
           dispatchStatus = 'DEPARTED';
           departedAt = new Date();
-        } else if (data.status === 'PENANGANAN_TKP') {
+        } else if (data.status === 'TIBA_DI_TKP' || data.status === 'PENANGANAN_TKP') {
           dispatchStatus = 'ARRIVED';
           arrivedAt = data.responTibaTkpAt || new Date();
+        } else if (data.status === 'MENUNGGU_PENGESAHAN') {
+          dispatchStatus = 'REPORT_SUBMITTED';
         } else if (data.status === 'SELESAI') {
           dispatchStatus = 'COMPLETED';
           completedAt = data.selesaiAt || new Date();
