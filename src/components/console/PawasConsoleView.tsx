@@ -5847,17 +5847,28 @@ function CommandCenterContent({
                       <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#0F172A' }}>
                         {selectedDisposisiItem.jenisKejadian || selectedDisposisiItem.title}
                       </div>
-                      {(sopRecommendation.kasusSpesifik || selectedDisposisiItem.subcategory?.nama_kasus) && (
-                        <span style={{ fontSize: '10.5px', background: '#F1F5F9', color: '#0F172A', border: '1px solid #CBD5E1', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-                          🎯 SOP Spesifik: {sopRecommendation.kasusSpesifik || selectedDisposisiItem.subcategory?.nama_kasus}
-                        </span>
-                      )}
                     </div>
-                    {sopRecommendation.sopText && (
-                      <div style={{ fontSize: '11px', color: '#0369A1', background: '#F0F9FF', border: '1px solid #BAE6FD', padding: '5px 10px', borderRadius: '6px', marginBottom: '6px' }}>
-                        📋 <strong>Panduan SOP Penanganan:</strong> {sopRecommendation.sopText}
+
+                    {/* Uraian Singkat Kejadian dari Pelapor / Operator */}
+                    <div
+                      style={{
+                        fontSize: '11.5px',
+                        color: '#1E293B',
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        marginBottom: '8px',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>📝</span> Uraian Singkat Kejadian:
                       </div>
-                    )}
+                      <div style={{ fontStyle: 'italic', color: '#334155' }}>
+                        "{selectedDisposisiItem.ringkasanKeterangan || selectedDisposisiItem.deskripsiKejadian || selectedDisposisiItem.keterangan || selectedDisposisiItem.uraian || 'Tidak ada uraian keterangan kejadian.'}"
+                      </div>
+                    </div>
                     <div style={{ fontSize: '11.5px', color: '#475569', marginBottom: '6px' }}>
                       📍 {selectedDisposisiItem.tkpAlamatTeks || selectedDisposisiItem.alamatTeks}
                     </div>
