@@ -3467,10 +3467,7 @@ function CommandCenterContent({
                                   <div>
                                     <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Identitas Pelapor:</div>
                                     <div style={{ color: '#1E293B', fontWeight: 700 }}>
-                                      {activeComplaint.pelaporNama}{' '}
-                                      <span style={{ fontSize: '10px', background: '#EFF6FF', color: '#1D4ED8', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
-                                        Pelapor Terverifikasi
-                                      </span>
+                                      {activeComplaint.pelaporNama}
                                     </div>
                                   </div>
                                   <div>
@@ -4688,33 +4685,13 @@ function CommandCenterContent({
                       <label className="form-label" style={{ fontSize: '11.5px' }}>
                         Nomor Telepon Penelepon (Pelapor) <span style={{ color: 'red' }}>*</span>
                       </label>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={simCaller.telepon}
-                          onChange={(e) => setSimCaller({ ...simCaller, telepon: e.target.value })}
-                          placeholder="0812xxxx"
-                        />
-                        <span
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            top: '8px',
-                            bottom: '8px',
-                            background: '#EFF6FF',
-                            color: '#1D4ED8',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          ✓ Terverifikasi
-                        </span>
-                      </div>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={simCaller.telepon}
+                        onChange={(e) => setSimCaller({ ...simCaller, telepon: e.target.value })}
+                        placeholder="0812xxxx"
+                      />
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '12px' }}>
