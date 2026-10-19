@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 // Cache in-memory server untuk mereduksi latensi query jaringan remote TiDB
 const officerComplaintsCache = new Map<string, { data: any; expiresAt: number }>();
 
-export function clearOfficerComplaintsCache() {
+function clearOfficerComplaintsCache() {
   officerComplaintsCache.clear();
 }
 
