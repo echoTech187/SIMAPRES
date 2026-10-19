@@ -36,6 +36,7 @@ interface SimapresGoogleMapProps {
   centerLat?: number;
   centerLng?: number;
   onUnitClick?: (unit: any) => void;
+  targetComplaint?: any | null;
 }
 
 // Singleton script loader for Google Maps
@@ -127,11 +128,13 @@ export default function SimapresGoogleMap({
   centerLat,
   centerLng,
   onUnitClick,
+  targetComplaint = null,
 }: SimapresGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
   const trafficLayerRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const directionsRendererRef = useRef<any>(null);
 
   const handleUnitClick = (unit: any) => {
     if (onSelectUnit) onSelectUnit(unit);
@@ -377,13 +380,91 @@ export default function SimapresGoogleMap({
       markersRef.current.push(marker);
     });
   }
+
+  // 5. Target Pengaduan / Lokasi TKP Darurat & Garis Rute Tercepat (Navigasi Lapangan)
+  if (directionsRendererRef.current) {
+    try {
+      directionsRendererRef.current.setMap(null);
+    } catch (_) {}
+    directionsRendererRef.current = null;
+  }
+
+  if (targetComplaint && targetComplaint.tkpLat && targetComplaint.tkpLng) {
+    const tkpPos = { lat: Number(targetComplaint.tkpLat), lng: Number(targetComplaint.tkpLng) };
+    const tkpIcon = makeHaloBadgeIcon('🚨', '#DC2626', '#FEF08A');
+    const tkpMarker = new maps.Marker({
+      position: tkpPos,
+      map,
+      icon: tkpIcon,
+      title: `TKP: ${targetComplaint.nomorTiket || ''} • ${targetComplaint.jenisKejadian || 'Kejadian Lapangan'}`,
+      zIndex: 1100,
+    });
+
+    const tkpUnitData: MapUnitData = {
+      key: `tkp_${targetComplaint.id || 'current'}`,
+      pos: tkpPos,
+      iconEmoji: '🚨',
+      title: `TKP: ${targetComplaint.jenisKejadian || 'Darurat 110'}`,
+      petugas: `Nomor Tiket: ${targetComplaint.nomorTiket || '-'}`,
+      sub: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
+      status: targetComplaint.status || 'MENUJU_TKP',
+      statusColor: '#DC2626',
+      tugas: 'Target Penanganan Personel',
+      telemetri: `Koordinat: ${tkpPos.lat.toFixed(5)}, ${tkpPos.lng.toFixed(5)}`,
+    };
+
+    tkpMarker.addListener('click', () => {
+      handleUnitClick(tkpUnitData);
+    });
+    markersRef.current.push(tkpMarker);
+
+    // Gambar rute Directions tercepat dari posisi personel ke TKP
+    if (
+      myUnit?.pos?.lat &&
+      myUnit?.pos?.lng &&
+      typeof maps.DirectionsService === 'function' &&
+      typeof maps.DirectionsRenderer === 'function'
+    ) {
+      try {
+        const dirService = new maps.DirectionsService();
+        const dirRenderer = new maps.DirectionsRenderer({
+          map,
+          suppressMarkers: true, // Marker sudah digambar secara kustom
+          preserveViewport: false,
+          polylineOptions: {
+            strokeColor: '#2563EB',
+            strokeWeight: 6,
+            strokeOpacity: 0.85,
+          },
+        });
+        directionsRendererRef.current = dirRenderer;
+
+        dirService.route(
+          {
+            origin: { lat: Number(myUnit.pos.lat), lng: Number(myUnit.pos.lng) },
+            destination: tkpPos,
+            travelMode: maps.TravelMode.DRIVING,
+          },
+          (res: any, status: any) => {
+            if (status === maps.DirectionsStatus.OK) {
+              dirRenderer.setDirections(res);
+            } else {
+              console.warn('Gagal memuat rute navigasi Google Maps:', status);
+            }
+          }
+        );
+      } catch (routeErr) {
+        console.warn('Error rendering directions:', routeErr);
+      }
+    }
+  }
 };
 
 useEffect(() => {
   if (mapInstanceRef.current && (window as any).google?.maps) {
     renderMarkers(mapInstanceRef.current, (window as any).google.maps);
   }
-}, [activeFilter, showOtherOfficers, hotspots, policeOffices, fleetUnits, myUnit]);
+}, [activeFilter, showOtherOfficers, hotspots, policeOffices, fleetUnits, myUnit, targetComplaint]);
 
 // Center to my unit / GPS
 const handleCenterGps = () => {

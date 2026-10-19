@@ -6,7 +6,8 @@ export interface LiveCameraWatermarkCaptureProps {
   personilNama: string;
   personilPangkat?: string;
   personilNrp?: string;
-  alamatTkp?: string;
+  lokasiPersonil?: string; // Lokasi terkini personel
+  alamatTkp?: string; // fallback / backwards compatibility
   gpsLat?: number;
   gpsLng?: number;
   onPhotoCaptured: (dataUrl: string) => void;
@@ -19,9 +20,10 @@ export default function LiveCameraWatermarkCapture({
   personilNama,
   personilPangkat = 'Bripka',
   personilNrp = '-',
+  lokasiPersonil,
   alamatTkp = 'Kawasan Hukum Presisi',
-  gpsLat = -6.2088,
-  gpsLng = 106.8456,
+  gpsLat = 0,
+  gpsLng = 0,
   onPhotoCaptured,
   onCancel,
   label = 'Dokumentasi Visual Autentik di TKP',
@@ -31,20 +33,110 @@ export default function LiveCameraWatermarkCapture({
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
+
+  // Lokasi & Koordinat Terkini Personil (Bukan Alamat Pengaduan Pelapor)
+  const [liveGps, setLiveGps] = useState<{ lat: number; lng: number }>({
+    lat: gpsLat || 0,
+    lng: gpsLng || 0,
+  });
+  const [liveAddress, setLiveAddress] = useState<string>(
+    lokasiPersonil || (alamatTkp && !alamatTkp.includes('TKP') ? alamatTkp : '') || ''
+  );
+  const [isResolvingAddress, setIsResolvingAddress] = useState<boolean>(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Matikan stream saat unmount
-  const stopCameraStream = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+  // Reverse Geocoding untuk mendapatkan nama jalan/kelurahan/kota riil personil
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+    if (!lat || !lng || (lat === 0 && lng === 0)) return;
+    try {
+      setIsResolvingAddress(true);
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+        { headers: { 'Accept-Language': 'id' } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.display_name) {
+          const a = data.address || {};
+          const road = a.road || a.pedestrian || a.street || '';
+          const suburb = a.suburb || a.village || a.neighbourhood || '';
+          const city = a.city || a.town || a.county || a.city_district || '';
+          const state = a.state || '';
+          const parts = [road, suburb, city, state].filter(Boolean);
+          const formatted = parts.length > 0 ? parts.join(', ') : data.display_name;
+          if (formatted) {
+            setLiveAddress(formatted);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Reverse geocode error:', err);
+    } finally {
+      setIsResolvingAddress(false);
     }
-    setIsCameraActive(false);
   }, []);
+
+  // Ambil lokasi GPS terkini dari perangkat personil
+  const acquireCurrentLocation = useCallback(() => {
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = Number(pos.coords.latitude.toFixed(6));
+          const lng = Number(pos.coords.longitude.toFixed(6));
+          setLiveGps({ lat, lng });
+          reverseGeocode(lat, lng);
+        },
+        (err) => {
+          console.warn('Gagal membaca GPS perangkat:', err);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, [reverseGeocode]);
+
+  // Sinkronisasi koordinat & lokasi awal dari props
+  useEffect(() => {
+    if (gpsLat && gpsLng && (gpsLat !== 0 || gpsLng !== 0)) {
+      setLiveGps({ lat: gpsLat, lng: gpsLng });
+      if (!liveAddress && !lokasiPersonil) {
+        reverseGeocode(gpsLat, gpsLng);
+      }
+    }
+  }, [gpsLat, gpsLng, reverseGeocode, liveAddress, lokasiPersonil]);
+
+  useEffect(() => {
+    if (lokasiPersonil) {
+      setLiveAddress(lokasiPersonil);
+    }
+  }, [lokasiPersonil]);
+
+  // Matikan stream saat unmount atau berhenti
+  const stopCameraStream = useCallback(() => {
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch (_) {}
+        });
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    } catch (e) {
+      console.warn('stopCameraStream error:', e);
+    } finally {
+      setIsCameraActive(false);
+      setIsVideoReady(false);
+      if (onCancel) onCancel();
+    }
+  }, [onCancel]);
 
   useEffect(() => {
     return () => {
@@ -52,45 +144,103 @@ export default function LiveCameraWatermarkCapture({
     };
   }, [stopCameraStream]);
 
-  // Buka kamera stream (getUserMedia)
-  const startCamera = async () => {
+  // Callback ref untuk elemen video agar stream langsung terhubung tanpa delay
+  const setVideoNode = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && streamRef.current) {
+      try {
+        node.muted = true;
+        node.defaultMuted = true;
+        node.playsInline = true;
+        if (node.srcObject !== streamRef.current) {
+          node.srcObject = streamRef.current;
+        }
+        node
+          .play()
+          .then(() => setIsVideoReady(true))
+          .catch((err) => {
+            console.warn('Autoplay callback error, retrying muted play:', err);
+            node.muted = true;
+            node.play().then(() => setIsVideoReady(true)).catch(console.warn);
+          });
+      } catch (err) {
+        console.warn('setVideoNode error:', err);
+      }
+    }
+  }, []);
+
+  // Buka kamera stream (WebRTC getUserMedia MURNI - DILARANG DARI GALERI)
+  const startCamera = async (targetFacing?: 'environment' | 'user') => {
     setCameraError(null);
     setIsProcessing(true);
+    setIsVideoReady(false);
+    const mode = targetFacing || facingMode;
+
     try {
       if (!navigator?.mediaDevices?.getUserMedia) {
         throw new Error('Perangkat atau browser tidak mendukung akses langsung kamera (WebRTC).');
       }
 
-      // Prioritaskan kamera belakang (environment)
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      };
+      // Hentikan stream aktif terlebih dahulu jika ada
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => {
+          try { t.stop(); } catch (_) {}
+        });
+        streamRef.current = null;
+      }
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: mode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch (errEnvironment) {
+        console.warn('Kamera mode ideal tidak tersedia, mencoba kamera default:', errEnvironment);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       streamRef.current = stream;
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
+      // Update state kamera aktif
       setIsCameraActive(true);
-    } catch (err: any) {
-      console.warn('Live camera stream error, trying fallback capture mode:', err);
-      setCameraError(
-        err.message || 'Izin kamera belum diberikan. Menggunakan mode pemicu kamera perangkat langsung.'
-      );
-      // Fallback: picu langsung input capture="environment"
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
+
+      // Pasang langsung ke elemen video jika sudah ter-mount
+      if (videoRef.current) {
+        videoRef.current.muted = true;
+        videoRef.current.defaultMuted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.srcObject = stream;
+        videoRef.current
+          .play()
+          .then(() => setIsVideoReady(true))
+          .catch((err) => console.warn('Video play immediate error:', err));
       }
+
+      // Ambil GPS dan lokasi terkini personil secara real-time
+      acquireCurrentLocation();
+    } catch (err: any) {
+      console.warn('Live camera stream error:', err);
+      setCameraError(
+        err.message || 'Izin kamera belum diberikan. Mohon periksa izin browser untuk mengakses kamera langsung.'
+      );
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Toggle beralih antara kamera Depan & Belakang
+  const toggleFacingMode = () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
   };
 
   // Fungsi Stamping Watermark Otomatis ke Canvas
@@ -100,9 +250,9 @@ export default function LiveCameraWatermarkCapture({
     height: number
   ) => {
     // 1. Overlay strip gelap di bagian bawah
-    const bannerHeight = Math.max(90, Math.round(height * 0.2));
+    const bannerHeight = Math.max(90, Math.round(height * 0.22));
     const gradient = ctx.createLinearGradient(0, height - bannerHeight, 0, height);
-    gradient.addColorStop(0, 'rgba(15, 23, 42, 0.85)');
+    gradient.addColorStop(0, 'rgba(15, 23, 42, 0.88)');
     gradient.addColorStop(1, 'rgba(15, 23, 42, 0.98)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, height - bannerHeight, width, bannerHeight);
@@ -112,15 +262,16 @@ export default function LiveCameraWatermarkCapture({
     ctx.fillRect(0, height - bannerHeight, width, 3);
 
     // 2. Format Waktu Indonesia Barat
-    const nowStr = new Date().toLocaleString('id-ID', {
-      timeZone: 'Asia/Jakarta',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }) + ' WIB';
+    const nowStr =
+      new Date().toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      }) + ' WIB';
 
     // 3. Tulis teks watermark
     const fontSize = Math.max(12, Math.round(width * 0.024));
@@ -130,82 +281,78 @@ export default function LiveCameraWatermarkCapture({
     // Header Tag
     ctx.font = `bold ${fontSize}px sans-serif`;
     ctx.fillStyle = '#FBBF24';
-    ctx.fillText('🛡️ POLRI PRESISI 110 • DOKUMENTASI VISUAL RESMI PENANGANAN TKP', startX, currentY);
+    ctx.fillText('🛡️ POLRI PRESISI 110 • DOKUMENTASI VISUAL RESMI PENANGANAN', startX, currentY);
 
+    // Baris 1: Identitas Personel
     currentY += fontSize + 6;
     ctx.font = `bold ${Math.max(11, fontSize - 2)}px sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(`👮 PETUGAS: ${personilPangkat} ${personilNama} (NRP: ${personilNrp})`, startX, currentY);
 
+    // Baris 2: Lokasi Terkini Personil (Alamat Riil Personil)
     currentY += fontSize + 5;
     ctx.font = `normal ${Math.max(10, fontSize - 3)}px sans-serif`;
     ctx.fillStyle = '#E2E8F0';
-    const cleanAlamat = alamatTkp.length > 70 ? alamatTkp.substring(0, 67) + '...' : alamatTkp;
-    ctx.fillText(`📍 ALAMAT: ${cleanAlamat}`, startX, currentY);
+    const displayAddress =
+      liveAddress || lokasiPersonil || 'Lokasi Terkini Personel (Satelit Presisi)';
+    const cleanAlamat =
+      displayAddress.length > 70 ? displayAddress.substring(0, 67) + '...' : displayAddress;
+    ctx.fillText(`📍 LOKASI PERSONEL: ${cleanAlamat}`, startX, currentY);
 
+    // Baris 3: Koordinat GPS Terkini Personel & Timestamp
     currentY += fontSize + 5;
     ctx.font = `bold ${Math.max(10, fontSize - 3)}px monospace`;
     ctx.fillStyle = '#38BDF8';
-    const latStr = gpsLat ? gpsLat.toFixed(6) : '0.000000';
-    const lngStr = gpsLng ? gpsLng.toFixed(6) : '0.000000';
-    ctx.fillText(`🌐 KOORDINAT: Lat ${latStr}, Lng ${lngStr} • ⏱️ ${nowStr}`, startX, currentY);
+    const finalLat = liveGps.lat || gpsLat || 0;
+    const finalLng = liveGps.lng || gpsLng || 0;
+    const latStr = finalLat ? finalLat.toFixed(6) : '0.000000';
+    const lngStr = finalLng ? finalLng.toFixed(6) : '0.000000';
+    ctx.fillText(`🌐 GPS PERSONEL: Lat ${latStr}, Lng ${lngStr} • ⏱️ ${nowStr}`, startX, currentY);
   };
 
-  // Ambil snapshot dari video element
+  // Ambil snapshot dari video element (Live Sensor Kamera Saja)
   const takeSnapshot = () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current || document.createElement('canvas');
+    try {
+      const video = videoRef.current;
+      if (!video) {
+        alert('Lensa kamera belum siap. Silakan klik tombol Batalkan lalu buka kembali.');
+        return;
+      }
 
-    const width = video.videoWidth || 1280;
-    const height = video.videoHeight || 720;
-    canvas.width = width;
-    canvas.height = height;
+      // Pastikan video jalan jika paused
+      if (video.paused) {
+        video.muted = true;
+        video.play().catch(console.warn);
+      }
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+      const width = video.videoWidth > 0 ? video.videoWidth : 1280;
+      const height = video.videoHeight > 0 ? video.videoHeight : 720;
 
-    // Render frame video asli
-    ctx.drawImage(video, 0, 0, width, height);
+      const canvas = canvasRef.current || document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
 
-    // Sematkan watermark
-    stampWatermarkOnCanvas(ctx, width, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
-    setCapturedImage(watermarkedDataUrl);
-    stopCameraStream();
-    onPhotoCaptured(watermarkedDataUrl);
-  };
+      // Render frame video asli dari kamera
+      try {
+        ctx.drawImage(video, 0, 0, width, height);
+      } catch (drawErr) {
+        console.warn('Gagal menggambar frame video:', drawErr);
+      }
 
-  // Tangani pengambilan dari input capture="environment" (Direct Camera on Mobile)
-  const handleNativeCameraFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+      // Sematkan watermark lokasi & koordinat terkini personel
+      stampWatermarkOnCanvas(ctx, width, height);
 
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = (re) => {
-      img.onload = () => {
-        const canvas = canvasRef.current || document.createElement('canvas');
-        const width = img.width || 1280;
-        const height = img.height || 720;
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        ctx.drawImage(img, 0, 0, width, height);
-        stampWatermarkOnCanvas(ctx, width, height);
-
-        const finalDataUrl = canvas.toDataURL('image/jpeg', 0.88);
-        setCapturedImage(finalDataUrl);
-        onPhotoCaptured(finalDataUrl);
-      };
-      img.src = re.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+      const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      setCapturedImage(watermarkedDataUrl);
+      stopCameraStream();
+      onPhotoCaptured(watermarkedDataUrl);
+    } catch (err) {
+      console.error('Error saat mengambil snapshot:', err);
+      alert('Terjadi kendala saat mengambil foto. Silakan coba kembali.');
+    }
   };
 
   const handleRetake = () => {
@@ -243,18 +390,9 @@ export default function LiveCameraWatermarkCapture({
       </div>
 
       <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '12px', lineHeight: 1.4 }}>
-        Wajib mengambil foto langsung dari sensor kamera di lokasi TKP. Sistem secara otomatis menyematkan watermark nama personel, alamat kejadian, dan koordinat satelit GPS secara permanen.
+        Wajib mengambil foto langsung dari lensa kamera aktif (Anti-Galeri). Sistem secara otomatis menyematkan watermark nama personel,{' '}
+        <strong>lokasi terkini personel</strong>, dan <strong>koordinat satelit GPS riil</strong> secara permanen.
       </div>
-
-      {/* Hidden Fallback Input (HANYA capture="environment", DILARANG upload galeri) */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        accept="image/*"
-        capture="environment"
-        style={{ display: 'none' }}
-        onChange={handleNativeCameraFile}
-      />
 
       {/* Hidden Canvas untuk Watermarking */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
@@ -267,127 +405,205 @@ export default function LiveCameraWatermarkCapture({
             Kamera Belum Diaktifkan
           </div>
           <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '12px' }}>
-            Tekan tombol di bawah untuk membuka lensa kamera dan membidik situasi TKP.
+            Tekan tombol di bawah untuk membuka lensa kamera dan membidik situasi secara langsung.
           </div>
-          <button
-            type="button"
-            id="btn-buka-kamera-live"
-            onClick={startCamera}
-            disabled={isProcessing}
-            style={{
-              padding: '10px 18px',
-              background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 800,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 6px rgba(21,62,117,0.3)',
-            }}
-          >
-            <span>📷</span> {isProcessing ? 'Mengakses Kamera...' : 'Aktifkan Kamera Live TKP'}
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button
+              type="button"
+              id="btn-buka-kamera-live"
+              onClick={() => startCamera()}
+              disabled={isProcessing}
+              style={{
+                padding: '10px 22px',
+                background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: 800,
+                fontSize: '12.5px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 2px 6px rgba(21,62,117,0.3)',
+              }}
+            >
+              <span>📷</span> {isProcessing ? 'Mengakses Kamera...' : 'Aktifkan Kamera Live'}
+            </button>
+          </div>
         </div>
       )}
 
       {/* TAMPILAN 2: STREAM KAMERA AKTIF (VIEWFINDER LIVE) */}
       {isCameraActive && !capturedImage && (
-        <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', border: '2px solid #153E75' }}>
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{ width: '100%', maxHeight: '340px', objectFit: 'cover', display: 'block' }}
-          />
-
-          {/* Badge Live Indicator */}
+        <div>
+          {/* KOTAK VIEWFINDER KAMERA (HANYA BERISI VIDEO & WATERMARK OVERLAY) */}
           <div
             style={{
-              position: 'absolute',
-              top: '10px',
-              left: '10px',
-              background: 'rgba(220, 38, 38, 0.9)',
-              color: 'white',
-              fontSize: '10px',
-              fontWeight: 800,
-              padding: '3px 8px',
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
+              position: 'relative',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              background: '#0F172A',
+              border: '2px solid #153E75',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
             }}
           >
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }}></span>
-            LIVE CAMERA TKP
+            {/* Elemen Video Viewfinder */}
+            <video
+              ref={setVideoNode}
+              autoPlay
+              playsInline
+              muted
+              onLoadedMetadata={(e) => {
+                const vid = e.currentTarget;
+                vid.muted = true;
+                vid.play().then(() => setIsVideoReady(true)).catch(console.warn);
+              }}
+              onCanPlay={() => setIsVideoReady(true)}
+              style={{
+                width: '100%',
+                minHeight: '260px',
+                maxHeight: '360px',
+                objectFit: 'cover',
+                display: 'block',
+                backgroundColor: '#000000',
+              }}
+            />
+
+            {/* Header Bar Viewfinder */}
+            <div
+              style={{
+                position: 'absolute',
+                top: '10px',
+                left: '10px',
+                right: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                zIndex: 4,
+              }}
+            >
+              <div
+                style={{
+                  background: 'rgba(220, 38, 38, 0.92)',
+                  color: 'white',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                  pointerEvents: 'none',
+                }}
+              >
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }}></span>
+                LIVE KAMERA PERSONEL
+              </div>
+
+              <button
+                type="button"
+                onClick={toggleFacingMode}
+                title="Ganti Kamera Depan / Belakang"
+                style={{
+                  background: 'rgba(15, 23, 42, 0.85)',
+                  color: 'white',
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  padding: '5px 11px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  pointerEvents: 'auto',
+                }}
+              >
+                <span>🔄</span> {facingMode === 'environment' ? 'Kamera Depan' : 'Kamera Belakang'}
+              </button>
+            </div>
+
+            {/* Preview Teks Watermark di Layar Kamera (pointerEvents: none agar tidak memblokir apapun) */}
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                background: 'linear-gradient(transparent, rgba(15,23,42,0.92))',
+                padding: '16px 14px 10px',
+                color: 'white',
+                fontSize: '10.5px',
+                lineHeight: 1.4,
+                zIndex: 3,
+                pointerEvents: 'none',
+              }}
+            >
+              <div style={{ color: '#FBBF24', fontWeight: 800 }}>
+                👮 {personilPangkat} {personilNama} (NRP: {personilNrp})
+              </div>
+              <div style={{ color: '#E2E8F0', marginTop: '2px' }}>
+                📍 {isResolvingAddress ? 'Mencari alamat satelit...' : liveAddress || lokasiPersonil || 'Lokasi Terkini Personel'}
+              </div>
+              <div style={{ color: '#38BDF8', fontFamily: 'monospace', marginTop: '2px' }}>
+                🌐 Lat: {(liveGps.lat || gpsLat || 0).toFixed(6)}, Lng: {(liveGps.lng || gpsLng || 0).toFixed(6)}
+              </div>
+            </div>
           </div>
 
-          {/* Preview Teks Watermark di Layar Kamera */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              background: 'linear-gradient(transparent, rgba(15,23,42,0.95))',
-              padding: '12px 14px 10px',
-              color: 'white',
-              fontSize: '10px',
-              lineHeight: 1.4,
-            }}
-          >
-            <div style={{ color: '#FBBF24', fontWeight: 800 }}>👮 {personilPangkat} {personilNama} (NRP: {personilNrp})</div>
-            <div style={{ color: '#E2E8F0' }}>📍 {alamatTkp}</div>
-            <div style={{ color: '#38BDF8', fontFamily: 'monospace' }}>🌐 {gpsLat.toFixed(5)}, {gpsLng.toFixed(5)}</div>
-          </div>
-
-          {/* Tombol Shutter / Bidik */}
+          {/* BAR TOMBOL KONTROL DI LUAR KOTAK VIEWFINDER (TERPISAH, BEBAS INTERFERENSI, 100% BISA DIKLIK) */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'center',
+              alignItems: 'center',
               gap: '12px',
-              padding: '12px',
-              background: '#0F172A',
+              marginTop: '12px',
+              padding: '6px 0',
+              position: 'relative',
+              zIndex: 10,
             }}
           >
             <button
               type="button"
+              id="btn-batal-kamera"
               onClick={stopCameraStream}
               style={{
-                padding: '8px 14px',
-                background: '#334155',
-                color: 'white',
+                padding: '10px 18px',
+                background: '#475569',
+                color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '6px',
-                fontSize: '11px',
-                fontWeight: 700,
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
               }}
             >
-              Batalkan
+              ✕ Batalkan
             </button>
             <button
               type="button"
               id="btn-bidik-foto"
               onClick={takeSnapshot}
               style={{
-                padding: '10px 22px',
-                background: '#DC2626',
-                color: 'white',
+                padding: '11px 26px',
+                background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+                color: '#FFFFFF',
                 border: 'none',
                 borderRadius: '30px',
                 fontSize: '13px',
                 fontWeight: 900,
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: '0 0 15px rgba(220, 38, 38, 0.6)',
+                boxShadow: '0 4px 14px rgba(220, 38, 38, 0.45)',
               }}
             >
               <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'white' }}></span>
@@ -403,7 +619,7 @@ export default function LiveCameraWatermarkCapture({
           <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #10B981' }}>
             <img
               src={capturedImage}
-              alt="Bukti TKP Berwatermark"
+              alt="Bukti Visual Berwatermark"
               style={{ width: '100%', maxHeight: '340px', objectFit: 'cover', display: 'block' }}
             />
             <div
@@ -420,13 +636,13 @@ export default function LiveCameraWatermarkCapture({
                 boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
               }}
             >
-              ✓ Terverifikasi Watermark Polri
+              ✓ Terverifikasi Watermark Lokasi Personel
             </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
             <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700 }}>
-              ✓ Bukti visual tersimpan dengan segel integritas.
+              ✓ Bukti visual tersimpan dengan watermark lokasi terkini personel.
             </span>
             <button
               type="button"
@@ -450,7 +666,17 @@ export default function LiveCameraWatermarkCapture({
       )}
 
       {cameraError && (
-        <div style={{ marginTop: '8px', padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '6px', color: '#DC2626', fontSize: '11px' }}>
+        <div
+          style={{
+            marginTop: '8px',
+            padding: '8px 12px',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: '6px',
+            color: '#DC2626',
+            fontSize: '11px',
+          }}
+        >
           ℹ️ {cameraError}
         </div>
       )}

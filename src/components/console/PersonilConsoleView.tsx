@@ -422,6 +422,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     lat: 0,
     lng: 0,
   });
+  const [officerLiveAddress, setOfficerLiveAddress] = useState<string>('');
 
   // Layer Toggles
   const [showTraffic, setShowTraffic] = useState(true);
@@ -447,6 +448,28 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
           setCurrentGps({ lat, lng });
           setLogLat(lat);
           setLogLng(lng);
+
+          // Reverse geocoding lokasi riil personel dari koordinat satelit GPS
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
+            { headers: { 'Accept-Language': 'id' } }
+          )
+            .then((r) => r.json())
+            .then((data) => {
+              if (data && data.display_name) {
+                const a = data.address || {};
+                const road = a.road || a.pedestrian || a.street || '';
+                const suburb = a.suburb || a.village || a.neighbourhood || '';
+                const city = a.city || a.town || a.county || a.city_district || '';
+                const state = a.state || '';
+                const parts = [road, suburb, city, state].filter(Boolean);
+                const addr = parts.length > 0 ? parts.join(', ') : data.display_name;
+                setOfficerLiveAddress(addr);
+                setLogLokasi((prev) => (prev ? prev : addr));
+              }
+            })
+            .catch(() => {});
+
           const activeDeviceId = officer?.deviceId || session?.deviceId || null;
           if (activeDeviceId || nrpParam) {
             updateDeviceTelemetryAction({
@@ -457,7 +480,8 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
             }).catch(console.warn);
           }
         },
-        (err) => console.warn('GPS init warning:', err)
+        (err) => console.warn('GPS init warning:', err),
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     }
 
@@ -550,8 +574,15 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
           setWizardStep(s);
           setExpandedStep(s);
         }
-        if (cRes.data.length > 0 && !selectedTask) {
-          setSelectedTask(active || cRes.data[0]);
+        // Hanya pilih dari penugasan yang memang telah diambil/diterima oleh personel ini
+        const myTasks = cRes.data.filter((c: any) => hasOfficerAcceptedTask(c));
+        if (myTasks.length > 0) {
+          setSelectedTask((prev: any) => {
+            if (prev && myTasks.some((t: any) => t.id === prev.id)) return prev;
+            return active || myTasks[0];
+          });
+        } else {
+          setSelectedTask(null);
         }
       }
 
@@ -743,22 +774,23 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       (l) => (l.jenisAksi || '').toUpperCase() === 'TPTKP' && !l.complaintId
     ).length;
     const fromComplaints = complaints.filter(
-      (c) => !['DITOLAK', 'MENUNGGU'].includes(String(c.status || '').toUpperCase())
+      (c) => hasOfficerAcceptedTask(c) && !['DITOLAK', 'MENUNGGU'].includes(String(c.status || '').toUpperCase())
     ).length;
     return fromLogs + fromComplaints;
-  }, [logbooks, complaints]);
+  }, [logbooks, complaints, officer, session, nrpParam]);
 
   const tugasSelesaiCount = useMemo(() => {
-    const cDone = complaints.filter((c) => String(c.status || '').toUpperCase() === 'SELESAI').length;
+    const cDone = complaints.filter((c) => hasOfficerAcceptedTask(c) && String(c.status || '').toUpperCase() === 'SELESAI').length;
     const lDone = logbooks.filter((l) => {
       const sv = String(l.statusValidasi || '').toUpperCase();
       return sv === 'DISETUJUI' || sv === 'VALID' || sv === 'SELESAI';
     }).length;
     return cDone + lDone;
-  }, [complaints, logbooks]);
+  }, [complaints, logbooks, officer, session, nrpParam]);
 
   const avgResponText = useMemo(() => {
     const finishedDispatches = complaints
+      .filter((c) => hasOfficerAcceptedTask(c))
       .flatMap((c) => c.dispatches || [])
       .filter((d: any) => d.departed_at && d.arrived_at);
     if (finishedDispatches.length > 0) {
@@ -769,30 +801,46 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       return `${(totalMinutes / finishedDispatches.length).toFixed(1)}m`;
     }
     return '4.8m';
-  }, [complaints]);
+  }, [complaints, officer, session, nrpParam]);
 
   const poinPresisi = useMemo(() => {
     const totalGiat = patroliCount + sambangCount + pengamananCount + tptkpCount;
     return tugasSelesaiCount * 100 + totalGiat * 25;
   }, [tugasSelesaiCount, patroliCount, sambangCount, pengamananCount, tptkpCount]);
 
-  // Filtered tasks in Validasi tab
-  const filteredTasks = complaints.filter((c) => {
-    const status = String(c.status || '').toUpperCase();
-    if (validasiFilter === 'diproses') {
-      const isDiproses = ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'SEDANG_DITANGANI', 'PENANGANAN_TKP'].includes(status);
-      if (!isDiproses) return false;
-    } else if (validasiFilter === 'menunggu_pengesahan') {
-      if (status !== 'MENUNGGU_PENGESAHAN') return false;
+  // Filter tugas khusus yang telah diambil/diterima oleh personel yang sedang login
+  const myAcceptedTasks = useMemo(() => {
+    return complaints.filter((c) => hasOfficerAcceptedTask(c));
+  }, [complaints, officer, session, nrpParam]);
+
+  // Filtered tasks in Validasi (Halaman Tugas) tab - HANYA tugas yang telah diambil personel
+  const filteredTasks = useMemo(() => {
+    return myAcceptedTasks.filter((c) => {
+      const status = String(c.status || '').toUpperCase();
+      if (validasiFilter === 'diproses') {
+        const isDiproses = ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'SEDANG_DITANGANI', 'PENANGANAN_TKP'].includes(status);
+        if (!isDiproses) return false;
+      } else if (validasiFilter === 'menunggu_pengesahan') {
+        if (status !== 'MENUNGGU_PENGESAHAN') return false;
+      }
+      if (platformFilter !== 'all') {
+        const p = String(c.platformKey || c.platform_key || c.saluranLaporan || '').toUpperCase();
+        if (platformFilter === 'sos' && !p.includes('SOS')) return false;
+        if (platformFilter === 'warga' && !p.includes('WARGA')) return false;
+        if (platformFilter === 'layanan110' && !p.includes('110') && !p.includes('LAYANAN')) return false;
+      }
+      return true;
+    });
+  }, [myAcceptedTasks, validasiFilter, platformFilter]);
+
+  // Sinkronisasi otomatis selectedTask saat berpindah filter tab atau saat filteredTasks kosong
+  useEffect(() => {
+    if (filteredTasks.length === 0) {
+      setSelectedTask(null);
+    } else if (!selectedTask || !filteredTasks.some((t) => t.id === selectedTask.id)) {
+      setSelectedTask(filteredTasks[0]);
     }
-    if (platformFilter !== 'all') {
-      const p = String(c.platformKey || c.platform_key || c.saluranLaporan || '').toUpperCase();
-      if (platformFilter === 'sos' && !p.includes('SOS')) return false;
-      if (platformFilter === 'warga' && !p.includes('WARGA')) return false;
-      if (platformFilter === 'layanan110' && !p.includes('110') && !p.includes('LAYANAN')) return false;
-    }
-    return true;
-  });
+  }, [filteredTasks, selectedTask]);
 
   return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#F8FAFC' }}>
@@ -1821,7 +1869,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                   personilNama={officer.fullName || session?.fullName}
                   personilPangkat={officer.pangkat}
                   personilNrp={officer.nrp || session?.identifier}
-                  alamatTkp={logLokasi}
+                  lokasiPersonil={logLokasi || officerLiveAddress || 'Lokasi tidak Valid'}
                   gpsLat={currentGps.lat}
                   gpsLng={currentGps.lng}
                   label="Dokumentasi Visual Kegiatan Patroli"
@@ -1906,7 +1954,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                   className={`val-tab-btn ${validasiFilter === 'semua' ? 'active' : ''}`}
                   onClick={() => setValidasiFilter('semua')}
                 >
-                  Semua Tugas Saya <span className="val-tab-badge">{complaints.length}</span>
+                  Semua Tugas Saya <span className="val-tab-badge">{myAcceptedTasks.length}</span>
                 </button>
                 <button
                   type="button"
@@ -1915,7 +1963,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 >
                   Sedang Ditangani{' '}
                   <span className="val-tab-badge primary">
-                    {complaints.filter((c) => ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'SEDANG_DITANGANI', 'PENANGANAN_TKP'].includes(c.status)).length}
+                    {myAcceptedTasks.filter((c) => ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'SEDANG_DITANGANI', 'PENANGANAN_TKP'].includes(c.status)).length}
                   </span>
                 </button>
                 <button
@@ -1925,7 +1973,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 >
                   Menunggu Pengesahan{' '}
                   <span className="val-tab-badge purple">
-                    {complaints.filter((c) => c.status === 'MENUNGGU_PENGESAHAN').length}
+                    {myAcceptedTasks.filter((c) => c.status === 'MENUNGGU_PENGESAHAN').length}
                   </span>
                 </button>
               </div>
@@ -2028,19 +2076,46 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                   color: '#475569',
                 }}
               >
-                Menampilkan: {filteredTasks.length} Data {validasiFilter === 'diproses' ? 'Sedang Ditangani' : validasiFilter === 'menunggu_pengesahan' ? 'Menunggu Pengesahan' : 'Semua Pengaduan'}
+                Menampilkan: {filteredTasks.length} Data {validasiFilter === 'diproses' ? 'Sedang Ditangani' : validasiFilter === 'menunggu_pengesahan' ? 'Menunggu Pengesahan' : 'Semua Penugasan Saya'}
               </div>
 
-              {/* Split Layout: List Left & Detail Right */}
-              <div className="split-layout">
-                {/* Task List (Left Column) */}
-                <div className="val-list">
-                  {filteredTasks.length === 0 ? (
-                    <div style={{ padding: '24px', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0', color: '#64748B', fontSize: '12px' }}>
-                      Tidak ada penugasan aktif pada kategori ini.
+              {/* Task Content: Full-width Empty State OR Split Layout */}
+              {filteredTasks.length === 0 ? (
+                <div style={{ padding: '0 16px 24px' }}>
+                  <div
+                    style={{
+                      padding: '48px 24px',
+                      textAlign: 'center',
+                      background: 'white',
+                      borderRadius: '12px',
+                      border: '1px solid #E2E8F0',
+                      color: '#64748B',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                      width: '100%',
+                    }}
+                  >
+                    <div style={{ fontSize: '42px', marginBottom: '10px' }}>📭</div>
+                    <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '15px', marginBottom: '6px' }}>
+                      {validasiFilter === 'menunggu_pengesahan'
+                        ? 'Tidak Ada Tugas Menunggu Pengesahan'
+                        : validasiFilter === 'diproses'
+                        ? 'Tidak Ada Tugas Sedang Ditangani'
+                        : 'Tidak Ada Penugasan Aktif'}
                     </div>
-                  ) : (
-                    filteredTasks.map((t) => {
+                    <div style={{ fontSize: '12.5px', color: '#64748B', maxWidth: '440px', margin: '0 auto', lineHeight: '1.5' }}>
+                      {validasiFilter === 'menunggu_pengesahan'
+                        ? 'Saat ini tidak ada laporan yang sedang menunggu verifikasi atau pengesahan BAP dari Pawas.'
+                        : validasiFilter === 'diproses'
+                        ? 'Saat ini tidak ada penugasan lapangan yang sedang aktif Anda tangani.'
+                        : 'Anda belum mengambil tugas penanganan kasus pada kategori ini. Tiket tugas yang tidak Anda ambil atau yang kuotanya telah dipenuhi oleh personel lain tidak ditampilkan pada daftar tugas Anda.'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="split-layout">
+                  {/* Task List (Left Column) */}
+                  <div className="val-list">
+                    {filteredTasks.map((t) => {
                       const isSelected = selectedTask?.id === t.id;
                       const isSos = (t.platformKey || '').toUpperCase().includes('SOS');
                       const isWarga = (t.platformKey || '').toUpperCase().includes('WARGA');
@@ -2212,13 +2287,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           </div>
                         </div>
                       );
-                    })
-                  )}
-                </div>
+                    })}
+                  </div>
 
                 {/* Task Detail Panel Right (Matching Prototype) */}
                 <div className="val-detail">
-                  {selectedTask ? (
+                  {selectedTask && hasOfficerAcceptedTask(selectedTask) ? (
                     <div>
                       {/* GLOBAL MACRO MILESTONE STEPPER (Siklus Hidup Lengkap Laporan End-to-End) */}
                       <div
@@ -3035,12 +3109,17 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       })()}
                     </div>
                   ) : (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-                      Pilih penugasan di sebelah kiri untuk melihat rincian alur penanganan.
+                    <div style={{ padding: '40px 24px', textAlign: 'center', background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0', color: '#64748B' }}>
+                      <div style={{ fontSize: '32px', marginBottom: '8px' }}>📋</div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B' }}>Pilih Penugasan</div>
+                      <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
+                        Klik salah satu tugas di sebelah kiri untuk melihat rincian alur penanganan.
+                      </div>
                     </div>
                   )}
                 </div>
               </div>
+              )}
             </section>
           )}
 
@@ -3539,11 +3618,29 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                     </div>
                     <textarea
                       className="form-control"
-                      style={{ minHeight: '80px', marginBottom: '16px' }}
+                      style={{ minHeight: '80px', marginBottom: '14px' }}
                       placeholder="Cth: Personel lengkap, perlengkapan dinas siap, segera meluncur menuju TKP..."
                       value={wizardCatatan}
                       onChange={(e) => setWizardCatatan(e.target.value)}
                     />
+
+                    {/* Lampiran Foto Bukti Keberangkatan Petugas */}
+                    <div className="form-label" style={{ fontWeight: 700, fontSize: '12px', marginBottom: '6px' }}>
+                      Lampiran Foto Bukti Keberangkatan / Ranmor Siaga
+                    </div>
+                    <div style={{ marginBottom: '16px' }}>
+                      <LiveCameraWatermarkCapture
+                        personilNama={officer.fullName || session?.fullName || 'Petugas'}
+                        personilPangkat={officer.pangkat || 'Bripka'}
+                        personilNrp={officer.nrp || session?.identifier || '-'}
+                        lokasiPersonil={officerLiveAddress || 'Posko Siaga / Titik Keberangkatan Personel'}
+                        gpsLat={currentGps.lat}
+                        gpsLng={currentGps.lng}
+                        label="Ambil Foto Bukti Keberangkatan / Ranmor Dinas Siaga"
+                        required={false}
+                        onPhotoCaptured={(dataUrl) => setWizardFoto(dataUrl)}
+                      />
+                    </div>
 
                     <button
                       type="button"
@@ -3632,7 +3729,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       personilNama={officer.fullName || session?.fullName || 'Petugas'}
                       personilPangkat={officer.pangkat || 'Bripka'}
                       personilNrp={officer.nrp || session?.identifier || '-'}
-                      alamatTkp={activeComplaint.tkpAlamatTeks}
+                      lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penanganan Lapangan'}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
                       label="📸 Ambil Foto Kondisi TKP (Watermark GPS Presisi)"
@@ -3715,7 +3812,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       personilNama={officer.fullName || session?.fullName || 'Petugas'}
                       personilPangkat={officer.pangkat || 'Bripka'}
                       personilNrp={officer.nrp || session?.identifier || '-'}
-                      alamatTkp={activeComplaint.tkpAlamatTeks}
+                      lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penyelesaian Lapangan'}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
                       label="📸 Ambil Foto Situasi Akhir Kondusif (Watermark GPS)"
