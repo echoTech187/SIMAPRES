@@ -7,6 +7,11 @@ import { revalidatePath } from 'next/cache';
 function safeRevalidatePath(path: string) {
   try {
     revalidatePath(path);
+    if (path === '/personil' || path === '/command-center') {
+      revalidatePath('/console');
+      revalidatePath('/console/beranda');
+      revalidatePath('/console/peta');
+    }
   } catch (_e) {
     // Graceful fallback when executed outside Next.js request context (e.g. test scripts)
   }
@@ -524,8 +529,8 @@ export async function acceptOfficerDispatchAction(input: {
     const complaintIdBig = BigInt(input.complaintId);
     const now = new Date();
 
-    // 1. Ambil data officer berdasarkan NRP
-    const officer = await prisma.policeOfficer.findFirst({
+    // 1. Ambil data officer berdasarkan NRP / Identifier
+    let officer = await prisma.policeOfficer.findFirst({
       where: {
         OR: [
           { nrp: input.officerNrp },
@@ -535,42 +540,147 @@ export async function acceptOfficerDispatchAction(input: {
       include: { user: true },
     });
 
-    const officerName = input.officerNama || officer?.user?.full_name || 'Petugas Lapangan';
-    const officerRank = input.officerPangkat || officer?.rank_pangkat || 'Personil';
-
-    // 2. Update status dispatch menjadi 'ACCEPTED' dan catat accepted_at
-    const dispatch = await prisma.complaintDispatch.findFirst({
-      where: {
-        complaint_id: complaintIdBig,
-        OR: [
-          ...(officer?.id ? [{ officer_id: officer.id }] : []),
-          ...(officer?.unit_id ? [{ unit_id: officer.unit_id }] : []),
-          { is_primary_unit: true },
-        ],
-      },
+    const regUnit = await prisma.registeredUnit.findFirst({
+      where: { nrp: input.officerNrp },
     });
 
-    if (dispatch) {
+    if (!officer) {
+      const user = await prisma.user.findFirst({
+        where: { identifier: input.officerNrp },
+      });
+      if (user) {
+        try {
+          officer = await prisma.policeOfficer.create({
+            data: {
+              user_id: user.id,
+              nrp: input.officerNrp,
+              rank_pangkat: regUnit?.pangkat || input.officerPangkat || 'Personil',
+              jabatan: regUnit?.satuanNama || 'Petugas Lapangan',
+            },
+            include: { user: true },
+          });
+        } catch (_) {}
+      }
+    }
+
+    const officerName = input.officerNama || regUnit?.nama || officer?.user?.full_name || 'Petugas Lapangan';
+    const officerRank = input.officerPangkat || regUnit?.pangkat || officer?.rank_pangkat || 'Personil';
+
+    // 2. Tentukan unit id petugas
+    let officerUnitId: number | null = officer?.unit_id || null;
+    if (!officerUnitId && regUnit?.unitId) {
+      const matchUnit = await prisma.masterOperationalUnit.findFirst({
+        where: {
+          OR: [
+            { key: regUnit.unitId },
+            { key: regUnit.unitId.toLowerCase() },
+            { short_name: regUnit.satuanNama },
+            { unit_name: regUnit.satuanNama },
+          ],
+        },
+      });
+      if (matchUnit) {
+        officerUnitId = matchUnit.id;
+        if (officer && !officer.unit_id) {
+          try {
+            await prisma.policeOfficer.update({
+              where: { id: officer.id },
+              data: { unit_id: matchUnit.id },
+            });
+          } catch (_) {}
+        }
+      }
+    }
+
+    // 3. Ambil seluruh record dispatch untuk tiket pengaduan ini
+    const allDispatches = await prisma.complaintDispatch.findMany({
+      where: { complaint_id: complaintIdBig },
+      include: { unit: true, officer: { include: { user: true } } },
+    });
+
+    // Temukan dispatch yang ditujukan untuk unit satuan personil (atau fallback ke primary)
+    let baseDispatch = allDispatches.find(
+      (d) => officerUnitId && d.unit_id === officerUnitId
+    );
+    if (!baseDispatch && allDispatches.length > 0) {
+      baseDispatch = allDispatches.find((d) => d.is_primary_unit) || allDispatches[0];
+    }
+
+    if (!baseDispatch) {
+      return { success: false, error: 'Disposisi penugasan tidak ditemukan pada tiket ini.' };
+    }
+
+    const targetUnitId = baseDispatch.unit_id;
+    const quota = baseDispatch.personnel_quota || 4;
+
+    // 4. Cek apakah personil ini sudah pernah menerima tugas ini sebelumnya
+    const alreadyAccepted = allDispatches.some(
+      (d) =>
+        d.accepted_at !== null &&
+        ((officer?.id && d.officer_id === officer.id) ||
+          d.officer?.nrp === input.officerNrp ||
+          d.officer?.user?.identifier === input.officerNrp)
+    );
+
+    if (alreadyAccepted) {
+      return {
+        success: true,
+        message: 'Anda telah menerima tugas ini sebelumnya.',
+        alreadyAccepted: true,
+        quota,
+      };
+    }
+
+    // 5. Cek pembatasan kuota personil untuk unit ini
+    const acceptedInUnit = allDispatches.filter(
+      (d) =>
+        d.unit_id === targetUnitId &&
+        d.accepted_at !== null &&
+        d.officer_id !== null
+    );
+
+    if (acceptedInUnit.length >= quota) {
+      return {
+        success: false,
+        error: `Kuota personel untuk satuan Anda sudah terpenuhi (${acceptedInUnit.length}/${quota} personel). Tiket telah ditangani oleh personel lain dalam regu.`,
+      };
+    }
+
+    // 6. Catat penerimaan tugas oleh personel ini
+    const unacceptedDispatch = allDispatches.find(
+      (d) => d.unit_id === targetUnitId && d.accepted_at === null
+    );
+
+    if (unacceptedDispatch) {
+      // Gunakan baris dispatch yang belum di-claim
       await prisma.complaintDispatch.update({
-        where: { id: dispatch.id },
+        where: { id: unacceptedDispatch.id },
         data: {
           dispatch_status: 'ACCEPTED',
           accepted_at: now,
-          officer_id: officer?.id || dispatch.officer_id,
+          officer_id: officer?.id || unacceptedDispatch.officer_id,
         },
       });
     } else {
-      await prisma.complaintDispatch.updateMany({
-        where: { complaint_id: complaintIdBig },
+      // Buat entri dispatch baru untuk anggota regu ke-2, ke-3, dst. sampai kuota penuh
+      await prisma.complaintDispatch.create({
         data: {
+          complaint_id: complaintIdBig,
+          unit_id: targetUnitId,
+          officer_id: officer ? officer.id : null,
+          is_primary_unit: false,
+          personnel_quota: quota,
+          tactical_orders: baseDispatch.tactical_orders,
           dispatch_status: 'ACCEPTED',
+          dispatched_at: baseDispatch.dispatched_at,
           accepted_at: now,
-          ...(officer?.id ? { officer_id: officer.id } : {}),
+          estimated_distance: baseDispatch.estimated_distance,
+          estimated_eta: baseDispatch.estimated_eta,
         },
       });
     }
 
-    // 3. Update status complaint menjadi 'SEDANG_DITANGANI' dan tahap = 3 (Tahap 3: Meluncur ke TKP)
+    // 7. Update status complaint menjadi 'SEDANG_DITANGANI' dan tahap = 3 (Tahap 3: Meluncur ke TKP)
     await prisma.complaint.update({
       where: { id: complaintIdBig },
       data: {
@@ -579,21 +689,31 @@ export async function acceptOfficerDispatchAction(input: {
       },
     });
 
-    // 4. Catat Audit Log Append-Only
+    const currentMemberCount = acceptedInUnit.length + 1;
+
+    // 8. Catat Audit Log Append-Only
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
         actor_name: `${officerRank} ${officerName}`.trim(),
         actor_role: 'PERSONIL',
         action: 'Disposisi Tugas Diterima Personil (ACCEPTED)',
-        notes: `Perintah disposisi taktis Pawas telah dikonfirmasi dan diterima oleh ${officerRank} ${officerName} (NRP: ${input.officerNrp}). Personel bersiap meluncur ke TKP.`,
+        notes: `Perintah disposisi taktis Pawas telah dikonfirmasi dan diterima oleh ${officerRank} ${officerName} (NRP: ${input.officerNrp}) [Personel ${currentMemberCount}/${quota}]. Personel bersiap meluncur ke TKP.`,
       },
     });
 
     safeRevalidatePath('/personil');
     safeRevalidatePath('/command-center');
+    safeRevalidatePath('/console');
+    safeRevalidatePath('/console/tugas');
+    safeRevalidatePath('/console/wizard');
     safeRevalidatePath('/warga');
-    return { success: true };
+
+    return {
+      success: true,
+      currentCount: currentMemberCount,
+      quota,
+    };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menerima tugas.' };
   }

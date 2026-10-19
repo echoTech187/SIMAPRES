@@ -147,12 +147,42 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       },
     });
 
+    const regUnit = await prisma.registeredUnit.findFirst({
+      where: { nrp: officerIdStr },
+    });
+
     const dispatchConditions: any[] = [
       { officer_id: officer ? officer.id : officerId },
     ];
 
-    if (officer?.unit_id) {
-      dispatchConditions.push({ unit_id: officer.unit_id });
+    let resolvedUnitId: number | null = officer?.unit_id || null;
+
+    if (!resolvedUnitId && regUnit?.unitId) {
+      const matchUnit = await prisma.masterOperationalUnit.findFirst({
+        where: {
+          OR: [
+            { key: regUnit.unitId },
+            { key: regUnit.unitId.toLowerCase() },
+            { short_name: regUnit.satuanNama },
+            { unit_name: regUnit.satuanNama },
+          ],
+        },
+      });
+      if (matchUnit) {
+        resolvedUnitId = matchUnit.id;
+        if (officer && !officer.unit_id) {
+          try {
+            await prisma.policeOfficer.update({
+              where: { id: officer.id },
+              data: { unit_id: matchUnit.id },
+            });
+          } catch (_) {}
+        }
+      }
+    }
+
+    if (resolvedUnitId) {
+      dispatchConditions.push({ unit_id: resolvedUnitId });
     }
 
     const whereClause: any = {

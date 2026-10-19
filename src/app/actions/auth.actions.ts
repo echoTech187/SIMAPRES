@@ -750,6 +750,29 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
       ? Number(officerProfile.kpi_score)
       : 100;
 
+    let resolvedUnitId = officerProfile?.unit_id || null;
+    if (!resolvedUnitId && (reg?.unitId || reg?.satuanNama)) {
+      try {
+        const matchUnit = await prisma.masterOperationalUnit.findFirst({
+          where: {
+            OR: [
+              ...(reg?.unitId ? [{ key: reg.unitId }, { key: reg.unitId.toLowerCase() }] : []),
+              ...(reg?.satuanNama ? [{ short_name: reg.satuanNama }, { unit_name: reg.satuanNama }] : []),
+            ],
+          },
+        });
+        if (matchUnit) {
+          resolvedUnitId = matchUnit.id;
+          if (officerProfile && !officerProfile.unit_id) {
+            await prisma.policeOfficer.update({
+              where: { id: officerProfile.id },
+              data: { unit_id: matchUnit.id },
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
     return {
       success: true,
       data: {
@@ -759,6 +782,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
         pangkat: reg?.pangkat || officerProfile?.rank_pangkat || '',
         satuan: reg?.satuanNama || officerProfile?.jabatan || '',
         jabatan: reg?.kelompokRegu || '',
+        unit_id: resolvedUnitId,
         unitId: reg?.unitId || '',
         role: roleStr,
         deviceId: (reg as any)?.deviceID || (officerProfile as any)?.device_id || null,

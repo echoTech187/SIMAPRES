@@ -302,25 +302,105 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       playTone(1174.66, 0.18, 0.28);
       playTone(880, 0.5, 0.18);
       playTone(1318.51, 0.68, 0.45);
-    } catch (_) {}
+    } catch (_) { }
   };
 
+  // Helper: Mengecek apakah personel yang sedang login sudah menerima tugas ini
+  const hasOfficerAcceptedTask = (task: any) => {
+    if (!task) return false;
+    const activeNrp = officer.nrp || session?.identifier || nrpParam || '';
+    const activeId = officer.id || (session?.userId ? String(session.userId) : '');
+    const dispatches: any[] = task.dispatches || [];
+
+    const acceptedInDispatches = dispatches.some(
+      (d: any) =>
+        d.accepted_at &&
+        ((activeId && String(d.officer_id) === String(activeId)) ||
+          d.officer?.nrp === activeNrp ||
+          d.officer?.user?.identifier === activeNrp)
+    );
+    if (acceptedInDispatches) return true;
+
+    if (
+      task.assignedOfficer?.nrp === activeNrp &&
+      (task.status === 'SEDANG_DITANGANI' ||
+        task.status === 'MENUJU_TKP' ||
+        task.status === 'TIBA_DI_TKP' ||
+        task.status === 'PENANGANAN_TKP' ||
+        task.status === 'MENUNGGU_PENGESAHAN')
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
+  // Helper: Mendapatkan informasi kuota dan jumlah personel yang telah menerima tugas
+  const getTaskQuotaInfo = (task: any) => {
+    if (!task) {
+      return { quota: 4, acceptedCount: 0, slotsRemaining: 4, isQuotaFull: false, acceptedOfficers: [], unitName: '' };
+    }
+    const myUnitId = officer.unit_id || null;
+    const dispatches: any[] = task.dispatches || [];
+
+    // Cari dispatch yang cocok dengan unit personel atau dispatch utama
+    const unitDisp = (myUnitId ? dispatches.find((d: any) => d.unit_id === myUnitId) : null) || dispatches[0];
+    const quota = unitDisp?.personnel_quota || 4;
+    const targetUnitId = unitDisp?.unit_id;
+
+    // Filter dispatches yang telah diterima personel di unit terkait
+    const acceptedDisps = dispatches.filter(
+      (d: any) =>
+        (targetUnitId ? d.unit_id === targetUnitId : true) &&
+        d.accepted_at &&
+        (d.officer_id || d.officer)
+    );
+
+    const acceptedCount = acceptedDisps.length;
+    const slotsRemaining = Math.max(0, quota - acceptedCount);
+    const isQuotaFull = acceptedCount >= quota;
+
+    const acceptedOfficers = acceptedDisps.map((d: any) => ({
+      name: d.officer?.user?.full_name || d.officer?.user?.nama_lengkap || d.officer?.rank_pangkat || 'Petugas',
+      nrp: d.officer?.nrp || d.officer?.user?.identifier || '',
+      rank: d.officer?.rank_pangkat || 'Personil',
+    }));
+
+    return {
+      quota,
+      acceptedCount,
+      slotsRemaining,
+      isQuotaFull,
+      acceptedOfficers,
+      unitName: unitDisp?.unit?.unit_name || unitDisp?.unit?.short_name || '',
+    };
+  };
+
+  // Helper: Apakah tugas ini butuh konfirmasi (Auto-Popup) bagi personel yang sedang login?
   const isTaskPendingAcceptance = (c: any) => {
     if (!c || c.status === 'SELESAI' || c.status === 'DITOLAK') return false;
-    const dispatches = c.dispatches || [];
-    if (dispatches.length > 0) {
-      const pendingDisp = dispatches.find(
-        (d: any) =>
-          d.dispatch_status === 'DISPATCHED' ||
-          (!d.accepted_at &&
-            d.dispatch_status !== 'DEPARTED' &&
-            d.dispatch_status !== 'ARRIVED' &&
-            d.dispatch_status !== 'REPORT_SUBMITTED' &&
-            d.dispatch_status !== 'COMPLETED')
-      );
-      if (pendingDisp) return true;
-    }
+
+    // Jika saya sudah menerima tugas ini, tidak perlu konfirmasi lagi
+    if (hasOfficerAcceptedTask(c)) return false;
+
+    // Cek ketersediaan kuota personel untuk unit ini
+    const { isQuotaFull, slotsRemaining } = getTaskQuotaInfo(c);
+
+    // Jika kuota sudah penuh, personel lain sudah tidak bisa mengambil tugas ini
+    if (isQuotaFull || slotsRemaining <= 0) return false;
+
+    // Jika statusnya DISPOSISI, tiket butuh konfirmasi
     if (c.status === 'DISPOSISI') return true;
+
+    // Jika statusnya SEDANG_DITANGANI / DIPROSES / MENUJU_TKP namun kuota unit masih ada slot
+    const dispatches = c.dispatches || [];
+    if (
+      dispatches.length > 0 &&
+      (c.status === 'SEDANG_DITANGANI' || c.status === 'DIPROSES' || c.status === 'MENUJU_TKP')
+    ) {
+      return true;
+    }
+
     return false;
   };
 
@@ -418,7 +498,8 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   // Load Data
   const loadData = async (targetOfficerId?: string, preferredComplaintId?: string | number) => {
     try {
-      const cRes = await getOfficerComplaintsAction(nrpParam);
+      const activeNrp = nrpParam || session?.identifier || officer?.nrp || '92031145';
+      const cRes = await getOfficerComplaintsAction(activeNrp);
       if (cRes.success && cRes.data) {
         setComplaints(cRes.data);
 
@@ -439,16 +520,20 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
         // 2. Active complaint (tugas yang sedang aktif ditangani personil)
         const targetId = preferredComplaintId || activeComplaintRef.current?.id || activeComplaintRef.current?.nomorTiket;
         let active = targetId
-          ? cRes.data.find((c: any) => String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId))
+          ? cRes.data.find(
+            (c: any) =>
+              (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
+              hasOfficerAcceptedTask(c)
+          )
           : null;
 
         if (!active) {
           active = cRes.data.find(
             (c: any) =>
+              hasOfficerAcceptedTask(c) &&
               c.status !== 'SELESAI' &&
               c.status !== 'DITOLAK' &&
-              (c.status === 'DISPOSISI' ||
-                c.status === 'MENUJU_TKP' ||
+              (c.status === 'MENUJU_TKP' ||
                 c.status === 'PENANGANAN_TKP' ||
                 c.status === 'TIBA_DI_TKP' ||
                 c.status === 'SEDANG_DITANGANI' ||
@@ -522,16 +607,25 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
           pangkat: res.data.pangkat,
           jabatan: `${res.data.satuan} • ${res.data.jabatan}`,
           satuan: res.data.satuan,
+          unit_id: res.data.unit_id || null,
+          unitId: res.data.unitId || '',
           kendaraan: (res.data as any)?.kendaraan || 'Tanpa Ranmor Dinas',
           avatar: res.data.avatar,
           kpi: res.data.kpi,
           deviceId: res.data.deviceId || null,
         });
-        loadData(undefined, loadedId);
+        loadData(loadedId);
       } else {
-        loadData(undefined, '3');
+        loadData('3');
       }
     });
+
+    // 2. Real-time background polling interval untuk mendeteksi perintah disposisi masuk secara otomatis
+    const pollInterval = setInterval(() => {
+      loadData();
+    }, 4000);
+
+    return () => clearInterval(pollInterval);
   }, [nrpParam]);
 
   // Handle Log Submit
@@ -785,60 +879,67 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
 
               {/* Mission Critical Alert / Kondusif Banner */}
               <div style={{ margin: '0 24px 14px' }}>
-                {pendingAcceptTask ? (
-                  <div
-                    style={{
-                      background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)',
-                      color: 'white',
-                      padding: '16px 20px',
-                      borderRadius: '14px',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '12px',
-                      boxShadow: '0 10px 25px rgba(29, 78, 216, 0.3)',
-                      border: '2px solid #60A5FA',
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, background: '#FEF08A', color: '#854D0E', padding: '2px 8px', borderRadius: '4px' }}>
-                          ⚡ PERINTAH DISPOSISI MASUK • BUTUH KONFIRMASI
-                        </span>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#FDE68A' }}>
-                          {pendingAcceptTask.nomorTiket}
-                        </span>
+                {pendingAcceptTask ? (() => {
+                  const bannerQuota = getTaskQuotaInfo(pendingAcceptTask);
+                  return (
+                    <div
+                      style={{
+                        background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)',
+                        color: 'white',
+                        padding: '16px 20px',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px',
+                        boxShadow: '0 10px 25px rgba(29, 78, 216, 0.3)',
+                        border: '2px solid #60A5FA',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '11px', fontWeight: 800, background: '#FEF08A', color: '#854D0E', padding: '2px 8px', borderRadius: '4px' }}>
+                            ⚡ PERINTAH DISPOSISI MASUK • BUTUH KONFIRMASI
+                          </span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#FDE68A' }}>
+                            {pendingAcceptTask.nomorTiket}
+                          </span>
+                          <span style={{ fontSize: '11px', fontWeight: 800, background: 'rgba(255,255,255,0.2)', color: '#FFFFFF', padding: '2px 8px', borderRadius: '4px' }}>
+                            👥 Kuota: {bannerQuota.acceptedCount}/{bannerQuota.quota} Personel (Sisa {bannerQuota.slotsRemaining} Slot)
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '15px', fontWeight: 800 }}>{pendingAcceptTask.jenisKejadian}</div>
+                        <div style={{ fontSize: '11.5px', color: '#DBEAFE', marginTop: '3px' }}>
+                          📍 {pendingAcceptTask.tkpAlamatTeks} • <strong>Arahan Pawas:</strong> {pendingAcceptTask.arahanPawas || '-'}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '15px', fontWeight: 800 }}>{pendingAcceptTask.jenisKejadian}</div>
-                      <div style={{ fontSize: '11.5px', color: '#DBEAFE', marginTop: '3px' }}>
-                        📍 {pendingAcceptTask.tkpAlamatTeks} • <strong>Arahan Pawas:</strong> {pendingAcceptTask.arahanPawas || '-'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                          type="button"
+                          id="btn-tinjau-terima-tugas"
+                          onClick={() => setShowAcceptModal(true)}
+                          style={{
+                            background: '#10B981',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 18px',
+                            borderRadius: '8px',
+                            fontWeight: 800,
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            boxShadow: '0 4px 12px rgba(16,185,129,0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          🛡️ Terima Tugas ({bannerQuota.slotsRemaining} Slot) ➔
+                        </button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <button
-                        type="button"
-                        id="btn-tinjau-terima-tugas"
-                        onClick={() => setShowAcceptModal(true)}
-                        style={{
-                          background: '#10B981',
-                          color: 'white',
-                          border: 'none',
-                          padding: '10px 18px',
-                          borderRadius: '8px',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          boxShadow: '0 4px 12px rgba(16,185,129,0.35)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        🛡️ Terima Tugas ➔
-                      </button>
-                    </div>
-                  </div>
-                ) : activeComplaint ? (
+                  );
+                })() : activeComplaint ? (
                   <div
                     style={{
                       background: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)',
@@ -1943,7 +2044,29 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       const isSelected = selectedTask?.id === t.id;
                       const isSos = (t.platformKey || '').toUpperCase().includes('SOS');
                       const isWarga = (t.platformKey || '').toUpperCase().includes('WARGA');
-                      const statusColor = t.status === 'SELESAI' ? '#16A34A' : t.status === 'MENUNGGU_PENGESAHAN' ? '#7C3AED' : isTaskPendingAcceptance(t) ? '#DC2626' : '#2563EB';
+                      const isMyTask = hasOfficerAcceptedTask(t);
+                      const taskQuota = getTaskQuotaInfo(t);
+                      const isPending = isTaskPendingAcceptance(t);
+
+                      let statusLabel = 'Sedang Ditangani';
+                      let statusColor = '#2563EB';
+
+                      if (t.status === 'SELESAI') {
+                        statusLabel = 'Selesai Ditangani';
+                        statusColor = '#16A34A';
+                      } else if (t.status === 'MENUNGGU_PENGESAHAN') {
+                        statusLabel = 'Menunggu Pengesahan Pawas';
+                        statusColor = '#7C3AED';
+                      } else if (isMyTask) {
+                        statusLabel = 'Sedang Ditangani (Aktif)';
+                        statusColor = '#059669';
+                      } else if (taskQuota.isQuotaFull) {
+                        statusLabel = `Kuota Personel Penuh (${taskQuota.acceptedCount}/${taskQuota.quota})`;
+                        statusColor = '#64748B';
+                      } else if (isPending) {
+                        statusLabel = `Disposisi Baru (${taskQuota.acceptedCount}/${taskQuota.quota})`;
+                        statusColor = '#DC2626';
+                      }
 
                       return (
                         <div
@@ -2019,7 +2142,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '2px', flexWrap: 'wrap', gap: '4px' }}>
                                 <div style={{ fontSize: '11px', fontWeight: 700, color: statusColor }}>
-                                  Status: {t.status === 'MENUNGGU_PENGESAHAN' ? 'Menunggu Pengesahan Pawas' : t.status === 'SELESAI' ? 'Selesai Ditangani' : isTaskPendingAcceptance(t) ? 'Disposisi Masuk' : 'Sedang Ditangani'}
+                                  Status: {statusLabel}
                                 </div>
                                 <span
                                   style={{
@@ -2081,7 +2204,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           {/* Card Footer Status */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '4px', borderTop: '1px dashed #E2E8F0' }}>
                             <span style={{ fontSize: '11px', fontWeight: 700, color: statusColor }}>
-                              ● {t.status === 'MENUNGGU_PENGESAHAN' ? 'Menunggu Pengesahan Pawas' : t.status === 'SELESAI' ? 'Selesai' : isTaskPendingAcceptance(t) ? 'Disposisi Baru' : 'Sedang Ditangani'}
+                              ● {statusLabel}
                             </span>
                             <span style={{ fontSize: '11px', fontWeight: 800, color: '#153E75' }}>
                               {t.status === 'MENUNGGU_PENGESAHAN' ? 'Menunggu Pengesahan Pawas ➔' : 'Rincian Pelacakan ➔'}
@@ -2179,27 +2302,61 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                         </div>
 
                         {/* Alert Banner */}
-                        <div
-                          style={{
-                            marginTop: '10px',
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            lineHeight: '1.4',
-                            fontWeight: 600,
-                            background: selectedTask.status === 'MENUNGGU_PENGESAHAN' ? '#FEF3C7' : selectedTask.status === 'SELESAI' ? '#ECFDF5' : isTaskPendingAcceptance(selectedTask) ? '#FEF2F2' : '#EFF6FF',
-                            color: selectedTask.status === 'MENUNGGU_PENGESAHAN' ? '#92400E' : selectedTask.status === 'SELESAI' ? '#047857' : isTaskPendingAcceptance(selectedTask) ? '#991B1B' : '#1E40AF',
-                            border: selectedTask.status === 'MENUNGGU_PENGESAHAN' ? '1px solid #FDE68A' : selectedTask.status === 'SELESAI' ? '1px solid #A7F3D0' : isTaskPendingAcceptance(selectedTask) ? '1px solid #FECACA' : '1px solid #BFDBFE',
-                          }}
-                        >
-                          {selectedTask.status === 'MENUNGGU_PENGESAHAN'
-                            ? '⌛ Menunggu Pengesahan: Penanganan di TKP selesai, menunggu otorisasi penutupan kasus resmi dari Pawas.'
-                            : selectedTask.status === 'SELESAI'
-                            ? '🏆 Kasus Selesai: Berita Acara telah diverifikasi & disahkan resmi oleh Pawas.'
-                            : isTaskPendingAcceptance(selectedTask)
-                            ? '🛡️ Butuh Konfirmasi Personil: Perintah tugas taktis telah diterbitkan Pawas. Silakan konfirmasi Terima Tugas untuk meluncur.'
-                            : '⚡ Sedang Ditangani: Tim reaksi cepat bergerak menuju TKP / melakukan tindakan kepolisian di lokasi.'}
-                        </div>
+                        {(() => {
+                          const isMySelected = hasOfficerAcceptedTask(selectedTask);
+                          const selQuota = getTaskQuotaInfo(selectedTask);
+                          const isSelPending = isTaskPendingAcceptance(selectedTask);
+
+                          let bannerBg = '#EFF6FF';
+                          let bannerColor = '#1E40AF';
+                          let bannerBorder = '1px solid #BFDBFE';
+                          let bannerText = '⚡ Sedang Ditangani: Tim reaksi cepat bergerak menuju TKP / melakukan tindakan kepolisian di lokasi.';
+
+                          if (selectedTask.status === 'MENUNGGU_PENGESAHAN') {
+                            bannerBg = '#FEF3C7';
+                            bannerColor = '#92400E';
+                            bannerBorder = '1px solid #FDE68A';
+                            bannerText = '⌛ Menunggu Pengesahan: Penanganan di TKP selesai, menunggu otorisasi penutupan kasus resmi dari Pawas.';
+                          } else if (selectedTask.status === 'SELESAI') {
+                            bannerBg = '#ECFDF5';
+                            bannerColor = '#047857';
+                            bannerBorder = '1px solid #A7F3D0';
+                            bannerText = '🏆 Kasus Selesai: Berita Acara telah diverifikasi & disahkan resmi oleh Pawas.';
+                          } else if (isMySelected) {
+                            bannerBg = '#ECFDF5';
+                            bannerColor = '#065F46';
+                            bannerBorder = '1px solid #6EE7B7';
+                            bannerText = `⚡ Tugas Aktif Anda: Anda tergabung dalam tim regu penanganan kasus ini (${selQuota.acceptedCount}/${selQuota.quota} personel). Silakan jalankan SOP di Wizard Penanganan.`;
+                          } else if (selQuota.isQuotaFull) {
+                            bannerBg = '#F1F5F9';
+                            bannerColor = '#475569';
+                            bannerBorder = '1px solid #CBD5E1';
+                            bannerText = `🔒 Kuota Personel Terpenuhi: Tiket telah diambil oleh ${selQuota.acceptedCount}/${selQuota.quota} personel lain dalam satuan Anda. Tiket ini sudah tidak dapat diambil.`;
+                          } else if (isSelPending) {
+                            bannerBg = '#FEF2F2';
+                            bannerColor = '#991B1B';
+                            bannerBorder = '1px solid #FECACA';
+                            bannerText = `🛡️ Butuh Konfirmasi Personil: Perintah disposisi taktis Pawas terbuka (${selQuota.acceptedCount}/${selQuota.quota} personel terisi • sisa ${selQuota.slotsRemaining} slot). Segera konfirmasi Terima Tugas.`;
+                          }
+
+                          return (
+                            <div
+                              style={{
+                                marginTop: '10px',
+                                padding: '8px 10px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                lineHeight: '1.4',
+                                fontWeight: 600,
+                                background: bannerBg,
+                                color: bannerColor,
+                                border: bannerBorder,
+                              }}
+                            >
+                              {bannerText}
+                            </div>
+                          );
+                        })()}
 
                         {/* Audit Log Terakhir Drawer */}
                         <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #CBD5E1', fontSize: '10px', color: '#64748B' }}>
@@ -2218,18 +2375,52 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#1E293B', margin: 0 }}>Hasil Pelacakan</h3>
                           <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Timeline Progress Penanganan Kasus</div>
                         </div>
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '4px 10px',
-                            borderRadius: '12px',
-                            background: selectedTask.status === 'SELESAI' ? '#DCFCE7' : selectedTask.status === 'MENUNGGU_PENGESAHAN' ? '#F3E8FF' : '#EDE9FE',
-                            color: selectedTask.status === 'SELESAI' ? '#16A34A' : selectedTask.status === 'MENUNGGU_PENGESAHAN' ? '#7C3AED' : '#6D28D9',
-                          }}
-                        >
-                          {selectedTask.status === 'SELESAI' ? '✓ Selesai Ditangani' : selectedTask.status === 'MENUNGGU_PENGESAHAN' ? '⚖️ Menunggu Pengesahan Pawas' : isTaskPendingAcceptance(selectedTask) ? '🛡️ Butuh Konfirmasi' : '⚡ Sedang Ditangani'}
-                        </span>
+                        {(() => {
+                          const isMySelected = hasOfficerAcceptedTask(selectedTask);
+                          const selQuota = getTaskQuotaInfo(selectedTask);
+                          const isSelPending = isTaskPendingAcceptance(selectedTask);
+
+                          let badgeLabel = '⚡ Sedang Ditangani';
+                          let badgeBg = '#EDE9FE';
+                          let badgeColor = '#6D28D9';
+
+                          if (selectedTask.status === 'SELESAI') {
+                            badgeLabel = '✓ Selesai Ditangani';
+                            badgeBg = '#DCFCE7';
+                            badgeColor = '#16A34A';
+                          } else if (selectedTask.status === 'MENUNGGU_PENGESAHAN') {
+                            badgeLabel = '⚖️ Menunggu Pengesahan Pawas';
+                            badgeBg = '#F3E8FF';
+                            badgeColor = '#7C3AED';
+                          } else if (isMySelected) {
+                            badgeLabel = '⚡ Sedang Ditangani (Aktif)';
+                            badgeBg = '#DCFCE7';
+                            badgeColor = '#15803D';
+                          } else if (selQuota.isQuotaFull) {
+                            badgeLabel = `🔒 Kuota Penuh (${selQuota.acceptedCount}/${selQuota.quota})`;
+                            badgeBg = '#F1F5F9';
+                            badgeColor = '#475569';
+                          } else if (isSelPending) {
+                            badgeLabel = `🛡️ Butuh Konfirmasi (${selQuota.acceptedCount}/${selQuota.quota})`;
+                            badgeBg = '#FEE2E2';
+                            badgeColor = '#DC2626';
+                          }
+
+                          return (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '4px 10px',
+                                borderRadius: '12px',
+                                background: badgeBg,
+                                color: badgeColor,
+                              }}
+                            >
+                              {badgeLabel}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {/* Incident Meta Details Card */}
@@ -2754,8 +2945,65 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       })()}
 
                       {/* Action Buttons */}
-                      {selectedTask.status !== 'SELESAI' && (
-                        isTaskPendingAcceptance(selectedTask) ? (
+                      {selectedTask.status !== 'SELESAI' && (() => {
+                        const isMySelected = hasOfficerAcceptedTask(selectedTask);
+                        const selQuota = getTaskQuotaInfo(selectedTask);
+
+                        if (isMySelected) {
+                          return (
+                            <button
+                              type="button"
+                              className="btn-blue"
+                              style={{
+                                margin: '16px 0 0 0',
+                                width: '100%',
+                                padding: '12px',
+                                background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                                color: 'white',
+                                fontSize: '13px',
+                                fontWeight: 800,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                border: 'none',
+                                borderRadius: '8px',
+                                boxShadow: '0 3px 10px rgba(21,62,117,0.3)',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => {
+                                openWizardForComplaint(selectedTask);
+                              }}
+                            >
+                              <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
+                            </button>
+                          );
+                        }
+
+                        if (selQuota.isQuotaFull) {
+                          return (
+                            <div
+                              style={{
+                                marginTop: '16px',
+                                padding: '12px 14px',
+                                background: '#F1F5F9',
+                                border: '1px solid #CBD5E1',
+                                borderRadius: '8px',
+                                textAlign: 'center',
+                                color: '#475569',
+                                fontSize: '12.5px',
+                                fontWeight: 700,
+                              }}
+                            >
+                              🔒 Kuota Personel Terpenuhi ({selQuota.acceptedCount}/{selQuota.quota} Personel Telah Mengambil Tiket Ini)
+                              <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 500, marginTop: '2px' }}>
+                                Tiket telah ditangani oleh personel lain dalam satuan Anda.
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
                           <button
                             type="button"
                             className="btn-blue"
@@ -2781,37 +3029,10 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                               setShowAcceptModal(true);
                             }}
                           >
-                            <span>🛡️</span> Tinjau Lembar Disposisi &amp; Terima Tugas ➔
+                            <span>🛡️</span> Tinjau Lembar Disposisi &amp; Terima Tugas ({selQuota.slotsRemaining} Slot Tersisa) ➔
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn-blue"
-                            style={{
-                              margin: '16px 0 0 0',
-                              width: '100%',
-                              padding: '12px',
-                              background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
-                              color: 'white',
-                              fontSize: '13px',
-                              fontWeight: 800,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              border: 'none',
-                              borderRadius: '8px',
-                              boxShadow: '0 3px 10px rgba(21,62,117,0.3)',
-                              cursor: 'pointer',
-                            }}
-                            onClick={() => {
-                              openWizardForComplaint(selectedTask);
-                            }}
-                          >
-                            <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
-                          </button>
-                        )
-                      )}
+                        );
+                      })()}
                     </div>
                   ) : (
                     <div style={{ padding: '24px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
@@ -3650,211 +3871,262 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
             </div>
 
             {/* Body Modal */}
-            <div style={{ padding: '20px', maxHeight: '75vh', overflowY: 'auto' }}>
-              {/* Urgent Alert Banner */}
-              <div
-                style={{
-                  background: '#FEF2F2',
-                  border: '1px solid #FECACA',
-                  borderRadius: '10px',
-                  padding: '10px 14px',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                }}
-              >
-                <span style={{ fontSize: '18px' }}>⚠️</span>
-                <div style={{ fontSize: '12px', color: '#991B1B', fontWeight: 700 }}>
-                  Satuan Anda ({officer.satuan || 'Sat Samapta'}) telah didisposisikan oleh Pawas. Segera konfirmasi persetujuan untuk meluncur ke TKP.
-                </div>
-              </div>
+            {(() => {
+              const modalQuota = getTaskQuotaInfo(pendingAcceptTask);
+              return (
+                <>
+                  <div style={{ padding: '20px', maxHeight: '75vh', overflowY: 'auto' }}>
+                    {/* Urgent Alert Banner */}
+                    <div
+                      style={{
+                        background: '#FEF2F2',
+                        border: '1px solid #FECACA',
+                        borderRadius: '10px',
+                        padding: '10px 14px',
+                        marginBottom: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                      }}
+                    >
+                      <span style={{ fontSize: '18px' }}>⚠️</span>
+                      <div style={{ fontSize: '12px', color: '#991B1B', fontWeight: 700 }}>
+                        Satuan Anda ({officer.satuan || modalQuota.unitName || 'Satuan Operasional'}) telah didisposisikan oleh Pawas. Segera konfirmasi persetujuan untuk bergabung meluncur ke TKP.
+                      </div>
+                    </div>
 
-              {/* Task Details Card */}
-              <div
-                style={{
-                  background: '#F8FAFC',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  marginBottom: '16px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
-                  <div>
-                    <div style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700 }}>NOMOR TIKET LP-110</div>
-                    <div style={{ fontSize: '16px', fontWeight: 900, color: '#153E75', fontFamily: 'monospace' }}>
-                      {pendingAcceptTask.nomorTiket || pendingAcceptTask.id}
+                    {/* Task Details Card */}
+                    <div
+                      style={{
+                        background: '#F8FAFC',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '12px',
+                        padding: '14px',
+                        marginBottom: '16px',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
+                        <div>
+                          <div style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 700 }}>NOMOR TIKET LP-110</div>
+                          <div style={{ fontSize: '16px', fontWeight: 900, color: '#153E75', fontFamily: 'monospace' }}>
+                            {pendingAcceptTask.nomorTiket || pendingAcceptTask.id}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            padding: '3px 10px',
+                            borderRadius: '12px',
+                            background: '#FEE2E2',
+                            color: '#DC2626',
+                            border: '1px solid #FCA5A5',
+                          }}
+                        >
+                          🚨 {pendingAcceptTask.urgensi || 'DARURAT'}
+                        </span>
+                      </div>
+
+                      <div style={{ marginBottom: '10px' }}>
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>JENIS &amp; KLASIFIKASI KEJADIAN:</div>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
+                          {pendingAcceptTask.jenisKejadian || pendingAcceptTask.kategoriKejadian || 'Gangguan Kamtibmas / Tawuran'}
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: '10px' }}>
+                        <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>LOKASI FAKTUAL TKP:</div>
+                        <div style={{ fontSize: '12.5px', color: '#1E293B', fontWeight: 600 }}>
+                          📍 {pendingAcceptTask.tkpAlamatTeks || '-'}
+                        </div>
+                      </div>
+
+                      {/* Arahan Taktis Khusus Pawas */}
+                      <div
+                        style={{
+                          background: '#FFFBEB',
+                          border: '1px solid #FDE68A',
+                          borderRadius: '8px',
+                          padding: '10px 12px',
+                          marginTop: '10px',
+                        }}
+                      >
+                        <div style={{ fontSize: '11px', color: '#B45309', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>👑</span> ARAHAN &amp; PETUNJUK TAKTIS PAWAS:
+                        </div>
+                        <div style={{ fontSize: '12.5px', color: '#78350F', fontWeight: 700, marginTop: '4px', fontStyle: 'italic' }}>
+                          &quot;{pendingAcceptTask.arahanPawas || pendingAcceptTask.dispatches?.[0]?.tactical_orders || 'Laksanakan pengamanan perimeter, bubarkan massa, dan amankan barang bukti.'}&quot;
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SLA & Kuat Personel Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                      <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10.5px', color: '#1D4ED8', fontWeight: 700 }}>TARGET RESPON SLA</div>
+                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#1E40AF' }}>&lt; 10 Menit</div>
+                      </div>
+                      <div style={{ background: modalQuota.isQuotaFull ? '#FEF2F2' : '#F0FDF4', border: modalQuota.isQuotaFull ? '1px solid #FECACA' : '1px solid #BBF7D0', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '10.5px', color: modalQuota.isQuotaFull ? '#991B1B' : '#15803D', fontWeight: 700 }}>ALOKASI PERSONEL</div>
+                        <div style={{ fontSize: '15px', fontWeight: 900, color: modalQuota.isQuotaFull ? '#DC2626' : '#166534' }}>
+                          {modalQuota.quota} Personel
+                        </div>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: modalQuota.isQuotaFull ? '#DC2626' : '#15803D', marginTop: '2px' }}>
+                          {modalQuota.isQuotaFull ? '🔒 Kuota Terpenuhi' : `👥 Terisi: ${modalQuota.acceptedCount}/${modalQuota.quota} Personel`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Daftar Personel yang Telah Mengambil Tiket */}
+                    {modalQuota.acceptedOfficers.length > 0 && (
+                      <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', marginBottom: '14px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>🛡️</span> Personel yang Telah Mengambil Tiket ({modalQuota.acceptedCount}/{modalQuota.quota}):
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {modalQuota.acceptedOfficers.map((o: any, idx: number) => (
+                            <span
+                              key={idx}
+                              style={{
+                                background: '#EFF6FF',
+                                border: '1px solid #BFDBFE',
+                                color: '#1D4ED8',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                              }}
+                            >
+                              ✓ {o.rank ? `${o.rank} ` : ''}{o.name} {o.nrp ? `(${o.nrp})` : ''}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SOP Komando Information */}
+                    <div style={{ fontSize: '11px', color: '#64748B', lineHeight: '1.4', background: '#F1F5F9', padding: '8px 12px', borderRadius: '8px' }}>
+                      ⚖️ <strong>SOP Rantai Komando Presisi:</strong> Dengan menekan tombol <strong>&quot;Terima Tugas&quot;</strong>, status tugas dicatat sebagai <em>ACCEPTED (Sedang Ditangani)</em> ke audit trail beserta identitas dinas Anda ({officer.pangkat || 'Personil'} {officer.fullName || session?.fullName}). Sistem akan langsung membuka <strong>Wizard Penanganan Kasus</strong> untuk persiapan meluncur ke TKP.
                     </div>
                   </div>
-                  <span
+
+                  {/* Footer Modal */}
+                  <div
                     style={{
-                      fontSize: '11px',
-                      fontWeight: 800,
-                      padding: '3px 10px',
-                      borderRadius: '12px',
-                      background: '#FEE2E2',
-                      color: '#DC2626',
-                      border: '1px solid #FCA5A5',
+                      padding: '14px 20px',
+                      background: '#F8FAFC',
+                      borderTop: '1px solid #E2E8F0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '12px',
                     }}
                   >
-                    🚨 {pendingAcceptTask.urgensi || 'DARURAT'}
-                  </span>
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAcceptModal(false)}
+                      style={{
+                        padding: '10px 16px',
+                        background: '#F1F5F9',
+                        color: '#475569',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Tinjau Nanti
+                    </button>
 
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>JENIS &amp; KLASIFIKASI KEJADIAN:</div>
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
-                    {pendingAcceptTask.jenisKejadian || pendingAcceptTask.kategoriKejadian || 'Gangguan Kamtibmas / Tawuran'}
+                    <button
+                      type="button"
+                      id="btn-terima-tugas"
+                      onClick={async () => {
+                        if (!pendingAcceptTask) return;
+                        if (modalQuota.isQuotaFull) {
+                          alert('🔒 Kuota personel untuk penugasan ini sudah terpenuhi. Anda tidak dapat mengambil tiket ini.');
+                          setShowAcceptModal(false);
+                          return;
+                        }
+                        setIsAcceptingTask(true);
+                        try {
+                          const activeNrp = officer.nrp || session?.identifier || nrpParam || '';
+                          const activeName = officer.fullName || session?.fullName || '';
+                          const activePangkat = officer.pangkat || session?.rankPangkat || 'Personil';
+
+                          const res = await acceptOfficerDispatchAction({
+                            complaintId: String(pendingAcceptTask.id),
+                            officerNrp: activeNrp,
+                            officerNama: activeName,
+                            officerPangkat: activePangkat,
+                          });
+
+                          if (res.success) {
+                            alert(`✓ Tugas #${pendingAcceptTask.nomorTiket || pendingAcceptTask.id} BERHASIL DITERIMA!\n\nAnda tercatat sebagai Personel ke-${res.currentCount || 1} dari kuota ${res.quota || modalQuota.quota} personel.\nStatus kini: SEDANG DITANGANI. Membuka Wizard Penanganan...`);
+                            setShowAcceptModal(false);
+                            const acceptedComplaint = {
+                              ...pendingAcceptTask,
+                              status: 'SEDANG_DITANGANI',
+                              tahap: 3,
+                            };
+                            setActiveComplaint(acceptedComplaint);
+                            activeComplaintRef.current = acceptedComplaint;
+                            setSelectedTask(acceptedComplaint);
+                            setPendingAcceptTask(null);
+
+                            setWizardStep(1);
+                            setExpandedStep(1);
+                            setWizardCatatan('');
+                            setWizardFoto(null);
+
+                            await loadData(undefined, acceptedComplaint.id);
+                            switchTab('view-wizard');
+                          } else {
+                            alert(`Gagal menerima tugas:\n${res.error}`);
+                            setShowAcceptModal(false);
+                            setPendingAcceptTask(null);
+                            await loadData();
+                          }
+                        } catch (err: any) {
+                          alert(`Terjadi kesalahan sistem: ${err.message}`);
+                        } finally {
+                          setIsAcceptingTask(false);
+                        }
+                      }}
+                      disabled={isAcceptingTask || modalQuota.isQuotaFull}
+                      style={{
+                        flex: 1,
+                        padding: '12px 20px',
+                        background: isAcceptingTask || modalQuota.isQuotaFull
+                          ? '#94A3B8'
+                          : 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                        color: '#FFFFFF',
+                        fontSize: '13.5px',
+                        fontWeight: 900,
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: isAcceptingTask || modalQuota.isQuotaFull ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: modalQuota.isQuotaFull ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.35)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>
+                        {isAcceptingTask
+                          ? '⏳ Menyinkronkan Penerimaan...'
+                          : modalQuota.isQuotaFull
+                            ? `🔒 Kuota Personel Terpenuhi (${modalQuota.acceptedCount}/${modalQuota.quota})`
+                            : `🛡️ Terima Tugas & Buka Wizard (${modalQuota.slotsRemaining} Slot Tersisa) ➔`}
+                      </span>
+                    </button>
                   </div>
-                </div>
-
-                <div style={{ marginBottom: '10px' }}>
-                  <div style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>LOKASI FAKTUAL TKP:</div>
-                  <div style={{ fontSize: '12.5px', color: '#1E293B', fontWeight: 600 }}>
-                    📍 {pendingAcceptTask.tkpAlamatTeks || '-'}
-                  </div>
-                </div>
-
-                {/* Arahan Taktis Khusus Pawas */}
-                <div
-                  style={{
-                    background: '#FFFBEB',
-                    border: '1px solid #FDE68A',
-                    borderRadius: '8px',
-                    padding: '10px 12px',
-                    marginTop: '10px',
-                  }}
-                >
-                  <div style={{ fontSize: '11px', color: '#B45309', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span>👑</span> ARAHAN &amp; PETUNJUK TAKTIS PAWAS:
-                  </div>
-                  <div style={{ fontSize: '12.5px', color: '#78350F', fontWeight: 700, marginTop: '4px', fontStyle: 'italic' }}>
-                    &quot;{pendingAcceptTask.arahanPawas || pendingAcceptTask.dispatches?.[0]?.tactical_orders || 'Laksanakan pengamanan perimeter, bubarkan massa, dan amankan barang bukti.'}&quot;
-                  </div>
-                </div>
-              </div>
-
-              {/* SLA & Kuat Personel Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10.5px', color: '#1D4ED8', fontWeight: 700 }}>TARGET RESPON SLA</div>
-                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#1E40AF' }}>&lt; 10 Menit</div>
-                </div>
-                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10.5px', color: '#15803D', fontWeight: 700 }}>ALOKASI PERSONEL</div>
-                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#166534' }}>
-                    {pendingAcceptTask.dispatches?.[0]?.personnel_quota || 4} Personel (1 Regu)
-                  </div>
-                </div>
-              </div>
-
-              {/* SOP Komando Information */}
-              <div style={{ fontSize: '11px', color: '#64748B', lineHeight: '1.4', background: '#F1F5F9', padding: '8px 12px', borderRadius: '8px' }}>
-                ⚖️ <strong>SOP Rantai Komando Presisi:</strong> Dengan menekan tombol <strong>&quot;Terima Tugas&quot;</strong>, status tugas dicatat sebagai <em>ACCEPTED (Sedang Ditangani)</em> ke audit trail beserta identitas dinas Anda ({officer.pangkat || 'Personil'} {officer.fullName || session?.fullName}). Sistem akan langsung membuka <strong>Wizard Penanganan Kasus</strong> untuk persiapan meluncur ke TKP.
-              </div>
-            </div>
-
-            {/* Footer Modal */}
-            <div
-              style={{
-                padding: '14px 20px',
-                background: '#F8FAFC',
-                borderTop: '1px solid #E2E8F0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setShowAcceptModal(false)}
-                style={{
-                  padding: '10px 16px',
-                  background: '#F1F5F9',
-                  color: '#475569',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  border: '1px solid #CBD5E1',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              >
-                Tinjau Nanti
-              </button>
-
-              <button
-                type="button"
-                id="btn-terima-tugas"
-                onClick={async () => {
-                  if (!pendingAcceptTask) return;
-                  setIsAcceptingTask(true);
-                  try {
-                    const activeNrp = officer.nrp || session?.identifier || nrpParam || '';
-                    const activeName = officer.fullName || session?.fullName || '';
-                    const activePangkat = officer.pangkat || session?.rankPangkat || 'Personil';
-
-                    const res = await acceptOfficerDispatchAction({
-                      complaintId: String(pendingAcceptTask.id),
-                      officerNrp: activeNrp,
-                      officerNama: activeName,
-                      officerPangkat: activePangkat,
-                    });
-
-                    if (res.success) {
-                      alert(`✓ Tugas #${pendingAcceptTask.nomorTiket || pendingAcceptTask.id} BERHASIL DITERIMA! Status kini: ACCEPTED (Sedang Ditangani). Membuka Wizard Penanganan...`);
-                      setShowAcceptModal(false);
-                      const acceptedComplaint = {
-                        ...pendingAcceptTask,
-                        status: 'SEDANG_DITANGANI',
-                        tahap: 3,
-                      };
-                      setActiveComplaint(acceptedComplaint);
-                      activeComplaintRef.current = acceptedComplaint;
-                      setSelectedTask(acceptedComplaint);
-                      setPendingAcceptTask(null);
-
-                      setWizardStep(1);
-                      setExpandedStep(1);
-                      setWizardCatatan('');
-                      setWizardFoto(null);
-
-                      await loadData(undefined, acceptedComplaint.id);
-                      switchTab('view-wizard');
-                    } else {
-                      alert(`Gagal menerima tugas: ${res.error}`);
-                    }
-                  } catch (err: any) {
-                    alert(`Terjadi kesalahan sistem: ${err.message}`);
-                  } finally {
-                    setIsAcceptingTask(false);
-                  }
-                }}
-                disabled={isAcceptingTask}
-                style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  background: isAcceptingTask
-                    ? '#94A3B8'
-                    : 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
-                  color: '#FFFFFF',
-                  fontSize: '13.5px',
-                  fontWeight: 900,
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: isAcceptingTask ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.35)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>{isAcceptingTask ? '⏳ Mencatat Persetujuan...' : '🛡️ Terima Tugas & Buka Wizard ➔'}</span>
-              </button>
-            </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -4193,7 +4465,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                     <div style={{ fontWeight: 800, fontSize: '13px', color: '#9A3412' }}>➕ TAMBAH TITIK RAWAN BARU</div>
                     <button type="button" onClick={() => setShowHotspotAddForm(false)} style={{ background: 'none', border: 'none', color: '#9A3412', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>✕ Batal</button>
                   </div>
-                  
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
                     <div>
                       <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>🔍 Cari Alamat / Lokasi Rawan *</label>
