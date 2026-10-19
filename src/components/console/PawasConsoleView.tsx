@@ -3952,6 +3952,241 @@ function CommandCenterContent({
                                         "{activeComplaint.timelines?.find((t: any) => t.tahapKe === 2 || t.tahapKe === 3)?.catatan || `Unit bergerak menuju ${activeComplaint.tkpAlamatTeks}`}"
                                       </div>
                                     </div>
+
+                                    {/* DAFTAR PERSONEL REGU YANG IKUT / MENYETUJUI TUGAS */}
+                                    {(() => {
+                                      const dispatches: any[] = activeComplaint.dispatches || [];
+                                      const list: any[] = [];
+                                      const seen = new Set<string>();
+
+                                      dispatches.forEach((d: any) => {
+                                        const isAcc = Boolean(d.accepted_at || d.dispatch_status === 'ACCEPTED' || d.arrived_at || d.completed_at);
+                                        if (!isAcc && !d.officer) return;
+                                        const off = d.officer;
+                                        const rawName = off?.user?.full_name || off?.user?.nama_lengkap || off?.namaLengkap || '';
+                                        const rank = off?.rank_pangkat || off?.rankPangkat || '';
+                                        let name = (rawName || '').trim();
+                                        if (!name && rank) name = `${rank} Petugas`;
+                                        if (!name) name = 'Personel Lapangan';
+                                        if (rank && !name.toLowerCase().startsWith(rank.toLowerCase())) {
+                                          name = `${rank} ${name}`;
+                                        }
+                                        const nrp = off?.nrp || off?.user?.identifier || '';
+                                        const unit = d.unit?.unit_name || d.unit?.short_name || '';
+                                        const key = (nrp || name).trim().toLowerCase();
+                                        if (!seen.has(key)) {
+                                          seen.add(key);
+                                          let acceptedAt: string | null = null;
+                                          if (d.accepted_at) {
+                                            try {
+                                              acceptedAt = new Date(d.accepted_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+                                            } catch (_) {}
+                                          }
+                                          const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
+                                          const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
+                                          list.push({
+                                            name,
+                                            rank,
+                                            nrp,
+                                            unit,
+                                            acceptedAt,
+                                            avatarUrl: off?.avatar_url || off?.avatarUrl || null,
+                                            initials,
+                                            isPrimary: Boolean(d.is_primary_unit || list.length === 0),
+                                          });
+                                        }
+                                      });
+
+                                      if (list.length === 0 && activeComplaint.assignedOfficer) {
+                                        const ao = activeComplaint.assignedOfficer;
+                                        const rawName = ao.namaLengkap || ao.name || '';
+                                        const rank = ao.rankPangkat || '';
+                                        let name = (rawName || '').trim();
+                                        if (!name && rank) name = `${rank} Petugas`;
+                                        if (!name) name = 'Personel Lapangan';
+                                        if (rank && !name.toLowerCase().startsWith(rank.toLowerCase())) {
+                                          name = `${rank} ${name}`;
+                                        }
+                                        const nrp = ao.nrp || '';
+                                        const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
+                                        const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
+                                        list.push({
+                                          name,
+                                          rank,
+                                          nrp,
+                                          unit: ao.assignedPatrolVehicle || '',
+                                          acceptedAt: activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : null,
+                                          avatarUrl: ao.avatarUrl || null,
+                                          initials,
+                                          isPrimary: true,
+                                        });
+                                      }
+
+                                      if (list.length === 0) return null;
+
+                                      return (
+                                        <div
+                                          style={{
+                                            marginTop: '10px',
+                                            background: '#F8FAFC',
+                                            border: '1px solid #E2E8F0',
+                                            borderRadius: '8px',
+                                            padding: '10px 12px',
+                                            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                                          }}
+                                        >
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                              <span style={{ fontSize: '13px' }}>👥</span>
+                                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                                Personel yang Ikut / Menyetujui
+                                              </span>
+                                              <span
+                                                style={{
+                                                  fontSize: '10px',
+                                                  fontWeight: 800,
+                                                  background: '#DBEAFE',
+                                                  color: '#1E40AF',
+                                                  padding: '1px 6px',
+                                                  borderRadius: '10px',
+                                                }}
+                                              >
+                                                {list.length} Personel
+                                              </span>
+                                            </div>
+                                            <span
+                                              style={{
+                                                fontSize: '9.5px',
+                                                background: '#DCFCE7',
+                                                color: '#15803D',
+                                                fontWeight: 700,
+                                                padding: '2px 7px',
+                                                borderRadius: '4px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                              }}
+                                            >
+                                              <span>✓</span> Terkonfirmasi Siaga
+                                            </span>
+                                          </div>
+
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            {list.map((off, idx) => (
+                                              <div
+                                                key={idx}
+                                                style={{
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  justifyContent: 'space-between',
+                                                  background: 'white',
+                                                  border: '1px solid #E2E8F0',
+                                                  borderRadius: '6px',
+                                                  padding: '7px 10px',
+                                                }}
+                                              >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                                  {off.avatarUrl ? (
+                                                    <img
+                                                      src={off.avatarUrl}
+                                                      alt={off.name}
+                                                      style={{
+                                                        width: '30px',
+                                                        height: '30px',
+                                                        borderRadius: '50%',
+                                                        objectFit: 'cover',
+                                                        border: '1.5px solid #CBD5E1',
+                                                        flexShrink: 0,
+                                                      }}
+                                                    />
+                                                  ) : (
+                                                    <div
+                                                      style={{
+                                                        width: '30px',
+                                                        height: '30px',
+                                                        borderRadius: '50%',
+                                                        background: 'linear-gradient(135deg, #1E40AF, #3B82F6)',
+                                                        color: 'white',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        fontSize: '11px',
+                                                        fontWeight: 800,
+                                                        letterSpacing: '0.5px',
+                                                        flexShrink: 0,
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                                                      }}
+                                                    >
+                                                      {off.initials || '👮'}
+                                                    </div>
+                                                  )}
+                                                  <div style={{ minWidth: 0 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                                      <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                                                        {off.name}
+                                                      </span>
+                                                      {off.isPrimary && (
+                                                        <span
+                                                          style={{
+                                                            fontSize: '9px',
+                                                            background: '#EFF6FF',
+                                                            color: '#1D4ED8',
+                                                            border: '1px solid #BFDBFE',
+                                                            padding: '0.5px 5px',
+                                                            borderRadius: '3px',
+                                                            fontWeight: 700,
+                                                          }}
+                                                        >
+                                                          Lead Regu
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    <div
+                                                      style={{
+                                                        fontSize: '10px',
+                                                        color: '#64748B',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        marginTop: '1px',
+                                                        flexWrap: 'wrap',
+                                                      }}
+                                                    >
+                                                      <span>NRP: <strong style={{ color: '#334155' }}>{off.nrp || '-'}</strong></span>
+                                                      {off.unit && <span>• {off.unit}</span>}
+                                                    </div>
+                                                  </div>
+                                                </div>
+
+                                                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+                                                  <div
+                                                    style={{
+                                                      fontSize: '9.5px',
+                                                      fontWeight: 700,
+                                                      color: '#15803D',
+                                                      background: '#F0FDF4',
+                                                      border: '1px solid #BBF7D0',
+                                                      padding: '1.5px 6px',
+                                                      borderRadius: '4px',
+                                                      display: 'inline-flex',
+                                                      alignItems: 'center',
+                                                      gap: '3px',
+                                                    }}
+                                                  >
+                                                    <span>✓</span> Menyetujui
+                                                  </div>
+                                                  {off.acceptedAt && (
+                                                    <div style={{ fontSize: '9px', color: '#64748B', marginTop: '2px', fontWeight: 600 }}>
+                                                      {off.acceptedAt}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
                                   </div>
 
                                   {/* Step 4: Penanganan di Lokasi */}

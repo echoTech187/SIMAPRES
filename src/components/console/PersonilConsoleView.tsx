@@ -401,6 +401,187 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     };
   };
 
+  // Helper: Mendapatkan seluruh personel yang menyetujui / ikut dalam penanganan tugas (Regu Lapangan)
+  const getAcceptedPersonnelList = (task: any) => {
+    if (!task) return [];
+    const list: Array<{
+      name: string;
+      rank: string;
+      nrp: string;
+      unit: string;
+      acceptedAt: string | null;
+      avatarUrl?: string | null;
+      initials: string;
+      isPrimary: boolean;
+      isCurrentOfficer: boolean;
+    }> = [];
+
+    const seenKeys = new Set<string>();
+    const dispatches: any[] = task.dispatches || [];
+
+    const cleanOfficerName = (rawName: string, rank?: string) => {
+      let name = (rawName || '').trim();
+      if (!name && rank) return `${rank} Petugas`;
+      if (!name) return 'Personel Lapangan';
+      if (rank && !name.toLowerCase().startsWith(rank.toLowerCase())) {
+        name = `${rank} ${name}`;
+      }
+      return name;
+    };
+
+    // 1. Ekstrak dari seluruh dispatches yang telah berstatus ACCEPTED / memiliki accepted_at
+    dispatches.forEach((d: any) => {
+      const isAccepted = Boolean(
+        d.accepted_at ||
+        d.dispatch_status === 'ACCEPTED' ||
+        d.arrived_at ||
+        d.completed_at
+      );
+      if (!isAccepted && !d.officer) return;
+
+      const off = d.officer;
+      const rawName = off?.user?.full_name || off?.user?.nama_lengkap || off?.namaLengkap || '';
+      const rank = off?.rank_pangkat || off?.rankPangkat || '';
+      const name = cleanOfficerName(rawName, rank);
+      const nrp = off?.nrp || off?.user?.identifier || '';
+      const unit = d.unit?.unit_name || d.unit?.short_name || '';
+      const avatarUrl = off?.avatar_url || off?.avatarUrl || null;
+      let acceptedAt: string | null = null;
+      if (d.accepted_at) {
+        try {
+          acceptedAt = new Date(d.accepted_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        } catch (_) {}
+      }
+
+      const key = (nrp || name).trim().toLowerCase();
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
+        const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
+
+        const isCurrentOfficer = Boolean(
+          (officer?.nrp && nrp === officer.nrp) ||
+          (officer?.fullName && name.toLowerCase().includes(officer.fullName.toLowerCase()))
+        );
+
+        list.push({
+          name,
+          rank,
+          nrp,
+          unit,
+          acceptedAt,
+          avatarUrl,
+          initials,
+          isPrimary: Boolean(d.is_primary_unit || list.length === 0),
+          isCurrentOfficer,
+        });
+      }
+    });
+
+    // 2. Ekstrak dari assignedOfficer jika belum masuk
+    if (task.assignedOfficer) {
+      const ao = task.assignedOfficer;
+      const rawName = ao.namaLengkap || ao.name || '';
+      const rank = ao.rankPangkat || '';
+      const name = cleanOfficerName(rawName, rank);
+      const nrp = ao.nrp || '';
+      const key = (nrp || name).trim().toLowerCase();
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
+        const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
+        const isCurrentOfficer = Boolean(
+          (officer?.nrp && nrp === officer.nrp) ||
+          (officer?.fullName && name.toLowerCase().includes(officer.fullName.toLowerCase()))
+        );
+
+        let acceptedAt: string | null = null;
+        if (task.disposisiAt) {
+          try {
+            acceptedAt = new Date(task.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+          } catch (_) {}
+        }
+
+        list.push({
+          name,
+          rank,
+          nrp,
+          unit: ao.assignedPatrolVehicle || '',
+          acceptedAt,
+          avatarUrl: ao.avatarUrl || null,
+          initials,
+          isPrimary: true,
+          isCurrentOfficer,
+        });
+      }
+    }
+
+    // 3. Ekstrak dari complaint_logs yang mencatat personil ACCEPTED
+    const logs = task.complaintLogs || task.complaint_logs || [];
+    logs.forEach((l: any) => {
+      if (l.action && (l.action.includes('ACCEPTED') || l.action.includes('Diterima Personil'))) {
+        const rawActor = l.actor_name || '';
+        if (!rawActor || rawActor === 'SISTEM' || rawActor === 'OPERATOR') return;
+
+        const nrpMatch = l.notes?.match(/NRP:\s*([A-Za-z0-9]+)/i);
+        const nrp = nrpMatch ? nrpMatch[1] : '';
+        const key = (nrp || rawActor).trim().toLowerCase();
+
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          let acceptedAt: string | null = null;
+          if (l.created_at) {
+            try {
+              acceptedAt = new Date(l.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+            } catch (_) {}
+          }
+          const nameParts = rawActor.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
+          const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
+          const isCurrentOfficer = Boolean(
+            (officer?.nrp && nrp === officer.nrp) ||
+            (officer?.fullName && rawActor.toLowerCase().includes(officer.fullName.toLowerCase()))
+          );
+
+          list.push({
+            name: rawActor,
+            rank: '',
+            nrp,
+            unit: '',
+            acceptedAt,
+            avatarUrl: null,
+            initials,
+            isPrimary: false,
+            isCurrentOfficer,
+          });
+        }
+      }
+    });
+
+    // 4. Fallback jika list masih kosong namun tugas sudah berjalan
+    if (list.length === 0 && task.status !== 'BELUM_DITANGANI' && task.status !== 'MENUNGGU') {
+      const name = task.personelDitugaskan || officer.fullName || 'Petugas Lapangan';
+      const rank = officer.pangkat || 'Personil';
+      const nrp = officer.nrp || '';
+      const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
+      const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
+
+      list.push({
+        name,
+        rank,
+        nrp,
+        unit: 'Unit Reaksi Cepat',
+        acceptedAt: task.waktuMeluncur || null,
+        avatarUrl: officer.avatar || null,
+        initials,
+        isPrimary: true,
+        isCurrentOfficer: true,
+      });
+    }
+
+    return list;
+  };
+
   // Helper: Apakah tugas ini butuh konfirmasi (Auto-Popup) bagi personel yang sedang login?
   const isTaskPendingAcceptance = (c: any) => {
     if (!c || c.status === 'SELESAI' || c.status === 'DITOLAK') return false;
@@ -3057,7 +3238,13 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                 </div>
                                                 <div style={{ color: 'white', lineHeight: 1.2 }}>
                                                   <div style={{ fontSize: '11px', fontWeight: 700 }}>
-                                                    {selectedTask.personelDitugaskan || officer.fullName || 'Petugas Lapangan'}
+                                                    {(() => {
+                                                      const accList = getAcceptedPersonnelList(selectedTask);
+                                                      if (accList.length > 1) {
+                                                        return `${accList[0].name} & Regu (${accList.length} Personel)`;
+                                                      }
+                                                      return selectedTask.personelDitugaskan || officer.fullName || 'Petugas Lapangan';
+                                                    })()}
                                                   </div>
                                                   <div style={{ fontSize: '9.5px', opacity: 0.9 }}>
                                                     Estimasi Tiba: 5 Menit • 🔍 Klik perbesar foto
@@ -3092,6 +3279,194 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                     </span>
                                   </div>
                                 )}
+
+                                {/* DAFTAR PERSONEL REGU YANG IKUT / MENYETUJUI TUGAS */}
+                                {s3State !== 'locked' && (() => {
+                                  const acceptedList = getAcceptedPersonnelList(selectedTask);
+                                  const quotaInfo = getTaskQuotaInfo(selectedTask);
+                                  if (acceptedList.length === 0) return null;
+
+                                  return (
+                                    <div
+                                      style={{
+                                        marginTop: '10px',
+                                        background: '#F8FAFC',
+                                        border: '1px solid #E2E8F0',
+                                        borderRadius: '8px',
+                                        padding: '10px 12px',
+                                        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span style={{ fontSize: '13px' }}>👥</span>
+                                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                            Personel yang Ikut / Menyetujui
+                                          </span>
+                                          <span
+                                            style={{
+                                              fontSize: '10px',
+                                              fontWeight: 800,
+                                              background: '#DBEAFE',
+                                              color: '#1E40AF',
+                                              padding: '1px 6px',
+                                              borderRadius: '10px',
+                                            }}
+                                          >
+                                            {acceptedList.length}{quotaInfo.quota ? `/${quotaInfo.quota}` : ''} Personel
+                                          </span>
+                                        </div>
+                                        <span
+                                          style={{
+                                            fontSize: '9.5px',
+                                            background: '#DCFCE7',
+                                            color: '#15803D',
+                                            fontWeight: 700,
+                                            padding: '2px 7px',
+                                            borderRadius: '4px',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                          }}
+                                        >
+                                          <span>✓</span> Terkonfirmasi Siaga
+                                        </span>
+                                      </div>
+
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        {acceptedList.map((off, idx) => (
+                                          <div
+                                            key={idx}
+                                            style={{
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'space-between',
+                                              background: 'white',
+                                              border: off.isCurrentOfficer ? '1.5px solid #93C5FD' : '1px solid #E2E8F0',
+                                              borderRadius: '6px',
+                                              padding: '7px 10px',
+                                              boxShadow: off.isCurrentOfficer ? '0 1px 4px rgba(59,130,246,0.1)' : 'none',
+                                            }}
+                                          >
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                              {off.avatarUrl ? (
+                                                <img
+                                                  src={off.avatarUrl}
+                                                  alt={off.name}
+                                                  style={{
+                                                    width: '30px',
+                                                    height: '30px',
+                                                    borderRadius: '50%',
+                                                    objectFit: 'cover',
+                                                    border: '1.5px solid #CBD5E1',
+                                                    flexShrink: 0,
+                                                  }}
+                                                />
+                                              ) : (
+                                                <div
+                                                  style={{
+                                                    width: '30px',
+                                                    height: '30px',
+                                                    borderRadius: '50%',
+                                                    background: off.isCurrentOfficer
+                                                      ? 'linear-gradient(135deg, #1E40AF, #3B82F6)'
+                                                      : 'linear-gradient(135deg, #065F46, #10B981)',
+                                                    color: 'white',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '11px',
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.5px',
+                                                    flexShrink: 0,
+                                                    boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                                                  }}
+                                                >
+                                                  {off.initials || '👮'}
+                                                </div>
+                                              )}
+                                              <div style={{ minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                                  <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                                                    {off.name}
+                                                  </span>
+                                                  {off.isCurrentOfficer && (
+                                                    <span
+                                                      style={{
+                                                        fontSize: '9px',
+                                                        background: '#EFF6FF',
+                                                        color: '#1D4ED8',
+                                                        border: '1px solid #BFDBFE',
+                                                        padding: '0.5px 5px',
+                                                        borderRadius: '3px',
+                                                        fontWeight: 700,
+                                                      }}
+                                                    >
+                                                      Anda
+                                                    </span>
+                                                  )}
+                                                  {off.isPrimary && !off.isCurrentOfficer && (
+                                                    <span
+                                                      style={{
+                                                        fontSize: '9px',
+                                                        background: '#FEF3C7',
+                                                        color: '#92400E',
+                                                        border: '1px solid #FDE68A',
+                                                        padding: '0.5px 5px',
+                                                        borderRadius: '3px',
+                                                        fontWeight: 700,
+                                                      }}
+                                                    >
+                                                      Lead Unit
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div
+                                                  style={{
+                                                    fontSize: '10px',
+                                                    color: '#64748B',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    marginTop: '1px',
+                                                    flexWrap: 'wrap',
+                                                  }}
+                                                >
+                                                  <span>NRP: <strong style={{ color: '#334155' }}>{off.nrp || '-'}</strong></span>
+                                                  {off.unit && <span>• {off.unit}</span>}
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
+                                              <div
+                                                style={{
+                                                  fontSize: '9.5px',
+                                                  fontWeight: 700,
+                                                  color: '#15803D',
+                                                  background: '#F0FDF4',
+                                                  border: '1px solid #BBF7D0',
+                                                  padding: '1.5px 6px',
+                                                  borderRadius: '4px',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '3px',
+                                                }}
+                                              >
+                                                <span>✓</span> Menyetujui
+                                              </div>
+                                              {off.acceptedAt && (
+                                                <div style={{ fontSize: '9px', color: '#64748B', marginTop: '2px', fontWeight: 600 }}>
+                                                  {off.acceptedAt}
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
                               </div>
                             </div>
 
