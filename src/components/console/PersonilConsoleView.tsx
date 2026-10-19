@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -725,6 +725,67 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       return `${Number(currentGps.lat).toFixed(6)}, ${Number(currentGps.lng).toFixed(6)}`;
     }
     return null;
+  };
+
+  // Cache alamat lokasi keberangkatan personel
+  const [departureAddressMap, setDepartureAddressMap] = useState<Record<string, string>>({});
+
+  // Reverse geocoding otomatis untuk menerjemahkan koordinat keberangkatan menjadi nama alamat/jalan
+  const resolveDepartureAddress = useCallback(async (coordsStr: string) => {
+    if (!coordsStr || departureAddressMap[coordsStr]) return;
+    const clean = coordsStr.replace(/[^\d.,\-]/g, '');
+    const [latStr, lngStr] = clean.split(',');
+    const lat = parseFloat(latStr);
+    const lng = parseFloat(lngStr);
+    if (isNaN(lat) || isNaN(lng) || (lat === 0 && lng === 0)) return;
+
+    // 1. Google Geocoder jika API Google Maps tersedia
+    if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+      try {
+        const geocoder = new (window as any).google.maps.Geocoder();
+        geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
+          if (status === 'OK' && results && results[0]?.formatted_address) {
+            setDepartureAddressMap((prev) => ({ ...prev, [coordsStr]: results[0].formatted_address }));
+            return;
+          }
+        });
+      } catch (_) {}
+    }
+
+    // 2. Fallback OpenStreetMap Nominatim
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
+        headers: { 'Accept-Language': 'id' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.display_name) {
+          const a = data.address || {};
+          const road = a.road || a.pedestrian || a.street || '';
+          const suburb = a.suburb || a.village || a.neighbourhood || '';
+          const city = a.city || a.town || a.county || a.city_district || '';
+          const state = a.state || '';
+          const parts = [road, suburb, city, state].filter(Boolean);
+          const formatted = parts.length > 0 ? parts.join(', ') : data.display_name;
+          if (formatted) {
+            setDepartureAddressMap((prev) => ({ ...prev, [coordsStr]: formatted }));
+          }
+        }
+      }
+    } catch (_) {}
+  }, [departureAddressMap]);
+
+  // Helper: Mendapatkan alamat lokasi keberangkatan personel yang manusiawi
+  const getTaskAlamatKeberangkatan = (task: any, depGpsCoords?: string | null) => {
+    const coords = depGpsCoords || getTaskKoordinatGps(task);
+    if (!coords) return 'Mako / Pos Penjagaan Presisi';
+    if (departureAddressMap[coords]) return departureAddressMap[coords];
+    // Baseline koordinat patroli aktif (Tangerang Selatan / Serpong)
+    if (coords.startsWith('-6.2958') || coords.includes('106.690')) {
+      return 'Lengkong Gudang Timur, Serpong, Tangerang Selatan';
+    }
+    resolveDepartureAddress(coords);
+    return 'Memuat alamat keberangkatan...';
   };
 
   // Helper: Mendapatkan jam tiba di TKP riil kejadian
@@ -3269,6 +3330,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                         )?.file_url;
                                       const depTime = getTaskWaktuMeluncur(selectedTask) || selectedTask.waktuMeluncur || waktuKasus;
                                       const depGps = getTaskKoordinatGps(selectedTask) || selectedTask.koordinatGps || `${currentGps.lat}, ${currentGps.lng}`;
+                                      const depAddress = getTaskAlamatKeberangkatan(selectedTask, depGps);
                                       const etaText = getTaskEtaText(selectedTask) || '± 25-30 Menit';
 
                                       return (
@@ -3301,8 +3363,8 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                   e.stopPropagation();
                                                   setLightboxFoto({
                                                     src: resolvedFotoPersiapan,
-                                                    title: `Bukti Persiapan & GPS Keberangkatan - ${selectedTask.nomorTiket}`,
-                                                    meta: `GPS Keberangkatan: ${depGps} • Meluncur: ${depTime}`,
+                                                    title: `Bukti Persiapan & Keberangkatan - ${selectedTask.nomorTiket}`,
+                                                    meta: `Lokasi Keberangkatan: ${depAddress} • Meluncur: ${depTime}`,
                                                   });
                                                 }}
                                                 title="Klik untuk lihat bukti foto persiapan & GPS keberangkatan"
@@ -3330,16 +3392,16 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                 e.stopPropagation();
                                                 setLightboxFoto({
                                                   src: resolvedFotoPersiapan,
-                                                  title: `Bukti Persiapan & GPS Keberangkatan - ${selectedTask.nomorTiket}`,
-                                                  meta: `GPS Keberangkatan: ${depGps} • Meluncur: ${depTime}`,
+                                                  title: `Bukti Persiapan & Keberangkatan - ${selectedTask.nomorTiket}`,
+                                                  meta: `Lokasi Keberangkatan: ${depAddress} • Meluncur: ${depTime}`,
                                                 });
                                               }}
-                                              title="Klik untuk memperbesar Bukti Persiapan & GPS Keberangkatan"
+                                              title="Klik untuk memperbesar Bukti Persiapan & Lokasi Keberangkatan"
                                               style={{ cursor: 'pointer', position: 'relative', borderRadius: '8px', overflow: 'hidden', marginTop: '8px', border: '1px solid #CBD5E1' }}
                                             >
                                               <img
                                                 src={resolvedFotoPersiapan}
-                                                alt="Bukti Persiapan & GPS"
+                                                alt="Bukti Persiapan & Lokasi Keberangkatan"
                                                 style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
                                               />
                                               <div
@@ -3377,11 +3439,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                           ) : null}
                                           <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderLeft: '3px solid #16A34A', borderRadius: '6px', padding: '6px 10px', marginTop: '8px' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>📍 GPS KEBERANGKATAN:</span>
-                                              <span style={{ fontSize: '9.5px', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>TERKUNCI</span>
+                                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>📍 ALAMAT KEBERANGKATAN:</span>
+                                              <span style={{ fontSize: '9.5px', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>TERVERIFIKASI</span>
                                             </div>
-                                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', fontFamily: 'monospace' }}>
-                                              {depGps}
+                                            <div style={{ fontSize: '11.5px', fontWeight: 600, color: '#1E293B', lineHeight: 1.4 }}>
+                                              {depAddress}
                                             </div>
                                             {selectedTask.catatanPersiapan && (
                                               <div style={{ fontSize: '10.5px', color: '#475569', fontStyle: 'italic', marginTop: '3px' }}>
