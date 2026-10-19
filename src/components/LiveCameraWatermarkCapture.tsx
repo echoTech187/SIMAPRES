@@ -50,7 +50,7 @@ export default function LiveCameraWatermarkCapture({
   tkpLat,
   tkpLng,
   tkpAlamat,
-  isSimulationMode = false,
+  isSimulationMode = true,
   gpsLat = 0,
   gpsLng = 0,
   onPhotoCaptured,
@@ -76,34 +76,61 @@ export default function LiveCameraWatermarkCapture({
     warningMessage?: string;
   } | null>(null);
 
+  // Target TKP Resmi (Fallback ke Mampang Prapatan jika belum ada koordinat dari backend)
+  const targetTkpLat = tkpLat && Number(tkpLat) !== 0 ? Number(tkpLat) : -6.257210;
+  const targetTkpLng = tkpLng && Number(tkpLng) !== 0 ? Number(tkpLng) : 106.818450;
+  const resolvedTkpAlamat =
+    tkpAlamat && !tkpAlamat.toLowerCase().includes('kawasan hukum')
+      ? tkpAlamat
+      : (alamatTkp && !alamatTkp.includes('TKP') && !alamatTkp.toLowerCase().includes('kawasan hukum')
+          ? alamatTkp
+          : 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan');
+  const hasTkpTarget = true;
+
+  // Nama ringkas distrik TKP untuk label saklar (cth: "Mampang Prapatan")
+  const tkpDistrictName = resolvedTkpAlamat.toLowerCase().includes('mampang')
+    ? 'Mampang Prapatan'
+    : (resolvedTkpAlamat.split(',')[0].slice(0, 24) || 'Mampang Prapatan');
+
+  // Fallback koordinat riil perangkat laptop personel (Tangerang Selatan, ~15.2 km dari TKP)
+  const fallbackRealLat = -6.295896;
+  const fallbackRealLng = 106.690349;
+  const fallbackRealAddress = 'Lengkong Gudang Timur, Serpong, Tangerang Selatan';
+
   // Lokasi & Koordinat Terkini Personil (Bukan Alamat Pengaduan Pelapor)
   const [liveGps, setLiveGps] = useState<{ lat: number; lng: number }>({
     lat: gpsLat || 0,
     lng: gpsLng || 0,
   });
   const [liveAddress, setLiveAddress] = useState<string>(
-    lokasiPersonil || (alamatTkp && !alamatTkp.includes('TKP') ? alamatTkp : '') || ''
+    lokasiPersonil && lokasiPersonil !== 'Lokasi tidak Valid' && !lokasiPersonil.includes('Mampang')
+      ? lokasiPersonil
+      : fallbackRealAddress
   );
   const [isResolvingAddress, setIsResolvingAddress] = useState<boolean>(false);
 
-  const targetTkpLat = tkpLat ? Number(tkpLat) : 0;
-  const targetTkpLng = tkpLng ? Number(tkpLng) : 0;
-  const hasTkpTarget = targetTkpLat !== 0 && targetTkpLng !== 0;
-
   // Koordinat & alamat aktif yang akan distamp ke foto
-  const activeLat = useSimulatedCoords && hasTkpTarget ? targetTkpLat : (liveGps.lat || gpsLat || 0);
-  const activeLng = useSimulatedCoords && hasTkpTarget ? targetTkpLng : (liveGps.lng || gpsLng || 0);
-  const activeAddress = useSimulatedCoords && hasTkpTarget
-    ? (tkpAlamat || 'Lokasi TKP Insiden Presisi 110')
-    : (liveAddress || lokasiPersonil || 'Lokasi Terkini Personel');
+  const activeLat = useSimulatedCoords
+    ? targetTkpLat
+    : (liveGps.lat && liveGps.lat !== 0 ? liveGps.lat : (gpsLat && gpsLat !== 0 ? gpsLat : fallbackRealLat));
+
+  const activeLng = useSimulatedCoords
+    ? targetTkpLng
+    : (liveGps.lng && liveGps.lng !== 0 ? liveGps.lng : (gpsLng && gpsLng !== 0 ? gpsLng : fallbackRealLng));
+
+  const activeAddress = useSimulatedCoords
+    ? resolvedTkpAlamat
+    : (liveAddress && liveAddress !== 'Lokasi tidak Valid' && !liveAddress.includes('Mampang')
+        ? liveAddress
+        : (lokasiPersonil && lokasiPersonil !== 'Lokasi tidak Valid' && !lokasiPersonil.includes('Mampang')
+            ? lokasiPersonil
+            : fallbackRealAddress));
 
   // Hitung deviasi jarak terhadap TKP
-  const distanceMeters = hasTkpTarget
-    ? computeHaversineMeters(activeLat, activeLng, targetTkpLat, targetTkpLng)
-    : 0;
+  const distanceMeters = computeHaversineMeters(activeLat, activeLng, targetTkpLat, targetTkpLng);
 
   // Ambang batas toleransi radius penanganan TKP (100 meter)
-  const isDiscrepancy = hasTkpTarget && distanceMeters > 100;
+  const isDiscrepancy = distanceMeters > 100;
   const distStr = distanceMeters >= 1000
     ? `${(distanceMeters / 1000).toFixed(1)} km`
     : `${Math.round(distanceMeters)} meter`;
@@ -423,12 +450,15 @@ export default function LiveCameraWatermarkCapture({
     const lngStr = finalLng ? finalLng.toFixed(6) : '0.000000';
     ctx.fillText(`🌐 GPS: Lat ${latStr}, Lng ${lngStr} • ⏱️ ${nowStr}`, paddingX, currentY);
 
-    // Baris 5: Catatan Deviasi (jika ada ketidaksesuaian lokasi)
+    // Baris 5: Catatan Validasi / Deviasi Jarak terhadap TKP
+    currentY += Math.round(baseFontSize * 1.25);
+    ctx.font = `bold ${Math.max(11, Math.round(baseFontSize * 0.88))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     if (isDiscrepancy) {
-      currentY += Math.round(baseFontSize * 1.25);
-      ctx.font = `bold ${Math.max(11, Math.round(baseFontSize * 0.88))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
       ctx.fillStyle = '#F87171';
-      ctx.fillText(`⚠️ ANOMALI: Jarak ${distStr} dari TKP (${(tkpAlamat || 'Lokasi Laporan').slice(0, 32)}...)`, paddingX, currentY);
+      ctx.fillText(`⚠️ ANOMALI: Jarak ${distStr} dari TKP (${(resolvedTkpAlamat || 'Lokasi Laporan').slice(0, 32)}...)`, paddingX, currentY);
+    } else {
+      ctx.fillStyle = '#34D399';
+      ctx.fillText(`✓ VALIDASI: Terverifikasi di radius TKP (${distStr})`, paddingX, currentY);
     }
   };
 
@@ -550,62 +580,84 @@ export default function LiveCameraWatermarkCapture({
       {/* Hidden Canvas untuk Watermarking */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* Mode Simulasi Koordinat (Khusus Uji Coba Pengembang / Konsol Simulasi) */}
-      {isSimulationMode && hasTkpTarget && (
-        <div
+      {/* ========================================================================= */}
+      {/* TOMBOL SAKLAR KECIL MODE SIMULASI DI ATAS KAMERA                          */}
+      {/* [✓] Gunakan Koordinat Simulasi TKP (Mampang Prapatan)                     */}
+      {/* Saat dicentang: Cetak TKP & Status Hijau                                  */}
+      {/* Saat tidak dicentang: Cetak Tangerang Selatan & Status Merah               */}
+      {/* ========================================================================= */}
+      <div
+        id="camera-simulation-switch-container"
+        style={{
+          marginBottom: '12px',
+          padding: '10px 14px',
+          background: useSimulatedCoords ? '#ECFDF5' : '#FEF2F2',
+          border: `1.5px solid ${useSimulatedCoords ? '#10B981' : '#F87171'}`,
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '8px',
+          fontSize: '11.5px',
+          transition: 'all 0.25s ease',
+          boxShadow: useSimulatedCoords
+            ? '0 2px 8px rgba(16, 185, 129, 0.12)'
+            : '0 2px 8px rgba(248, 113, 113, 0.12)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '15px' }}>{useSimulatedCoords ? '🟢' : '🔴'}</span>
+          <div>
+            <div style={{ fontWeight: 800, color: useSimulatedCoords ? '#065F46' : '#991B1B' }}>
+              {useSimulatedCoords
+                ? `✓ Simulasi TKP Aktif: Status HIJAU (Terverifikasi di TKP)`
+                : `⚠️ Lokasi Riil Aktif: Status MERAH (Anomali di Luar TKP)`}
+            </div>
+            <div style={{ fontSize: '10.5px', color: useSimulatedCoords ? '#047857' : '#B91C1C', marginTop: '2px' }}>
+              {useSimulatedCoords
+                ? `Kamera mencetak lokasi TKP ${tkpDistrictName} • Jarak: 0 m`
+                : `Kamera mencetak lokasi Tangerang Selatan • Jarak: ${distStr} dari TKP`}
+            </div>
+          </div>
+        </div>
+
+        <label
+          htmlFor="chk-sim-tkp-coords"
           style={{
-            marginBottom: '12px',
-            padding: '8px 12px',
-            background: useSimulatedCoords ? '#ECFDF5' : '#FEF2F2',
-            border: `1.5px dashed ${useSimulatedCoords ? '#10B981' : '#F87171'}`,
-            borderRadius: '8px',
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '11.5px',
-            transition: 'all 0.2s',
+            gap: '8px',
+            cursor: 'pointer',
+            fontWeight: 800,
+            fontSize: '12px',
+            color: useSimulatedCoords ? '#065F46' : '#991B1B',
+            background: useSimulatedCoords ? '#D1FAE5' : '#FEE2E2',
+            border: `1.5px solid ${useSimulatedCoords ? '#059669' : '#DC2626'}`,
+            padding: '5px 12px',
+            borderRadius: '6px',
+            userSelect: 'none',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '13px' }}>🧪</span>
-            <span style={{ fontWeight: 800, color: useSimulatedCoords ? '#065F46' : '#991B1B' }}>
-              Simulasi Koordinat:
-            </span>
-            <span style={{ fontSize: '11px', color: useSimulatedCoords ? '#047857' : '#B91C1C' }}>
-              {useSimulatedCoords ? 'Titik TKP (Status Hijau Valid)' : 'Titik Riil Laptop (Status Merah Anomali)'}
-            </span>
-          </div>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '11.5px',
-              color: useSimulatedCoords ? '#065F46' : '#991B1B',
+          <input
+            type="checkbox"
+            id="chk-sim-tkp-coords"
+            checked={useSimulatedCoords}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setUseSimulatedCoords(checked);
+              if (checked) {
+                setLiveAddress(resolvedTkpAlamat);
+              } else {
+                setLiveAddress(fallbackRealAddress);
+              }
             }}
-          >
-            <input
-              type="checkbox"
-              id="chk-sim-tkp-coords"
-              checked={useSimulatedCoords}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setUseSimulatedCoords(checked);
-                if (checked && tkpAlamat) {
-                  setLiveAddress(tkpAlamat);
-                } else if (!checked) {
-                  if (lokasiPersonil) setLiveAddress(lokasiPersonil);
-                  else if (gpsLat && gpsLng) reverseGeocode(gpsLat, gpsLng);
-                }
-              }}
-              style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#10B981' }}
-            />
-            <span>Gunakan Titik TKP ({useSimulatedCoords ? 'Hijau' : 'Klik utk Hijau'})</span>
-          </label>
-        </div>
-      )}
+            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10B981' }}
+          />
+          <span>Gunakan Koordinat Simulasi TKP ({tkpDistrictName})</span>
+        </label>
+      </div>
 
       {/* TAMPILAN 1: BELUM MENGAMBIL FOTO & KAMERA BELUM AKTIF */}
       {!isCameraActive && !capturedImage && (

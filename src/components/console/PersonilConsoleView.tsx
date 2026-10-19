@@ -4978,6 +4978,84 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 </div>
               )}
 
+              {/* Toolbar Kontrol Cepat Mode Simulasi Lapangan di Konsol Wizard */}
+              <div
+                id="wizard-simulasi-toolbar"
+                style={{
+                  margin: '0 16px 14px',
+                  padding: '10px 14px',
+                  background: isSimModeEnabled ? '#EFF6FF' : '#F8FAFC',
+                  borderRadius: '10px',
+                  border: isSimModeEnabled ? '1.5px solid #3B82F6' : '1px dashed #CBD5E1',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px' }}>🎮</span>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '12px', color: isSimModeEnabled ? '#1D4ED8' : '#334155' }}>
+                      Mode Simulasi Pengujian Personel {isSimModeEnabled ? '(AKTIF)' : '(NONAKTIF)'}
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: '#64748B' }}>
+                      Memudahkan pengujian alur kerja, pergerakan GPS, dan dokumentasi kamera dari meja kerja.
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      fontSize: '11.5px',
+                      fontWeight: 800,
+                      color: isSimModeEnabled ? '#1D4ED8' : '#475569',
+                      background: isSimModeEnabled ? '#DBEAFE' : '#E2E8F0',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      id="chk-sim-wizard-mode"
+                      checked={isSimModeEnabled}
+                      onChange={(e) => toggleSimulationMode(e.target.checked)}
+                      style={{ cursor: 'pointer', accentColor: '#2563EB' }}
+                    />
+                    <span>{isSimModeEnabled ? 'Simulasi ON' : 'Aktifkan Simulasi'}</span>
+                  </label>
+                  {isSimModeEnabled && (
+                    <button
+                      type="button"
+                      onClick={jumpDirectlyToTkp}
+                      style={{
+                        padding: '5px 10px',
+                        background: '#10B981',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title="Setel koordinat GPS personel langsung di area TKP (<50m)"
+                    >
+                      <span>⚡</span> Langsung Tiba di TKP
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Step 1: Menuju Lokasi (Meluncur) */}
               <div
                 className="wiz-card"
@@ -5073,6 +5151,10 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                         personilPangkat={officer.pangkat || 'Bripka'}
                         personilNrp={officer.nrp || session?.identifier || '-'}
                         lokasiPersonil={officerLiveAddress || 'Posko Siaga / Titik Keberangkatan Personel'}
+                        tkpLat={activeComplaint?.tkpLat ? Number(activeComplaint.tkpLat) : -6.257210}
+                        tkpLng={activeComplaint?.tkpLng ? Number(activeComplaint.tkpLng) : 106.818450}
+                        tkpAlamat={activeComplaint?.tkpAlamatTeks || 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan'}
+                        isSimulationMode={true}
                         gpsLat={currentGps.lat}
                         gpsLng={currentGps.lng}
                         label="Ambil Foto Bukti Keberangkatan / Ranmor Dinas Siaga"
@@ -5175,11 +5257,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       personilNama={officer.fullName || session?.fullName || 'Petugas'}
                       personilPangkat={officer.pangkat || 'Bripka'}
                       personilNrp={officer.nrp || session?.identifier || '-'}
-                      lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penanganan Lapangan'}
-                      tkpLat={activeComplaint.tkpLat}
-                      tkpLng={activeComplaint.tkpLng}
-                      tkpAlamat={activeComplaint.tkpAlamatTeks}
-                      isSimulationMode={isSimModeEnabled}
+                      lokasiPersonil={officerLiveAddress || 'Lengkong Gudang Timur, Serpong, Tangerang Selatan'}
+                      tkpLat={activeComplaint?.tkpLat ? Number(activeComplaint.tkpLat) : -6.257210}
+                      tkpLng={activeComplaint?.tkpLng ? Number(activeComplaint.tkpLng) : 106.818450}
+                      tkpAlamat={activeComplaint?.tkpAlamatTeks || 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan'}
+                      isSimulationMode={true}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
                       label="📸 Ambil Foto Kondisi TKP "
@@ -5265,11 +5347,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       personilNama={officer.fullName || session?.fullName || 'Petugas'}
                       personilPangkat={officer.pangkat || 'Bripka'}
                       personilNrp={officer.nrp || session?.identifier || '-'}
-                      lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penyelesaian Lapangan'}
-                      tkpLat={activeComplaint.tkpLat}
-                      tkpLng={activeComplaint.tkpLng}
-                      tkpAlamat={activeComplaint.tkpAlamatTeks}
-                      isSimulationMode={isSimModeEnabled}
+                      lokasiPersonil={officerLiveAddress || 'Lengkong Gudang Timur, Serpong, Tangerang Selatan'}
+                      tkpLat={activeComplaint?.tkpLat ? Number(activeComplaint.tkpLat) : -6.257210}
+                      tkpLng={activeComplaint?.tkpLng ? Number(activeComplaint.tkpLng) : 106.818450}
+                      tkpAlamat={activeComplaint?.tkpAlamatTeks || 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan'}
+                      isSimulationMode={true}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
                       label="📸 Ambil Foto Situasi Akhir Kondusif (Watermark GPS)"
