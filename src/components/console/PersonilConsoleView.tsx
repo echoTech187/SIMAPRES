@@ -95,6 +95,20 @@ function personilTabToSlug(tabId: string): string {
   }
 }
 
+// Rumus Haversine: Menghitung jarak riil dua titik koordinat GPS dalam satuan Meter
+function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return Infinity;
+  const R = 6371e3; // Radius bumi dalam meter
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
 function PersonilContent({ session, initialSection = 'beranda' }: { session?: any; initialSection?: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -424,11 +438,69 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   });
   const [officerLiveAddress, setOfficerLiveAddress] = useState<string>('');
 
+  // Target Pengaduan untuk Navigasi Rute & Geofencing Lapangan
+  const targetComplaintForNav = useMemo(() => {
+    if (activeComplaint && activeComplaint.status !== 'SELESAI' && activeComplaint.status !== 'DITOLAK') {
+      return activeComplaint;
+    }
+    if (selectedTask && selectedTask.status !== 'SELESAI' && selectedTask.status !== 'DITOLAK') {
+      return selectedTask;
+    }
+    const moving = complaints.find(
+      (c: any) =>
+        hasOfficerAcceptedTask(c) &&
+        (c.status === 'MENUJU_TKP' || c.status === 'TIBA_DI_TKP' || c.status === 'SEDANG_DITANGANI' || c.status === 'DIPROSES')
+    );
+    return moving || null;
+  }, [activeComplaint, selectedTask, complaints]);
+
+  // Jarak Riil Geofence (Meter) dari Posisi Satelit GPS Personil ke TKP Pengaduan
+  const distanceToTkpMeters = useMemo(() => {
+    const lat1 = currentGps?.lat ? Number(currentGps.lat) : 0;
+    const lng1 = currentGps?.lng ? Number(currentGps.lng) : 0;
+    const lat2 = targetComplaintForNav?.tkpLat ? Number(targetComplaintForNav.tkpLat) : 0;
+    const lng2 = targetComplaintForNav?.tkpLng ? Number(targetComplaintForNav.tkpLng) : 0;
+
+    if (!lat1 || !lng1 || !lat2 || !lng2) return null;
+    return getDistanceFromLatLonInMeters(lat1, lng1, lat2, lng2);
+  }, [currentGps, targetComplaintForNav]);
+
+  // Syarat Radius Geofence <= 50 Meter
+  const isWithin50Meters = distanceToTkpMeters !== null && distanceToTkpMeters <= 50;
+
+  // Estimasi Waktu Tempuh Cepat (ETA)
+  const etaMinutesText = useMemo(() => {
+    if (distanceToTkpMeters === null) return 'Menghitung...';
+    if (distanceToTkpMeters <= 50) return 'Tiba di Lokasi';
+    const minutes = Math.max(1, Math.round(distanceToTkpMeters / ((35 * 1000) / 60)));
+    return `± ${minutes} Menit`;
+  }, [distanceToTkpMeters]);
+
+  // Format Jarak Manusiawi (m / km)
+  const distanceFormatted = useMemo(() => {
+    if (distanceToTkpMeters === null) return 'Mendeteksi GPS...';
+    if (distanceToTkpMeters >= 1000) {
+      return `${(distanceToTkpMeters / 1000).toFixed(1)} km`;
+    }
+    return `${distanceToTkpMeters} m`;
+  }, [distanceToTkpMeters]);
+
+  // Aksi ketika tombol "Sudah Tiba" diklik dari Peta Navigasi
+  const handleSudahTibaFromMap = () => {
+    if (!targetComplaintForNav) return;
+    setActiveComplaint(targetComplaintForNav);
+    activeComplaintRef.current = targetComplaintForNav;
+    setSelectedTask(targetComplaintForNav);
+    setWizardStep(2);
+    setExpandedStep(2);
+    switchTab('view-wizard');
+  };
+
   // Layer Toggles
   const [showTraffic, setShowTraffic] = useState(true);
   const [showOtherOfficers, setShowOtherOfficers] = useState(false);
 
-  // Live Clock & GPS Geolocation
+  // Live Clock & Continuous GPS Geolocation
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveClock(
@@ -440,14 +512,32 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       );
     }, 1000);
 
+    let watchId: number | null = null;
     if (typeof window !== 'undefined' && navigator.geolocation) {
+      const handleGpsUpdate = (pos: GeolocationPosition) => {
+        const lat = Number(pos.coords.latitude.toFixed(6));
+        const lng = Number(pos.coords.longitude.toFixed(6));
+        setCurrentGps({ lat, lng });
+        setLogLat((prev) => (prev ? prev : lat));
+        setLogLng((prev) => (prev ? prev : lng));
+
+        const activeDeviceId = officer?.deviceId || session?.deviceId || null;
+        if (activeDeviceId || nrpParam) {
+          updateDeviceTelemetryAction({
+            deviceId: activeDeviceId || undefined,
+            nrp: nrpParam || undefined,
+            lat,
+            lng,
+          }).catch(console.warn);
+        }
+      };
+
+      // Initial fast fix
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          handleGpsUpdate(pos);
           const lat = Number(pos.coords.latitude.toFixed(6));
           const lng = Number(pos.coords.longitude.toFixed(6));
-          setCurrentGps({ lat, lng });
-          setLogLat(lat);
-          setLogLng(lng);
 
           // Reverse geocoding lokasi riil personel dari koordinat satelit GPS
           fetch(
@@ -469,23 +559,25 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
               }
             })
             .catch(() => {});
-
-          const activeDeviceId = officer?.deviceId || session?.deviceId || null;
-          if (activeDeviceId || nrpParam) {
-            updateDeviceTelemetryAction({
-              deviceId: activeDeviceId || undefined,
-              nrp: nrpParam || undefined,
-              lat,
-              lng,
-            }).catch(console.warn);
-          }
         },
         (err) => console.warn('GPS init warning:', err),
         { enableHighAccuracy: true, timeout: 8000 }
       );
+
+      // Continuous high-accuracy GPS watch as officer moves towards TKP
+      watchId = navigator.geolocation.watchPosition(
+        handleGpsUpdate,
+        (err) => console.warn('GPS watch warning:', err),
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
     }
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      if (watchId !== null && typeof window !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
   }, [nrpParam]);
 
   // Listener tombol navigasi Back/Forward browser
@@ -739,6 +831,9 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
           setWizardStep(next);
           setExpandedStep(next);
           await loadData(undefined, activeComplaint.id);
+          if (step === 'meluncur') {
+            switchTab('view-peta');
+          }
         }
       } else {
         alert(res.error || 'Gagal memperbarui status pengaduan.');
@@ -1221,6 +1316,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       <SimapresLeafletMap
                         mode="beranda"
                         height="350px"
+                        targetComplaint={targetComplaintForNav}
                         myUnit={{
                           key: 'my_unit',
                           pos: currentGps,
@@ -1633,6 +1729,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
               <SimapresLeafletMap
                 mode="fullscreen"
                 height="650px"
+                targetComplaint={targetComplaintForNav}
                 myUnit={{
                   key: 'my_unit',
                   pos: currentGps,
@@ -1708,7 +1805,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
               )}
 
               {/* Floating Panel Rute & Navigasi Respon Cepat (Muncul saat Menerima Tugas) */}
-              {activeComplaint && (
+              {targetComplaintForNav && (
                 <div
                   id="panel-navigasi-rute-tkp"
                   style={{
@@ -1717,50 +1814,134 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                     left: '16px',
                     right: '16px',
                     zIndex: 9999,
-                    maxWidth: '440px',
+                    maxWidth: '460px',
                     margin: '0 auto',
                     background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
                     color: 'white',
                     borderRadius: '14px',
                     boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
                     border: '1.5px solid #334155',
-                    padding: '14px 16px',
+                    padding: '15px 16px',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#10B981', borderRadius: '50%', boxShadow: '0 0 10px #10B981' }} />
+                      <span style={{ display: 'inline-block', width: '10px', height: '10px', background: isWithin50Meters ? '#10B981' : '#38BDF8', borderRadius: '50%', boxShadow: `0 0 10px ${isWithin50Meters ? '#10B981' : '#38BDF8'}` }} />
                       <span style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                         NAVIGASI MENUJU TKP
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => openWizardForComplaint(activeComplaint)}
-                      style={{ background: '#1D4ED8', border: 'none', color: 'white', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                    <span
+                      style={{
+                        fontSize: '10.5px',
+                        fontWeight: 800,
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: isWithin50Meters ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)',
+                        color: isWithin50Meters ? '#10B981' : '#38BDF8',
+                        border: `1px solid ${isWithin50Meters ? '#10B981' : 'rgba(56, 189, 248, 0.3)'}`,
+                      }}
                     >
-                      Buka Wizard ➔
-                    </button>
+                      {isWithin50Meters ? '🎯 DI RADIUS TKP (<50m)' : '📡 MENUJU TKP'}
+                    </span>
                   </div>
 
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {activeComplaint.jenisKejadian}
+                  <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {targetComplaintForNav.jenisKejadian}
                   </div>
                   <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span>📍</span> {activeComplaint.tkpAlamatTeks}
+                    <span>📍</span> {targetComplaintForNav.tkpAlamatTeks}
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                     <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>RUTE TERCEPAT (ETA)</div>
-                      <div style={{ fontSize: '17px', fontWeight: 900, color: '#10B981' }}>± 4 Menit</div>
-                      <div style={{ fontSize: '10.5px', color: '#64748B' }}>Jarak: 1.8 km</div>
+                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>JARAK GPS KE TKP</div>
+                      <div style={{ fontSize: '17px', fontWeight: 900, color: isWithin50Meters ? '#10B981' : '#38BDF8' }}>
+                        {distanceFormatted}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>ETA: {etaMinutesText}</div>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>TRAFFIC LINE KORIDOR</div>
-                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>🟢 Lancar Terkendali</div>
-                      <div style={{ fontSize: '10px', color: '#A7F3D0' }}>Prioritas Sirine Biru</div>
+                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>STATUS GEOFENCE TKP</div>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: isWithin50Meters ? '#10B981' : '#FDE047', marginTop: '2px' }}>
+                        {isWithin50Meters ? '✅ Di Area TKP' : '⚠️ Diluar Radius (<50m)'}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#94A3B8' }}>
+                        {isWithin50Meters ? 'Tombol Tiba Aktif' : 'Mendekat ke TKP'}
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Tombol 'Sudah Tiba' HANYA MUNCUL ketika personel berada di radius <= 50m */}
+                  {isWithin50Meters ? (
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        id="btn-sudah-tiba-tkp"
+                        type="button"
+                        onClick={handleSudahTibaFromMap}
+                        style={{
+                          width: '100%',
+                          padding: '13px 18px',
+                          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '10px',
+                          fontSize: '13.5px',
+                          fontWeight: 900,
+                          cursor: 'pointer',
+                          boxShadow: '0 4px 18px rgba(16, 185, 129, 0.45)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          letterSpacing: '0.5px',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        <span style={{ fontSize: '18px' }}>🚨</span>
+                        <span>SUDAH TIBA (UPLOAD BUKTI TKP) ➔</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '9px 12px',
+                        background: 'rgba(234, 179, 8, 0.12)',
+                        border: '1px solid rgba(234, 179, 8, 0.3)',
+                        borderRadius: '8px',
+                        fontSize: '11.5px',
+                        color: '#FDE047',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span>📡 Menuju TKP ({distanceFormatted})</span>
+                      <span style={{ fontSize: '11px', color: '#94A3B8' }}>Tombol &quot;Sudah Tiba&quot; aktif otomatis &le; 50m</span>
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: '8px', textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveComplaint(targetComplaintForNav);
+                        activeComplaintRef.current = targetComplaintForNav;
+                        switchTab('view-wizard');
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#94A3B8',
+                        fontSize: '11.5px',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                      }}
+                    >
+                      Buka Form Wizard Tindakan ➔
+                    </button>
                   </div>
                 </div>
               )}
