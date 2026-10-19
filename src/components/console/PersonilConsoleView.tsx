@@ -221,6 +221,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   const [expandedStep, setExpandedStep] = useState<number>(1);
   const [wizardCatatan, setWizardCatatan] = useState('');
   const [wizardFoto, setWizardFoto] = useState<string | null>(null);
+  const [wizardPhotoMetadata, setWizardPhotoMetadata] = useState<any>(null);
   const [isUpdatingStep, setIsUpdatingStep] = useState(false);
   const activeComplaintRef = useRef<any>(null);
 
@@ -1546,18 +1547,30 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
         officerId: activeOfficerId,
         catatan: wizardCatatan || undefined,
         fotoBuktiUrl: wizardFoto || undefined,
-        lat: currentGps.lat,
-        lng: currentGps.lng,
+        lat: wizardPhotoMetadata?.lat ?? currentGps.lat,
+        lng: wizardPhotoMetadata?.lng ?? currentGps.lng,
+        isDiscrepancy: wizardPhotoMetadata?.isDiscrepancy,
+        deviationMeters: wizardPhotoMetadata?.distanceMeters,
+        warningMessage: wizardPhotoMetadata?.warningMessage,
+        photoAddress: wizardPhotoMetadata?.address,
       });
 
       if (res.success) {
         if (step === 'tiba_tkp' || step === 'tindakan_tkp') {
-          alert('✓ Laporan tindakan dan dokumentasi TKP berhasil disimpan! Melangkah ke pengajuan BAP akhir.');
+          if (wizardPhotoMetadata?.isDiscrepancy) {
+            const devStr = wizardPhotoMetadata.distanceMeters >= 1000
+              ? `${(wizardPhotoMetadata.distanceMeters / 1000).toFixed(1)} km`
+              : `${wizardPhotoMetadata.distanceMeters} meter`;
+            alert(`⚠️ LAPORAN TERCATAT DENGAN CATATAN ANOMALI:\nLaporan tindakan berhasil disimpan ke sistem.\nTemuan ketidaksesuaian lokasi foto (Jarak: ${devStr} dari TKP) telah otomatis dicatat ke Log Audit Propam.`);
+          } else {
+            alert('✓ Laporan tindakan dan dokumentasi TKP berhasil disimpan! Melangkah ke pengajuan BAP akhir.');
+          }
         } else {
           alert(`✓ Status berhasil diperbarui menjadi ${step.toUpperCase().replace('_', ' ')}!`);
         }
         setWizardCatatan('');
         setWizardFoto(null);
+        setWizardPhotoMetadata(null);
         if (step === 'selesai') {
           await loadData();
           switchTab('view-validasi');
@@ -5163,11 +5176,18 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       personilPangkat={officer.pangkat || 'Bripka'}
                       personilNrp={officer.nrp || session?.identifier || '-'}
                       lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penanganan Lapangan'}
+                      tkpLat={activeComplaint.tkpLat}
+                      tkpLng={activeComplaint.tkpLng}
+                      tkpAlamat={activeComplaint.tkpAlamatTeks}
+                      isSimulationMode={isSimModeEnabled}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
                       label="📸 Ambil Foto Kondisi TKP "
                       required={true}
-                      onPhotoCaptured={(dataUrl) => setWizardFoto(dataUrl)}
+                      onPhotoCaptured={(dataUrl, meta) => {
+                        setWizardFoto(dataUrl);
+                        setWizardPhotoMetadata(meta);
+                      }}
                     />
 
                     <button
@@ -5246,11 +5266,18 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       personilPangkat={officer.pangkat || 'Bripka'}
                       personilNrp={officer.nrp || session?.identifier || '-'}
                       lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penyelesaian Lapangan'}
+                      tkpLat={activeComplaint.tkpLat}
+                      tkpLng={activeComplaint.tkpLng}
+                      tkpAlamat={activeComplaint.tkpAlamatTeks}
+                      isSimulationMode={isSimModeEnabled}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
                       label="📸 Ambil Foto Situasi Akhir Kondusif (Watermark GPS)"
                       required={false}
-                      onPhotoCaptured={(dataUrl) => setWizardFoto(dataUrl)}
+                      onPhotoCaptured={(dataUrl, meta) => {
+                        setWizardFoto(dataUrl);
+                        setWizardPhotoMetadata(meta);
+                      }}
                     />
 
                     <div className="form-label" style={{ fontWeight: 700, fontSize: '12px', marginBottom: '6px' }}>

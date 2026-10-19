@@ -633,26 +633,23 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       try {
         const latestTimeline = data.timelines[data.timelines.length - 1];
         if (latestTimeline && latestTimeline.tahapTitle) {
-          const existingLog = await prisma.complaintAuditLog.findFirst({
-            where: {
+          const isAnomaly = Boolean(latestTimeline.isDiscrepancy);
+          const auditAction = isAnomaly
+            ? 'DOKUMENTASI_TKP_FLAGGED'
+            : latestTimeline.tahapTitle;
+
+          await prisma.complaintAuditLog.create({
+            data: {
               complaint_id: data.id,
-              action: latestTimeline.tahapTitle,
+              actor_name: data.assignedOfficer?.namaLengkap || data.pawas?.namaLengkap || 'Petugas Lapangan',
+              actor_role: data.pawas ? 'PAWAS' : 'PERSONIL',
+              action: auditAction,
+              notes: latestTimeline.catatan || null,
+              action_lat: latestTimeline.gpsLat || null,
+              action_lng: latestTimeline.gpsLng || null,
+              created_at: latestTimeline.createdAt || new Date(),
             },
           });
-          if (!existingLog) {
-            await prisma.complaintAuditLog.create({
-              data: {
-                complaint_id: data.id,
-                actor_name: data.assignedOfficer?.namaLengkap || data.pawas?.namaLengkap || 'Petugas Lapangan',
-                actor_role: data.pawas ? 'PAWAS' : 'PERSONIL',
-                action: latestTimeline.tahapTitle,
-                notes: latestTimeline.catatan || null,
-                action_lat: latestTimeline.gpsLat || null,
-                action_lng: latestTimeline.gpsLng || null,
-                created_at: latestTimeline.createdAt || new Date(),
-              },
-            });
-          }
         }
         // 2.1 Simpan foto bukti visual jika disertakan dalam timeline
         if (latestTimeline && latestTimeline.fotoBuktiUrl) {
@@ -688,17 +685,59 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               data.status === 'SELESAI' ? 'SELESAI_KONDUSIF' :
               (data.status || 'TIBA_TKP');
 
+            const isAnomaly = Boolean(latestTimeline.isDiscrepancy);
+            const devMeters = Number(latestTimeline.deviationMeters || 0);
+            const distStr = devMeters >= 1000 ? `${(devMeters / 1000).toFixed(1)} km` : `${Math.round(devMeters)} meter`;
+
+            const caption = isAnomaly
+              ? `Dokumentasi TKP [ANOMALI JARAK ${distStr}]`
+              : (latestTimeline.tahapTitle || 'Dokumentasi Visual TKP Berwatermark');
+
+            const watermarkInfo = isAnomaly
+              ? `Deviasi: ${distStr} | Status: FLAGGED_DILUAR_TKP | ${latestTimeline.photoAddress || ''}`
+              : (latestTimeline.catatan || '');
+
             await prisma.complaintEvidence.create({
               data: {
                 complaint_id: data.id,
                 incident_phase: incidentPhase,
                 file_url: savedUrl,
-                caption: (latestTimeline.tahapTitle || 'Dokumentasi Visual TKP Berwatermark').slice(0, 250),
-                watermark_text: (latestTimeline.catatan || '').slice(0, 250),
+                caption: caption.slice(0, 250),
+                watermark_text: watermarkInfo.slice(0, 250),
                 exif_lat: latestTimeline.gpsLat || null,
                 exif_lng: latestTimeline.gpsLng || null,
               },
             });
+
+            // 2.2 Catat ke officer_logbooks untuk Audit Integritas Dual-GPS (Propam)
+            if (data.assignedOfficerId && (latestTimeline.tahapTitle?.includes('Tindakan') || latestTimeline.tahapTitle?.includes('TKP') || isAnomaly)) {
+              try {
+                const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                await prisma.officerLogbook.create({
+                  data: {
+                    officer_id: data.assignedOfficerId,
+                    complaint_id: data.id,
+                    action_type: 'TPTKP',
+                    claimed_address: (data.tkpAlamatTeks || 'TKP Laporan').slice(0, 250),
+                    claimed_lat: data.tkpLat,
+                    claimed_lng: data.tkpLng,
+                    actual_lat: latestTimeline.gpsLat || data.tkpLat,
+                    actual_lng: latestTimeline.gpsLng || data.tkpLng,
+                    deviation_meters: devMeters,
+                    is_deviation_flagged: isAnomaly,
+                    start_time: nowTime,
+                    end_time: nowTime,
+                    photo_url: savedUrl,
+                    photo_exif_lat: latestTimeline.gpsLat || null,
+                    photo_exif_lng: latestTimeline.gpsLng || null,
+                    activity_description: (latestTimeline.catatan || latestTimeline.tahapTitle || 'Tindakan Pengamanan TKP').slice(0, 1000),
+                    validation_status: isAnomaly ? 'FLAGGED_AUDIT' : 'VALID',
+                  },
+                });
+              } catch (logErr) {
+                console.warn('Sync officer logbook error:', logErr);
+              }
+            }
           } catch (evErr) {
             console.warn('Sync evidence error:', evErr);
           }

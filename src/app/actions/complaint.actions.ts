@@ -175,6 +175,10 @@ export async function fieldStepAction(input: {
   fotoBuktiUrl?: string;
   lat?: number;
   lng?: number;
+  isDiscrepancy?: boolean;
+  deviationMeters?: number;
+  warningMessage?: string;
+  photoAddress?: string;
 }) {
   try {
     const useCase = UseCaseFactory.getFieldStepActionUseCase();
@@ -186,6 +190,10 @@ export async function fieldStepAction(input: {
       fotoBuktiUrl: input.fotoBuktiUrl,
       lat: input.lat,
       lng: input.lng,
+      isDiscrepancy: input.isDiscrepancy,
+      deviationMeters: input.deviationMeters,
+      warningMessage: input.warningMessage,
+      photoAddress: input.photoAddress,
     });
     safeRevalidatePath('/personil');
     safeRevalidatePath('/command-center');

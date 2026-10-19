@@ -27,6 +27,10 @@ export interface TimelineStep {
   fotoBuktiUrl?: string | null;
   gpsLat?: number | null;
   gpsLng?: number | null;
+  isDiscrepancy?: boolean;
+  deviationMeters?: number;
+  warningMessage?: string;
+  photoAddress?: string;
   createdAt: Date;
 }
 
@@ -310,7 +314,25 @@ export class ComplaintEntity {
   /**
    * Personel Tiba di Lokasi & Amankan TKP (Fase 3 - Step 2)
    */
-  public tibaDiTkp(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
+  public tibaDiTkp(
+    catatan?: string,
+    fotoBuktiUrl?: string,
+    lat?: number,
+    lng?: number,
+    isDiscrepancy?: boolean,
+    deviationMeters?: number,
+    warningMessage?: string,
+    photoAddress?: string
+  ): void {
+    const formattedTitle = isDiscrepancy
+      ? 'Tindakan di TKP [ANOMALI LOKASI]'
+      : 'Tindakan di Tempat Kejadian (TKP)';
+
+    const combinedNotes = [
+      warningMessage,
+      catatan ? `Catatan: ${catatan}` : null,
+    ].filter(Boolean).join('\n\n') || catatan || null;
+
     if (this.props.status === 'TIBA_DI_TKP') {
       // Jika personel sudah tercatat tiba di TKP (timestamp kedatangan sudah terkunci),
       // perbarui foto bukti tindakan & catatan laporan tanpa mereset jam tiba awal
@@ -323,11 +345,15 @@ export class ComplaintEntity {
       }
       this.props.timelines?.push({
         tahapKe: 2,
-        tahapTitle: 'Tindakan di Tempat Kejadian (TKP)',
-        catatan: catatan || null,
+        tahapTitle: formattedTitle,
+        catatan: combinedNotes,
         fotoBuktiUrl,
         gpsLat: lat,
         gpsLng: lng,
+        isDiscrepancy,
+        deviationMeters,
+        warningMessage,
+        photoAddress,
         createdAt: new Date(),
       });
       return;
@@ -355,13 +381,21 @@ export class ComplaintEntity {
       this.props.responseTimeMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
     }
 
+    const initialTitle = isDiscrepancy
+      ? 'Tiba di Lokasi TKP [ANOMALI LOKASI]'
+      : 'Tiba di Tempat Kejadian (TKP)';
+
     this.props.timelines?.push({
       tahapKe: 2,
-      tahapTitle: 'Tiba di Tempat Kejadian (TKP)',
-      catatan: catatan || null,
+      tahapTitle: initialTitle,
+      catatan: combinedNotes,
       fotoBuktiUrl,
       gpsLat: lat,
       gpsLng: lng,
+      isDiscrepancy,
+      deviationMeters,
+      warningMessage,
+      photoAddress,
       createdAt: now,
     });
   }

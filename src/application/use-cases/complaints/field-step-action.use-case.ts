@@ -9,6 +9,10 @@ export interface FieldStepActionInput {
   fotoBuktiUrl?: string;
   lat?: number;
   lng?: number;
+  isDiscrepancy?: boolean;
+  deviationMeters?: number;
+  warningMessage?: string;
+  photoAddress?: string;
 }
 
 export class FieldStepActionUseCase {
@@ -34,7 +38,16 @@ export class FieldStepActionUseCase {
         break;
       case 'tiba_tkp':
       case 'tindakan_tkp':
-        complaint.tibaDiTkp(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
+        complaint.tibaDiTkp(
+          input.catatan,
+          input.fotoBuktiUrl,
+          input.lat,
+          input.lng,
+          input.isDiscrepancy,
+          input.deviationMeters,
+          input.warningMessage,
+          input.photoAddress
+        );
         break;
       case 'selesai':
         complaint.ajukanPengesahanBap(input.catatan, input.fotoBuktiUrl);
