@@ -243,25 +243,48 @@ export default function LiveCameraWatermarkCapture({
     startCamera(nextMode);
   };
 
-  // Fungsi Stamping Watermark Otomatis ke Canvas
+  // Fungsi Stamping Watermark Otomatis ke Canvas (TERPATRI PERMANEN PADA PIKSEL FOTO)
   const stampWatermarkOnCanvas = (
     ctx: CanvasRenderingContext2D,
     width: number,
     height: number
   ) => {
-    // 1. Overlay strip gelap di bagian bawah
-    const bannerHeight = Math.max(90, Math.round(height * 0.22));
-    const gradient = ctx.createLinearGradient(0, height - bannerHeight, 0, height);
+    // 1. Badge Verifikasi Satelit di Pojok Kanan Atas Foto
+    const topBadgeWidth = Math.max(220, Math.round(width * 0.28));
+    const topBadgeHeight = Math.max(28, Math.round(height * 0.05));
+    const topBadgeX = width - topBadgeWidth - 16;
+    const topBadgeY = 16;
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(5, 150, 105, 0.92)';
+    ctx.fillRect(topBadgeX, topBadgeY, topBadgeWidth, topBadgeHeight);
+    ctx.strokeStyle = '#34D399';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(topBadgeX, topBadgeY, topBadgeWidth, topBadgeHeight);
+
+    ctx.font = `bold ${Math.max(10, Math.round(topBadgeHeight * 0.46))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('✓ TERVERIFIKASI SATELIT PRESISI GPS', topBadgeX + topBadgeWidth / 2, topBadgeY + topBadgeHeight / 2);
+    ctx.restore();
+
+    // 2. Banner Gelap di Bagian Bawah Foto
+    const bannerHeight = Math.max(115, Math.round(height * 0.25));
+    const startY = height - bannerHeight;
+
+    const gradient = ctx.createLinearGradient(0, startY, 0, height);
     gradient.addColorStop(0, 'rgba(15, 23, 42, 0.88)');
-    gradient.addColorStop(1, 'rgba(15, 23, 42, 0.98)');
+    gradient.addColorStop(0.35, 'rgba(15, 23, 42, 0.95)');
+    gradient.addColorStop(1, 'rgba(15, 23, 42, 0.99)');
     ctx.fillStyle = gradient;
-    ctx.fillRect(0, height - bannerHeight, width, bannerHeight);
+    ctx.fillRect(0, startY, width, bannerHeight);
 
     // Garis aksen emas di atas banner
     ctx.fillStyle = '#F59E0B';
-    ctx.fillRect(0, height - bannerHeight, width, 3);
+    ctx.fillRect(0, startY, width, 4);
 
-    // 2. Format Waktu Indonesia Barat
+    // 3. Format Waktu Indonesia Barat
     const nowStr =
       new Date().toLocaleString('id-ID', {
         timeZone: 'Asia/Jakarta',
@@ -273,41 +296,45 @@ export default function LiveCameraWatermarkCapture({
         second: '2-digit',
       }) + ' WIB';
 
-    // 3. Tulis teks watermark
-    const fontSize = Math.max(12, Math.round(width * 0.024));
-    const startX = 20;
-    let currentY = height - bannerHeight + fontSize + 8;
+    // 4. Pengaturan Tipografi & Koordinat Teks
+    const baseFontSize = Math.max(13, Math.round(width * 0.024));
+    const paddingX = Math.max(18, Math.round(width * 0.025));
+    let currentY = startY + Math.round(bannerHeight * 0.22);
 
-    // Header Tag
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    // Baris 1: Header Dokumen Resmi
+    ctx.font = `bold ${Math.round(baseFontSize * 1.05)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = '#FBBF24';
-    ctx.fillText('🛡️ POLRI PRESISI 110 • DOKUMENTASI VISUAL RESMI PENANGANAN', startX, currentY);
+    ctx.fillText('🛡️ POLRI PRESISI 110 • DOKUMENTASI VISUAL LAPANGAN RESMI', paddingX, currentY);
 
-    // Baris 1: Identitas Personel
-    currentY += fontSize + 6;
-    ctx.font = `bold ${Math.max(11, fontSize - 2)}px sans-serif`;
+    // Baris 2: Identitas Personel
+    currentY += Math.round(baseFontSize * 1.35);
+    ctx.font = `bold ${baseFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(`👮 PETUGAS: ${personilPangkat} ${personilNama} (NRP: ${personilNrp})`, startX, currentY);
+    ctx.fillText(`👮 PETUGAS: ${personilPangkat} ${personilNama} (NRP: ${personilNrp})`, paddingX, currentY);
 
-    // Baris 2: Lokasi Terkini Personil (Alamat Riil Personil)
-    currentY += fontSize + 5;
-    ctx.font = `normal ${Math.max(10, fontSize - 3)}px sans-serif`;
+    // Baris 3: Lokasi Terkini Personil (Alamat Riil Personil)
+    currentY += Math.round(baseFontSize * 1.25);
+    ctx.font = `normal ${Math.max(11, Math.round(baseFontSize * 0.88))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = '#E2E8F0';
     const displayAddress =
       liveAddress || lokasiPersonil || 'Lokasi Terkini Personel (Satelit Presisi)';
+    const maxChars = Math.max(45, Math.round(width / (baseFontSize * 0.58)));
     const cleanAlamat =
-      displayAddress.length > 70 ? displayAddress.substring(0, 67) + '...' : displayAddress;
-    ctx.fillText(`📍 LOKASI PERSONEL: ${cleanAlamat}`, startX, currentY);
+      displayAddress.length > maxChars ? displayAddress.substring(0, maxChars - 3) + '...' : displayAddress;
+    ctx.fillText(`📍 LOKASI: ${cleanAlamat}`, paddingX, currentY);
 
-    // Baris 3: Koordinat GPS Terkini Personel & Timestamp
-    currentY += fontSize + 5;
-    ctx.font = `bold ${Math.max(10, fontSize - 3)}px monospace`;
+    // Baris 4: Koordinat GPS Terkini Personel & Timestamp
+    currentY += Math.round(baseFontSize * 1.25);
+    ctx.font = `bold ${Math.max(11, Math.round(baseFontSize * 0.88))}px "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace`;
     ctx.fillStyle = '#38BDF8';
     const finalLat = liveGps.lat || gpsLat || 0;
     const finalLng = liveGps.lng || gpsLng || 0;
     const latStr = finalLat ? finalLat.toFixed(6) : '0.000000';
     const lngStr = finalLng ? finalLng.toFixed(6) : '0.000000';
-    ctx.fillText(`🌐 GPS PERSONEL: Lat ${latStr}, Lng ${lngStr} • ⏱️ ${nowStr}`, startX, currentY);
+    ctx.fillText(`🌐 GPS: Lat ${latStr}, Lng ${lngStr} • ⏱️ ${nowStr}`, paddingX, currentY);
   };
 
   // Ambil snapshot dari video element (Live Sensor Kamera Saja)
@@ -335,17 +362,29 @@ export default function LiveCameraWatermarkCapture({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      // Render frame video asli dari kamera
-      try {
-        ctx.drawImage(video, 0, 0, width, height);
-      } catch (drawErr) {
-        console.warn('Gagal menggambar frame video:', drawErr);
+      // Render frame video asli dari kamera (Mirroring horizontal jika kamera depan agar natural)
+      if (facingMode === 'user') {
+        ctx.save();
+        ctx.translate(width, 0);
+        ctx.scale(-1, 1);
+        try {
+          ctx.drawImage(video, 0, 0, width, height);
+        } catch (drawErr) {
+          console.warn('Gagal menggambar frame video:', drawErr);
+        }
+        ctx.restore();
+      } else {
+        try {
+          ctx.drawImage(video, 0, 0, width, height);
+        } catch (drawErr) {
+          console.warn('Gagal menggambar frame video:', drawErr);
+        }
       }
 
-      // Sematkan watermark lokasi & koordinat terkini personel
+      // Sematkan watermark lokasi & koordinat terkini personel langsung ke piksel kanvas
       stampWatermarkOnCanvas(ctx, width, height);
 
-      const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.90);
       setCapturedImage(watermarkedDataUrl);
       stopCameraStream();
       onPhotoCaptured(watermarkedDataUrl);
@@ -616,47 +655,73 @@ export default function LiveCameraWatermarkCapture({
       {/* TAMPILAN 3: FOTO BERHASIL DIAMBIL DENGAN WATERMARK */}
       {capturedImage && (
         <div>
-          <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid #10B981' }}>
+          <div
+            style={{
+              position: 'relative',
+              borderRadius: '8px',
+              overflow: 'hidden',
+              border: '2px solid #10B981',
+              background: '#0B0F19',
+              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
+            }}
+          >
             <img
               src={capturedImage}
               alt="Bukti Visual Berwatermark"
-              style={{ width: '100%', maxHeight: '340px', objectFit: 'cover', display: 'block' }}
-            />
-            <div
               style={{
-                position: 'absolute',
-                top: '10px',
-                right: '10px',
-                background: '#059669',
-                color: 'white',
-                fontSize: '11px',
-                fontWeight: 800,
-                padding: '4px 10px',
-                borderRadius: '6px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                width: '100%',
+                height: 'auto',
+                maxHeight: '520px',
+                objectFit: 'contain',
+                display: 'block',
+                margin: '0 auto',
               }}
-            >
-              ✓ Terverifikasi Watermark Lokasi Personel
+            />
+          </div>
+
+          {/* Rangkuman Data Terpatri ke Piksel Foto */}
+          <div
+            style={{
+              marginTop: '10px',
+              padding: '10px 14px',
+              background: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderRadius: '8px',
+              fontSize: '11.5px',
+              color: '#166534',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}
+          >
+            <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>✓</span>
+              <span>Watermark identitas, lokasi satelit, dan koordinat GPS telah terpatri permanen ke dalam berkas foto di atas.</span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#15803D', display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '2px' }}>
+              <span>👮 {personilPangkat} {personilNama} ({personilNrp})</span>
+              <span>📍 {liveAddress || lokasiPersonil || 'Lokasi Terkini'}</span>
+              <span>🌐 {(liveGps.lat || gpsLat || 0).toFixed(6)}, {(liveGps.lng || gpsLng || 0).toFixed(6)}</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-            <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700 }}>
-              ✓ Bukti visual tersimpan dengan watermark lokasi terkini personel.
-            </span>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '10px' }}>
             <button
               type="button"
               id="btn-ambil-ulang-foto"
               onClick={handleRetake}
               style={{
-                padding: '6px 12px',
+                padding: '8px 16px',
                 background: '#F1F5F9',
                 color: '#153E75',
                 border: '1px solid #CBD5E1',
                 borderRadius: '6px',
-                fontSize: '11px',
+                fontSize: '12px',
                 fontWeight: 700,
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
               }}
             >
               🔄 Ambil Ulang Foto

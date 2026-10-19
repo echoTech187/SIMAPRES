@@ -220,6 +220,12 @@
       display: block;
     }
 
+    #view-peta {
+      height: 100% !important;
+      max-height: 100% !important;
+      overflow: hidden !important;
+    }
+
     @keyframes fadeIn {
       from {
         opacity: 0;
