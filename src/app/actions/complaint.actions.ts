@@ -169,7 +169,7 @@ export async function assignComplaintAction(input: {
 
 export async function fieldStepAction(input: {
   complaintId: string;
-  step: 'meluncur' | 'tiba_tkp' | 'selesai';
+  step: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai';
   officerId: string;
   catatan?: string;
   fotoBuktiUrl?: string;

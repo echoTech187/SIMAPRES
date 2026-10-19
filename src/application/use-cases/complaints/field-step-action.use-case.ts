@@ -3,7 +3,7 @@ import { ComplaintEntity } from '@/domain/entities/complaint.entity';
 
 export interface FieldStepActionInput {
   complaintId: bigint;
-  step: 'meluncur' | 'tiba_tkp' | 'selesai';
+  step: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai';
   officerId: bigint;
   catatan?: string;
   fotoBuktiUrl?: string;
@@ -33,6 +33,7 @@ export class FieldStepActionUseCase {
         complaint.personilMeluncur(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
       case 'tiba_tkp':
+      case 'tindakan_tkp':
         complaint.tibaDiTkp(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
       case 'selesai':

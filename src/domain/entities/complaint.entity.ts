@@ -92,6 +92,7 @@ export interface ComplaintProps {
   fotoTiba?: string | null;
   fotoTindakan?: string | null;
   fotoSelesai?: string | null;
+  catatanTindakan?: string | null;
   waktuMeluncur?: string | null;
   koordinatGps?: string | null;
   waktuTiba?: string | null;
@@ -244,6 +245,10 @@ export class ComplaintEntity {
     return this.props.fotoTindakan;
   }
 
+  get catatanTindakan(): string | null | undefined {
+    return this.props.catatanTindakan;
+  }
+
   get fotoSelesai(): string | null | undefined {
     return this.props.fotoSelesai;
   }
@@ -306,6 +311,28 @@ export class ComplaintEntity {
    * Personel Tiba di Lokasi & Amankan TKP (Fase 3 - Step 2)
    */
   public tibaDiTkp(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
+    if (this.props.status === 'TIBA_DI_TKP') {
+      // Jika personel sudah tercatat tiba di TKP (timestamp kedatangan sudah terkunci),
+      // perbarui foto bukti tindakan & catatan laporan tanpa mereset jam tiba awal
+      if (fotoBuktiUrl) {
+        this.props.fotoTindakan = fotoBuktiUrl;
+        if (!this.props.fotoTiba) this.props.fotoTiba = fotoBuktiUrl;
+      }
+      if (catatan) {
+        this.props.catatanTindakan = catatan;
+      }
+      this.props.timelines?.push({
+        tahapKe: 2,
+        tahapTitle: 'Tindakan di Tempat Kejadian (TKP)',
+        catatan: catatan || null,
+        fotoBuktiUrl,
+        gpsLat: lat,
+        gpsLng: lng,
+        createdAt: new Date(),
+      });
+      return;
+    }
+
     if (
       this.props.status !== 'MENUJU_TKP' &&
       this.props.status !== 'DIPROSES' &&
@@ -330,7 +357,7 @@ export class ComplaintEntity {
 
     this.props.timelines?.push({
       tahapKe: 2,
-      tahapTitle: 'Tindakan di Tempat Kejadian (TKP)',
+      tahapTitle: 'Tiba di Tempat Kejadian (TKP)',
       catatan: catatan || null,
       fotoBuktiUrl,
       gpsLat: lat,

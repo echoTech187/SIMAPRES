@@ -684,6 +684,161 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     return `${distanceToTkpMeters} m`;
   }, [distanceToTkpMeters]);
 
+  // =========================================================================
+  // MODUL SIMULASI GPS PATROLI KE TKP (UNTUK PENGUJIAN WORKFLOW LAPANGAN)
+  // [ON / OFF SWITCH & MODUL MANDIRI - DAPAT DIHAPUS KAPAN SAJA]
+  // =========================================================================
+  const [isSimModeEnabled, setIsSimModeEnabled] = useState<boolean>(false);
+  const [isSimMoving, setIsSimMoving] = useState<boolean>(false);
+  const isSimulationActiveRef = useRef<boolean>(false);
+  const simIntervalRef = useRef<any>(null);
+  const simBackupGpsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Fungsi toggle On/Off Mode Simulasi
+  const toggleSimulationMode = (enable: boolean) => {
+    setIsSimModeEnabled(enable);
+    if (!enable) {
+      if (simIntervalRef.current) {
+        clearInterval(simIntervalRef.current);
+        simIntervalRef.current = null;
+      }
+      setIsSimMoving(false);
+      // Kembalikan ke koordinat GPS asli jika ada backup
+      if (simBackupGpsRef.current) {
+        setCurrentGps(simBackupGpsRef.current);
+      }
+      isSimulationActiveRef.current = false;
+    } else {
+      isSimulationActiveRef.current = true;
+      if (!simBackupGpsRef.current && currentGps.lat) {
+        simBackupGpsRef.current = { ...currentGps };
+      }
+    }
+  };
+
+  // Fungsi menghentikan pergerakan simulasi
+  const stopSimulationMovement = () => {
+    if (simIntervalRef.current) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    setIsSimMoving(false);
+  };
+
+  // 1. Jalankan Simulasi Bergerak Maju Mengikuti Rute Jalan Raya (OSRM Driving Directions)
+  const startRouteSimulation = async () => {
+    if (!targetComplaintForNav?.tkpLat || !targetComplaintForNav?.tkpLng) {
+      alert('Tidak ada pengaduan aktif yang sedang menuju TKP!');
+      return;
+    }
+
+    if (!simBackupGpsRef.current && currentGps.lat) {
+      simBackupGpsRef.current = { ...currentGps };
+    }
+
+    isSimulationActiveRef.current = true;
+    setIsSimMoving(true);
+
+    const destLat = Number(targetComplaintForNav.tkpLat);
+    const destLng = Number(targetComplaintForNav.tkpLng);
+
+    // Titik awal gerakan (titik GPS saat ini)
+    const startLat = currentGps.lat ? Number(currentGps.lat) : destLat - 0.05;
+    const startLng = currentGps.lng ? Number(currentGps.lng) : destLng - 0.05;
+
+    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+
+    // Ambil rute jalan raya resmi (OSRM Driving Directions GeoJSON)
+    let waypoints: Array<{ lat: number; lng: number }> = [];
+
+    try {
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+      const res = await fetch(osrmUrl);
+      const data = await res.json();
+      if (data.routes && data.routes[0]?.geometry?.coordinates?.length > 0) {
+        const rawCoords: [number, number][] = data.routes[0].geometry.coordinates;
+        // Sample waypoints agar animasi halus mengikuti belokan jalan (total ~60-80 titik jalan riil)
+        const samplingStep = Math.max(1, Math.floor(rawCoords.length / 70));
+        for (let i = 0; i < rawCoords.length; i += samplingStep) {
+          waypoints.push({
+            lng: Number(rawCoords[i][0].toFixed(6)),
+            lat: Number(rawCoords[i][1].toFixed(6)),
+          });
+        }
+        // Pastikan titik terakhir tepat di area TKP (< 20 meter dari tujuan)
+        waypoints.push({
+          lat: Number((destLat + 0.00015).toFixed(6)),
+          lng: Number((destLng + 0.00015).toFixed(6)),
+        });
+      }
+    } catch (e) {
+      console.warn('OSRM simulation route fallback:', e);
+    }
+
+    // Jika koneksi OSRM gagal, fallback ke 30 titik interpolasi
+    if (waypoints.length === 0) {
+      for (let i = 1; i <= 30; i++) {
+        const prog = i / 30;
+        waypoints.push({
+          lat: Number((startLat + (destLat - startLat) * prog).toFixed(6)),
+          lng: Number((startLng + (destLng - startLng) * prog).toFixed(6)),
+        });
+      }
+    }
+
+    let currentIndex = 0;
+    simIntervalRef.current = setInterval(() => {
+      currentIndex++;
+      if (currentIndex >= waypoints.length) {
+        const lastPt = waypoints[waypoints.length - 1];
+        setCurrentGps(lastPt);
+        stopSimulationMovement();
+        alert('🎯 SIMULASI: Personel telah tiba di lokasi TKP (< 50m)! Tombol "TIBA DI LOKASI" kini telah terbuka.');
+      } else {
+        const pt = waypoints[currentIndex];
+        setCurrentGps(pt);
+      }
+    }, 350); // Mulus dan cepat (bergerak setiap 350ms persis di atas garis rute)
+  };
+
+  // 2. Tombol Pintas Instan: Langsung Tiba di TKP (<30m)
+  const jumpDirectlyToTkp = () => {
+    if (!targetComplaintForNav?.tkpLat || !targetComplaintForNav?.tkpLng) {
+      alert('Tidak ada pengaduan aktif yang sedang menuju TKP!');
+      return;
+    }
+
+    if (!simBackupGpsRef.current && currentGps.lat) {
+      simBackupGpsRef.current = { ...currentGps };
+    }
+
+    isSimulationActiveRef.current = true;
+    stopSimulationMovement();
+
+    const destLat = Number(targetComplaintForNav.tkpLat);
+    const destLng = Number(targetComplaintForNav.tkpLng);
+    // Koordinat berjarak ~18 meter dari titik TKP
+    const arriveLat = Number((destLat + 0.00015).toFixed(6));
+    const arriveLng = Number((destLng + 0.00015).toFixed(6));
+
+    setCurrentGps({ lat: arriveLat, lng: arriveLng });
+    alert('⚡ SIMULASI INSTAN: Posisi personel dipindahkan ke area TKP (Jarak ~18 meter, Radius < 50m Terpenuhi). Silakan klik tombol "TIBA DI LOKASI" di bawah peta!');
+  };
+
+  // 3. Reset Posisi GPS Kembali ke Posisi Asli
+  const resetSimulationGps = () => {
+    stopSimulationMovement();
+    if (simBackupGpsRef.current) {
+      setCurrentGps({ ...simBackupGpsRef.current });
+      alert('🔄 Posisi GPS personil dikembalikan ke lokasi awal.');
+    } else {
+      setCurrentGps({ lat: -6.295896, lng: 106.690349 });
+    }
+  };
+  // =========================================================================
+  // AKHIR MODUL SIMULASI GPS PATROLI
+  // =========================================================================
+
   // Mako Utama Personel & Geofence Presensi Kehadiran
   const makoUtama = useMemo(() => {
     // 1. Cari dari daftar policeOffices jika stationId cocok
@@ -958,14 +1113,66 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   };
 
   // Aksi ketika tombol "Sudah Tiba" diklik dari Peta Navigasi
-  const handleSudahTibaFromMap = () => {
+  const handleSudahTibaFromMap = async () => {
     if (!targetComplaintForNav) return;
-    setActiveComplaint(targetComplaintForNav);
-    activeComplaintRef.current = targetComplaintForNav;
-    setSelectedTask(targetComplaintForNav);
-    setWizardStep(2);
-    setExpandedStep(2);
-    switchTab('view-wizard');
+    const complaintToArrive = targetComplaintForNav;
+    const currentStatus = String(complaintToArrive.status || '').toUpperCase();
+
+    // Jika personel sudah tercatat tiba di TKP sebelumnya, langsung buka formulir tindakan di wizard
+    if (currentStatus === 'TIBA_DI_TKP' || currentStatus === 'PENANGANAN_TKP') {
+      setActiveComplaint(complaintToArrive);
+      activeComplaintRef.current = complaintToArrive;
+      setSelectedTask(complaintToArrive);
+      setWizardStep(2);
+      setExpandedStep(2);
+      switchTab('view-wizard');
+      return;
+    }
+
+    // Jika status masih dalam perjalanan, rekam & kunci jam tiba resmi seketika ke database
+    setIsUpdatingStep(true);
+    try {
+      const activeOfficerId = officer?.id ? String(officer.id) : (session?.userId ? String(session.userId) : '1');
+      const res = await fieldStepAction({
+        complaintId: complaintToArrive.id,
+        step: 'tiba_tkp',
+        officerId: activeOfficerId,
+        lat: currentGps.lat || undefined,
+        lng: currentGps.lng || undefined,
+      });
+
+      if (res.success) {
+        const jamTibaStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+        alert(
+          `🚨 KONFIRMASI KEDATANGAN BERHASIL!\n\n` +
+          `• Waktu Tiba Resmi: ${jamTibaStr}\n` +
+          `• Status: TIBA DI LOKASI\n` +
+          `• SLA Kecepatan Respon telah terekam di Command Center & Pawas.\n\n` +
+          `Silakan lakukan tindakan kepolisian dan lengkapi Berita Acara serta foto dokumentasi penanganan.`
+        );
+
+        await loadData(undefined, complaintToArrive.id);
+
+        const updated = {
+          ...complaintToArrive,
+          status: 'TIBA_DI_TKP',
+          tahap: 4,
+          responTibaTkpAt: new Date().toISOString(),
+        };
+        setActiveComplaint(updated);
+        activeComplaintRef.current = updated;
+        setSelectedTask(updated);
+        setWizardStep(2);
+        setExpandedStep(2);
+        switchTab('view-wizard');
+      } else {
+        alert(res.error || 'Gagal merekam status kedatangan.');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Terjadi kesalahan sistem.');
+    } finally {
+      setIsUpdatingStep(false);
+    }
   };
 
   // Ref untuk membatasi interval update GPS per 10 detik (sesuai permintaan user agar tidak berkedip)
@@ -1004,6 +1211,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     let watchId: number | null = null;
     if (typeof window !== 'undefined' && navigator.geolocation) {
       const handleGpsUpdate = (pos: GeolocationPosition, force: boolean = false) => {
+        // Jangan timpa GPS simulasi saat mode simulasi aktif
+        if (isSimulationActiveRef.current) {
+          return;
+        }
+
         const now = Date.now();
         // Update dibatasi per 10 detik agar tidak berkedip-kedip & ramah pengguna
         if (!force && now - lastGpsUpdateTimeRef.current < 10000) {
@@ -1312,11 +1524,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   };
 
   // Handle Wizard Step Submit
-  const handleWizardSubmit = async (step: 'meluncur' | 'tiba_tkp' | 'selesai') => {
+  const handleWizardSubmit = async (step: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai') => {
     if (!activeComplaint) return;
 
-    if (step === 'tiba_tkp' && !wizardFoto) {
-      alert('⚠️ WAJIB DOKUMENTASI VISUAL KAMERA: Silakan ambil foto bukti situasi di TKP menggunakan kamera live sebelum konfirmasi tiba.');
+    if ((step === 'tiba_tkp' || step === 'tindakan_tkp') && !wizardFoto) {
+      alert('⚠️ WAJIB DOKUMENTASI VISUAL KAMERA: Silakan ambil foto bukti situasi di TKP menggunakan kamera live sebelum menyimpan laporan tindakan.');
       return;
     }
 
@@ -1339,7 +1551,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       });
 
       if (res.success) {
-        alert(`✓ Status berhasil diperbarui menjadi ${step.toUpperCase().replace('_', ' ')}!`);
+        if (step === 'tiba_tkp' || step === 'tindakan_tkp') {
+          alert('✓ Laporan tindakan dan dokumentasi TKP berhasil disimpan! Melangkah ke pengajuan BAP akhir.');
+        } else {
+          alert(`✓ Status berhasil diperbarui menjadi ${step.toUpperCase().replace('_', ' ')}!`);
+        }
         setWizardCatatan('');
         setWizardFoto(null);
         if (step === 'selesai') {
@@ -2238,6 +2454,104 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                   >
                     <span>⚠️</span> Kelola Titik Rawan (CRUD)
                   </button>
+
+                  {/* ======================================================= */}
+                  {/* KONTROL TOGGLE SIMULASI GPS (DEV / PENGUJIAN WORKFLOW)  */}
+                  {/* CATATAN: DAPAT DIHAPUS / DIMATIKAN KAPAN SAJA           */}
+                  {/* ======================================================= */}
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: '6px', marginTop: '4px' }}>
+                    <label
+                      id="container-toggle-simulasi"
+                      style={{
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        background: isSimModeEnabled ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255, 255, 255, 0.08)',
+                        border: `1px solid ${isSimModeEnabled ? 'rgba(245, 158, 11, 0.6)' : 'rgba(255, 255, 255, 0.15)'}`,
+                        padding: '6px 10px',
+                        borderRadius: '4px',
+                        fontWeight: 700,
+                        color: isSimModeEnabled ? '#FDE68A' : '#E2E8F0',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <input
+                          type="checkbox"
+                          id="toggle-simulasi-mode"
+                          checked={isSimModeEnabled}
+                          onChange={(e) => toggleSimulationMode(e.target.checked)}
+                          style={{ cursor: 'pointer', accentColor: '#F59E0B' }}
+                        />
+                        <span>🎮 Mode Simulasi GPS</span>
+                      </div>
+                      <span style={{ fontSize: '9.5px', background: isSimModeEnabled ? '#F59E0B' : '#64748B', color: isSimModeEnabled ? '#000' : '#FFF', padding: '1px 5px', borderRadius: '3px' }}>
+                        {isSimModeEnabled ? 'ON' : 'OFF'}
+                      </span>
+                    </label>
+
+                    {/* KONTROL SIMULASI (Hanya tampil saat Toggle ON) */}
+                    {isSimModeEnabled && (
+                      <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '5px', background: 'rgba(0,0,0,0.3)', padding: '7px', borderRadius: '6px', border: '1px dashed rgba(245, 158, 11, 0.4)' }}>
+                        <div style={{ fontSize: '9.5px', color: '#FCD34D', fontWeight: 700, lineHeight: 1.2 }}>
+                          {isSimMoving ? '🚀 Sedang bergerak menuju TKP...' : 'Pilih simulasi pergerakan:'}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={isSimMoving ? stopSimulationMovement : startRouteSimulation}
+                            style={{
+                              padding: '5px 8px',
+                              background: isSimMoving ? '#EF4444' : '#2563EB',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {isSimMoving ? '⏸️ Jeda Gerak' : '▶️ Gerak Bertahap'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={jumpDirectlyToTkp}
+                            style={{
+                              padding: '5px 8px',
+                              background: '#10B981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                            }}
+                            title="Langsung setel GPS ke < 50 meter dari TKP"
+                          >
+                            ⚡ Langsung Tiba
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={resetSimulationGps}
+                          style={{
+                            padding: '4px',
+                            background: 'rgba(255,255,255,0.1)',
+                            color: '#94A3B8',
+                            border: '1px solid rgba(255,255,255,0.2)',
+                            borderRadius: '4px',
+                            fontSize: '9.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          🔄 Reset Posisi Awal
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {/* ======================================================= */}
                 </div>
               </div>
 
@@ -2355,12 +2669,24 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           fontWeight: 800,
                           padding: '2px 7px',
                           borderRadius: '5px',
-                          background: isWithin50Meters ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)',
-                          color: isWithin50Meters ? '#10B981' : '#38BDF8',
-                          border: `1px solid ${isWithin50Meters ? '#10B981' : 'rgba(56, 189, 248, 0.3)'}`,
+                          background: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                            ? 'rgba(16, 185, 129, 0.25)'
+                            : isWithin50Meters
+                            ? 'rgba(16, 185, 129, 0.2)'
+                            : 'rgba(56, 189, 248, 0.15)',
+                          color: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                            ? '#10B981'
+                            : isWithin50Meters
+                            ? '#10B981'
+                            : '#38BDF8',
+                          border: `1px solid ${(targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP' || isWithin50Meters) ? '#10B981' : 'rgba(56, 189, 248, 0.3)'}`,
                         }}
                       >
-                        {isWithin50Meters ? '🎯 DI RADIUS TKP (<50m)' : '📡 MENUJU TKP'}
+                        {(targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                          ? '✅ TIBA DI LOKASI TKP'
+                          : isWithin50Meters
+                          ? '🎯 DI RADIUS TKP (<50m)'
+                          : '📡 MENUJU TKP'}
                       </span>
                     </div>
                     <div
@@ -2435,33 +2761,37 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                     </div>
                   </div>
 
-                  {/* SISI KANAN: Tombol Tiba di Lokasi (Terkunci jika belum sampai di TKP <= 50m) */}
+                  {/* SISI KANAN: Tombol Tiba di Lokasi / Form Tindakan */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <button
                       id="btn-sudah-tiba-tkp"
                       type="button"
-                      disabled={!isWithin50Meters}
-                      onClick={isWithin50Meters ? handleSudahTibaFromMap : undefined}
+                      disabled={isUpdatingStep || (!isWithin50Meters && targetComplaintForNav.status !== 'TIBA_DI_TKP' && targetComplaintForNav.status !== 'PENANGANAN_TKP')}
+                      onClick={handleSudahTibaFromMap}
                       title={
-                        isWithin50Meters
-                          ? 'Klik untuk konfirmasi tiba di lokasi dan upload foto bukti penanganan'
+                        (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                          ? 'Klik untuk membuka formulir tindakan kepolisian dan dokumentasi TKP'
+                          : isWithin50Meters
+                          ? 'Klik untuk merekam waktu kedatangan riil di TKP seketika ke sistem'
                           : 'Tombol terkunci. Anda harus berada dalam radius < 50 meter dari TKP untuk konfirmasi tiba.'
                       }
                       style={{
                         padding: '9px 18px',
-                        background: isWithin50Meters
+                        background: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                          ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
+                          : isWithin50Meters
                           ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                           : 'rgba(255, 255, 255, 0.08)',
-                        color: isWithin50Meters ? '#FFFFFF' : '#94A3B8',
-                        border: isWithin50Meters
+                        color: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP' || isWithin50Meters) ? '#FFFFFF' : '#94A3B8',
+                        border: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP' || isWithin50Meters)
                           ? 'none'
                           : '1px solid rgba(255, 255, 255, 0.18)',
                         borderRadius: '8px',
                         fontSize: '12px',
                         fontWeight: 900,
-                        cursor: isWithin50Meters ? 'pointer' : 'not-allowed',
-                        opacity: isWithin50Meters ? 1 : 0.6,
-                        boxShadow: isWithin50Meters
+                        cursor: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP' || isWithin50Meters) ? 'pointer' : 'not-allowed',
+                        opacity: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP' || isWithin50Meters) ? 1 : 0.6,
+                        boxShadow: (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP' || isWithin50Meters)
                           ? '0 4px 16px rgba(16, 185, 129, 0.45)'
                           : 'none',
                         display: 'flex',
@@ -2473,8 +2803,22 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                         transition: 'all 0.2s ease',
                       }}
                     >
-                      <span style={{ fontSize: '15px' }}>{isWithin50Meters ? '🚨' : '🔒'}</span>
-                      <span>{isWithin50Meters ? 'TIBA DI LOKASI ➔' : 'TIBA DI LOKASI'}</span>
+                      <span style={{ fontSize: '15px' }}>
+                        {(targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                          ? '📝'
+                          : isWithin50Meters
+                          ? '🚨'
+                          : '🔒'}
+                      </span>
+                      <span>
+                        {isUpdatingStep
+                          ? 'MEREKAM...'
+                          : (targetComplaintForNav.status === 'TIBA_DI_TKP' || targetComplaintForNav.status === 'PENANGANAN_TKP')
+                          ? 'FORM TINDAKAN TKP ➔'
+                          : isWithin50Meters
+                          ? 'TIBA DI LOKASI ➔'
+                          : 'TIBA DI LOKASI'}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -4769,15 +5113,22 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                     borderBottomColor: wizardStep === 2 ? '#BFDBFE' : wizardStep > 2 ? '#A7F3D0' : '#E2E8F0',
                   }}
                 >
-                  <span>2. Tiba &amp; Penanganan di TKP</span>
+                  <span>2. Tindakan &amp; Dokumentasi di TKP</span>
                   <span id="step2-icon">{wizardStep > 2 ? '✅' : wizardStep === 2 ? '⏳' : '🔒'}</span>
                 </div>
                 {expandedStep === 2 && (
                   <div className="wiz-body" style={{ padding: '16px' }}>
-                    {/* Detail Laporan Dinamis */}
+                    {/* Detail Laporan Dinamis & Indikator Waktu Tiba Resmi */}
                     <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        Detail Laporan
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B', textTransform: 'uppercase' }}>
+                          Detail Laporan &amp; Status TKP
+                        </div>
+                        {activeComplaint.responTibaTkpAt && (
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#166534', background: '#DCFCE7', padding: '2px 8px', borderRadius: '6px' }}>
+                            ✓ Tiba: {new Date(activeComplaint.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                          </span>
+                        )}
                       </div>
                       <div style={{ marginBottom: '6px' }}>
                         <div style={{ fontSize: '11px', color: '#64748B' }}>Jenis Insiden</div>
@@ -4785,7 +5136,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           {activeComplaint.jenisKejadian}
                         </div>
                       </div>
-                      <div style={{ marginBottom: '6px' }}>
+                      <div>
                         <div style={{ fontSize: '11px', color: '#64748B' }}>Lokasi Kejadian</div>
                         <div style={{ fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>
                           {activeComplaint.tkpAlamatTeks}
@@ -4814,7 +5165,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       lokasiPersonil={officerLiveAddress || 'Lokasi Terkini Penanganan Lapangan'}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
-                      label="📸 Ambil Foto Kondisi TKP (Watermark GPS Presisi)"
+                      label="📸 Ambil Foto Kondisi TKP "
                       required={true}
                       onPhotoCaptured={(dataUrl) => setWizardFoto(dataUrl)}
                     />
@@ -4827,7 +5178,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                       disabled={isUpdatingStep}
                       onClick={() => handleWizardSubmit('tiba_tkp')}
                     >
-                      {isUpdatingStep ? 'Merekam Laporan Tindakan...' : 'Kirim Laporan Penanganan ➔'}
+                      {isUpdatingStep ? 'Menyimpan Laporan Tindakan...' : 'Simpan Laporan Tindakan ➔'}
                     </button>
                   </div>
                 )}
