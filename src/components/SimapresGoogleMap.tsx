@@ -164,10 +164,10 @@ export default function SimapresGoogleMap({
     loadGoogleMaps().then((maps) => {
       if (!isSubscribed || !maps || !mapContainerRef.current) return;
 
-      // Center around coordinates, unit, or default Jakarta Selatan
+      // Center around coordinates, unit, or browser GPS position
       const centerPos = centerLat && centerLng
         ? { lat: centerLat, lng: centerLng }
-        : (myUnit?.pos
+        : (myUnit?.pos?.lat && myUnit?.pos?.lng
           ? { lat: myUnit.pos.lat, lng: myUnit.pos.lng }
           : null);
 
@@ -307,7 +307,7 @@ export default function SimapresGoogleMap({
       (fleetUnits || []).forEach((unit) => {
         if (myUnit && unit.key === myUnit.key) return;
 
-        const cat =unit.key;
+        const cat = (unit.category || unit.key || '').toLowerCase();
 
         // Apply active filter
         if (activeFilter === 'samapta' && !cat.includes('samapta')) return;
@@ -388,11 +388,25 @@ useEffect(() => {
 // Center to my unit / GPS
 const handleCenterGps = () => {
   if (!mapInstanceRef.current) return;
-  const target = myUnit?.pos
-    ? { lat: myUnit.pos.lat, lng: myUnit.pos.lng }
-    : {lat:0,lng:0};
-  mapInstanceRef.current.panTo(target);
-  mapInstanceRef.current.setZoom(15);
+  if (myUnit?.pos?.lat && myUnit?.pos?.lng) {
+    mapInstanceRef.current.panTo({ lat: myUnit.pos.lat, lng: myUnit.pos.lng });
+    mapInstanceRef.current.setZoom(15);
+  } else if (typeof window !== 'undefined' && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.panTo({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+          mapInstanceRef.current.setZoom(15);
+        }
+      },
+      (err) => {
+        console.warn('GPS unit tidak ditemukan:', err);
+      }
+    );
+  }
 };
 
 // Zoom In / Out

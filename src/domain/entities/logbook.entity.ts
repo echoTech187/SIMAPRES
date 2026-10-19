@@ -3,8 +3,8 @@
  * Lapisan: Domain (Pure TypeScript, Zero Framework Dependency)
  */
 
-export type JenisAksiLogbook = 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN';
-export type StatusValidasiLogbook = 'BELUM_DIVALIDASI' | 'VALID' | 'FLAGGED_AUDIT';
+export type JenisAksiLogbook = 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN' | (string & {});
+export type StatusValidasiLogbook = 'BELUM_DIVALIDASI' | 'VALID' | 'FLAGGED_AUDIT' | (string & {});
 
 export interface LogbookProps {
   id?: bigint;

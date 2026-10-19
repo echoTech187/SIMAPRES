@@ -85,15 +85,12 @@ export class PrismaLogbookRepository implements ILogbookRepository {
       _count: true,
     });
 
-    const result: Record<string, number> = {
-      PATROLI: 0,
-      TPTKP: 0,
-      SAMBANG: 0,
-      PENGAMANAN: 0,
-    };
+    const result: Record<string, number> = {};
 
     for (const c of counts) {
-      result[c.action_type] = c._count;
+      if (c.action_type) {
+        result[c.action_type] = c._count;
+      }
     }
 
     return result;

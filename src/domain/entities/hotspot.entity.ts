@@ -10,13 +10,13 @@ export interface HotspotProps {
   wilayahPolsek: string;
   kategori: string;
   statusBahaya: string;
-  ikonEmoji: string;
+  ikonEmoji?: string | null;
   lat: number;
   lng: number;
-  jadwalMulai: string; // "23:00"
-  jadwalSelesai: string; // "04:30"
-  jadwalDisplay: string; // "23:00 - 04:30 WIB"
-  unitTerdekat: string;
+  jadwalMulai?: string | null;
+  jadwalSelesai?: string | null;
+  jadwalDisplay?: string | null;
+  unitTerdekat?: string | null;
   unitId?: number | null;
   createdBy?: bigint | null;
   createdAt?: Date;
@@ -29,11 +29,11 @@ export class HotspotEntity {
   constructor(props: HotspotProps) {
     this.props = {
       ...props,
-      ikonEmoji: props.ikonEmoji || '🔴',
-      jadwalMulai: props.jadwalMulai || '23:00',
-      jadwalSelesai: props.jadwalSelesai || '04:30',
-      jadwalDisplay: props.jadwalDisplay || `${props.jadwalMulai || '23:00'} - ${props.jadwalSelesai || '04:30'} WIB`,
-      unitTerdekat: props.unitTerdekat || 'Patroli Samapta 110-A',
+      ikonEmoji: props.ikonEmoji || '',
+      jadwalMulai: props.jadwalMulai ?? '',
+      jadwalSelesai: props.jadwalSelesai ?? '',
+      jadwalDisplay: props.jadwalDisplay ?? (props.jadwalMulai && props.jadwalSelesai ? `${props.jadwalMulai} - ${props.jadwalSelesai} WIB` : ''),
+      unitTerdekat: props.unitTerdekat ?? '',
       createdAt: props.createdAt || new Date(),
     };
   }
@@ -71,7 +71,7 @@ export class HotspotEntity {
   }
 
   get jadwalDisplay(): string {
-    return this.props.jadwalDisplay;
+    return this.props.jadwalDisplay as string;
   }
 
   public toJSON(): HotspotProps {

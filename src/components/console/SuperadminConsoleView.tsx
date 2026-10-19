@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import {
   getRegisteredUnitsAction,
   registerNewUnitAction,
+  deleteRegisteredUnitAction,
   getMasterDropdownsAction,
   logoutAction,
   getCurrentSessionAction,
@@ -95,6 +96,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
 
   // Form states
   const [editId, setEditId] = useState<string | null>(null);
+  const [oldNrp, setOldNrp] = useState<string | null>(null);
   const [nrp, setNrp] = useState('');
   const [nama, setNama] = useState('');
   const [pangkat, setPangkat] = useState('');
@@ -371,13 +373,11 @@ export default function SuperadminConsoleView({ session, initialSection, initial
   }, []);
 
   const handleLogout = async () => {
-    if (confirm('Akhiri sesi kedinasan Super Administrator?')) {
-      if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('simapres_active_user');
-      }
-      await logoutAction();
-      window.location.href = '/?alert=logged_out';
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('simapres_active_user');
     }
+    await logoutAction();
+    window.location.href = '/?alert=logged_out';
   };
 
   const handleUnitSelectChange = (val: string) => {
@@ -397,6 +397,8 @@ export default function SuperadminConsoleView({ session, initialSection, initial
 
     setLoading(true);
     const res = await registerNewUnitAction({
+      editId: editId || undefined,
+      oldNrp: oldNrp || undefined,
       nrp: nrp.trim(),
       nama: nama.trim(),
       pangkat,
@@ -405,7 +407,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
       satuanNama,
       kelompokRegu,
       stationId: stationId ? Number(stationId) : null,
-      password,
+      password: password.trim() ? password.trim() : undefined,
       deviceID: deviceId,
       liveLat,
       liveLng,
@@ -413,9 +415,13 @@ export default function SuperadminConsoleView({ session, initialSection, initial
     setLoading(false);
 
     if (res.success) {
-      showNotification(`✓ Unit ${pangkat} ${nama} (NRP: ${nrp}) [Role: ${role}] berhasil didaftarkan!`);
+      if (editId) {
+        showNotification(`✓ Data unit ${pangkat} ${nama} (NRP: ${nrp.trim()}) [Role: ${role}] berhasil diperbarui!`);
+      } else {
+        showNotification(`✓ Unit ${pangkat} ${nama} (NRP: ${nrp.trim()}) [Role: ${role}] berhasil didaftarkan!`);
+      }
       handleReset();
-      loadData();
+      await loadData();
     } else {
       showNotification(`Gagal: ${res.error}`);
     }
@@ -423,6 +429,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
 
   const handleReset = () => {
     setEditId(null);
+    setOldNrp(null);
     setNrp('');
     setNama('');
     setPangkat('');
@@ -437,6 +444,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
 
   const handleEditUnit = (u: any) => {
     setEditId(u.id);
+    setOldNrp(u.nrp);
     setNrp(u.nrp);
     setNama(u.nama);
     setPangkat(u.pangkat || '');
@@ -446,7 +454,26 @@ export default function SuperadminConsoleView({ session, initialSection, initial
     setKelompokRegu(u.kelompokRegu || '');
     setStationId(u.stationId ? String(u.stationId) : '');
     setDeviceId(u.deviceID || `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
+    setPassword('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteUnit = async (u: any) => {
+    if (!window.confirm(`Apakah Anda yakin ingin menghapus unit ${u.pangkat || ''} ${u.nama} (NRP: ${u.nrp})? Tindakan ini akan menghapus akun dan akses personil tersebut.`)) {
+      return;
+    }
+    setLoading(true);
+    const res = await deleteRegisteredUnitAction(u.id || u.nrp);
+    setLoading(false);
+    if (res.success) {
+      showNotification(`✓ Unit ${u.pangkat || ''} ${u.nama} (NRP: ${u.nrp}) berhasil dihapus.`);
+      if (editId === u.id || oldNrp === u.nrp) {
+        handleReset();
+      }
+      await loadData();
+    } else {
+      showNotification(`Gagal menghapus unit: ${res.error}`);
+    }
   };
 
   const openQrModal = async () => {
@@ -953,6 +980,43 @@ export default function SuperadminConsoleView({ session, initialSection, initial
             </div>
 
             <div className="card-body">
+              {editId && (
+                <div
+                  style={{
+                    marginBottom: '16px',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    background: '#FEF3C7',
+                    border: '1px solid #FCD34D',
+                    color: '#92400E',
+                    fontSize: '12.5px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}
+                >
+                  <span>
+                    ✏️ <strong>Mode Edit:</strong> Mengubah unit <strong>NRP: {oldNrp}</strong>. Klik &quot;Perbarui Data Satuan&quot; untuk menyimpan perubahan.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      background: '#B45309',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Batal
+                  </button>
+                </div>
+              )}
               <form onSubmit={handleFormSubmit}>
                 {/* SEKSI 1: IDENTITAS PERSONEL */}
                 <div className="form-section-divider" style={{ marginTop: 0 }}>
@@ -1202,7 +1266,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                 <div className="form-group-reg">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <label className="form-label-reg" htmlFor="reg-pass" style={{ marginBottom: 0 }}>
-                      Kata Sandi Login <span className="req">*</span>
+                      Kata Sandi Login {editId ? <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 'normal' }}>(Opsional saat edit)</span> : <span className="req">*</span>}
                     </label>
                     <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '2px 8px', borderRadius: '10px', border: '1px solid #A7F3D0' }}>
                       🔒 Bcrypt Hash Security
@@ -1212,10 +1276,10 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                     type="password"
                     id="reg-pass"
                     className="form-control-reg"
-                    placeholder="Minimal 6 karakter sandi"
+                    placeholder={editId ? "Biarkan kosong jika tidak ingin mengubah sandi" : "Minimal 6 karakter sandi"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
+                    required={!editId}
                   />
                 </div>
 
@@ -1442,6 +1506,20 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                               >
                                 🛡️ Buka
                               </Link>
+                              <button
+                                type="button"
+                                className="action-btn-reg"
+                                style={{
+                                  background: '#FEF2F2',
+                                  color: '#DC2626',
+                                  borderColor: '#FECACA',
+                                  marginLeft: '4px',
+                                }}
+                                onClick={() => handleDeleteUnit(u)}
+                                title="Hapus Unit Satuan"
+                              >
+                                🗑️ Hapus
+                              </button>
                             </td>
                           </tr>
                         );

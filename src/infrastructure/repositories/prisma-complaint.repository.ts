@@ -39,7 +39,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       pelaporNama: record.pelapor_nama,
       pelaporHp: record.pelapor_hp,
       jenisKejadian: record.jenis_kejadian,
-      urgensi: (record.urgensi === 'PRIORITAS_TINGGI' ? 'DARURAT' : (record.urgensi || 'DARURAT')) as UrgensiLevel,
+      urgensi: record.urgensi as UrgensiLevel,
       kategoriId: record.category_id,
       kategoriKey: record.kategori_key,
       kategoriRel: record.category_rel,
@@ -136,13 +136,36 @@ export class PrismaComplaintRepository implements IComplaintRepository {
   }
 
   async findAssignedToOfficer(officerId: bigint, activeOnly = false): Promise<ComplaintEntity[]> {
+    const officerIdStr = String(officerId);
+    const officer = await prisma.policeOfficer.findFirst({
+      where: {
+        OR: [
+          { id: officerId },
+          { user_id: officerId },
+          { nrp: officerIdStr },
+        ],
+      },
+    });
+
+    const dispatchConditions: any[] = [
+      { officer_id: officer ? officer.id : officerId },
+    ];
+
+    if (officer?.unit_id) {
+      dispatchConditions.push({ unit_id: officer.unit_id });
+    }
+
     const whereClause: any = {
       dispatches: {
-        some: { officer_id: officerId },
+        some: {
+          OR: dispatchConditions,
+        },
       },
     };
     if (activeOnly) {
-      whereClause.status = { in: ['DISPOSISI', 'MENUJU_TKP', 'PENANGANAN_TKP', 'DIPROSES'] };
+      whereClause.status = {
+        in: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'DIPROSES', 'SEDANG_DITANGANI', 'MENUNGGU_PENGESAHAN'],
+      };
     }
     const records = await prisma.complaint.findMany({
       where: whereClause,
@@ -177,93 +200,93 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
     // Resolve dynamic urgency_id safely
     let urgencyId: number | null = null;
-    const urg = (data.urgensi || 'SEDANG').toUpperCase();
-    try {
-      const targetUrgencyKey = (urg.includes('DARURAT') || urg.includes('TINGGI')) ? 'DARURAT' : urg.includes('NORMAL') ? 'NORMAL' : 'SEDANG';
-      const mUrg = await prisma.masterUrgencyLevel.findFirst({
-        where: { key: targetUrgencyKey },
-        select: { id: true },
-      });
-      if (mUrg) urgencyId = mUrg.id;
-    } catch (_) {}
+    if (data.urgensi) {
+      const urg = (data.urgensi || '').toUpperCase();
+      try {
+        const targetUrgencyKey = (urg.includes('DARURAT') || urg.includes('TINGGI')) ? 'DARURAT' : urg.includes('NORMAL') ? 'NORMAL' : 'SEDANG';
+        const mUrg = await prisma.masterUrgencyLevel.findFirst({
+          where: { OR: [{ key: targetUrgencyKey }, { key: urg }] },
+          select: { id: true },
+        });
+        if (mUrg) urgencyId = mUrg.id;
+      } catch (_) {}
+    }
 
     // Resolve dynamic status_id safely
     let statusId: number | null = null;
-    const st = (data.status || 'MENUNGGU').toUpperCase();
-    try {
-      const targetStatusKey =
-        st === 'SELESAI' ? 'SELESAI' :
-        (st === 'DITOLAK' || st === 'DIBATALKAN') ? 'DITOLAK' :
-        st === 'MENUNGGU_PENGESAHAN' ? 'MENUNGGU_PENGESAHAN' :
-        (st === 'TIBA_DI_TKP' || st === 'PENANGANAN_TKP') ? 'TIBA_DI_TKP' :
-        st === 'MENUJU_TKP' ? 'MENUJU_TKP' :
-        (st === 'DISPOSISI' || st === 'DIPROSES') ? 'DISPOSISI' :
-        'MENUNGGU';
-      const mStat = await prisma.masterComplaintStatus.findFirst({
-        where: { key: targetStatusKey },
-        select: { id: true },
-      });
-      if (mStat) statusId = mStat.id;
-    } catch (_) {}
+    if (data.status) {
+      const st = (data.status || '').toUpperCase();
+      try {
+        const targetStatusKey =
+          st === 'SELESAI' ? 'SELESAI' :
+          (st === 'DITOLAK' || st === 'DIBATALKAN') ? 'DITOLAK' :
+          st === 'MENUNGGU_PENGESAHAN' ? 'MENUNGGU_PENGESAHAN' :
+          (st === 'TIBA_DI_TKP' || st === 'PENANGANAN_TKP') ? 'TIBA_DI_TKP' :
+          st === 'MENUJU_TKP' ? 'MENUJU_TKP' :
+          (st === 'DISPOSISI' || st === 'DIPROSES' || st === 'SEDANG_DITANGANI') ? 'DISPOSISI' :
+          st;
+        const mStat = await prisma.masterComplaintStatus.findFirst({
+          where: { OR: [{ key: targetStatusKey }, { key: st }] },
+          select: { id: true },
+        });
+        if (mStat) statusId = mStat.id;
+      } catch (_) {}
+    }
 
-    // Map category_id and kategori_key safely
+    // Map category_id and kategori_key safely from Database
     let categoryId: number | null = null;
     let kategoriKey: string | null = data.kategoriKey || null;
-    const jk = (data.jenisKejadian || '').toLowerCase();
-    if (!kategoriKey) {
-      if (jk.includes('krim') || jk.includes('begal') || jk.includes('curas') || jk.includes('curat') || jk.includes('curanmor') || jk.includes('curi') || jk.includes('jambret')) {
-        kategoriKey = 'KRIMINALITAS';
-      } else if (jk.includes('kamtib') || jk.includes('tawuran') || jk.includes('miras') || jk.includes('ribut') || jk.includes('sajam') || jk.includes('bentrok') || jk.includes('narkoba')) {
-        kategoriKey = 'KAMTIBMAS';
-      } else if (jk.includes('laka') || jk.includes('lantas') || jk.includes('tabrak') || jk.includes('macet') || jk.includes('mogok')) {
-        kategoriKey = 'LAKALANTAS';
-      } else if (jk.includes('bencana') || jk.includes('darurat') || jk.includes('kebakaran') || jk.includes('banjir') || jk.includes('pohon') || jk.includes('longsor')) {
-        kategoriKey = 'BENCANA';
-      } else if (jk.includes('publik') || jk.includes('layanan') || jk.includes('bansos') || jk.includes('hilang') || jk.includes('hewan')) {
-        kategoriKey = 'PELAYANAN_PUBLIK';
-      } else {
-        kategoriKey = 'KAMTIBMAS';
-      }
-    }
     try {
-      const mCat = await prisma.masterIncidentCategory.findFirst({
-        where: {
-          OR: [
-            { key: kategoriKey.toUpperCase() },
-            { label: { contains: kategoriKey } },
-          ],
-        },
-        select: { id: true },
-      });
-      if (mCat) categoryId = mCat.id;
+      if (kategoriKey) {
+        const mCat = await prisma.masterIncidentCategory.findFirst({
+          where: {
+            OR: [
+              { key: kategoriKey.toUpperCase() },
+              { label: { contains: kategoriKey } },
+            ],
+          },
+          select: { id: true, key: true },
+        });
+        if (mCat) {
+          categoryId = mCat.id;
+          kategoriKey = mCat.key;
+        }
+      } else if (data.jenisKejadian) {
+        const mCat = await prisma.masterIncidentCategory.findFirst({
+          where: {
+            OR: [
+              { key: data.jenisKejadian.toUpperCase() },
+              { label: { contains: data.jenisKejadian } },
+            ],
+          },
+          select: { id: true, key: true },
+        });
+        if (mCat) {
+          categoryId = mCat.id;
+          kategoriKey = mCat.key;
+        }
+      }
     } catch (_) {}
 
-    // Map source_id and platform_key safely
+    // Map source_id and platform_key safely from Database
     let sourceId: number | null = null;
     let platformKey: string | null = data.platformKey || null;
-    if (!platformKey) {
-      const src = ((data.ringkasanKeterangan || '') + (data.jenisKejadian || '')).toLowerCase();
-      if (src.includes('sos') || jk.includes('sos')) {
-        platformKey = 'SOS';
-      } else if (src.includes('portal') || src.includes('warga') || data.pelaporNama?.toLowerCase().includes('warga')) {
-        platformKey = 'PORTAL_WARGA';
-      } else if (src.includes('110') || src.includes('telepon') || src.includes('spkt') || src.includes('call')) {
-        platformKey = 'CALL_110';
-      } else {
-        platformKey = 'PORTAL_WARGA';
-      }
-    }
     try {
-      const mSrc = await prisma.masterReportSource.findFirst({
-        where: {
-          OR: [
-            { key: platformKey.toUpperCase() },
-            { label: { contains: platformKey } },
-          ],
-        },
-        select: { id: true },
-      });
-      if (mSrc) sourceId = mSrc.id;
+      if (platformKey) {
+        const mSrc = await prisma.masterReportSource.findFirst({
+          where: {
+            OR: [
+              { key: platformKey.toUpperCase() },
+              { label: { contains: platformKey } },
+            ],
+          },
+          select: { id: true, key: true },
+        });
+        if (mSrc) {
+          sourceId = mSrc.id;
+          platformKey = mSrc.key;
+        }
+      }
     } catch (_) {}
 
     // Strip emoji and variation selectors from jenis_kejadian to ensure realistic, clean text in database
@@ -331,10 +354,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: created.id,
-        actor_name: data.operator?.namaLengkap || 'Operator SPKT Presisi 110',
-        actor_role: 'OPERATOR',
+        actor_name: data.operator?.namaLengkap || data.pelaporNama || 'Operator',
+        actor_role: data.operator ? 'OPERATOR' : 'SISTEM',
         action: 'LAPORAN_MASUK',
-        notes: data.ringkasanKeterangan || 'Laporan pengaduan warga diterima melalui sistem layanan 110 SPKT.',
+        notes: data.ringkasanKeterangan || null,
         action_lat: data.tkpLat,
         action_lng: data.tkpLng,
         created_at: created.created_at,
@@ -364,10 +387,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           st === 'MENUNGGU_PENGESAHAN' ? 'MENUNGGU_PENGESAHAN' :
           (st === 'TIBA_DI_TKP' || st === 'PENANGANAN_TKP') ? 'TIBA_DI_TKP' :
           st === 'MENUJU_TKP' ? 'MENUJU_TKP' :
-          (st === 'DISPOSISI' || st === 'DIPROSES') ? 'DISPOSISI' :
-          'MENUNGGU';
+          (st === 'DISPOSISI' || st === 'DIPROSES' || st === 'SEDANG_DITANGANI') ? 'DISPOSISI' :
+          st;
         const mStat = await prisma.masterComplaintStatus.findFirst({
-          where: { key: targetStatusKey },
+          where: { OR: [{ key: targetStatusKey }, { key: st }] },
           select: { id: true },
         });
         if (mStat) statusId = mStat.id;
@@ -379,7 +402,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       data: {
         status: data.status,
         ...(statusId ? { status_id: statusId } : {}),
-        tahap: data.tahap,
+        tahap: data.status === 'SELESAI' ? 5 : (data.tahap ?? 1),
         alasan_tolak: data.alasanTolak,
       },
       include: COMPLAINT_INCLUDE,
@@ -392,7 +415,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           where: { complaint_id: data.id, is_primary_unit: true },
         });
 
-        let unitId = 1;
+        let unitId: number | null = null;
         const officer = await prisma.policeOfficer.findUnique({
           where: { id: data.assignedOfficerId },
           select: { unit_id: true },
@@ -420,8 +443,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         } else if (data.status === 'MENUJU_TKP' || (data.timelines && data.timelines.some((t: any) => t.tahapTitle?.includes('Meluncur')))) {
           dispatchStatus = 'DEPARTED';
           departedAt = new Date();
+        } else if (data.status === 'SEDANG_DITANGANI' || existingDispatch?.dispatch_status === 'ACCEPTED') {
+          dispatchStatus = 'ACCEPTED';
         } else {
-          dispatchStatus = 'DISPATCHED';
+          dispatchStatus = existingDispatch?.dispatch_status || 'DISPATCHED';
         }
 
         const dispatchMaster = await (prisma as any).masterDispatchStatus.findUnique({
@@ -441,15 +466,15 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               ...(completedAt ? { completed_at: completedAt } : {}),
             } as any,
           });
-        } else {
+        } else if (unitId) {
           await prisma.complaintDispatch.create({
             data: {
               complaint_id: data.id,
               unit_id: unitId,
               officer_id: data.assignedOfficerId,
               is_primary_unit: true,
-              personnel_quota: 2,
-              tactical_orders: 'Penugasan Unit Siaga Patroli Presisi Lapangan',
+              personnel_quota: 1,
+              tactical_orders: data.ringkasanKeterangan || null,
               dispatch_status: dispatchStatus,
               dispatch_status_id: dispatchStatusId,
               dispatched_at: data.disposisiAt || new Date(),
@@ -479,15 +504,64 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             await prisma.complaintAuditLog.create({
               data: {
                 complaint_id: data.id,
-                actor_name: data.assignedOfficer?.namaLengkap || data.pawas?.namaLengkap || 'Pawas / Petugas Presisi',
+                actor_name: data.assignedOfficer?.namaLengkap || data.pawas?.namaLengkap || 'Petugas Lapangan',
                 actor_role: data.pawas ? 'PAWAS' : 'PERSONIL',
                 action: latestTimeline.tahapTitle,
-                notes: latestTimeline.catatan || 'Pembaruan tahapan penanganan pengaduan.',
+                notes: latestTimeline.catatan || null,
                 action_lat: latestTimeline.gpsLat || null,
                 action_lng: latestTimeline.gpsLng || null,
                 created_at: latestTimeline.createdAt || new Date(),
               },
             });
+          }
+        }
+        // 2.1 Simpan foto bukti visual jika disertakan dalam timeline
+        if (latestTimeline && latestTimeline.fotoBuktiUrl) {
+          try {
+            let savedUrl = latestTimeline.fotoBuktiUrl;
+            if (savedUrl.startsWith('data:image/')) {
+              try {
+                const fs = await import('fs');
+                const path = await import('path');
+                const matches = savedUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+                if (matches) {
+                  const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+                  const buffer = Buffer.from(matches[2], 'base64');
+                  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+                  if (!fs.existsSync(uploadDir)) {
+                    fs.mkdirSync(uploadDir, { recursive: true });
+                  }
+                  const fileName = `evidence_${data.id}_${Date.now()}.${ext}`;
+                  fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+                  savedUrl = `/uploads/${fileName}`;
+                }
+              } catch (fsErr) {
+                console.warn('Failed to save evidence image to disk:', fsErr);
+                savedUrl = savedUrl.substring(0, 250);
+              }
+            } else if (savedUrl.length > 255) {
+              savedUrl = savedUrl.substring(0, 250);
+            }
+
+            const incidentPhase =
+              data.status === 'TIBA_DI_TKP' ? 'TIBA_TKP' :
+              data.status === 'MENUNGGU_PENGESAHAN' ? 'PENANGANAN' :
+              data.status === 'SELESAI' ? 'SELESAI_KONDUSIF' :
+              (data.status || 'TIBA_TKP');
+
+            await prisma.complaintEvidence.create({
+              data: {
+                complaint_id: data.id,
+                incident_phase: incidentPhase,
+                file_url: savedUrl,
+                caption: (latestTimeline.tahapTitle || 'Dokumentasi Visual TKP Berwatermark').slice(0, 250),
+                watermark_text: (latestTimeline.catatan || '').slice(0, 250),
+                exif_lat: latestTimeline.gpsLat || null,
+                exif_lng: latestTimeline.gpsLng || null,
+              },
+            });
+          } catch (evErr) {
+            console.warn('Sync evidence error:', evErr);
           }
         }
       } catch (e) {
@@ -509,7 +583,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           star_rating: data.citizenRating,
           feedback_tags: data.citizenTags || null,
           review_text: data.citizenReview || null,
-          reporter_name: data.pelaporNama || 'Warga Masyarakat',
+          reporter_name: data.pelaporNama || '-',
         },
       });
     }
@@ -532,28 +606,32 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     if (totalVoting === 0) {
       return {
         totalVoting: 0,
-        averageRating: 5.0,
-        percentageSatisfaction: 100,
+        averageRating: 0,
+        percentageSatisfaction: 0,
         ratingBreakdown: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
       };
     }
 
     const breakdown: { [stars: number]: number } = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
     let totalScore = 0;
+    let validCount = 0;
 
     for (const item of reviews) {
-      const score = item.star_rating || 5;
-      totalScore += score;
-      if (breakdown[score] !== undefined) {
-        breakdown[score]++;
+      const score = item.star_rating;
+      if (score && score >= 1 && score <= 5) {
+        totalScore += score;
+        validCount++;
+        if (breakdown[score] !== undefined) {
+          breakdown[score]++;
+        }
       }
     }
 
-    const averageRating = Math.round((totalScore / totalVoting) * 10) / 10;
-    const percentageSatisfaction = Math.round((averageRating / 5) * 1000) / 10;
+    const averageRating = validCount > 0 ? Math.round((totalScore / validCount) * 10) / 10 : 0;
+    const percentageSatisfaction = validCount > 0 ? Math.round((averageRating / 5) * 1000) / 10 : 0;
 
     return {
-      totalVoting,
+      totalVoting: validCount,
       averageRating,
       percentageSatisfaction,
       ratingBreakdown: breakdown,

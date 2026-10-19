@@ -77,8 +77,8 @@ export default function PortalWargaPage() {
   const [nama, setNama] = useState('');
   const [telp, setTelp] = useState('');
   const [lokasi, setLokasi] = useState('');
-  const [lat, setLat] = useState<number>(-6.2415);
-  const [lng, setLng] = useState<number>(106.8021);
+  const [lat, setLat] = useState<number>(0);
+  const [lng, setLng] = useState<number>(0);
   const [gpsCoords, setGpsCoords] = useState('');
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [locationSuggestions, setLocationSuggestions] = useState<
@@ -376,12 +376,13 @@ export default function PortalWargaPage() {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const encoded = encodeURIComponent(query.trim());
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&lat=-6.2415&lon=106.8021&limit=6`);
+        const coordQuery = lat && lng ? `&lat=${lat}&lon=${lng}` : '';
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}${coordQuery}&limit=6`);
         if (res.ok) {
           const data = await res.json();
           const items = (data?.features || []).map((feat: any) => {
             const p = feat.properties || {};
-            const coords = feat.geometry?.coordinates || [106.8021, -6.2415];
+            const coords = feat.geometry?.coordinates || [0, 0];
             const title = p.name || p.street || query;
             const subParts = [p.street, p.district, p.city || 'DKI Jakarta'].filter(
               (part) => part && part !== title
@@ -421,24 +422,38 @@ export default function PortalWargaPage() {
   };
 
   const handleKirimSOS = async () => {
+    const cleanTelp = telp.trim();
+    if (!cleanTelp) {
+      showAlert(
+        'Harap lengkapi nomor kontak / WhatsApp pada formulir agar petugas piket 110 dapat segera menghubungi Anda saat sinyal bahaya diterima.',
+        'Nomor Kontak Diperlukan',
+        '⚠️'
+      );
+      const telpInput = document.getElementById('pelapor-telp');
+      if (telpInput) telpInput.focus();
+      return;
+    }
+
+    const cleanNama = nama.trim() || 'Warga (Panggilan Darurat SOS)';
     const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const [latStr, lngStr] = gpsCoords.split(',').map((s) => s.trim());
-    const lat = parseFloat(latStr) || -6.2415;
-    const lng = parseFloat(lngStr) || 106.8021;
+    const [latStr, lngStr] = gpsCoords ? gpsCoords.split(',').map((s) => s.trim()) : ['', ''];
+    const finalLat = parseFloat(latStr) || lat || 0;
+    const finalLng = parseFloat(lngStr) || lng || 0;
+    const alamatTeks = lokasi.trim() || `Kawasan Presisi (Live Satelit GPS: ${gpsCoords || `${finalLat}, ${finalLng}`})`;
 
     try {
       const dbRes = await createComplaintAction({
-        pelaporNama: nama.trim() || 'Warga (Tombol SOS Darurat)',
-        pelaporHp: telp.trim() || '-',
+        pelaporNama: cleanNama,
+        pelaporHp: cleanTelp,
         jenisKejadian: 'Peringatan Darurat SOS 110',
-        kategoriKey: 'Kamtibmas',
+        kategoriKey: 'KAMTIBMAS',
         platformKey: 'sos',
         urgensi: 'DARURAT',
-        tkpAlamatTeks: `Kawasan Presisi (Live Satelit GPS: ${gpsCoords})`,
-        tkpLat: lat,
-        tkpLng: lng,
+        tkpAlamatTeks: alamatTeks,
+        tkpLat: finalLat,
+        tkpLng: finalLng,
         ringkasanKeterangan: 'Aktivasi Tombol Darurat SOS Presisi: Warga membutuhkan bantuan polisi segera di lokasi.',
       });
       if (dbRes.success && dbRes.data?.nomorTiket) {
@@ -511,8 +526,8 @@ export default function PortalWargaPage() {
     const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    const finalLat = lat || -6.2415;
-    const finalLng = lng || 106.8021;
+    const finalLat = lat || 0;
+    const finalLng = lng || 0;
 
     try {
       const dbRes = await createComplaintAction({
@@ -530,9 +545,14 @@ export default function PortalWargaPage() {
       });
       if (dbRes.success && dbRes.data?.nomorTiket) {
         noTiket = dbRes.data.nomorTiket;
+      } else {
+        showFriendlyToast('error', 'Gagal Mengirim Pengaduan', dbRes.error || 'Terjadi kendala pada pangkalan data.');
+        return;
       }
-    } catch (e) {
+    } catch (e: any) {
       console.warn('Backend sync warning:', e);
+      showFriendlyToast('error', 'Kendala Jaringan', e.message || 'Tidak dapat terhubung ke server.');
+      return;
     } finally {
       setIsSubmitting(false);
     }
@@ -611,7 +631,13 @@ export default function PortalWargaPage() {
           nrp: dbItem.assignedOfficer?.nrp || '-',
           status: isDone ? 'selesai' : 'diproses',
           statusText: isDone ? 'Kasus Selesai' : 'Sedang Diproses',
-          tahap: isDone ? 5 : dbItem.status === 'DI_TKP' ? 4 : 3,
+          tahap: isDone
+            ? 5
+            : ['TIBA_DI_TKP', 'PENANGANAN_TKP', 'DI_TKP'].includes(dbItem.status)
+            ? 4
+            : dbItem.status === 'BELUM_DITANGANI' || dbItem.status === 'MENUNGGU'
+            ? 2
+            : 3,
           waktu: new Date(dbItem.waktuLaporDiterima || dbItem.createdAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
           sektor: '-',
           lokasiKejadian: dbItem.tkpAlamatTeks || '-',
@@ -1231,8 +1257,8 @@ export default function PortalWargaPage() {
                         </span>
                       </div>
                       <MiniMapPicker
-                        lat={lat || -6.2415}
-                        lng={lng || 106.8021}
+                        lat={lat}
+                        lng={lng}
                         height="220px"
                         onChange={(newLat, newLng) => {
                           setLat(newLat);

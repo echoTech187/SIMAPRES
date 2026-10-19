@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const SUBCATEGORIES_DATA = [
+export const SUBCATEGORIES_DATA = [
   // 1. SAT LANTAS (LAKALANTAS)
   {
     unit_key: 'lantas',

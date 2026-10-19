@@ -14,7 +14,7 @@ function serializeBigInt<T>(obj: T): T {
 export async function createLogbookAction(input: {
   officerId: string;
   complaintId?: string | null;
-  jenisAksi: 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN';
+  jenisAksi: string;
   lokasiKlaimAlamat: string;
   lokasiKlaimLat: number;
   lokasiKlaimLng: number;

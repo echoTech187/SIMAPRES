@@ -238,14 +238,15 @@ export class ComplaintEntity {
    * Personel Mengkonfirmasi Meluncur ke TKP (Fase 3 - Step 1)
    */
   public personilMeluncur(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
-    if (this.props.status !== 'DIPROSES' && this.props.status !== 'DISPOSISI') {
+    if (this.props.status !== 'DIPROSES' && this.props.status !== 'DISPOSISI' && this.props.status !== 'SEDANG_DITANGANI') {
       throw new Error(`Tiket ${this.props.nomorTiket} belum didisposisikan.`);
     }
-    this.props.status = 'DIPROSES';
+    this.props.status = 'MENUJU_TKP';
+    this.props.tahap = 3;
     this.props.timelines?.push({
       tahapKe: 1,
       tahapTitle: 'Personel Meluncur ke TKP',
-      catatan: catatan || 'Unit siaga patroli bergerak menuju lokasi kejadian.',
+      catatan: catatan || null,
       fotoBuktiUrl,
       gpsLat: lat,
       gpsLng: lng,
@@ -257,11 +258,17 @@ export class ComplaintEntity {
    * Personel Tiba di Lokasi & Amankan TKP (Fase 3 - Step 2)
    */
   public tibaDiTkp(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
-    if (this.props.status !== 'DIPROSES' && this.props.status !== 'MENUJU_TKP' && this.props.status !== 'DISPOSISI') {
-      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam perjalanan.`);
+    if (
+      this.props.status !== 'MENUJU_TKP' &&
+      this.props.status !== 'DIPROSES' &&
+      this.props.status !== 'DISPOSISI' &&
+      this.props.status !== 'SEDANG_DITANGANI'
+    ) {
+      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status perjalanan ke TKP.`);
     }
     const now = new Date();
-    this.props.status = 'DIPROSES';
+    this.props.status = 'TIBA_DI_TKP';
+    this.props.tahap = 4;
     this.props.responTibaTkpAt = now;
 
     if (this.props.disposisiAt) {
@@ -272,7 +279,7 @@ export class ComplaintEntity {
     this.props.timelines?.push({
       tahapKe: 2,
       tahapTitle: 'Tindakan di Tempat Kejadian (TKP)',
-      catatan: catatan || 'Petugas tiba di lokasi dan melakukan sterilisasi situasi.',
+      catatan: catatan || null,
       fotoBuktiUrl,
       gpsLat: lat,
       gpsLng: lng,
@@ -284,14 +291,22 @@ export class ComplaintEntity {
    * Penanganan di TKP Selesai & Terbitkan BAP (Fase 3 - Step 3 Menunggu Pengesahan Pawas)
    */
   public ajukanPengesahanBap(catatan?: string, fotoBuktiUrl?: string): void {
-    if (this.props.status !== 'TIBA_DI_TKP' && this.props.status !== 'PENANGANAN_TKP' && this.props.status !== 'MENUJU_TKP') {
+    if (
+      this.props.status !== 'TIBA_DI_TKP' &&
+      this.props.status !== 'PENANGANAN_TKP' &&
+      this.props.status !== 'MENUJU_TKP' &&
+      this.props.status !== 'DIPROSES' &&
+      this.props.status !== 'DISPOSISI' &&
+      this.props.status !== 'SEDANG_DITANGANI'
+    ) {
       throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam penanganan TKP.`);
     }
     this.props.status = 'MENUNGGU_PENGESAHAN';
+    this.props.tahap = 4;
     this.props.timelines?.push({
       tahapKe: 3,
       tahapTitle: 'Penanganan Lapangan Rampung & BAP Diterbitkan',
-      catatan: catatan || 'Tindakan kepolisian selesai, BAP diterbitkan menunggu verifikasi & pengesahan Pawas.',
+      catatan: catatan || null,
       fotoBuktiUrl,
       createdAt: new Date(),
     });
@@ -302,11 +317,12 @@ export class ComplaintEntity {
    */
   public selesaikanKasus(catatan?: string, fotoBuktiUrl?: string): void {
     this.props.status = 'SELESAI';
+    this.props.tahap = 5;
     this.props.selesaiAt = new Date();
     this.props.timelines?.push({
       tahapKe: 4,
       tahapTitle: 'Kasus Tuntas Selesai Ditangani & Berita Acara Disahkan Pawas',
-      catatan: catatan || 'Situasi lingkungan aman dan kondusif.',
+      catatan: catatan || null,
       fotoBuktiUrl,
       createdAt: new Date(),
     });

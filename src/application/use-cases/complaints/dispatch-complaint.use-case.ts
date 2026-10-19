@@ -33,7 +33,7 @@ export class DispatchComplaintUseCase {
     complaint.timelines.push({
       tahapKe: 1,
       tahapTitle: `Disposisi Pawas ke Unit ${officer.rankPangkat} ${officer.nrp}`,
-      catatan: input.arahanPawas || `Perintah gerak cepat unit ${officer.assignedPatrolVehicle || 'Patroli'}.`,
+      catatan: input.arahanPawas,
       createdAt: new Date(),
     });
 

@@ -16,6 +16,7 @@ import {
   updateMasterRoleAction,
   deleteMasterRoleAction,
   getPoliceStationsMasterAction,
+  getMasterStationLevelsAction,
   createPoliceStationMasterAction,
   updatePoliceStationMasterAction,
   deletePoliceStationMasterAction,
@@ -24,6 +25,7 @@ import {
   updateMasterIncidentCategoryAction,
   deleteMasterIncidentCategoryAction,
   getMasterIncidentSubcategoriesAction,
+  getMasterUrgencyLevelsAction,
   createMasterIncidentSubcategoryAction,
   updateMasterIncidentSubcategoryAction,
   deleteMasterIncidentSubcategoryAction,
@@ -31,11 +33,14 @@ import {
   createMasterHotspotCategoryAction,
   updateMasterHotspotCategoryAction,
   deleteMasterHotspotCategoryAction,
+  getMasterHotspotDangerLevelsAction,
   getMasterHotspotsAction,
   createMasterHotspotAction,
   updateMasterHotspotAction,
   deleteMasterHotspotAction,
   getMasterVehiclesAction,
+  getMasterVehicleTypesAction,
+  getMasterVehicleStatusesAction,
   createMasterVehicleAction,
   updateMasterVehicleAction,
   deleteMasterVehicleAction,
@@ -93,9 +98,15 @@ export default function MasterDataManager({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState<'all' | 'active' | 'inactive'>('all');
 
-  // Subkategori Dropdown options & Filter states
+  // Dropdown options & Filter states
   const [categoriesList, setCategoriesList] = useState<any[]>([]);
   const [unitsList, setUnitsList] = useState<any[]>([]);
+  const [hotspotCategoriesList, setHotspotCategoriesList] = useState<any[]>([]);
+  const [dangerLevelsList, setDangerLevelsList] = useState<any[]>([]);
+  const [stationLevelsList, setStationLevelsList] = useState<any[]>([]);
+  const [urgencyLevelsList, setUrgencyLevelsList] = useState<any[]>([]);
+  const [vehicleTypesList, setVehicleTypesList] = useState<any[]>([]);
+  const [vehicleStatusesList, setVehicleStatusesList] = useState<any[]>([]);
   const [filterSubcatCategory, setFilterSubcatCategory] = useState<string>('all');
   const [filterSubcatUnit, setFilterSubcatUnit] = useState<string>('all');
   const [filterSubcatUrgensi, setFilterSubcatUrgensi] = useState<string>('all');
@@ -109,7 +120,7 @@ export default function MasterDataManager({
   // Khusus Titik Rawan GIS
   const [showMiniPickerRawan, setShowMiniPickerRawan] = useState(false);
 
-  // Form Fields State
+  // Form Fields State - Murni kosong tanpa fallback/hardcode dummy
   const [formData, setFormData] = useState<any>({
     key: '',
     label: '',
@@ -118,7 +129,7 @@ export default function MasterDataManager({
     // Satuan
     unit_name: '',
     short_name: '',
-    icon_emoji: '🚔',
+    icon_emoji: '',
     duties: '',
     default_orders: '',
     // Role
@@ -130,7 +141,7 @@ export default function MasterDataManager({
     address: '',
     office_lat: 0,
     office_lng: 0,
-    geofence_radius_meters: 500,
+    geofence_radius_meters: 0,
     // Armada Operasional
     nomor_lambung: '',
     nama_armada: '',
@@ -140,7 +151,7 @@ export default function MasterDataManager({
     driver_officer_nrp: '',
     current_lat: 0,
     current_lng: 0,
-    // Titik Rawan GIS (Gambar 3)
+    // Titik Rawan GIS
     title: '',
     police_sector: '',
     category: '',
@@ -153,16 +164,16 @@ export default function MasterDataManager({
     nearest_unit: '',
     // Kategori & Status
     icon: '',
-    badge_bg: '#EFF6FF',
-    badge_color: '#1D4ED8',
-    badge_border: '#BFDBFE',
+    badge_bg: '',
+    badge_color: '',
+    badge_border: '',
     // Subkategori
     nama_kasus: '',
-    category_id: 1,
-    category_key: 'KRIMINALITAS',
-    unit_id: 1,
-    unit_key: 'sabhara',
-    default_urgensi: 'SEDANG',
+    category_id: 0,
+    category_key: '',
+    unit_id: 0,
+    unit_key: '',
+    default_urgensi: '',
     deskripsi_sop: '',
   });
 
@@ -183,12 +194,37 @@ export default function MasterDataManager({
           break;
         case 'station':
           res = await getPoliceStationsMasterAction();
+          if (stationLevelsList.length === 0) {
+            getMasterStationLevelsAction().then((slRes) => {
+              if (slRes.success && slRes.data) setStationLevelsList(slRes.data);
+            });
+          }
           break;
         case 'armada':
           res = await getMasterVehiclesAction();
+          if (vehicleTypesList.length === 0) {
+            getMasterVehicleTypesAction().then((vtRes) => {
+              if (vtRes.success && vtRes.data) setVehicleTypesList(vtRes.data);
+            });
+          }
+          if (vehicleStatusesList.length === 0) {
+            getMasterVehicleStatusesAction().then((vsRes) => {
+              if (vsRes.success && vsRes.data) setVehicleStatusesList(vsRes.data);
+            });
+          }
           break;
         case 'hotspot':
           res = await getMasterHotspotsAction();
+          if (hotspotCategoriesList.length === 0) {
+            getMasterHotspotCategoriesAction().then((hcRes) => {
+              if (hcRes.success && hcRes.data) setHotspotCategoriesList(hcRes.data);
+            });
+          }
+          if (dangerLevelsList.length === 0) {
+            getMasterHotspotDangerLevelsAction().then((dlRes) => {
+              if (dlRes.success && dlRes.data) setDangerLevelsList(dlRes.data);
+            });
+          }
           break;
         case 'hotspot_cat':
           res = await getMasterHotspotCategoriesAction();
@@ -209,6 +245,11 @@ export default function MasterDataManager({
               if (uRes.success && uRes.data) setUnitsList(uRes.data);
             });
           }
+          if (urgencyLevelsList.length === 0) {
+            getMasterUrgencyLevelsAction().then((urgRes) => {
+              if (urgRes.success && urgRes.data) setUrgencyLevelsList(urgRes.data);
+            });
+          }
           break;
         }
         case 'duty':
@@ -224,6 +265,34 @@ export default function MasterDataManager({
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Preload semua master lookup tables dari database
+    getMasterStationLevelsAction().then((res) => {
+      if (res.success && res.data) setStationLevelsList(res.data);
+    });
+    getMasterUrgencyLevelsAction().then((res) => {
+      if (res.success && res.data) setUrgencyLevelsList(res.data);
+    });
+    getMasterVehicleTypesAction().then((res) => {
+      if (res.success && res.data) setVehicleTypesList(res.data);
+    });
+    getMasterVehicleStatusesAction().then((res) => {
+      if (res.success && res.data) setVehicleStatusesList(res.data);
+    });
+    getMasterHotspotDangerLevelsAction().then((res) => {
+      if (res.success && res.data) setDangerLevelsList(res.data);
+    });
+    getMasterIncidentCategoriesAction().then((res) => {
+      if (res.success && res.data) setCategoriesList(res.data);
+    });
+    getMasterOperationalUnitsAction().then((res) => {
+      if (res.success && res.data) setUnitsList(res.data);
+    });
+    getMasterHotspotCategoriesAction().then((res) => {
+      if (res.success && res.data) setHotspotCategoriesList(res.data);
+    });
+  }, []);
 
   useEffect(() => {
     setSearchQuery('');
@@ -247,12 +316,7 @@ export default function MasterDataManager({
       is_active: true,
       unit_name: '',
       short_name: '',
-      icon_emoji:
-        activeTab === 'satuan'
-          ? '🚔'
-          : activeTab === 'armada'
-          ? '🚔'
-          : '🔴',
+      icon_emoji: '',
       duties: '',
       default_orders: '',
       description: '',
@@ -262,7 +326,7 @@ export default function MasterDataManager({
       address: '',
       office_lat: 0,
       office_lng: 0,
-      geofence_radius_meters: 500,
+      geofence_radius_meters: 0,
       nomor_lambung: '',
       nama_armada: '',
       jenis_kendaraan: '',
@@ -282,16 +346,16 @@ export default function MasterDataManager({
       schedule_display: '',
       nearest_unit: '',
       icon: '',
-      badge_bg: '#EFF6FF',
-      badge_color: '#1D4ED8',
-      badge_border: '#BFDBFE',
+      badge_bg: '',
+      badge_color: '',
+      badge_border: '',
       // Subkategori
       nama_kasus: '',
-      category_id: categoriesList[0]?.id || 1,
-      category_key: categoriesList[0]?.key || 'KRIMINALITAS',
-      unit_id: unitsList[0]?.id || 1,
-      unit_key: unitsList[0]?.key || 'sabhara',
-      default_urgensi: 'SEDANG',
+      category_id: 0,
+      category_key: '',
+      unit_id: 0,
+      unit_key: '',
+      default_urgensi: '',
       deskripsi_sop: '',
     });
     setShowModal(true);
@@ -303,53 +367,53 @@ export default function MasterDataManager({
     setEditingId(item.id);
     setShowMiniPickerRawan(false);
     setFormData({
-      key: item.key || item.station_code || item.nomor_lambung || '',
-      label: item.label || item.station_name || item.unit_name || item.nama_armada || item.title || item.nama_kasus || '',
-      display_order: item.display_order || 1,
+      key: item.key ?? item.station_code ?? item.nomor_lambung ?? '',
+      label: item.label ?? item.station_name ?? item.unit_name ?? item.nama_armada ?? item.title ?? item.nama_kasus ?? '',
+      display_order: item.display_order ?? 1,
       is_active: item.is_active !== undefined ? item.is_active : true,
-      unit_name: item.unit_name || '',
-      short_name: item.short_name || '',
-      icon_emoji: item.icon_emoji || '🚔',
-      duties: item.duties || '',
-      default_orders: item.default_orders || '',
-      description: item.description || '',
-      station_code: item.station_code || '',
-      station_name: item.station_name || '',
-      station_level: item.station_level || 'POLSEK',
-      address: item.address || '',
-      office_lat: item.office_lat ? Number(item.office_lat) : -6.2415,
-      office_lng: item.office_lng ? Number(item.office_lng) : 106.8021,
-      geofence_radius_meters: item.geofence_radius_meters || 500,
-      nomor_lambung: item.nomor_lambung || '',
-      nama_armada: item.nama_armada || '',
-      jenis_kendaraan: item.jenis_kendaraan || 'RODA_4',
-      plat_nomor_polisi: item.plat_nomor_polisi || '',
-      status_operasional: item.status_operasional || 'SIAGA',
-      driver_officer_nrp: item.driver_officer_nrp || '',
-      current_lat: item.current_lat ? Number(item.current_lat) : -6.2415,
-      current_lng: item.current_lng ? Number(item.current_lng) : 106.8021,
-      title: item.title || '',
-      police_sector: item.police_sector || 'Polsek Metro Setiabudi',
-      category: item.category || 'Rawan Tawuran Warga & Gesekan Kelompok',
-      danger_level: item.danger_level || 'Status: PENGAWASAN PRIORITAS (RAWAN)',
-      lat: item.lat ? Number(item.lat) : -6.2415,
-      lng: item.lng ? Number(item.lng) : 106.8021,
-      active_start: item.active_start || '23:00',
-      active_end: item.active_end || '04:30',
-      schedule_display: item.schedule_display || '23:00 - 04:30',
-      nearest_unit: item.nearest_unit || 'AIPTU Herman Sulistyo',
-      icon: item.icon || '🚨',
-      badge_bg: item.badge_bg || '#EFF6FF',
-      badge_color: item.badge_color || '#1D4ED8',
-      badge_border: item.badge_border || '#BFDBFE',
+      unit_name: item.unit_name ?? '',
+      short_name: item.short_name ?? '',
+      icon_emoji: item.icon_emoji ?? '',
+      duties: item.duties ?? '',
+      default_orders: item.default_orders ?? '',
+      description: item.description ?? '',
+      station_code: item.station_code ?? '',
+      station_name: item.station_name ?? '',
+      station_level: item.station_level ?? '',
+      address: item.address ?? '',
+      office_lat: item.office_lat != null ? Number(item.office_lat) : 0,
+      office_lng: item.office_lng != null ? Number(item.office_lng) : 0,
+      geofence_radius_meters: item.geofence_radius_meters != null ? Number(item.geofence_radius_meters) : 0,
+      nomor_lambung: item.nomor_lambung ?? '',
+      nama_armada: item.nama_armada ?? '',
+      jenis_kendaraan: item.jenis_kendaraan ?? '',
+      plat_nomor_polisi: item.plat_nomor_polisi ?? '',
+      status_operasional: item.status_operasional ?? '',
+      driver_officer_nrp: item.driver_officer_nrp ?? '',
+      current_lat: item.current_lat != null ? Number(item.current_lat) : 0,
+      current_lng: item.current_lng != null ? Number(item.current_lng) : 0,
+      title: item.title ?? '',
+      police_sector: item.police_sector ?? '',
+      category: item.category ?? '',
+      danger_level: item.danger_level ?? '',
+      lat: item.lat != null ? Number(item.lat) : 0,
+      lng: item.lng != null ? Number(item.lng) : 0,
+      active_start: item.active_start ?? '',
+      active_end: item.active_end ?? '',
+      schedule_display: item.schedule_display ?? '',
+      nearest_unit: item.nearest_unit ?? '',
+      icon: item.icon ?? '',
+      badge_bg: item.badge_bg ?? '',
+      badge_color: item.badge_color ?? '',
+      badge_border: item.badge_border ?? '',
       // Subkategori
-      nama_kasus: item.nama_kasus || '',
-      category_id: item.category_id || item.category_rel?.id || 1,
-      category_key: item.category_key || item.category_rel?.key || 'KRIMINALITAS',
-      unit_id: item.unit_id || item.unit_rel?.id || 1,
-      unit_key: item.unit_key || item.unit_rel?.key || 'sabhara',
-      default_urgensi: item.default_urgensi || 'SEDANG',
-      deskripsi_sop: item.deskripsi_sop || '',
+      nama_kasus: item.nama_kasus ?? '',
+      category_id: item.category_id ?? item.category_rel?.id ?? 0,
+      category_key: item.category_key ?? item.category_rel?.key ?? '',
+      unit_id: item.unit_id ?? item.unit_rel?.id ?? 0,
+      unit_key: item.unit_key ?? item.unit_rel?.key ?? '',
+      default_urgensi: item.default_urgensi ?? '',
+      deskripsi_sop: item.deskripsi_sop ?? '',
     });
     setShowModal(true);
   };
@@ -363,34 +427,109 @@ export default function MasterDataManager({
       if (modalMode === 'add') {
         switch (activeTab) {
           case 'pangkat':
+            if (!formData.key?.trim() || !formData.label?.trim()) {
+              alert('Kode Pangkat dan Label wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterRankAction(formData);
             break;
           case 'satuan':
+            if (!formData.key?.trim() || !formData.unit_name?.trim()) {
+              alert('Kode Satuan dan Nama Satuan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterOperationalUnitAction(formData);
             break;
           case 'role':
+            if (!formData.key?.trim() || !formData.label?.trim()) {
+              alert('Kode Role dan Label wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterRoleAction(formData);
             break;
           case 'station':
+            if (!formData.station_code?.trim() || !formData.station_name?.trim() || !formData.station_level?.trim() || !formData.address?.trim()) {
+              alert('Kode Mako, Nama Mako, Tingkat Hierarki, dan Alamat Mako wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createPoliceStationMasterAction(formData);
             break;
           case 'armada':
+            if (!formData.nomor_lambung?.trim() || !formData.nama_armada?.trim() || !formData.jenis_kendaraan?.trim() || !formData.status_operasional?.trim()) {
+              alert('Nomor Lambung, Nama Armada, Jenis Kendaraan, dan Status Operasional wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterVehicleAction(formData);
             break;
           case 'hotspot': {
-            const autoKey =
-              formData.key?.trim() ||
-              `HS-${(formData.title || 'RAWAN').replace(/[^A-Za-z0-9]/g, '').slice(0, 6).toUpperCase()}-${Math.floor(10 + Math.random() * 90)}`;
+            const cleanKey = formData.key?.trim();
+            if (!cleanKey) {
+              alert('Kode Titik Rawan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.title?.trim()) {
+              alert('Nama Titik Rawan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.police_sector?.trim()) {
+              alert('Wilayah / Polsek Pengampu wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.category?.trim()) {
+              alert('Kategori Kerawanan wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.danger_level?.trim()) {
+              alert('Tingkat Status Bahaya wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.schedule_display?.trim()) {
+              alert('Jadwal / Jam Rawan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.nearest_unit?.trim()) {
+              alert('Unit Terdekat / PIC Lapangan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterHotspotAction({
               ...formData,
-              key: autoKey,
+              key: cleanKey,
             });
             break;
           }
           case 'hotspot_cat':
+            if (!formData.key?.trim() || !formData.label?.trim()) {
+              alert('Kode dan Label Kategori Titik Rawan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterHotspotCategoryAction(formData);
             break;
           case 'kategori':
+            if (
+              !formData.key?.trim() ||
+              !formData.label?.trim() ||
+              !formData.icon?.trim() ||
+              !formData.badge_bg?.trim() ||
+              !formData.badge_color?.trim() ||
+              !formData.badge_border?.trim()
+            ) {
+              alert('Kode, Label, Icon Emoji, dan Warna Badge wajib diisi lengkap!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterIncidentCategoryAction(formData);
             break;
           case 'subkategori': {
@@ -401,14 +540,29 @@ export default function MasterDataManager({
               return;
             }
             const cat = categoriesList.find((c) => c.key === formData.category_key || c.id === Number(formData.category_id));
+            if (!cat) {
+              alert('Kategori Induk Kejadian wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
             const unit = unitsList.find((u) => u.key?.toLowerCase() === formData.unit_key?.toLowerCase() || u.id === Number(formData.unit_id));
+            if (!unit) {
+              alert('Satuan Unit Utama (SOP) wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.default_urgensi?.trim()) {
+              alert('Default Tingkat Urgensi Presisi wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterIncidentSubcategoryAction({
-              category_id: Number(cat?.id || formData.category_id || 1),
-              category_key: cat?.key || formData.category_key || 'KRIMINALITAS',
-              unit_id: Number(unit?.id || formData.unit_id || 1),
-              unit_key: unit?.key || formData.unit_key || 'sabhara',
+              category_id: Number(cat.id),
+              category_key: cat.key,
+              unit_id: Number(unit.id),
+              unit_key: unit.key,
               nama_kasus: cleanKasus,
-              default_urgensi: formData.default_urgensi || 'SEDANG',
+              default_urgensi: formData.default_urgensi,
               deskripsi_sop: formData.deskripsi_sop?.trim() || '',
               display_order: Number(formData.display_order) || 1,
               is_active: Boolean(formData.is_active),
@@ -416,6 +570,11 @@ export default function MasterDataManager({
             break;
           }
           case 'duty':
+            if (!formData.key?.trim() || !formData.label?.trim()) {
+              alert('Kode dan Label Status Kedinasan wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await createMasterDutyStatusAction(formData);
             break;
         }
@@ -447,16 +606,37 @@ export default function MasterDataManager({
             res = await updateMasterIncidentCategoryAction(Number(editingId), formData);
             break;
           case 'subkategori': {
+            const cleanKasus = formData.nama_kasus?.trim();
+            if (!cleanKasus) {
+              alert('Nama kasus/subkategori wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
             const cat = categoriesList.find((c) => c.key === formData.category_key || c.id === Number(formData.category_id));
+            if (!cat) {
+              alert('Kategori Induk Kejadian wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
             const unit = unitsList.find((u) => u.key?.toLowerCase() === formData.unit_key?.toLowerCase() || u.id === Number(formData.unit_id));
+            if (!unit) {
+              alert('Satuan Unit Utama (SOP) wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
+            if (!formData.default_urgensi?.trim()) {
+              alert('Default Tingkat Urgensi Presisi wajib dipilih!');
+              setFormSubmitting(false);
+              return;
+            }
             res = await updateMasterIncidentSubcategoryAction(Number(editingId), {
-              category_id: Number(cat?.id || formData.category_id),
-              category_key: cat?.key || formData.category_key,
-              unit_id: Number(unit?.id || formData.unit_id),
-              unit_key: unit?.key || formData.unit_key,
-              nama_kasus: formData.nama_kasus?.trim(),
-              default_urgensi: formData.default_urgensi || 'SEDANG',
-              deskripsi_sop: formData.deskripsi_sop?.trim(),
+              category_id: Number(cat.id),
+              category_key: cat.key,
+              unit_id: Number(unit.id),
+              unit_key: unit.key,
+              nama_kasus: cleanKasus,
+              default_urgensi: formData.default_urgensi,
+              deskripsi_sop: formData.deskripsi_sop?.trim() || '',
               display_order: Number(formData.display_order) || 1,
               is_active: Boolean(formData.is_active),
             });
@@ -860,9 +1040,11 @@ export default function MasterDataManager({
                 }}
               >
                 <option value="all">Semua Urgensi</option>
-                <option value="DARURAT">🚨 Darurat</option>
-                <option value="SEDANG">⚠️ Sedang</option>
-                <option value="NORMAL">ℹ️ Normal</option>
+                {urgencyLevelsList.map((urg) => (
+                  <option key={urg.id || urg.key} value={urg.key}>
+                    {urg.icon_emoji ? `${urg.icon_emoji} ` : ''}{urg.label}
+                  </option>
+                ))}
               </select>
             </div>
           </>
@@ -1001,7 +1183,7 @@ export default function MasterDataManager({
                             {item.jenis_kendaraan}
                           </span>
                           <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#0F172A' }}>
-                            {item.plat_nomor_polisi || '-'}
+                            {item.plat_nomor_polisi}
                           </span>
                         </td>
                         <td style={{ padding: '14px 16px' }}>
@@ -1034,7 +1216,7 @@ export default function MasterDataManager({
                           </span>
                         </td>
                         <td style={{ padding: '14px 16px', fontFamily: 'monospace', fontWeight: 700, color: '#475569' }}>
-                          {item.driver_officer_nrp || '-'}
+                          {item.driver_officer_nrp}
                         </td>
                         <td style={{ padding: '14px 16px' }}>
                           <code style={{ fontSize: '11px', color: '#6366F1', background: '#EEF2FF', padding: '2px 6px', borderRadius: '4px' }}>
@@ -1077,8 +1259,14 @@ export default function MasterDataManager({
                           📍 {Number(item.lat).toFixed(4)}, {Number(item.lng).toFixed(4)}
                         </td>
                         <td style={{ padding: '14px 16px', fontSize: '12px' }}>
-                          <div style={{ fontWeight: 700, color: '#D97706' }}>🕒 {item.schedule_display || `${item.active_start} - ${item.active_end} WIB`}</div>
-                          <div style={{ fontSize: '11px', color: '#64748B' }}>🚔 {item.nearest_unit}</div>
+                          {item.schedule_display ? (
+                            <div style={{ fontWeight: 700, color: '#D97706' }}>🕒 {item.schedule_display}</div>
+                          ) : item.active_start && item.active_end ? (
+                            <div style={{ fontWeight: 700, color: '#D97706' }}>🕒 {item.active_start} - {item.active_end} WIB</div>
+                          ) : null}
+                          {item.nearest_unit ? (
+                            <div style={{ fontSize: '11px', color: '#64748B' }}>🚔 {item.nearest_unit}</div>
+                          ) : null}
                         </td>
                       </>
                     ) : activeTab === 'subkategori' ? (
@@ -1088,8 +1276,8 @@ export default function MasterDataManager({
                           <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '13px', marginBottom: '4px' }}>
                             {item.nama_kasus}
                           </div>
-                          {(() => {
-                            const urg = item.default_urgensi || 'SEDANG';
+                          {item.default_urgensi ? (() => {
+                            const urg = item.default_urgensi;
                             const isDarurat = urg === 'DARURAT' || urg === 'PRIORITAS_TINGGI';
                             const isSedang = urg === 'SEDANG';
                             const bg = isDarurat ? '#FEE2E2' : isSedang ? '#FEF3C7' : '#EFF6FF';
@@ -1112,44 +1300,49 @@ export default function MasterDataManager({
                                 <span>{icon}</span> {isDarurat ? 'DARURAT' : urg}
                               </span>
                             );
-                          })()}
+                          })() : null}
                         </td>
                         <td style={{ padding: '14px 16px' }}>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              background: item.category_rel?.badge_bg || '#F1F5F9',
-                              color: item.category_rel?.badge_color || '#334155',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '5px',
-                            }}
-                          >
-                            <span>{item.category_rel?.icon || '📁'}</span>
-                            <span>{item.category_rel?.label || item.category_key}</span>
-                          </span>
+                          {(item.category_rel?.label || item.category_key) && (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                background: item.category_rel?.badge_bg || '#F8FAFC',
+                                color: item.category_rel?.badge_color || '#1E293B',
+                                border: item.category_rel?.badge_border ? `1px solid ${item.category_rel.badge_border}` : '1px solid #E2E8F0',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                              }}
+                            >
+                              {item.category_rel?.icon ? <span>{item.category_rel.icon}</span> : null}
+                              <span>{item.category_rel?.label || item.category_key}</span>
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: '14px 16px' }}>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              background: '#F8FAFC',
-                              color: '#0F172A',
-                              border: '1px solid #E2E8F0',
-                              padding: '3px 8px',
-                              borderRadius: '6px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                            }}
-                          >
-                            <span>{item.unit_rel?.icon_emoji || '🚔'}</span>
-                            <span>{item.unit_rel?.short_name || item.unit_key?.toUpperCase()}</span>
-                          </span>
+                          {(item.unit_rel?.short_name || item.unit_key) && (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                background: '#F8FAFC',
+                                color: '#0F172A',
+                                border: '1px solid #E2E8F0',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                              }}
+                            >
+                              {item.unit_rel?.icon_emoji ? <span>{item.unit_rel.icon_emoji}</span> : null}
+                              <span>{item.unit_rel?.short_name || item.unit_key?.toUpperCase()}</span>
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: '14px 16px', maxWidth: '300px', fontSize: '11.5px', color: '#475569', lineHeight: 1.4 }}>
                           {item.deskripsi_sop ? (
@@ -1159,7 +1352,7 @@ export default function MasterDataManager({
                           )}
                         </td>
                         <td style={{ padding: '14px 16px', fontWeight: 700, color: '#64748B' }}>
-                          {item.display_order || 1}
+                          {item.display_order ?? 1}
                         </td>
                         <td style={{ padding: '14px 16px' }}>
                           <span
@@ -1211,7 +1404,7 @@ export default function MasterDataManager({
                         {/* Kolom Spesifik Role */}
                         {activeTab === 'role' && (
                           <td style={{ padding: '14px 16px', color: '#64748B', fontSize: '12px', maxWidth: '320px' }}>
-                            {item.description || '-'}
+                            {item.description}
                           </td>
                         )}
 
@@ -1236,9 +1429,9 @@ export default function MasterDataManager({
                           <td style={{ padding: '14px 16px' }}>
                             <span
                               style={{
-                                background: item.badge_bg || '#ECFDF5',
-                                color: item.badge_color || '#10B981',
-                                border: '1px solid currentColor',
+                                background: item.badge_bg || '#F8FAFC',
+                                color: item.badge_color || '#334155',
+                                border: item.badge_color ? '1px solid currentColor' : '1px solid #E2E8F0',
                                 padding: '3px 8px',
                                 borderRadius: '12px',
                                 fontSize: '11px',
@@ -1253,7 +1446,7 @@ export default function MasterDataManager({
                         {/* Urutan */}
                         {activeTab !== 'station' && (
                           <td style={{ padding: '14px 16px', textAlign: 'center', fontWeight: 700, color: '#64748B' }}>
-                            {item.display_order || 1}
+                            {item.display_order ?? 1}
                           </td>
                         )}
 
@@ -1412,8 +1605,31 @@ export default function MasterDataManager({
               {/* KHUSUS TITIK RAWAN KAMTIBMAS (INPUT SESUAI SCREENSHOT) */}
               {activeTab === 'hotspot' ? (
                 <>
-                  {/* Grid 2 Kolom Baris 1: Cari Alamat / Lokasi Rawan & Wilayah / Polsek Pengampu */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+                  {/* Grid 3 Kolom Baris 1: Kode Rawan, Cari Alamat / Lokasi Rawan & Wilayah / Polsek Pengampu */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 2fr', gap: '14px', marginBottom: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Kode Titik Rawan <span style={{ color: 'red' }}>*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Contoh: HS-BARITO-01"
+                        value={formData.key}
+                        onChange={(e) => setFormData({ ...formData, key: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '9px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '12.5px',
+                          fontFamily: 'monospace',
+                          fontWeight: 700,
+                          background: 'white',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
                         🔍 Cari Alamat / Lokasi Rawan <span style={{ color: 'red' }}>*</span>
@@ -1465,6 +1681,7 @@ export default function MasterDataManager({
                         Kategori Kerawanan <span style={{ color: 'red' }}>*</span>
                       </label>
                       <select
+                        required
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                         style={{
@@ -1477,13 +1694,12 @@ export default function MasterDataManager({
                           boxSizing: 'border-box',
                         }}
                       >
-                        <option value="Rawan Tawuran Warga & Gesekan Kelompok">Rawan Tawuran Warga &amp; Gesekan Kelompok</option>
-                        <option value="Rawan Tawuran Pelajar Ber-sajam">Rawan Tawuran Pelajar Ber-sajam</option>
-                        <option value="Rawan Balap Liar & Gangguan Knalpot Brong">Rawan Balap Liar &amp; Gangguan Knalpot Brong</option>
-                        <option value="Rawan Curas, Curat & Begal Jalanan (3C)">Rawan Curas, Curat &amp; Begal Jalanan (3C)</option>
-                        <option value="Rawan Narkoba & Miras Oplosan">Rawan Narkoba &amp; Miras Oplosan</option>
-                        <option value="Rawan Kemacetan Parah & Pasar Tumpah">Rawan Kemacetan Parah &amp; Pasar Tumpah</option>
-                        <option value="Objek Vital & Titik Kumpul Massa">Objek Vital &amp; Titik Kumpul Massa</option>
+                        <option value="">-- Pilih Kategori Kerawanan --</option>
+                        {hotspotCategoriesList.map((hc) => (
+                          <option key={hc.id} value={hc.key}>
+                            {hc.icon_emoji ? `${hc.icon_emoji} ` : ''}{hc.label} ({hc.key})
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1491,6 +1707,7 @@ export default function MasterDataManager({
                         Tingkat Status Bahaya <span style={{ color: 'red' }}>*</span>
                       </label>
                       <select
+                        required
                         value={formData.danger_level}
                         onChange={(e) => setFormData({ ...formData, danger_level: e.target.value })}
                         style={{
@@ -1503,10 +1720,12 @@ export default function MasterDataManager({
                           boxSizing: 'border-box',
                         }}
                       >
-                        <option value="Status: PENGAWASAN PRIORITAS (RAWAN)">Status: PENGAWASAN PRIORITAS (🔴 Merah)</option>
-                        <option value="Status: SIAGA PATROLI BLUE LIGHT">Status: SIAGA PATROLI BLUE LIGHT (🟠 Oranye)</option>
-                        <option value="Status: INSIDEN DARURAT AKTIF (SIAGA 110)">Status: INSIDEN DARURAT AKTIF (SIAGA 110)</option>
-                        <option value="Status: PEMANTAUAN RUTIN">Status: PEMANTAUAN RUTIN (🟡 Kuning)</option>
+                        <option value="">-- Pilih Tingkat Bahaya --</option>
+                        {dangerLevelsList.map((dl) => (
+                          <option key={dl.id || dl.key} value={dl.key}>
+                            {dl.icon_emoji ? `${dl.icon_emoji} ` : ''}{dl.label?.includes(dl.key) ? dl.label : `${dl.label} (${dl.key})`}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -1772,17 +1991,20 @@ export default function MasterDataManager({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                        Jenis Kendaraan
+                        Jenis Kendaraan <span style={{ color: 'red' }}>*</span>
                       </label>
                       <select
+                        required
                         value={formData.jenis_kendaraan}
                         onChange={(e) => setFormData({ ...formData, jenis_kendaraan: e.target.value })}
                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                       >
-                        <option value="RODA_4">Mobil Patroli Sedan / SUV (RODA_4)</option>
-                        <option value="RODA_2">Sepeda Motor Trail / Taktis (RODA_2)</option>
-                        <option value="MINIBUS">Kendaraan Taktis Minibus (MINIBUS)</option>
-                        <option value="WATER_CANNON">Rantis Pengurai Massa (WATER_CANNON)</option>
+                        <option value="">-- Pilih Jenis Kendaraan --</option>
+                        {vehicleTypesList.map((vt) => (
+                          <option key={vt.key} value={vt.key}>
+                            {vt.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1801,17 +2023,20 @@ export default function MasterDataManager({
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                        Status Kesiapsiagaan
+                        Status Kesiapsiagaan <span style={{ color: 'red' }}>*</span>
                       </label>
                       <select
+                        required
                         value={formData.status_operasional}
                         onChange={(e) => setFormData({ ...formData, status_operasional: e.target.value })}
                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                       >
-                        <option value="SIAGA">🟢 SIAGA (Standby Mako / Beat)</option>
-                        <option value="PATROLI">🔵 PATROLI (Mobile Lapangan)</option>
-                        <option value="MENUJU_TKP">🔴 MENUJU_TKP (Tanggap Darurat 110)</option>
-                        <option value="PEMELIHARAAN">⚪ PEMELIHARAAN (Bengkel / Servis)</option>
+                        <option value="">-- Pilih Status Operasional --</option>
+                        {vehicleStatusesList.map((vs) => (
+                          <option key={vs.key} value={vs.key}>
+                            {vs.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -1851,17 +2076,19 @@ export default function MasterDataManager({
                         Kategori Induk Kejadian <span style={{ color: 'red' }}>*</span>
                       </label>
                       <select
+                        required
                         value={formData.category_key || ''}
                         onChange={(e) => {
                           const selectedCat = categoriesList.find((c) => c.key === e.target.value);
                           setFormData({
                             ...formData,
                             category_key: e.target.value,
-                            category_id: selectedCat?.id || formData.category_id,
+                            category_id: selectedCat?.id || 0,
                           });
                         }}
                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                       >
+                        <option value="">-- Pilih Kategori Induk Kejadian --</option>
                         {categoriesList.map((cat) => (
                           <option key={cat.id} value={cat.key}>
                             {cat.icon} {cat.label} ({cat.key})
@@ -1875,17 +2102,19 @@ export default function MasterDataManager({
                         Satuan Unit Utama (SOP) <span style={{ color: 'red' }}>*</span>
                       </label>
                       <select
+                        required
                         value={formData.unit_key || ''}
                         onChange={(e) => {
                           const selectedUnit = unitsList.find((u) => u.key?.toLowerCase() === e.target.value?.toLowerCase());
                           setFormData({
                             ...formData,
                             unit_key: e.target.value,
-                            unit_id: selectedUnit?.id || formData.unit_id,
+                            unit_id: selectedUnit?.id || 0,
                           });
                         }}
                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                       >
+                        <option value="">-- Pilih Satuan Unit Utama --</option>
                         {unitsList.map((unit) => (
                           <option key={unit.id} value={unit.key}>
                             {unit.icon_emoji} {unit.short_name} ({unit.unit_name})
@@ -1900,13 +2129,17 @@ export default function MasterDataManager({
                       Default Tingkat Urgensi Presisi <span style={{ color: 'red' }}>*</span>
                     </label>
                     <select
-                      value={formData.default_urgensi || 'SEDANG'}
+                      required
+                      value={formData.default_urgensi || ''}
                       onChange={(e) => setFormData({ ...formData, default_urgensi: e.target.value })}
                       style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                     >
-                      <option value="DARURAT">🚨 DARURAT (Eskalasi Cepat / Ancaman Jiwa)</option>
-                      <option value="SEDANG">⚠️ SEDANG (Penanganan Standar Tim Presisi)</option>
-                      <option value="NORMAL">ℹ️ NORMAL (Pelayanan / Laporan Administratif)</option>
+                      <option value="">-- Pilih Tingkat Urgensi Presisi --</option>
+                      {urgencyLevelsList.map((urg) => (
+                        <option key={urg.id || urg.key} value={urg.key}>
+                          {urg.icon_emoji ? `${urg.icon_emoji} ` : ''}{urg.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -1997,6 +2230,112 @@ export default function MasterDataManager({
                           fontSize: '12.5px',
                           boxSizing: 'border-box',
                         }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Kategori Kejadian Spesifik */}
+                  {activeTab === 'kategori' && (
+                    <>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Icon Emoji Kategori <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Contoh: 🚨 / ⚔️ / 🏍️"
+                          value={formData.icon || ''}
+                          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Latar (Badge) <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="#EFF6FF"
+                            value={formData.badge_bg || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_bg: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Teks <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="#1D4ED8"
+                            value={formData.badge_color || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Border <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="#BFDBFE"
+                            value={formData.badge_border || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_border: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Status Kedinasan Spesifik */}
+                  {activeTab === 'duty' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Warna Badge Teks
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="#10B981"
+                          value={formData.badge_color || ''}
+                          onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Warna Badge Latar
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="#ECFDF5"
+                          value={formData.badge_bg || ''}
+                          onChange={(e) => setFormData({ ...formData, badge_bg: e.target.value })}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kategori Titik Rawan Spesifik */}
+                  {activeTab === 'hotspot_cat' && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Icon Emoji Kategori Rawan
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: 🔴 / ⚠️ / 🏍️"
+                        value={formData.icon_emoji || ''}
+                        onChange={(e) => setFormData({ ...formData, icon_emoji: e.target.value })}
+                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
                       />
                     </div>
                   )}
@@ -2094,18 +2433,20 @@ export default function MasterDataManager({
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                         <div>
                           <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                            Tingkat Hierarki Mako
+                            Tingkat Hierarki Mako <span style={{ color: 'red' }}>*</span>
                           </label>
                           <select
+                            required
                             value={formData.station_level}
                             onChange={(e) => setFormData({ ...formData, station_level: e.target.value })}
                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                           >
-                            <option value="POLSEK">Polsek (Sektor)</option>
-                            <option value="POLRES">Polres (Resor)</option>
-                            <option value="POLDA">Polda (Daerah)</option>
-                            <option value="POSPOL">Pos Polisi / Pos Lantas</option>
-                            <option value="MABES">Mabes Polri</option>
+                            <option value="">-- Pilih Tingkat Hierarki --</option>
+                            {stationLevelsList.map((sl) => (
+                              <option key={sl.id || sl.key} value={sl.key}>
+                                {sl.label} ({sl.key})
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <div>
@@ -2114,8 +2455,10 @@ export default function MasterDataManager({
                           </label>
                           <input
                             type="number"
-                            value={formData.geofence_radius_meters}
-                            onChange={(e) => setFormData({ ...formData, geofence_radius_meters: parseInt(e.target.value) || 500 })}
+                            min="10"
+                            placeholder="Contoh: 500"
+                            value={formData.geofence_radius_meters || ''}
+                            onChange={(e) => setFormData({ ...formData, geofence_radius_meters: parseInt(e.target.value) || 0 })}
                             style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
                           />
                         </div>

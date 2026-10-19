@@ -26,28 +26,68 @@ export async function createHotspotAction(input: {
   wilayahPolsek: string;
   kategori: string;
   statusBahaya: string;
-  ikonEmoji?: string;
+  ikonEmoji?: string | null;
   lat: number;
   lng: number;
-  jadwalMulai?: string;
-  jadwalSelesai?: string;
-  jadwalDisplay?: string;
-  unitTerdekat?: string;
+  jadwalMulai?: string | null;
+  jadwalSelesai?: string | null;
+  jadwalDisplay?: string | null;
+  unitTerdekat?: string | null;
 }) {
   try {
+    const cleanTitle = input.title?.trim();
+    if (!cleanTitle) {
+      return { success: false, error: 'Nama titik rawan wajib diisi!' };
+    }
+    const cleanSector = input.wilayahPolsek?.trim();
+    if (!cleanSector) {
+      return { success: false, error: 'Wilayah hukum / Polsek wajib diisi!' };
+    }
+    const cleanKategori = input.kategori?.trim();
+    if (!cleanKategori) {
+      return { success: false, error: 'Kategori kerawanan wajib diisi!' };
+    }
+    const cleanStatus = input.statusBahaya?.trim();
+    if (!cleanStatus) {
+      return { success: false, error: 'Tingkat status bahaya wajib diisi!' };
+    }
+    if (
+      input.lat === undefined ||
+      input.lat === null ||
+      isNaN(Number(input.lat)) ||
+      input.lng === undefined ||
+      input.lng === null ||
+      isNaN(Number(input.lng))
+    ) {
+      return { success: false, error: 'Koordinat lokasi (latitude & longitude) wajib diisi angka valid!' };
+    }
+
+    const cleanDisplay =
+      input.jadwalDisplay?.trim() ||
+      (input.jadwalMulai?.trim() && input.jadwalSelesai?.trim()
+        ? `${input.jadwalMulai.trim()} - ${input.jadwalSelesai.trim()} WIB`
+        : '');
+    if (!cleanDisplay) {
+      return { success: false, error: 'Jadwal / jam operasional rawan wajib diisi!' };
+    }
+    const cleanUnit = input.unitTerdekat?.trim();
+    if (!cleanUnit) {
+      return { success: false, error: 'Unit operasional terdekat / personel siaga wajib diisi!' };
+    }
+
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const created = await useCase.createHotspot({
-      title: input.title,
-      wilayahPolsek: input.wilayahPolsek,
-      kategori: input.kategori,
-      statusBahaya: input.statusBahaya,
-      ikonEmoji: input.ikonEmoji || '🔴',
-      lat: input.lat,
-      lng: input.lng,
-      jadwalMulai: input.jadwalMulai || '23:00',
-      jadwalSelesai: input.jadwalSelesai || '04:30',
-      jadwalDisplay: input.jadwalDisplay || `${input.jadwalMulai || '23:00'} - ${input.jadwalSelesai || '04:30'} WIB`,
-      unitTerdekat: input.unitTerdekat || '-',
+      title: cleanTitle,
+      wilayahPolsek: cleanSector,
+      kategori: cleanKategori,
+      statusBahaya: cleanStatus,
+      ikonEmoji: input.ikonEmoji?.trim() || '',
+      lat: Number(input.lat),
+      lng: Number(input.lng),
+      jadwalMulai: input.jadwalMulai?.trim() || '',
+      jadwalSelesai: input.jadwalSelesai?.trim() || '',
+      jadwalDisplay: cleanDisplay,
+      unitTerdekat: cleanUnit,
     });
     revalidatePath('/personil');
     revalidatePath('/command-center');
@@ -64,13 +104,13 @@ export async function updateHotspotAction(
     wilayahPolsek?: string;
     kategori?: string;
     statusBahaya?: string;
-    ikonEmoji?: string;
+    ikonEmoji?: string | null;
     lat?: number;
     lng?: number;
-    jadwalMulai?: string;
-    jadwalSelesai?: string;
-    jadwalDisplay?: string;
-    unitTerdekat?: string;
+    jadwalMulai?: string | null;
+    jadwalSelesai?: string | null;
+    jadwalDisplay?: string | null;
+    unitTerdekat?: string | null;
   }
 ) {
   try {
@@ -93,5 +133,34 @@ export async function deleteHotspotAction(key: string) {
     return { success: true, deleted };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menghapus titik rawan.' };
+  }
+}
+
+/**
+ * Mengambil master kategori kerawanan dan tingkat status bahaya titik rawan dari database
+ */
+export async function getMasterHotspotOptionsAction() {
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const [categories, dangerLevels] = await Promise.all([
+      prisma.masterHotspotCategory.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.masterHotspotDangerLevel.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: {
+        categories: serializeBigInt(categories),
+        dangerLevels: serializeBigInt(dangerLevels),
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal mengambil master titik rawan.' };
   }
 }

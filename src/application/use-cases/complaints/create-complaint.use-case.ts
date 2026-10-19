@@ -20,8 +20,36 @@ export class CreateComplaintUseCase {
   constructor(private complaintRepo: IComplaintRepository) {}
 
   async execute(input: CreateComplaintInput): Promise<ComplaintEntity> {
-    if (!input.pelaporNama || !input.pelaporHp || !input.tkpAlamatTeks) {
-      throw new Error('Nama pelapor, nomor telepon, dan alamat TKP wajib diisi.');
+    const pelaporNama = input.pelaporNama?.trim();
+    const pelaporHp = input.pelaporHp?.trim();
+    const tkpAlamatTeks = input.tkpAlamatTeks?.trim();
+    const jenisKejadian = input.jenisKejadian?.trim();
+    const ringkasanKeterangan = input.ringkasanKeterangan?.trim();
+
+    if (!pelaporNama || pelaporNama === '-') {
+      throw new Error('Nama pelapor wajib diisi.');
+    }
+    if (!pelaporHp || pelaporHp === '-') {
+      throw new Error('Nomor telepon / kontak pelapor wajib diisi.');
+    }
+    if (!jenisKejadian || jenisKejadian === '-') {
+      throw new Error('Jenis / kategori kejadian wajib diisi.');
+    }
+    if (!tkpAlamatTeks || tkpAlamatTeks === '-') {
+      throw new Error('Alamat lokasi kejadian (TKP) wajib diisi.');
+    }
+    if (
+      input.tkpLat === undefined ||
+      input.tkpLat === null ||
+      isNaN(Number(input.tkpLat)) ||
+      input.tkpLng === undefined ||
+      input.tkpLng === null ||
+      isNaN(Number(input.tkpLng))
+    ) {
+      throw new Error('Koordinat TKP (latitude & longitude) wajib berupa angka valid.');
+    }
+    if (!ringkasanKeterangan || ringkasanKeterangan === '-') {
+      throw new Error('Uraian keterangan kejadian wajib diisi.');
     }
 
     // Generator Nomor Registrasi Tiket Resmi: LP-110-YYYYMM-XXXX
@@ -32,24 +60,24 @@ export class CreateComplaintUseCase {
 
     const complaint = new ComplaintEntity({
       nomorTiket,
-      pelaporNama: input.pelaporNama.trim(),
-      pelaporHp: input.pelaporHp.trim(),
-      jenisKejadian: input.jenisKejadian.trim(),
-      urgensi: ((input.urgensi as any) === 'PRIORITAS_TINGGI' ? 'DARURAT' : input.urgensi) || 'SEDANG',
-      tkpAlamatTeks: input.tkpAlamatTeks.trim(),
-      tkpLat: input.tkpLat,
-      tkpLng: input.tkpLng,
-      ringkasanKeterangan: input.ringkasanKeterangan.trim(),
+      pelaporNama,
+      pelaporHp,
+      jenisKejadian,
+      urgensi: input.urgensi as UrgensiLevel,
+      tkpAlamatTeks,
+      tkpLat: Number(input.tkpLat),
+      tkpLng: Number(input.tkpLng),
+      ringkasanKeterangan,
       status: 'MENUNGGU',
-      operatorId: input.operatorId || null,
-      kategoriKey: input.kategoriKey || null,
-      subcategoryId: input.subcategoryId || null,
-      platformKey: input.platformKey || null,
+      operatorId: input.operatorId ,
+      kategoriKey: input.kategoriKey,
+      subcategoryId: input.subcategoryId,
+      platformKey: input.platformKey,
       timelines: [
         {
           tahapKe: 0,
-          tahapTitle: 'Laporan Diterima di Konsol 110 SPKT',
-          catatan: 'Pengaduan dicatat dan masuk ke buku register antrean Pawas.',
+          tahapTitle: 'Laporan Diterima',
+          catatan: 'Pengaduan dicatat dan masuk ke buku register antrean.',
           createdAt: now,
         },
       ],

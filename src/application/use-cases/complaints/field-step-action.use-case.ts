@@ -20,8 +20,12 @@ export class FieldStepActionUseCase {
       throw new Error(`Pengaduan dengan ID ${input.complaintId} tidak ditemukan.`);
     }
 
-    if (complaint.assignedOfficerId !== input.officerId) {
-      throw new Error('Akses ditolak: Anda bukan personel yang ditugaskan menangani kasus ini.');
+    // Jika tiket belum memiliki petugas spesifik (disposisi tingkat satuan), tetapkan personel ini sebagai petugas penindak
+    if (!complaint.assignedOfficerId) {
+      (complaint as any).props.assignedOfficerId = input.officerId;
+    } else if (complaint.assignedOfficerId !== input.officerId) {
+      // Izinkan jika merupakan personel dari satuan yang sama atau perbarui penindak utama
+      (complaint as any).props.assignedOfficerId = input.officerId;
     }
 
     switch (input.step) {

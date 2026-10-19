@@ -260,6 +260,18 @@ model MasterRank {
   @@map("master_ranks")
 }
 
+// 1.14 Master Complaint Rejection Reasons
+model MasterRejectionReason {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(50)
+  label         String   @db.VarChar(150)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  @@map("master_rejection_reasons")
+}
+
 // 1.14 Master Dispatch & Field Movement Statuses
 model MasterDispatchStatus {
   id              Int                 @id @default(autoincrement())

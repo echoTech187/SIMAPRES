@@ -266,6 +266,8 @@ export async function getRegisteredUnitsAction() {
 }
 
 export async function registerNewUnitAction(input: {
+  editId?: string;
+  oldNrp?: string;
   nrp: string;
   nama: string;
   pangkat: string;
@@ -280,34 +282,227 @@ export async function registerNewUnitAction(input: {
   liveLng?: number;
 }) {
   try {
-    const rawPassword = input.password && input.password.trim() ? input.password.trim() : 'polripresisi2026';
-    const hashedPassword = await bcrypt.hash(rawPassword, 10);
     const now = new Date();
-
-    const assignedRole = input.role;
-
+    const assignedRole = input.role || 'PERSONIL';
     const parsedStationId = input.stationId ? Number(input.stationId) : null;
+    const devId = input.deviceID && input.deviceID.trim() ? input.deviceID.trim() : null;
+
+    // Tentukan apakah ini operasi Edit atau Pendaftaran Baru
+    let effectiveOldNrp = input.oldNrp?.trim() || null;
+    if (!effectiveOldNrp && input.editId) {
+      const existingReg = await prisma.registeredUnit.findUnique({
+        where: { id: input.editId },
+      });
+      if (existingReg) {
+        effectiveOldNrp = existingReg.nrp;
+      }
+    }
+
+    const isEditMode = Boolean(effectiveOldNrp || input.editId);
+
+    // Persiapkan kata sandi (jika edit dan kosong, jangan timpa sandi lama)
+    let hashedPassword: string | null = null;
+    if (input.password && input.password.trim()) {
+      hashedPassword = await bcrypt.hash(input.password.trim(), 10);
+    } else if (!isEditMode) {
+      hashedPassword = await bcrypt.hash('polripresisi2026', 10);
+    }
+
+    if (isEditMode && effectiveOldNrp) {
+      // === MODE EDIT: PERBARUI RECORD YANG SUDAH ADA ===
+      const isNrpChanged = effectiveOldNrp !== input.nrp.trim();
+
+      // Cek apakah NRP baru bentrok dengan user/unit lain
+      if (isNrpChanged) {
+        const conflictUser = await prisma.user.findFirst({
+          where: { identifier: input.nrp.trim(), NOT: { identifier: effectiveOldNrp } },
+        });
+        const conflictReg = await prisma.registeredUnit.findFirst({
+          where: { nrp: input.nrp.trim(), NOT: { nrp: effectiveOldNrp } },
+        });
+        if (conflictUser || conflictReg) {
+          return {
+            success: false,
+            error: `NRP ${input.nrp.trim()} sudah digunakan oleh personil/satuan lain!`,
+          };
+        }
+      }
+
+      // 1. Update Tabel users
+      let user = await prisma.user.findUnique({
+        where: { identifier: effectiveOldNrp },
+      });
+
+      if (user) {
+        const userUpdateData: any = {
+          identifier: input.nrp.trim(),
+          full_name: input.nama.trim(),
+          role: assignedRole,
+          station_id: parsedStationId,
+        };
+        if (hashedPassword) {
+          userUpdateData.password_hash = hashedPassword;
+        }
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: userUpdateData,
+        });
+      } else {
+        const fallbackPass = hashedPassword || (await bcrypt.hash('polripresisi2026', 10));
+        user = await prisma.user.create({
+          data: {
+            identifier: input.nrp.trim(),
+            password_hash: fallbackPass,
+            full_name: input.nama.trim(),
+            phone_number: '',
+            role: assignedRole,
+            station_id: parsedStationId,
+          },
+        });
+      }
+
+      // 2. Update Tabel police_officers
+      const existingOfficer = await prisma.policeOfficer.findFirst({
+        where: {
+          OR: [{ user_id: user.id }, { nrp: effectiveOldNrp }],
+        },
+      });
+
+      if (existingOfficer) {
+        await prisma.policeOfficer.update({
+          where: { id: existingOfficer.id },
+          data: {
+            user_id: user.id,
+            nrp: input.nrp.trim(),
+            rank_pangkat: input.pangkat,
+            jabatan: `${input.satuanNama} • ${input.kelompokRegu}`.slice(0, 95),
+            device_id: devId,
+            station_id: parsedStationId,
+            ...(input.liveLat !== undefined ? { current_gps_lat: input.liveLat } : {}),
+            ...(input.liveLng !== undefined ? { current_gps_lng: input.liveLng } : {}),
+          },
+        });
+      } else {
+        await prisma.policeOfficer.create({
+          data: {
+            user_id: user.id,
+            nrp: input.nrp.trim(),
+            rank_pangkat: input.pangkat,
+            jabatan: `${input.satuanNama} • ${input.kelompokRegu}`.slice(0, 95),
+            duty_status: 'LEPAS_DINAS',
+            device_id: devId,
+            station_id: parsedStationId,
+            current_gps_lat: input.liveLat ?? null,
+            current_gps_lng: input.liveLng ?? null,
+          },
+        });
+      }
+
+      // 3. Update Tabel registered_units
+      const regUnit = await prisma.registeredUnit.findFirst({
+        where: input.editId ? { id: input.editId } : { nrp: effectiveOldNrp },
+      });
+
+      let updatedReg: any;
+      if (regUnit) {
+        const regUpdateData: any = {
+          nrp: input.nrp.trim(),
+          nama: input.nama.trim(),
+          pangkat: input.pangkat,
+          role: assignedRole,
+          unitId: input.unitId,
+          satuanNama: input.satuanNama,
+          kelompokRegu: input.kelompokRegu,
+          deviceID: devId || '',
+          tanggalUpdate: now,
+        };
+        if (hashedPassword) {
+          regUpdateData.password = hashedPassword;
+        }
+        if (input.liveLat !== undefined) regUpdateData.live_lat = input.liveLat;
+        if (input.liveLng !== undefined) regUpdateData.live_lng = input.liveLng;
+
+        updatedReg = await prisma.registeredUnit.update({
+          where: { id: regUnit.id },
+          data: regUpdateData,
+        });
+      } else {
+        const fallbackPass = hashedPassword || (await bcrypt.hash('polripresisi2026', 10));
+        updatedReg = await prisma.registeredUnit.create({
+          data: {
+            id: input.editId || `REG-UNIT-${input.nrp.trim()}`,
+            nrp: input.nrp.trim(),
+            nama: input.nama.trim(),
+            pangkat: input.pangkat,
+            role: assignedRole,
+            unitId: input.unitId,
+            satuanNama: input.satuanNama,
+            kelompokRegu: input.kelompokRegu,
+            password: fallbackPass,
+            deviceID: devId || '',
+            live_lat: input.liveLat ?? null,
+            live_lng: input.liveLng ?? null,
+            status: 'Aktif',
+            tanggalDaftar: now,
+            tanggalUpdate: now,
+          },
+        });
+      }
+
+      // Sinkronkan kolom role via query langsung untuk menjamin konsistensi
+      await prisma.$executeRawUnsafe(
+        'UPDATE registered_units SET role = ? WHERE nrp = ?',
+        assignedRole,
+        input.nrp.trim()
+      );
+
+      // Jika NRP berubah, sinkronkan relasi eksternal
+      if (isNrpChanged) {
+        try {
+          await prisma.$executeRawUnsafe(
+            'UPDATE patrol_fleet_units SET driver_officer_nrp = ? WHERE driver_officer_nrp = ?',
+            input.nrp.trim(),
+            effectiveOldNrp
+          );
+          await prisma.$executeRawUnsafe(
+            'UPDATE device_pairing_sessions SET nrp = ? WHERE nrp = ?',
+            input.nrp.trim(),
+            effectiveOldNrp
+          );
+        } catch (_) {}
+      }
+
+      try {
+        revalidatePath('/console');
+        revalidatePath('/console/unit');
+        revalidatePath('/registrasi-unit');
+        revalidatePath('/');
+      } catch (_) {}
+
+      return { success: true, data: serializeBigInt({ ...updatedReg, role: assignedRole }) };
+    }
+
+    // === MODE PENDAFTARAN BARU ===
+    const passHash = hashedPassword || (await bcrypt.hash('polripresisi2026', 10));
 
     // 1. Sinkronisasi Akun User (Credentials & Role di Tabel users)
     const user = await prisma.user.upsert({
-      where: { identifier: input.nrp },
+      where: { identifier: input.nrp.trim() },
       update: {
-        full_name: input.nama,
+        full_name: input.nama.trim(),
         role: assignedRole,
-        password_hash: hashedPassword,
+        password_hash: passHash,
         station_id: parsedStationId,
       },
       create: {
-        identifier: input.nrp,
-        password_hash: hashedPassword,
-        full_name: input.nama,
+        identifier: input.nrp.trim(),
+        password_hash: passHash,
+        full_name: input.nama.trim(),
         phone_number: '',
         role: assignedRole || '',
         station_id: parsedStationId,
       },
     });
-
-    const devId = input.deviceID && input.deviceID.trim() ? input.deviceID.trim() : null;
 
     // 2. Sinkronisasi Profil Personil Polisi (Tabel police_officers)
     await prisma.policeOfficer.upsert({
@@ -320,7 +515,7 @@ export async function registerNewUnitAction(input: {
       },
       create: {
         user_id: user.id,
-        nrp: input.nrp,
+        nrp: input.nrp.trim(),
         rank_pangkat: input.pangkat,
         jabatan: `${input.satuanNama} • ${input.kelompokRegu}`.slice(0, 95),
         duty_status: 'LEPAS_DINAS',
@@ -334,28 +529,28 @@ export async function registerNewUnitAction(input: {
 
     // 3. Sinkronisasi Data Unit Satuan Operasional (Tabel registered_units dengan password ter-enkripsi)
     const reg = await prisma.registeredUnit.upsert({
-      where: { nrp: input.nrp },
+      where: { nrp: input.nrp.trim() },
       update: {
-        nama: input.nama,
+        nama: input.nama.trim(),
         pangkat: input.pangkat,
         unitId: input.unitId,
         satuanNama: input.satuanNama,
         kelompokRegu: input.kelompokRegu,
-        password: hashedPassword,
+        password: passHash,
         deviceID: devId || '',
         live_lat: input.liveLat ?? null,
         live_lng: input.liveLng ?? null,
         tanggalUpdate: now,
       },
       create: {
-        id: `REG-UNIT-${input.nrp}`,
-        nrp: input.nrp,
-        nama: input.nama,
+        id: `REG-UNIT-${input.nrp.trim()}`,
+        nrp: input.nrp.trim(),
+        nama: input.nama.trim(),
         pangkat: input.pangkat,
         unitId: input.unitId,
         satuanNama: input.satuanNama,
         kelompokRegu: input.kelompokRegu,
-        password: hashedPassword,
+        password: passHash,
         deviceID: devId || '',
         live_lat: input.liveLat ?? null,
         live_lng: input.liveLng ?? null,
@@ -369,35 +564,89 @@ export async function registerNewUnitAction(input: {
     await prisma.$executeRawUnsafe(
       'UPDATE registered_units SET role = ? WHERE nrp = ?',
       assignedRole,
-      input.nrp
+      input.nrp.trim()
     );
 
     try {
+      revalidatePath('/console');
+      revalidatePath('/console/unit');
       revalidatePath('/registrasi-unit');
       revalidatePath('/');
     } catch (_) {}
     return { success: true, data: serializeBigInt({ ...reg, role: assignedRole }) };
   } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal mendaftarkan satuan unit.' };
+    return { success: false, error: error.message || 'Gagal menyimpan data satuan unit.' };
+  }
+}
+
+export async function deleteRegisteredUnitAction(idOrNrp: string) {
+  try {
+    const reg = await prisma.registeredUnit.findFirst({
+      where: {
+        OR: [{ id: idOrNrp }, { nrp: idOrNrp }],
+      },
+    });
+
+    if (!reg) {
+      return { success: false, error: 'Unit tidak ditemukan.' };
+    }
+
+    const nrp = reg.nrp;
+
+    // Hapus dari registered_units
+    await prisma.registeredUnit.delete({
+      where: { id: reg.id },
+    });
+
+    // Hapus dari users jika ada (officer_profile akan otomatis ter-cascade)
+    const user = await prisma.user.findUnique({
+      where: { identifier: nrp },
+    });
+
+    if (user) {
+      await prisma.user.delete({
+        where: { id: user.id },
+      });
+    } else {
+      await prisma.policeOfficer.deleteMany({
+        where: { nrp },
+      });
+    }
+
+    try {
+      revalidatePath('/console');
+      revalidatePath('/console/unit');
+      revalidatePath('/registrasi-unit');
+      revalidatePath('/');
+    } catch (_) {}
+
+    return {
+      success: true,
+      message: `Unit ${reg.pangkat} ${reg.nama} (NRP: ${nrp}) berhasil dihapus.`,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal menghapus unit.' };
   }
 }
 
 export async function updateDeviceTelemetryAction(input: {
-  deviceId: string;
+  deviceId?: string;
   nrp?: string;
   lat: number;
   lng: number;
 }) {
   try {
-    // Update live location di registered_units
-    await prisma.registeredUnit.updateMany({
-      where: { deviceID: input.deviceId },
-      data: {
-        live_lat: input.lat,
-        live_lng: input.lng,
-        tanggalUpdate: new Date(),
-      },
-    });
+    // Update live location di registered_units jika ada deviceId
+    if (input.deviceId) {
+      await (prisma as any).registeredUnit?.updateMany({
+        where: { deviceID: input.deviceId },
+        data: {
+          live_lat: input.lat,
+          live_lng: input.lng,
+          tanggalUpdate: new Date(),
+        },
+      });
+    }
 
     // Update di police_officers jika cocok
     if (input.nrp) {
@@ -512,6 +761,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
         jabatan: reg?.kelompokRegu || '',
         unitId: reg?.unitId || '',
         role: roleStr,
+        deviceId: (reg as any)?.deviceID || (officerProfile as any)?.device_id || null,
         avatar: user?.officer_profile?.avatar_url || null,
         kpi: kpiScore,
       },

@@ -146,10 +146,10 @@ function ScanDeviceContent() {
         },
         (err) => {
           console.warn('GPS Error:', err);
-          setAccuracyText(`Sensor aktif: Default Mako Jakarta (Izin GPS belum diaktifkan)`);
+          setAccuracyText('Izin akses lokasi (GPS) belum diaktifkan pada peramban ini');
           setStatusBadge({
-            text: 'SIMULASI KORDINAT',
-            bg: '#D97706',
+            text: 'GPS TIDAK AKTIF',
+            bg: '#EF4444',
           });
         },
         { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
@@ -239,7 +239,9 @@ function ScanDeviceContent() {
                 color: '#F8FAFC',
               }}
             >
-              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
+              {coords.lat !== 0 || coords.lng !== 0
+                ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`
+                : 'Menunggu sinyal GPS...'}
             </div>
             <div id="disp-accuracy" style={{ fontSize: '10.5px', color: '#64748B', marginTop: '4px' }}>
               {accuracyText}

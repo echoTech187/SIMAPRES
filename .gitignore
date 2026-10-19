@@ -6,3 +6,5 @@ scratch
 .env
 .env*.local
 *.tsbuildinfo
+dokumen_rencana_pengujian_simapres110.md
+scripts

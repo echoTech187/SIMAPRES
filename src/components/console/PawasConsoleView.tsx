@@ -44,11 +44,24 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
 
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
 
+function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
+  const toRad = (angle: number) => (angle * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const meters = 6371000 * c;
+  return Math.round((meters / 1000) * 10) / 10;
+}
+
 function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) {
   if (!item) {
     return {
-      primarySatuanId: 'sabhara',
-      secondarySatuanIds: ['binmas', 'reskrim', 'lantas'],
+      primarySatuanId: null,
+      secondarySatuanIds: [],
       kasusSpesifik: null,
       sopText: null,
     };
@@ -72,57 +85,22 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
 
   const unitKey = matchedSub?.unit_key || matchedSub?.unit_rel?.key || item?.subUnitKey;
 
-  const secondaryMap: Record<string, string[]> = {
-    lantas: ['sabhara'],
-    reskrim: ['sabhara', 'intel'],
-    intel: ['reskrim', 'binmas', 'sabhara'],
-    binmas: ['sabhara'],
-    sabhara: ['binmas', 'lantas', 'reskrim'],
-  };
-
   if (unitKey) {
     const primarySatuanId = unitKey === 'samapta' ? 'sabhara' : unitKey;
     return {
       primarySatuanId,
-      secondarySatuanIds: secondaryMap[primarySatuanId] || ['sabhara'],
+      secondarySatuanIds: [],
       kasusSpesifik: matchedSub?.nama_kasus || item?.subKasus || item?.jenisKejadian || null,
       sopText: matchedSub?.deskripsi_sop || item?.deskripsi_sop || null,
     };
   }
 
-  // 3. Intelligent Classifier Fallback berdasarkan kata kunci kasus/pengaduan
-  const textCheck = `${item?.jenisKejadian || ''} ${item?.title || ''} ${item?.kategori || ''} ${item?.deskripsiKejadian || ''} ${item?.uraian || ''}`.toLowerCase();
-  let fallbackPrimary = 'sabhara';
-  let fallbackSecondary = ['binmas', 'reskrim', 'lantas'];
-  let fallbackSop = 'Lakukan patroli presisi, sterilisasi area dan pengamanan TKP.';
-
-  if (textCheck.includes('kebakaran') || textCheck.includes('api') || textCheck.includes('damkar')) {
-    fallbackPrimary = 'sabhara';
-    fallbackSecondary = ['lantas', 'binmas'];
-    fallbackSop = 'Buka jalur evakuasi mobil Damkar, pengamanan perimeter TKP dari penjarahan, evakuasi korban ke tenda darurat.';
-  } else if (textCheck.includes('curas') || textCheck.includes('begal') || textCheck.includes('curat') || textCheck.includes('curanmor') || textCheck.includes('pencurian') || textCheck.includes('bunuh') || textCheck.includes('jambret') || textCheck.includes('pidana')) {
-    fallbackPrimary = 'reskrim';
-    fallbackSecondary = ['sabhara', 'intel'];
-    fallbackSop = 'Lakukan olah TKP, pasang garis polisi (Police Line), kumpulkan rekaman CCTV dan keterangan saksi, serta kejar pelaku.';
-  } else if (textCheck.includes('tabrak') || textCheck.includes('lantas') || textCheck.includes('kecelakaan') || textCheck.includes('macet') || textCheck.includes('balap') || textCheck.includes('lalu lintas')) {
-    fallbackPrimary = 'lantas';
-    fallbackSecondary = ['sabhara'];
-    fallbackSop = 'Lakukan pertolongan pertama pada korban lakalantas, amankan barang bukti kendaraan, dan urai kepadatan lalu lintas di lokasi.';
-  } else if (textCheck.includes('mediasi') || textCheck.includes('sengketa') || textCheck.includes('tetangga') || textCheck.includes('bising') || textCheck.includes('utang') || textCheck.includes('warga')) {
-    fallbackPrimary = 'binmas';
-    fallbackSecondary = ['sabhara'];
-    fallbackSop = 'Lakukan mediasi musyawarah mufakat bersama Bhabinkamtibmas dan perangkat RT/RW setempat, redam eskalasi konflik.';
-  } else if (textCheck.includes('teror') || textCheck.includes('senpi') || textCheck.includes('demo') || textCheck.includes('unjuk rasa') || textCheck.includes('sara') || textCheck.includes('intel')) {
-    fallbackPrimary = 'intel';
-    fallbackSecondary = ['reskrim', 'sabhara'];
-    fallbackSop = 'Lakukan deteksi dini, penggalangan bahan keterangan, dan monitoring pergerakan situasi di lapangan.';
-  }
-
+  // 3. Jika subkategori kasus belum terdaftar di database, kembalikan null / empty murni tanpa kata kunci hardcode
   return {
-    primarySatuanId: fallbackPrimary,
-    secondarySatuanIds: secondaryMap[fallbackPrimary] || fallbackSecondary,
-    kasusSpesifik: item?.jenisKejadian || item?.title || 'Patroli Presisi',
-    sopText: fallbackSop,
+    primarySatuanId: null,
+    secondarySatuanIds: [],
+    kasusSpesifik: item?.jenisKejadian || item?.title || null,
+    sopText: item?.deskripsi_sop || null,
   };
 }
 
@@ -382,17 +360,17 @@ function CommandCenterContent({
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const encoded = encodeURIComponent(query.trim());
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&lat=-6.2615&lon=106.8106&limit=6`);
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&limit=6`);
         if (res.ok) {
           const data = await res.json();
           const items = (data?.features || []).map((feat: any) => {
             const p = feat.properties || {};
-            const coords = feat.geometry?.coordinates || [106.8106, -6.2615];
+            const coords = feat.geometry?.coordinates || [0, 0];
             const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city || 'DKI Jakarta'].filter(
+            const subParts = [p.street, p.district, p.city].filter(
               (part) => part && part !== title
             );
-            const sub = subParts.join(', ') || 'Wilayah DKI Jakarta & Sekitarnya';
+            const sub = subParts.join(', ');
             const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
             const full = Array.from(new Set(fullParts)).join(', ') || title;
             return {
@@ -473,7 +451,7 @@ function CommandCenterContent({
   const [newHotspotLng, setNewHotspotLng] = useState(0);
 
   // Supervisi & Validasi State (Default 'menunggu' 1:1 Prototype e-tribrata-log)
-  const [valFilterStatus, setValFilterStatus] = useState<string>('menunggu');
+  const [valFilterStatus, setValFilterStatus] = useState<string>('all');
   const [valFilterPlatform, setValFilterPlatform] = useState<string>('all');
   const [valFilterKategori, setValFilterKategori] = useState<string>('all');
   const [selectedValComplaint, setSelectedValComplaint] = useState<any | null>(null);
@@ -516,29 +494,61 @@ function CommandCenterContent({
   const [dbGiats, setDbGiats] = useState<any[]>(() => initialMasterData?.giats || []);
   const [dbSatuans, setDbSatuans] = useState<any[]>(() => initialMasterData?.satuans || []);
   const [dbStatuses, setDbStatuses] = useState<any[]>(() => initialMasterData?.statuses || []);
+  const [dbRejectionReasons, setDbRejectionReasons] = useState<any[]>(() => initialMasterData?.rejectionReasons || []);
+  const [dbUrgencyLevels, setDbUrgencyLevels] = useState<any[]>(() => initialMasterData?.urgencyLevels || []);
 
   // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
   const daftarArmadaAktif = useMemo(() => {
     const sourceSatuans = dbSatuans.length > 0 ? dbSatuans : [];
+    const defaultOffice = policeOffices.length > 0 ? policeOffices[0] : null;
+    const fallbackLat = defaultOffice?.lat != null ? Number(defaultOffice.lat) : null;
+    const fallbackLng = defaultOffice?.lng != null ? Number(defaultOffice.lng) : null;
 
     return sourceSatuans.map((mu) => {
       const officer = registeredUnits.find(
         (u) => (u.unitId || '').toLowerCase() === mu.key.toLowerCase()
       );
       const vehicle = fleetUnits.find(
-        (f) => (f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase()
+        (f) =>
+          (f.category || f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase() ||
+          ((mu.key.toLowerCase() === 'sabhara' || mu.key.toLowerCase() === 'samapta') &&
+           (f.category === 'sabhara' || f.category === 'samapta' || f.category === 'perintis'))
       );
 
       const komandan = officer
         ? `${officer.pangkat ? officer.pangkat + ' ' : ''}${officer.nama}`.trim() + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
-        : (mu.key === 'sabhara' ? 'Ipda Danang S. (Danton Presisi)' : mu.key === 'lantas' ? 'Aipda Hendra (Turjawali)' : mu.key === 'reskrim' ? 'Iptu Wahyu K. (Buser)' : mu.key === 'intel' ? 'Ipda Bayu T. (Intelkam)' : 'Aipda Budi Santoso (Bhabin)');
+        : 'Belum ada personel standby';
 
-      const nrpKomandan = officer?.nrp || (mu.key === 'sabhara' ? '82040112' : mu.key === 'lantas' ? '84050231' : mu.key === 'reskrim' ? '80010992' : mu.key === 'intel' ? '86070344' : '85030419');
-      const posisiSaatIni = officer?.kelompokRegu || (mu.key === 'sabhara' ? 'Sektor Tengah (Jl. Sudirman)' : mu.key === 'lantas' ? 'Pos Lantas Simpang Lima' : mu.key === 'reskrim' ? 'Siaga Mapolres' : mu.key === 'intel' ? 'Monitoring Wilayah' : 'Kelurahan Binaan');
+      const nrpKomandan = officer?.nrp || '-';
+      const posisiSaatIni = officer?.kelompokRegu || (vehicle ? `Standby ${vehicle.title || vehicle.key}` : 'Siaga Mako');
 
       const kekuatan = vehicle
-        ? `Siaga Tim Presisi • ${vehicle.vehicle_name || vehicle.call_sign} (${vehicle.plate_number})`
-        : 'Unit Siaga Operasional';
+        ? `Siaga Tim Presisi • ${vehicle.title || vehicle.key} (${vehicle.sub || 'Armada Siaga'})`
+        : (officer ? 'Unit Siaga Personel' : 'Unit Belum Diawaki');
+
+      // Ambil koordinat GPS riil (dari kendaraan patroli aktif atau GPS personel on-duty, fallback mako terdaftar)
+      const unitLat = vehicle?.pos?.lat != null
+        ? Number(vehicle.pos.lat)
+        : officer?.live_lat != null
+        ? Number(officer.live_lat)
+        : officer?.lat != null
+        ? Number(officer.lat)
+        : fallbackLat;
+
+      const unitLng = vehicle?.pos?.lng != null
+        ? Number(vehicle.pos.lng)
+        : officer?.live_lng != null
+        ? Number(officer.live_lng)
+        : officer?.lng != null
+        ? Number(officer.lng)
+        : fallbackLng;
+
+      // Hitung jarak dasar ke Mako secara dinamis menggunakan Haversine jika koordinat tersedia
+      const distToOffice = (unitLat != null && unitLng != null && fallbackLat != null && fallbackLng != null)
+        ? calculateDistanceHaversineKm(unitLat, unitLng, fallbackLat, fallbackLng)
+        : 0;
+      const jarakBase = distToOffice > 0 ? distToOffice : null;
+      const etaBase = jarakBase != null ? Math.max(2, Math.round((jarakBase / 30) * 60)) : null;
 
       return {
         id: mu.key,
@@ -551,14 +561,16 @@ function CommandCenterContent({
         nrpKomandan,
         posisiSaatIni,
         kekuatan,
-        jarakBase: mu.key === 'sabhara' ? 1.2 : mu.key === 'lantas' ? 1.8 : mu.key === 'reskrim' ? 2.4 : mu.key === 'binmas' ? 0.9 : 2.1,
-        etaBase: mu.key === 'sabhara' ? 3 : mu.key === 'lantas' ? 5 : mu.key === 'reskrim' ? 7 : mu.key === 'binmas' ? 3 : 6,
-        icon: mu.icon_emoji || (mu.key === 'sabhara' ? '🚔' : mu.key === 'lantas' ? '🚓' : mu.key === 'reskrim' ? '🕵️' : mu.key === 'intel' ? '👁️' : '👮'),
+        lat: unitLat,
+        lng: unitLng,
+        jarakBase,
+        etaBase,
+        icon: mu.icon_emoji || '🚔',
         tupoksi: mu.duties || '',
         arahanDefault: mu.default_orders || '',
       };
     });
-  }, [dbSatuans, registeredUnits, fleetUnits]);
+  }, [dbSatuans, registeredUnits, fleetUnits, policeOffices]);
 
   // Kinerja Period Filter
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
@@ -575,6 +587,12 @@ function CommandCenterContent({
         setDbGiats(filterRes.data.giats || []);
         setDbSatuans(filterRes.data.satuans || []);
         setDbStatuses(filterRes.data.statuses || []);
+        if (filterRes.data.rejectionReasons) {
+          setDbRejectionReasons(filterRes.data.rejectionReasons || []);
+        }
+        if (filterRes.data.urgencyLevels) {
+          setDbUrgencyLevels(filterRes.data.urgencyLevels || []);
+        }
       }
 
       const qRes = await getPendingComplaintsAction();
@@ -720,17 +738,12 @@ function CommandCenterContent({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const isComplaintRejected = (c: any) =>
-    Boolean(
-      c?.ringkasanKeterangan?.includes('[DITOLAK PAWAS]') ||
-      c?.status === 'DIBATALKAN' ||
-      c?.status === 'DITOLAK'
-    );
+  const isComplaintRejected = (c: any) => Boolean(c?.status === 'DITOLAK');
 
   // Dynamic complaint status resolver powered 100% by dbStatuses from master_complaint_statuses table
   const resolveComplaintStatus = (rawStatus?: string | null, isRejectedFlag?: boolean) => {
     const s = (rawStatus || '').toUpperCase().trim();
-    const isRej = isRejectedFlag || s === 'DITOLAK' || s === 'DIBATALKAN';
+    const isRej = isRejectedFlag || s === 'DITOLAK';
 
     // Canonical key mapped to database keys
     const targetKey = isRej
@@ -743,9 +756,9 @@ function CommandCenterContent({
       ? 'TIBA_DI_TKP'
       : s === 'MENUJU_TKP'
       ? 'MENUJU_TKP'
-      : s === 'DISPOSISI' || s === 'DIPROSES'
-      ? 'DISPOSISI'
-      : 'MENUNGGU';
+      : s === 'DISPOSISI' || s === 'DIPROSES' || s === 'SEDANG_DITANGANI'
+      ? 'SEDANG_DITANGANI'
+      : 'BELUM_DITANGANI';
 
     const dbItem = dbStatuses.find(
       (item) => item.key?.toUpperCase() === targetKey || item.key?.toUpperCase() === s
@@ -760,39 +773,20 @@ function CommandCenterContent({
         badge_bg: dbItem.badge_bg || '#EFF6FF',
         badge_border: dbItem.badge_border || '#BFDBFE',
         display_order: dbItem.display_order ?? 1,
-        icon:
-          dbItem.key === 'MENUNGGU' ? '⏳' :
-          dbItem.key === 'DIPROSES' ? '🚔' :
-          dbItem.key === 'DISPOSISI' ? '📋' :
-          dbItem.key === 'MENUJU_TKP' ? '🚔' :
-          dbItem.key === 'TIBA_DI_TKP' ? '📍' :
-          dbItem.key === 'MENUNGGU_PENGESAHAN' ? '📝' :
-          dbItem.key === 'SELESAI' ? '✓' : '✕',
+        icon: (dbItem as any).icon_emoji || (dbItem as any).icon || 'ℹ️',
       };
     }
 
-    // Dynamic fallback when dbStatuses is still loading
-    const fallbackColors: Record<string, { color: string; bg: string; border: string; icon: string }> = {
-      MENUNGGU: { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: '⏳' },
-      DIPROSES: { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: '🚔' },
-      DISPOSISI: { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', icon: '📋' },
-      MENUJU_TKP: { color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE', icon: '🚔' },
-      TIBA_DI_TKP: { color: '#10B981', bg: '#ECFDF5', border: '#A7F3D0', icon: '📍' },
-      MENUNGGU_PENGESAHAN: { color: '#7C3AED', bg: '#F5F3FF', border: '#DDD6FE', icon: '📝' },
-      SELESAI: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', icon: '✓' },
-      DITOLAK: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', icon: '✕' },
-    };
-    const fb = fallbackColors[targetKey] || { color: '#2563EB', bg: '#EFF6FF', border: '#BFDBFE', icon: 'ℹ️' };
-
+    // Neutral state when dbStatuses has no matching entry or is still loading
     return {
       id: 0,
-      key: targetKey,
-      label: targetKey.replace(/_/g, ' '),
-      badge_color: fb.color,
-      badge_bg: fb.bg,
-      badge_border: fb.border,
-      display_order: 1,
-      icon: fb.icon,
+      key: s || 'MEMUAT',
+      label: s || 'Memuat status...',
+      badge_color: '#64748B',
+      badge_bg: '#F1F5F9',
+      badge_border: '#CBD5E1',
+      display_order: 99,
+      icon: 'ℹ️',
     };
   };
 
@@ -801,48 +795,50 @@ function CommandCenterContent({
     const isRejected = isComplaintRejected(c);
     const meta = resolveComplaintStatus(c?.status, isRejected);
     const stUpper = status.toUpperCase().trim();
-    if (stUpper === meta.key) return true;
-    if (status.toLowerCase() === meta.key.toLowerCase()) return true;
-    if (status.toLowerCase() === 'diproses') {
-      return ['DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(meta.key);
+    const stLower = status.toLowerCase().trim();
+
+    if (stUpper === meta.key || stLower === meta.key.toLowerCase()) return true;
+
+    // Harmonisasikan alias status
+    if (stLower === 'diproses' || stLower === 'sedang_ditangani') {
+      return ['SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP'].includes(meta.key);
+    }
+    if (stLower === 'menunggu' || stLower === 'belum_ditangani') {
+      return ['BELUM_DITANGANI', 'MENUNGGU'].includes(meta.key);
     }
     return false;
   };
 
   const resolveUrgencyLevel = (rawUrgensi?: string | null) => {
     const u = (rawUrgensi || '').toUpperCase().trim();
-    if (u === 'DARURAT' || u === 'PRIORITAS_TINGGI') {
-      return { key: 'DARURAT', label: 'DARURAT', badge_bg: '#FEE2E2', badge_color: '#DC2626' };
+    if (dbUrgencyLevels.length > 0) {
+      const found = dbUrgencyLevels.find(
+        (lvl: any) => lvl.key?.toUpperCase() === u || lvl.label?.toUpperCase() === u
+      );
+      if (found) {
+        return {
+          key: found.key,
+          label: found.label,
+          badge_bg: found.badge_bg || '',
+          badge_color: found.badge_color || '',
+          icon_emoji: found.icon_emoji || '',
+        };
+      }
     }
-    if (u === 'SEDANG') {
-      return { key: 'SEDANG', label: 'SEDANG', badge_bg: '#FEF3C7', badge_color: '#D97706' };
-    }
-    return { key: 'NORMAL', label: 'NORMAL', badge_bg: '#EFF6FF', badge_color: '#1D4ED8' };
+    return {
+      key: u || '-',
+      label: u || '-',
+      badge_bg: '',
+      badge_color: '',
+      icon_emoji: '',
+    };
   };
 
   const getComplaintPlatform = (c: any) => {
-    if (c?.platformKey) {
-      if (['sos', 'warga', 'layanan110', 'personel'].includes(c.platformKey)) {
-        return c.platformKey;
-      }
-      if (c.platformKey === 'SOS_PANIK') return 'sos';
-      if (c.platformKey === 'LAYANAN_110') return 'layanan110';
-      if (c.platformKey === 'PATROLI_PERSONEL') return 'personel';
-      if (c.platformKey === 'PORTAL_WARGA') return 'warga';
-    }
-    const isSos =
-      c?.jenisKejadian?.toLowerCase().includes('sos') ||
-      c?.jenisKejadian?.toLowerCase().includes('panic') ||
-      c?.saluranLaporan?.toLowerCase() === 'sos';
-    if (isSos) return 'sos';
-    const isPersonel =
-      c?.ringkasanKeterangan?.toLowerCase().includes('patroli') ||
-      c?.jenisKejadian?.toLowerCase().includes('patroli') ||
-      c?.saluranLaporan?.toLowerCase() === 'personel';
-    if (isPersonel) return 'personel';
-    const is110 = !!c?.operatorId || c?.saluranLaporan === '110' || c?.saluranLaporan === 'layanan110';
-    if (is110) return 'layanan110';
-    return 'warga';
+    if (c?.platformKey) return c.platformKey;
+    if (c?.platformRel?.key) return c.platformRel.key;
+    if (c?.saluranLaporan) return c.saluranLaporan;
+    return '-';
   };
 
   const matchesPlatform = (c: any, platform: string) => {
@@ -894,9 +890,9 @@ function CommandCenterContent({
             subUnitKey: foundSub.unit_key,
             badgeText,
             badgeStyle: {
-              background: subCat.badge_bg || '#F1F5F9',
-              color: subCat.badge_color || '#1E293B',
-              border: `1px solid ${subCat.badge_border || '#CBD5E1'}`,
+              background: subCat.badge_bg || '',
+              color: subCat.badge_color || '',
+              border: `1px solid ${subCat.badge_border || 'transparent'}`,
             },
           };
         }
@@ -915,9 +911,9 @@ function CommandCenterContent({
         label: rawLabel,
         badgeText,
         badgeStyle: {
-          background: rel.badge_bg || '#F1F5F9',
-          color: rel.badge_color || '#1E293B',
-          border: `1px solid ${rel.badge_border || '#CBD5E1'}`,
+          background: rel.badge_bg || '',
+          color: rel.badge_color || '',
+          border: `1px solid ${rel.badge_border || 'transparent'}`,
         },
       };
     }
@@ -936,9 +932,9 @@ function CommandCenterContent({
           label: rawLabel,
           badgeText,
           badgeStyle: {
-            background: foundById.badge_bg || '#F1F5F9',
-            color: foundById.badge_color || '#1E293B',
-            border: `1px solid ${foundById.badge_border || '#CBD5E1'}`,
+            background: foundById.badge_bg || '',
+            color: foundById.badge_color || '',
+            border: `1px solid ${foundById.badge_border || 'transparent'}`,
           },
         };
       }
@@ -958,9 +954,9 @@ function CommandCenterContent({
           label: rawLabel,
           badgeText,
           badgeStyle: {
-            background: foundByKey.badge_bg || '#F1F5F9',
-            color: foundByKey.badge_color || '#1E293B',
-            border: `1px solid ${foundByKey.badge_border || '#CBD5E1'}`,
+            background: foundByKey.badge_bg || '',
+            color: foundByKey.badge_color || '',
+            border: `1px solid ${foundByKey.badge_border || 'transparent'}`,
           },
         };
       }
@@ -977,9 +973,9 @@ function CommandCenterContent({
             label: rawLabel,
             badgeText,
             badgeStyle: {
-              background: foundGiat.badge_bg || foundGiat.active_bg || '#EFF6FF',
-              color: foundGiat.badge_color || foundGiat.inactive_color || '#1D4ED8',
-              border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || '#BFDBFE'}`,
+              background: foundGiat.badge_bg || foundGiat.active_bg || '',
+              color: foundGiat.badge_color || foundGiat.inactive_color || '',
+              border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || 'transparent'}`,
             },
           };
         }
@@ -989,9 +985,8 @@ function CommandCenterContent({
     // 4. Giat Personel (Platform: personel) from master DB
     const platform = getComplaintPlatform(c);
     if (platform === 'personel' && dbGiats.length > 0) {
-      const textGiat = `${c?.jenisAksi || ''} ${c?.jenisKejadian || ''} ${c?.ringkasanKeterangan || ''}`.toLowerCase();
-      const giatKey = textGiat.includes('sambang') ? 'SAMBANG' : textGiat.includes('tptkp') ? 'TPTKP' : textGiat.includes('pengamanan') || textGiat.includes('pam') ? 'PENGAMANAN' : 'PATROLI';
-      const foundGiat = dbGiats.find((g: any) => g.key === giatKey) || dbGiats[0];
+      const textGiat = `${c?.jenisAksi || ''} ${c?.jenisKejadian || ''} ${c?.ringkasanKeterangan || ''}`.toUpperCase();
+      const foundGiat = dbGiats.find((g: any) => textGiat.includes((g.key || '').toUpperCase()) || textGiat.includes((g.label || '').toUpperCase()));
       if (foundGiat) {
         const rawLabel = foundGiat.label || foundGiat.key || '';
         const icon = foundGiat.icon || '';
@@ -1002,9 +997,9 @@ function CommandCenterContent({
           label: rawLabel,
           badgeText,
           badgeStyle: {
-            background: foundGiat.badge_bg || foundGiat.active_bg || '#EFF6FF',
-            color: foundGiat.badge_color || foundGiat.inactive_color || '#1D4ED8',
-            border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || '#BFDBFE'}`,
+            background: foundGiat.badge_bg || foundGiat.active_bg || '',
+            color: foundGiat.badge_color || foundGiat.inactive_color || '',
+            border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || 'transparent'}`,
           },
         };
       }
@@ -1036,69 +1031,25 @@ function CommandCenterContent({
             subUnitKey: matchedSub.unit_key,
             badgeText,
             badgeStyle: {
-              background: subCat.badge_bg || '#F1F5F9',
-              color: subCat.badge_color || '#1E293B',
-              border: `1px solid ${subCat.badge_border || '#CBD5E1'}`,
+              background: subCat.badge_bg || '',
+              color: subCat.badge_color || '',
+              border: `1px solid ${subCat.badge_border || 'transparent'}`,
             },
           };
         }
       }
     }
 
-    let resolvedMasterKey = 'KAMTIBMAS';
-
-    // A. LAKALANTAS (Sat Lantas)
-    if (['laka', 'lantas', 'kecelakaan', 'tabrak', 'macet', 'kemacetan', 'lalu lintas', 'balap liar', 'balapan', 'knalpot', 'brong', 'odol', 'sim', 'stnk', 'tnkb'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
-      resolvedMasterKey = 'LAKALANTAS';
-    }
-    // B. KRIMINALITAS & 3C (Sat Reskrim)
-    else if (
-      (combined.includes('curi') && !combined.includes('curiga')) || combined.includes('pencurian') || combined.includes('mencuri') ||
-      ['kriminal', 'begal', 'curat', 'curas', 'curanmor', 'rampok', 'perampokan', 'jambret', 'penjambretan', 'celurit', 'todong', 'penodongan', 'aniaya', 'penganiayaan', 'copet', 'pemerasan', 'sajam', 'pembunuhan', 'mayat', 'kdrt', 'penipuan', 'penggelapan', 'korupsi', 'siber', 'lingkungan'].some((k) => combined.includes(k) || ringkasan.includes(k))
-    ) {
-      resolvedMasterKey = 'KRIMINALITAS';
-    }
-    // C. BENCANA & DAMKAR (SAR Samapta)
-    else if (['kebakaran', 'bencana', 'darurat', 'medis', 'banjir', 'tumbang', 'damkar', 'ambulans', 'longsor'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
-      resolvedMasterKey = 'BENCANA';
-    }
-    // D. PELAYANAN PUBLIK & PEMBINAAN (Sat Binmas / SPKT)
-    else if (['pelayanan', 'mediasi', 'hilang', 'kehilangan', 'tersesat', 'ijazah', 'ktp', 'pengawalan', 'hewan', 'bantuan warga', 'sengketa', 'batas tanah', 'utang'].some((k) => combined.includes(k) || ringkasan.includes(k))) {
-      resolvedMasterKey = 'PELAYANAN_PUBLIK';
-    }
-    // E. KAMTIBMAS (Sat Intelkam, Sat Samapta, Sat Binmas)
-    else {
-      resolvedMasterKey = 'KAMTIBMAS';
-    }
-
-    // Resolve purely from dbCategories (from DB)
-    const matchedCat = dbCategories.find((cat: any) => cat.key === resolvedMasterKey) || dbCategories[0];
-    if (matchedCat) {
-      const rawLabel = matchedCat.label || matchedCat.key || '';
-      const icon = matchedCat.icon || '';
-      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
-      return {
-        key: matchedCat.key,
-        kategori: rawLabel,
-        label: rawLabel,
-        badgeText,
-        badgeStyle: {
-          background: matchedCat.badge_bg || '#F1F5F9',
-          color: matchedCat.badge_color || '#1E293B',
-          border: `1px solid ${matchedCat.badge_border || '#CBD5E1'}`,
-        },
-      };
-    }
-
+    // Jika kasus tidak terdaftar dalam subkategori atau kategori di database, kembalikan status netral tanpa kata kunci tiruan
     return {
-      key: resolvedMasterKey,
-      kategori: resolvedMasterKey,
-      label: resolvedMasterKey,
-      badgeText: resolvedMasterKey,
+      key: 'TIDAK_TERKATEGORI',
+      kategori: c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan',
+      label: c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan',
+      badgeText: c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan',
       badgeStyle: {
-        background: '#F1F5F9',
-        color: '#1E293B',
-        border: '1px solid #CBD5E1',
+        background: '',
+        color: '',
+        border: '1px dashed transparent',
       },
     };
   };
@@ -1128,18 +1079,7 @@ function CommandCenterContent({
     if (c?.kategoriKey && c.kategoriKey.toUpperCase() === target) return true;
 
     // Alias mapping (e.g. 'Kriminalitas' vs 'KRIMINALITAS', 'Laka Lantas' vs 'LAKALANTAS', etc.)
-    const aliasMap: Record<string, string> = {
-      'KRIMINALITAS': 'KRIMINALITAS',
-      'KRIMINAL': 'KRIMINALITAS',
-      'KAMTIBMAS': 'KAMTIBMAS',
-      'LAKALANTAS': 'LAKALANTAS',
-      'LAKA LANTAS': 'LAKALANTAS',
-      'BENCANA': 'BENCANA',
-      'DARURAT BENCANA': 'BENCANA',
-      'DARURAT & BENCANA': 'BENCANA',
-      'PELAYANAN_PUBLIK': 'PELAYANAN_PUBLIK',
-      'PELAYANAN PUBLIK': 'PELAYANAN_PUBLIK',
-    };
+    const aliasMap: Record<string, string> = {};
     const normTarget = aliasMap[target] || target;
     const normCurrent = aliasMap[catInfo.key.toUpperCase()] || catInfo.key.toUpperCase();
     return normTarget === normCurrent;
@@ -1327,6 +1267,19 @@ function CommandCenterContent({
       const chosenArmadas = daftarArmadaAktif.filter((a) => selectedSatuanKeys.includes(a.id));
       const leadArmada = daftarArmadaAktif.find((a) => a.id === activePreviewSatuanKey) || chosenArmadas[0];
 
+      const incidentLat = Number(selectedDisposisiItem?.tkpLat ?? selectedDisposisiItem?.lat ?? selectedDisposisiItem?.tkp_lat ?? 0);
+      const incidentLng = Number(selectedDisposisiItem?.tkpLng ?? selectedDisposisiItem?.lng ?? selectedDisposisiItem?.tkp_lng ?? 0);
+
+      let computedDistance = leadArmada?.jarakBase ? `${leadArmada.jarakBase} km` : 'Terkonfirmasi di Sektor';
+      let computedEta = leadArmada?.etaBase ? `± ${leadArmada.etaBase} Menit` : 'Siaga Meluncur';
+
+      if (incidentLat && incidentLng && leadArmada?.lat && leadArmada?.lng) {
+        const rawDistance = calculateDistanceHaversineKm(incidentLat, incidentLng, leadArmada.lat, leadArmada.lng);
+        const d = rawDistance > 0 ? rawDistance : 0.5;
+        computedDistance = `${d} km`;
+        computedEta = `± ${Math.max(2, Math.round((d / 30) * 60))} Menit`;
+      }
+
       const res = await disposisiMultiSatuanAction({
         complaintId: selectedDisposisiItem.id.toString(),
         satuanKeys: selectedSatuanKeys,
@@ -1334,6 +1287,8 @@ function CommandCenterContent({
         arahanTaktis: arahanPawas,
         pawasNama: userProfile?.fullName || session?.fullName || '',
         pawasUserId: session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : ''),
+        estimatedDistance: computedDistance,
+        estimatedEta: computedEta,
       });
 
       if (res.success) {
@@ -1345,16 +1300,16 @@ function CommandCenterContent({
         setSuksesDisposisiData({
           nomorTiket: selectedDisposisiItem.nomorTiket,
           unitName: chosenArmadas.map((a) => a.namaSingkat).join(' & '),
-          komandan: customPersonelNama || leadArmada?.komandan || '-',
-          jarak: leadArmada?.jarakBase ? `${leadArmada.jarakBase} km` : 'Terkonfirmasi di Sektor',
-          eta: leadArmada?.etaBase ? `± ${leadArmada.etaBase} Menit` : 'Siaga Meluncur',
+          komandan: customPersonelNama && customPersonelNama !== '-' ? customPersonelNama : leadArmada?.komandan || '-',
+          jarak: computedDistance,
+          eta: computedEta,
           posisi: leadArmada?.posisiSaatIni || '-',
         });
         setShowDisposisiModal(false);
         setShowSuksesModal(true);
         await loadData();
-        // Switch to "Sedang Ditangani" (diproses) and focus on newly dispatched complaint
-        setValFilterStatus('diproses');
+        // Switch to "Sedang Ditangani" (sedang_ditangani) and focus on newly dispatched complaint
+        setValFilterStatus('sedang_ditangani');
         setSelectedValComplaint({
           ...selectedDisposisiItem,
           status: 'MENUJU_TKP',
@@ -1383,7 +1338,7 @@ function CommandCenterContent({
       const nowTime = new Date().toTimeString().slice(0, 5);
       const res = await createLogbookAction({
         officerId: activeUserId,
-        jenisAksi: (logJenis as any) || 'PATROLI',
+        jenisAksi: (logJenis as any) || '-',
         lokasiKlaimAlamat: logSektor || '',
         lokasiKlaimLat: 0,
         lokasiKlaimLng: 0,
@@ -1415,10 +1370,10 @@ function CommandCenterContent({
     setLoading(true);
     try {
       const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
-      const rejectNote = `[DITOLAK PAWAS]: ${tolakKategori}. Catatan: ${tolakAlasan}`;
+      const rejectNote = `${tolakKategori}. Catatan: ${tolakAlasan}`;
       await updateComplaintStatusAction({
         complaintId: tolakComplaint.id.toString(),
-        status: 'BELUM_DITANGANI',
+        status: 'DITOLAK',
         catatan: rejectNote,
         pawasUserId: activePawasId,
       });
@@ -1482,7 +1437,6 @@ function CommandCenterContent({
   // Otorisasi / Pengesahan Kasus (Phase 4 Menunggu Pengesahan -> Phase 5 Selesai)
   const handleSahkanPenutupanKasus = async (complaint: any) => {
     if (!complaint) return;
-    if (!confirm(`⚖️ OTORISASI PENUTUPAN KASUS (PAWAS)\n\nApakah Anda yakin ingin mengesahkan Berita Acara Penanganan kasus #${complaint.nomorTiket || complaint.id} dan menutup kasus ini secara resmi?`)) return;
     setLoading(true);
     try {
       const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
@@ -1938,8 +1892,8 @@ function CommandCenterContent({
                         fleetUnits={fleetUnits}
                         hotspots={hotspots}
                         policeOffices={policeOffices}
-                        centerLat={-6.2443}
-                        centerLng={106.8078}
+                        centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
+                        centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
                         onUnitClick={(unit: any) => setMapUnitDetail(unit)}
                       />
 
@@ -2511,8 +2465,8 @@ function CommandCenterContent({
                   fleetUnits={showOtherOfficers ? fleetUnits : []}
                   hotspots={hotspots}
                   policeOffices={policeOffices}
-                  centerLat={-6.2443}
-                  centerLng={106.8078}
+                  centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
+                  centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
                   onUnitClick={(unit: any) => setMapUnitDetail(unit)}
                 />
               </div>
@@ -3700,6 +3654,7 @@ function CommandCenterContent({
                                   <div style={{ marginTop: '14px', display: 'flex', gap: '8px' }}>
                                     <button
                                       type="button"
+                                      id="btn-buka-modal-disposisi"
                                       className="btn-blue"
                                       onClick={() => {
                                         bukaModalDisposisi(activeComplaint);
@@ -4700,13 +4655,11 @@ function CommandCenterContent({
 
                       <div
                         onClick={async () => {
-                          if (confirm('Keluar dari sesi komando Pawas?')) {
-                            if (typeof window !== 'undefined') {
-                              sessionStorage.removeItem('simapres_active_user');
-                            }
-                            await logoutAction();
-                            window.location.href = '/?alert=logged_out';
+                          if (typeof window !== 'undefined') {
+                            sessionStorage.removeItem('simapres_active_user');
                           }
+                          await logoutAction();
+                          window.location.href = '/?alert=logged_out';
                         }}
                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 6px', cursor: 'pointer' }}
                       >
@@ -4994,88 +4947,49 @@ function CommandCenterContent({
                       <label className="form-label" style={{ fontSize: '11.5px' }}>
                         Tingkat Urgensi Penanganan <span style={{ color: 'red' }}>*</span>
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                        <button
-                          type="button"
-                          id="eb-urg-darurat"
-                          onClick={() => {
-                            setSimCaller({ ...simCaller, urgensi: 'DARURAT' });
-                            if (cadFormErrors.urgensi) {
-                              setCadFormErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.urgensi;
-                                return next;
-                              });
-                            }
-                          }}
-                          style={{
-                            padding: '8px 4px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            border: simCaller.urgensi === 'DARURAT' ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
-                            background: simCaller.urgensi === 'DARURAT' ? '#FEF2F2' : 'white',
-                            color: simCaller.urgensi === 'DARURAT' ? '#DC2626' : '#64748B',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          🚨 DARURAT
-                        </button>
-                        <button
-                          type="button"
-                          id="eb-urg-sedang"
-                          onClick={() => {
-                            setSimCaller({ ...simCaller, urgensi: 'SEDANG' });
-                            if (cadFormErrors.urgensi) {
-                              setCadFormErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.urgensi;
-                                return next;
-                              });
-                            }
-                          }}
-                          style={{
-                            padding: '8px 4px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            border: simCaller.urgensi === 'SEDANG' ? '1.5px solid #F59E0B' : '1px solid #CBD5E1',
-                            background: simCaller.urgensi === 'SEDANG' ? '#FFFBEB' : 'white',
-                            color: simCaller.urgensi === 'SEDANG' ? '#D97706' : '#64748B',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          ⚠️ SEDANG
-                        </button>
-                        <button
-                          type="button"
-                          id="eb-urg-normal"
-                          onClick={() => {
-                            setSimCaller({ ...simCaller, urgensi: 'NORMAL' });
-                            if (cadFormErrors.urgensi) {
-                              setCadFormErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.urgensi;
-                                return next;
-                              });
-                            }
-                          }}
-                          style={{
-                            padding: '8px 4px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            border: simCaller.urgensi === 'NORMAL' ? '1.5px solid #3B82F6' : '1px solid #CBD5E1',
-                            background: simCaller.urgensi === 'NORMAL' ? '#EFF6FF' : 'white',
-                            color: simCaller.urgensi === 'NORMAL' ? '#1D4ED8' : '#64748B',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          ℹ️ NORMAL
-                        </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(dbUrgencyLevels.length, 1)}, 1fr)`, gap: '6px' }}>
+                        {dbUrgencyLevels.length === 0 ? (
+                          <div style={{ gridColumn: '1 / -1', padding: '8px', textAlign: 'center', color: '#64748B', fontSize: '11px', background: '#F8FAFC', borderRadius: '6px', border: '1px dashed #CBD5E1' }}>
+                            Data tingkat urgensi belum tersedia di database
+                          </div>
+                        ) : (
+                          dbUrgencyLevels.map((lvl: any) => {
+                            const isSelected = simCaller.urgensi === lvl.key;
+                            const borderColor = isSelected ? (lvl.badge_color || '#2563EB') : '1px solid #CBD5E1';
+                            const bgColor = isSelected ? (lvl.badge_bg || '#EFF6FF') : 'white';
+                            const textColor = isSelected ? (lvl.badge_color || '#2563EB') : '#64748B';
+                            return (
+                              <button
+                                key={lvl.id || lvl.key}
+                                type="button"
+                                id={`eb-urg-${lvl.key.toLowerCase()}`}
+                                onClick={() => {
+                                  setSimCaller({ ...simCaller, urgensi: lvl.key });
+                                  if (cadFormErrors.urgensi) {
+                                    setCadFormErrors((prev) => {
+                                      const next = { ...prev };
+                                      delete next.urgensi;
+                                      return next;
+                                    });
+                                  }
+                                }}
+                                style={{
+                                  padding: '8px 4px',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  border: isSelected ? `1.5px solid ${borderColor}` : '1px solid #CBD5E1',
+                                  background: bgColor,
+                                  color: textColor,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                {lvl.icon_emoji ? `${lvl.icon_emoji} ` : ''}{lvl.label}
+                              </button>
+                            );
+                          })
+                        )}
                       </div>
                       {cadFormErrors.urgensi && (
                         <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
@@ -5257,8 +5171,8 @@ function CommandCenterContent({
                           </span>
                         </div>
                         <MiniMapPicker
-                          lat={simCaller.lat || -6.2615}
-                          lng={simCaller.lng || 106.8106}
+                          lat={simCaller.lat}
+                          lng={simCaller.lng}
                           height="240px"
                           onChange={(lat, lng) => {
                             setSimCaller((prev) => ({ ...prev, lat, lng }));
@@ -5557,12 +5471,18 @@ function CommandCenterContent({
                     value={tolakKategori}
                     onChange={(e) => setTolakKategori(e.target.value)}
                   >
-                    <option value="Foto Bukti Tidak Jelas / Buram">📸 Foto Bukti Tidak Jelas / Buram</option>
-                    <option value="Uraian Kegiatan Belum Lengkap">📝 Uraian Kegiatan Belum Lengkap</option>
-                    <option value="Lokasi GPS Tidak Sesuai">📍 Lokasi GPS Tidak Sesuai</option>
-                    <option value="Laporan Terindikasi Duplikat">📑 Laporan Terindikasi Duplikat</option>
-                    <option value="Tidak Memenuhi Standar Operasional (SOP)">⚠️ Tidak Memenuhi Standar Operasional (SOP)</option>
-                    <option value="Lainnya">✏️ Alasan Lainnya</option>
+                    <option value="">-- Pilih Kategori Alasan Penolakan --</option>
+                    {dbRejectionReasons.length > 0 ? (
+                      dbRejectionReasons.map((r: any) => (
+                        <option key={r.id || r.key} value={r.label}>
+                          {r.label}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="" disabled>
+                        Data alasan penolakan tidak ditemukan di database
+                      </option>
+                    )}
                   </select>
                 </div>
 
@@ -5732,16 +5652,29 @@ function CommandCenterContent({
             {/* Body */}
             {(() => {
               const sopRecommendation = getSopRecommendationByIncident(selectedDisposisiItem, dbSubcategories);
+              const incidentLat = Number(selectedDisposisiItem?.tkpLat ?? selectedDisposisiItem?.lat ?? selectedDisposisiItem?.tkp_lat ?? 0);
+              const incidentLng = Number(selectedDisposisiItem?.tkpLng ?? selectedDisposisiItem?.lng ?? selectedDisposisiItem?.tkp_lng ?? 0);
+
               const calculatedArmadas = daftarArmadaAktif.map((armada) => {
-                const isPrimarySop = armada.id === sopRecommendation.primarySatuanId;
-                const isSecondarySop = sopRecommendation.secondarySatuanIds.includes(armada.id);
+                const isPrimarySop = sopRecommendation.primarySatuanId ? armada.id === sopRecommendation.primarySatuanId : false;
+                const isSecondarySop = sopRecommendation.secondarySatuanIds ? (sopRecommendation.secondarySatuanIds as any).includes(armada.id): false;
 
                 let multiplier = 1.0;
                 if (isPrimarySop) multiplier = 0.7;
                 else if (isSecondarySop) multiplier = 0.85;
 
-                const jarakCalc = +(armada.jarakBase * multiplier).toFixed(1);
-                const etaCalc = Math.max(2, Math.round(armada.etaBase * multiplier));
+                let jarakCalc: number | null = null;
+                let etaCalc: number | null = null;
+
+                if (incidentLat && incidentLng && armada.lat && armada.lng) {
+                  const rawDistance = calculateDistanceHaversineKm(incidentLat, incidentLng, armada.lat, armada.lng);
+                  jarakCalc = +(rawDistance * multiplier).toFixed(1);
+                  if (jarakCalc <= 0) jarakCalc = 0.5;
+                  etaCalc = Math.max(2, Math.round((jarakCalc / 30) * 60));
+                } else if (armada.jarakBase != null) {
+                  jarakCalc = +(armada.jarakBase * multiplier).toFixed(1);
+                  etaCalc = armada.etaBase != null ? Math.max(2, Math.round(armada.etaBase * multiplier)) : null;
+                }
 
                 return {
                   ...armada,
@@ -5915,6 +5848,7 @@ function CommandCenterContent({
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
                                 <input
                                   type="checkbox"
+                                  id={`chk-satuan-${a.id}`}
                                   checked={isChecked}
                                   onChange={() => toggleSatuanSelection(a.id)}
                                   onClick={(e) => e.stopPropagation()}
@@ -6150,6 +6084,7 @@ function CommandCenterContent({
               </button>
               <button
                 type="button"
+                id="btn-terbitkan-disposisi"
                 onClick={handleConfirmDisposisi}
                 disabled={loading || selectedSatuanKeys.length === 0}
                 style={{
