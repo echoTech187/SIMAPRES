@@ -335,7 +335,7 @@ export class ComplaintEntity {
 
     if (this.props.status === 'TIBA_DI_TKP') {
       // Jika personel sudah tercatat tiba di TKP (timestamp kedatangan sudah terkunci),
-      // perbarui foto bukti tindakan & catatan laporan tanpa mereset jam tiba awal
+      // perbarui foto bukti tindakan & catatan laporan dan majukan ke tahap 5 / PENANGANAN_TKP
       if (fotoBuktiUrl) {
         this.props.fotoTindakan = fotoBuktiUrl;
         if (!this.props.fotoTiba) this.props.fotoTiba = fotoBuktiUrl;
@@ -343,6 +343,8 @@ export class ComplaintEntity {
       if (catatan) {
         this.props.catatanTindakan = catatan;
       }
+      this.props.status = 'PENANGANAN_TKP';
+      this.props.tahap = 5;
       this.props.timelines?.push({
         tahapKe: 2,
         tahapTitle: formattedTitle,
@@ -397,6 +399,53 @@ export class ComplaintEntity {
       warningMessage,
       photoAddress,
       createdAt: now,
+    });
+  }
+
+  /**
+   * Personel Melaporkan Tindakan & Dokumentasi di TKP (Fase 3 - Selesai Step 2, Aktifkan Step 3)
+   */
+  public tindakanTkp(
+    catatan?: string,
+    fotoBuktiUrl?: string,
+    lat?: number,
+    lng?: number,
+    isDiscrepancy?: boolean,
+    deviationMeters?: number,
+    warningMessage?: string,
+    photoAddress?: string
+  ): void {
+    const formattedTitle = isDiscrepancy
+      ? 'Tindakan di TKP [ANOMALI LOKASI]'
+      : 'Tindakan di Tempat Kejadian (TKP)';
+
+    const combinedNotes = [
+      warningMessage,
+      catatan ? `Catatan: ${catatan}` : null,
+    ].filter(Boolean).join('\n\n') || catatan || null;
+
+    this.props.status = 'PENANGANAN_TKP';
+    this.props.tahap = 5;
+    if (fotoBuktiUrl) {
+      this.props.fotoTindakan = fotoBuktiUrl;
+      if (!this.props.fotoTiba) this.props.fotoTiba = fotoBuktiUrl;
+    }
+    if (catatan) {
+      this.props.catatanTindakan = catatan;
+    }
+
+    this.props.timelines?.push({
+      tahapKe: 2,
+      tahapTitle: formattedTitle,
+      catatan: combinedNotes,
+      fotoBuktiUrl,
+      gpsLat: lat,
+      gpsLng: lng,
+      isDiscrepancy,
+      deviationMeters,
+      warningMessage,
+      photoAddress,
+      createdAt: new Date(),
     });
   }
 

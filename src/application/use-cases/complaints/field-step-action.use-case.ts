@@ -37,8 +37,19 @@ export class FieldStepActionUseCase {
         complaint.personilMeluncur(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
       case 'tiba_tkp':
-      case 'tindakan_tkp':
         complaint.tibaDiTkp(
+          input.catatan,
+          input.fotoBuktiUrl,
+          input.lat,
+          input.lng,
+          input.isDiscrepancy,
+          input.deviationMeters,
+          input.warningMessage,
+          input.photoAddress
+        );
+        break;
+      case 'tindakan_tkp':
+        complaint.tindakanTkp(
           input.catatan,
           input.fotoBuktiUrl,
           input.lat,

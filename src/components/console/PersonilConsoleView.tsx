@@ -117,13 +117,18 @@ function computeWizardStepFromComplaint(complaint: any): number {
 
   // Tahap >= 5: Menunggu Pengesahan Pawas atau Selesai atau Tindakan TKP dilaporkan
   // Sesuai Prototype: Langkah 1 & 2 selesai (✅), Langkah 3 aktif (⏳)
-  if (
+  const isTindakanDone = Boolean(
     status === 'SELESAI' ||
     status === 'MENUNGGU_PENGESAHAN' ||
     status === 'PENANGANAN_TKP' ||
     Boolean(complaint.pengesahanPawas) ||
-    tahap >= 5
-  ) {
+    Boolean(complaint.catatanTindakan) ||
+    tahap >= 5 ||
+    (complaint.timelines && complaint.timelines.some((t: any) => t.tahapTitle?.includes('Tindakan') || t.tahapKe >= 3)) ||
+    (complaint.complaintLogs && complaint.complaintLogs.some((l: any) => l.action?.includes('Tindakan') || l.action === 'DOKUMENTASI_TKP_FLAGGED'))
+  );
+
+  if (isTindakanDone) {
     return 3;
   }
 
@@ -159,9 +164,7 @@ function PersonilContent({
   initialComplaints?: any[];
   initialOfficer?: any;
 }) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const nrpParam = searchParams.get('nrp') || session?.identifier || '92031145';
+  const nrpParam = session?.identifier;
 
   // Navigation tab: Sinkronkan dengan URL halaman (/console/buat-pengaduan, /console/peta, dll.)
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -1719,6 +1722,10 @@ function PersonilContent({
           const next = 3;
           setWizardStep(next);
           setExpandedStep(next);
+          if (res.data) {
+            setActiveComplaint(res.data);
+            setSelectedTask(res.data);
+          }
           await loadData(undefined, activeComplaint.id);
         }
       } else {
@@ -5411,7 +5418,7 @@ function PersonilContent({
                       id="btn-tiba-tkp"
                       style={{ width: '100%', margin: '14px 0 0 0', background: '#D97706', fontWeight: 800 }}
                       disabled={isUpdatingStep}
-                      onClick={() => handleWizardSubmit('tiba_tkp')}
+                      onClick={() => handleWizardSubmit('tindakan_tkp')}
                     >
                       {isUpdatingStep ? 'Menyimpan Laporan Tindakan...' : 'Simpan Laporan Tindakan ➔'}
                     </button>

@@ -55,6 +55,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       const logTiba = (record.complaint_logs || []).find((l: any) =>
         l.action?.includes('Tiba') || l.action?.includes('Tindakan') || l.action?.includes('TIBA_TKP')
       );
+      const logTindakan = (record.complaint_logs || []).find((l: any) =>
+        l.action?.includes('Tindakan')
+      );
+      const catatanTindakan = logTindakan?.notes || null;
       const logSelesai = (record.complaint_logs || []).find((l: any) =>
         l.action?.includes('Selesai') || l.action?.includes('SELESAI')
       );
@@ -148,6 +152,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         fotoPersiapan: evidenceMenuju?.file_url || null,
         fotoTiba: evidenceTiba?.file_url || null,
         fotoTindakan: evidenceTiba?.file_url || null,
+        catatanTindakan,
         fotoSelesai: evidenceSelesai?.file_url || null,
         waktuMeluncur,
         koordinatGps,
