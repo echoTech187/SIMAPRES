@@ -92,6 +92,10 @@ export interface ComplaintProps {
   fotoTiba?: string | null;
   fotoTindakan?: string | null;
   fotoSelesai?: string | null;
+  waktuMeluncur?: string | null;
+  koordinatGps?: string | null;
+  waktuTiba?: string | null;
+  waktuSelesai?: string | null;
   citizenReviewRel?: any | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -242,6 +246,22 @@ export class ComplaintEntity {
 
   get fotoSelesai(): string | null | undefined {
     return this.props.fotoSelesai;
+  }
+
+  get waktuMeluncur(): string | null | undefined {
+    return this.props.waktuMeluncur;
+  }
+
+  get koordinatGps(): string | null | undefined {
+    return this.props.koordinatGps;
+  }
+
+  get waktuTiba(): string | null | undefined {
+    return this.props.waktuTiba;
+  }
+
+  get waktuSelesai(): string | null | undefined {
+    return this.props.waktuSelesai;
   }
 
   // --- LOGIKA BISNIS & STATE TRANSITIONS (SOP POLRI) ---

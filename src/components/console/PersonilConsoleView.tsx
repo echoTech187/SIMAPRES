@@ -677,6 +677,125 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     return `${distanceToTkpMeters} m`;
   }, [distanceToTkpMeters]);
 
+  // Helper: Mendapatkan jam meluncur riil kejadian (dari audit log, bukti, atau entitas)
+  const getTaskWaktuMeluncur = (task: any) => {
+    if (task?.waktuMeluncur) return task.waktuMeluncur;
+    const log = (task?.complaintLogs || task?.complaint_logs || []).find((l: any) =>
+      l.action?.includes('Meluncur') || l.action?.includes('Persiapan') || l.action?.includes('MENUJU_TKP')
+    );
+    if (log?.created_at) {
+      try {
+        return new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    const ev = (task?.evidences || []).find((e: any) =>
+      e.incident_phase === 'MENUJU_TKP' || (e.caption || '').includes('Meluncur') || (e.caption || '').includes('Persiapan')
+    );
+    if (ev?.uploaded_at) {
+      try {
+        return new Date(ev.uploaded_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    if (task?.disposisiAt) {
+      try {
+        return new Date(task.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    return null;
+  };
+
+  // Helper: Mendapatkan titik koordinat GPS keberangkatan riil (bukan titik TKP)
+  const getTaskKoordinatGps = (task: any) => {
+    if (task?.koordinatGps && !task.koordinatGps.includes('NaN')) return task.koordinatGps;
+    const log = (task?.complaintLogs || task?.complaint_logs || []).find((l: any) =>
+      (l.action?.includes('Meluncur') || l.action?.includes('Persiapan') || l.action?.includes('MENUJU_TKP')) &&
+      l.action_lat && l.action_lng
+    );
+    if (log?.action_lat && log?.action_lng) {
+      return `${Number(log.action_lat).toFixed(6)}, ${Number(log.action_lng).toFixed(6)}`;
+    }
+    const ev = (task?.evidences || []).find((e: any) =>
+      (e.incident_phase === 'MENUJU_TKP' || (e.caption || '').includes('Meluncur') || (e.caption || '').includes('Persiapan')) &&
+      e.exif_lat && e.exif_lng
+    );
+    if (ev?.exif_lat && ev?.exif_lng) {
+      return `${Number(ev.exif_lat).toFixed(6)}, ${Number(ev.exif_lng).toFixed(6)}`;
+    }
+    if (currentGps?.lat && currentGps?.lng && Number(currentGps.lat) !== 0) {
+      return `${Number(currentGps.lat).toFixed(6)}, ${Number(currentGps.lng).toFixed(6)}`;
+    }
+    return null;
+  };
+
+  // Helper: Mendapatkan jam tiba di TKP riil kejadian
+  const getTaskWaktuTiba = (task: any) => {
+    if (task?.waktuTiba) return task.waktuTiba;
+    const log = (task?.complaintLogs || task?.complaint_logs || []).find((l: any) =>
+      l.action?.includes('Tiba') || l.action?.includes('Tindakan') || l.action?.includes('TIBA_TKP')
+    );
+    if (log?.created_at) {
+      try {
+        return new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    if (task?.responTibaTkpAt) {
+      try {
+        return new Date(task.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    return null;
+  };
+
+  // Helper: Mendapatkan jam penyelesaian riil kejadian
+  const getTaskWaktuSelesai = (task: any) => {
+    if (task?.waktuSelesai) return task.waktuSelesai;
+    const log = (task?.complaintLogs || task?.complaint_logs || []).find((l: any) =>
+      l.action?.includes('Selesai') || l.action?.includes('SELESAI')
+    );
+    if (log?.created_at) {
+      try {
+        return new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    if (task?.selesaiAt) {
+      try {
+        return new Date(task.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      } catch (_) {}
+    }
+    return null;
+  };
+
+  // Helper: Mendapatkan estimasi waktu tempuh (ETA) yang sinkron dengan Navigasi Peta Lapangan
+  const getTaskEtaText = (task: any) => {
+    if (!task) return null;
+    // Jika tiket ini adalah target navigasi aktif di peta, gunakan nilai ETA riil yang dihitung peta
+    if (targetComplaintForNav && (task.id === targetComplaintForNav.id || task.nomorTiket === targetComplaintForNav.nomorTiket)) {
+      if (etaMinutesText && etaMinutesText !== 'Menghitung...') {
+        return etaMinutesText;
+      }
+    }
+    // Hitung jarak dinamis antara posisi GPS personil / titik keberangkatan ke titik kejadian TKP
+    const depCoords = getTaskKoordinatGps(task);
+    let lat1 = currentGps?.lat ? Number(currentGps.lat) : 0;
+    let lng1 = currentGps?.lng ? Number(currentGps.lng) : 0;
+    if ((!lat1 || !lng1) && depCoords) {
+      const parts = depCoords.split(',').map((s: string) => Number(s.trim()));
+      if (parts[0] && parts[1]) {
+        lat1 = parts[0];
+        lng1 = parts[1];
+      }
+    }
+    const lat2 = Number(task.tkpLat);
+    const lng2 = Number(task.tkpLng);
+    if (lat1 && lng1 && lat2 && lng2) {
+      const distMeters = getDistanceFromLatLonInMeters(lat1, lng1, lat2, lng2);
+      if (distMeters <= 50) return 'Tiba di Lokasi';
+      const minutes = Math.max(1, Math.round(distMeters / ((35 * 1000) / 60)));
+      return `± ${minutes} Menit`;
+    }
+    return null;
+  };
+
   // Aksi ketika tombol "Sudah Tiba" diklik dari Peta Navigasi
   const handleSudahTibaFromMap = () => {
     if (!targetComplaintForNav) return;
@@ -696,7 +815,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     key: 'my_unit',
     pos: currentGps,
     iconEmoji: '🚔',
-    title: `${officer.satuan} (Unit Anda)`,
+    title: `${officer.satuan}`,
     petugas: `${officer.fullName} (NRP ${officer.nrp})`,
     sub: `${officer.satuan}${officer.kendaraan ? ` • ${officer.kendaraan}` : ''}`,
     status: officer.status,
@@ -3148,6 +3267,9 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                         (selectedTask.evidences || []).find(
                                           (e: any) => e.incident_phase === 'MENUJU_TKP' || (e.caption || '').includes('Meluncur') || (e.caption || '').includes('Persiapan')
                                         )?.file_url;
+                                      const depTime = getTaskWaktuMeluncur(selectedTask) || selectedTask.waktuMeluncur || waktuKasus;
+                                      const depGps = getTaskKoordinatGps(selectedTask) || selectedTask.koordinatGps || `${currentGps.lat}, ${currentGps.lng}`;
+                                      const etaText = getTaskEtaText(selectedTask) || '± 25-30 Menit';
 
                                       return (
                                         <>
@@ -3157,7 +3279,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                 <span>📅</span> {tanggalKasus}
                                               </span>
                                               <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                                Meluncur: {selectedTask.waktuMeluncur || '10:50 WIB'}
+                                                Meluncur: {depTime}
                                               </span>
                                             </div>
                                             {resolvedFotoPersiapan ? (
@@ -3179,11 +3301,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                   e.stopPropagation();
                                                   setLightboxFoto({
                                                     src: resolvedFotoPersiapan,
-                                                    title: `Bukti Persiapan & GPS - ${selectedTask.nomorTiket}`,
-                                                    meta: `GPS: ${selectedTask.koordinatGps || (selectedTask.tkpLat ? `${selectedTask.tkpLat}, ${selectedTask.tkpLng}` : '-6.1932, 106.8821')} • Meluncur: ${selectedTask.waktuMeluncur || '10:50 WIB'}`,
+                                                    title: `Bukti Persiapan & GPS Keberangkatan - ${selectedTask.nomorTiket}`,
+                                                    meta: `GPS Keberangkatan: ${depGps} • Meluncur: ${depTime}`,
                                                   });
                                                 }}
-                                                title="Klik untuk lihat bukti foto persiapan & GPS"
+                                                title="Klik untuk lihat bukti foto persiapan & GPS keberangkatan"
                                               >
                                                 📷 Bukti Persiapan &amp; GPS ➔
                                               </span>
@@ -3208,11 +3330,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                 e.stopPropagation();
                                                 setLightboxFoto({
                                                   src: resolvedFotoPersiapan,
-                                                  title: `Bukti Persiapan & GPS - ${selectedTask.nomorTiket}`,
-                                                  meta: `GPS: ${selectedTask.koordinatGps || (selectedTask.tkpLat ? `${selectedTask.tkpLat}, ${selectedTask.tkpLng}` : '-6.1932, 106.8821')}`,
+                                                  title: `Bukti Persiapan & GPS Keberangkatan - ${selectedTask.nomorTiket}`,
+                                                  meta: `GPS Keberangkatan: ${depGps} • Meluncur: ${depTime}`,
                                                 });
                                               }}
-                                              title="Klik untuk memperbesar Bukti Persiapan & GPS"
+                                              title="Klik untuk memperbesar Bukti Persiapan & GPS Keberangkatan"
                                               style={{ cursor: 'pointer', position: 'relative', borderRadius: '8px', overflow: 'hidden', marginTop: '8px', border: '1px solid #CBD5E1' }}
                                             >
                                               <img
@@ -3247,29 +3369,29 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                     })()}
                                                   </div>
                                                   <div style={{ fontSize: '9.5px', opacity: 0.9 }}>
-                                                    Estimasi Tiba: 5 Menit • 🔍 Klik perbesar foto
+                                                    Estimasi Tiba: {etaText} • 🔍 Klik perbesar foto
                                                   </div>
                                                 </div>
                                               </div>
                                             </div>
                                           ) : null}
+                                          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderLeft: '3px solid #16A34A', borderRadius: '6px', padding: '6px 10px', marginTop: '8px' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>📍 GPS KEBERANGKATAN:</span>
+                                              <span style={{ fontSize: '9.5px', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>TERKUNCI</span>
+                                            </div>
+                                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', fontFamily: 'monospace' }}>
+                                              {depGps}
+                                            </div>
+                                            {selectedTask.catatanPersiapan && (
+                                              <div style={{ fontSize: '10.5px', color: '#475569', fontStyle: 'italic', marginTop: '3px' }}>
+                                                &quot;{selectedTask.catatanPersiapan}&quot;
+                                              </div>
+                                            )}
+                                          </div>
                                         </>
                                       );
                                     })()}
-                                    <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderLeft: '3px solid #16A34A', borderRadius: '6px', padding: '6px 10px', marginTop: '8px' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>📍 GPS KEBERANGKATAN:</span>
-                                        <span style={{ fontSize: '9.5px', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>TERKUNCI</span>
-                                      </div>
-                                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', fontFamily: 'monospace' }}>
-                                        {selectedTask.koordinatGps || `${currentGps.lat}, ${currentGps.lng}`}
-                                      </div>
-                                      {selectedTask.catatanPersiapan && (
-                                        <div style={{ fontSize: '10.5px', color: '#475569', fontStyle: 'italic', marginTop: '3px' }}>
-                                          &quot;{selectedTask.catatanPersiapan}&quot;
-                                        </div>
-                                      )}
-                                    </div>
                                   </>
                                 ) : (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2, marginTop: '8px' }}>
@@ -3494,6 +3616,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                         (selectedTask.evidences || []).find(
                                           (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption || '').includes('Tindakan') || (e.caption || '').includes('Tiba')
                                         )?.file_url;
+                                      const tibaTime = getTaskWaktuTiba(selectedTask) || selectedTask.waktuTiba || waktuKasus;
 
                                       return (
                                         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
@@ -3502,7 +3625,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                               <span>📅</span> {tanggalKasus}
                                             </span>
                                             <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                              Tiba: {selectedTask.waktuTiba || '11:15 WIB'}
+                                              Tiba: {tibaTime}
                                             </span>
                                           </div>
                                           {resolvedFotoTindakan ? (
@@ -3525,7 +3648,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                 setLightboxFoto({
                                                   src: resolvedFotoTindakan,
                                                   title: `Bukti Tindakan TKP - ${selectedTask.nomorTiket}`,
-                                                  meta: `Tiba: ${selectedTask.waktuTiba || '11:15 WIB'} • ${selectedTask.tkpAlamatTeks || ''}`,
+                                                  meta: `Tiba: ${tibaTime} • ${selectedTask.tkpAlamatTeks || ''}`,
                                                 });
                                               }}
                                               title="Klik untuk lihat bukti foto tindakan"
@@ -3588,6 +3711,8 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                           (e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || (e.caption || '').includes('Selesai')
                                         )?.file_url;
 
+                                      const selesaiTime = getTaskWaktuSelesai(selectedTask) || selectedTask.waktuSelesai || selectedTask.pengesahanPawas?.waktu || waktuKasus;
+
                                       return (
                                         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
                                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
@@ -3595,7 +3720,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                               <span>📅</span> {tanggalKasus}
                                             </span>
                                             <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                              {selectedTask.pengesahanPawas ? 'Disahkan: ' : 'Selesai: '}{selectedTask.waktuSelesai || selectedTask.pengesahanPawas?.waktu || '11:45 WIB'}
+                                              {selectedTask.pengesahanPawas ? 'Disahkan: ' : 'Selesai: '}{selesaiTime}
                                             </span>
                                           </div>
                                           {resolvedFotoSelesai ? (
@@ -3618,7 +3743,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                                 setLightboxFoto({
                                                   src: resolvedFotoSelesai,
                                                   title: `Bukti Situasi Akhir - ${selectedTask.nomorTiket}`,
-                                                  meta: `Selesai: ${selectedTask.waktuSelesai || '11:45 WIB'}`,
+                                                  meta: `Selesai: ${selesaiTime}`,
                                                 });
                                               }}
                                               title="Klik untuk lihat bukti foto penyelesaian akhir"
@@ -3653,7 +3778,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                           <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
                                         </div>
                                         <div style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px' }}>
-                                          <strong>Pengesah:</strong> {selectedTask.pengesahanPawas.aktor || 'AKP Eko Susanto, S.I.K.'} • <strong>Waktu:</strong> {selectedTask.pengesahanPawas.waktu || '11:45 WIB'}
+                                          <strong>Pengesah:</strong> {selectedTask.pengesahanPawas.aktor || 'AKP Eko Susanto, S.I.K.'} • <strong>Waktu:</strong> {selectedTask.pengesahanPawas.waktu || getTaskWaktuSelesai(selectedTask) || selectedTask.waktuSelesai || waktuKasus}
                                         </div>
                                         <div style={{ fontSize: '11px', color: '#1E293B', fontStyle: 'italic', marginTop: '2px' }}>
                                           &quot;{selectedTask.pengesahanPawas.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}&quot;

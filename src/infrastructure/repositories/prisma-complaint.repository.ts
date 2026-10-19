@@ -48,6 +48,43 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         (e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || (e.caption && e.caption.includes('Selesai'))
       );
 
+      // Ekstrak waktu riil dan koordinat GPS dari audit logs kejadian
+      const logMeluncur = (record.complaint_logs || []).find((l: any) =>
+        l.action?.includes('Meluncur') || l.action?.includes('Persiapan') || l.action?.includes('MENUJU_TKP')
+      );
+      const logTiba = (record.complaint_logs || []).find((l: any) =>
+        l.action?.includes('Tiba') || l.action?.includes('Tindakan') || l.action?.includes('TIBA_TKP')
+      );
+      const logSelesai = (record.complaint_logs || []).find((l: any) =>
+        l.action?.includes('Selesai') || l.action?.includes('SELESAI')
+      );
+
+      const waktuMeluncur = logMeluncur?.created_at
+        ? new Date(logMeluncur.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : evidenceMenuju?.uploaded_at
+        ? new Date(evidenceMenuju.uploaded_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : primaryDispatch?.dispatched_at
+        ? new Date(primaryDispatch.dispatched_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : null;
+
+      const koordinatGps = logMeluncur?.action_lat && logMeluncur?.action_lng
+        ? `${Number(logMeluncur.action_lat).toFixed(6)}, ${Number(logMeluncur.action_lng).toFixed(6)}`
+        : evidenceMenuju?.exif_lat && evidenceMenuju?.exif_lng
+        ? `${Number(evidenceMenuju.exif_lat).toFixed(6)}, ${Number(evidenceMenuju.exif_lng).toFixed(6)}`
+        : null;
+
+      const waktuTiba = logTiba?.created_at
+        ? new Date(logTiba.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : primaryDispatch?.arrived_at
+        ? new Date(primaryDispatch.arrived_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : null;
+
+      const waktuSelesai = logSelesai?.created_at
+        ? new Date(logSelesai.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : primaryDispatch?.completed_at
+        ? new Date(primaryDispatch.completed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : null;
+
       return new ComplaintEntity({
         id: record.id,
         nomorTiket: record.nomor_tiket,
@@ -112,6 +149,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         fotoTiba: evidenceTiba?.file_url || null,
         fotoTindakan: evidenceTiba?.file_url || null,
         fotoSelesai: evidenceSelesai?.file_url || null,
+        waktuMeluncur,
+        koordinatGps,
+        waktuTiba,
+        waktuSelesai,
         timelines: (record.complaint_logs || []).map((t: any, idx: number) => {
           let stepPhoto: string | null = null;
           if (t.action?.includes('Meluncur') || t.action?.includes('Persiapan')) {
