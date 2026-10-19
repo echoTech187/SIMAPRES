@@ -14,6 +14,7 @@ export interface CreateComplaintInput {
   kategoriKey?: string;
   subcategoryId?: number | null;
   platformKey?: string;
+  fotoBuktiUrl?: string | null;
 }
 
 export class CreateComplaintUseCase {
@@ -73,11 +74,13 @@ export class CreateComplaintUseCase {
       kategoriKey: input.kategoriKey,
       subcategoryId: input.subcategoryId,
       platformKey: input.platformKey,
+      fotoBuktiUrl: input.fotoBuktiUrl || null,
       timelines: [
         {
           tahapKe: 0,
           tahapTitle: 'Laporan Diterima',
           catatan: 'Pengaduan dicatat dan masuk ke buku register antrean.',
+          fotoBuktiUrl: input.fotoBuktiUrl || null,
           createdAt: now,
         },
       ],

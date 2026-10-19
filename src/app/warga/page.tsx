@@ -542,6 +542,7 @@ export default function PortalWargaPage() {
         tkpLat: finalLat,
         tkpLng: finalLng,
         ringkasanKeterangan: uraianVal,
+        fotoBuktiUrl: fotoBukti || undefined,
       });
       if (dbRes.success && dbRes.data?.nomorTiket) {
         noTiket = dbRes.data.nomorTiket;

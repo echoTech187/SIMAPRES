@@ -44,6 +44,8 @@ export async function createComplaintAction(input: {
   kategoriKey?: string;
   subcategoryId?: number | string | null;
   platformKey?: string;
+  fotoBuktiUrl?: string | null;
+  fotoPengaduan?: string | null;
 }) {
   try {
     const cleanNama = (input.pelaporNama || input.namaPelapor)?.trim();
@@ -82,6 +84,8 @@ export async function createComplaintAction(input: {
       return { success: false, error: 'Uraian ringkasan kejadian wajib diisi!' };
     }
 
+    const initialFoto = input.fotoBuktiUrl || input.fotoPengaduan || null;
+
     const useCase = UseCaseFactory.getCreateComplaintUseCase();
     const result = await useCase.execute({
       pelaporNama: cleanNama,
@@ -96,6 +100,7 @@ export async function createComplaintAction(input: {
       kategoriKey: input.kategoriKey || cleanJenis,
       subcategoryId: input.subcategoryId ? Number(input.subcategoryId) : null,
       platformKey: input.platformKey || input.saluranLaporan || 'warga',
+      fotoBuktiUrl: initialFoto,
     });
     safeRevalidatePath('/command-center');
     safeRevalidatePath('/warga');

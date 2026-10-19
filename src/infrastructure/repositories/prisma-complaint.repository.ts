@@ -426,7 +426,43 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       },
     });
 
-    // Fetch ulang agar include complaint_logs terisi lengkap
+    // Jika pelapor menyertakan foto bukti awal (misal via Portal Warga), simpan ke complaint_evidences (LAPORAN_AWAL)
+    if (data.fotoBuktiUrl) {
+      try {
+        let savedUrl = data.fotoBuktiUrl;
+        if (savedUrl.startsWith('data:image/')) {
+          const fs = await import('fs');
+          const path = await import('path');
+          const matches = savedUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+          if (matches) {
+            const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+            const buffer = Buffer.from(matches[2], 'base64');
+            const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+            if (!fs.existsSync(uploadDir)) {
+              fs.mkdirSync(uploadDir, { recursive: true });
+            }
+            const fileName = `pelapor_${created.id}_${Date.now()}.${ext}`;
+            fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+            savedUrl = `/uploads/${fileName}`;
+          }
+        }
+        await prisma.complaintEvidence.create({
+          data: {
+            complaint_id: created.id,
+            incident_phase: 'LAPORAN_AWAL',
+            file_url: savedUrl,
+            caption: 'Foto Bukti Laporan Awal Warga',
+            watermark_text: 'Foto Bukti Pelapor (Portal Warga 110)',
+            exif_lat: data.tkpLat,
+            exif_lng: data.tkpLng,
+          },
+        });
+      } catch (evErr) {
+        console.warn('Sync initial evidence error:', evErr);
+      }
+    }
+
+    // Fetch ulang agar include complaint_logs & evidences terisi lengkap
     const reloaded = await prisma.complaint.findUnique({
       where: { id: created.id },
       include: COMPLAINT_INCLUDE,
