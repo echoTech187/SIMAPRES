@@ -2759,58 +2759,45 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           <span style={{ color: '#334155', fontWeight: 600 }}>{selectedTask.tkpAlamatTeks}</span>
                         </div>
 
-                        {/* FOTO BUKTI LAPORAN WARGA ATAU DOKUMENTASI PETUGAS */}
-                        {(() => {
-                          const displayEvidencePhoto =
-                            selectedTask.fotoBuktiUrl ||
-                            selectedTask.fotoPersiapan ||
-                            selectedTask.fotoTindakan ||
-                            (selectedTask.evidences && selectedTask.evidences.length > 0 ? selectedTask.evidences[selectedTask.evidences.length - 1].file_url : null);
-                          const isCitizenPhoto = Boolean(selectedTask.fotoBuktiUrl);
-
-                          if (!displayEvidencePhoto) {
-                            return null;
-                          }
-
-                          return (
+                        {/* FOTO BUKTI LAPORAN WARGA (Hanya tampil jika pelapor melampirkan foto saat buat tiket) */}
+                        {selectedTask.fotoBuktiUrl ? (
+                          <div
+                            style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
+                            onClick={() => {
+                              setLightboxFoto({
+                                src: selectedTask.fotoBuktiUrl,
+                                title: `Foto Bukti Laporan 110 - ${selectedTask.nomorTiket}`,
+                                meta: selectedTask.tkpAlamatTeks,
+                              });
+                            }}
+                            title="Klik untuk perbesar foto laporan pelapor"
+                          >
+                            <img
+                              src={selectedTask.fotoBuktiUrl}
+                              alt="Foto Bukti Pelapor"
+                              style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                            />
                             <div
-                              style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
-                              onClick={() => {
-                                setLightboxFoto({
-                                  src: displayEvidencePhoto,
-                                  title: isCitizenPhoto ? `Foto Bukti Laporan 110 - ${selectedTask.nomorTiket}` : `Dokumentasi Penanganan Lapangan - ${selectedTask.nomorTiket}`,
-                                  meta: selectedTask.tkpAlamatTeks,
-                                });
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'space-between',
+                                padding: '8px 10px',
+                                color: 'white',
+                                fontSize: '10px',
+                                fontWeight: 600,
                               }}
-                              title="Klik untuk perbesar foto dokumentasi"
                             >
-                              <img
-                                src={displayEvidencePhoto}
-                                alt="Foto Bukti"
-                                style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                              />
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  inset: 0,
-                                  background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
-                                  display: 'flex',
-                                  alignItems: 'flex-end',
-                                  justifyContent: 'space-between',
-                                  padding: '8px 10px',
-                                  color: 'white',
-                                  fontSize: '10px',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                <span>{isCitizenPhoto ? 'Foto Bukti Laporan 110 • Terverifikasi' : 'Foto Dokumentasi Personel • Lapangan'}</span>
-                                <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
-                                  🔍 Perbesar
-                                </span>
-                              </div>
+                              <span>Foto Bukti Laporan 110 • Terverifikasi</span>
+                              <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
+                                🔍 Perbesar
+                              </span>
                             </div>
-                          );
-                        })()}
+                          </div>
+                        ) : null}
 
                         <div style={{ fontSize: '11px', color: '#475569', lineHeight: '1.4', marginTop: '8px', fontStyle: 'italic' }}>
                           Laporan: &quot;{selectedTask.ringkasanKeterangan || selectedTask.deskripsiKejadian || selectedTask.jenisKejadian}&quot;
