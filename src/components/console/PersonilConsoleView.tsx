@@ -109,6 +109,43 @@ function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number,
   return Math.round(R * c);
 }
 
+// Single Source of Truth: Menghitung Tahap Wizard dari Status & Tahap Pengaduan
+function computeWizardStepFromComplaint(complaint: any): number {
+  if (!complaint) return 1;
+  const status = String(complaint.status || '').toUpperCase();
+  const tahap = Number(complaint.tahap) || 1;
+
+  // Tahap >= 5: Menunggu Pengesahan Pawas atau Selesai atau Tindakan TKP dilaporkan
+  // Sesuai Prototype: Langkah 1 & 2 selesai (✅), Langkah 3 aktif (⏳)
+  if (
+    status === 'SELESAI' ||
+    status === 'MENUNGGU_PENGESAHAN' ||
+    status === 'PENANGANAN_TKP' ||
+    Boolean(complaint.pengesahanPawas) ||
+    tahap >= 5
+  ) {
+    return 3;
+  }
+
+  // Tahap 4: Petugas sedang meluncur (MENUJU_TKP) atau tiba di TKP (TIBA_DI_TKP)
+  // Sesuai Prototype: Langkah 1 selesai (✅), Langkah 2 aktif (⏳), Langkah 3 terkunci (🔒)
+  if (
+    status === 'MENUJU_TKP' ||
+    status === 'TIBA_DI_TKP' ||
+    tahap === 4 ||
+    Boolean(complaint.waktuMeluncur) ||
+    Boolean(complaint.waktuTiba) ||
+    Boolean(complaint.responTibaTkpAt) ||
+    (complaint.dispatches && complaint.dispatches.some((d: any) => d.departed_at || d.arrived_at))
+  ) {
+    return 2;
+  }
+
+  // Tahap <= 3: Baru diterima/didisposisikan (SEDANG_DITANGANI, ACCEPTED, DISPOSISI, DIPROSES)
+  // Sesuai Prototype: Langkah 1 aktif (⏳), Langkah 2 & 3 terkunci (🔒)
+  return 1;
+}
+
 function PersonilContent({
   session,
   initialSection = 'beranda',
@@ -155,11 +192,7 @@ function PersonilContent({
     const slug = personilTabToSlug(tabId);
     const targetUrl = slug ? `/console/${slug}` : '/console';
     if (typeof window !== 'undefined') {
-      try {
-        router.push(targetUrl);
-      } catch (_) {
-        window.history.pushState(null, '', targetUrl);
-      }
+      window.history.pushState(null, '', targetUrl);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -308,38 +341,35 @@ function PersonilContent({
   // Timepicker Modal
   const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
 
-  // Wizard Penanganan Kasus
-  const [wizardStep, setWizardStep] = useState<number>(1);
-  const [expandedStep, setExpandedStep] = useState<number>(1);
+  // Wizard Penanganan Kasus (Diinisialisasi dinamis dari status riil pengaduan)
+  const [wizardStep, setWizardStep] = useState<number>(() => {
+    return initialActive ? computeWizardStepFromComplaint(initialActive) : 1;
+  });
+  const [expandedStep, setExpandedStep] = useState<number>(() => {
+    return initialActive ? computeWizardStepFromComplaint(initialActive) : 1;
+  });
   const [wizardCatatan, setWizardCatatan] = useState('');
   const [wizardFoto, setWizardFoto] = useState<string | null>(null);
   const [wizardPhotoMetadata, setWizardPhotoMetadata] = useState<any>(null);
   const [isUpdatingStep, setIsUpdatingStep] = useState(false);
   const activeComplaintRef = useRef<any>(null);
 
-  // Single Source of Truth: Menghitung Tahap Wizard dari Status & Tahap Pengaduan
-  // Sesuai Prototype syncWizardStepsWithTahap(tahap) pada Prototype/js/personil.js
-  const computeWizardStepFromComplaint = (complaint: any): number => {
-    if (!complaint) return 1;
-    const status = String(complaint.status || '').toUpperCase();
-    const tahap = Number(complaint.tahap) || 1;
-
-    // Tahap >= 5: Menunggu Pengesahan Pawas atau Selesai atau Tindakan TKP dilaporkan
-    // Sesuai Prototype: Langkah 1 & 2 selesai (✅), Langkah 3 aktif (⏳)
-    if (status === 'SELESAI' || status === 'MENUNGGU_PENGESAHAN' || status === 'PENANGANAN_TKP' || tahap >= 5) {
-      return 3;
+  // Otomatis sinkronkan tahap wizard saat activeComplaint atau selectedTask berubah
+  useEffect(() => {
+    const target = activeComplaint || selectedTask;
+    if (target) {
+      const step = computeWizardStepFromComplaint(target);
+      setWizardStep(step);
+      setExpandedStep(step);
     }
-
-    // Tahap 4: Petugas sedang meluncur (MENUJU_TKP) atau tiba di TKP (TIBA_DI_TKP)
-    // Sesuai Prototype: Langkah 1 selesai (✅), Langkah 2 aktif (⏳), Langkah 3 terkunci (🔒)
-    if (status === 'MENUJU_TKP' || status === 'TIBA_DI_TKP' || tahap === 4) {
-      return 2;
-    }
-
-    // Tahap <= 3: Baru diterima/didisposisikan (SEDANG_DITANGANI, ACCEPTED, DISPOSISI, DIPROSES)
-    // Sesuai Prototype: Langkah 1 aktif (⏳), Langkah 2 & 3 terkunci (🔒)
-    return 1;
-  };
+  }, [
+    activeComplaint?.id,
+    activeComplaint?.status,
+    activeComplaint?.tahap,
+    selectedTask?.id,
+    selectedTask?.status,
+    selectedTask?.tahap,
+  ]);
 
   // Helper untuk menentukan currentTahap Timeline (1-5) 1:1 sesuai Prototype/js/personil.js
   const getComplaintTahap = (complaint: any): number => {
