@@ -660,8 +660,7 @@ export async function updateDeviceTelemetryAction(input: {
       });
     }
 
-    revalidatePath('/personil');
-    revalidatePath('/command-center');
+    // revalidatePath sengaja di-skip di sini agar GPS telemetri tidak memicu reload halaman penuh di browser Next.js
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -726,9 +725,21 @@ export async function getMasterDropdownsAction() {
   }
 }
 
+const officerProfileCache = new Map<string, { data: any; expiresAt: number }>();
+const OFFICER_PROFILE_CACHE_TTL_MS = 30 * 1000; // 30 detik
+
+let policeOfficesCache: { data: any; expiresAt: number } | null = null;
+const POLICE_OFFICES_CACHE_TTL_MS = 10 * 60 * 1000; // 10 menit
+
 export async function getOfficerProfileByNrpAction(nrp: string) {
   try {
     const clean = nrp.trim();
+    const now = Date.now();
+    const cached = officerProfileCache.get(clean);
+    if (cached && now < cached.expiresAt) {
+      return { success: true, data: cached.data };
+    }
+
     const reg = await prisma.registeredUnit.findUnique({
       where: { nrp: clean },
     });
@@ -776,29 +787,33 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
 
     const assignedStation = officerProfile?.station || user?.station || null;
 
+    const data = {
+      id: user?.id ? user.id.toString() : officerProfile?.id ? officerProfile.id.toString() : '',
+      nrp: clean,
+      fullName: reg?.nama || user?.full_name || '',
+      pangkat: reg?.pangkat || officerProfile?.rank_pangkat || '',
+      satuan: reg?.satuanNama || officerProfile?.jabatan || '',
+      jabatan: reg?.kelompokRegu || '',
+      unit_id: resolvedUnitId,
+      unitId: reg?.unitId || '',
+      role: roleStr,
+      deviceId: (reg as any)?.deviceID || (officerProfile as any)?.device_id || null,
+      avatar: user?.officer_profile?.avatar_url || null,
+      kpi: kpiScore,
+      stationId: assignedStation?.id || null,
+      stationName: assignedStation?.station_name || null,
+      stationLat: assignedStation?.office_lat ? Number(assignedStation.office_lat) : null,
+      stationLng: assignedStation?.office_lng ? Number(assignedStation.office_lng) : null,
+      stationRadius: assignedStation?.geofence_radius_meters ? Number(assignedStation.geofence_radius_meters) : 1000,
+      currentGpsLat: officerProfile?.current_gps_lat ? Number(officerProfile.current_gps_lat) : null,
+      currentGpsLng: officerProfile?.current_gps_lng ? Number(officerProfile.current_gps_lng) : null,
+    };
+
+    officerProfileCache.set(clean, { data, expiresAt: now + OFFICER_PROFILE_CACHE_TTL_MS });
+
     return {
       success: true,
-      data: {
-        id: user?.id ? user.id.toString() : officerProfile?.id ? officerProfile.id.toString() : '',
-        nrp: clean,
-        fullName: reg?.nama || user?.full_name || '',
-        pangkat: reg?.pangkat || officerProfile?.rank_pangkat || '',
-        satuan: reg?.satuanNama || officerProfile?.jabatan || '',
-        jabatan: reg?.kelompokRegu || '',
-        unit_id: resolvedUnitId,
-        unitId: reg?.unitId || '',
-        role: roleStr,
-        deviceId: (reg as any)?.deviceID || (officerProfile as any)?.device_id || null,
-        avatar: user?.officer_profile?.avatar_url || null,
-        kpi: kpiScore,
-        stationId: assignedStation?.id || null,
-        stationName: assignedStation?.station_name || null,
-        stationLat: assignedStation?.office_lat ? Number(assignedStation.office_lat) : null,
-        stationLng: assignedStation?.office_lng ? Number(assignedStation.office_lng) : null,
-        stationRadius: assignedStation?.geofence_radius_meters ? Number(assignedStation.geofence_radius_meters) : 1000,
-        currentGpsLat: officerProfile?.current_gps_lat ? Number(officerProfile.current_gps_lat) : null,
-        currentGpsLng: officerProfile?.current_gps_lng ? Number(officerProfile.current_gps_lng) : null,
-      },
+      data,
     };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -807,6 +822,11 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
 
 export async function getPoliceOfficesAction() {
   try {
+    const now = Date.now();
+    if (policeOfficesCache && now < policeOfficesCache.expiresAt) {
+      return { success: true, data: policeOfficesCache.data };
+    }
+
     const rawOffices = await prisma.policeStation.findMany({
       orderBy: { id: 'asc' },
       include: {
@@ -820,29 +840,33 @@ export async function getPoliceOfficesAction() {
       },
     });
 
+    const data = rawOffices.map((o: any) => {
+      const userNames = (o.users || []).map((u: any) => u.full_name).filter(Boolean);
+      const petugasStr = userNames.length > 0 ? userNames.join(', ') : '-';
+      const levelLabel = o.station_level;
+
+      return {
+        id: o.id,
+        code: o.station_code,
+        name: o.station_name,
+        type: o.station_level,
+        address: o.address,
+        lat: Number(o.office_lat),
+        lng: Number(o.office_lng),
+        radius: Number(o.geofence_radius_meters || 500),
+        petugas: petugasStr,
+        status: levelLabel,
+        statusColor: '#1E3A8A',
+        tugas: o.station_name,
+        telemetri: o.geofence_radius_meters,
+      };
+    });
+
+    policeOfficesCache = { data, expiresAt: now + POLICE_OFFICES_CACHE_TTL_MS };
+
     return {
       success: true,
-      data: rawOffices.map((o: any) => {
-        const userNames = (o.users || []).map((u: any) => u.full_name).filter(Boolean);
-        const petugasStr = userNames.length > 0 ? userNames.join(', ') : '-';
-        const levelLabel = o.station_level;
-
-        return {
-          id: o.id,
-          code: o.station_code,
-          name: o.station_name,
-          type: o.station_level,
-          address: o.address,
-          lat: Number(o.office_lat),
-          lng: Number(o.office_lng),
-          radius: Number(o.geofence_radius_meters || 500),
-          petugas: petugasStr,
-          status: levelLabel,
-          statusColor: '#1E3A8A',
-          tugas: o.station_name,
-          telemetri: o.geofence_radius_meters,
-        };
-      }),
+      data,
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data kantor kepolisian.' };

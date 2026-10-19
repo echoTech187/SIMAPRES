@@ -1182,6 +1182,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
 
   // Ref untuk membatasi interval update GPS per 10 detik (sesuai permintaan user agar tidak berkedip)
   const lastGpsUpdateTimeRef = useRef<number>(0);
+  const lastSentGpsRef = useRef<{ lat: number; lng: number; time: number }>({ lat: 0, lng: 0, time: 0 });
 
   // Memoized Unit Data agar referensi objek stabil dan tidak memicu re-render / blinking pada peta
   const myUnitData = useMemo(() => ({
@@ -1239,19 +1240,25 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
 
         const activeDeviceId = officer?.deviceId || session?.deviceId || null;
         if (activeDeviceId || nrpParam) {
-          updateDeviceTelemetryAction({
-            deviceId: activeDeviceId || undefined,
-            nrp: nrpParam || undefined,
-            lat,
-            lng,
-          }).catch(console.warn);
+          const distMoved = Math.abs(lastSentGpsRef.current.lat - lat) + Math.abs(lastSentGpsRef.current.lng - lng);
+          const timeSinceLastSend = now - lastSentGpsRef.current.time;
+          // Kirim telemetri server hanya jika berpindah lokasi nyata (> ~20 meter) atau setelah 45 detik
+          if (distMoved > 0.0002 || timeSinceLastSend > 45000) {
+            lastSentGpsRef.current = { lat, lng, time: now };
+            updateDeviceTelemetryAction({
+              deviceId: activeDeviceId || undefined,
+              nrp: nrpParam || undefined,
+              lat,
+              lng,
+            }).catch(console.warn);
+          }
         }
       };
 
-      // Initial fast fix (force update pertama kali)
+      // Initial fast fix (update koordinat UI tanpa memaksa kirim telemetri ke server)
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          handleGpsUpdate(pos, true);
+          handleGpsUpdate(pos, false);
           const lat = Number(pos.coords.latitude.toFixed(6));
           const lng = Number(pos.coords.longitude.toFixed(6));
 
@@ -1373,9 +1380,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       const activeNrp = nrpParam || session?.identifier || officer?.nrp || '92031145';
       const activeOfficerId = targetOfficerId || officer?.id || (session?.userId ? String(session.userId) : '') || '3';
 
+      const currentTab = activeTabRef.current;
+      const needsLogbooks = currentTab === 'view-beranda' || currentTab === 'view-log' || currentTab === 'view-kinerja';
+
       const [cRes, lRes] = await Promise.all([
         getOfficerComplaintsAction(activeNrp),
-        activeOfficerId ? getOfficerLogbooksAction(String(activeOfficerId)) : Promise.resolve(null),
+        activeOfficerId && needsLogbooks ? getOfficerLogbooksAction(String(activeOfficerId)) : Promise.resolve(null),
       ]);
 
       if (cRes.success && cRes.data) {
@@ -1453,10 +1463,17 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     }
   };
 
+  // 1. Lazy-load master data peta dan logbook hanya saat tab yang membutuhkan dibuka
   useEffect(() => {
-    // 1. Muat master data statis 1 KALI saja saat inisialisasi
-    loadStaticMasterData();
+    if (activeTab === 'view-peta' || showHotspotModal) {
+      loadStaticMasterData();
+    }
+    if ((activeTab === 'view-beranda' || activeTab === 'view-log' || activeTab === 'view-kinerja') && logbooks.length === 0) {
+      loadData();
+    }
+  }, [activeTab, showHotspotModal]);
 
+  useEffect(() => {
     // 2. Direct fetch profile personel dari database resmi
     const targetNrp = nrpParam || session?.identifier || '92031145';
     getOfficerProfileByNrpAction(targetNrp).then((res) => {

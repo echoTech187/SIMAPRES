@@ -12,12 +12,20 @@ function serializeBigInt<T>(obj: T): T {
   );
 }
 
+let patrolFleetCache: { data: any; expiresAt: number } | null = null;
+const PATROL_FLEET_CACHE_TTL_MS = 15 * 1000; // 15 detik
+
 /**
  * Mengambil armada patroli & personel on-duty riil dari database (tabel patrol_vehicles & police_officers)
  * 100% data dinamis murni tanpa data tiruan / mock.
  */
 export async function getPatrolFleetUnitsAction() {
   try {
+    const now = Date.now();
+    if (patrolFleetCache && now < patrolFleetCache.expiresAt) {
+      return { success: true, data: patrolFleetCache.data };
+    }
+
     // 1. Ambil armada patroli resmi yang memiliki koordinat GPS aktif
     const vehicles = await prisma.patrolVehicle.findMany({
       where: {
@@ -109,7 +117,9 @@ export async function getPatrolFleetUnitsAction() {
     });
 
     const combined = [...formattedVehicles, ...formattedOfficers];
-    return { success: true, data: serializeBigInt(combined) };
+    const serialized = serializeBigInt(combined);
+    patrolFleetCache = { data: serialized, expiresAt: now + PATROL_FLEET_CACHE_TTL_MS };
+    return { success: true, data: serialized };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data unit armada dari database.' };
   }
@@ -133,6 +143,7 @@ export async function updatePatrolFleetTelemetryAction(input: {
       },
     });
 
+    patrolFleetCache = null;
     revalidatePath('/personil');
     revalidatePath('/command-center');
     revalidatePath('/console');

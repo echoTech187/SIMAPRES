@@ -11,11 +11,27 @@ function serializeBigInt<T>(obj: T): T {
   );
 }
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+let hotspotsCache: CacheEntry<any> | null = null;
+let masterHotspotOptionsCache: CacheEntry<any> | null = null;
+const HOTSPOTS_CACHE_TTL_MS = 60 * 1000; // 60 detik
+const MASTER_HOTSPOT_OPTIONS_TTL_MS = 10 * 60 * 1000; // 10 menit
+
 export async function getHotspotsAction() {
   try {
+    const now = Date.now();
+    if (hotspotsCache && now - hotspotsCache.timestamp < HOTSPOTS_CACHE_TTL_MS) {
+      return { success: true, data: hotspotsCache.data };
+    }
+
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const hotspots = await useCase.getAll();
-    return { success: true, data: serializeBigInt(hotspots.map((h) => h.toJSON())) };
+    const serialized = serializeBigInt(hotspots.map((h) => h.toJSON()));
+    hotspotsCache = { data: serialized, timestamp: now };
+    return { success: true, data: serialized };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data titik rawan.' };
   }
@@ -89,6 +105,7 @@ export async function createHotspotAction(input: {
       jadwalDisplay: cleanDisplay,
       unitTerdekat: cleanUnit,
     });
+    hotspotsCache = null;
     revalidatePath('/personil');
     revalidatePath('/command-center');
     return { success: true, data: serializeBigInt(created.toJSON()) };
@@ -116,6 +133,7 @@ export async function updateHotspotAction(
   try {
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const updated = await useCase.updateHotspot(key, input);
+    hotspotsCache = null;
     revalidatePath('/personil');
     revalidatePath('/command-center');
     return { success: true, data: serializeBigInt(updated.toJSON()) };
@@ -128,6 +146,7 @@ export async function deleteHotspotAction(key: string) {
   try {
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const deleted = await useCase.deleteHotspot(key);
+    hotspotsCache = null;
     revalidatePath('/personil');
     revalidatePath('/command-center');
     return { success: true, deleted };
@@ -141,6 +160,11 @@ export async function deleteHotspotAction(key: string) {
  */
 export async function getMasterHotspotOptionsAction() {
   try {
+    const now = Date.now();
+    if (masterHotspotOptionsCache && now - masterHotspotOptionsCache.timestamp < MASTER_HOTSPOT_OPTIONS_TTL_MS) {
+      return { success: true, data: masterHotspotOptionsCache.data };
+    }
+
     const { prisma } = await import('@/infrastructure/db/prisma.client');
     const [categories, dangerLevels] = await Promise.all([
       prisma.masterHotspotCategory.findMany({
@@ -153,12 +177,15 @@ export async function getMasterHotspotOptionsAction() {
       }),
     ]);
 
+    const serialized = {
+      categories: serializeBigInt(categories),
+      dangerLevels: serializeBigInt(dangerLevels),
+    };
+    masterHotspotOptionsCache = { data: serialized, timestamp: now };
+
     return {
       success: true,
-      data: {
-        categories: serializeBigInt(categories),
-        dangerLevels: serializeBigInt(dangerLevels),
-      },
+      data: serialized,
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil master titik rawan.' };

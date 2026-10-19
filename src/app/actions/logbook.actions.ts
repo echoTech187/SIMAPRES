@@ -11,6 +11,9 @@ function serializeBigInt<T>(obj: T): T {
   );
 }
 
+const officerLogbooksCache = new Map<string, { data: any; expiresAt: number }>();
+const OFFICER_LOGBOOKS_CACHE_TTL_MS = 20 * 1000; // 20 detik
+
 export async function createLogbookAction(input: {
   officerId: string;
   complaintId?: string | null;
@@ -34,6 +37,7 @@ export async function createLogbookAction(input: {
       officerId: BigInt(input.officerId),
       complaintId: input.complaintId ? BigInt(input.complaintId) : null,
     });
+    officerLogbooksCache.clear();
     revalidatePath('/personil');
     revalidatePath('/command-center');
     return { success: true, data: serializeBigInt(created.toJSON()) };
@@ -44,9 +48,18 @@ export async function createLogbookAction(input: {
 
 export async function getOfficerLogbooksAction(officerId: string, limit = 50) {
   try {
+    const key = `${officerId}_${limit}`;
+    const now = Date.now();
+    const cached = officerLogbooksCache.get(key);
+    if (cached && now < cached.expiresAt) {
+      return { success: true, data: cached.data };
+    }
+
     const repo = UseCaseFactory.getLogbookRepository();
     const logbooks = await repo.findByOfficerId(BigInt(officerId), limit);
-    return { success: true, data: serializeBigInt(logbooks.map((l) => l.toJSON())) };
+    const serialized = serializeBigInt(logbooks.map((l) => l.toJSON()));
+    officerLogbooksCache.set(key, { data: serialized, expiresAt: now + OFFICER_LOGBOOKS_CACHE_TTL_MS });
+    return { success: true, data: serialized };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil riwayat logbook.' };
   }

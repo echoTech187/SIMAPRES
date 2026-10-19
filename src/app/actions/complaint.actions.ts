@@ -351,8 +351,16 @@ export async function updateComplaintStatusAction(input: {
   }
 }
 
+let masterFilterOptionsCache: { data: any; expiresAt: number } | null = null;
+const MASTER_FILTER_CACHE_TTL_MS = 10 * 60 * 1000; // 10 menit
+
 export async function getMasterFilterOptionsAction() {
   try {
+    const now = Date.now();
+    if (masterFilterOptionsCache && now < masterFilterOptionsCache.expiresAt) {
+      return { success: true, data: masterFilterOptionsCache.data };
+    }
+
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
     const [rawRejections, categories, platforms, giats, satuans, statuses, dispatchStatuses, subcategories, urgencyLevels, dutyStatuses] = await Promise.all([
@@ -401,20 +409,24 @@ export async function getMasterFilterOptionsAction() {
       }),
     ]);
 
+    const serialized = {
+      categories: serializeBigInt(categories),
+      platforms: serializeBigInt(platforms),
+      giats: serializeBigInt(giats),
+      satuans: serializeBigInt(satuans),
+      statuses: serializeBigInt(statuses),
+      dispatchStatuses: serializeBigInt(dispatchStatuses),
+      subcategories: serializeBigInt(subcategories),
+      rejectionReasons: serializeBigInt(rawRejections),
+      urgencyLevels: serializeBigInt(urgencyLevels),
+      dutyStatuses: serializeBigInt(dutyStatuses),
+    };
+
+    masterFilterOptionsCache = { data: serialized, expiresAt: now + MASTER_FILTER_CACHE_TTL_MS };
+
     return {
       success: true,
-      data: {
-        categories: serializeBigInt(categories),
-        platforms: serializeBigInt(platforms),
-        giats: serializeBigInt(giats),
-        satuans: serializeBigInt(satuans),
-        statuses: serializeBigInt(statuses),
-        dispatchStatuses: serializeBigInt(dispatchStatuses),
-        subcategories: serializeBigInt(subcategories),
-        rejectionReasons: serializeBigInt(rawRejections),
-        urgencyLevels: serializeBigInt(urgencyLevels),
-        dutyStatuses: serializeBigInt(dutyStatuses),
-      },
+      data: serialized,
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil master filter.' };
