@@ -1323,11 +1323,57 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     }
   }, []);
 
-  // Load Data
+  const isPollingRef = useRef<boolean>(false);
+  const masterDataLoadedRef = useRef<boolean>(false);
+
+  // 1. Muat Data Master Statis HANYA 1 KALI saat inisialisasi aplikasi (Mencegah Network Spamming)
+  const loadStaticMasterData = async () => {
+    if (masterDataLoadedRef.current) return;
+    masterDataLoadedRef.current = true;
+    try {
+      const [hOptRes, oRes, filterRes, hRes, fRes] = await Promise.all([
+        getMasterHotspotOptionsAction(),
+        getPoliceOfficesAction(),
+        getMasterFilterOptionsAction(),
+        getHotspotsAction(),
+        getPatrolFleetUnitsAction(),
+      ]);
+
+      if (hOptRes.success && hOptRes.data) {
+        setDbHotspotCategories(hOptRes.data.categories || []);
+        setDbHotspotDangerLevels(hOptRes.data.dangerLevels || []);
+      }
+      if (oRes.success && oRes.data) {
+        setPoliceOffices(oRes.data);
+      }
+      if (filterRes.success && filterRes.data) {
+        setDbDutyStatuses(filterRes.data.dutyStatuses || []);
+        setDbGiats(filterRes.data.giats || []);
+      }
+      if (hRes.success && hRes.data) {
+        setHotspots(hRes.data);
+      }
+      if (fRes.success && fRes.data) {
+        setFleetUnits(fRes.data);
+      }
+    } catch (e) {
+      console.warn('Load static master data error:', e);
+    }
+  };
+
+  // 2. Muat Data Dinamis (Pengaduan & Logbook Personel)
   const loadData = async (targetOfficerId?: string, preferredComplaintId?: string | number) => {
+    if (isPollingRef.current) return;
+    isPollingRef.current = true;
     try {
       const activeNrp = nrpParam || session?.identifier || officer?.nrp || '92031145';
-      const cRes = await getOfficerComplaintsAction(activeNrp);
+      const activeOfficerId = targetOfficerId || officer?.id || (session?.userId ? String(session.userId) : '') || '3';
+
+      const [cRes, lRes] = await Promise.all([
+        getOfficerComplaintsAction(activeNrp),
+        activeOfficerId ? getOfficerLogbooksAction(String(activeOfficerId)) : Promise.resolve(null),
+      ]);
+
       if (cRes.success && cRes.data) {
         setComplaints(cRes.data);
 
@@ -1393,47 +1439,21 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
         }
       }
 
-      const activeOfficerId = targetOfficerId || officer?.id || (session?.userId ? String(session.userId) : '') || '3';
-      if (activeOfficerId) {
-        const lRes = await getOfficerLogbooksAction(String(activeOfficerId));
-        if (lRes.success && lRes.data) {
-          setLogbooks(lRes.data);
-        }
-      }
-
-      const hRes = await getHotspotsAction();
-      if (hRes.success && hRes.data) {
-        setHotspots(hRes.data);
-      }
-
-      const hOptRes = await getMasterHotspotOptionsAction();
-      if (hOptRes.success && hOptRes.data) {
-        setDbHotspotCategories(hOptRes.data.categories || []);
-        setDbHotspotDangerLevels(hOptRes.data.dangerLevels || []);
-      }
-
-      const oRes = await getPoliceOfficesAction();
-      if (oRes.success && oRes.data) {
-        setPoliceOffices(oRes.data);
-      }
-
-      const fRes = await getPatrolFleetUnitsAction();
-      if (fRes.success && fRes.data) {
-        setFleetUnits(fRes.data);
-      }
-
-      const filterRes = await getMasterFilterOptionsAction();
-      if (filterRes.success && filterRes.data) {
-        setDbDutyStatuses(filterRes.data.dutyStatuses || []);
-        setDbGiats(filterRes.data.giats || []);
+      if (lRes && lRes.success && lRes.data) {
+        setLogbooks(lRes.data);
       }
     } catch (e) {
-      console.warn('Load data error:', e);
+      console.warn('Load dynamic data error:', e);
+    } finally {
+      isPollingRef.current = false;
     }
   };
 
   useEffect(() => {
-    // 1. Direct fetch profile personel dari database resmi
+    // 1. Muat master data statis 1 KALI saja saat inisialisasi
+    loadStaticMasterData();
+
+    // 2. Direct fetch profile personel dari database resmi
     const targetNrp = nrpParam || session?.identifier || '92031145';
     getOfficerProfileByNrpAction(targetNrp).then((res) => {
       if (res.success && res.data) {
@@ -1475,10 +1495,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       }
     });
 
-    // 2. Real-time background polling interval untuk mendeteksi perintah disposisi masuk secara otomatis
+    // 3. Real-time background polling interval (Setiap 10 Detik & dijeda saat tab diminimize)
     const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       loadData();
-    }, 4000);
+    }, 10000);
 
     return () => clearInterval(pollInterval);
   }, [nrpParam]);
