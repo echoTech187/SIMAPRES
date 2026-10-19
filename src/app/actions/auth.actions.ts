@@ -734,7 +734,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
     });
     const user = await prisma.user.findUnique({
       where: { identifier: clean },
-      include: { officer_profile: true },
+      include: { officer_profile: { include: { station: true } }, station: true },
     });
     if (!reg && !user) return { success: false, error: 'Data personel tidak ditemukan.' };
 
@@ -744,6 +744,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
       user?.officer_profile ||
       (await prisma.policeOfficer.findUnique({
         where: { nrp: clean },
+        include: { station: true },
       }));
 
     const kpiScore = officerProfile?.kpi_score
@@ -773,6 +774,8 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
       } catch (_) {}
     }
 
+    const assignedStation = officerProfile?.station || user?.station || null;
+
     return {
       success: true,
       data: {
@@ -788,6 +791,13 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
         deviceId: (reg as any)?.deviceID || (officerProfile as any)?.device_id || null,
         avatar: user?.officer_profile?.avatar_url || null,
         kpi: kpiScore,
+        stationId: assignedStation?.id || null,
+        stationName: assignedStation?.station_name || null,
+        stationLat: assignedStation?.office_lat ? Number(assignedStation.office_lat) : null,
+        stationLng: assignedStation?.office_lng ? Number(assignedStation.office_lng) : null,
+        stationRadius: assignedStation?.geofence_radius_meters ? Number(assignedStation.geofence_radius_meters) : 1000,
+        currentGpsLat: officerProfile?.current_gps_lat ? Number(officerProfile.current_gps_lat) : null,
+        currentGpsLng: officerProfile?.current_gps_lng ? Number(officerProfile.current_gps_lng) : null,
       },
     };
   } catch (e: any) {

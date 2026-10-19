@@ -163,6 +163,13 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     kendaraan: '',
     avatar: session?.avatar_url || null,
     kpi: 0,
+    stationId: null,
+    stationName: null,
+    stationLat: null,
+    stationLng: null,
+    stationRadius: 1000,
+    currentGpsLat: null,
+    currentGpsLng: null,
   });
 
   const [taktisStatus, setTaktisStatus] = useState<string>('siaga');
@@ -677,6 +684,99 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     return `${distanceToTkpMeters} m`;
   }, [distanceToTkpMeters]);
 
+  // Mako Utama Personel & Geofence Presensi Kehadiran
+  const makoUtama = useMemo(() => {
+    // 1. Cari dari daftar policeOffices jika stationId cocok
+    if (officer?.stationId && policeOffices.length > 0) {
+      const match = policeOffices.find((po: any) => po.id === officer.stationId || po.code === officer.stationId);
+      if (match) return match;
+    }
+    // 2. Gunakan data station bawaan dari profile jika koordinat tersedia
+    if (officer?.stationLat && officer?.stationLng) {
+      return {
+        id: officer.stationId || 1,
+        name: officer.stationName || 'Mako Induk Kepolisian',
+        lat: Number(officer.stationLat),
+        lng: Number(officer.stationLng),
+        radius: Number(officer.stationRadius || 1000),
+      };
+    }
+    // 3. Fallback: kantor kepolisian pertama dari database
+    if (policeOffices.length > 0) {
+      return policeOffices[0];
+    }
+    return {
+      id: 1,
+      name: 'Polres Metro Jakarta Selatan',
+      lat: -6.2415,
+      lng: 106.8021,
+      radius: 1000,
+    };
+  }, [officer, policeOffices]);
+
+  // Jarak Riil Personel ke Mako Utama (Meter)
+  const distanceToMakoMeters = useMemo(() => {
+    const lat1 = currentGps?.lat ? Number(currentGps.lat) : (officer?.currentGpsLat ? Number(officer.currentGpsLat) : 0);
+    const lng1 = currentGps?.lng ? Number(currentGps.lng) : (officer?.currentGpsLng ? Number(officer.currentGpsLng) : 0);
+    const lat2 = makoUtama?.lat ? Number(makoUtama.lat) : 0;
+    const lng2 = makoUtama?.lng ? Number(makoUtama.lng) : 0;
+
+    if (!lat1 || !lng1 || !lat2 || !lng2) return null;
+    return getDistanceFromLatLonInMeters(lat1, lng1, lat2, lng2);
+  }, [currentGps, officer?.currentGpsLat, officer?.currentGpsLng, makoUtama]);
+
+  const makoRadiusLimit = Number(makoUtama?.radius || 1000);
+
+  // Apakah personil berada dalam radius Mako Utama
+  const isWithinMakoRadius = useMemo(() => {
+    if (distanceToMakoMeters === null) return false;
+    return distanceToMakoMeters <= makoRadiusLimit;
+  }, [distanceToMakoMeters, makoRadiusLimit]);
+
+  // Format Jarak ke Mako untuk tampilan UI
+  const distanceToMakoFormatted = useMemo(() => {
+    if (distanceToMakoMeters === null) return 'Mendeteksi GPS...';
+    if (distanceToMakoMeters >= 1000) {
+      return `${(distanceToMakoMeters / 1000).toFixed(1)} km`;
+    }
+    return `${Math.round(distanceToMakoMeters)} m`;
+  }, [distanceToMakoMeters]);
+
+  // Handler Presensi Masuk dengan Validasi Geofence Radius Mako Utama
+  const handlePresensiMasuk = () => {
+    if (!isWithinMakoRadius) {
+      alert(
+        `⛔ PRESENSI DITOLAK!\n\n` +
+        `Anda TIDAK DAPAT melakukan presensi masuk karena berada di luar radius Mako Utama.\n\n` +
+        `• Mako Utama: ${makoUtama?.name || 'Polres Metro Jakarta Selatan'}\n` +
+        `• Jarak Anda Saat Ini: ${distanceToMakoFormatted}\n` +
+        `• Batas Maksimal Radius: ${makoRadiusLimit.toLocaleString('id-ID')} meter\n\n` +
+        `Presensi kehadiran tugas piket hanya sah jika dilakukan di lingkungan area Mako!`
+      );
+      return;
+    }
+
+    const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    setPresensiMasukTime(now);
+    alert(`✓ Presensi Masuk Berhasil!\n\nWaktu: ${now}\nLokasi: Lingkungan ${makoUtama?.name || 'Mako'}\nStatus: Siaga Piket Aktif`);
+  };
+
+  // Handler Presensi Pulang dengan Validasi Geofence Radius Mako Utama
+  const handlePresensiPulangClick = () => {
+    if (!isWithinMakoRadius) {
+      alert(
+        `⛔ PRESENSI DITOLAK!\n\n` +
+        `Anda TIDAK DAPAT melakukan presensi pulang karena berada di luar radius Mako Utama.\n\n` +
+        `• Mako Utama: ${makoUtama?.name || 'Polres Metro Jakarta Selatan'}\n` +
+        `• Jarak Anda Saat Ini: ${distanceToMakoFormatted}\n` +
+        `• Batas Maksimal Radius: ${makoRadiusLimit.toLocaleString('id-ID')} meter\n\n` +
+        `Presensi pelepasan dinas hanya sah jika dilakukan di lingkungan area Mako!`
+      );
+      return;
+    }
+    setShowPresensiPulangModal(true);
+  };
+
   // Helper: Mendapatkan jam meluncur riil kejadian (dari audit log, bukti, atau entitas)
   const getTaskWaktuMeluncur = (task: any) => {
     if (task?.waktuMeluncur) return task.waktuMeluncur;
@@ -1138,7 +1238,24 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
           avatar: res.data.avatar,
           kpi: res.data.kpi,
           deviceId: res.data.deviceId || null,
+          stationId: res.data.stationId || null,
+          stationName: res.data.stationName || null,
+          stationLat: res.data.stationLat ?? null,
+          stationLng: res.data.stationLng ?? null,
+          stationRadius: res.data.stationRadius ?? 1000,
+          currentGpsLat: res.data.currentGpsLat ?? null,
+          currentGpsLng: res.data.currentGpsLng ?? null,
         });
+
+        if (res.data.currentGpsLat && res.data.currentGpsLng) {
+          setCurrentGps((prev) => {
+            if (prev.lat === 0 && prev.lng === 0) {
+              return { lat: Number(res.data.currentGpsLat), lng: Number(res.data.currentGpsLng) };
+            }
+            return prev;
+          });
+        }
+
         loadData(loadedId);
       } else {
         loadData('3');
@@ -4211,46 +4328,104 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           <span style={{ color: '#64748B' }}>Jam Masuk Piket:</span>
                           <span style={{ fontWeight: 700, color: '#1E293B' }}>{presensiMasukTime}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '8px' }}>
                           <span style={{ color: '#64748B' }}>Jam Pulang / Lepas:</span>
                           <span style={{ fontWeight: 700, color: '#64748B' }}>{presensiPulangTime || 'Belum Presensi'}</span>
                         </div>
+
+                        <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '8px', marginTop: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '5px' }}>
+                            <span style={{ color: '#64748B' }}>Mako Utama:</span>
+                            <span style={{ fontWeight: 700, color: '#1E293B', textAlign: 'right', maxWidth: '65%' }}>
+                              🏢 {makoUtama?.name || 'Polres Metro Jakarta Selatan'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '5px' }}>
+                            <span style={{ color: '#64748B' }}>Jarak ke Mako:</span>
+                            <span style={{ fontWeight: 800, color: isWithinMakoRadius ? '#15803D' : '#DC2626' }}>
+                              📍 {distanceToMakoFormatted} <span style={{ fontSize: '10.5px', fontWeight: 600, color: '#64748B' }}>(Maks: {makoRadiusLimit.toLocaleString('id-ID')} m)</span>
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
+                            <span style={{ color: '#64748B' }}>Area Presensi:</span>
+                            {isWithinMakoRadius ? (
+                              <span style={{ fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '2px 8px', borderRadius: '6px', fontSize: '10.5px' }}>
+                                ✓ Di Dalam Radius Mako
+                              </span>
+                            ) : (
+                              <span style={{ fontWeight: 800, color: '#B91C1C', background: '#FEE2E2', padding: '2px 8px', borderRadius: '6px', fontSize: '10.5px' }}>
+                                ⚠️ Di Luar Radius Mako
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Notifikasi Jika Di Luar Radius Mako */}
+                      {!isWithinMakoRadius && (
+                        <div style={{
+                          background: '#FFF1F2',
+                          border: '1px solid #FECDD3',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                          marginBottom: '12px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '8px',
+                          fontSize: '11.5px',
+                          color: '#9F1239',
+                          lineHeight: '1.4',
+                        }}>
+                          <span style={{ fontSize: '16px', lineHeight: 1 }}>🔒</span>
+                          <div>
+                            <strong style={{ display: 'block', fontWeight: 800, color: '#881337', marginBottom: '2px' }}>
+                              Presensi Terkunci (Di Luar Radius Mako)
+                            </strong>
+                            Personel saat ini berada sejauh <strong>{distanceToMakoFormatted}</strong> dari Mako Utama (Batas maksimal: <strong>{makoRadiusLimit.toLocaleString('id-ID')} m</strong>). Anda tidak dapat melakukan presensi sama sekali di luar radius Mako.
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ display: 'flex', gap: '10px' }}>
                         <button
                           type="button"
-                          onClick={() => alert('✓ Presensi Masuk telah terekam di sistem.')}
+                          onClick={handlePresensiMasuk}
+                          title={!isWithinMakoRadius ? `Presensi terkunci: Anda berada ${distanceToMakoFormatted} dari Mako (Batas: ${makoRadiusLimit} m)` : 'Presensi Masuk Piket'}
                           style={{
                             flex: 1,
                             padding: '11px 12px',
-                            background: '#10B981',
+                            background: isWithinMakoRadius ? '#10B981' : '#94A3B8',
                             color: 'white',
                             border: 'none',
                             borderRadius: '8px',
                             fontWeight: 800,
                             fontSize: '12.5px',
-                            cursor: 'pointer',
+                            cursor: isWithinMakoRadius ? 'pointer' : 'not-allowed',
+                            boxShadow: isWithinMakoRadius ? '0 2px 6px rgba(16,185,129,0.3)' : 'none',
+                            transition: 'all 0.2s',
                           }}
                         >
-                          ✅ Presensi Masuk
+                          {isWithinMakoRadius ? '✅ Presensi Masuk' : '🔒 Presensi Masuk'}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setShowPresensiPulangModal(true)}
+                          onClick={handlePresensiPulangClick}
+                          title={!isWithinMakoRadius ? `Presensi terkunci: Anda berada ${distanceToMakoFormatted} dari Mako (Batas: ${makoRadiusLimit} m)` : 'Presensi Pulang Piket'}
                           style={{
                             flex: 1,
                             padding: '11px 12px',
-                            background: '#EF4444',
+                            background: isWithinMakoRadius ? '#EF4444' : '#94A3B8',
                             color: 'white',
                             border: 'none',
                             borderRadius: '8px',
                             fontWeight: 800,
                             fontSize: '12.5px',
-                            cursor: 'pointer',
+                            cursor: isWithinMakoRadius ? 'pointer' : 'not-allowed',
+                            boxShadow: isWithinMakoRadius ? '0 2px 6px rgba(239,68,68,0.3)' : 'none',
+                            transition: 'all 0.2s',
                           }}
                         >
-                          🚪 Presensi Pulang
+                          {isWithinMakoRadius ? '🚪 Presensi Pulang' : '🔒 Presensi Pulang'}
                         </button>
                       </div>
                     </div>
@@ -5350,6 +5525,11 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
               <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '12px', marginBottom: '14px', color: '#991B1B' }}>
                 Pastikan seluruh laporan dinas telah diperbarui statusnya sebelum apel serah terima piket.
               </div>
+              {!isWithinMakoRadius && (
+                <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: '8px', padding: '10px 12px', marginBottom: '14px', color: '#9F1239', fontSize: '11.5px' }}>
+                  ⛔ <strong>Tidak Dapat Presensi:</strong> Posisi Anda ({distanceToMakoFormatted}) berada di luar batas radius {makoUtama?.name || 'Mako Utama'}.
+                </div>
+              )}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
                   type="button"
@@ -5360,15 +5540,30 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                 </button>
                 <button
                   type="button"
+                  disabled={!isWithinMakoRadius}
                   onClick={() => {
+                    if (!isWithinMakoRadius) {
+                      alert(`⛔ Gagal: Anda berada di luar radius Mako (${distanceToMakoFormatted}).`);
+                      setShowPresensiPulangModal(false);
+                      return;
+                    }
                     const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
                     setPresensiPulangTime(now);
                     alert(`✓ Presensi Pulang berhasil terekam pukul ${now}!`);
                     setShowPresensiPulangModal(false);
                   }}
-                  style={{ flex: 1.5, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800 }}
+                  style={{
+                    flex: 1.5,
+                    padding: '10px',
+                    background: isWithinMakoRadius ? '#DC2626' : '#94A3B8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    cursor: isWithinMakoRadius ? 'pointer' : 'not-allowed',
+                  }}
                 >
-                  ✓ Konfirmasi Pulang
+                  {isWithinMakoRadius ? '✓ Konfirmasi Pulang' : '🔒 Di Luar Radius Mako'}
                 </button>
               </div>
             </div>
