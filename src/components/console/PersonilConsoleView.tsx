@@ -561,7 +561,7 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     // 4. Fallback jika list masih kosong namun tugas sudah berjalan
     if (list.length === 0 && task.status !== 'BELUM_DITANGANI' && task.status !== 'MENUNGGU') {
       const name = task.personelDitugaskan || officer.fullName || 'Petugas Lapangan';
-      const rank = officer.pangkat || 'Personil';
+      const rank = officer.pangkat || '-';
       const nrp = officer.nrp || '';
       const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
       const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
@@ -696,12 +696,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     key: 'my_unit',
     pos: currentGps,
     iconEmoji: '🚔',
-    title: `${officer.satuan || 'Unit Operasional'} (Unit Anda)`,
+    title: `${officer.satuan} (Unit Anda)`,
     petugas: `${officer.fullName} (NRP ${officer.nrp})`,
-    sub: `${officer.satuan || 'Operasional'}${officer.kendaraan ? ` • ${officer.kendaraan}` : ''}`,
-    status: 'Status: SIAGA',
+    sub: `${officer.satuan}${officer.kendaraan ? ` • ${officer.kendaraan}` : ''}`,
+    status: officer.status,
     statusColor: '#10B981',
-    tugas: officer.jabatan ? `Tugas: ${officer.jabatan}` : 'Tugas: Patroli Sektor Presisi',
+    tugas: officer.jabatan ? `Tugas: ${officer.jabatan}` : 'Belum ada Tugas',
     telemetri: currentGps?.lat ? 'Sinyal GPS Aktif' : 'GPS Belum Terhubung',
   }), [currentGps.lat, currentGps.lng, officer.satuan, officer.fullName, officer.nrp, officer.kendaraan, officer.jabatan]);
 
