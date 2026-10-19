@@ -43,6 +43,8 @@ function parseSuperadminTab(section?: string): SuperadminTab {
       'kategori',
       'subkategori',
       'duty',
+      'lokasi_penyelesaian',
+      'dokumen_penyelesaian',
     ].includes(clean)
   ) {
     return clean as MasterTabType;
@@ -82,6 +84,8 @@ export default function SuperadminConsoleView({ session, initialSection, initial
     categories: 0,
     subcategories: 0,
     dutyStatuses: 0,
+    resolutionLocations: 0,
+    resolutionDocuments: 0,
   });
 
   // Switch Tab & Sync URL Bar
@@ -942,6 +946,76 @@ export default function SuperadminConsoleView({ session, initialSection, initial
               }}
             >
               {counters.subcategories || 44}
+            </span>
+          </button>
+
+          {/* TAB 10: MASTER LOKASI PENYELESAIAN */}
+          <button
+            type="button"
+            onClick={() => switchTab('lokasi_penyelesaian')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'lokasi_penyelesaian' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'lokasi_penyelesaian' ? 'white' : '#475569',
+              border: activeTab === 'lokasi_penyelesaian' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>📍 Lokasi Selesai (TKP/RS/Polsek)</span>
+            <span
+              style={{
+                background: activeTab === 'lokasi_penyelesaian' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'lokasi_penyelesaian' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              {(counters as any).resolutionLocations || 5}
+            </span>
+          </button>
+
+          {/* TAB 11: MASTER OBJEK & DOKUMEN BUKTI */}
+          <button
+            type="button"
+            onClick={() => switchTab('dokumen_penyelesaian')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'dokumen_penyelesaian' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'dokumen_penyelesaian' ? 'white' : '#475569',
+              border: activeTab === 'dokumen_penyelesaian' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>📄 Dokumen Bukti (Damai/RS/BB)</span>
+            <span
+              style={{
+                background: activeTab === 'dokumen_penyelesaian' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'dokumen_penyelesaian' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              {(counters as any).resolutionDocuments || 6}
             </span>
           </button>
 

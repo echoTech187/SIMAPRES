@@ -4190,122 +4190,408 @@ function CommandCenterContent({
                                   </div>
 
                                   {/* Step 4: Penanganan di Lokasi */}
-                                  <div
-                                    className="step"
-                                    style={{
-                                      borderLeft: activeComplaint.status === 'PENANGANAN_TKP' ? '3px solid #7C3AED' : activeComplaint.status === 'SELESAI' ? '3px solid #10B981' : '3px solid #CBD5E1',
-                                      paddingLeft: '12px',
-                                      position: 'relative',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>4. Penanganan di Lokasi</div>
-                                      <span
+                                  {(() => {
+                                    const isStep4Completed = activeComplaint.status === 'SELESAI' || activeComplaint.status === 'MENUNGGU_PENGESAHAN' || (activeComplaint.tahap >= 5);
+                                    const isStep4Active = activeComplaint.status === 'PENANGANAN_TKP' || activeComplaint.status === 'TIBA_DI_TKP' || Boolean(activeComplaint.responTibaTkpAt) || (activeComplaint.tahap === 4);
+
+                                    const step4Evidences = (activeComplaint.evidences || []).filter(
+                                      (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption || '').toLowerCase().includes('tindakan') || (e.caption || '').toLowerCase().includes('tiba')
+                                    );
+                                    const resolvedFotoTindakan = activeComplaint.fotoTindakan || activeComplaint.fotoTiba || step4Evidences[0]?.file_url;
+
+                                    return (
+                                      <div
+                                        className="step"
                                         style={{
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          padding: '2px 6px',
-                                          borderRadius: '4px',
-                                          background: activeComplaint.status === 'SELESAI' ? '#ECFDF5' : activeComplaint.status === 'PENANGANAN_TKP' ? '#EDE9FE' : '#F1F5F9',
-                                          color: activeComplaint.status === 'SELESAI' ? '#10B981' : activeComplaint.status === 'PENANGANAN_TKP' ? '#6D28D9' : '#64748B',
+                                          borderLeft: isStep4Completed ? '3px solid #10B981' : isStep4Active ? '3px solid #7C3AED' : '3px solid #CBD5E1',
+                                          paddingLeft: '12px',
+                                          position: 'relative',
                                         }}
                                       >
-                                        {activeComplaint.status === 'SELESAI' ? '✓ SELESAI' : activeComplaint.status === 'PENANGANAN_TKP' ? '● SEDANG BERLANGSUNG' : '🔒 TERKUNCI'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                      Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.
-                                    </div>
-
-                                    {['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? (
-                                      <>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                                          <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                            📅 Tiba di TKP: {activeComplaint.responTibaTkpAt ? new Date(activeComplaint.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>4. Penanganan di Lokasi</div>
+                                          <span
+                                            style={{
+                                              fontSize: '10px',
+                                              fontWeight: 700,
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              background: isStep4Completed ? '#ECFDF5' : isStep4Active ? '#EDE9FE' : '#F1F5F9',
+                                              color: isStep4Completed ? '#10B981' : isStep4Active ? '#6D28D9' : '#64748B',
+                                            }}
+                                          >
+                                            {isStep4Completed ? '✓ SELESAI' : isStep4Active ? '● SEDANG BERLANGSUNG' : '🔒 TERKUNCI'}
                                           </span>
-                                          {activeComplaint.fotoTindakan && (
-                                            <span
-                                              onClick={() => {
-                                                setLightboxImg({
-                                                  url: activeComplaint.fotoTindakan,
-                                                  title: 'Foto Tindakan Kepolisian di TKP',
-                                                  meta: activeComplaint.nomorTiket,
-                                                  desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
-                                                });
-                                                setShowLightboxModal(true);
-                                              }}
-                                              style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                            >
-                                              📸 Bukti Tindakan TKP ➔
-                                            </span>
-                                          )}
                                         </div>
-                                        <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                          <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
-                                          <div style={{ fontSize: '11px', color: '#1E293B' }}>
-                                            "{activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Personel tiba di TKP, mengamankan perimeter dan memastikan situasi kamtibmas kondusif.'}"
+                                        <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
+                                          Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.
+                                        </div>
+
+                                        {isStep4Completed || isStep4Active ? (
+                                          <>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
+                                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
+                                                📅 Tiba di TKP: {activeComplaint.responTibaTkpAt ? new Date(activeComplaint.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                                              </span>
+                                              {step4Evidences.length > 0 ? (
+                                                <span
+                                                  onClick={() => {
+                                                    setLightboxImg({
+                                                      url: step4Evidences[0].file_url,
+                                                      title: `Bukti Tindakan TKP (1/${step4Evidences.length})`,
+                                                      meta: `${activeComplaint.nomorTiket} • ${step4Evidences[0].watermark_text || 'Terverifikasi GPS'}`,
+                                                      desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
+                                                    });
+                                                    setShowLightboxModal(true);
+                                                  }}
+                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                                >
+                                                  📸 {step4Evidences.length} Foto Tindakan TKP ➔
+                                                </span>
+                                              ) : resolvedFotoTindakan ? (
+                                                <span
+                                                  onClick={() => {
+                                                    setLightboxImg({
+                                                      url: resolvedFotoTindakan,
+                                                      title: 'Foto Tindakan Kepolisian di TKP',
+                                                      meta: activeComplaint.nomorTiket,
+                                                      desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
+                                                    });
+                                                    setShowLightboxModal(true);
+                                                  }}
+                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                                >
+                                                  📸 Bukti Tindakan TKP ➔
+                                                </span>
+                                              ) : null}
+                                            </div>
+
+                                            {/* Strip Galeri Foto Tindakan di TKP */}
+                                            {step4Evidences.length > 0 && (
+                                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
+                                                {step4Evidences.map((ev: any, idx: number) => (
+                                                  <div
+                                                    key={ev.id || idx}
+                                                    onClick={() => {
+                                                      setLightboxImg({
+                                                        url: ev.file_url,
+                                                        title: `Foto Tindakan #${idx + 1} - ${activeComplaint.nomorTiket}`,
+                                                        meta: `${activeComplaint.nomorTiket} • ${ev.watermark_text || 'GPS Sah'}`,
+                                                        desc: ev.caption || 'Pengamanan TKP dan tindakan presisi di lapangan',
+                                                      });
+                                                      setShowLightboxModal(true);
+                                                    }}
+                                                    style={{
+                                                      position: 'relative',
+                                                      width: '42px',
+                                                      height: '42px',
+                                                      borderRadius: '6px',
+                                                      overflow: 'hidden',
+                                                      border: '1.5px solid #10B981',
+                                                      cursor: 'pointer',
+                                                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                    }}
+                                                    title={`Klik untuk perbesar Foto #${idx + 1}`}
+                                                  >
+                                                    <img
+                                                      src={ev.file_url}
+                                                      alt={`Foto Tindakan ${idx + 1}`}
+                                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                    <span style={{
+                                                      position: 'absolute',
+                                                      bottom: 0,
+                                                      right: 0,
+                                                      background: 'rgba(0,0,0,0.65)',
+                                                      color: 'white',
+                                                      fontSize: '8px',
+                                                      fontWeight: 800,
+                                                      padding: '0 3px',
+                                                      borderTopLeftRadius: '3px',
+                                                    }}>
+                                                      #{idx + 1}
+                                                    </span>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+
+                                            <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
+                                              <div style={{ fontSize: '11px', color: '#1E293B' }}>
+                                                {(() => {
+                                                  const rawNote =
+                                                    activeComplaint.catatanTindakan ||
+                                                    (activeComplaint.timelines || []).slice().reverse().find((t: any) => ((t.tahapTitle || '').includes('Tindakan') || (t.tahapTitle || '').includes('TKP')) && t.catatan)?.catatan ||
+                                                    (activeComplaint.complaintLogs || []).slice().reverse().find((l: any) => ((l.action || '').includes('Tindakan') || (l.action || '').includes('TKP')) && l.notes)?.notes;
+                                                  const cleanNote = rawNote
+                                                    ? rawNote.replace(/^Catatan:\s*/i, '').trim()
+                                                    : 'Personel tiba di TKP, mengamankan perimeter dan memastikan situasi kamtibmas kondusif.';
+                                                  return `"${cleanNote}"`;
+                                                })()}
+                                              </div>
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <div style={{ fontSize: '10.5px', color: '#94A3B8', fontStyle: 'italic', marginTop: '6px' }}>
+                                            Menunggu Personel Tiba di TKP
                                           </div>
-                                        </div>
-                                      </>
-                                    ) : (
-                                      <div style={{ fontSize: '10.5px', color: '#94A3B8', fontStyle: 'italic', marginTop: '6px' }}>
-                                        Menunggu Personel Tiba di TKP
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
+                                    );
+                                  })()}
 
                                   {/* Step 5: Kasus Selesai Ditangani */}
-                                  <div
-                                    className="step"
-                                    style={{
-                                      borderLeft: activeComplaint.status === 'SELESAI' ? '3px solid #10B981' : '3px solid #CBD5E1',
-                                      paddingLeft: '12px',
-                                      position: 'relative',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>5. Kasus Selesai Ditangani</div>
-                                      <span
+                                  {(() => {
+                                    const isStep5Completed = activeComplaint.status === 'SELESAI';
+                                    const isStep5Awaiting = activeComplaint.status === 'MENUNGGU_PENGESAHAN';
+                                    const isStep5Open = isStep5Completed || isStep5Awaiting || Boolean(activeComplaint.catatanSelesai) || (activeComplaint.tahap >= 5);
+
+                                    const step5Evidences = (activeComplaint.evidences || []).filter(
+                                      (e: any) =>
+                                        e.incident_phase === 'SELESAI_KONDUSIF' ||
+                                        e.incident_phase === 'SELESAI' ||
+                                        (e.caption || '').toLowerCase().includes('selesai') ||
+                                        (e.caption || '').toLowerCase().includes('bap') ||
+                                        (e.caption || '').toLowerCase().includes('mediasi') ||
+                                        (e.caption || '').toLowerCase().includes('kondusif')
+                                    );
+                                    const resolvedFotoSelesai =
+                                      activeComplaint.fotoSelesai ||
+                                      step5Evidences.find((e: any) => !e.file_url?.match(/\.(pdf|doc|docx|mp4|webm|mov)$/i))?.file_url;
+
+                                    return (
+                                      <div
+                                        className="step"
                                         style={{
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          padding: '2px 6px',
-                                          borderRadius: '4px',
-                                          background: activeComplaint.status === 'SELESAI' ? '#ECFDF5' : '#F1F5F9',
-                                          color: activeComplaint.status === 'SELESAI' ? '#10B981' : '#64748B',
+                                          borderLeft: isStep5Completed ? '3px solid #10B981' : isStep5Awaiting ? '3px solid #F59E0B' : '3px solid #CBD5E1',
+                                          paddingLeft: '12px',
+                                          position: 'relative',
                                         }}
                                       >
-                                        {activeComplaint.status === 'SELESAI' ? '✓ SELESAI' : '🔒 TERKUNCI'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                      Penanganan selesai dan berita acara penutupan kasus disahkan resmi oleh Pawas.
-                                    </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>5. Kasus Selesai Ditangani</div>
+                                          <span
+                                            style={{
+                                              fontSize: '10px',
+                                              fontWeight: 700,
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              background: isStep5Completed ? '#ECFDF5' : isStep5Awaiting ? '#FEF3C7' : '#F1F5F9',
+                                              color: isStep5Completed ? '#10B981' : isStep5Awaiting ? '#B45309' : '#64748B',
+                                            }}
+                                          >
+                                            {isStep5Completed ? '✓ SELESAI' : isStep5Awaiting ? '⏳ MENUNGGU OTORISASI' : '🔒 TERKUNCI'}
+                                          </span>
+                                        </div>
+                                        <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
+                                          Penanganan selesai dan berita acara penutupan kasus disahkan resmi oleh Pawas.
+                                        </div>
 
-                                    {activeComplaint.status === 'SELESAI' ? (
-                                      <div style={{ marginTop: '8px' }}>
-                                        <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                          📅 Disahkan: {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
-                                        </div>
-                                        <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderLeft: '4px solid #16A34A', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <span style={{ fontSize: '10px', fontWeight: 800, color: '#15803D' }}>⚖️ PENGESAHAN RESMI PIMPINAN (PAWAS):</span>
-                                            <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
+                                        {isStep5Open ? (
+                                          <div style={{ marginTop: '8px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
+                                                📅 {isStep5Completed ? 'Disahkan:' : 'Pengajuan BAP:'} {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                                              </span>
+                                              {step5Evidences.length > 0 ? (
+                                                <span
+                                                  onClick={() => {
+                                                    const firstMedia = step5Evidences[0];
+                                                    if (firstMedia.file_url?.match(/\.(pdf|doc|docx)$/i)) {
+                                                      window.open(firstMedia.file_url, '_blank');
+                                                    } else {
+                                                      setLightboxImg({
+                                                        url: firstMedia.file_url,
+                                                        title: firstMedia.caption || 'Berkas Bukti Selesai',
+                                                        meta: `${activeComplaint.nomorTiket}`,
+                                                        desc: `Bukti penutupan kasus diajukan personil`,
+                                                      });
+                                                      setShowLightboxModal(true);
+                                                    }
+                                                  }}
+                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                                >
+                                                  📎 {step5Evidences.length} Berkas Bukti Selesai ➔
+                                                </span>
+                                              ) : resolvedFotoSelesai ? (
+                                                <span
+                                                  onClick={() => {
+                                                    setLightboxImg({
+                                                      url: resolvedFotoSelesai,
+                                                      title: 'Foto Situasi Akhir & BAP',
+                                                      meta: activeComplaint.nomorTiket,
+                                                      desc: 'Situasi kondusif dan berita acara penanganan tuntas',
+                                                    });
+                                                    setShowLightboxModal(true);
+                                                  }}
+                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
+                                                >
+                                                  ✅ Bukti Situasi Akhir ➔
+                                                </span>
+                                              ) : null}
+                                            </div>
+
+                                            {/* Strip Galeri Multi-Media Bukti Penyelesaian */}
+                                            {step5Evidences.length > 0 && (
+                                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
+                                                {step5Evidences.map((ev: any, idx: number) => {
+                                                  const isDoc = ev.file_url?.match(/\.(pdf|doc|docx)$/i);
+                                                  const isVid = ev.file_url?.match(/\.(mp4|webm|mov)$/i);
+
+                                                  if (isDoc) {
+                                                    return (
+                                                      <a
+                                                        key={ev.id || idx}
+                                                        href={ev.file_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        style={{
+                                                          display: 'inline-flex',
+                                                          alignItems: 'center',
+                                                          gap: '5px',
+                                                          padding: '4px 8px',
+                                                          background: '#F5F3FF',
+                                                          border: '1px solid #DDD6FE',
+                                                          borderRadius: '6px',
+                                                          fontSize: '10px',
+                                                          fontWeight: 700,
+                                                          color: '#6D28D9',
+                                                          textDecoration: 'none',
+                                                        }}
+                                                        title="Buka Dokumen Resmi BAP (PDF / DOCX)"
+                                                      >
+                                                        <span>📄</span>
+                                                        <span>{ev.caption || 'Dokumen BAP (PDF)'}</span>
+                                                        <span style={{ fontSize: '9px' }}>↗</span>
+                                                      </a>
+                                                    );
+                                                  }
+
+                                                  if (isVid) {
+                                                    return (
+                                                      <button
+                                                        key={ev.id || idx}
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setLightboxImg({
+                                                            url: ev.file_url,
+                                                            title: ev.caption || 'Video Mediasi Lapangan',
+                                                            meta: `${activeComplaint.nomorTiket} • Video Mediasi`,
+                                                            desc: `Rekaman video mediasi/kesepakatan musyawarah warga`,
+                                                          });
+                                                          setShowLightboxModal(true);
+                                                        }}
+                                                        style={{
+                                                          display: 'inline-flex',
+                                                          alignItems: 'center',
+                                                          gap: '5px',
+                                                          padding: '4px 8px',
+                                                          background: '#FFFBEB',
+                                                          border: '1px solid #FDE68A',
+                                                          borderRadius: '6px',
+                                                          fontSize: '10px',
+                                                          fontWeight: 700,
+                                                          color: '#B45309',
+                                                          cursor: 'pointer',
+                                                        }}
+                                                        title="Putar Video Mediasi"
+                                                      >
+                                                        <span>🎥</span>
+                                                        <span>{ev.caption || 'Video Mediasi'}</span>
+                                                        <span style={{ fontSize: '9px' }}>▶</span>
+                                                      </button>
+                                                    );
+                                                  }
+
+                                                  return (
+                                                    <div
+                                                      key={ev.id || idx}
+                                                      onClick={() => {
+                                                        setLightboxImg({
+                                                          url: ev.file_url,
+                                                          title: `Bukti Foto Penyelesaian #${idx + 1}`,
+                                                          meta: `${activeComplaint.nomorTiket} • ${ev.watermark_text || 'Terverifikasi GPS'}`,
+                                                          desc: ev.caption || 'Dokumentasi visual situasi kondusif',
+                                                        });
+                                                        setShowLightboxModal(true);
+                                                      }}
+                                                      style={{
+                                                        position: 'relative',
+                                                        width: '42px',
+                                                        height: '42px',
+                                                        borderRadius: '6px',
+                                                        overflow: 'hidden',
+                                                        border: '1.5px solid #10B981',
+                                                        cursor: 'pointer',
+                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                      }}
+                                                      title={`Foto #${idx + 1}: ${ev.caption || 'Bukti Selesai'} (Klik perbesar)`}
+                                                    >
+                                                      <img
+                                                        src={ev.file_url}
+                                                        alt={`Bukti Selesai ${idx + 1}`}
+                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                      />
+                                                      <span style={{
+                                                        position: 'absolute',
+                                                        bottom: 0,
+                                                        right: 0,
+                                                        background: 'rgba(0,0,0,0.65)',
+                                                        color: 'white',
+                                                        fontSize: '8px',
+                                                        fontWeight: 800,
+                                                        padding: '0 3px',
+                                                        borderTopLeftRadius: '3px',
+                                                      }}>
+                                                        #{idx + 1}
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+
+                                            {/* Catatan Laporan Akhir Petugas Lapangan */}
+                                            <div style={{ background: '#ECFDF5', borderLeft: '3px solid #10B981', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857', marginBottom: '2px' }}>✓ LAPORAN AKHIR PETUGAS:</div>
+                                              <div style={{ fontSize: '11px', color: '#1E293B' }}>
+                                                &quot;{activeComplaint.catatanSelesai || (activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan) || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.'}&quot;
+                                              </div>
+                                            </div>
+
+                                            {isStep5Completed ? (
+                                              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderLeft: '4px solid #16A34A', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#15803D' }}>⚖️ PENGESAHAN RESMI PIMPINAN (PAWAS):</span>
+                                                  <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
+                                                </div>
+                                                <div style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px' }}>
+                                                  <strong>Pengesah:</strong> {activeComplaint.pawas?.namaLengkap || userProfile.fullName} (Pawas) • <strong>Waktu:</strong> {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                                                </div>
+                                                <div style={{ fontSize: '11px', color: '#1E293B', fontStyle: 'italic', marginTop: '2px' }}>
+                                                  &quot;{activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}&quot;
+                                                </div>
+                                              </div>
+                                            ) : isStep5Awaiting ? (
+                                              <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderLeft: '4px solid #F59E0B', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                                                <div style={{ fontSize: '10px', fontWeight: 800, color: '#B45309' }}>⏳ MENUNGGU OTORISASI PENGESAHAN PAWAS:</div>
+                                                <div style={{ fontSize: '11px', color: '#78350F', marginTop: '2px' }}>
+                                                  Petugas lapangan telah menyelesaikan penanganan dan melampirkan berkas bukti di atas. Silakan lakukan evaluasi dan klik tombol <strong>Otorisasi Pengesahan</strong> di bawah.
+                                                </div>
+                                              </div>
+                                            ) : null}
                                           </div>
-                                          <div style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px' }}>
-                                            <strong>Pengesah:</strong> {activeComplaint.pawas?.namaLengkap || userProfile.fullName} (Pawas) • <strong>Waktu:</strong> {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                                        ) : (
+                                          <div style={{ fontSize: '10.5px', color: '#94A3B8', fontStyle: 'italic', marginTop: '6px' }}>
+                                            Menunggu Otorisasi Penutupan Kasus
                                           </div>
-                                          <div style={{ fontSize: '11px', color: '#1E293B', fontStyle: 'italic', marginTop: '2px' }}>
-                                            "{activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}"
-                                          </div>
-                                        </div>
+                                        )}
                                       </div>
-                                    ) : (
-                                      <div style={{ fontSize: '10.5px', color: '#94A3B8', fontStyle: 'italic', marginTop: '6px' }}>
-                                        Menunggu Otorisasi Penutupan Kasus
-                                      </div>
-                                    )}
-                                  </div>
+                                    );
+                                  })()}
                                 </div>
 
                                 {/* ACTION & SLA COCKPIT BOX 1:1 PROTOTYPE */}
@@ -4471,28 +4757,48 @@ function CommandCenterContent({
                                     </button>
                                   )}
 
-                                  {/* Penilaian Warga (Muncul jika Selesai) */}
+                                  {/* Penilaian Warga (Hanya muncul jika warga telah memberikan ulasan) */}
                                   {activeComplaint.status === 'SELESAI' && (
-                                    <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: '8px', padding: '12px', boxShadow: '0 2px 6px rgba(245,158,11,0.08)' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                          ⭐ Penilaian Warga (Portal 110)
-                                        </span>
-                                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
-                                          {activeComplaint.citizenRating ? `${'★'.repeat(activeComplaint.citizenRating)}${'☆'.repeat(5 - activeComplaint.citizenRating)} (${activeComplaint.citizenRating}/5)` : '★★★★★ (5/5)'}
-                                        </span>
-                                      </div>
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '6px 0' }}>
-                                        {(activeComplaint.citizenTags ? activeComplaint.citizenTags.split(',').map((t: string) => t.trim()) : ['Respon Sangat Cepat', 'Petugas Ramah', 'Sangat Membantu']).map((t: string) => (
-                                          <span key={t} style={{ fontSize: '10px', background: '#FEF3C7', color: '#92400E', padding: '2px 7px', borderRadius: '10px', fontWeight: 600 }}>
-                                            {t}
+                                    activeComplaint.citizenRating ? (
+                                      <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: '8px', padding: '12px', boxShadow: '0 2px 6px rgba(245,158,11,0.08)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            ⭐ Penilaian Warga (Portal 110)
                                           </span>
-                                        ))}
+                                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
+                                            {'★'.repeat(activeComplaint.citizenRating)}{'☆'.repeat(5 - activeComplaint.citizenRating)} ({activeComplaint.citizenRating}/5)
+                                          </span>
+                                        </div>
+                                        {activeComplaint.citizenTags && (
+                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '6px 0' }}>
+                                            {activeComplaint.citizenTags.split(',').map((t: string) => t.trim()).filter(Boolean).map((t: string) => (
+                                              <span key={t} style={{ fontSize: '10px', background: '#FEF3C7', color: '#92400E', padding: '2px 7px', borderRadius: '10px', fontWeight: 600 }}>
+                                                {t}
+                                              </span>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {activeComplaint.citizenReview && (
+                                          <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#78350F', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #FCD34D', marginTop: '4px' }}>
+                                            &quot;{activeComplaint.citizenReview}&quot;
+                                          </div>
+                                        )}
                                       </div>
-                                      <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#78350F', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #FCD34D', marginTop: '4px' }}>
-                                        "{activeComplaint.citizenReview || 'Terima kasih bapak polisi sangat cepat tanggap langsung datang ke lokasi dan menyelesaikan laporan dengan tuntas!'}"
+                                    ) : (
+                                      <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                          <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                            ⭐ Penilaian Warga (Portal 110)
+                                          </span>
+                                          <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#F1F5F9', color: '#64748B', padding: '1px 6px', borderRadius: '4px' }}>
+                                            MENUNGGU ULASAN
+                                          </span>
+                                        </div>
+                                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px', fontStyle: 'italic' }}>
+                                          Kasus telah tuntas disahkan. Warga pelapor belum memberikan penilaian &amp; ulasan di Portal 110.
+                                        </div>
                                       </div>
-                                    </div>
+                                    )
                                   )}
                                 </div>
                               </div>
@@ -6719,12 +7025,18 @@ function CommandCenterContent({
                               <span style={{ fontSize: '11px', color: '#64748B', marginLeft: '6px' }}>({item.lokasi.alamat})</span>
                             )}
                           </div>
-                          <span style={{ color: '#F59E0B', fontSize: '12px', letterSpacing: '2px' }}>
-                            {'★'.repeat(item.citizenRating || 5)}{'☆'.repeat(Math.max(0, 5 - (item.citizenRating || 5)))}
-                          </span>
+                          {item.citizenRating ? (
+                            <span style={{ color: '#F59E0B', fontSize: '12px', letterSpacing: '2px' }}>
+                              {'★'.repeat(item.citizenRating)}{'☆'.repeat(5 - item.citizenRating)}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94A3B8', fontSize: '11px', fontStyle: 'italic' }}>
+                              (Tanpa rating bintang)
+                            </span>
+                          )}
                         </div>
                         <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', marginBottom: '6px' }}>
-                          "{item.citizenReview || 'Pelayanan sangat profesional, cepat, dan presisi. Terima kasih Polri.'}"
+                          {item.citizenReview ? `"${item.citizenReview}"` : '(Warga memberikan rating bintang tanpa ulasan tertulis)'}
                         </div>
                         <div style={{ display: 'flex', gap: '6px', fontSize: '10px' }}>
                           <span style={{ background: '#F1F5F9', color: '#475569', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
@@ -7440,14 +7752,39 @@ function CommandCenterContent({
               </div>
               <button type="button" onClick={() => setShowLightboxModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>
-            <div style={{ background: '#0F172A', maxHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img src={lightboxImg.url} alt="Lightbox" style={{ width: '100%', maxHeight: '380px', objectFit: 'contain' }} />
+            <div style={{ background: '#0F172A', maxHeight: '420px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {lightboxImg.url?.match(/\.(mp4|webm|mov)$/i) || lightboxImg.title?.toLowerCase().includes('video') ? (
+                <video src={lightboxImg.url} controls autoPlay style={{ width: '100%', maxHeight: '400px', outline: 'none' }} />
+              ) : lightboxImg.url?.match(/\.(pdf)$/i) ? (
+                <iframe src={lightboxImg.url} style={{ width: '100%', height: '380px', border: 'none' }} title={lightboxImg.title} />
+              ) : (
+                <img src={lightboxImg.url} alt="Lightbox" style={{ width: '100%', maxHeight: '380px', objectFit: 'contain' }} />
+              )}
             </div>
             <div style={{ padding: '14px 16px' }}>
               <div style={{ fontSize: '12px', color: '#1E293B', lineHeight: 1.5 }}>{lightboxImg.desc}</div>
-              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B', borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
+              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#64748B', borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
                 <span>{lightboxImg.meta}</span>
-                <span style={{ background: '#EFF6FF', color: '#153E75', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>✓ Terverifikasi GPS</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <a
+                    href={lightboxImg.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: '#EFF6FF',
+                      color: '#1D4ED8',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      textDecoration: 'none',
+                      border: '1px solid #BFDBFE',
+                      fontSize: '10.5px',
+                    }}
+                  >
+                    Buka File ↗
+                  </a>
+                  <span style={{ background: '#ECFDF5', color: '#15803D', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>✓ Terverifikasi GPS</span>
+                </div>
               </div>
             </div>
           </div>

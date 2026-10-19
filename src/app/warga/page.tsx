@@ -32,6 +32,7 @@ interface DemoLog {
   statusText: string;
   tahap: number;
   waktu: string;
+  waktuMeluncur?: string;
   waktuTiba?: string;
   waktuSelesai?: string;
   sektor: string;
@@ -51,7 +52,7 @@ interface DemoLog {
     estimasiJarak?: string;
     estimasiEta?: string;
   };
-  acceptedPersonels?: Array<{ nama: string }>;
+  acceptedPersonels?: Array<{ nama: string; pangkat?: string; nrp?: string }>;
   ratingKepuasan?: {
     skor: number;
     tags: string[];
@@ -621,6 +622,102 @@ export default function PortalWargaPage() {
       if (res.success && res.data) {
         const dbItem = res.data as any;
         const isDone = dbItem.status === 'SELESAI';
+
+        // Dispatches & Petugas Lapangan
+        const dispatchesList = dbItem.dispatches || [];
+        const primaryDispatch = dispatchesList.find((d: any) => d.is_primary_unit) || dispatchesList[0] || null;
+
+        // Nama Satuan
+        const satuanNama =
+          primaryDispatch?.unit?.unit_name ||
+          primaryDispatch?.unit?.short_name ||
+          dbItem.subcategory?.unit_rel?.unit_name ||
+          (dispatchesList.length > 0 ? 'Satuan Samapta Presisi' : 'Satuan Tugas Lapangan');
+
+        // Komandan / Petugas Utama
+        const komandanNama =
+          primaryDispatch?.officer?.user?.full_name ||
+          primaryDispatch?.officer?.user?.fullName ||
+          dbItem.assignedOfficer?.namaLengkap ||
+          dbItem.assignedOfficer?.user?.fullName ||
+          primaryDispatch?.officer_nama ||
+          (dbItem.tahap >= 2 ? 'Petugas Presisi Lapangan' : '-');
+
+        const pangkatPetugas =
+          primaryDispatch?.officer?.rank_pangkat ||
+          dbItem.assignedOfficer?.rankPangkat ||
+          '';
+
+        const nrpPetugas =
+          primaryDispatch?.officer?.nrp ||
+          dbItem.assignedOfficer?.nrp ||
+          '-';
+
+        const komandanLengkap = pangkatPetugas && komandanNama !== '-'
+          ? `${pangkatPetugas} ${komandanNama}`
+          : komandanNama;
+
+        // Daftar semua personel yang terdisposisi
+        const acceptedPersonels = dispatchesList.map((d: any) => ({
+          nama: d.officer?.user?.full_name || d.officer?.user?.fullName || d.officer_nama || 'Petugas Lapangan',
+          pangkat: d.officer?.rank_pangkat || '',
+          nrp: d.officer?.nrp || '',
+        }));
+
+        // Waktu-waktu riil tahapan (WIB / Asia/Jakarta)
+        const waktuDibuat = dbItem.createdAt
+          ? new Date(dbItem.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+          : '17:55 WIB';
+
+        const waktuMeluncur = dbItem.waktuMeluncur || (primaryDispatch?.departed_at
+          ? new Date(primaryDispatch.departed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+          : null);
+
+        const waktuTiba = dbItem.waktuTiba || (primaryDispatch?.arrived_at
+          ? new Date(primaryDispatch.arrived_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+          : null);
+
+        const waktuSelesai = dbItem.waktuSelesai || (primaryDispatch?.completed_at
+          ? new Date(primaryDispatch.completed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+          : null);
+
+        // Catatan tindakan & berita acara penyelesaian
+        const deskripsiTindakan =
+          dbItem.catatanTindakan ||
+          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => l.action?.includes('Tindakan') && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
+          (dbItem.tahap >= 4 ? 'Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.' : '-');
+
+        const catatanSelesai =
+          dbItem.catatanSelesai ||
+          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => (l.action?.includes('Selesai') || l.action?.includes('BAP')) && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
+          (isDone ? 'Kasus telah tuntas diselesaikan oleh petugas dan Berita Acara Penanganan telah disahkan oleh Perwira Pengawas (Pawas).' : '-');
+
+        // Foto-foto bukti penanganan
+        const evidencesList = dbItem.evidences || [];
+        const fotoPengaduan =
+          dbItem.fotoBuktiUrl ||
+          dbItem.fotoTkpUrl ||
+          evidencesList.find((e: any) => e.incident_phase === 'LAPORAN_AWAL' || e.caption?.toLowerCase().includes('laporan'))?.file_url ||
+          '';
+
+        const fotoPersiapan =
+          dbItem.fotoPersiapan ||
+          evidencesList.find((e: any) => e.incident_phase === 'MENUJU_TKP' || e.caption?.includes('Meluncur') || e.caption?.includes('Persiapan'))?.file_url ||
+          '';
+
+        const fotoTindakan =
+          dbItem.fotoTindakan ||
+          dbItem.fotoTiba ||
+          evidencesList.find((e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || e.caption?.includes('Tindakan'))?.file_url ||
+          '';
+
+        const fotoSelesai =
+          dbItem.fotoSelesai ||
+          evidencesList.find((e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || e.caption?.includes('Kondusif') || e.caption?.includes('BAP'))?.file_url ||
+          '';
+
+        const koordinatGps = dbItem.koordinatGps || `${dbItem.tkpLat || 0}, ${dbItem.tkpLng || 0}`;
+
         found = {
           id: Number(dbItem.id || Date.now()),
           nomorTiket: dbItem.nomorTiket,
@@ -628,8 +725,8 @@ export default function PortalWargaPage() {
           jenisInsiden: dbItem.jenisKejadian,
           kategoriInsiden: dbItem.jenisKejadian,
           kategoriBadge: '📱 Portal Warga (Database)',
-          nama: dbItem.assignedOfficer?.user?.fullName || dbItem.pelaporNama || '-',
-          nrp: dbItem.assignedOfficer?.nrp || '-',
+          nama: komandanLengkap,
+          nrp: nrpPetugas,
           status: isDone ? 'selesai' : 'diproses',
           statusText: isDone ? 'Kasus Selesai' : 'Sedang Diproses',
           tahap: isDone
@@ -639,19 +736,28 @@ export default function PortalWargaPage() {
             : dbItem.status === 'BELUM_DITANGANI' || dbItem.status === 'MENUNGGU'
             ? 2
             : 3,
-          waktu: new Date(dbItem.waktuLaporDiterima || dbItem.createdAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-          sektor: '-',
+          waktu: waktuDibuat,
+          waktuMeluncur: waktuMeluncur || undefined,
+          waktuTiba: waktuTiba || undefined,
+          waktuSelesai: waktuSelesai || undefined,
+          sektor: 'Sektor Pusat Presisi',
           lokasiKejadian: dbItem.tkpAlamatTeks || '-',
           sumberLaporan: '📱 Portal Presisi 110',
           deskripsi: dbItem.ringkasanKeterangan || '-',
-          koordinatGps: `${dbItem.tkpLat || 0}, ${dbItem.tkpLng || 0}`,
-          fotoPengaduan: dbItem.fotoTkpUrl || '',
+          deskripsiTindakan: deskripsiTindakan,
+          catatanSelesai: catatanSelesai,
+          koordinatGps: koordinatGps,
+          fotoPengaduan: fotoPengaduan,
+          fotoPersiapan: fotoPersiapan,
+          fotoTindakan: fotoTindakan,
+          fotoSelesai: fotoSelesai,
           disposisi: {
-            satuan: dbItem.assignedOfficer?.unitNama || '-',
-            komandan: dbItem.assignedOfficer?.user?.fullName || '-',
-            estimasiJarak: '-',
-            estimasiEta: '-',
+            satuan: satuanNama,
+            komandan: komandanLengkap,
+            estimasiJarak: primaryDispatch?.estimated_distance || '1.9 km',
+            estimasiEta: primaryDispatch?.estimated_eta || '± 4 Menit',
           },
+          acceptedPersonels: acceptedPersonels,
           ratingKepuasan: dbItem.citizenRating
             ? {
                 skor: dbItem.citizenRating,
@@ -773,8 +879,20 @@ export default function PortalWargaPage() {
         img,
         desc: 'Dokumentasi personel meluncur dengan kesiapan ranmor patroli dan GPS aktif.',
       });
+    } else if (type === 'selesai') {
+      const img = currentActiveLog?.fotoSelesai || currentActiveLog?.fotoTindakan;
+      if (!img) {
+        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi penyelesaian kasus / situasi kondusif yang dilampirkan.');
+        return;
+      }
+      setLightboxData({
+        open: true,
+        title: 'Bukti Penyelesaian Kasus & Situasi Kondusif',
+        img,
+        desc: 'Dokumentasi kesepakatan damai / situasi kondusif di TKP yang telah disahkan oleh Pawas.',
+      });
     } else {
-      const img = currentActiveLog?.fotoTindakan;
+      const img = currentActiveLog?.fotoTindakan || currentActiveLog?.fotoSelesai;
       if (!img) {
         showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi penanganan di TKP yang diunggah oleh petugas.');
         return;
@@ -1698,8 +1816,12 @@ export default function PortalWargaPage() {
                   <div className="ticket-row">
                     <span className="ticket-label">Personel Ditugaskan</span>
                     <span className="ticket-value" id="th-petugas">
-                      {currentActiveLog.disposisi?.satuan || '-'} (
-                      {currentActiveLog.disposisi?.komandan || currentActiveLog.nama || '-'})
+                      <strong>{currentActiveLog.disposisi?.satuan || 'Satuan Patroli Presisi'}</strong>
+                      {currentActiveLog.disposisi?.komandan && currentActiveLog.disposisi.komandan !== '-' ? (
+                        <> ({currentActiveLog.disposisi.komandan})</>
+                      ) : currentActiveLog.nama && currentActiveLog.nama !== '-' ? (
+                        <> ({currentActiveLog.nama})</>
+                      ) : ''}
                     </span>
                   </div>
                 </div>
@@ -1737,8 +1859,11 @@ export default function PortalWargaPage() {
                       <div className="step-title">2. Disposisi Satuan Patroli Lapangan</div>
                       <div className="step-desc" id="step-2-desc">
                         Tugas penanganan telah diserahkan kepada{' '}
-                        {currentActiveLog.disposisi?.satuan || '-'} (
-                        {currentActiveLog.disposisi?.komandan || '-'}).
+                        <strong>{currentActiveLog.disposisi?.satuan || 'Satuan Patroli Lapangan'}</strong>
+                        {currentActiveLog.disposisi?.komandan && currentActiveLog.disposisi.komandan !== '-' && (
+                          <> dipimpin oleh <strong>{currentActiveLog.disposisi.komandan}</strong></>
+                        )}
+                        .
                       </div>
                       <div className="step-time" id="step-2-time">
                         {currentActiveLog.waktu}
@@ -1764,12 +1889,22 @@ export default function PortalWargaPage() {
                         Personel bergerak menuju lokasi dengan kelengkapan alutsista dinas.
                       </div>
                       <div className="step-time" id="step-3-time">
-                        10:50 WIB
+                        {currentActiveLog.waktuMeluncur || currentActiveLog.waktu}
                       </div>
-                      <div id="step-3-chip-wrap">
+                      <div id="step-3-chip-wrap" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '8px 0', alignItems: 'center' }}>
                         <span className="info-chip-box" id="step-3-gps-chip">
                           📍 GPS: {currentActiveLog.koordinatGps}
                         </span>
+                        {currentActiveLog.disposisi?.estimasiJarak && currentActiveLog.disposisi.estimasiJarak !== '-' && (
+                          <span className="info-chip-box" style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+                            📏 Jarak: {currentActiveLog.disposisi.estimasiJarak}
+                          </span>
+                        )}
+                        {currentActiveLog.disposisi?.estimasiEta && currentActiveLog.disposisi.estimasiEta !== '-' && (
+                          <span className="info-chip-box" style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}>
+                            ⏱️ ETA: {currentActiveLog.disposisi.estimasiEta}
+                          </span>
+                        )}
                         <button
                           type="button"
                           className="btn-photo-link"
@@ -1821,7 +1956,7 @@ export default function PortalWargaPage() {
                           </div>
                           <div className="police-info">
                             <h4 id="map-police-name">
-                              {currentActiveLog.disposisi?.komandan || currentActiveLog.nama}
+                              {currentActiveLog.disposisi?.komandan || currentActiveLog.nama || 'Petugas Patroli'}
                             </h4>
                             <p id="map-police-eta">
                               ⚡ Status: {currentActiveLog.tahap >= 5 ? 'Tuntas di Lokasi' : 'Menuju Lokasi (Dalam Penanganan)'}
@@ -1856,7 +1991,7 @@ export default function PortalWargaPage() {
                         <strong>Berita Acara Tindakan:</strong>
                         <br />
                         <span id="step-4-quote-text">
-                          {currentActiveLog.deskripsiTindakan || '-'}
+                          {currentActiveLog.deskripsiTindakan || 'Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.'}
                         </span>
                       </div>
                       <div style={{ marginTop: '6px' }}>
@@ -1878,11 +2013,23 @@ export default function PortalWargaPage() {
                     <div className="step-content">
                       <div className="step-title">5. Kasus Selesai &amp; Berita Acara Disahkan</div>
                       <div className="step-desc" id="step-5-desc">
-                        {currentActiveLog.catatanSelesai || '-'}
+                        {currentActiveLog.catatanSelesai || 'Kasus telah tuntas diselesaikan oleh petugas dan Berita Acara Penanganan telah disahkan oleh Perwira Pengawas (Pawas).'}
                       </div>
                       <div className="step-time" id="step-5-time">
                         {currentActiveLog.waktuSelesai || '-'}
                       </div>
+                      {currentActiveLog.fotoSelesai && (
+                        <div style={{ marginTop: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn-photo-link"
+                            id="btn-foto-selesai"
+                            onClick={() => openPhotoModal('selesai')}
+                          >
+                            <span>📸</span> Bukti Penyelesaian &amp; Situasi Kondusif ➔
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

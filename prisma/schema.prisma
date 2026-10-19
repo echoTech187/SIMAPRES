@@ -290,6 +290,69 @@ model MasterDispatchStatus {
   @@map("master_dispatch_statuses")
 }
 
+// Master Vehicle Types
+model MasterVehicleType {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(50)
+  label         String   @db.VarChar(150)
+  icon_emoji    String?  @default("🚗") @db.VarChar(10)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  @@map("master_vehicle_types")
+}
+
+// Master Vehicle Statuses
+model MasterVehicleStatus {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(50)
+  label         String   @db.VarChar(150)
+  badge_color   String?  @default("#10B981") @db.VarChar(20)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+
+  @@map("master_vehicle_statuses")
+}
+
+// 1.15 Master Resolution Location Types (Tipe Lokasi Penyelesaian Kasus / BAP)
+model MasterResolutionLocationType {
+  id                  Int          @id @default(autoincrement())
+  key                 String       @unique @db.VarChar(50) // "TKP", "RUMAH_SAKIT", "KANTOR_POLISI", "KANTOR_KELURAHAN", "LAINNYA"
+  label               String       @db.VarChar(100)
+  keterangan          String?      @db.VarChar(255)
+  icon_emoji          String       @default("📍") @db.VarChar(10)
+  requires_strict_tkp Boolean      @default(false)
+  badge_color         String       @default("#10B981") @db.VarChar(20)
+  badge_bg            String       @default("#ECFDF5") @db.VarChar(20)
+  display_order       Int          @default(1)
+  is_active           Boolean      @default(true)
+  created_at          DateTime     @default(now())
+
+  complaints          Complaint[]
+
+  @@map("master_resolution_location_types")
+}
+
+// 1.16 Master Resolution Document Types (Tipe Objek Bukti / Dokumen Penyelesaian Kasus)
+model MasterResolutionDocumentType {
+  id            Int          @id @default(autoincrement())
+  key           String       @unique @db.VarChar(50) // "BAP_DAMAI", "REKAM_MEDIS", "SERAH_TERIMA_BB", "DOKUMENTASI_KONDUSIF", "BERITA_ACARA_PENUTUPAN", "DOKUMEN_LAINNYA"
+  label         String       @db.VarChar(120)
+  keterangan    String?      @db.VarChar(255)
+  icon_emoji    String       @default("📄") @db.VarChar(10)
+  badge_color   String       @default("#2563EB") @db.VarChar(20)
+  badge_bg      String       @default("#EFF6FF") @db.VarChar(20)
+  display_order Int          @default(1)
+  is_active     Boolean      @default(true)
+  created_at    DateTime     @default(now())
+
+  complaints    Complaint[]
+
+  @@map("master_resolution_document_types")
+}
+
 // ==============================================================================
 // 2. POLICE STATIONS & REGIONAL JURISDICTIONS (MAKO)
 // Table: police_stations
@@ -521,6 +584,16 @@ model Complaint {
   operator_id           BigInt?
   operator              User?                   @relation("OperatorComplaints", fields: [operator_id], references: [id], onDelete: SetNull)
 
+  resolution_location_id    Int?
+  resolution_location_rel   MasterResolutionLocationType? @relation(fields: [resolution_location_id], references: [id], onDelete: SetNull)
+  resolution_location_key   String?                       @db.VarChar(50)
+  resolution_location_name  String?                       @db.VarChar(150)
+
+  resolution_document_id    Int?
+  resolution_document_rel   MasterResolutionDocumentType? @relation(fields: [resolution_document_id], references: [id], onDelete: SetNull)
+  resolution_document_key   String?                       @db.VarChar(50)
+  resolution_document_name  String?                       @db.VarChar(150)
+
   dispatches            ComplaintDispatch[]
   complaint_logs        ComplaintAuditLog[]
   evidences             ComplaintEvidence[]
@@ -538,6 +611,8 @@ model Complaint {
   @@index([tkp_lat, tkp_lng], map: "idx_complaints_scene_coords")
   @@index([kategori_key], map: "idx_complaints_category_key")
   @@index([platform_key], map: "idx_complaints_source_key")
+  @@index([resolution_location_key], map: "idx_complaints_resolution_location")
+  @@index([resolution_document_key], map: "idx_complaints_resolution_doc")
   @@map("complaints")
 }
 

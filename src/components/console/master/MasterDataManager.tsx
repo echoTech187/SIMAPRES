@@ -48,6 +48,14 @@ import {
   createMasterDutyStatusAction,
   updateMasterDutyStatusAction,
   deleteMasterDutyStatusAction,
+  getMasterResolutionLocationsAction,
+  createMasterResolutionLocationAction,
+  updateMasterResolutionLocationAction,
+  deleteMasterResolutionLocationAction,
+  getMasterResolutionDocumentsAction,
+  createMasterResolutionDocumentAction,
+  updateMasterResolutionDocumentAction,
+  deleteMasterResolutionDocumentAction,
 } from '@/app/actions/master.actions';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
@@ -80,7 +88,9 @@ export type MasterTabType =
   | 'hotspot_cat'
   | 'kategori'
   | 'subkategori'
-  | 'duty';
+  | 'duty'
+  | 'lokasi_penyelesaian'
+  | 'dokumen_penyelesaian';
 
 interface MasterDataManagerProps {
   activeTab: MasterTabType;
@@ -175,6 +185,9 @@ export default function MasterDataManager({
     unit_key: '',
     default_urgensi: '',
     deskripsi_sop: '',
+    // Lokasi & Dokumen Penyelesaian Step 3
+    keterangan: '',
+    requires_strict_tkp: false,
   });
 
   // Load Data based on activeTab
@@ -254,6 +267,12 @@ export default function MasterDataManager({
         }
         case 'duty':
           res = await getMasterDutyStatusesAction();
+          break;
+        case 'lokasi_penyelesaian':
+          res = await getMasterResolutionLocationsAction();
+          break;
+        case 'dokumen_penyelesaian':
+          res = await getMasterResolutionDocumentsAction();
           break;
       }
       if (res && res.success && res.data) {
@@ -357,6 +376,9 @@ export default function MasterDataManager({
       unit_key: '',
       default_urgensi: '',
       deskripsi_sop: '',
+      // Lokasi & Dokumen
+      keterangan: '',
+      requires_strict_tkp: false,
     });
     setShowModal(true);
   };
@@ -414,6 +436,9 @@ export default function MasterDataManager({
       unit_key: item.unit_key ?? item.unit_rel?.key ?? '',
       default_urgensi: item.default_urgensi ?? '',
       deskripsi_sop: item.deskripsi_sop ?? '',
+      // Lokasi & Dokumen
+      keterangan: item.keterangan || item.description || '',
+      requires_strict_tkp: item.requires_strict_tkp !== undefined ? Boolean(item.requires_strict_tkp) : false,
     });
     setShowModal(true);
   };
@@ -577,6 +602,41 @@ export default function MasterDataManager({
             }
             res = await createMasterDutyStatusAction(formData);
             break;
+          case 'lokasi_penyelesaian':
+            if (!formData.key?.trim() || !formData.label?.trim()) {
+              alert('Kode dan Nama Lokasi Penyelesaian wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            res = await createMasterResolutionLocationAction({
+              key: formData.key.trim().toUpperCase(),
+              label: formData.label.trim(),
+              icon_emoji: formData.icon_emoji?.trim() || '📍',
+              keterangan: formData.keterangan?.trim() || '',
+              requires_strict_tkp: Boolean(formData.requires_strict_tkp),
+              badge_bg: formData.badge_bg?.trim() || '',
+              badge_color: formData.badge_color?.trim() || '',
+              display_order: Number(formData.display_order) || 1,
+              is_active: Boolean(formData.is_active),
+            });
+            break;
+          case 'dokumen_penyelesaian':
+            if (!formData.key?.trim() || !formData.label?.trim()) {
+              alert('Kode dan Nama Jenis Dokumen Bukti wajib diisi!');
+              setFormSubmitting(false);
+              return;
+            }
+            res = await createMasterResolutionDocumentAction({
+              key: formData.key.trim().toUpperCase(),
+              label: formData.label.trim(),
+              icon_emoji: formData.icon_emoji?.trim() || '📄',
+              keterangan: formData.keterangan?.trim() || '',
+              badge_bg: formData.badge_bg?.trim() || '',
+              badge_color: formData.badge_color?.trim() || '',
+              display_order: Number(formData.display_order) || 1,
+              is_active: Boolean(formData.is_active),
+            });
+            break;
         }
       } else {
         if (!editingId) return;
@@ -645,6 +705,31 @@ export default function MasterDataManager({
           case 'duty':
             res = await updateMasterDutyStatusAction(Number(editingId), formData);
             break;
+          case 'lokasi_penyelesaian':
+            res = await updateMasterResolutionLocationAction(Number(editingId), {
+              key: formData.key?.trim().toUpperCase(),
+              label: formData.label?.trim(),
+              icon_emoji: formData.icon_emoji?.trim() || '📍',
+              keterangan: formData.keterangan?.trim() || '',
+              requires_strict_tkp: Boolean(formData.requires_strict_tkp),
+              badge_bg: formData.badge_bg?.trim() || '',
+              badge_color: formData.badge_color?.trim() || '',
+              display_order: Number(formData.display_order) || 1,
+              is_active: Boolean(formData.is_active),
+            });
+            break;
+          case 'dokumen_penyelesaian':
+            res = await updateMasterResolutionDocumentAction(Number(editingId), {
+              key: formData.key?.trim().toUpperCase(),
+              label: formData.label?.trim(),
+              icon_emoji: formData.icon_emoji?.trim() || '📄',
+              keterangan: formData.keterangan?.trim() || '',
+              badge_bg: formData.badge_bg?.trim() || '',
+              badge_color: formData.badge_color?.trim() || '',
+              display_order: Number(formData.display_order) || 1,
+              is_active: Boolean(formData.is_active),
+            });
+            break;
         }
       }
 
@@ -706,6 +791,12 @@ export default function MasterDataManager({
         case 'duty':
           res = await deleteMasterDutyStatusAction(Number(id));
           break;
+        case 'lokasi_penyelesaian':
+          res = await deleteMasterResolutionLocationAction(Number(id));
+          break;
+        case 'dokumen_penyelesaian':
+          res = await deleteMasterResolutionDocumentAction(Number(id));
+          break;
       }
 
       if (res && res.success) {
@@ -746,6 +837,7 @@ export default function MasterDataManager({
       (item.unit_rel?.short_name && item.unit_rel.short_name.toLowerCase().includes(q)) ||
       (item.unit_rel?.unit_name && item.unit_rel.unit_name.toLowerCase().includes(q)) ||
       (item.deskripsi_sop && item.deskripsi_sop.toLowerCase().includes(q)) ||
+      (item.keterangan && item.keterangan.toLowerCase().includes(q)) ||
       (item.default_urgensi && item.default_urgensi.toLowerCase().includes(q));
 
     if (!matchQuery) return false;
@@ -836,6 +928,20 @@ export default function MasterDataManager({
           desc: 'Daftar status kedinasan siaga personel (Dinas Patroli, Piket SPKT, Cadangan, Lepas Dinas, BKO).',
           addBtn: 'Tambah Status Tugas',
           icon: '📋',
+        };
+      case 'lokasi_penyelesaian':
+        return {
+          title: 'Master Lokasi Penyelesaian Perkara',
+          desc: 'Konfigurasi jenis lokasi penyelesaian laporan laka/insiden (TKP, Rumah Sakit/Faskes, Kantor Polisi/Polsek/Unit Laka, Kantor Kelurahan, dll.) dengan status toleransi geofence GPS.',
+          addBtn: 'Tambah Lokasi Penyelesaian',
+          icon: '📍',
+        };
+      case 'dokumen_penyelesaian':
+        return {
+          title: 'Master Objek & Dokumen Bukti Penyelesaian (Step 3)',
+          desc: 'Klasifikasi objek dokumentasi kamera Step 3 (Surat Pernyataan Damai / BAP Mediasi bermaterai, Rekam Medis / Rujukan RS, Penyerahan Barang Bukti, Situasi Kondusif Para Pihak, dll.).',
+          addBtn: 'Tambah Jenis Dokumen',
+          icon: '📄',
         };
     }
   };
@@ -1116,6 +1222,25 @@ export default function MasterDataManager({
                     <th style={{ padding: '12px 16px' }}>KOORDINAT GPS</th>
                     <th style={{ padding: '12px 16px' }}>JAM RAWAN &amp; UNIT PATROLI</th>
                   </>
+                ) : activeTab === 'lokasi_penyelesaian' ? (
+                  <>
+                    <th style={{ padding: '12px 16px' }}>KODE / KEY</th>
+                    <th style={{ padding: '12px 16px' }}>LOKASI PENYELESAIAN</th>
+                    <th style={{ padding: '12px 16px' }}>KETERANGAN &amp; LINGKUP</th>
+                    <th style={{ padding: '12px 16px' }}>VALIDASI TKP GEOFENCE</th>
+                    <th style={{ padding: '12px 16px' }}>BADGE WATERMARK</th>
+                    <th style={{ padding: '12px 16px', width: '90px' }}>URUTAN</th>
+                    <th style={{ padding: '12px 16px', width: '100px' }}>STATUS</th>
+                  </>
+                ) : activeTab === 'dokumen_penyelesaian' ? (
+                  <>
+                    <th style={{ padding: '12px 16px' }}>KODE / KEY</th>
+                    <th style={{ padding: '12px 16px' }}>JENIS OBJEK DOKUMEN</th>
+                    <th style={{ padding: '12px 16px' }}>KETERANGAN &amp; FUNGSI BUKTI</th>
+                    <th style={{ padding: '12px 16px' }}>BADGE WATERMARK</th>
+                    <th style={{ padding: '12px 16px', width: '90px' }}>URUTAN</th>
+                    <th style={{ padding: '12px 16px', width: '100px' }}>STATUS</th>
+                  </>
                 ) : (
                   <>
                     <th style={{ padding: '12px 16px' }}>KODE / KEY</th>
@@ -1390,8 +1515,94 @@ export default function MasterDataManager({
 
                         {/* Nama / Label */}
                         <td style={{ padding: '14px 16px', fontWeight: 700, color: '#1E293B' }}>
+                          {item.icon_emoji ? `${item.icon_emoji} ` : ''}
                           {item.label || item.station_name || item.unit_name}
                         </td>
+
+                        {/* Kolom Spesifik Lokasi Penyelesaian */}
+                        {activeTab === 'lokasi_penyelesaian' && (
+                          <>
+                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '12px', maxWidth: '320px' }}>
+                              {item.keterangan || '-'}
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              {item.requires_strict_tkp ? (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    padding: '3px 8px',
+                                    borderRadius: '12px',
+                                    background: '#FEF2F2',
+                                    color: '#DC2626',
+                                    border: '1px solid #FECACA',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <span>🔒</span> Wajib TKP (≤100m)
+                                </span>
+                              ) : (
+                                <span
+                                  style={{
+                                    fontSize: '11px',
+                                    fontWeight: 800,
+                                    padding: '3px 8px',
+                                    borderRadius: '12px',
+                                    background: '#ECFDF5',
+                                    color: '#059669',
+                                    border: '1px solid #A7F3D0',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                  }}
+                                >
+                                  <span>🌐</span> Fleksibel (RS/Polsek)
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span
+                                style={{
+                                  background: item.badge_bg || '#EFF6FF',
+                                  color: item.badge_color || '#1D4ED8',
+                                  border: item.badge_border ? `1px solid ${item.badge_border}` : '1px solid #BFDBFE',
+                                  padding: '3px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {item.icon_emoji} {item.label}
+                              </span>
+                            </td>
+                          </>
+                        )}
+
+                        {/* Kolom Spesifik Dokumen Penyelesaian */}
+                        {activeTab === 'dokumen_penyelesaian' && (
+                          <>
+                            <td style={{ padding: '14px 16px', color: '#475569', fontSize: '12px', maxWidth: '340px' }}>
+                              {item.keterangan || '-'}
+                            </td>
+                            <td style={{ padding: '14px 16px' }}>
+                              <span
+                                style={{
+                                  background: item.badge_bg || '#F8FAFC',
+                                  color: item.badge_color || '#0F172A',
+                                  border: item.badge_border ? `1px solid ${item.badge_border}` : '1px solid #CBD5E1',
+                                  padding: '3px 8px',
+                                  borderRadius: '12px',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {item.icon_emoji} {item.label}
+                              </span>
+                            </td>
+                          </>
+                        )}
 
                         {/* Kolom Spesifik Satuan */}
                         {activeTab === 'satuan' && (
@@ -2338,6 +2549,158 @@ export default function MasterDataManager({
                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
                       />
                     </div>
+                  )}
+
+                  {/* Lokasi Penyelesaian Spesifik */}
+                  {activeTab === 'lokasi_penyelesaian' && (
+                    <>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Icon / Emoji Lokasi
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 🏥 / 🏢 / 📍 / 🏛️"
+                          value={formData.icon_emoji || ''}
+                          onChange={(e) => setFormData({ ...formData, icon_emoji: e.target.value })}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Keterangan &amp; Ruang Lingkup Penyelesaian
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Contoh: IGD Rumah Sakit / Faskes berupa pengecekan visum, rekam medis korban laka, dan mediasi damai keluarga..."
+                          value={formData.keterangan || ''}
+                          onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Status Validasi Geofence TKP (Kamera Watermark) <span style={{ color: 'red' }}>*</span>
+                        </label>
+                        <select
+                          value={formData.requires_strict_tkp ? '1' : '0'}
+                          onChange={(e) => setFormData({ ...formData, requires_strict_tkp: e.target.value === '1' })}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', fontWeight: 600, boxSizing: 'border-box' }}
+                        >
+                          <option value="0">🌐 Fleksibel (Non-TKP: RS, Polsek, Mediasi Luar - Bebas Anomali GPS TKP)</option>
+                          <option value="1">🔒 Wajib Radius TKP (Harus berada ≤ 100m dari koordinat TKP)</option>
+                        </select>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                          Jika disetel fleksibel, personil dapat mengambil foto sah di Rumah Sakit atau Polsek tanpa dicatat anomali GPS TKP.
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Latar Badge
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="#EFF6FF"
+                            value={formData.badge_bg || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_bg: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Teks Badge
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="#1D4ED8"
+                            value={formData.badge_color || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Border
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="#BFDBFE"
+                            value={formData.badge_border || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_border: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Dokumen Penyelesaian Spesifik */}
+                  {activeTab === 'dokumen_penyelesaian' && (
+                    <>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Icon / Emoji Dokumen
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: 📜 / 🩺 / 🤝 / 📄"
+                          value={formData.icon_emoji || ''}
+                          onChange={(e) => setFormData({ ...formData, icon_emoji: e.target.value })}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '13px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ marginBottom: '14px' }}>
+                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                          Keterangan &amp; Petunjuk Objek Bukti
+                        </label>
+                        <textarea
+                          rows={3}
+                          placeholder="Contoh: Foto fisik Surat Pernyataan Damai / BAP Mediasi bermaterai yang ditandatangani kedua belah pihak..."
+                          value={formData.keterangan || ''}
+                          onChange={(e) => setFormData({ ...formData, keterangan: e.target.value })}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Latar Badge
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="#F8FAFC"
+                            value={formData.badge_bg || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_bg: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Teks Badge
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="#0F172A"
+                            value={formData.badge_color || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_color: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                            Warna Border
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="#CBD5E1"
+                            value={formData.badge_border || ''}
+                            onChange={(e) => setFormData({ ...formData, badge_border: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12px', fontFamily: 'monospace', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {/* Satuan Operasional Spesifik */}

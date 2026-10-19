@@ -7,12 +7,19 @@ export interface FieldStepActionInput {
   officerId: bigint;
   catatan?: string;
   fotoBuktiUrl?: string;
+  evidencesList?: any[];
   lat?: number;
   lng?: number;
   isDiscrepancy?: boolean;
   deviationMeters?: number;
   warningMessage?: string;
   photoAddress?: string;
+  resolutionLocationId?: number | null;
+  resolutionLocationKey?: string | null;
+  resolutionLocationName?: string | null;
+  resolutionDocumentId?: number | null;
+  resolutionDocumentKey?: string | null;
+  resolutionDocumentName?: string | null;
 }
 
 export class FieldStepActionUseCase {
@@ -38,30 +45,44 @@ export class FieldStepActionUseCase {
         break;
       case 'tiba_tkp':
         complaint.tibaDiTkp(
-          input.catatan,
-          input.fotoBuktiUrl,
-          input.lat,
-          input.lng,
-          input.isDiscrepancy,
-          input.deviationMeters,
-          input.warningMessage,
-          input.photoAddress
+            input.catatan,
+            input.fotoBuktiUrl,
+            input.lat,
+            input.lng,
+            input.isDiscrepancy,
+            input.deviationMeters,
+            input.warningMessage,
+            input.photoAddress,
+            input.evidencesList
         );
         break;
       case 'tindakan_tkp':
         complaint.tindakanTkp(
-          input.catatan,
-          input.fotoBuktiUrl,
-          input.lat,
-          input.lng,
-          input.isDiscrepancy,
-          input.deviationMeters,
-          input.warningMessage,
-          input.photoAddress
+            input.catatan,
+            input.fotoBuktiUrl,
+            input.lat,
+            input.lng,
+            input.isDiscrepancy,
+            input.deviationMeters,
+            input.warningMessage,
+            input.photoAddress,
+            input.evidencesList
         );
         break;
       case 'selesai':
-        complaint.ajukanPengesahanBap(input.catatan, input.fotoBuktiUrl);
+        complaint.ajukanPengesahanBap(
+          input.catatan,
+          input.fotoBuktiUrl,
+          {
+            locationId: input.resolutionLocationId,
+            locationKey: input.resolutionLocationKey,
+            locationName: input.resolutionLocationName,
+            documentId: input.resolutionDocumentId,
+            documentKey: input.resolutionDocumentKey,
+            documentName: input.resolutionDocumentName,
+          },
+          input.evidencesList
+        );
         break;
       default:
         throw new Error(`Tahap aksi ${input.step} tidak valid.`);

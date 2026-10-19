@@ -68,7 +68,7 @@ function parsePositiveBigIntId(
 // ==============================================================================
 export async function getMasterCountersAction() {
   try {
-    const [ranks, units, roles, stations, categories, subcategories, hotspots, hotspotCategories, vehicles, dutyStatuses] =
+    const [ranks, units, roles, stations, categories, subcategories, hotspots, hotspotCategories, vehicles, dutyStatuses, resolutionLocations, resolutionDocuments] =
       await Promise.all([
         prisma.masterRank.count(),
         prisma.masterOperationalUnit.count(),
@@ -80,6 +80,8 @@ export async function getMasterCountersAction() {
         prisma.masterHotspotCategory.count(),
         prisma.patrolVehicle.count(),
         prisma.masterDutyStatus.count(),
+        prisma.masterResolutionLocationType.count(),
+        prisma.masterResolutionDocumentType.count(),
       ]);
 
     return {
@@ -95,6 +97,8 @@ export async function getMasterCountersAction() {
         hotspotCategories,
         vehicles,
         dutyStatuses,
+        resolutionLocations,
+        resolutionDocuments,
       },
     };
   } catch (error: any) {
@@ -1741,6 +1745,276 @@ export async function deleteMasterVehicleAction(id: number | string) {
       where: { id: idCheck.value },
     });
     await auditLog('DELETE_VEHICLE', `Menghapus armada patroli ID ${idCheck.value}: ${deleted.nomor_lambung} - ${deleted.nama_armada}`);
+    revalidatePath('/console');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 11. MASTER LOKASI PENYELESAIAN KASUS (master_resolution_location_types)
+// ==============================================================================
+export async function getMasterResolutionLocationsAction(params?: {
+  search?: string;
+  isActive?: boolean;
+}) {
+  try {
+    const where: any = {};
+    if (params?.isActive !== undefined) {
+      where.is_active = params.isActive;
+    }
+    if (params?.search) {
+      const q = params.search.trim();
+      where.OR = [
+        { key: { contains: q } },
+        { label: { contains: q } },
+        { keterangan: { contains: q } },
+      ];
+    }
+
+    const rows = await prisma.masterResolutionLocationType.findMany({
+      where,
+      orderBy: { display_order: 'asc' },
+    });
+    return { success: true, data: serializeBigInt(rows) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function createMasterResolutionLocationAction(data: {
+  key: string;
+  label: string;
+  keterangan?: string;
+  icon_emoji?: string;
+  requires_strict_tkp?: boolean;
+  badge_color?: string;
+  badge_bg?: string;
+  display_order?: number;
+  is_active?: boolean;
+}) {
+  try {
+    const key = data.key?.trim().toUpperCase();
+    const label = data.label?.trim();
+    if (!key || !label) {
+      return { success: false, error: 'Key (Kode) dan Label Lokasi wajib diisi!' };
+    }
+
+    const existing = await prisma.masterResolutionLocationType.findUnique({
+      where: { key },
+    });
+    if (existing) {
+      return { success: false, error: `Kode lokasi "${key}" sudah terdaftar!` };
+    }
+
+    const created = await prisma.masterResolutionLocationType.create({
+      data: {
+        key,
+        label,
+        keterangan: data.keterangan?.trim() || null,
+        icon_emoji: data.icon_emoji?.trim() || '📍',
+        requires_strict_tkp: Boolean(data.requires_strict_tkp),
+        badge_color: data.badge_color?.trim() || '#10B981',
+        badge_bg: data.badge_bg?.trim() || '#ECFDF5',
+        display_order: Number(data.display_order) || 1,
+        is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
+      },
+    });
+
+    await auditLog('CREATE_RESOLUTION_LOCATION', `Menambahkan master lokasi penyelesaian: ${key} - ${label}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(created) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateMasterResolutionLocationAction(
+  id: number | string,
+  data: {
+    key?: string;
+    label?: string;
+    keterangan?: string;
+    icon_emoji?: string;
+    requires_strict_tkp?: boolean;
+    badge_color?: string;
+    badge_bg?: string;
+    display_order?: number;
+    is_active?: boolean;
+  }
+) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Master Lokasi');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const updateData: any = {};
+    if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase();
+    if (data.label !== undefined) updateData.label = data.label.trim();
+    if (data.keterangan !== undefined) updateData.keterangan = data.keterangan.trim() || null;
+    if (data.icon_emoji !== undefined) updateData.icon_emoji = data.icon_emoji.trim() || '📍';
+    if (data.requires_strict_tkp !== undefined) updateData.requires_strict_tkp = Boolean(data.requires_strict_tkp);
+    if (data.badge_color !== undefined) updateData.badge_color = data.badge_color.trim();
+    if (data.badge_bg !== undefined) updateData.badge_bg = data.badge_bg.trim();
+    if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
+    if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
+
+    const updated = await prisma.masterResolutionLocationType.update({
+      where: { id: idCheck.value },
+      data: updateData,
+    });
+
+    await auditLog('UPDATE_RESOLUTION_LOCATION', `Memperbarui master lokasi penyelesaian ID ${idCheck.value}: ${updated.key}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteMasterResolutionLocationAction(id: number | string) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Master Lokasi');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const deleted = await prisma.masterResolutionLocationType.delete({
+      where: { id: idCheck.value },
+    });
+
+    await auditLog('DELETE_RESOLUTION_LOCATION', `Menghapus master lokasi penyelesaian ID ${idCheck.value}: ${deleted.key}`);
+    revalidatePath('/console');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 12. MASTER OBJEK DOKUMEN / BUKTI BAP PENYELESAIAN (master_resolution_document_types)
+// ==============================================================================
+export async function getMasterResolutionDocumentsAction(params?: {
+  search?: string;
+  isActive?: boolean;
+}) {
+  try {
+    const where: any = {};
+    if (params?.isActive !== undefined) {
+      where.is_active = params.isActive;
+    }
+    if (params?.search) {
+      const q = params.search.trim();
+      where.OR = [
+        { key: { contains: q } },
+        { label: { contains: q } },
+        { keterangan: { contains: q } },
+      ];
+    }
+
+    const rows = await prisma.masterResolutionDocumentType.findMany({
+      where,
+      orderBy: { display_order: 'asc' },
+    });
+    return { success: true, data: serializeBigInt(rows) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function createMasterResolutionDocumentAction(data: {
+  key: string;
+  label: string;
+  keterangan?: string;
+  icon_emoji?: string;
+  badge_color?: string;
+  badge_bg?: string;
+  display_order?: number;
+  is_active?: boolean;
+}) {
+  try {
+    const key = data.key?.trim().toUpperCase();
+    const label = data.label?.trim();
+    if (!key || !label) {
+      return { success: false, error: 'Key (Kode) dan Label Dokumen wajib diisi!' };
+    }
+
+    const existing = await prisma.masterResolutionDocumentType.findUnique({
+      where: { key },
+    });
+    if (existing) {
+      return { success: false, error: `Kode dokumen "${key}" sudah terdaftar!` };
+    }
+
+    const created = await prisma.masterResolutionDocumentType.create({
+      data: {
+        key,
+        label,
+        keterangan: data.keterangan?.trim() || null,
+        icon_emoji: data.icon_emoji?.trim() || '📄',
+        badge_color: data.badge_color?.trim() || '#2563EB',
+        badge_bg: data.badge_bg?.trim() || '#EFF6FF',
+        display_order: Number(data.display_order) || 1,
+        is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
+      },
+    });
+
+    await auditLog('CREATE_RESOLUTION_DOCUMENT', `Menambahkan master dokumen penyelesaian: ${key} - ${label}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(created) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateMasterResolutionDocumentAction(
+  id: number | string,
+  data: {
+    key?: string;
+    label?: string;
+    keterangan?: string;
+    icon_emoji?: string;
+    badge_color?: string;
+    badge_bg?: string;
+    display_order?: number;
+    is_active?: boolean;
+  }
+) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Master Dokumen');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const updateData: any = {};
+    if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase();
+    if (data.label !== undefined) updateData.label = data.label.trim();
+    if (data.keterangan !== undefined) updateData.keterangan = data.keterangan.trim() || null;
+    if (data.icon_emoji !== undefined) updateData.icon_emoji = data.icon_emoji.trim() || '📄';
+    if (data.badge_color !== undefined) updateData.badge_color = data.badge_color.trim();
+    if (data.badge_bg !== undefined) updateData.badge_bg = data.badge_bg.trim();
+    if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
+    if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
+
+    const updated = await prisma.masterResolutionDocumentType.update({
+      where: { id: idCheck.value },
+      data: updateData,
+    });
+
+    await auditLog('UPDATE_RESOLUTION_DOCUMENT', `Memperbarui master dokumen penyelesaian ID ${idCheck.value}: ${updated.key}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteMasterResolutionDocumentAction(id: number | string) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Master Dokumen');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const deleted = await prisma.masterResolutionDocumentType.delete({
+      where: { id: idCheck.value },
+    });
+
+    await auditLog('DELETE_RESOLUTION_DOCUMENT', `Menghapus master dokumen penyelesaian ID ${idCheck.value}: ${deleted.key}`);
     revalidatePath('/console');
     return { success: true };
   } catch (error: any) {

@@ -35,6 +35,8 @@ const sectionTitleMap: Record<string, string> = {
   kategori: 'Master Kategori Kejadian Insiden',
   subkategori: 'Master Subkategori Insiden & Rincian Kasus',
   duty: 'Master Status Kedinasan',
+  lokasi_penyelesaian: 'Master Lokasi Penyelesaian Perkara',
+  dokumen_penyelesaian: 'Master Jenis Dokumen & Bukti Penyelesaian',
 };
 
 export async function generateMetadata({ params }: { params?: { section?: string } }) {

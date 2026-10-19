@@ -28,6 +28,13 @@ export interface LiveCameraWatermarkCaptureProps {
   onCancel?: () => void;
   label?: string;
   required?: boolean;
+  requiresStrictTkp?: boolean;
+  locationTypeName?: string;
+  documentTypeName?: string;
+  allowMultiple?: boolean;
+  maxPhotos?: number;
+  onPhotosChange?: (photos: Array<{ id: string; dataUrl: string; metadata?: any }>) => void;
+  initialPhotos?: Array<{ id: string; dataUrl: string; metadata?: any }>;
 }
 
 function computeHaversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -57,9 +64,18 @@ export default function LiveCameraWatermarkCapture({
   onCancel,
   label = 'Dokumentasi Visual Autentik di TKP',
   required = true,
+  requiresStrictTkp = true,
+  locationTypeName,
+  documentTypeName,
+  allowMultiple = false,
+  maxPhotos = 5,
+  onPhotosChange,
+  initialPhotos = [],
 }: LiveCameraWatermarkCaptureProps) {
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [capturedPhotos, setCapturedPhotos] = useState<Array<{ id: string; dataUrl: string; metadata?: any }>>(initialPhotos);
+  const [previewPhoto, setPreviewPhoto] = useState<{ dataUrl: string; metadata?: any } | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -129,8 +145,8 @@ export default function LiveCameraWatermarkCapture({
   // Hitung deviasi jarak terhadap TKP
   const distanceMeters = computeHaversineMeters(activeLat, activeLng, targetTkpLat, targetTkpLng);
 
-  // Ambang batas toleransi radius penanganan TKP (100 meter)
-  const isDiscrepancy = distanceMeters > 100;
+  // Ambang batas toleransi radius penanganan TKP (100 meter) - HANYA berlaku jika requiresStrictTkp true
+  const isDiscrepancy = requiresStrictTkp !== false && distanceMeters > 100;
   const distStr = distanceMeters >= 1000
     ? `${(distanceMeters / 1000).toFixed(1)} km`
     : `${Math.round(distanceMeters)} meter`;
@@ -344,8 +360,19 @@ export default function LiveCameraWatermarkCapture({
     width: number,
     height: number
   ) => {
+    const isFlexibleLocation = requiresStrictTkp === false;
+
     // 1. Badge Verifikasi Satelit di Pojok Kanan Atas Foto
-    const topBadgeWidth = Math.max(isDiscrepancy ? 280 : 220, Math.round(width * (isDiscrepancy ? 0.38 : 0.28)));
+    const topBadgeText = isFlexibleLocation
+      ? (locationTypeName ? `✓ LOKASI SAH: ${locationTypeName.slice(0, 22).toUpperCase()}` : '✓ LOKASI PENYELESAIAN SAH')
+      : isDiscrepancy
+        ? `⚠️ ANOMALI: DILUAR TKP (${distStr})`
+        : '✓ TERVERIFIKASI SATELIT PRESISI GPS';
+
+    const topBadgeWidth = Math.max(
+      isDiscrepancy || isFlexibleLocation ? 290 : 220,
+      Math.round(width * (isDiscrepancy || isFlexibleLocation ? 0.40 : 0.28))
+    );
     const topBadgeHeight = Math.max(28, Math.round(height * 0.05));
     const topBadgeX = width - topBadgeWidth - 16;
     const topBadgeY = 16;
@@ -362,7 +389,19 @@ export default function LiveCameraWatermarkCapture({
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`⚠️ ANOMALI: DILUAR TKP (${distStr})`, topBadgeX + topBadgeWidth / 2, topBadgeY + topBadgeHeight / 2);
+      ctx.fillText(topBadgeText, topBadgeX + topBadgeWidth / 2, topBadgeY + topBadgeHeight / 2);
+    } else if (isFlexibleLocation) {
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.95)';
+      ctx.fillRect(topBadgeX, topBadgeY, topBadgeWidth, topBadgeHeight);
+      ctx.strokeStyle = '#6EE7B7';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(topBadgeX, topBadgeY, topBadgeWidth, topBadgeHeight);
+
+      ctx.font = `bold ${Math.max(10, Math.round(topBadgeHeight * 0.44))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(topBadgeText, topBadgeX + topBadgeWidth / 2, topBadgeY + topBadgeHeight / 2);
     } else {
       ctx.fillStyle = 'rgba(5, 150, 105, 0.92)';
       ctx.fillRect(topBadgeX, topBadgeY, topBadgeWidth, topBadgeHeight);
@@ -374,12 +413,16 @@ export default function LiveCameraWatermarkCapture({
       ctx.fillStyle = '#FFFFFF';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('✓ TERVERIFIKASI SATELIT PRESISI GPS', topBadgeX + topBadgeWidth / 2, topBadgeY + topBadgeHeight / 2);
+      ctx.fillText(topBadgeText, topBadgeX + topBadgeWidth / 2, topBadgeY + topBadgeHeight / 2);
     }
     ctx.restore();
 
     // 2. Banner Gelap di Bagian Bawah Foto
-    const bannerHeight = Math.max(isDiscrepancy ? 135 : 115, Math.round(height * (isDiscrepancy ? 0.28 : 0.25)));
+    const extraLines = documentTypeName ? 1 : 0;
+    const bannerHeight = Math.max(
+      isDiscrepancy ? 140 : 115 + extraLines * 20,
+      Math.round(height * (isDiscrepancy ? 0.30 : 0.25 + extraLines * 0.035))
+    );
     const startY = height - bannerHeight;
 
     const gradient = ctx.createLinearGradient(0, startY, 0, height);
@@ -389,8 +432,8 @@ export default function LiveCameraWatermarkCapture({
     ctx.fillStyle = gradient;
     ctx.fillRect(0, startY, width, bannerHeight);
 
-    // Garis aksen di atas banner (Merah jika anomali, Emas jika normal)
-    ctx.fillStyle = isDiscrepancy ? '#EF4444' : '#F59E0B';
+    // Garis aksen di atas banner (Merah jika anomali, Hijau jika fleksibel, Emas jika normal TKP)
+    ctx.fillStyle = isDiscrepancy ? '#EF4444' : isFlexibleLocation ? '#10B981' : '#F59E0B';
     ctx.fillRect(0, startY, width, 4);
 
     // 3. Format Waktu Indonesia Barat
@@ -408,40 +451,52 @@ export default function LiveCameraWatermarkCapture({
     // 4. Pengaturan Tipografi & Koordinat Teks
     const baseFontSize = Math.max(13, Math.round(width * 0.024));
     const paddingX = Math.max(18, Math.round(width * 0.025));
-    let currentY = startY + Math.round(bannerHeight * 0.20);
+    let currentY = startY + Math.round(bannerHeight * 0.18);
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 
     // Baris 1: Header Dokumen Resmi
     ctx.font = `bold ${Math.round(baseFontSize * 1.05)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    ctx.fillStyle = isDiscrepancy ? '#FCA5A5' : '#FBBF24';
+    ctx.fillStyle = isDiscrepancy ? '#FCA5A5' : isFlexibleLocation ? '#6EE7B7' : '#FBBF24';
     ctx.fillText(
       isDiscrepancy
         ? '⚠️ POLRI PRESISI 110 • DOKUMENTASI TERINDIKASI DILUAR LOKASI TKP'
+        : isFlexibleLocation
+        ? '🛡️ POLRI PRESISI 110 • DOKUMENTASI PENYELESAIAN PERKARA (BAP)'
         : '🛡️ POLRI PRESISI 110 • DOKUMENTASI VISUAL LAPANGAN RESMI',
       paddingX,
       currentY
     );
 
     // Baris 2: Identitas Personel
-    currentY += Math.round(baseFontSize * 1.30);
+    currentY += Math.round(baseFontSize * 1.25);
     ctx.font = `bold ${baseFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = '#FFFFFF';
     ctx.fillText(`👮 PETUGAS: ${personilPangkat} ${personilNama} (NRP: ${personilNrp})`, paddingX, currentY);
 
+    // Baris Tambahan: Objek Dokumentasi (jika tersedia)
+    if (documentTypeName) {
+      currentY += Math.round(baseFontSize * 1.20);
+      ctx.font = `bold ${Math.max(11, Math.round(baseFontSize * 0.90))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
+      ctx.fillStyle = '#FDE047';
+      ctx.fillText(`📄 OBJEK BUKTI: ${documentTypeName}`, paddingX, currentY);
+    }
+
     // Baris 3: Lokasi Terkini Personil (Alamat Riil Personil)
-    currentY += Math.round(baseFontSize * 1.25);
+    currentY += Math.round(baseFontSize * 1.20);
     ctx.font = `normal ${Math.max(11, Math.round(baseFontSize * 0.88))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = '#E2E8F0';
-    const displayAddress = activeAddress || 'Lokasi Terkini Personel (Satelit Presisi)';
+    const displayAddress = locationTypeName
+      ? `${locationTypeName} (${activeAddress || 'Area Terverifikasi'})`
+      : (activeAddress || 'Lokasi Terkini Personel (Satelit Presisi)');
     const maxChars = Math.max(45, Math.round(width / (baseFontSize * 0.58)));
     const cleanAlamat =
       displayAddress.length > maxChars ? displayAddress.substring(0, maxChars - 3) + '...' : displayAddress;
     ctx.fillText(`📍 LOKASI: ${cleanAlamat}`, paddingX, currentY);
 
     // Baris 4: Koordinat GPS Terkini Personel & Timestamp
-    currentY += Math.round(baseFontSize * 1.25);
+    currentY += Math.round(baseFontSize * 1.20);
     ctx.font = `bold ${Math.max(11, Math.round(baseFontSize * 0.88))}px "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace`;
     ctx.fillStyle = '#38BDF8';
     const finalLat = activeLat || 0;
@@ -451,9 +506,12 @@ export default function LiveCameraWatermarkCapture({
     ctx.fillText(`🌐 GPS: Lat ${latStr}, Lng ${lngStr} • ⏱️ ${nowStr}`, paddingX, currentY);
 
     // Baris 5: Catatan Validasi / Deviasi Jarak terhadap TKP
-    currentY += Math.round(baseFontSize * 1.25);
+    currentY += Math.round(baseFontSize * 1.20);
     ctx.font = `bold ${Math.max(11, Math.round(baseFontSize * 0.88))}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
-    if (isDiscrepancy) {
+    if (isFlexibleLocation) {
+      ctx.fillStyle = '#34D399';
+      ctx.fillText(`✓ VALIDASI: Lokasi & Objek BAP Sah Terverifikasi (${locationTypeName || 'Administrasi / Faskes'})`, paddingX, currentY);
+    } else if (isDiscrepancy) {
       ctx.fillStyle = '#F87171';
       ctx.fillText(`⚠️ ANOMALI: Jarak ${distStr} dari TKP (${(resolvedTkpAlamat || 'Lokasi Laporan').slice(0, 32)}...)`, paddingX, currentY);
     } else {
@@ -510,9 +568,6 @@ export default function LiveCameraWatermarkCapture({
       stampWatermarkOnCanvas(ctx, width, height);
 
       const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.90);
-      setCapturedImage(watermarkedDataUrl);
-      stopCameraStream();
-
       const meta = {
         lat: activeLat,
         lng: activeLng,
@@ -521,7 +576,24 @@ export default function LiveCameraWatermarkCapture({
         isDiscrepancy,
         warningMessage: isDiscrepancy ? warningText : undefined,
       };
+
+      setCapturedImage(watermarkedDataUrl);
       setLastPhotoMetadata(meta);
+
+      if (allowMultiple) {
+        const newPhotoItem = {
+          id: `photo_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          dataUrl: watermarkedDataUrl,
+          metadata: meta,
+        };
+        const updated = [...capturedPhotos, newPhotoItem];
+        setCapturedPhotos(updated);
+        if (onPhotosChange) {
+          onPhotosChange(updated);
+        }
+      }
+
+      stopCameraStream();
       onPhotoCaptured(watermarkedDataUrl, meta);
     } catch (err) {
       console.error('Error saat mengambil snapshot:', err);
@@ -534,6 +606,31 @@ export default function LiveCameraWatermarkCapture({
     setLastPhotoMetadata(null);
     startCamera();
   };
+
+  const removePhoto = (id: string) => {
+    const updated = capturedPhotos.filter((p) => p.id !== id);
+    setCapturedPhotos(updated);
+    if (onPhotosChange) {
+      onPhotosChange(updated);
+    }
+    if (updated.length > 0) {
+      const last = updated[updated.length - 1];
+      setCapturedImage(last.dataUrl);
+      setLastPhotoMetadata(last.metadata || null);
+      onPhotoCaptured(last.dataUrl, last.metadata);
+    } else {
+      setCapturedImage(null);
+      setLastPhotoMetadata(null);
+      onPhotoCaptured('', undefined);
+    }
+  };
+
+  const [previewModalItem, setPreviewModalItem] = useState<{
+    id: string;
+    dataUrl: string;
+    metadata?: any;
+    index: number;
+  } | null>(null);
 
   const currentIsDiscrepancy = lastPhotoMetadata ? lastPhotoMetadata.isDiscrepancy : isDiscrepancy;
   const currentAddressDisplay = lastPhotoMetadata ? lastPhotoMetadata.address : activeAddress;
@@ -581,93 +678,137 @@ export default function LiveCameraWatermarkCapture({
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
       {/* ========================================================================= */}
-      {/* TOMBOL SAKLAR KECIL MODE SIMULASI DI ATAS KAMERA                          */}
-      {/* [✓] Gunakan Koordinat Simulasi TKP (Mampang Prapatan)                     */}
-      {/* Saat dicentang: Cetak TKP & Status Hijau                                  */}
-      {/* Saat tidak dicentang: Cetak Tangerang Selatan & Status Merah               */}
+      {/* KONTROL LOKASI: SIMULASI TKP vs LOKASI PENYELESAIAN RESMI                 */}
       {/* ========================================================================= */}
-      <div
-        id="camera-simulation-switch-container"
-        style={{
-          marginBottom: '12px',
-          padding: '10px 14px',
-          background: useSimulatedCoords ? '#ECFDF5' : '#FEF2F2',
-          border: `1.5px solid ${useSimulatedCoords ? '#10B981' : '#F87171'}`,
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '8px',
-          fontSize: '11.5px',
-          transition: 'all 0.25s ease',
-          boxShadow: useSimulatedCoords
-            ? '0 2px 8px rgba(16, 185, 129, 0.12)'
-            : '0 2px 8px rgba(248, 113, 113, 0.12)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '15px' }}>{useSimulatedCoords ? '🟢' : '🔴'}</span>
-          <div>
-            <div style={{ fontWeight: 800, color: useSimulatedCoords ? '#065F46' : '#991B1B' }}>
-              {useSimulatedCoords
-                ? `✓ Simulasi TKP Aktif: Status HIJAU (Terverifikasi di TKP)`
-                : `⚠️ Lokasi Riil Aktif: Status MERAH (Anomali di Luar TKP)`}
-            </div>
-            <div style={{ fontSize: '10.5px', color: useSimulatedCoords ? '#047857' : '#B91C1C', marginTop: '2px' }}>
-              {useSimulatedCoords
-                ? `Kamera mencetak lokasi TKP ${tkpDistrictName} • Jarak: 0 m`
-                : `Kamera mencetak lokasi Tangerang Selatan • Jarak: ${distStr} dari TKP`}
-            </div>
-          </div>
-        </div>
-
-        <label
-          htmlFor="chk-sim-tkp-coords"
+      {requiresStrictTkp !== false ? (
+        <div
+          id="camera-simulation-switch-container"
           style={{
-            display: 'inline-flex',
+            marginBottom: '12px',
+            padding: '10px 14px',
+            background: useSimulatedCoords ? '#ECFDF5' : '#FEF2F2',
+            border: `1.5px solid ${useSimulatedCoords ? '#10B981' : '#F87171'}`,
+            borderRadius: '8px',
+            display: 'flex',
             alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
             gap: '8px',
-            cursor: 'pointer',
-            fontWeight: 800,
-            fontSize: '12px',
-            color: useSimulatedCoords ? '#065F46' : '#991B1B',
-            background: useSimulatedCoords ? '#D1FAE5' : '#FEE2E2',
-            border: `1.5px solid ${useSimulatedCoords ? '#059669' : '#DC2626'}`,
-            padding: '5px 12px',
-            borderRadius: '6px',
-            userSelect: 'none',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            fontSize: '11.5px',
+            transition: 'all 0.25s ease',
+            boxShadow: useSimulatedCoords
+              ? '0 2px 8px rgba(16, 185, 129, 0.12)'
+              : '0 2px 8px rgba(248, 113, 113, 0.12)',
           }}
         >
-          <input
-            type="checkbox"
-            id="chk-sim-tkp-coords"
-            checked={useSimulatedCoords}
-            onChange={(e) => {
-              const checked = e.target.checked;
-              setUseSimulatedCoords(checked);
-              if (checked) {
-                setLiveAddress(resolvedTkpAlamat);
-              } else {
-                setLiveAddress(fallbackRealAddress);
-              }
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '15px' }}>{useSimulatedCoords ? '🟢' : '🔴'}</span>
+            <div>
+              <div style={{ fontWeight: 800, color: useSimulatedCoords ? '#065F46' : '#991B1B' }}>
+                {useSimulatedCoords
+                  ? `✓ Simulasi TKP Aktif: Status HIJAU (Terverifikasi di TKP)`
+                  : `⚠️ Lokasi Riil Aktif: Status MERAH (Anomali di Luar TKP)`}
+              </div>
+              <div style={{ fontSize: '10.5px', color: useSimulatedCoords ? '#047857' : '#B91C1C', marginTop: '2px' }}>
+                {useSimulatedCoords
+                  ? `Kamera mencetak lokasi TKP ${tkpDistrictName} • Jarak: 0 m`
+                  : `Kamera mencetak lokasi Tangerang Selatan • Jarak: ${distStr} dari TKP`}
+              </div>
+            </div>
+          </div>
+
+          <label
+            htmlFor="chk-sim-tkp-coords"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              cursor: 'pointer',
+              fontWeight: 800,
+              fontSize: '12px',
+              color: useSimulatedCoords ? '#065F46' : '#991B1B',
+              background: useSimulatedCoords ? '#D1FAE5' : '#FEE2E2',
+              border: `1.5px solid ${useSimulatedCoords ? '#059669' : '#DC2626'}`,
+              padding: '5px 12px',
+              borderRadius: '6px',
+              userSelect: 'none',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
             }}
-            style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10B981' }}
-          />
-          <span>Gunakan Koordinat Simulasi TKP ({tkpDistrictName})</span>
-        </label>
-      </div>
+          >
+            <input
+              type="checkbox"
+              id="chk-sim-tkp-coords"
+              checked={useSimulatedCoords}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setUseSimulatedCoords(checked);
+                if (checked) {
+                  setLiveAddress(resolvedTkpAlamat);
+                } else {
+                  setLiveAddress(fallbackRealAddress);
+                }
+              }}
+              style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#10B981' }}
+            />
+            <span>Gunakan Koordinat Simulasi TKP ({tkpDistrictName})</span>
+          </label>
+        </div>
+      ) : (
+        <div
+          id="camera-flexible-location-container"
+          style={{
+            marginBottom: '12px',
+            padding: '10px 14px',
+            background: '#F0FDF4',
+            border: '1.5px solid #10B981',
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px',
+            fontSize: '11.5px',
+            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.1)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>🏛️</span>
+            <div>
+              <div style={{ fontWeight: 800, color: '#065F46' }}>
+                Lokasi Penyelesaian Sah: {locationTypeName || 'Administrasi / Non-TKP'}
+              </div>
+              <div style={{ fontSize: '10.5px', color: '#047857', marginTop: '2px' }}>
+                Objek Dokumentasi: <strong>{documentTypeName || 'Dokumentasi BAP'}</strong> • Fleksibilitas GPS aktif (Bukan anomali TKP)
+              </div>
+            </div>
+          </div>
+          <span
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 800,
+              background: '#DCFCE7',
+              color: '#15803D',
+              border: '1px solid #86EFAC',
+              padding: '3px 10px',
+              borderRadius: '12px',
+            }}
+          >
+            ✓ Terverifikasi Sah
+          </span>
+        </div>
+      )}
 
       {/* TAMPILAN 1: BELUM MENGAMBIL FOTO & KAMERA BELUM AKTIF */}
-      {!isCameraActive && !capturedImage && (
+      {!isCameraActive && (allowMultiple ? capturedPhotos.length === 0 : !capturedImage) && (
         <div style={{ textAlign: 'center', padding: '16px', background: '#F8FAFC', border: '1.5px dashed #94A3B8', borderRadius: '8px' }}>
           <div style={{ fontSize: '32px', marginBottom: '6px' }}>📸</div>
           <div style={{ fontWeight: 700, fontSize: '12.5px', color: '#1E293B', marginBottom: '4px' }}>
             Kamera Belum Diaktifkan
           </div>
           <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '12px' }}>
-            Tekan tombol di bawah untuk membuka lensa kamera dan membidik situasi secara langsung.
+            {allowMultiple
+              ? `Tekan tombol di bawah untuk membuka lensa kamera langsung. Anda dapat membidik hingga ${maxPhotos} foto bukti di lokasi.`
+              : 'Tekan tombol di bawah untuk membuka lensa kamera dan membidik situasi secara langsung.'}
           </div>
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button
@@ -697,8 +838,32 @@ export default function LiveCameraWatermarkCapture({
       )}
 
       {/* TAMPILAN 2: STREAM KAMERA AKTIF (VIEWFINDER LIVE) */}
-      {isCameraActive && !capturedImage && (
+      {isCameraActive && (
         <div>
+          {/* Header Indikator Jumlah Foto Multi-Shot */}
+          {allowMultiple && (
+            <div
+              style={{
+                marginBottom: '8px',
+                padding: '6px 12px',
+                background: '#EFF6FF',
+                border: '1px solid #BFDBFE',
+                borderRadius: '6px',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                color: '#1D4ED8',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <span>📸 Membidik Foto #{capturedPhotos.length + 1} (Maksimal {maxPhotos} Foto)</span>
+              <span style={{ fontSize: '11px', color: '#64748B' }}>
+                Tersimpan: <strong>{capturedPhotos.length}</strong> foto
+              </span>
+            </div>
+          )}
+
           {/* KOTAK VIEWFINDER KAMERA (HANYA BERISI VIDEO & WATERMARK OVERLAY) */}
           <div
             style={{
@@ -810,7 +975,7 @@ export default function LiveCameraWatermarkCapture({
               </button>
             </div>
 
-            {/* Preview Teks Watermark di Layar Kamera (pointerEvents: none agar tidak memblokir apapun) */}
+            {/* Preview Teks Watermark di Layar Kamera */}
             <div
               style={{
                 position: 'absolute',
@@ -843,7 +1008,7 @@ export default function LiveCameraWatermarkCapture({
             </div>
           </div>
 
-          {/* BAR TOMBOL KONTROL DI LUAR KOTAK VIEWFINDER (TERPISAH, BEBAS INTERFERENSI, 100% BISA DIKLIK) */}
+          {/* BAR TOMBOL KONTROL */}
           <div
             style={{
               display: 'flex',
@@ -907,8 +1072,8 @@ export default function LiveCameraWatermarkCapture({
         </div>
       )}
 
-      {/* TAMPILAN 3: FOTO BERHASIL DIAMBIL DENGAN WATERMARK */}
-      {capturedImage && (
+      {/* TAMPILAN 3: FOTO TUNGGAL BERHASIL DIAMBIL (MODE SINGLE) */}
+      {!isCameraActive && !allowMultiple && capturedImage && (
         <div>
           <div
             style={{
@@ -1019,6 +1184,312 @@ export default function LiveCameraWatermarkCapture({
             >
               🔄 Ambil Ulang Foto
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* TAMPILAN 4: GALERI MULTI-FOTO KAMERA TERVERIFIKASI (MODE allowMultiple) */}
+      {!isCameraActive && allowMultiple && capturedPhotos.length > 0 && (
+        <div style={{ marginTop: '8px' }}>
+          {/* Header Galeri Multi-Foto */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '10px',
+              padding: '8px 12px',
+              background: '#F0FDF4',
+              border: '1px solid #BBF7D0',
+              borderRadius: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '16px' }}>📸</span>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#166534' }}>
+                  Galeri Bukti Kamera Terverifikasi ({capturedPhotos.length}/{maxPhotos})
+                </div>
+                <div style={{ fontSize: '10.5px', color: '#15803D' }}>
+                  Watermark lokasi satelit terpatri permanen pada setiap foto.
+                </div>
+              </div>
+            </div>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 800,
+                padding: '3px 8px',
+                borderRadius: '6px',
+                background: '#DCFCE7',
+                color: '#15803D',
+                border: '1px solid #86EFAC',
+              }}
+            >
+              {capturedPhotos.length} / {maxPhotos} Foto
+            </span>
+          </div>
+
+          {/* Grid Thumbnail Foto-Foto yang Sudah Dibidik */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+              gap: '12px',
+              marginBottom: '12px',
+            }}
+          >
+            {capturedPhotos.map((item, idx) => {
+              const itemIsDiscrepancy = item.metadata?.isDiscrepancy;
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    background: '#FFFFFF',
+                    border: `1.5px solid ${itemIsDiscrepancy ? '#FCA5A5' : '#CBD5E1'}`,
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    position: 'relative',
+                  }}
+                >
+                  {/* Thumbnail Image Container */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      background: '#0B0F19',
+                      height: '125px',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setPreviewModalItem({ ...item, index: idx })}
+                    title="Klik untuk memperbesar foto berwatermark"
+                  >
+                    <img
+                      src={item.dataUrl}
+                      alt={`Bukti Foto #${idx + 1}`}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                      }}
+                    />
+                    {/* Badge Nomor Foto */}
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '6px',
+                        left: '6px',
+                        background: 'rgba(15, 23, 42, 0.85)',
+                        color: 'white',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(255,255,255,0.25)',
+                      }}
+                    >
+                      #{idx + 1}
+                    </span>
+
+                    {/* Badge Status GPS */}
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: '6px',
+                        right: '6px',
+                        background: itemIsDiscrepancy ? 'rgba(220, 38, 38, 0.9)' : 'rgba(5, 150, 105, 0.9)',
+                        color: 'white',
+                        fontSize: '9.5px',
+                        fontWeight: 800,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      {itemIsDiscrepancy ? '⚠️ Luar TKP' : '✓ GPS Sah'}
+                    </span>
+                  </div>
+
+                  {/* Info Ringkas & Tombol Kontrol */}
+                  <div style={{ padding: '8px 10px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', background: '#F8FAFC' }}>
+                    <div style={{ fontSize: '10px', color: '#475569', marginBottom: '6px', lineHeight: 1.3 }}>
+                      <div style={{ fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        📍 {item.metadata?.address ? item.metadata.address.slice(0, 30) + '...' : 'Lokasi Terverifikasi'}
+                      </div>
+                      <div style={{ fontFamily: 'monospace', color: '#0284C7', fontSize: '9.5px' }}>
+                        Lat: {item.metadata?.lat ? item.metadata.lat.toFixed(4) : '-'}, Lng: {item.metadata?.lng ? item.metadata.lng.toFixed(4) : '-'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewModalItem({ ...item, index: idx })}
+                        style={{
+                          flex: 1,
+                          padding: '4px 6px',
+                          background: '#EFF6FF',
+                          color: '#1D4ED8',
+                          border: '1px solid #BFDBFE',
+                          borderRadius: '5px',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '3px',
+                        }}
+                      >
+                        <span>🔍</span> Perbesar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(item.id)}
+                        style={{
+                          padding: '4px 8px',
+                          background: '#FEF2F2',
+                          color: '#DC2626',
+                          border: '1px solid #FECACA',
+                          borderRadius: '5px',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                        title="Hapus foto ini"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Action Bar Bawah: Tambah Foto Lagi / Batas Tercapai */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '8px', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+            <div style={{ fontSize: '11px', color: '#64748B' }}>
+              🔒 Kamera Langsung Anti-Galeri • {capturedPhotos.length} foto siap dikirim
+            </div>
+
+            {capturedPhotos.length < maxPhotos ? (
+              <button
+                type="button"
+                id="btn-tambah-foto-lagi"
+                onClick={() => startCamera()}
+                style={{
+                  padding: '7px 16px',
+                  background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: 800,
+                  fontSize: '11.5px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 4px rgba(21,62,117,0.2)',
+                }}
+              >
+                <span>➕</span> Bidik Foto Kamera Lagi ({capturedPhotos.length}/{maxPhotos})
+              </button>
+            ) : (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#64748B',
+                  background: '#F1F5F9',
+                  padding: '5px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid #CBD5E1',
+                }}
+              >
+                ✓ Batas maksimal {maxPhotos} foto tercapai
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* LIGHTBOX MODAL: PREVIEW FOTO BERWATERMARK FULL SCREEN */}
+      {previewModalItem && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.88)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setPreviewModalItem(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '92vw',
+              maxHeight: '92vh',
+              background: '#0B0F19',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              border: previewModalItem.metadata?.isDiscrepancy ? '2px solid #EF4444' : '2px solid #10B981',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Modal */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 16px',
+                background: '#0F172A',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>📸</span>
+                <span>Bukti Foto #{previewModalItem.index + 1} (Watermark Presisi Satelit)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewModalItem(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94A3B8',
+                  fontSize: '18px',
+                  fontWeight: 900,
+                  cursor: 'pointer',
+                  padding: '2px 8px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Gambar Watermark Penuh */}
+            <div style={{ overflow: 'auto', maxHeight: 'calc(92vh - 60px)', display: 'flex', justifyContent: 'center', background: '#000000' }}>
+              <img
+                src={previewModalItem.dataUrl}
+                alt={`Detail Foto #${previewModalItem.index + 1}`}
+                style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+              />
+            </div>
           </div>
         </div>
       )}

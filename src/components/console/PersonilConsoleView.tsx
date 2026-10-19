@@ -28,8 +28,13 @@ import {
   logoutAction,
 } from '@/app/actions/auth.actions';
 import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
+import {
+  getMasterResolutionLocationsAction,
+  getMasterResolutionDocumentsAction,
+} from '@/app/actions/master.actions';
 import HeaderProfileBadge from './HeaderProfileBadge';
 import LiveCameraWatermarkCapture from '@/components/LiveCameraWatermarkCapture';
+import { uploadEvidenceMediaAction } from '@/app/actions/upload.actions';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
   ssr: false,
@@ -306,7 +311,7 @@ function PersonilContent({
     const myTasks = initialComplaints.filter((c: any) => hasOfficerAcceptedTask(c));
     return initialActive || (myTasks.length > 0 ? myTasks[0] : null);
   });
-  const [validasiFilter, setValidasiFilter] = useState<'semua' | 'diproses' | 'menunggu_pengesahan'>('diproses');
+  const [validasiFilter, setValidasiFilter] = useState<'semua' | 'diproses' | 'menunggu_pengesahan' | 'selesai'>('diproses');
   const [platformFilter, setPlatformFilter] = useState<'all' | 'sos' | 'warga' | 'layanan110'>('all');
 
   // Logbooks & KPI
@@ -357,6 +362,39 @@ function PersonilContent({
   const [isUpdatingStep, setIsUpdatingStep] = useState(false);
   const activeComplaintRef = useRef<any>(null);
 
+  // Multi-Foto Kamera Langsung (Anti-Galeri) Step 1 & Step 2
+  const [wizardPhotosStep1, setWizardPhotosStep1] = useState<Array<{ id: string; dataUrl: string; metadata?: any }>>([]);
+  const [wizardPhotosStep2, setWizardPhotosStep2] = useState<Array<{ id: string; dataUrl: string; metadata?: any }>>([]);
+
+  // Multi-Media Bukti Penyelesaian (Step 3: Kamera Langsung + Dokumen PDF/DOCX + Video Mediasi + Gambar Lampiran)
+  const [wizardMediaStep3, setWizardMediaStep3] = useState<Array<{
+    id: string;
+    fileUrl: string;
+    fileName: string;
+    fileType: 'KAMERA' | 'DOKUMEN' | 'VIDEO' | 'GAMBAR';
+    caption?: string;
+    fileSize?: number;
+    metadata?: any;
+  }>>([]);
+  const [activeMediaTabStep3, setActiveMediaTabStep3] = useState<'KAMERA' | 'DOKUMEN' | 'VIDEO' | 'GAMBAR'>('KAMERA');
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Modal Lightbox / Viewer Berkas
+  const [viewingMediaModal, setViewingMediaModal] = useState<{
+    url: string;
+    title: string;
+    type?: string;
+    desc?: string;
+  } | null>(null);
+
+  // Master Lokasi & Dokumen Bukti Penyelesaian Step 3
+  const [resolutionLocations, setResolutionLocations] = useState<any[]>([]);
+  const [resolutionDocuments, setResolutionDocuments] = useState<any[]>([]);
+  const [selectedResolutionLocKey, setSelectedResolutionLocKey] = useState<string>('TKP');
+  const [selectedResolutionDocKey, setSelectedResolutionDocKey] = useState<string>('DOKUMENTASI_KONDUSIF');
+  const [customResolutionLocText, setCustomResolutionLocText] = useState<string>('');
+
   // Otomatis sinkronkan tahap wizard saat activeComplaint atau selectedTask berubah
   useEffect(() => {
     const target = activeComplaint || selectedTask;
@@ -383,6 +421,15 @@ function PersonilContent({
     if (status === 'SELESAI' || Boolean(complaint.pengesahanPawas)) return 5;
     if (status === 'MENUNGGU_PENGESAHAN' || status === 'PENANGANAN_TKP') return 5;
     if (tahap >= 5) return 5;
+
+    // Jika tindakan di TKP sudah selesai dicatat (Wizard Step 2 tuntas, melangkah ke Step 3 BAP),
+    // maka langkah 4 (Penanganan di Lokasi) sudah tuntas dan langkah 5 aktif.
+    const isTindakanDone = Boolean(
+      Boolean(complaint.catatanTindakan) ||
+      (complaint.timelines && complaint.timelines.some((t: any) => (t.tahapTitle || '').includes('Tindakan') || (t.tahapTitle || '').includes('TKP') || t.tahapKe >= 3)) ||
+      (complaint.complaintLogs && complaint.complaintLogs.some((l: any) => (l.action || '').includes('Tindakan') || l.action === 'DOKUMENTASI_TKP_FLAGGED'))
+    );
+    if (isTindakanDone) return 5;
 
     // Personel sudah meluncur atau tiba di TKP (Tahap 4)
     if (status === 'MENUJU_TKP' || status === 'TIBA_DI_TKP' || tahap === 4 || complaint.waktuMeluncur) return 4;
@@ -1433,12 +1480,14 @@ function PersonilContent({
     if (masterDataLoadedRef.current) return;
     masterDataLoadedRef.current = true;
     try {
-      const [hOptRes, oRes, filterRes, hRes, fRes] = await Promise.all([
+      const [hOptRes, oRes, filterRes, hRes, fRes, locRes, docRes] = await Promise.all([
         getMasterHotspotOptionsAction(),
         getPoliceOfficesAction(),
         getMasterFilterOptionsAction(),
         getHotspotsAction(),
         getPatrolFleetUnitsAction(),
+        getMasterResolutionLocationsAction(),
+        getMasterResolutionDocumentsAction(),
       ]);
 
       if (hOptRes.success && hOptRes.data) {
@@ -1457,6 +1506,12 @@ function PersonilContent({
       }
       if (fRes.success && fRes.data) {
         setFleetUnits(fRes.data);
+      }
+      if (locRes && locRes.success && locRes.data) {
+        setResolutionLocations(locRes.data);
+      }
+      if (docRes && docRes.success && docRes.data) {
+        setResolutionDocuments(docRes.data);
       }
     } catch (e) {
       console.warn('Load static master data error:', e);
@@ -1554,15 +1609,25 @@ function PersonilContent({
     }
   };
 
-  // 1. Lazy-load master data peta dan logbook hanya saat tab yang membutuhkan dibuka
+  // 1. Lazy-load master data peta, wizard, dan logbook saat tab yang bersangkutan dibuka
   useEffect(() => {
-    if (activeTab === 'view-peta' || showHotspotModal) {
+    if (activeTab === 'view-peta' || activeTab === 'view-wizard' || showHotspotModal) {
       loadStaticMasterData();
     }
     if ((activeTab === 'view-beranda' || activeTab === 'view-log' || activeTab === 'view-kinerja') && logbooks.length === 0) {
       loadData();
     }
   }, [activeTab, showHotspotModal]);
+
+  // Pastikan Master Data Lokasi & Dokumen Penyelesaian selalu termuat
+  useEffect(() => {
+    getMasterResolutionLocationsAction().then((r) => {
+      if (r.success && r.data) setResolutionLocations(r.data);
+    });
+    getMasterResolutionDocumentsAction().then((r) => {
+      if (r.success && r.data) setResolutionDocuments(r.data);
+    });
+  }, []);
 
   useEffect(() => {
     // 2. Direct fetch profile personel dari database resmi HANYA jika belum ada data dari Server Component RSC
@@ -1660,11 +1725,58 @@ function PersonilContent({
     }
   };
 
+  // Helper Upload Berkas Multi-Media Step 3 (Dokumen PDF/Word, Video Mediasi, Gambar Lampiran)
+  const handleFileUploadStep3 = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'DOKUMEN' | 'VIDEO' | 'GAMBAR'
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingMedia(true);
+    setUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await uploadEvidenceMediaAction(formData);
+      if (res.success && res.fileUrl) {
+        const newItem = {
+          id: `media_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          fileUrl: res.fileUrl,
+          fileName: res.fileName || file.name,
+          fileType: type,
+          fileSize: res.fileSize || file.size,
+          caption: `${type === 'DOKUMEN' ? 'Dokumen BAP / Kesepakatan' : type === 'VIDEO' ? 'Video Mediasi Lapangan' : 'Lampiran Bukti'}: ${file.name}`,
+        };
+        setWizardMediaStep3((prev) => [...prev, newItem]);
+        if (!wizardFoto && (type === 'GAMBAR' || type === 'DOKUMEN')) {
+          setWizardFoto(res.fileUrl);
+        }
+      } else {
+        const errMsg = res.error || 'Gagal mengunggah file bukti.';
+        setUploadError(errMsg);
+        alert(`❌ Gagal Mengunggah Berkas:\n${errMsg}`);
+      }
+    } catch (err: any) {
+      const errMsg = err.message || 'Terjadi kesalahan sistem saat mengunggah berkas.';
+      setUploadError(errMsg);
+      alert(`❌ Gagal Mengunggah Berkas:\n${errMsg}`);
+    } finally {
+      setIsUploadingMedia(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeMediaStep3 = (id: string) => {
+    setWizardMediaStep3((prev) => prev.filter((m) => m.id !== id));
+  };
+
   // Handle Wizard Step Submit
   const handleWizardSubmit = async (step: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai') => {
     if (!activeComplaint) return;
 
-    if ((step === 'tiba_tkp' || step === 'tindakan_tkp') && !wizardFoto) {
+    const effectivePhoto = wizardFoto || (wizardPhotosStep2.length > 0 ? wizardPhotosStep2[0].dataUrl : null);
+    if ((step === 'tiba_tkp' || step === 'tindakan_tkp') && !effectivePhoto && wizardPhotosStep2.length === 0) {
       alert('⚠️ WAJIB DOKUMENTASI VISUAL KAMERA: Silakan ambil foto bukti situasi di TKP menggunakan kamera live sebelum menyimpan laporan tindakan.');
       return;
     }
@@ -1674,21 +1786,105 @@ function PersonilContent({
       return;
     }
 
+    if (step === 'selesai' && selectedResolutionLocKey === 'LAINNYA' && !customResolutionLocText.trim()) {
+      alert('⚠️ WAJIB ISI LOKASI LAINNYA: Karena Anda memilih lokasi penyelesaian "Lainnya", mohon isi rincian/alamat lokasi penyelesaian secara spesifik.');
+      return;
+    }
+
     setIsUpdatingStep(true);
     try {
       const activeOfficerId = officer?.id ? String(officer.id) : (session?.userId ? String(session.userId) : '1');
+      const matchedLoc = resolutionLocations.find((l) => l.key === selectedResolutionLocKey);
+      const matchedDoc = resolutionDocuments.find((d) => d.key === selectedResolutionDocKey);
+
+      const finalLocName = step === 'selesai'
+        ? (selectedResolutionLocKey === 'LAINNYA' && customResolutionLocText.trim()
+            ? `Lainnya: ${customResolutionLocText.trim()}`
+            : (matchedLoc?.label || selectedResolutionLocKey))
+        : undefined;
+
+      // Kumpulkan array bukti multi-media per tahapan
+      let stepEvidencesList: any[] | undefined = undefined;
+      if (step === 'meluncur' && wizardPhotosStep1.length > 0) {
+        stepEvidencesList = wizardPhotosStep1.map((p, idx) => ({
+          fileUrl: p.dataUrl,
+          caption: `Foto Keberangkatan Ranmor Siaga #${idx + 1}`,
+          lat: p.metadata?.lat,
+          lng: p.metadata?.lng,
+          isDiscrepancy: p.metadata?.isDiscrepancy,
+        }));
+      } else if (step === 'tiba_tkp' || step === 'tindakan_tkp') {
+        if (wizardPhotosStep2.length > 0) {
+          stepEvidencesList = wizardPhotosStep2.map((p, idx) => ({
+            fileUrl: p.dataUrl,
+            caption: `Dokumentasi Tindakan TKP #${idx + 1}`,
+            watermarkText: p.metadata?.warningMessage || '',
+            lat: p.metadata?.lat,
+            lng: p.metadata?.lng,
+            isDiscrepancy: p.metadata?.isDiscrepancy,
+            deviationMeters: p.metadata?.distanceMeters,
+            photoAddress: p.metadata?.address,
+          }));
+        } else if (wizardFoto) {
+          stepEvidencesList = [{
+            fileUrl: wizardFoto,
+            caption: 'Dokumentasi Tindakan TKP',
+            watermarkText: wizardPhotoMetadata?.warningMessage || '',
+            lat: wizardPhotoMetadata?.lat,
+            lng: wizardPhotoMetadata?.lng,
+            isDiscrepancy: wizardPhotoMetadata?.isDiscrepancy,
+            deviationMeters: wizardPhotoMetadata?.distanceMeters,
+            photoAddress: wizardPhotoMetadata?.address,
+          }];
+        }
+      } else if (step === 'selesai') {
+        if (wizardMediaStep3.length > 0) {
+          stepEvidencesList = wizardMediaStep3.map((m) => ({
+            fileUrl: m.fileUrl,
+            fileType: m.fileType,
+            fileName: m.fileName,
+            caption: m.caption || m.fileName,
+            watermarkText: m.metadata?.warningMessage || '',
+            lat: m.metadata?.lat,
+            lng: m.metadata?.lng,
+            isDiscrepancy: m.metadata?.isDiscrepancy,
+            deviationMeters: m.metadata?.distanceMeters,
+            photoAddress: m.metadata?.address,
+          }));
+        } else if (wizardFoto) {
+          stepEvidencesList = [{
+            fileUrl: wizardFoto,
+            fileType: 'KAMERA',
+            caption: 'Dokumentasi Penyelesaian BAP',
+            watermarkText: wizardPhotoMetadata?.warningMessage || '',
+            lat: wizardPhotoMetadata?.lat,
+            lng: wizardPhotoMetadata?.lng,
+            isDiscrepancy: wizardPhotoMetadata?.isDiscrepancy,
+            deviationMeters: wizardPhotoMetadata?.distanceMeters,
+            photoAddress: wizardPhotoMetadata?.address,
+          }];
+        }
+      }
+
       const res = await fieldStepAction({
         complaintId: activeComplaint.id,
         step,
         officerId: activeOfficerId,
         catatan: wizardCatatan || undefined,
-        fotoBuktiUrl: wizardFoto || undefined,
+        fotoBuktiUrl: effectivePhoto || undefined,
+        evidencesList: stepEvidencesList,
         lat: wizardPhotoMetadata?.lat ?? currentGps.lat,
         lng: wizardPhotoMetadata?.lng ?? currentGps.lng,
         isDiscrepancy: wizardPhotoMetadata?.isDiscrepancy,
         deviationMeters: wizardPhotoMetadata?.distanceMeters,
         warningMessage: wizardPhotoMetadata?.warningMessage,
         photoAddress: wizardPhotoMetadata?.address,
+        resolutionLocationId: step === 'selesai' && matchedLoc ? Number(matchedLoc.id) : undefined,
+        resolutionLocationKey: step === 'selesai' ? (matchedLoc?.key || selectedResolutionLocKey) : undefined,
+        resolutionLocationName: finalLocName,
+        resolutionDocumentId: step === 'selesai' && matchedDoc ? Number(matchedDoc.id) : undefined,
+        resolutionDocumentKey: step === 'selesai' ? (matchedDoc?.key || selectedResolutionDocKey) : undefined,
+        resolutionDocumentName: step === 'selesai' ? (matchedDoc?.label || selectedResolutionDocKey) : undefined,
       });
 
       if (res.success) {
@@ -1701,12 +1897,21 @@ function PersonilContent({
           } else {
             alert('✓ Laporan tindakan dan dokumentasi TKP berhasil disimpan! Melangkah ke pengajuan BAP akhir.');
           }
+        } else if (step === 'selesai') {
+          const locName = finalLocName || 'TKP Kejadian';
+          const docName = matchedDoc?.label || 'Dokumentasi Kondusif';
+          const totalDocs = wizardMediaStep3.length > 0 ? `${wizardMediaStep3.length} Berkas Lampiran` : '1 Bukti';
+          alert(`✓ Berita Acara & Pengajuan BAP Selesai berhasil diajukan ke Pawas!\n📍 Lokasi: ${locName}\n📄 Bukti: ${docName}\n📎 Lampiran: ${totalDocs}`);
+          setCustomResolutionLocText('');
         } else {
           alert(`✓ Status berhasil diperbarui menjadi ${step.toUpperCase().replace('_', ' ')}!`);
         }
         setWizardCatatan('');
         setWizardFoto(null);
         setWizardPhotoMetadata(null);
+        setWizardPhotosStep1([]);
+        setWizardPhotosStep2([]);
+        setWizardMediaStep3([]);
         if (step === 'selesai') {
           await loadData();
           switchTab('view-validasi');
@@ -1810,6 +2015,8 @@ function PersonilContent({
         if (!isDiproses) return false;
       } else if (validasiFilter === 'menunggu_pengesahan') {
         if (status !== 'MENUNGGU_PENGESAHAN') return false;
+      } else if (validasiFilter === 'selesai') {
+        if (status !== 'SELESAI') return false;
       }
       if (platformFilter !== 'all') {
         const p = String(c.platformKey || c.platform_key || c.saluranLaporan || '').toUpperCase();
@@ -2439,11 +2646,18 @@ function PersonilContent({
 
                   {/* Daily Shift Stats Pills */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '12px' }}>
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '7px 4px', textAlign: 'center' }}>
+                    <div
+                      style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '7px 4px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s ease' }}
+                      onClick={() => {
+                        setValidasiFilter('selesai');
+                        switchTab('view-validasi');
+                      }}
+                      title="Klik untuk melihat daftar tugas selesai & ulasan warga"
+                    >
                       <div style={{ fontSize: '15px', fontWeight: 900, color: '#1D4ED8' }}>
                         {tugasSelesaiCount}
                       </div>
-                      <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#64748B', marginTop: '1px' }}>TUGAS SELESAI</div>
+                      <div style={{ fontSize: '8.5px', fontWeight: 800, color: '#64748B', marginTop: '1px' }}>TUGAS SELESAI ➔</div>
                     </div>
                     <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '7px 4px', textAlign: 'center' }}>
                       <div style={{ fontSize: '15px', fontWeight: 900, color: '#059669' }}>{avgResponText}</div>
@@ -3188,6 +3402,16 @@ function PersonilContent({
                     {myAcceptedTasks.filter((c) => c.status === 'MENUNGGU_PENGESAHAN').length}
                   </span>
                 </button>
+                <button
+                  type="button"
+                  className={`val-tab-btn ${validasiFilter === 'selesai' ? 'active' : ''}`}
+                  onClick={() => setValidasiFilter('selesai')}
+                >
+                  Selesai Ditangani{' '}
+                  <span className="val-tab-badge green" style={{ background: '#DCFCE7', color: '#16A34A' }}>
+                    {myAcceptedTasks.filter((c) => c.status === 'SELESAI').length}
+                  </span>
+                </button>
               </div>
 
               {/* Filter Bar Terpadu: Saluran Platform & Kategori Jenis Pengaduan */}
@@ -3288,7 +3512,7 @@ function PersonilContent({
                   color: '#475569',
                 }}
               >
-                Menampilkan: {filteredTasks.length} Data {validasiFilter === 'diproses' ? 'Sedang Ditangani' : validasiFilter === 'menunggu_pengesahan' ? 'Menunggu Pengesahan' : 'Semua Penugasan Saya'}
+                Menampilkan: {filteredTasks.length} Data {validasiFilter === 'diproses' ? 'Sedang Ditangani' : validasiFilter === 'menunggu_pengesahan' ? 'Menunggu Pengesahan' : validasiFilter === 'selesai' ? 'Selesai Ditangani' : 'Semua Penugasan Saya'}
               </div>
 
               {/* Task Content: Full-width Empty State OR Split Layout */}
@@ -3312,6 +3536,8 @@ function PersonilContent({
                         ? 'Tidak Ada Tugas Menunggu Pengesahan'
                         : validasiFilter === 'diproses'
                         ? 'Tidak Ada Tugas Sedang Ditangani'
+                        : validasiFilter === 'selesai'
+                        ? 'Tidak Ada Tugas Selesai Ditangani'
                         : 'Tidak Ada Penugasan Aktif'}
                     </div>
                     <div style={{ fontSize: '12.5px', color: '#64748B', maxWidth: '440px', margin: '0 auto', lineHeight: '1.5' }}>
@@ -3319,6 +3545,8 @@ function PersonilContent({
                         ? 'Saat ini tidak ada laporan yang sedang menunggu verifikasi atau pengesahan BAP dari Pawas.'
                         : validasiFilter === 'diproses'
                         ? 'Saat ini tidak ada penugasan lapangan yang sedang aktif Anda tangani.'
+                        : validasiFilter === 'selesai'
+                        ? 'Belum ada penugasan lapangan Anda yang telah selesai dan disahkan oleh Pawas.'
                         : 'Anda belum mengambil tugas penanganan kasus pada kategori ini. Tiket tugas yang tidak Anda ambil atau yang kuotanya telah dipenuhi oleh personel lain tidak ditampilkan pada daftar tugas Anda.'}
                     </div>
                   </div>
@@ -3423,7 +3651,7 @@ function PersonilContent({
                                     </span>
                                   )}
                                   <span style={{ fontSize: '10px', color: '#64748B', flexShrink: 0 }}>
-                                    {t.waktuLapor ? new Date(t.waktuLapor).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                                    {(t.createdAt || t.created_at || t.waktuLapor) ? new Date(t.createdAt || t.created_at || t.waktuLapor).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB' : 'Hari ini'}
                                   </span>
                                 </div>
                               </div>
@@ -3493,8 +3721,13 @@ function PersonilContent({
                             <span style={{ fontSize: '11px', fontWeight: 700, color: statusColor }}>
                               ● {statusLabel}
                             </span>
+                            {t.status === 'SELESAI' && t.citizenRating ? (
+                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#D97706', background: '#FEF3C7', padding: '1px 6px', borderRadius: '4px' }}>
+                                ⭐ {t.citizenRating}/5
+                              </span>
+                            ) : null}
                             <span style={{ fontSize: '11px', fontWeight: 800, color: '#153E75' }}>
-                              {t.status === 'MENUNGGU_PENGESAHAN' ? 'Menunggu Pengesahan Pawas ➔' : 'Rincian Pelacakan ➔'}
+                              {t.status === 'MENUNGGU_PENGESAHAN' ? 'Menunggu Pengesahan Pawas ➔' : t.status === 'SELESAI' ? 'Rincian Penutupan ➔' : 'Rincian Pelacakan ➔'}
                             </span>
                           </div>
                         </div>
@@ -3721,7 +3954,7 @@ function PersonilContent({
                           <div style={{ textAlign: 'right' }}>
                             <div className="incident-meta-label">Waktu Lapor</div>
                             <div className="incident-meta-val" style={{ fontSize: '12px' }}>
-                              {selectedTask.waktuLapor ? new Date(selectedTask.waktuLapor).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini, 13:05 WIB'}
+                              {(selectedTask.createdAt || selectedTask.created_at || selectedTask.waktuLapor) ? `${new Date(selectedTask.createdAt || selectedTask.created_at || selectedTask.waktuLapor).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })}, ${new Date(selectedTask.createdAt || selectedTask.created_at || selectedTask.waktuLapor).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB` : 'Baru saja'}
                             </div>
                           </div>
                         </div>
@@ -3783,15 +4016,82 @@ function PersonilContent({
                       {(() => {
                         const currentTahap = getComplaintTahap(selectedTask);
                         const isCaseFinished = selectedTask.status === 'SELESAI' || Boolean(selectedTask.pengesahanPawas);
-                        const tanggalKasus = selectedTask.waktuLapor || selectedTask.created_at
-                          ? new Date(selectedTask.waktuLapor || selectedTask.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-                          : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-                        const waktuKasus = selectedTask.waktuLapor || selectedTask.created_at
-                          ? new Date(selectedTask.waktuLapor || selectedTask.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
-                          : '10:45 WIB';
+
+                        const formatTanggalKasus = (dateInput: any, fallbackInput?: any): string => {
+                          const d = dateInput || fallbackInput;
+                          if (!d) return '';
+                          try {
+                            const dt = new Date(d);
+                            if (isNaN(dt.getTime())) return '';
+                            return dt.toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              timeZone: 'Asia/Jakarta',
+                            });
+                          } catch (_) {
+                            return '';
+                          }
+                        };
+
+                        const formatWaktuKasus = (dateInput: any, fallbackStr?: string): string => {
+                          if (fallbackStr && typeof fallbackStr === 'string' && fallbackStr.includes('WIB')) return fallbackStr;
+                          const d = dateInput;
+                          if (!d) return fallbackStr || '';
+                          try {
+                            const dt = new Date(d);
+                            if (isNaN(dt.getTime())) return fallbackStr || '';
+                            return dt.toLocaleTimeString('id-ID', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              timeZone: 'Asia/Jakarta',
+                            }) + ' WIB';
+                          } catch (_) {
+                            return fallbackStr || '';
+                          }
+                        };
+
+                        // 1. Step 1 (Laporan Masuk)
+                        const laporDate = selectedTask.createdAt || selectedTask.created_at || selectedTask.waktuLapor;
+                        const tanggalStep1 = formatTanggalKasus(laporDate);
+                        const waktuStep1 = formatWaktuKasus(laporDate);
+
+                        // 2. Step 2 (Disposisi Personel)
+                        const disposisiDate = selectedTask.disposisiAt || selectedTask.dispatches?.[0]?.dispatched_at || laporDate;
+                        const tanggalStep2 = formatTanggalKasus(disposisiDate, tanggalStep1);
+                        const waktuStep2 = formatWaktuKasus(disposisiDate, waktuStep1);
+
+                        // 3. Step 3 (Personel Meluncur)
+                        const meluncurDate = selectedTask.dispatches?.[0]?.departed_at || selectedTask.timelines?.find((t: any) => (t.tahapTitle || '').includes('Meluncur'))?.createdAt || disposisiDate;
+                        const tanggalStep3 = formatTanggalKasus(meluncurDate, tanggalStep2);
+                        const waktuStep3 = getTaskWaktuMeluncur(selectedTask) || selectedTask.waktuMeluncur || formatWaktuKasus(meluncurDate, waktuStep2);
+
+                        // 4. Step 4 (Tiba di TKP & Penanganan)
+                        const tibaDate = selectedTask.responTibaTkpAt || selectedTask.dispatches?.[0]?.arrived_at || selectedTask.timelines?.find((t: any) => (t.tahapTitle || '').includes('Tiba'))?.createdAt || disposisiDate;
+                        const tanggalStep4 = formatTanggalKasus(tibaDate, tanggalStep2);
+                        const waktuStep4 = getTaskWaktuTiba(selectedTask) || selectedTask.waktuTiba || formatWaktuKasus(tibaDate, waktuStep3);
+
+                        // 5. Step 5 (Penyelesaian & Pengesahan BAP)
+                        const logBap = (selectedTask.complaintLogs || []).slice().reverse().find((l: any) => (l.action || '').includes('BAP') || (l.action || '').includes('Selesai'));
+                        const selesaiDate = selectedTask.waktuSelesaiDate || selectedTask.selesaiAt || selectedTask.dispatches?.[0]?.completed_at || logBap?.created_at || tibaDate;
+                        const tanggalStep5 = formatTanggalKasus(selesaiDate, tanggalStep4);
+                        const waktuStep5 = getTaskWaktuSelesai(selectedTask) || selectedTask.waktuSelesai || selectedTask.pengesahanPawas?.waktu || (logBap?.created_at ? formatWaktuKasus(logBap.created_at) : waktuStep4);
+
+                        const tanggalKasus = tanggalStep1 || tanggalStep4 || new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' });
+                        const waktuKasus = waktuStep1 || waktuStep4 || '12:00 WIB';
 
                         const getStepState = (stepNum: number): 'completed' | 'active' | 'locked' => {
-                          if (isCaseFinished || stepNum < currentTahap || (stepNum === 5 && (selectedTask.waktuSelesai || selectedTask.catatanSelesai))) {
+                          if (
+                            isCaseFinished ||
+                            stepNum < currentTahap ||
+                            (stepNum === 5 && (
+                              selectedTask.status === 'MENUNGGU_PENGESAHAN' ||
+                              selectedTask.status === 'SELESAI' ||
+                              Boolean(selectedTask.waktuSelesai) ||
+                              Boolean(selectedTask.catatanSelesai) ||
+                              Boolean(selectedTask.pengesahanPawas)
+                            ))
+                          ) {
                             return 'completed';
                           }
                           if (stepNum === currentTahap) {
@@ -3800,7 +4100,14 @@ function PersonilContent({
                           return 'locked';
                         };
 
-                        const renderBadge = (type: 'completed' | 'active' | 'locked') => {
+                        const renderBadge = (type: 'completed' | 'active' | 'locked', stepNum?: number) => {
+                          if (stepNum === 5 && selectedTask.status === 'MENUNGGU_PENGESAHAN') {
+                            return (
+                              <span style={{ fontSize: '10px', color: '#7C3AED', fontWeight: 700, background: '#F5F3FF', border: '1px solid #DDD6FE', padding: '2px 6px', borderRadius: '4px' }}>
+                                ✓ MENUNGGU PENGESAHAN PAWAS
+                              </span>
+                            );
+                          }
                           if (type === 'completed') {
                             return (
                               <span style={{ fontSize: '10px', color: '#16A34A', fontWeight: 700, background: '#ECFDF5', padding: '2px 6px', borderRadius: '4px' }}>
@@ -3848,10 +4155,10 @@ function PersonilContent({
                                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
                                     <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                      <span>📅</span> {tanggalKasus}
+                                      <span>📅</span> {tanggalStep1 || tanggalKasus}
                                     </span>
                                     <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                      Laporan Masuk: {waktuKasus}
+                                      Laporan Masuk: {waktuStep1 || waktuKasus}
                                     </span>
                                   </div>
                                   <span
@@ -3874,7 +4181,7 @@ function PersonilContent({
                                         setLightboxFoto({
                                           src: selectedTask.fotoBuktiUrl,
                                           title: `Bukti Laporan 110 - ${selectedTask.nomorTiket}`,
-                                          meta: `${tanggalKasus} • ${selectedTask.tkpAlamatTeks || ''}`,
+                                          meta: `${tanggalStep1 || tanggalKasus} • ${selectedTask.tkpAlamatTeks || ''}`,
                                         });
                                       } else {
                                         alert('Pelapor tidak menyertakan foto bukti saat membuat tiket laporan 110 ini.');
@@ -3898,7 +4205,7 @@ function PersonilContent({
                               <div className="step-content">
                                 <div className="step-title">
                                   <span>2. Disposisi Personel</span>
-                                  {renderBadge(s2State)}
+                                  {renderBadge(s2State, 2)}
                                 </div>
                                 <div className="step-desc">
                                   Tugas penanganan telah diserahkan kepada unit terdekat dari lokasi kejadian.
@@ -3906,10 +4213,10 @@ function PersonilContent({
                                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
                                     <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                      <span>📅</span> {tanggalKasus}
+                                      <span>📅</span> {tanggalStep2 || tanggalKasus}
                                     </span>
                                     <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                      Disposisi Pawas: {selectedTask.disposisiAt ? new Date(selectedTask.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : waktuKasus}
+                                      Disposisi Pawas: {waktuStep2 || waktuKasus}
                                     </span>
                                   </div>
                                 </div>
@@ -3929,7 +4236,7 @@ function PersonilContent({
                               <div className="step-content">
                                 <div className="step-title">
                                   <span>3. Personel Menuju Lokasi</span>
-                                  {renderBadge(s3State)}
+                                  {renderBadge(s3State, 3)}
                                 </div>
                                 <div className="step-desc">
                                   Tim sedang meluncur ke lokasi kejadian. Harap tetap tenang dan amankan lokasi.
@@ -3942,7 +4249,7 @@ function PersonilContent({
                                         (selectedTask.evidences || []).find(
                                           (e: any) => e.incident_phase === 'MENUJU_TKP' || (e.caption || '').includes('Meluncur') || (e.caption || '').includes('Persiapan')
                                         )?.file_url;
-                                      const depTime = getTaskWaktuMeluncur(selectedTask) || selectedTask.waktuMeluncur || waktuKasus;
+                                      const depTime = waktuStep3;
                                       const depGps = getTaskKoordinatGps(selectedTask) || selectedTask.koordinatGps || `${currentGps.lat}, ${currentGps.lng}`;
                                       const depAddress = getTaskAlamatKeberangkatan(selectedTask, depGps);
                                       const etaText = getTaskEtaText(selectedTask) || '± 25-30 Menit';
@@ -3952,7 +4259,7 @@ function PersonilContent({
                                           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
                                               <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                                <span>📅</span> {tanggalKasus}
+                                                <span>📅</span> {tanggalStep3 || tanggalKasus}
                                               </span>
                                               <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
                                                 Meluncur: {depTime}
@@ -4278,7 +4585,7 @@ function PersonilContent({
                               <div className="step-content">
                                 <div className="step-title">
                                   <span>4. Penanganan di Lokasi</span>
-                                  {renderBadge(s4State)}
+                                  {renderBadge(s4State, 4)}
                                 </div>
                                 <div className="step-desc">
                                   Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.
@@ -4286,75 +4593,168 @@ function PersonilContent({
                                 {s4State === 'completed' || (s4State === 'active' && selectedTask.waktuTiba) ? (
                                   <>
                                     {(() => {
+                                      const step4Evidences: any[] = (selectedTask.evidences || []).filter(
+                                        (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption || '').toLowerCase().includes('tindakan') || (e.caption || '').toLowerCase().includes('tiba')
+                                      );
                                       const resolvedFotoTindakan =
                                         selectedTask.fotoTindakan ||
                                         selectedTask.fotoTiba ||
-                                        (selectedTask.evidences || []).find(
-                                          (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption || '').includes('Tindakan') || (e.caption || '').includes('Tiba')
-                                        )?.file_url;
-                                      const tibaTime = getTaskWaktuTiba(selectedTask) || selectedTask.waktuTiba || waktuKasus;
+                                        step4Evidences[0]?.file_url;
+                                      const tibaTime = waktuStep4;
 
                                       return (
-                                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
-                                            <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                              <span>📅</span> {tanggalKasus}
-                                            </span>
-                                            <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                              Tiba: {tibaTime}
-                                            </span>
+                                        <div style={{ marginTop: '8px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
+                                              <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                <span>📅</span> {tanggalStep4 || tanggalKasus}
+                                              </span>
+                                              <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
+                                                Tiba: {tibaTime}
+                                              </span>
+                                            </div>
+                                            {step4Evidences.length > 0 ? (
+                                              <span
+                                                style={{
+                                                  fontSize: '10px',
+                                                  fontWeight: 700,
+                                                  color: '#16A34A',
+                                                  background: '#ECFDF5',
+                                                  border: '1px solid #A7F3D0',
+                                                  padding: '3px 8px',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setLightboxFoto({
+                                                    src: step4Evidences[0].file_url,
+                                                    title: `Bukti Tindakan TKP (1/${step4Evidences.length}) - ${selectedTask.nomorTiket}`,
+                                                    meta: `Tiba: ${tibaTime} • ${step4Evidences[0].watermark_text || selectedTask.tkpAlamatTeks || ''}`,
+                                                  });
+                                                }}
+                                                title="Klik untuk lihat bukti foto tindakan"
+                                              >
+                                                📸 {step4Evidences.length} Foto Tindakan TKP ➔
+                                              </span>
+                                            ) : resolvedFotoTindakan ? (
+                                              <span
+                                                style={{
+                                                  fontSize: '10px',
+                                                  fontWeight: 700,
+                                                  color: '#16A34A',
+                                                  background: '#ECFDF5',
+                                                  border: '1px solid #A7F3D0',
+                                                  padding: '3px 8px',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setLightboxFoto({
+                                                    src: resolvedFotoTindakan,
+                                                    title: `Bukti Tindakan TKP - ${selectedTask.nomorTiket}`,
+                                                    meta: `Tiba: ${tibaTime} • ${selectedTask.tkpAlamatTeks || ''}`,
+                                                  });
+                                                }}
+                                                title="Klik untuk lihat bukti foto tindakan"
+                                              >
+                                                📸 Bukti Tindakan TKP ➔
+                                              </span>
+                                            ) : (
+                                              <span
+                                                style={{
+                                                  fontSize: '9.5px',
+                                                  color: '#64748B',
+                                                  background: '#F1F5F9',
+                                                  padding: '2px 6px',
+                                                  borderRadius: '4px',
+                                                }}
+                                              >
+                                                Menunggu Foto Tindakan
+                                              </span>
+                                            )}
                                           </div>
-                                          {resolvedFotoTindakan ? (
-                                            <span
-                                              style={{
-                                                fontSize: '10px',
-                                                fontWeight: 700,
-                                                color: '#16A34A',
-                                                background: '#ECFDF5',
-                                                border: '1px solid #A7F3D0',
-                                                padding: '3px 8px',
-                                                borderRadius: '4px',
-                                                cursor: 'pointer',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                              }}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setLightboxFoto({
-                                                  src: resolvedFotoTindakan,
-                                                  title: `Bukti Tindakan TKP - ${selectedTask.nomorTiket}`,
-                                                  meta: `Tiba: ${tibaTime} • ${selectedTask.tkpAlamatTeks || ''}`,
-                                                });
-                                              }}
-                                              title="Klik untuk lihat bukti foto tindakan"
-                                            >
-                                              📸 Bukti Tindakan TKP ➔
-                                            </span>
-                                          ) : (
-                                            <span
-                                              style={{
-                                                fontSize: '9.5px',
-                                                color: '#64748B',
-                                                background: '#F1F5F9',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px',
-                                              }}
-                                            >
-                                              Menunggu Foto Tindakan
-                                            </span>
+
+                                          {/* Strip Galeri Foto Tindakan TKP jika ada multi-foto */}
+                                          {step4Evidences.length > 0 && (
+                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
+                                              {step4Evidences.map((ev: any, idx: number) => (
+                                                <div
+                                                  key={ev.id || idx}
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setLightboxFoto({
+                                                      src: ev.file_url,
+                                                      title: `Foto Tindakan #${idx + 1} - ${selectedTask.nomorTiket}`,
+                                                      meta: `Tiba: ${tibaTime} • ${ev.watermark_text || selectedTask.tkpAlamatTeks || ''}`,
+                                                    });
+                                                  }}
+                                                  style={{
+                                                    position: 'relative',
+                                                    width: '42px',
+                                                    height: '42px',
+                                                    borderRadius: '6px',
+                                                    overflow: 'hidden',
+                                                    border: '1.5px solid #10B981',
+                                                    cursor: 'pointer',
+                                                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                  }}
+                                                  title={`Klik untuk memperbesar Foto #${idx + 1} (${ev.caption || 'Tindakan TKP'})`}
+                                                >
+                                                  <img
+                                                    src={ev.file_url}
+                                                    alt={`Foto Tindakan ${idx + 1}`}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                  />
+                                                  <span style={{
+                                                    position: 'absolute',
+                                                    bottom: 0,
+                                                    right: 0,
+                                                    background: 'rgba(0,0,0,0.65)',
+                                                    color: 'white',
+                                                    fontSize: '8px',
+                                                    fontWeight: 800,
+                                                    padding: '0 3px',
+                                                    borderTopLeftRadius: '3px',
+                                                  }}>
+                                                    #{idx + 1}
+                                                  </span>
+                                                </div>
+                                              ))}
+                                            </div>
                                           )}
                                         </div>
                                       );
                                     })()}
-                                    <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
-                                      <div style={{ fontSize: '11px', color: '#1E293B' }}>&quot;{selectedTask.deskripsiTindakan || selectedTask.ringkasanKeterangan || 'Petugas telah tiba di TKP. Melakukan pengamanan perimeter dan tindakan kepolisian presisi sesuai SOP.'}&quot;</div>
-                                    </div>
+                                    {(() => {
+                                      const rawTindakan =
+                                        selectedTask.catatanTindakan ||
+                                        (selectedTask.timelines || []).slice().reverse().find((t: any) => ((t.tahapTitle || '').includes('Tindakan') || (t.tahapTitle || '').includes('TKP')) && t.catatan)?.catatan ||
+                                        (selectedTask.complaintLogs || []).slice().reverse().find((l: any) => ((l.action || '').includes('Tindakan') || (l.action || '').includes('TKP')) && l.notes)?.notes ||
+                                        selectedTask.deskripsiTindakan;
+
+                                      const cleanTindakan = rawTindakan
+                                        ? rawTindakan.replace(/^Catatan:\s*/i, '').trim()
+                                        : 'Petugas telah tiba di TKP. Melakukan pengamanan perimeter dan tindakan kepolisian presisi sesuai SOP.';
+
+                                      return (
+                                        <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                                          <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
+                                          <div style={{ fontSize: '11px', color: '#1E293B' }}>&quot;{cleanTindakan}&quot;</div>
+                                        </div>
+                                      );
+                                    })()}
                                   </>
                                 ) : (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2, marginTop: '8px' }}>
-                                    <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600 }}>📅 {tanggalKasus}</span>
+                                    <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 600 }}>📅 {tanggalStep4 || tanggalKasus}</span>
                                     <span className="step-time" style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: '11px' }}>
                                       Menunggu Personel Tiba di TKP
                                     </span>
@@ -4373,80 +4773,253 @@ function PersonilContent({
                               <div className="step-content">
                                 <div className="step-title">
                                   <span>5. Kasus Selesai Ditangani</span>
-                                  {renderBadge(s5State)}
+                                  {renderBadge(s5State, 5)}
                                 </div>
                                 <div className="step-desc">
                                   Penanganan selesai dan log telah disetujui oleh pimpinan.
                                 </div>
-                                {s5State === 'completed' || s5State === 'active' ? (
+                                {s5State === 'completed' || selectedTask.status === 'SELESAI' || selectedTask.status === 'MENUNGGU_PENGESAHAN' || Boolean(selectedTask.catatanSelesai) ? (
                                   <>
                                     {(() => {
+                                      const step5Evidences: any[] = (selectedTask.evidences || []).filter(
+                                        (e: any) =>
+                                          e.incident_phase === 'SELESAI_KONDUSIF' ||
+                                          e.incident_phase === 'SELESAI' ||
+                                          (e.caption || '').toLowerCase().includes('selesai') ||
+                                          (e.caption || '').toLowerCase().includes('bap') ||
+                                          (e.caption || '').toLowerCase().includes('mediasi') ||
+                                          (e.caption || '').toLowerCase().includes('kondusif')
+                                      );
                                       const resolvedFotoSelesai =
                                         selectedTask.fotoSelesai ||
-                                        (selectedTask.evidences || []).find(
-                                          (e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || (e.caption || '').includes('Selesai')
-                                        )?.file_url;
+                                        step5Evidences.find((e: any) => !e.file_url?.match(/\.(pdf|doc|docx|mp4|webm|mov)$/i))?.file_url;
 
-                                      const selesaiTime = getTaskWaktuSelesai(selectedTask) || selectedTask.waktuSelesai || selectedTask.pengesahanPawas?.waktu || waktuKasus;
+                                      const selesaiTime = waktuStep5;
 
                                       return (
-                                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
-                                            <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                              <span>📅</span> {tanggalKasus}
-                                            </span>
-                                            <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                              {selectedTask.pengesahanPawas ? 'Disahkan: ' : 'Selesai: '}{selesaiTime}
-                                            </span>
+                                        <div style={{ marginTop: '8px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
+                                              <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                <span>📅</span> {tanggalStep5 || tanggalKasus}
+                                              </span>
+                                              <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
+                                                {selectedTask.pengesahanPawas ? 'Disahkan: ' : 'Selesai: '}{selesaiTime}
+                                              </span>
+                                            </div>
+                                            {step5Evidences.length > 0 ? (
+                                              <span
+                                                style={{
+                                                  fontSize: '10px',
+                                                  fontWeight: 700,
+                                                  color: '#16A34A',
+                                                  background: '#ECFDF5',
+                                                  border: '1px solid #A7F3D0',
+                                                  padding: '3px 8px',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  const firstMedia = step5Evidences[0];
+                                                  if (firstMedia.file_url?.match(/\.(pdf|doc|docx)$/i)) {
+                                                    window.open(firstMedia.file_url, '_blank');
+                                                  } else {
+                                                    setViewingMediaModal({
+                                                      url: firstMedia.file_url,
+                                                      title: firstMedia.caption || 'Berkas Bukti Selesai',
+                                                      desc: `Selesai: ${selesaiTime}`,
+                                                      type: firstMedia.file_url?.match(/\.(mp4|webm|mov)$/i) ? 'VIDEO' : 'GAMBAR',
+                                                    });
+                                                  }
+                                                }}
+                                                title="Klik untuk lihat berkas bukti penyelesaian akhir"
+                                              >
+                                                📎 {step5Evidences.length} Berkas Bukti Selesai ➔
+                                              </span>
+                                            ) : resolvedFotoSelesai ? (
+                                              <span
+                                                style={{
+                                                  fontSize: '10px',
+                                                  fontWeight: 700,
+                                                  color: '#16A34A',
+                                                  background: '#ECFDF5',
+                                                  border: '1px solid #A7F3D0',
+                                                  padding: '3px 8px',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setLightboxFoto({
+                                                    src: resolvedFotoSelesai,
+                                                    title: `Bukti Situasi Akhir - ${selectedTask.nomorTiket}`,
+                                                    meta: `Selesai: ${selesaiTime}`,
+                                                  });
+                                                }}
+                                                title="Klik untuk lihat bukti foto penyelesaian akhir"
+                                              >
+                                                ✅ Bukti Situasi Akhir ➔
+                                              </span>
+                                            ) : (
+                                              <span
+                                                style={{
+                                                  fontSize: '9.5px',
+                                                  color: '#16A34A',
+                                                  fontWeight: 700,
+                                                  background: '#ECFDF5',
+                                                  padding: '2px 6px',
+                                                  borderRadius: '4px',
+                                                }}
+                                              >
+                                                ✓ Kondusif
+                                              </span>
+                                            )}
                                           </div>
-                                          {resolvedFotoSelesai ? (
-                                            <span
-                                              style={{
-                                                fontSize: '10px',
-                                                fontWeight: 700,
-                                                color: '#16A34A',
-                                                background: '#ECFDF5',
-                                                border: '1px solid #A7F3D0',
-                                                padding: '3px 8px',
-                                                borderRadius: '4px',
-                                                cursor: 'pointer',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                              }}
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                setLightboxFoto({
-                                                  src: resolvedFotoSelesai,
-                                                  title: `Bukti Situasi Akhir - ${selectedTask.nomorTiket}`,
-                                                  meta: `Selesai: ${selesaiTime}`,
-                                                });
-                                              }}
-                                              title="Klik untuk lihat bukti foto penyelesaian akhir"
-                                            >
-                                              ✅ Bukti Situasi Akhir ➔
-                                            </span>
-                                          ) : (
-                                            <span
-                                              style={{
-                                                fontSize: '9.5px',
-                                                color: '#16A34A',
-                                                fontWeight: 700,
-                                                background: '#ECFDF5',
-                                                padding: '2px 6px',
-                                                borderRadius: '4px',
-                                              }}
-                                            >
-                                              ✓ Kondusif
-                                            </span>
+
+                                          {/* Strip Galeri Multi-Media Bukti Penyelesaian (Dokumen, Video, Gambar) */}
+                                          {step5Evidences.length > 0 && (
+                                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
+                                              {step5Evidences.map((ev: any, idx: number) => {
+                                                const isDoc = ev.file_url?.match(/\.(pdf|doc|docx)$/i);
+                                                const isVid = ev.file_url?.match(/\.(mp4|webm|mov)$/i);
+
+                                                if (isDoc) {
+                                                  return (
+                                                    <a
+                                                      key={ev.id || idx}
+                                                      href={ev.file_url}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                      onClick={(e) => e.stopPropagation()}
+                                                      style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '5px',
+                                                        padding: '4px 8px',
+                                                        background: '#F5F3FF',
+                                                        border: '1px solid #DDD6FE',
+                                                        borderRadius: '6px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 700,
+                                                        color: '#6D28D9',
+                                                        textDecoration: 'none',
+                                                      }}
+                                                      title="Buka Dokumen BAP (PDF / DOCX)"
+                                                    >
+                                                      <span>📄</span>
+                                                      <span>{ev.caption || 'Dokumen BAP (PDF)'}</span>
+                                                      <span style={{ fontSize: '9px' }}>↗</span>
+                                                    </a>
+                                                  );
+                                                }
+
+                                                if (isVid) {
+                                                  return (
+                                                    <button
+                                                      key={ev.id || idx}
+                                                      type="button"
+                                                      onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setViewingMediaModal({
+                                                          url: ev.file_url,
+                                                          title: ev.caption || 'Video Mediasi Lapangan',
+                                                          type: 'VIDEO',
+                                                          desc: `Direkam pada penanganan kasus ${selectedTask.nomorTiket}`,
+                                                        });
+                                                      }}
+                                                      style={{
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '5px',
+                                                        padding: '4px 8px',
+                                                        background: '#FFFBEB',
+                                                        border: '1px solid #FDE68A',
+                                                        borderRadius: '6px',
+                                                        fontSize: '10px',
+                                                        fontWeight: 700,
+                                                        color: '#B45309',
+                                                        cursor: 'pointer',
+                                                      }}
+                                                      title="Putar Video Mediasi"
+                                                    >
+                                                      <span>🎥</span>
+                                                      <span>{ev.caption || 'Video Mediasi'}</span>
+                                                      <span style={{ fontSize: '9px' }}>▶</span>
+                                                    </button>
+                                                  );
+                                                }
+
+                                                return (
+                                                  <div
+                                                    key={ev.id || idx}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      setLightboxFoto({
+                                                        src: ev.file_url,
+                                                        title: `Bukti Foto Penyelesaian #${idx + 1} - ${selectedTask.nomorTiket}`,
+                                                        meta: `Selesai: ${selesaiTime} • ${ev.watermark_text || selectedTask.tkpAlamatTeks || ''}`,
+                                                      });
+                                                    }}
+                                                    style={{
+                                                      position: 'relative',
+                                                      width: '42px',
+                                                      height: '42px',
+                                                      borderRadius: '6px',
+                                                      overflow: 'hidden',
+                                                      border: '1.5px solid #10B981',
+                                                      cursor: 'pointer',
+                                                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                    }}
+                                                    title={`Foto #${idx + 1}: ${ev.caption || 'Bukti Situasi'} (Klik perbesar)`}
+                                                  >
+                                                    <img
+                                                      src={ev.file_url}
+                                                      alt={`Bukti Selesai ${idx + 1}`}
+                                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    />
+                                                    <span style={{
+                                                      position: 'absolute',
+                                                      bottom: 0,
+                                                      right: 0,
+                                                      background: 'rgba(0,0,0,0.65)',
+                                                      color: 'white',
+                                                      fontSize: '8px',
+                                                      fontWeight: 800,
+                                                      padding: '0 3px',
+                                                      borderTopLeftRadius: '3px',
+                                                    }}>
+                                                      #{idx + 1}
+                                                    </span>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
                                           )}
                                         </div>
                                       );
                                     })()}
-                                    <div style={{ background: '#ECFDF5', borderLeft: '3px solid #10B981', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                      <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857', marginBottom: '2px' }}>✓ LAPORAN AKHIR PETUGAS:</div>
-                                      <div style={{ fontSize: '11px', color: '#1E293B' }}>&quot;{selectedTask.catatanSelesai || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.'}&quot;</div>
-                                    </div>
+                                    {(() => {
+                                      const rawFinalCatatan =
+                                        selectedTask.catatanSelesai ||
+                                        (selectedTask.timelines || []).slice().reverse().find((t: any) => ((t.tahapTitle || '').includes('BAP') || (t.tahapTitle || '').includes('Selesai')) && t.catatan)?.catatan ||
+                                        (selectedTask.complaintLogs || []).slice().reverse().find((l: any) => ((l.action || '').includes('BAP') || (l.action || '').includes('Selesai')) && l.notes)?.notes ||
+                                        selectedTask.catatanTindakan;
+                                      const cleanFinalCatatan = rawFinalCatatan ? rawFinalCatatan.replace(/^Catatan:\s*/i, '').trim() : 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.';
+
+                                      return (
+                                        <div style={{ background: '#ECFDF5', borderLeft: '3px solid #10B981', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                                          <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857', marginBottom: '2px' }}>✓ LAPORAN AKHIR PETUGAS:</div>
+                                          <div style={{ fontSize: '11px', color: '#1E293B' }}>&quot;{cleanFinalCatatan}&quot;</div>
+                                        </div>
+                                      );
+                                    })()}
                                     {selectedTask.pengesahanPawas ? (
                                       <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderLeft: '4px solid #16A34A', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4454,7 +5027,7 @@ function PersonilContent({
                                           <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
                                         </div>
                                         <div style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px' }}>
-                                          <strong>Pengesah:</strong> {selectedTask.pengesahanPawas.aktor || 'AKP Eko Susanto, S.I.K.'} • <strong>Waktu:</strong> {selectedTask.pengesahanPawas.waktu || getTaskWaktuSelesai(selectedTask) || selectedTask.waktuSelesai || waktuKasus}
+                                          <strong>Pengesah:</strong> {selectedTask.pengesahanPawas.aktor || 'AKP Eko Susanto, S.I.K.'} • <strong>Waktu:</strong> {selectedTask.pengesahanPawas.waktu || waktuStep5}
                                         </div>
                                         <div style={{ fontSize: '11px', color: '#1E293B', fontStyle: 'italic', marginTop: '2px' }}>
                                           &quot;{selectedTask.pengesahanPawas.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}&quot;
@@ -4471,12 +5044,60 @@ function PersonilContent({
                                         </div>
                                       </div>
                                     ) : null}
+
+                                    {/* Penilaian Warga (Hanya muncul jika kasus selesai) */}
+                                    {selectedTask.status === 'SELESAI' && (
+                                      selectedTask.citizenRating ? (
+                                        <div style={{ marginTop: '8px', background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: '8px', padding: '12px', boxShadow: '0 2px 6px rgba(245,158,11,0.08)' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                              ⭐ Penilaian Warga (Portal 110)
+                                            </span>
+                                            <span style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
+                                              {'★'.repeat(selectedTask.citizenRating)}{'☆'.repeat(5 - selectedTask.citizenRating)} ({selectedTask.citizenRating}/5)
+                                            </span>
+                                          </div>
+                                          {selectedTask.citizenTags && (
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '6px 0' }}>
+                                              {selectedTask.citizenTags.split(',').map((t: string) => t.trim()).filter(Boolean).map((t: string) => (
+                                                <span key={t} style={{ fontSize: '10px', background: '#FEF3C7', color: '#92400E', padding: '2px 7px', borderRadius: '10px', fontWeight: 600 }}>
+                                                  {t}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )}
+                                          {selectedTask.citizenReview && (
+                                            <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#78350F', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #FCD34D', marginTop: '4px' }}>
+                                              &quot;{selectedTask.citizenReview}&quot;
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div style={{ marginTop: '8px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px' }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                              ⭐ Penilaian Warga (Portal 110)
+                                            </span>
+                                            <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#F1F5F9', color: '#64748B', padding: '1px 6px', borderRadius: '4px' }}>
+                                              MENUNGGU ULASAN
+                                            </span>
+                                          </div>
+                                          <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px', fontStyle: 'italic' }}>
+                                            Kasus telah tuntas disahkan. Warga pelapor belum memberikan penilaian &amp; ulasan di Portal 110.
+                                          </div>
+                                        </div>
+                                      )
+                                    )}
                                   </>
                                 ) : (
-                                  <div style={{ marginTop: '8px' }}>
-                                    <span className="step-time" style={{ color: '#94A3B8', fontStyle: 'italic', fontSize: '11px' }}>
-                                      Menunggu Otorisasi Penutupan Kasus
-                                    </span>
+                                  <div style={{ marginTop: '10px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#D97706', fontSize: '11px', fontWeight: 800 }}>
+                                      <span>⏳</span>
+                                      <span>Menunggu Pengisian &amp; Pengajuan BAP (Step 3)</span>
+                                    </div>
+                                    <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '4px', lineHeight: 1.4 }}>
+                                      Tindakan lapangan di TKP telah rampung. Silakan klik <strong>&quot;Lanjutkan Penanganan Kasus (Buka Wizard)&quot;</strong> di bawah untuk melengkapi berkas mediasi/penyelesaian dan mengajukan pengesahan BAP ke Pawas.
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -4489,6 +5110,35 @@ function PersonilContent({
                       {selectedTask.status !== 'SELESAI' && (() => {
                         const isMySelected = hasOfficerAcceptedTask(selectedTask);
                         const selQuota = getTaskQuotaInfo(selectedTask);
+
+                        if (selectedTask.status === 'MENUNGGU_PENGESAHAN') {
+                          return (
+                            <div
+                              style={{
+                                margin: '16px 0 0 0',
+                                width: '100%',
+                                padding: '14px 16px',
+                                background: 'linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%)',
+                                border: '1.5px solid #DDD6FE',
+                                borderRadius: '8px',
+                                boxShadow: '0 2px 6px rgba(109, 40, 217, 0.08)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                textAlign: 'center',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6D28D9', fontSize: '13px', fontWeight: 800 }}>
+                                <span>⏳</span> Berkas Berita Acara (BAP) Telah Diajukan ke Pawas
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#7C3AED', fontWeight: 500 }}>
+                                Penanganan lapangan telah selesai dilaporkan. Menunggu verifikasi &amp; tanda tangan pengesahan resmi oleh Pawas.
+                              </div>
+                            </div>
+                          );
+                        }
 
                         if (isMySelected) {
                           return (
@@ -5299,7 +5949,23 @@ function PersonilContent({
                         gpsLng={currentGps.lng}
                         label="Ambil Foto Bukti Keberangkatan / Ranmor Dinas Siaga"
                         required={false}
-                        onPhotoCaptured={(dataUrl) => setWizardFoto(dataUrl)}
+                        allowMultiple={true}
+                        maxPhotos={5}
+                        initialPhotos={wizardPhotosStep1}
+                        onPhotosChange={(photos) => {
+                          setWizardPhotosStep1(photos);
+                          if (photos.length > 0) {
+                            setWizardFoto(photos[photos.length - 1].dataUrl);
+                            setWizardPhotoMetadata(photos[photos.length - 1].metadata);
+                          } else {
+                            setWizardFoto(null);
+                            setWizardPhotoMetadata(null);
+                          }
+                        }}
+                        onPhotoCaptured={(dataUrl, meta) => {
+                          setWizardFoto(dataUrl);
+                          setWizardPhotoMetadata(meta);
+                        }}
                       />
                     </div>
 
@@ -5404,8 +6070,21 @@ function PersonilContent({
                       isSimulationMode={true}
                       gpsLat={currentGps.lat}
                       gpsLng={currentGps.lng}
-                      label="📸 Ambil Foto Kondisi TKP "
+                      label="📸 Ambil Foto Kondisi & Penanganan TKP (Kamera Langsung)"
                       required={true}
+                      allowMultiple={true}
+                      maxPhotos={5}
+                      initialPhotos={wizardPhotosStep2}
+                      onPhotosChange={(photos) => {
+                        setWizardPhotosStep2(photos);
+                        if (photos.length > 0) {
+                          setWizardFoto(photos[photos.length - 1].dataUrl);
+                          setWizardPhotoMetadata(photos[photos.length - 1].metadata);
+                        } else {
+                          setWizardFoto(null);
+                          setWizardPhotoMetadata(null);
+                        }
+                      }}
                       onPhotoCaptured={(dataUrl, meta) => {
                         setWizardFoto(dataUrl);
                         setWizardPhotoMetadata(meta);
@@ -5480,27 +6159,525 @@ function PersonilContent({
                       </div>
                     </div>
 
-                    <div className="form-label" style={{ fontWeight: 700, fontSize: '12px', marginBottom: '6px' }}>
-                      Bukti Foto Situasi Kondusif / Barang Bukti Akhir
-                    </div>
-                    <LiveCameraWatermarkCapture
-                      personilNama={officer.fullName || session?.fullName || 'Petugas'}
-                      personilPangkat={officer.pangkat || 'Bripka'}
-                      personilNrp={officer.nrp || session?.identifier || '-'}
-                      lokasiPersonil={officerLiveAddress || 'Lengkong Gudang Timur, Serpong, Tangerang Selatan'}
-                      tkpLat={activeComplaint?.tkpLat ? Number(activeComplaint.tkpLat) : -6.257210}
-                      tkpLng={activeComplaint?.tkpLng ? Number(activeComplaint.tkpLng) : 106.818450}
-                      tkpAlamat={activeComplaint?.tkpAlamatTeks || 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan'}
-                      isSimulationMode={true}
-                      gpsLat={currentGps.lat}
-                      gpsLng={currentGps.lng}
-                      label="📸 Ambil Foto Situasi Akhir Kondusif (Watermark GPS)"
-                      required={false}
-                      onPhotoCaptured={(dataUrl, meta) => {
-                        setWizardFoto(dataUrl);
-                        setWizardPhotoMetadata(meta);
+                    {/* KLASIFIKASI LOKASI PENYELESAIAN & JENIS OBJEK DOKUMENTASI (MASTER DINAMIS DB) */}
+                    <div
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1.5px solid #BFDBFE',
+                        borderRadius: '10px',
+                        padding: '14px',
+                        marginBottom: '16px',
+                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.06)',
                       }}
-                    />
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                        <span style={{ fontSize: '16px' }}>⚖️</span>
+                        <div>
+                          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#153E75' }}>
+                            Klasifikasi Lokasi &amp; Objek Bukti Penyelesaian (Step 3)
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B' }}>
+                            Penyelesaian laka/insiden dapat dilakukan di TKP, Rumah Sakit, atau Polsek (RJ/Mediasi damai).
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px', marginBottom: '10px' }}>
+                        {/* 1. Lokasi Penyelesaian */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
+                            📍 Lokasi Penyelesaian Kasus <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <select
+                            className="form-control"
+                            style={{ width: '100%', fontSize: '12.5px', fontWeight: 700, padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC' }}
+                            value={selectedResolutionLocKey}
+                            onChange={(e) => setSelectedResolutionLocKey(e.target.value)}
+                          >
+                            {resolutionLocations.length === 0 ? (
+                              <option value="TKP">📍 TKP (Tempat Kejadian Perkara)</option>
+                            ) : (
+                              resolutionLocations
+                                .filter((l) => l.is_active !== false)
+                                .map((loc) => (
+                                  <option key={loc.id || loc.key} value={loc.key}>
+                                    {loc.icon_emoji ? `${loc.icon_emoji} ` : ''}{loc.label}
+                                  </option>
+                                ))
+                            )}
+                          </select>
+                          {(() => {
+                            const curLoc = resolutionLocations.find((l) => l.key === selectedResolutionLocKey);
+                            const isStrict = curLoc ? curLoc.requires_strict_tkp !== false : selectedResolutionLocKey === 'TKP';
+                            return (
+                              <div style={{ marginTop: '6px' }}>
+                                <span
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    background: isStrict ? '#FEF2F2' : '#ECFDF5',
+                                    color: isStrict ? '#DC2626' : '#059669',
+                                    border: isStrict ? '1px solid #FECACA' : '1px solid #A7F3D0',
+                                  }}
+                                >
+                                  <span>{isStrict ? '🔒' : '🌐'}</span>
+                                  <span>{isStrict ? 'Wajib Radius TKP (≤ 100m)' : 'Lokasi Fleksibel Sah (Toleransi GPS Aktif)'}</span>
+                                </span>
+                                {curLoc?.keterangan && (
+                                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px', fontStyle: 'italic' }}>
+                                    {curLoc.keterangan}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Input Wajib jika Personil Memilih Opsi "Lainnya" */}
+                          {selectedResolutionLocKey === 'LAINNYA' && (
+                            <div style={{ marginTop: '10px', background: '#FFFBEB', border: '1.5px solid #F59E0B', borderRadius: '8px', padding: '10px 12px' }}>
+                              <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 800, color: '#B45309', marginBottom: '4px' }}>
+                                ✍️ Spesifikasikan Alamat / Tempat Penyelesaian <span style={{ color: 'red' }}>*</span>
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                placeholder="Contoh: Balai Pertemuan Warga RW 03 / Kantor Kelurahan / Bengkel..."
+                                value={customResolutionLocText}
+                                onChange={(e) => setCustomResolutionLocText(e.target.value)}
+                                style={{
+                                  width: '100%',
+                                  fontSize: '12.5px',
+                                  padding: '8px 12px',
+                                  borderRadius: '6px',
+                                  border: '1.5px solid #F59E0B',
+                                  background: '#FFFFFF',
+                                  color: '#1E293B',
+                                  fontWeight: 600,
+                                }}
+                              />
+                              <div style={{ fontSize: '10.5px', color: '#92400E', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span>⚠️</span>
+                                <span><strong>Wajib Diisi:</strong> Berikan keterangan tempat musyawarah/penyelesaian yang sah di luar opsi standar.</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 2. Jenis Objek Dokumentasi */}
+                        <div>
+                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#1E293B', marginBottom: '6px' }}>
+                            📄 Jenis Objek Dokumentasi / Bukti <span style={{ color: 'red' }}>*</span>
+                          </label>
+                          <select
+                            className="form-control"
+                            style={{ width: '100%', fontSize: '12.5px', fontWeight: 700, padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', background: '#F8FAFC' }}
+                            value={selectedResolutionDocKey}
+                            onChange={(e) => setSelectedResolutionDocKey(e.target.value)}
+                          >
+                            {resolutionDocuments.length === 0 ? (
+                              <option value="DOKUMENTASI_KONDUSIF">🤝 Foto Situasi Kondusif / Perdamaian Para Pihak</option>
+                            ) : (
+                              resolutionDocuments
+                                .filter((d) => d.is_active !== false)
+                                .map((doc) => (
+                                  <option key={doc.id || doc.key} value={doc.key}>
+                                    {doc.icon_emoji ? `${doc.icon_emoji} ` : ''}{doc.label}
+                                  </option>
+                                ))
+                            )}
+                          </select>
+                          {(() => {
+                            const curDoc = resolutionDocuments.find((d) => d.key === selectedResolutionDocKey);
+                            return curDoc?.keterangan ? (
+                              <div style={{ fontSize: '11px', color: '#475569', marginTop: '6px', background: '#F1F5F9', padding: '6px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                💡 <strong>Panduan Objek:</strong> {curDoc.keterangan}
+                              </div>
+                            ) : null;
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* MULTI-MEDIA EVIDENCE SUITE (Step 3: Kamera Langsung + Dokumen PDF/Word + Video Mediasi + Gambar/KTP/Kwitansi) */}
+                    <div
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1.5px solid #CBD5E1',
+                        borderRadius: '10px',
+                        padding: '14px',
+                        marginBottom: '16px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <div>
+                          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#153E75', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📁</span> Lampiran Berkas &amp; Bukti Penyelesaian (Multi-Media)
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                            Lengkapi berkas dengan Foto Kamera Langsung (Anti-Galeri), Dokumen PDF/Word, Video Mediasi, atau Gambar Lampiran.
+                          </div>
+                        </div>
+                        {wizardMediaStep3.length > 0 && (
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              background: '#DCFCE7',
+                              color: '#15803D',
+                              border: '1px solid #86EFAC',
+                              padding: '3px 9px',
+                              borderRadius: '6px',
+                            }}
+                          >
+                            ✓ {wizardMediaStep3.length} Berkas Terlampir
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tab Navigasi Multi-Media */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '6px',
+                          borderBottom: '1px solid #E2E8F0',
+                          paddingBottom: '8px',
+                          marginBottom: '12px',
+                          overflowX: 'auto',
+                        }}
+                      >
+                        {[
+                          { key: 'KAMERA', label: '📸 Kamera Langsung', desc: 'Anti-Galeri' },
+                          { key: 'DOKUMEN', label: '📄 Dokumen PDF/DOCX', desc: 'BAP / Surat Damai' },
+                          { key: 'VIDEO', label: '🎥 Video Mediasi', desc: 'MP4 / WebM' },
+                          { key: 'GAMBAR', label: '🖼️ Gambar / KTP', desc: 'Kwitansi / Identitas' },
+                        ].map((t) => {
+                          const isActive = activeMediaTabStep3 === t.key;
+                          const count = wizardMediaStep3.filter((m) => m.fileType === t.key).length;
+                          return (
+                            <button
+                              key={t.key}
+                              type="button"
+                              onClick={() => setActiveMediaTabStep3(t.key as any)}
+                              style={{
+                                padding: '7px 12px',
+                                borderRadius: '7px',
+                                border: isActive ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
+                                background: isActive ? '#EFF6FF' : '#F8FAFC',
+                                color: isActive ? '#1D4ED8' : '#475569',
+                                fontWeight: isActive ? 800 : 600,
+                                fontSize: '11.5px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <span>{t.label}</span>
+                              {count > 0 && (
+                                <span
+                                  style={{
+                                    fontSize: '10px',
+                                    fontWeight: 800,
+                                    background: isActive ? '#2563EB' : '#94A3B8',
+                                    color: 'white',
+                                    borderRadius: '10px',
+                                    padding: '1px 6px',
+                                  }}
+                                >
+                                  {count}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* KONTEN TAB 1: KAMERA LANGSUNG (ANTI-GALERI) */}
+                      {activeMediaTabStep3 === 'KAMERA' && (
+                        <div>
+                          {(() => {
+                            const curLoc = resolutionLocations.find((l) => l.key === selectedResolutionLocKey);
+                            const curDoc = resolutionDocuments.find((d) => d.key === selectedResolutionDocKey);
+                            const isStrict = curLoc ? curLoc.requires_strict_tkp !== false : selectedResolutionLocKey === 'TKP';
+                            const activeLocName = selectedResolutionLocKey === 'LAINNYA' && customResolutionLocText.trim()
+                              ? `Lainnya: ${customResolutionLocText.trim()}`
+                              : (curLoc?.label || 'TKP Kejadian');
+                            const cameraPhotosInStep3 = wizardMediaStep3
+                              .filter((m) => m.fileType === 'KAMERA')
+                              .map((m) => ({ id: m.id, dataUrl: m.fileUrl, metadata: m.metadata }));
+
+                            return (
+                              <LiveCameraWatermarkCapture
+                                personilNama={officer.fullName || session?.fullName || 'Petugas'}
+                                personilPangkat={officer.pangkat || 'Bripka'}
+                                personilNrp={officer.nrp || session?.identifier || '-'}
+                                lokasiPersonil={officerLiveAddress || 'Lengkong Gudang Timur, Serpong, Tangerang Selatan'}
+                                tkpLat={activeComplaint?.tkpLat ? Number(activeComplaint.tkpLat) : -6.257210}
+                                tkpLng={activeComplaint?.tkpLng ? Number(activeComplaint.tkpLng) : 106.818450}
+                                tkpAlamat={activeComplaint?.tkpAlamatTeks || 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan'}
+                                isSimulationMode={true}
+                                gpsLat={currentGps.lat}
+                                gpsLng={currentGps.lng}
+                                label={`📸 Foto Kamera Langsung: ${curDoc?.label || 'Objek Penyelesaian'} (${activeLocName})`}
+                                required={false}
+                                requiresStrictTkp={isStrict}
+                                locationTypeName={activeLocName}
+                                documentTypeName={curDoc?.label || 'Dokumentasi Kondusif'}
+                                allowMultiple={true}
+                                maxPhotos={5}
+                                initialPhotos={cameraPhotosInStep3}
+                                onPhotosChange={(photos) => {
+                                  setWizardMediaStep3((prev) => {
+                                    const nonCamera = prev.filter((m) => m.fileType !== 'KAMERA');
+                                    const cameraItems = photos.map((p, idx) => ({
+                                      id: p.id,
+                                      fileUrl: p.dataUrl,
+                                      fileName: `Foto Kamera Watermark #${idx + 1}`,
+                                      fileType: 'KAMERA' as const,
+                                      caption: `Dokumentasi Kamera: ${curDoc?.label || 'BAP'} (${activeLocName})`,
+                                      metadata: p.metadata,
+                                    }));
+                                    return [...nonCamera, ...cameraItems];
+                                  });
+                                  if (photos.length > 0) {
+                                    setWizardFoto(photos[photos.length - 1].dataUrl);
+                                    setWizardPhotoMetadata(photos[photos.length - 1].metadata);
+                                  }
+                                }}
+                                onPhotoCaptured={(dataUrl, meta) => {
+                                  setWizardFoto(dataUrl);
+                                  setWizardPhotoMetadata(meta);
+                                }}
+                              />
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* KONTEN TAB 2: UNGGAH DOKUMEN RESMI (PDF / DOCX) */}
+                      {activeMediaTabStep3 === 'DOKUMEN' && (
+                        <div style={{ background: '#F8FAFC', border: '1.5px dashed #94A3B8', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '32px', marginBottom: '6px' }}>📄</div>
+                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B', marginBottom: '4px' }}>
+                            Unggah Dokumen Berita Acara / Surat Pernyataan Damai
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '14px', maxWidth: '480px', margin: '0 auto 14px' }}>
+                            Format yang didukung: <strong>PDF, DOC, DOCX</strong> (Maksimal 15MB). Dokumen otomatis diindeks resmi untuk verifikasi dan pengesahan Pawas.
+                          </div>
+
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '9px 18px',
+                              background: '#2563EB',
+                              color: 'white',
+                              borderRadius: '7px',
+                              fontWeight: 800,
+                              fontSize: '12px',
+                              cursor: isUploadingMedia ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 4px rgba(37,99,235,0.25)',
+                            }}
+                          >
+                            <span>📤</span> {isUploadingMedia ? 'Mengunggah Dokumen...' : 'Pilih Berkas Dokumen (PDF/DOCX)'}
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                              disabled={isUploadingMedia}
+                              onChange={(e) => handleFileUploadStep3(e, 'DOKUMEN')}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* KONTEN TAB 3: UNGGAH VIDEO MEDIASI (MP4 / WEBM) */}
+                      {activeMediaTabStep3 === 'VIDEO' && (
+                        <div style={{ background: '#F8FAFC', border: '1.5px dashed #94A3B8', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '32px', marginBottom: '6px' }}>🎥</div>
+                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B', marginBottom: '4px' }}>
+                            Unggah Rekaman Video Mediasi / Kesepakatan Damai
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '14px', maxWidth: '480px', margin: '0 auto 14px' }}>
+                            Format yang didukung: <strong>MP4, WebM, MOV</strong> (Maksimal 60MB). Rekaman visual musyawarah damai warga atau situasi kondusif di lapangan.
+                          </div>
+
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '9px 18px',
+                              background: '#D97706',
+                              color: 'white',
+                              borderRadius: '7px',
+                              fontWeight: 800,
+                              fontSize: '12px',
+                              cursor: isUploadingMedia ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 4px rgba(217,119,6,0.25)',
+                            }}
+                          >
+                            <span>🎥</span> {isUploadingMedia ? 'Mengunggah Video...' : 'Pilih Berkas Video (MP4/WebM)'}
+                            <input
+                              type="file"
+                              accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                              disabled={isUploadingMedia}
+                              onChange={(e) => handleFileUploadStep3(e, 'VIDEO')}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* KONTEN TAB 4: UNGGAH GAMBAR / KTP / KWITANSI */}
+                      {activeMediaTabStep3 === 'GAMBAR' && (
+                        <div style={{ background: '#F8FAFC', border: '1.5px dashed #94A3B8', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                          <div style={{ fontSize: '32px', marginBottom: '6px' }}>🖼️</div>
+                          <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B', marginBottom: '4px' }}>
+                            Unggah Berkas Gambar / KTP / Kwitansi Ganti Rugi
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '14px', maxWidth: '480px', margin: '0 auto 14px' }}>
+                            Format yang didukung: <strong>JPG, PNG, WebP</strong> (Maksimal 15MB). Menampung foto identitas para pihak, kwitansi, atau bukti fisik penunjang.
+                          </div>
+
+                          <label
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '9px 18px',
+                              background: '#059669',
+                              color: 'white',
+                              borderRadius: '7px',
+                              fontWeight: 800,
+                              fontSize: '12px',
+                              cursor: isUploadingMedia ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 4px rgba(5,150,105,0.25)',
+                            }}
+                          >
+                            <span>🖼️</span> {isUploadingMedia ? 'Mengunggah Gambar...' : 'Pilih Berkas Gambar (JPG/PNG)'}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                              disabled={isUploadingMedia}
+                              onChange={(e) => handleFileUploadStep3(e, 'GAMBAR')}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* DAFTAR BUKTI MULTI-MEDIA TERLAMPIR (BERKAS YANG SIAP DIAJUKAN KE PAWAS) */}
+                      {wizardMediaStep3.length > 0 && (
+                        <div style={{ marginTop: '14px', borderTop: '1px solid #E2E8F0', paddingTop: '12px' }}>
+                          <div style={{ fontSize: '11.5px', fontWeight: 800, color: '#1E293B', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📋</span> Berkas Lampiran Terverifikasi ({wizardMediaStep3.length} Berkas):
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '8px' }}>
+                            {wizardMediaStep3.map((m, idx) => {
+                              const isDoc = m.fileType === 'DOKUMEN';
+                              const isVid = m.fileType === 'VIDEO';
+                              const isCam = m.fileType === 'KAMERA';
+                              const isImg = m.fileType === 'GAMBAR';
+
+                              return (
+                                <div
+                                  key={m.id || idx}
+                                  style={{
+                                    background: '#F8FAFC',
+                                    border: '1px solid #CBD5E1',
+                                    borderRadius: '7px',
+                                    padding: '8px 10px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '8px',
+                                    fontSize: '11px',
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                    <span style={{ fontSize: '18px', flexShrink: 0 }}>
+                                      {isDoc ? '📄' : isVid ? '🎥' : isCam ? '📸' : '🖼️'}
+                                    </span>
+                                    <div style={{ overflow: 'hidden' }}>
+                                      <div style={{ fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {m.fileName}
+                                      </div>
+                                      <div style={{ fontSize: '10px', color: '#64748B' }}>
+                                        <span style={{
+                                          fontWeight: 800,
+                                          color: isDoc ? '#7C3AED' : isVid ? '#D97706' : isCam ? '#1D4ED8' : '#059669',
+                                        }}>
+                                          {isDoc ? 'DOKUMEN PDF' : isVid ? 'VIDEO' : isCam ? 'FOTO KAMERA' : 'GAMBAR'}
+                                        </span>
+                                        {m.fileSize && <span> • {Math.round(m.fileSize / 1024)} KB</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isDoc) {
+                                          window.open(m.fileUrl, '_blank');
+                                        } else {
+                                          setViewingMediaModal({
+                                            url: m.fileUrl,
+                                            title: m.fileName,
+                                            type: m.fileType,
+                                            desc: m.caption,
+                                          });
+                                        }
+                                      }}
+                                      style={{
+                                        background: '#EFF6FF',
+                                        border: '1px solid #BFDBFE',
+                                        color: '#1D4ED8',
+                                        padding: '3px 7px',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                      }}
+                                      title="Lihat / Buka berkas ini"
+                                    >
+                                      🔍 Buka
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeMediaStep3(m.id)}
+                                      style={{
+                                        background: '#FEF2F2',
+                                        border: '1px solid #FECACA',
+                                        color: '#DC2626',
+                                        padding: '3px 6px',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontSize: '10px',
+                                        fontWeight: 700,
+                                      }}
+                                      title="Hapus berkas ini"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="form-label" style={{ fontWeight: 700, fontSize: '12px', marginBottom: '6px' }}>
                       Keterangan Penyelesaian &amp; Berita Acara (BAP Akhir) <span style={{ color: 'red' }}>*</span>
@@ -6200,6 +7377,114 @@ function PersonilContent({
             <img src={lightboxFoto.src} alt="Bukti" style={{ width: '100%', height: 'auto', maxHeight: '380px', objectFit: 'contain', background: '#0F172A' }} />
             <div style={{ padding: '12px 16px', fontSize: '11.5px', color: '#64748B' }}>
               {lightboxFoto.meta} • <strong>✓ Terverifikasi Satelit GPS</strong>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL VIEWER MULTI-MEDIA BUKTI (VIDEO MEDIASI / DOKUMEN / GAMBAR) */}
+      {viewingMediaModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(15,23,42,0.85)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setViewingMediaModal(null)}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: '12px',
+              maxWidth: '620px',
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '18px' }}>
+                  {viewingMediaModal.type === 'VIDEO' || viewingMediaModal.url?.match(/\.(mp4|webm|mov)$/i)
+                    ? '🎥'
+                    : viewingMediaModal.type === 'DOKUMEN' || viewingMediaModal.url?.match(/\.(pdf|doc|docx)$/i)
+                    ? '📄'
+                    : '📸'}
+                </span>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B' }}>{viewingMediaModal.title}</div>
+                  <div style={{ fontSize: '10.5px', color: '#64748B' }}>
+                    {viewingMediaModal.type === 'VIDEO' || viewingMediaModal.url?.match(/\.(mp4|webm|mov)$/i)
+                      ? 'Pemutar Video Mediasi & Rekaman Situasi'
+                      : viewingMediaModal.type === 'DOKUMEN'
+                      ? 'Dokumen Resmi BAP / Kesepakatan'
+                      : 'Dokumentasi Visual Presisi'}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingMediaModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#64748B' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: '#0F172A', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '260px', maxHeight: '440px', overflow: 'hidden' }}>
+              {viewingMediaModal.type === 'VIDEO' || viewingMediaModal.url?.match(/\.(mp4|webm|mov)$/i) ? (
+                <video
+                  src={viewingMediaModal.url}
+                  controls
+                  autoPlay
+                  style={{ width: '100%', maxHeight: '420px', outline: 'none' }}
+                />
+              ) : viewingMediaModal.type === 'DOKUMEN' || viewingMediaModal.url?.match(/\.(pdf)$/i) ? (
+                <iframe
+                  src={viewingMediaModal.url}
+                  style={{ width: '100%', height: '400px', border: 'none' }}
+                  title={viewingMediaModal.title}
+                />
+              ) : (
+                <img
+                  src={viewingMediaModal.url}
+                  alt={viewingMediaModal.title}
+                  style={{ width: '100%', height: 'auto', maxHeight: '420px', objectFit: 'contain' }}
+                />
+              )}
+            </div>
+
+            <div style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', borderTop: '1px solid #E2E8F0' }}>
+              <div style={{ fontSize: '11px', color: '#475569' }}>
+                {viewingMediaModal.desc || 'Berkas bukti resmi tervalidasi sistem presisi'}
+              </div>
+              <a
+                href={viewingMediaModal.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: '#2563EB',
+                  background: '#EFF6FF',
+                  padding: '5px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #BFDBFE',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                Buka Tab Penuh ↗
+              </a>
             </div>
           </div>
         </div>

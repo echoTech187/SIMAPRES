@@ -181,12 +181,19 @@ export async function fieldStepAction(input: {
   officerId: string;
   catatan?: string;
   fotoBuktiUrl?: string;
+  evidencesList?: any[];
   lat?: number;
   lng?: number;
   isDiscrepancy?: boolean;
   deviationMeters?: number;
   warningMessage?: string;
   photoAddress?: string;
+  resolutionLocationId?: number | null;
+  resolutionLocationKey?: string | null;
+  resolutionLocationName?: string | null;
+  resolutionDocumentId?: number | null;
+  resolutionDocumentKey?: string | null;
+  resolutionDocumentName?: string | null;
 }) {
   try {
     const useCase = UseCaseFactory.getFieldStepActionUseCase();
@@ -196,12 +203,19 @@ export async function fieldStepAction(input: {
       officerId: BigInt(input.officerId),
       catatan: input.catatan,
       fotoBuktiUrl: input.fotoBuktiUrl,
+      evidencesList: input.evidencesList,
       lat: input.lat,
       lng: input.lng,
       isDiscrepancy: input.isDiscrepancy,
       deviationMeters: input.deviationMeters,
       warningMessage: input.warningMessage,
       photoAddress: input.photoAddress,
+      resolutionLocationId: input.resolutionLocationId,
+      resolutionLocationKey: input.resolutionLocationKey,
+      resolutionLocationName: input.resolutionLocationName,
+      resolutionDocumentId: input.resolutionDocumentId,
+      resolutionDocumentKey: input.resolutionDocumentKey,
+      resolutionDocumentName: input.resolutionDocumentName,
     });
     safeRevalidatePath('/personil');
     safeRevalidatePath('/command-center');
@@ -221,7 +235,10 @@ export async function submitRatingAction(input: {
   try {
     const useCase = UseCaseFactory.getSubmitRatingUseCase();
     const result = await useCase.execute(input);
+    officerComplaintsCache.clear();
     safeRevalidatePath('/warga');
+    safeRevalidatePath('/console');
+    safeRevalidatePath('/personil');
     safeRevalidatePath('/command-center');
     return { success: true, data: serializeBigInt(result.toJSON()) };
   } catch (error: any) {
@@ -691,6 +708,27 @@ export async function acceptOfficerDispatchAction(input: {
       (d) => d.unit_id === targetUnitId && d.accepted_at === null
     );
 
+    let officerDist = baseDispatch.estimated_distance;
+    let officerEta = baseDispatch.estimated_eta;
+
+    try {
+      const compLocation = await prisma.complaint.findUnique({
+        where: { id: complaintIdBig },
+        select: { tkp_lat: true, tkp_lng: true },
+      });
+      if (compLocation?.tkp_lat && compLocation?.tkp_lng && officer?.current_gps_lat && officer?.current_gps_lng) {
+        const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+        const dKm = HaversineService.calculateDistanceKm(
+          Number(compLocation.tkp_lat),
+          Number(compLocation.tkp_lng),
+          Number(officer.current_gps_lat),
+          Number(officer.current_gps_lng)
+        );
+        officerDist = `${dKm} km`;
+        officerEta = `± ${Math.max(2, Math.round((dKm / 30) * 60))} Menit`;
+      }
+    } catch (_) {}
+
     if (unacceptedDispatch) {
       // Gunakan baris dispatch yang belum di-claim
       await prisma.complaintDispatch.update({
@@ -699,6 +737,8 @@ export async function acceptOfficerDispatchAction(input: {
           dispatch_status: 'ACCEPTED',
           accepted_at: now,
           officer_id: officer?.id || unacceptedDispatch.officer_id,
+          ...(officerDist ? { estimated_distance: officerDist } : {}),
+          ...(officerEta ? { estimated_eta: officerEta } : {}),
         },
       });
     } else {
@@ -714,8 +754,8 @@ export async function acceptOfficerDispatchAction(input: {
           dispatch_status: 'ACCEPTED',
           dispatched_at: baseDispatch.dispatched_at,
           accepted_at: now,
-          estimated_distance: baseDispatch.estimated_distance,
-          estimated_eta: baseDispatch.estimated_eta,
+          estimated_distance: officerDist,
+          estimated_eta: officerEta,
         },
       });
     }

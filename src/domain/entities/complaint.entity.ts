@@ -25,6 +25,7 @@ export interface TimelineStep {
   tahapTitle: string;
   catatan?: string | null;
   fotoBuktiUrl?: string | null;
+  evidences?: any[];
   gpsLat?: number | null;
   gpsLng?: number | null;
   isDiscrepancy?: boolean;
@@ -101,9 +102,21 @@ export interface ComplaintProps {
   koordinatGps?: string | null;
   waktuTiba?: string | null;
   waktuSelesai?: string | null;
+  waktuSelesaiDate?: Date | string | null;
+  catatanSelesai?: string | null;
+  resolutionLocationId?: number | null;
+  resolutionLocationKey?: string | null;
+  resolutionLocationName?: string | null;
+  resolutionLocationRel?: any | null;
+  resolutionDocumentId?: number | null;
+  resolutionDocumentKey?: string | null;
+  resolutionDocumentName?: string | null;
+  resolutionDocumentRel?: any | null;
   citizenReviewRel?: any | null;
   createdAt?: Date;
   updatedAt?: Date;
+  created_at?: Date | string;
+  updated_at?: Date | string;
 }
 
 export class ComplaintEntity {
@@ -273,6 +286,46 @@ export class ComplaintEntity {
     return this.props.waktuSelesai;
   }
 
+  get waktuSelesaiDate(): Date | string | null | undefined {
+    return this.props.waktuSelesaiDate;
+  }
+
+  get catatanSelesai(): string | null | undefined {
+    return this.props.catatanSelesai;
+  }
+
+  get created_at(): Date | string | undefined {
+    return this.props.created_at || this.props.createdAt;
+  }
+
+  get updated_at(): Date | string | undefined {
+    return this.props.updated_at || this.props.updatedAt;
+  }
+
+  get resolutionLocationId(): number | null | undefined {
+    return this.props.resolutionLocationId;
+  }
+
+  get resolutionLocationKey(): string | null | undefined {
+    return this.props.resolutionLocationKey;
+  }
+
+  get resolutionLocationName(): string | null | undefined {
+    return this.props.resolutionLocationName;
+  }
+
+  get resolutionDocumentId(): number | null | undefined {
+    return this.props.resolutionDocumentId;
+  }
+
+  get resolutionDocumentKey(): string | null | undefined {
+    return this.props.resolutionDocumentKey;
+  }
+
+  get resolutionDocumentName(): string | null | undefined {
+    return this.props.resolutionDocumentName;
+  }
+
   // --- LOGIKA BISNIS & STATE TRANSITIONS (SOP POLRI) ---
 
   /**
@@ -322,7 +375,8 @@ export class ComplaintEntity {
     isDiscrepancy?: boolean,
     deviationMeters?: number,
     warningMessage?: string,
-    photoAddress?: string
+    photoAddress?: string,
+    evidencesList?: any[]
   ): void {
     const formattedTitle = isDiscrepancy
       ? 'Tindakan di TKP [ANOMALI LOKASI]'
@@ -332,6 +386,23 @@ export class ComplaintEntity {
       warningMessage,
       catatan ? `Catatan: ${catatan}` : null,
     ].filter(Boolean).join('\n\n') || catatan || null;
+
+    if (evidencesList && evidencesList.length > 0) {
+      if (!this.props.evidences) this.props.evidences = [];
+      for (const ev of evidencesList) {
+        this.props.evidences.push({
+          incident_phase: 'TIBA_TKP',
+          file_url: ev.fileUrl,
+          caption: ev.caption || ev.fileName || 'Foto Bukti Kamera TKP',
+          watermark_text: ev.watermarkText || null,
+          exif_lat: ev.lat ?? lat ?? null,
+          exif_lng: ev.lng ?? lng ?? null,
+          file_type: ev.fileType || 'KAMERA',
+          file_name: ev.fileName || null,
+          uploaded_at: new Date(),
+        });
+      }
+    }
 
     if (this.props.status === 'TIBA_DI_TKP') {
       // Jika personel sudah tercatat tiba di TKP (timestamp kedatangan sudah terkunci),
@@ -350,6 +421,7 @@ export class ComplaintEntity {
         tahapTitle: formattedTitle,
         catatan: combinedNotes,
         fotoBuktiUrl,
+        evidences: evidencesList,
         gpsLat: lat,
         gpsLng: lng,
         isDiscrepancy,
@@ -392,6 +464,7 @@ export class ComplaintEntity {
       tahapTitle: initialTitle,
       catatan: combinedNotes,
       fotoBuktiUrl,
+      evidences: evidencesList,
       gpsLat: lat,
       gpsLng: lng,
       isDiscrepancy,
@@ -413,7 +486,8 @@ export class ComplaintEntity {
     isDiscrepancy?: boolean,
     deviationMeters?: number,
     warningMessage?: string,
-    photoAddress?: string
+    photoAddress?: string,
+    evidencesList?: any[]
   ): void {
     const formattedTitle = isDiscrepancy
       ? 'Tindakan di TKP [ANOMALI LOKASI]'
@@ -423,6 +497,23 @@ export class ComplaintEntity {
       warningMessage,
       catatan ? `Catatan: ${catatan}` : null,
     ].filter(Boolean).join('\n\n') || catatan || null;
+
+    if (evidencesList && evidencesList.length > 0) {
+      if (!this.props.evidences) this.props.evidences = [];
+      for (const ev of evidencesList) {
+        this.props.evidences.push({
+          incident_phase: 'PENANGANAN',
+          file_url: ev.fileUrl,
+          caption: ev.caption || ev.fileName || 'Foto Bukti Tindakan TKP',
+          watermark_text: ev.watermarkText || null,
+          exif_lat: ev.lat ?? lat ?? null,
+          exif_lng: ev.lng ?? lng ?? null,
+          file_type: ev.fileType || 'KAMERA',
+          file_name: ev.fileName || null,
+          uploaded_at: new Date(),
+        });
+      }
+    }
 
     this.props.status = 'PENANGANAN_TKP';
     this.props.tahap = 5;
@@ -439,6 +530,7 @@ export class ComplaintEntity {
       tahapTitle: formattedTitle,
       catatan: combinedNotes,
       fotoBuktiUrl,
+      evidences: evidencesList,
       gpsLat: lat,
       gpsLng: lng,
       isDiscrepancy,
@@ -450,9 +542,22 @@ export class ComplaintEntity {
   }
 
   /**
-   * Penanganan di TKP Selesai & Terbitkan BAP (Fase 3 - Step 3 Menunggu Pengesahan Pawas)
+   * Penanganan Selesai & Terbitkan BAP (Fase 3 - Step 3 Menunggu Pengesahan Pawas)
+   * Fleksibilitas Lokasi (TKP / Rumah Sakit / Kantor Polisi / RJ) & Objek Dokumentasi (Surat Damai / Rekam Medis / BB)
    */
-  public ajukanPengesahanBap(catatan?: string, fotoBuktiUrl?: string): void {
+  public ajukanPengesahanBap(
+    catatan?: string,
+    fotoBuktiUrl?: string,
+    resolutionData?: {
+      locationId?: number | null;
+      locationKey?: string | null;
+      locationName?: string | null;
+      documentId?: number | null;
+      documentKey?: string | null;
+      documentName?: string | null;
+    },
+    evidencesList?: any[]
+  ): void {
     if (
       this.props.status !== 'TIBA_DI_TKP' &&
       this.props.status !== 'PENANGANAN_TKP' &&
@@ -461,18 +566,67 @@ export class ComplaintEntity {
       this.props.status !== 'DISPOSISI' &&
       this.props.status !== 'SEDANG_DITANGANI'
     ) {
-      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam penanganan TKP.`);
+      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam penanganan.`);
     }
     this.props.status = 'MENUNGGU_PENGESAHAN';
-    this.props.tahap = 4;
-    if (fotoBuktiUrl) {
-      this.props.fotoTindakan = fotoBuktiUrl;
+    this.props.tahap = 5;
+    if (catatan) {
+      this.props.catatanSelesai = catatan;
     }
+    if (fotoBuktiUrl) {
+      this.props.fotoSelesai = fotoBuktiUrl;
+      if (!this.props.fotoTindakan) {
+        this.props.fotoTindakan = fotoBuktiUrl;
+      }
+    }
+    if (!this.props.waktuSelesai) {
+      this.props.waktuSelesai = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+      this.props.waktuSelesaiDate = new Date();
+    }
+
+    if (resolutionData) {
+      if (resolutionData.locationId !== undefined) this.props.resolutionLocationId = resolutionData.locationId;
+      if (resolutionData.locationKey !== undefined) this.props.resolutionLocationKey = resolutionData.locationKey;
+      if (resolutionData.locationName !== undefined) this.props.resolutionLocationName = resolutionData.locationName;
+      if (resolutionData.documentId !== undefined) this.props.resolutionDocumentId = resolutionData.documentId;
+      if (resolutionData.documentKey !== undefined) this.props.resolutionDocumentKey = resolutionData.documentKey;
+      if (resolutionData.documentName !== undefined) this.props.resolutionDocumentName = resolutionData.documentName;
+    }
+
+    if (evidencesList && evidencesList.length > 0) {
+      if (!this.props.evidences) this.props.evidences = [];
+      for (const ev of evidencesList) {
+        this.props.evidences.push({
+          incident_phase: 'SELESAI_KONDUSIF',
+          file_url: ev.fileUrl,
+          caption: ev.caption || ev.fileName || 'Bukti Penyelesaian BAP',
+          watermark_text: ev.watermarkText || null,
+          exif_lat: ev.lat ?? null,
+          exif_lng: ev.lng ?? null,
+          file_type: ev.fileType || 'DOKUMEN',
+          file_name: ev.fileName || null,
+          uploaded_at: new Date(),
+        });
+      }
+    }
+
+    const titleSuffixParts: string[] = [];
+    if (this.props.resolutionLocationName) {
+      titleSuffixParts.push(`Lokasi: ${this.props.resolutionLocationName}`);
+    }
+    if (this.props.resolutionDocumentName) {
+      titleSuffixParts.push(`Objek: ${this.props.resolutionDocumentName}`);
+    }
+    const tahapTitle = titleSuffixParts.length > 0
+      ? `Pengajuan BAP (${titleSuffixParts.join(' • ')})`
+      : 'Penanganan Lapangan Rampung & BAP Diterbitkan';
+
     this.props.timelines?.push({
       tahapKe: 3,
-      tahapTitle: 'Penanganan Lapangan Rampung & BAP Diterbitkan',
+      tahapTitle,
       catatan: catatan || null,
       fotoBuktiUrl,
+      evidences: evidencesList,
       createdAt: new Date(),
     });
   }

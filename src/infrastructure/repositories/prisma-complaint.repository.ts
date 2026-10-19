@@ -12,6 +12,8 @@ const COMPLAINT_INCLUDE = {
   category_rel: true,
   subcategory_rel: { include: { unit_rel: true, category_rel: true } },
   source_rel: true,
+  resolution_location_rel: true,
+  resolution_document_rel: true,
 } as const;
 
 export class PrismaComplaintRepository implements IComplaintRepository {
@@ -45,7 +47,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption && (e.caption.includes('Tiba') || e.caption.includes('Tindakan')))
       );
       const evidenceSelesai = evidenceList.find(
-        (e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || (e.caption && e.caption.includes('Selesai'))
+        (e: any) =>
+          e.incident_phase === 'SELESAI_KONDUSIF' ||
+          e.incident_phase === 'SELESAI' ||
+          (e.caption && (e.caption.includes('Selesai') || e.caption.includes('BAP') || e.caption.includes('Kondusif')))
       );
 
       // Ekstrak waktu riil dan koordinat GPS dari audit logs kejadian
@@ -55,13 +60,20 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       const logTiba = (record.complaint_logs || []).find((l: any) =>
         l.action?.includes('Tiba') || l.action?.includes('Tindakan') || l.action?.includes('TIBA_TKP')
       );
-      const logTindakan = (record.complaint_logs || []).find((l: any) =>
-        l.action?.includes('Tindakan')
-      );
-      const catatanTindakan = logTindakan?.notes || null;
-      const logSelesai = (record.complaint_logs || []).find((l: any) =>
-        l.action?.includes('Selesai') || l.action?.includes('SELESAI')
-      );
+      const logTindakan = (record.complaint_logs || [])
+        .slice()
+        .reverse()
+        .find((l: any) => (l.action?.includes('Tindakan') || l.action?.includes('TKP')) && l.notes);
+      const catatanTindakan = logTindakan?.notes?.replace(/^Catatan:\s*/i, '') || logTindakan?.notes || null;
+      const logBapOrSelesai = (record.complaint_logs || [])
+        .slice()
+        .reverse()
+        .find((l: any) =>
+          l.action?.includes('BAP') ||
+          l.action?.includes('Selesai') ||
+          l.action?.includes('SELESAI')
+        );
+      const catatanSelesai = logBapOrSelesai?.notes?.replace(/^Catatan:\s*/i, '') || logBapOrSelesai?.notes || null;
 
       const waktuMeluncur = logMeluncur?.created_at
         ? new Date(logMeluncur.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
@@ -83,10 +95,9 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         ? new Date(primaryDispatch.arrived_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
         : null;
 
-      const waktuSelesai = logSelesai?.created_at
-        ? new Date(logSelesai.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-        : primaryDispatch?.completed_at
-        ? new Date(primaryDispatch.completed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+      const waktuSelesaiDate = logBapOrSelesai?.created_at || primaryDispatch?.completed_at || null;
+      const waktuSelesai = waktuSelesaiDate
+        ? new Date(waktuSelesaiDate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
         : null;
 
       return new ComplaintEntity({
@@ -153,18 +164,20 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         fotoTiba: evidenceTiba?.file_url || null,
         fotoTindakan: evidenceTiba?.file_url || null,
         catatanTindakan,
+        catatanSelesai,
         fotoSelesai: evidenceSelesai?.file_url || null,
         waktuMeluncur,
         koordinatGps,
         waktuTiba,
         waktuSelesai,
+        waktuSelesaiDate,
         timelines: (record.complaint_logs || []).map((t: any, idx: number) => {
           let stepPhoto: string | null = null;
           if (t.action?.includes('Meluncur') || t.action?.includes('Persiapan')) {
             stepPhoto = evidenceMenuju?.file_url || null;
           } else if (t.action?.includes('Tiba') || t.action?.includes('Tindakan')) {
             stepPhoto = evidenceTiba?.file_url || null;
-          } else if (t.action?.includes('Selesai')) {
+          } else if (t.action?.includes('Selesai') || t.action?.includes('BAP')) {
             stepPhoto = evidenceSelesai?.file_url || null;
           } else if (t.action?.includes('Laporan')) {
             stepPhoto = evidenceAwal?.file_url || null;
@@ -183,8 +196,18 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         complaintLogs: record.complaint_logs || [],
         evidences: record.evidences || [],
         citizenReviewRel: citizenReview || null,
+        resolutionLocationId: record.resolution_location_id,
+        resolutionLocationKey: record.resolution_location_key,
+        resolutionLocationName: record.resolution_location_name,
+        resolutionLocationRel: record.resolution_location_rel,
+        resolutionDocumentId: record.resolution_document_id,
+        resolutionDocumentKey: record.resolution_document_key,
+        resolutionDocumentName: record.resolution_document_name,
+        resolutionDocumentRel: record.resolution_document_rel,
         createdAt: record.created_at,
         updatedAt: record.updated_at,
+        created_at: record.created_at,
+        updated_at: record.updated_at,
       });
     }
 
@@ -566,8 +589,14 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       data: {
         status: data.status,
         ...(statusId ? { status_id: statusId } : {}),
-        tahap: data.status === 'SELESAI' ? 5 : (data.tahap ?? 1),
+        tahap: (data.status === 'SELESAI' || data.status === 'MENUNGGU_PENGESAHAN') ? 5 : (data.tahap ?? 1),
         alasan_tolak: data.alasanTolak,
+        ...(data.resolutionLocationId !== undefined ? { resolution_location_id: data.resolutionLocationId } : {}),
+        ...(data.resolutionLocationKey !== undefined ? { resolution_location_key: data.resolutionLocationKey } : {}),
+        ...(data.resolutionLocationName !== undefined ? { resolution_location_name: data.resolutionLocationName } : {}),
+        ...(data.resolutionDocumentId !== undefined ? { resolution_document_id: data.resolutionDocumentId } : {}),
+        ...(data.resolutionDocumentKey !== undefined ? { resolution_document_key: data.resolutionDocumentKey } : {}),
+        ...(data.resolutionDocumentName !== undefined ? { resolution_document_name: data.resolutionDocumentName } : {}),
       },
       include: COMPLAINT_INCLUDE,
     });
@@ -676,10 +705,39 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             },
           });
         }
-        // 2.1 Simpan foto bukti visual jika disertakan dalam timeline
-        if (latestTimeline && latestTimeline.fotoBuktiUrl) {
+        // 2.1 Simpan foto & berkas bukti visual jika disertakan dalam timeline atau evidences
+        const rawEvidencesToSave: any[] = [];
+        if (latestTimeline?.evidences && Array.isArray(latestTimeline.evidences) && latestTimeline.evidences.length > 0) {
+          rawEvidencesToSave.push(...latestTimeline.evidences);
+        } else if (latestTimeline?.fotoBuktiUrl) {
+          rawEvidencesToSave.push({
+            fileUrl: latestTimeline.fotoBuktiUrl,
+            caption: latestTimeline.tahapTitle,
+            lat: latestTimeline.gpsLat,
+            lng: latestTimeline.gpsLng,
+            isDiscrepancy: latestTimeline.isDiscrepancy,
+            deviationMeters: latestTimeline.deviationMeters,
+            photoAddress: latestTimeline.photoAddress,
+          });
+        }
+
+        const incidentPhase =
+          data.status === 'TIBA_DI_TKP' ? 'TIBA_TKP' :
+          data.status === 'MENUNGGU_PENGESAHAN' ? 'PENANGANAN' :
+          data.status === 'SELESAI' ? 'SELESAI_KONDUSIF' :
+          (data.status || 'TIBA_TKP');
+
+        const isAnomaly = Boolean(latestTimeline?.isDiscrepancy);
+        const devMeters = Number(latestTimeline?.deviationMeters || 0);
+        const distStr = devMeters >= 1000 ? `${(devMeters / 1000).toFixed(1)} km` : `${Math.round(devMeters)} meter`;
+
+        for (let i = 0; i < rawEvidencesToSave.length; i++) {
+          const ev = rawEvidencesToSave[i];
+          const rawUrl = ev.fileUrl || ev.url;
+          if (!rawUrl) continue;
+
           try {
-            let savedUrl = latestTimeline.fotoBuktiUrl;
+            let savedUrl = rawUrl;
             if (savedUrl.startsWith('data:image/')) {
               try {
                 const fs = await import('fs');
@@ -692,7 +750,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
                   if (!fs.existsSync(uploadDir)) {
                     fs.mkdirSync(uploadDir, { recursive: true });
                   }
-                  const fileName = `evidence_${data.id}_${Date.now()}.${ext}`;
+                  const fileName = `evidence_${data.id}_${Date.now()}_${i}.${ext}`;
                   fs.writeFileSync(path.join(uploadDir, fileName), buffer);
                   savedUrl = `/uploads/${fileName}`;
                 }
@@ -704,35 +762,35 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               savedUrl = savedUrl.substring(0, 250);
             }
 
-            const incidentPhase =
-              data.status === 'TIBA_DI_TKP' ? 'TIBA_TKP' :
-              data.status === 'MENUNGGU_PENGESAHAN' ? 'PENANGANAN' :
-              data.status === 'SELESAI' ? 'SELESAI_KONDUSIF' :
-              (data.status || 'TIBA_TKP');
-
-            const isAnomaly = Boolean(latestTimeline.isDiscrepancy);
-            const devMeters = Number(latestTimeline.deviationMeters || 0);
-            const distStr = devMeters >= 1000 ? `${(devMeters / 1000).toFixed(1)} km` : `${Math.round(devMeters)} meter`;
-
-            const caption = isAnomaly
-              ? `Dokumentasi TKP [ANOMALI JARAK ${distStr}]`
-              : (latestTimeline.tahapTitle || 'Dokumentasi Visual TKP Berwatermark');
-
-            const watermarkInfo = isAnomaly
-              ? `Deviasi: ${distStr} | Status: FLAGGED_DILUAR_TKP | ${latestTimeline.photoAddress || ''}`
-              : (latestTimeline.catatan || '');
-
-            await prisma.complaintEvidence.create({
-              data: {
-                complaint_id: data.id,
-                incident_phase: incidentPhase,
-                file_url: savedUrl,
-                caption: caption.slice(0, 250),
-                watermark_text: watermarkInfo.slice(0, 250),
-                exif_lat: latestTimeline.gpsLat || null,
-                exif_lng: latestTimeline.gpsLng || null,
-              },
+            const existing = await prisma.complaintEvidence.findFirst({
+              where: { complaint_id: data.id, file_url: savedUrl },
             });
+
+            if (!existing) {
+              const itemCaption = ev.caption || ev.fileName || (isAnomaly
+                ? `Dokumentasi TKP [ANOMALI JARAK ${distStr}]`
+                : (latestTimeline?.tahapTitle || 'Dokumentasi Visual TKP Berwatermark'));
+
+              const watermarkInfo = isAnomaly
+                ? `Deviasi: ${distStr} | Status: FLAGGED_DILUAR_TKP | ${latestTimeline?.photoAddress || ''}`
+                : (ev.watermarkText || latestTimeline?.catatan || '');
+
+              await prisma.complaintEvidence.create({
+                data: {
+                  complaint_id: data.id,
+                  incident_phase: incidentPhase,
+                  file_url: savedUrl,
+                  caption: itemCaption.slice(0, 250),
+                  watermark_text: watermarkInfo.slice(0, 250),
+                  exif_lat: ev.lat ?? latestTimeline?.gpsLat ?? null,
+                  exif_lng: ev.lng ?? latestTimeline?.gpsLng ?? null,
+                },
+              });
+            }
+          } catch (evErr) {
+            console.warn('Failed saving evidence item:', evErr);
+          }
+        }
 
             // 2.2 Catat ke officer_logbooks untuk Audit Integritas Dual-GPS (Propam)
             if (data.assignedOfficerId && (latestTimeline.tahapTitle?.includes('Tindakan') || latestTimeline.tahapTitle?.includes('TKP') || isAnomaly)) {
@@ -752,7 +810,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
                     is_deviation_flagged: isAnomaly,
                     start_time: nowTime,
                     end_time: nowTime,
-                    photo_url: savedUrl,
+                    photo_url: rawEvidencesToSave[0]?.fileUrl || latestTimeline.fotoBuktiUrl || null,
                     photo_exif_lat: latestTimeline.gpsLat || null,
                     photo_exif_lng: latestTimeline.gpsLng || null,
                     activity_description: (latestTimeline.catatan || latestTimeline.tahapTitle || 'Tindakan Pengamanan TKP').slice(0, 1000),
@@ -763,10 +821,6 @@ export class PrismaComplaintRepository implements IComplaintRepository {
                 console.warn('Sync officer logbook error:', logErr);
               }
             }
-          } catch (evErr) {
-            console.warn('Sync evidence error:', evErr);
-          }
-        }
       } catch (e) {
         console.warn('Sync audit log error:', e);
       }

@@ -684,6 +684,145 @@ async function seed() {
   }
   console.log('✓ Hotspot Locations seeded.');
 
+  // 20. Master Resolution Locations (Lokasi Penyelesaian / BAP)
+  const resolutionLocations = [
+    {
+      key: 'TKP',
+      label: 'Tempat Kejadian Perkara (TKP)',
+      keterangan: 'Penyelesaian langsung di lokasi insiden awal',
+      icon_emoji: '📍',
+      requires_strict_tkp: true,
+      badge_color: '#2563EB',
+      badge_bg: '#EFF6FF',
+      display_order: 1,
+      is_active: true,
+    },
+    {
+      key: 'RUMAH_SAKIT',
+      label: 'Fasilitas Kesehatan / Rumah Sakit / Puskesmas',
+      keterangan: 'Evakuasi korban, koordinasi IGD, dan visum et repertum',
+      icon_emoji: '🏥',
+      requires_strict_tkp: false,
+      badge_color: '#059669',
+      badge_bg: '#ECFDF5',
+      display_order: 2,
+      is_active: true,
+    },
+    {
+      key: 'KANTOR_POLISI',
+      label: 'Kantor Kepolisian (Polsek / Unit Laka / Polres)',
+      keterangan: 'Pemeriksaan saksi, penerbitan BAP formal & mediasi RJ',
+      icon_emoji: '🏢',
+      requires_strict_tkp: false,
+      badge_color: '#7C3AED',
+      badge_bg: '#F5F3FF',
+      display_order: 3,
+      is_active: true,
+    },
+    {
+      key: 'KANTOR_KELURAHAN',
+      label: 'Kantor Kelurahan / Pos RW / Balai Warga',
+      keterangan: 'Musyawarah kekeluargaan bersama tokoh masyarakat setempat',
+      icon_emoji: '🏛️',
+      requires_strict_tkp: false,
+      badge_color: '#D97706',
+      badge_bg: '#FFFBEB',
+      display_order: 4,
+      is_active: true,
+    },
+    {
+      key: 'LAINNYA',
+      label: 'Lokasi Mediasi Sah Lainnya',
+      keterangan: 'Tempat kesepakatan damai para pihak yang disetujui',
+      icon_emoji: '🤝',
+      requires_strict_tkp: false,
+      badge_color: '#64748B',
+      badge_bg: '#F1F5F9',
+      display_order: 5,
+      is_active: true,
+    },
+  ];
+  for (const loc of resolutionLocations) {
+    await prisma.masterResolutionLocationType.upsert({
+      where: { key: loc.key },
+      update: loc,
+      create: loc,
+    });
+  }
+  console.log('✓ Master Resolution Locations seeded.');
+
+  // 21. Master Resolution Documents (Tipe Objek Bukti / Dokumen BAP Akhir)
+  const resolutionDocuments = [
+    {
+      key: 'BAP_DAMAI',
+      label: 'Surat Pernyataan Damai / Kesepakatan Bersama Bermaterai',
+      keterangan: 'Penyelesaian musyawarah kekeluargaan (Restorative Justice)',
+      icon_emoji: '📜',
+      badge_color: '#059669',
+      badge_bg: '#ECFDF5',
+      display_order: 1,
+      is_active: true,
+    },
+    {
+      key: 'REKAM_MEDIS',
+      label: 'Surat Keterangan Medis / Rujukan RS / Visum et Repertum',
+      keterangan: 'Dokumen bukti penanganan korban dari pihak medis/faskes',
+      icon_emoji: '🏥',
+      badge_color: '#2563EB',
+      badge_bg: '#EFF6FF',
+      display_order: 2,
+      is_active: true,
+    },
+    {
+      key: 'SERAH_TERIMA_BB',
+      label: 'Berita Acara Serah Terima Barang Bukti / Ranmor',
+      keterangan: 'Penyerahan kendaraan atau barang bukti kepada pemilik sah',
+      icon_emoji: '🔑',
+      badge_color: '#D97706',
+      badge_bg: '#FFFBEB',
+      display_order: 3,
+      is_active: true,
+    },
+    {
+      key: 'DOKUMENTASI_KONDUSIF',
+      label: 'Foto Situasi Kondusif / Musyawarah Para Pihak',
+      keterangan: 'Bukti visual situasi telah aman terkendali dan para pihak bersalaman',
+      icon_emoji: '📸',
+      badge_color: '#7C3AED',
+      badge_bg: '#F5F3FF',
+      display_order: 4,
+      is_active: true,
+    },
+    {
+      key: 'BERITA_ACARA_PENUTUPAN',
+      label: 'Berita Acara Penanganan & Penghentian Penyelidikan Resmi',
+      keterangan: 'Dokumen administrasi penutupan perkara oleh penyidik/petugas',
+      icon_emoji: '📑',
+      badge_color: '#475569',
+      badge_bg: '#F8FAFC',
+      display_order: 5,
+      is_active: true,
+    },
+    {
+      key: 'DOKUMEN_LAINNYA',
+      label: 'Dokumen Sah / Keterangan Pendukung Lainnya',
+      keterangan: 'Dokumentasi berkas pendukung lainnya sesuai wewenang petugas',
+      icon_emoji: '📂',
+      badge_color: '#64748B',
+      badge_bg: '#F1F5F9',
+      display_order: 6,
+      is_active: true,
+    },
+  ];
+  for (const doc of resolutionDocuments) {
+    await prisma.masterResolutionDocumentType.upsert({
+      where: { key: doc.key },
+      update: doc,
+      create: doc,
+    });
+  }
+  console.log('✓ Master Resolution Documents seeded.');
+
   console.log('🎉 Comprehensive Seed to TiDB Cloud completed successfully!');
 }
 
