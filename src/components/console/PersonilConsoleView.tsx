@@ -708,7 +708,10 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
         const myTasks = cRes.data.filter((c: any) => hasOfficerAcceptedTask(c));
         if (myTasks.length > 0) {
           setSelectedTask((prev: any) => {
-            if (prev && myTasks.some((t: any) => t.id === prev.id)) return prev;
+            if (prev) {
+              const matched = myTasks.find((t: any) => t.id === prev.id);
+              if (matched) return matched;
+            }
             return active || myTasks[0];
           });
         } else {
@@ -2756,49 +2759,58 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                           <span style={{ color: '#334155', fontWeight: 600 }}>{selectedTask.tkpAlamatTeks}</span>
                         </div>
 
-                        {/* FOTO BUKTI LAPORAN WARGA (Full-width with preview) */}
-                        <div
-                          style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
-                          onClick={() => {
-                            if (selectedTask.fotoBuktiUrl) {
-                              setLightboxFoto({
-                                src: selectedTask.fotoBuktiUrl,
-                                title: `Dokumentasi TKP - ${selectedTask.nomorTiket}`,
-                                meta: selectedTask.tkpAlamatTeks,
-                              });
-                            }
-                          }}
-                          title="Klik untuk perbesar foto laporan"
-                        >
-                          <img
-                            src={selectedTask.fotoBuktiUrl || '/assets/images/polri_pengaduan_tkp.jpg'}
-                            alt="Foto Bukti"
-                            onError={(e: any) => {
-                              e.target.onerror = null;
-                              e.target.src = 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=600&q=80';
-                            }}
-                            style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                          />
-                          <div
-                            style={{
-                              position: 'absolute',
-                              inset: 0,
-                              background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
-                              display: 'flex',
-                              alignItems: 'flex-end',
-                              justifyContent: 'space-between',
-                              padding: '8px 10px',
-                              color: 'white',
-                              fontSize: '10px',
-                              fontWeight: 600,
-                            }}
-                          >
-                            <span>Foto Bukti Laporan 110 • Terverifikasi</span>
-                            <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
-                              🔍 Perbesar
-                            </span>
-                          </div>
-                        </div>
+                        {/* FOTO BUKTI LAPORAN WARGA ATAU DOKUMENTASI PETUGAS */}
+                        {(() => {
+                          const displayEvidencePhoto =
+                            selectedTask.fotoBuktiUrl ||
+                            selectedTask.fotoPersiapan ||
+                            selectedTask.fotoTindakan ||
+                            (selectedTask.evidences && selectedTask.evidences.length > 0 ? selectedTask.evidences[selectedTask.evidences.length - 1].file_url : null);
+                          const isCitizenPhoto = Boolean(selectedTask.fotoBuktiUrl);
+
+                          if (!displayEvidencePhoto) {
+                            return null;
+                          }
+
+                          return (
+                            <div
+                              style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
+                              onClick={() => {
+                                setLightboxFoto({
+                                  src: displayEvidencePhoto,
+                                  title: isCitizenPhoto ? `Foto Bukti Laporan 110 - ${selectedTask.nomorTiket}` : `Dokumentasi Penanganan Lapangan - ${selectedTask.nomorTiket}`,
+                                  meta: selectedTask.tkpAlamatTeks,
+                                });
+                              }}
+                              title="Klik untuk perbesar foto dokumentasi"
+                            >
+                              <img
+                                src={displayEvidencePhoto}
+                                alt="Foto Bukti"
+                                style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                              />
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  inset: 0,
+                                  background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
+                                  display: 'flex',
+                                  alignItems: 'flex-end',
+                                  justifyContent: 'space-between',
+                                  padding: '8px 10px',
+                                  color: 'white',
+                                  fontSize: '10px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                <span>{isCitizenPhoto ? 'Foto Bukti Laporan 110 • Terverifikasi' : 'Foto Dokumentasi Personel • Lapangan'}</span>
+                                <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
+                                  🔍 Perbesar
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         <div style={{ fontSize: '11px', color: '#475569', lineHeight: '1.4', marginTop: '8px', fontStyle: 'italic' }}>
                           Laporan: &quot;{selectedTask.ringkasanKeterangan || selectedTask.deskripsiKejadian || selectedTask.jenisKejadian}&quot;
@@ -2884,12 +2896,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                     style={{
                                       fontSize: '10px',
                                       fontWeight: 700,
-                                      color: '#1D4ED8',
-                                      background: '#EFF6FF',
-                                      border: '1px solid #BFDBFE',
+                                      color: selectedTask.fotoBuktiUrl ? '#1D4ED8' : '#64748B',
+                                      background: selectedTask.fotoBuktiUrl ? '#EFF6FF' : '#F1F5F9',
+                                      border: selectedTask.fotoBuktiUrl ? '1px solid #BFDBFE' : '1px solid #CBD5E1',
                                       padding: '3px 8px',
                                       borderRadius: '4px',
-                                      cursor: 'pointer',
+                                      cursor: selectedTask.fotoBuktiUrl ? 'pointer' : 'default',
                                       display: 'inline-flex',
                                       alignItems: 'center',
                                       gap: '4px',
@@ -2903,12 +2915,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                           meta: `${tanggalKasus} • ${selectedTask.tkpAlamatTeks || ''}`,
                                         });
                                       } else {
-                                        alert('📷 Bukti foto laporan 110 warga tersimpan di sistem.');
+                                        alert('Pelapor tidak menyertakan foto bukti saat membuat tiket laporan 110 ini.');
                                       }
                                     }}
-                                    title="Klik untuk lihat bukti foto 110"
+                                    title={selectedTask.fotoBuktiUrl ? 'Klik untuk lihat bukti foto 110' : 'Pelapor tidak menyertakan foto bukti'}
                                   >
-                                    📷 Bukti Laporan 110 ➔
+                                    {selectedTask.fotoBuktiUrl ? '📷 Bukti Laporan 110 ➔' : '📷 Tanpa Foto Pelapor'}
                                   </span>
                                 </div>
                               </div>
@@ -2962,98 +2974,114 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                 </div>
                                 {s3State === 'completed' || selectedTask.waktuMeluncur ? (
                                   <>
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
-                                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                          <span>📅</span> {tanggalKasus}
-                                        </span>
-                                        <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                          Meluncur: {selectedTask.waktuMeluncur || '10:50 WIB'}
-                                        </span>
-                                      </div>
-                                      <span
-                                        style={{
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          color: '#1E40AF',
-                                          background: '#EFF6FF',
-                                          border: '1px solid #BFDBFE',
-                                          padding: '3px 8px',
-                                          borderRadius: '4px',
-                                          cursor: 'pointer',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                        }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (selectedTask.fotoPersiapan) {
-                                            setLightboxFoto({
-                                              src: selectedTask.fotoPersiapan,
-                                              title: `Bukti Persiapan & GPS - ${selectedTask.nomorTiket}`,
-                                              meta: `GPS: ${selectedTask.koordinatGps || '-6.1932, 106.8821'} • Meluncur: ${selectedTask.waktuMeluncur || '10:50 WIB'}`,
-                                            });
-                                          } else {
-                                            alert('📷 Bukti foto persiapan armada dinas & GPS tersimpan.');
-                                          }
-                                        }}
-                                        title="Klik untuk lihat bukti foto persiapan & GPS"
-                                      >
-                                        📷 Bukti Persiapan &amp; GPS ➔
-                                      </span>
-                                    </div>
-                                    {!isCaseFinished && (
-                                      <div
-                                        className="tracking-map"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (selectedTask.fotoPersiapan) {
-                                            setLightboxFoto({
-                                              src: selectedTask.fotoPersiapan,
-                                              title: `Bukti Persiapan & GPS - ${selectedTask.nomorTiket}`,
-                                              meta: `GPS: ${selectedTask.koordinatGps || '-6.1932, 106.8821'}`,
-                                            });
-                                          }
-                                        }}
-                                        title="Klik untuk memperbesar Bukti Persiapan & GPS"
-                                        style={{ cursor: 'pointer', position: 'relative', borderRadius: '8px', overflow: 'hidden', marginTop: '8px', border: '1px solid #CBD5E1' }}
-                                      >
-                                        <img
-                                          src={selectedTask.fotoPersiapan || '/assets/images/polri_patrol_car.jpg'}
-                                          alt="Bukti Persiapan & GPS"
-                                          onError={(e: any) => {
-                                            e.target.onerror = null;
-                                            e.target.src = 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80';
-                                          }}
-                                          style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
-                                        />
-                                        <div
-                                          style={{
-                                            position: 'absolute',
-                                            bottom: 0,
-                                            left: 0,
-                                            right: 0,
-                                            background: 'linear-gradient(transparent, rgba(15,23,42,0.85))',
-                                            padding: '6px 10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                          }}
-                                        >
-                                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1E40AF', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', color: 'white' }}>
-                                            👮
-                                          </div>
-                                          <div style={{ color: 'white', lineHeight: 1.2 }}>
-                                            <div style={{ fontSize: '11px', fontWeight: 700 }}>
-                                              {selectedTask.personelDitugaskan || officer.fullName || 'Petugas Lapangan'}
+                                    {(() => {
+                                      const resolvedFotoPersiapan =
+                                        selectedTask.fotoPersiapan ||
+                                        (selectedTask.evidences || []).find(
+                                          (e: any) => e.incident_phase === 'MENUJU_TKP' || (e.caption || '').includes('Meluncur') || (e.caption || '').includes('Persiapan')
+                                        )?.file_url;
+
+                                      return (
+                                        <>
+                                          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
+                                              <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                <span>📅</span> {tanggalKasus}
+                                              </span>
+                                              <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
+                                                Meluncur: {selectedTask.waktuMeluncur || '10:50 WIB'}
+                                              </span>
                                             </div>
-                                            <div style={{ fontSize: '9.5px', opacity: 0.9 }}>
-                                              Estimasi Tiba: 5 Menit • 🔍 Klik perbesar foto
-                                            </div>
+                                            {resolvedFotoPersiapan ? (
+                                              <span
+                                                style={{
+                                                  fontSize: '10px',
+                                                  fontWeight: 700,
+                                                  color: '#1E40AF',
+                                                  background: '#EFF6FF',
+                                                  border: '1px solid #BFDBFE',
+                                                  padding: '3px 8px',
+                                                  borderRadius: '4px',
+                                                  cursor: 'pointer',
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: '4px',
+                                                }}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  setLightboxFoto({
+                                                    src: resolvedFotoPersiapan,
+                                                    title: `Bukti Persiapan & GPS - ${selectedTask.nomorTiket}`,
+                                                    meta: `GPS: ${selectedTask.koordinatGps || (selectedTask.tkpLat ? `${selectedTask.tkpLat}, ${selectedTask.tkpLng}` : '-6.1932, 106.8821')} • Meluncur: ${selectedTask.waktuMeluncur || '10:50 WIB'}`,
+                                                  });
+                                                }}
+                                                title="Klik untuk lihat bukti foto persiapan & GPS"
+                                              >
+                                                📷 Bukti Persiapan &amp; GPS ➔
+                                              </span>
+                                            ) : (
+                                              <span
+                                                style={{
+                                                  fontSize: '9.5px',
+                                                  color: '#64748B',
+                                                  background: '#F1F5F9',
+                                                  padding: '2px 6px',
+                                                  borderRadius: '4px',
+                                                }}
+                                              >
+                                                Tanpa Foto Persiapan
+                                              </span>
+                                            )}
                                           </div>
-                                        </div>
-                                      </div>
-                                    )}
+                                          {!isCaseFinished && resolvedFotoPersiapan ? (
+                                            <div
+                                              className="tracking-map"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setLightboxFoto({
+                                                  src: resolvedFotoPersiapan,
+                                                  title: `Bukti Persiapan & GPS - ${selectedTask.nomorTiket}`,
+                                                  meta: `GPS: ${selectedTask.koordinatGps || (selectedTask.tkpLat ? `${selectedTask.tkpLat}, ${selectedTask.tkpLng}` : '-6.1932, 106.8821')}`,
+                                                });
+                                              }}
+                                              title="Klik untuk memperbesar Bukti Persiapan & GPS"
+                                              style={{ cursor: 'pointer', position: 'relative', borderRadius: '8px', overflow: 'hidden', marginTop: '8px', border: '1px solid #CBD5E1' }}
+                                            >
+                                              <img
+                                                src={resolvedFotoPersiapan}
+                                                alt="Bukti Persiapan & GPS"
+                                                style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
+                                              />
+                                              <div
+                                                style={{
+                                                  position: 'absolute',
+                                                  bottom: 0,
+                                                  left: 0,
+                                                  right: 0,
+                                                  background: 'linear-gradient(transparent, rgba(15,23,42,0.85))',
+                                                  padding: '6px 10px',
+                                                  display: 'flex',
+                                                  alignItems: 'center',
+                                                  gap: '8px',
+                                                }}
+                                              >
+                                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1E40AF', border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', color: 'white' }}>
+                                                  👮
+                                                </div>
+                                                <div style={{ color: 'white', lineHeight: 1.2 }}>
+                                                  <div style={{ fontSize: '11px', fontWeight: 700 }}>
+                                                    {selectedTask.personelDitugaskan || officer.fullName || 'Petugas Lapangan'}
+                                                  </div>
+                                                  <div style={{ fontSize: '9.5px', opacity: 0.9 }}>
+                                                    Estimasi Tiba: 5 Menit • 🔍 Klik perbesar foto
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                        </>
+                                      );
+                                    })()}
                                     <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderLeft: '3px solid #16A34A', borderRadius: '6px', padding: '6px 10px', marginTop: '8px' }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                                         <span style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>📍 GPS KEBERANGKATAN:</span>
@@ -3097,46 +3125,67 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                 </div>
                                 {s4State === 'completed' || (s4State === 'active' && selectedTask.waktuTiba) ? (
                                   <>
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
-                                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                          <span>📅</span> {tanggalKasus}
-                                        </span>
-                                        <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                          Tiba di TKP: {selectedTask.waktuTiba || '11:15 WIB'}
-                                        </span>
-                                      </div>
-                                      <span
-                                        style={{
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          color: '#16A34A',
-                                          background: '#ECFDF5',
-                                          border: '1px solid #A7F3D0',
-                                          padding: '3px 8px',
-                                          borderRadius: '4px',
-                                          cursor: 'pointer',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                        }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (selectedTask.fotoTindakan || selectedTask.fotoBuktiUrl) {
-                                            setLightboxFoto({
-                                              src: selectedTask.fotoTindakan || selectedTask.fotoBuktiUrl,
-                                              title: `Bukti Tindakan TKP - ${selectedTask.nomorTiket}`,
-                                              meta: `Tiba: ${selectedTask.waktuTiba || '11:15 WIB'} • ${selectedTask.tkpAlamatTeks || ''}`,
-                                            });
-                                          } else {
-                                            alert('📸 Bukti foto dokumentasi tindakan TKP tersimpan.');
-                                          }
-                                        }}
-                                        title="Klik untuk lihat bukti foto tindakan"
-                                      >
-                                        📸 Bukti Tindakan TKP ➔
-                                      </span>
-                                    </div>
+                                    {(() => {
+                                      const resolvedFotoTindakan =
+                                        selectedTask.fotoTindakan ||
+                                        selectedTask.fotoTiba ||
+                                        (selectedTask.evidences || []).find(
+                                          (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption || '').includes('Tindakan') || (e.caption || '').includes('Tiba')
+                                        )?.file_url;
+
+                                      return (
+                                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
+                                            <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                              <span>📅</span> {tanggalKasus}
+                                            </span>
+                                            <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
+                                              Tiba: {selectedTask.waktuTiba || '11:15 WIB'}
+                                            </span>
+                                          </div>
+                                          {resolvedFotoTindakan ? (
+                                            <span
+                                              style={{
+                                                fontSize: '10px',
+                                                fontWeight: 700,
+                                                color: '#16A34A',
+                                                background: '#ECFDF5',
+                                                border: '1px solid #A7F3D0',
+                                                padding: '3px 8px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                              }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setLightboxFoto({
+                                                  src: resolvedFotoTindakan,
+                                                  title: `Bukti Tindakan TKP - ${selectedTask.nomorTiket}`,
+                                                  meta: `Tiba: ${selectedTask.waktuTiba || '11:15 WIB'} • ${selectedTask.tkpAlamatTeks || ''}`,
+                                                });
+                                              }}
+                                              title="Klik untuk lihat bukti foto tindakan"
+                                            >
+                                              📸 Bukti Tindakan TKP ➔
+                                            </span>
+                                          ) : (
+                                            <span
+                                              style={{
+                                                fontSize: '9.5px',
+                                                color: '#64748B',
+                                                background: '#F1F5F9',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                              }}
+                                            >
+                                              Menunggu Foto Tindakan
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                     <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                                       <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
                                       <div style={{ fontSize: '11px', color: '#1E293B' }}>&quot;{selectedTask.deskripsiTindakan || selectedTask.ringkasanKeterangan || 'Petugas telah tiba di TKP. Melakukan pengamanan perimeter dan tindakan kepolisian presisi sesuai SOP.'}&quot;</div>
@@ -3170,46 +3219,67 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
                                 </div>
                                 {s5State === 'completed' || s5State === 'active' ? (
                                   <>
-                                    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
-                                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                          <span>📅</span> {tanggalKasus}
-                                        </span>
-                                        <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
-                                          {selectedTask.pengesahanPawas ? 'Disahkan: ' : 'Selesai: '}{selectedTask.waktuSelesai || selectedTask.pengesahanPawas?.waktu || '11:45 WIB'}
-                                        </span>
-                                      </div>
-                                      <span
-                                        style={{
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          color: '#16A34A',
-                                          background: '#ECFDF5',
-                                          border: '1px solid #A7F3D0',
-                                          padding: '3px 8px',
-                                          borderRadius: '4px',
-                                          cursor: 'pointer',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                        }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          if (selectedTask.fotoSelesai || selectedTask.fotoBuktiUrl) {
-                                            setLightboxFoto({
-                                              src: selectedTask.fotoSelesai || selectedTask.fotoBuktiUrl,
-                                              title: `Bukti Situasi Akhir - ${selectedTask.nomorTiket}`,
-                                              meta: `Selesai: ${selectedTask.waktuSelesai || '11:45 WIB'}`,
-                                            });
-                                          } else {
-                                            alert('✅ Bukti dokumentasi situasi akhir kondusif tersimpan.');
-                                          }
-                                        }}
-                                        title="Klik untuk lihat bukti foto penyelesaian akhir"
-                                      >
-                                        ✅ Bukti Situasi Akhir ➔
-                                      </span>
-                                    </div>
+                                    {(() => {
+                                      const resolvedFotoSelesai =
+                                        selectedTask.fotoSelesai ||
+                                        (selectedTask.evidences || []).find(
+                                          (e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || (e.caption || '').includes('Selesai')
+                                        )?.file_url;
+
+                                      return (
+                                        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px' }}>
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', lineHeight: 1.2 }}>
+                                            <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                              <span>📅</span> {tanggalKasus}
+                                            </span>
+                                            <span className="step-time" style={{ fontSize: '11px', fontWeight: 700, color: '#1E293B' }}>
+                                              {selectedTask.pengesahanPawas ? 'Disahkan: ' : 'Selesai: '}{selectedTask.waktuSelesai || selectedTask.pengesahanPawas?.waktu || '11:45 WIB'}
+                                            </span>
+                                          </div>
+                                          {resolvedFotoSelesai ? (
+                                            <span
+                                              style={{
+                                                fontSize: '10px',
+                                                fontWeight: 700,
+                                                color: '#16A34A',
+                                                background: '#ECFDF5',
+                                                border: '1px solid #A7F3D0',
+                                                padding: '3px 8px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                              }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                setLightboxFoto({
+                                                  src: resolvedFotoSelesai,
+                                                  title: `Bukti Situasi Akhir - ${selectedTask.nomorTiket}`,
+                                                  meta: `Selesai: ${selectedTask.waktuSelesai || '11:45 WIB'}`,
+                                                });
+                                              }}
+                                              title="Klik untuk lihat bukti foto penyelesaian akhir"
+                                            >
+                                              ✅ Bukti Situasi Akhir ➔
+                                            </span>
+                                          ) : (
+                                            <span
+                                              style={{
+                                                fontSize: '9.5px',
+                                                color: '#16A34A',
+                                                fontWeight: 700,
+                                                background: '#ECFDF5',
+                                                padding: '2px 6px',
+                                                borderRadius: '4px',
+                                              }}
+                                            >
+                                              ✓ Kondusif
+                                            </span>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                     <div style={{ background: '#ECFDF5', borderLeft: '3px solid #10B981', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                                       <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857', marginBottom: '2px' }}>✓ LAPORAN AKHIR PETUGAS:</div>
                                       <div style={{ fontSize: '11px', color: '#1E293B' }}>&quot;{selectedTask.catatanSelesai || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.'}&quot;</div>

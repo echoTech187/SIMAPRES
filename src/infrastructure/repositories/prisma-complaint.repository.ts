@@ -33,82 +33,114 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       responseTimeMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
     }
 
-    return new ComplaintEntity({
-      id: record.id,
-      nomorTiket: record.nomor_tiket,
-      pelaporNama: record.pelapor_nama,
-      pelaporHp: record.pelapor_hp,
-      jenisKejadian: record.jenis_kejadian,
-      urgensi: record.urgensi as UrgensiLevel,
-      kategoriId: record.category_id,
-      kategoriKey: record.kategori_key,
-      kategoriRel: record.category_rel,
-      subcategoryId: record.subcategory_id,
-      subcategory: record.subcategory_rel,
-      platformId: record.source_id,
-      platformKey: record.platform_key,
-      platformRel: record.source_rel,
-      tkpAlamatTeks: record.tkp_alamat_teks,
-      tkpLat: Number(record.tkp_lat),
-      tkpLng: Number(record.tkp_lng),
-      ringkasanKeterangan: record.ringkasan_keterangan,
-      status: record.status as ComplaintStatus,
-      tahap: record.tahap,
-      alasanTolak: record.alasan_tolak,
-      operatorId: record.operator_id,
-      assignedOfficerId: primaryDispatch?.officer_id || null,
-      assignedOfficer: assignedOfficer
-        ? {
-            id: assignedOfficer.id,
-            nrp: assignedOfficer.nrp,
-            rankPangkat: assignedOfficer.rank_pangkat,
-            jabatan: assignedOfficer.jabatan,
-            assignedPatrolVehicle: assignedOfficer.assigned_patrol_vehicle,
-            currentGpsLat: assignedOfficer.current_gps_lat ? Number(assignedOfficer.current_gps_lat) : null,
-            currentGpsLng: assignedOfficer.current_gps_lng ? Number(assignedOfficer.current_gps_lng) : null,
-            namaLengkap: (assignedOfficer.user as any)?.full_name || (assignedOfficer.user as any)?.nama_lengkap || '',
-            avatarUrl: assignedOfficer.avatar_url,
+      // Temukan bukti visual per fase penanganan
+      const evidenceList = record.evidences || [];
+      const evidenceAwal = evidenceList.find(
+        (e: any) => e.incident_phase === 'LAPORAN_AWAL' || (e.caption && e.caption.toLowerCase().includes('laporan'))
+      );
+      const evidenceMenuju = evidenceList.find(
+        (e: any) => e.incident_phase === 'MENUJU_TKP' || (e.caption && (e.caption.includes('Meluncur') || e.caption.includes('Persiapan')))
+      );
+      const evidenceTiba = evidenceList.find(
+        (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption && (e.caption.includes('Tiba') || e.caption.includes('Tindakan')))
+      );
+      const evidenceSelesai = evidenceList.find(
+        (e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || (e.caption && e.caption.includes('Selesai'))
+      );
+
+      return new ComplaintEntity({
+        id: record.id,
+        nomorTiket: record.nomor_tiket,
+        pelaporNama: record.pelapor_nama,
+        pelaporHp: record.pelapor_hp,
+        jenisKejadian: record.jenis_kejadian,
+        urgensi: record.urgensi as UrgensiLevel,
+        kategoriId: record.category_id,
+        kategoriKey: record.kategori_key,
+        kategoriRel: record.category_rel,
+        subcategoryId: record.subcategory_id,
+        subcategory: record.subcategory_rel,
+        platformId: record.source_id,
+        platformKey: record.platform_key,
+        platformRel: record.source_rel,
+        tkpAlamatTeks: record.tkp_alamat_teks,
+        tkpLat: Number(record.tkp_lat),
+        tkpLng: Number(record.tkp_lng),
+        ringkasanKeterangan: record.ringkasan_keterangan,
+        status: record.status as ComplaintStatus,
+        tahap: record.tahap,
+        alasanTolak: record.alasan_tolak,
+        operatorId: record.operator_id,
+        assignedOfficerId: primaryDispatch?.officer_id || null,
+        assignedOfficer: assignedOfficer
+          ? {
+              id: assignedOfficer.id,
+              nrp: assignedOfficer.nrp,
+              rankPangkat: assignedOfficer.rank_pangkat,
+              jabatan: assignedOfficer.jabatan,
+              assignedPatrolVehicle: assignedOfficer.assigned_patrol_vehicle,
+              currentGpsLat: assignedOfficer.current_gps_lat ? Number(assignedOfficer.current_gps_lat) : null,
+              currentGpsLng: assignedOfficer.current_gps_lng ? Number(assignedOfficer.current_gps_lng) : null,
+              namaLengkap: (assignedOfficer.user as any)?.full_name || (assignedOfficer.user as any)?.nama_lengkap || '',
+              avatarUrl: assignedOfficer.avatar_url,
+            }
+          : null,
+        pawasValidasiId: null,
+        pawas: pawasLog
+          ? {
+              id: 0n,
+              namaLengkap: pawasLog.actor_name,
+              identifier: pawasLog.actor_name,
+            }
+          : null,
+        operator: record.operator
+          ? {
+              id: record.operator.id,
+              namaLengkap: (record.operator as any)?.full_name || (record.operator as any)?.nama_lengkap || '',
+              identifier: record.operator.identifier,
+            }
+          : null,
+        disposisiAt: primaryDispatch?.dispatched_at || null,
+        responTibaTkpAt: primaryDispatch?.arrived_at || null,
+        selesaiAt: primaryDispatch?.completed_at || null,
+        responseTimeMinutes,
+        citizenRating: citizenReview?.star_rating || null,
+        citizenReview: citizenReview?.review_text || null,
+        citizenTags: citizenReview?.feedback_tags || null,
+        fotoBuktiUrl: evidenceAwal?.file_url || null,
+        fotoPersiapan: evidenceMenuju?.file_url || null,
+        fotoTiba: evidenceTiba?.file_url || null,
+        fotoTindakan: evidenceTiba?.file_url || null,
+        fotoSelesai: evidenceSelesai?.file_url || null,
+        timelines: (record.complaint_logs || []).map((t: any, idx: number) => {
+          let stepPhoto: string | null = null;
+          if (t.action?.includes('Meluncur') || t.action?.includes('Persiapan')) {
+            stepPhoto = evidenceMenuju?.file_url || null;
+          } else if (t.action?.includes('Tiba') || t.action?.includes('Tindakan')) {
+            stepPhoto = evidenceTiba?.file_url || null;
+          } else if (t.action?.includes('Selesai')) {
+            stepPhoto = evidenceSelesai?.file_url || null;
+          } else if (t.action?.includes('Laporan')) {
+            stepPhoto = evidenceAwal?.file_url || null;
           }
-        : null,
-      pawasValidasiId: null,
-      pawas: pawasLog
-        ? {
-            id: 0n,
-            namaLengkap: pawasLog.actor_name,
-            identifier: pawasLog.actor_name,
-          }
-        : null,
-      operator: record.operator
-        ? {
-            id: record.operator.id,
-            namaLengkap: (record.operator as any)?.full_name || (record.operator as any)?.nama_lengkap || '',
-            identifier: record.operator.identifier,
-          }
-        : null,
-      disposisiAt: primaryDispatch?.dispatched_at || null,
-      responTibaTkpAt: primaryDispatch?.arrived_at || null,
-      selesaiAt: primaryDispatch?.completed_at || null,
-      responseTimeMinutes,
-      citizenRating: citizenReview?.star_rating || null,
-      citizenReview: citizenReview?.review_text || null,
-      citizenTags: citizenReview?.feedback_tags || null,
-      timelines: (record.complaint_logs || []).map((t: any, idx: number) => ({
-        tahapKe: idx + 1,
-        tahapTitle: t.action,
-        catatan: t.notes,
-        fotoBuktiUrl: null,
-        gpsLat: t.action_lat ? Number(t.action_lat) : null,
-        gpsLng: t.action_lng ? Number(t.action_lng) : null,
-        createdAt: t.created_at,
-      })),
-      dispatches: record.dispatches || [],
-      complaintLogs: record.complaint_logs || [],
-      evidences: record.evidences || [],
-      citizenReviewRel: citizenReview || null,
-      createdAt: record.created_at,
-      updatedAt: record.updated_at,
-    });
-  }
+          return {
+            tahapKe: idx + 1,
+            tahapTitle: t.action,
+            catatan: t.notes,
+            fotoBuktiUrl: stepPhoto,
+            gpsLat: t.action_lat ? Number(t.action_lat) : null,
+            gpsLng: t.action_lng ? Number(t.action_lng) : null,
+            createdAt: t.created_at,
+          };
+        }),
+        dispatches: record.dispatches || [],
+        complaintLogs: record.complaint_logs || [],
+        evidences: record.evidences || [],
+        citizenReviewRel: citizenReview || null,
+        createdAt: record.created_at,
+        updatedAt: record.updated_at,
+      });
+    }
 
   async findById(id: bigint): Promise<ComplaintEntity | null> {
     const record = await prisma.complaint.findUnique({

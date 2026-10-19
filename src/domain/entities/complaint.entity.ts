@@ -87,6 +87,11 @@ export interface ComplaintProps {
   dispatches?: any[];
   complaintLogs?: any[];
   evidences?: any[];
+  fotoBuktiUrl?: string | null;
+  fotoPersiapan?: string | null;
+  fotoTiba?: string | null;
+  fotoTindakan?: string | null;
+  fotoSelesai?: string | null;
   citizenReviewRel?: any | null;
   createdAt?: Date;
   updatedAt?: Date;
@@ -219,6 +224,26 @@ export class ComplaintEntity {
     return this.props.responseTimeMinutes;
   }
 
+  get fotoBuktiUrl(): string | null | undefined {
+    return this.props.fotoBuktiUrl;
+  }
+
+  get fotoPersiapan(): string | null | undefined {
+    return this.props.fotoPersiapan;
+  }
+
+  get fotoTiba(): string | null | undefined {
+    return this.props.fotoTiba;
+  }
+
+  get fotoTindakan(): string | null | undefined {
+    return this.props.fotoTindakan;
+  }
+
+  get fotoSelesai(): string | null | undefined {
+    return this.props.fotoSelesai;
+  }
+
   // --- LOGIKA BISNIS & STATE TRANSITIONS (SOP POLRI) ---
 
   /**
@@ -243,6 +268,9 @@ export class ComplaintEntity {
     }
     this.props.status = 'MENUJU_TKP';
     this.props.tahap = 3;
+    if (fotoBuktiUrl) {
+      this.props.fotoPersiapan = fotoBuktiUrl;
+    }
     this.props.timelines?.push({
       tahapKe: 1,
       tahapTitle: 'Personel Meluncur ke TKP',
@@ -270,6 +298,10 @@ export class ComplaintEntity {
     this.props.status = 'TIBA_DI_TKP';
     this.props.tahap = 4;
     this.props.responTibaTkpAt = now;
+    if (fotoBuktiUrl) {
+      this.props.fotoTiba = fotoBuktiUrl;
+      this.props.fotoTindakan = fotoBuktiUrl;
+    }
 
     if (this.props.disposisiAt) {
       const diffMs = now.getTime() - this.props.disposisiAt.getTime();
@@ -303,6 +335,9 @@ export class ComplaintEntity {
     }
     this.props.status = 'MENUNGGU_PENGESAHAN';
     this.props.tahap = 4;
+    if (fotoBuktiUrl) {
+      this.props.fotoTindakan = fotoBuktiUrl;
+    }
     this.props.timelines?.push({
       tahapKe: 3,
       tahapTitle: 'Penanganan Lapangan Rampung & BAP Diterbitkan',
@@ -319,6 +354,9 @@ export class ComplaintEntity {
     this.props.status = 'SELESAI';
     this.props.tahap = 5;
     this.props.selesaiAt = new Date();
+    if (fotoBuktiUrl) {
+      this.props.fotoSelesai = fotoBuktiUrl;
+    }
     this.props.timelines?.push({
       tahapKe: 4,
       tahapTitle: 'Kasus Tuntas Selesai Ditangani & Berita Acara Disahkan Pawas',
