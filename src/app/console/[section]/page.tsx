@@ -46,14 +46,15 @@ export async function generateMetadata({ params }: { params?: { section?: string
   };
 }
 
-import { getMasterFilterOptionsAction } from '@/app/actions/complaint.actions';
+import { getMasterFilterOptionsAction, getOfficerComplaintsAction } from '@/app/actions/complaint.actions';
+import { getOfficerProfileByNrpAction } from '@/app/actions/auth.actions';
 
 export default async function ConsoleSectionPage({
   params,
   searchParams,
 }: {
   params?: { section?: string };
-  searchParams?: { tab?: string; page?: string };
+  searchParams?: { tab?: string; page?: string; nrp?: string };
 }) {
   // 1. Verifikasi Autentikasi Server-Side
   const session = await getSession();
@@ -69,7 +70,20 @@ export default async function ConsoleSectionPage({
   const masterRes = await getMasterFilterOptionsAction();
   const initialMasterData = masterRes.success ? masterRes.data : null;
 
-  // 3. Audit Trail: Catat akses halaman spesifik ke tabel user_log_activities
+  // 3. Jika role PERSONIL, ambil data penugasan & profile langsung di Server (RSC)
+  let initialComplaints: any[] = [];
+  let initialOfficer: any = null;
+  if (session.role === 'PERSONIL') {
+    const targetNrp = searchParams?.nrp || session.identifier || '92031145';
+    const [cRes, pRes] = await Promise.all([
+      getOfficerComplaintsAction(targetNrp),
+      getOfficerProfileByNrpAction(targetNrp),
+    ]);
+    if (cRes.success && cRes.data) initialComplaints = cRes.data;
+    if (pRes.success && pRes.data) initialOfficer = pRes.data;
+  }
+
+  // 4. Audit Trail: Catat akses halaman spesifik ke tabel user_log_activities
   try {
     await logUserActivity({
       userId: session.userId,
@@ -82,7 +96,7 @@ export default async function ConsoleSectionPage({
     });
   } catch (_) {}
 
-  // 4. Render Tampilan Client Component dengan initialSection dan initialMasterData dari database
+  // 5. Render Tampilan Client Component dengan initialSection, initialComplaints, dan initialOfficer dari database
   return (
     <Suspense fallback={<ConsoleSkeleton role={session.role} />}>
       {session.role === 'SUPERADMIN' && (
@@ -92,7 +106,13 @@ export default async function ConsoleSectionPage({
         <PawasConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
       )}
       {session.role === 'PERSONIL' && (
-        <PersonilConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
+        <PersonilConsoleView
+          session={session}
+          initialSection={section}
+          initialMasterData={initialMasterData}
+          initialComplaints={initialComplaints}
+          initialOfficer={initialOfficer}
+        />
       )}
     </Suspense>
   );

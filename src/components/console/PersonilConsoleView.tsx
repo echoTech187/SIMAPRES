@@ -109,7 +109,19 @@ function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number,
   return Math.round(R * c);
 }
 
-function PersonilContent({ session, initialSection = 'beranda' }: { session?: any; initialSection?: string }) {
+function PersonilContent({
+  session,
+  initialSection = 'beranda',
+  initialMasterData,
+  initialComplaints,
+  initialOfficer,
+}: {
+  session?: any;
+  initialSection?: string;
+  initialMasterData?: any;
+  initialComplaints?: any[];
+  initialOfficer?: any;
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const nrpParam = searchParams.get('nrp') || session?.identifier || '92031145';
@@ -156,32 +168,78 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   const [newHotspotLng, setNewHotspotLng] = useState<number>(0);
   const [showMiniPickerRawan, setShowMiniPickerRawan] = useState<boolean>(false);
 
-  // Officer Profile (Dimuat secara dinamis 100% dari Database MySQL)
-  const [officer, setOfficer] = useState<any>({
-    id: session?.userId ? String(session.userId) : '3',
-    nrp: nrpParam || '92031145',
-    fullName: session?.fullName || '',
-    pangkat: session?.rankPangkat || '',
-    jabatan: session?.title || '',
-    satuan: '',
-    kendaraan: '',
-    avatar: session?.avatar_url || null,
-    kpi: 0,
-    stationId: null,
-    stationName: null,
-    stationLat: null,
-    stationLng: null,
-    stationRadius: 1000,
-    currentGpsLat: null,
-    currentGpsLng: null,
+  // Officer Profile (Dimuat langsung dari Server Component RSC jika tersedia)
+  const [officer, setOfficer] = useState<any>(() => {
+    if (initialOfficer) {
+      return {
+        id: String(initialOfficer.id || session?.userId || '3'),
+        nrp: initialOfficer.nrp || nrpParam || '92031145',
+        fullName: initialOfficer.fullName || session?.fullName || '',
+        pangkat: initialOfficer.pangkat || session?.rankPangkat || '',
+        jabatan: initialOfficer.jabatan || session?.title || '',
+        satuan: initialOfficer.satuan || '',
+        unit_id: initialOfficer.unit_id || null,
+        unitId: initialOfficer.unitId || '',
+        kendaraan: initialOfficer.kendaraan || 'Tanpa Ranmor Dinas',
+        avatar: initialOfficer.avatar || session?.avatar_url || null,
+        kpi: initialOfficer.kpi ?? 100,
+        deviceId: initialOfficer.deviceId || null,
+        stationId: initialOfficer.stationId || null,
+        stationName: initialOfficer.stationName || null,
+        stationLat: initialOfficer.stationLat ?? null,
+        stationLng: initialOfficer.stationLng ?? null,
+        stationRadius: initialOfficer.stationRadius ?? 1000,
+        currentGpsLat: initialOfficer.currentGpsLat ?? null,
+        currentGpsLng: initialOfficer.currentGpsLng ?? null,
+      };
+    }
+    return {
+      id: session?.userId ? String(session.userId) : '3',
+      nrp: nrpParam || '92031145',
+      fullName: session?.fullName || '',
+      pangkat: session?.rankPangkat || '',
+      jabatan: session?.title || '',
+      satuan: '',
+      kendaraan: '',
+      avatar: session?.avatar_url || null,
+      kpi: 0,
+      stationId: null,
+      stationName: null,
+      stationLat: null,
+      stationLng: null,
+      stationRadius: 1000,
+      currentGpsLat: null,
+      currentGpsLng: null,
+    };
   });
 
   const [taktisStatus, setTaktisStatus] = useState<string>('siaga');
 
-  // Complaints & Active Emergency
-  const [complaints, setComplaints] = useState<any[]>([]);
-  const [activeComplaint, setActiveComplaint] = useState<any | null>(null);
-  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  // Complaints & Active Emergency (Dimuat langsung dari Server Component RSC jika tersedia)
+  const [complaints, setComplaints] = useState<any[]>(() => initialComplaints || []);
+
+  const initialActive = useMemo(() => {
+    if (!initialComplaints || initialComplaints.length === 0) return null;
+    return initialComplaints.find(
+      (c: any) =>
+        hasOfficerAcceptedTask(c) &&
+        c.status !== 'SELESAI' &&
+        c.status !== 'DITOLAK' &&
+        (c.status === 'MENUJU_TKP' ||
+          c.status === 'PENANGANAN_TKP' ||
+          c.status === 'TIBA_DI_TKP' ||
+          c.status === 'SEDANG_DITANGANI' ||
+          c.status === 'DIPROSES' ||
+          c.status === 'MENUNGGU_PENGESAHAN')
+    ) || null;
+  }, []);
+
+  const [activeComplaint, setActiveComplaint] = useState<any | null>(() => initialActive);
+  const [selectedTask, setSelectedTask] = useState<any | null>(() => {
+    if (!initialComplaints || initialComplaints.length === 0) return null;
+    const myTasks = initialComplaints.filter((c: any) => hasOfficerAcceptedTask(c));
+    return initialActive || (myTasks.length > 0 ? myTasks[0] : null);
+  });
   const [validasiFilter, setValidasiFilter] = useState<'semua' | 'diproses' | 'menunggu_pengesahan'>('diproses');
   const [platformFilter, setPlatformFilter] = useState<'all' | 'sos' | 'warga' | 'layanan110'>('all');
 
@@ -636,10 +694,10 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   const [presensiMasukTime, setPresensiMasukTime] = useState<string>('-');
   const [presensiPulangTime, setPresensiPulangTime] = useState<string | null>(null);
   const [liveClock, setLiveClock] = useState('');
-  const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number }>({
-    lat: 0,
-    lng: 0,
-  });
+  const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number }>(() => ({
+    lat: initialOfficer?.currentGpsLat ? Number(initialOfficer.currentGpsLat) : 0,
+    lng: initialOfficer?.currentGpsLng ? Number(initialOfficer.currentGpsLng) : 0,
+  }));
   const [officerLiveAddress, setOfficerLiveAddress] = useState<string>('');
 
   // Target Pengaduan untuk Navigasi Rute & Geofencing Lapangan
@@ -1474,47 +1532,49 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   }, [activeTab, showHotspotModal]);
 
   useEffect(() => {
-    // 2. Direct fetch profile personel dari database resmi
-    const targetNrp = nrpParam || session?.identifier || '92031145';
-    getOfficerProfileByNrpAction(targetNrp).then((res) => {
-      if (res.success && res.data) {
-        const loadedId = String(res.data.id || '3');
-        setOfficer({
-          id: loadedId,
-          nrp: res.data.nrp,
-          fullName: res.data.fullName,
-          pangkat: res.data.pangkat,
-          jabatan: `${res.data.satuan} • ${res.data.jabatan}`,
-          satuan: res.data.satuan,
-          unit_id: res.data.unit_id || null,
-          unitId: res.data.unitId || '',
-          kendaraan: (res.data as any)?.kendaraan || 'Tanpa Ranmor Dinas',
-          avatar: res.data.avatar,
-          kpi: res.data.kpi,
-          deviceId: res.data.deviceId || null,
-          stationId: res.data.stationId || null,
-          stationName: res.data.stationName || null,
-          stationLat: res.data.stationLat ?? null,
-          stationLng: res.data.stationLng ?? null,
-          stationRadius: res.data.stationRadius ?? 1000,
-          currentGpsLat: res.data.currentGpsLat ?? null,
-          currentGpsLng: res.data.currentGpsLng ?? null,
-        });
-
-        if (res.data.currentGpsLat && res.data.currentGpsLng) {
-          setCurrentGps((prev) => {
-            if (prev.lat === 0 && prev.lng === 0) {
-              return { lat: Number(res.data.currentGpsLat), lng: Number(res.data.currentGpsLng) };
-            }
-            return prev;
+    // 2. Direct fetch profile personel dari database resmi HANYA jika belum ada data dari Server Component RSC
+    if (!initialOfficer) {
+      const targetNrp = nrpParam || session?.identifier || '92031145';
+      getOfficerProfileByNrpAction(targetNrp).then((res) => {
+        if (res.success && res.data) {
+          const loadedId = String(res.data.id || '3');
+          setOfficer({
+            id: loadedId,
+            nrp: res.data.nrp,
+            fullName: res.data.fullName,
+            pangkat: res.data.pangkat,
+            jabatan: `${res.data.satuan} • ${res.data.jabatan}`,
+            satuan: res.data.satuan,
+            unit_id: res.data.unit_id || null,
+            unitId: res.data.unitId || '',
+            kendaraan: (res.data as any)?.kendaraan || 'Tanpa Ranmor Dinas',
+            avatar: res.data.avatar,
+            kpi: res.data.kpi,
+            deviceId: res.data.deviceId || null,
+            stationId: res.data.stationId || null,
+            stationName: res.data.stationName || null,
+            stationLat: res.data.stationLat ?? null,
+            stationLng: res.data.stationLng ?? null,
+            stationRadius: res.data.stationRadius ?? 1000,
+            currentGpsLat: res.data.currentGpsLat ?? null,
+            currentGpsLng: res.data.currentGpsLng ?? null,
           });
-        }
 
-        loadData(loadedId);
-      } else {
-        loadData('3');
-      }
-    });
+          if (res.data.currentGpsLat && res.data.currentGpsLng) {
+            setCurrentGps((prev) => {
+              if (prev.lat === 0 && prev.lng === 0) {
+                return { lat: Number(res.data.currentGpsLat), lng: Number(res.data.currentGpsLng) };
+              }
+              return prev;
+            });
+          }
+
+          loadData(loadedId);
+        } else {
+          loadData('3');
+        }
+      });
+    }
 
     // 3. Real-time background polling interval (Setiap 25 Detik, otomatis jeda saat tab diminimize atau sedang di Wizard)
     const pollInterval = setInterval(() => {
@@ -6379,10 +6439,28 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
   );
 }
 
-export default function PersonilConsoleView({ session, initialSection = 'beranda', initialMasterData }: { session?: any; initialSection?: string; initialMasterData?: any }) {
+export default function PersonilConsoleView({
+  session,
+  initialSection = 'beranda',
+  initialMasterData,
+  initialComplaints,
+  initialOfficer,
+}: {
+  session?: any;
+  initialSection?: string;
+  initialMasterData?: any;
+  initialComplaints?: any[];
+  initialOfficer?: any;
+}) {
   return (
     <React.Suspense fallback={<ConsoleSkeleton role="PERSONIL" />}>
-      <PersonilContent session={session} initialSection={initialSection} />
+      <PersonilContent
+        session={session}
+        initialSection={initialSection}
+        initialMasterData={initialMasterData}
+        initialComplaints={initialComplaints}
+        initialOfficer={initialOfficer}
+      />
     </React.Suspense>
   );
 }
