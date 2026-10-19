@@ -4,7 +4,15 @@ import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entity';
 import { revalidatePath } from 'next/cache';
 
+// Cache in-memory server untuk mereduksi latensi query jaringan remote TiDB
+const officerComplaintsCache = new Map<string, { data: any; expiresAt: number }>();
+
+export function clearOfficerComplaintsCache() {
+  officerComplaintsCache.clear();
+}
+
 function safeRevalidatePath(path: string) {
+  clearOfficerComplaintsCache();
   try {
     revalidatePath(path);
     if (path === '/personil' || path === '/command-center') {
@@ -243,10 +251,17 @@ export async function getComplaintsByPhoneAction(phone: string) {
 }
 
 export async function getOfficerComplaintsAction(officerId: string, activeOnly = false) {
+  const cacheKey = `c_${officerId}_${activeOnly}`;
+  const cached = officerComplaintsCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const results = await repo.findAssignedToOfficer(BigInt(officerId), activeOnly);
-    return { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    const result = { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    officerComplaintsCache.set(cacheKey, { data: result, expiresAt: Date.now() + 15000 }); // 15 detik TTL
+    return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil tugas personel.' };
   }

@@ -208,52 +208,72 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     return records.map((r: any) => this.mapToEntity(r));
   }
 
+  private static officerResolutionCache = new Map<string, { resolvedOfficerId: bigint; resolvedUnitId: number | null; expiresAt: number }>();
+
   async findAssignedToOfficer(officerId: bigint, activeOnly = false): Promise<ComplaintEntity[]> {
     const officerIdStr = String(officerId);
-    const officer = await prisma.policeOfficer.findFirst({
-      where: {
-        OR: [
-          { id: officerId },
-          { user_id: officerId },
-          { nrp: officerIdStr },
-        ],
-      },
-    });
+    let resolvedOfficerId = officerId;
+    let resolvedUnitId: number | null = null;
 
-    const regUnit = await prisma.registeredUnit.findFirst({
-      where: { nrp: officerIdStr },
-    });
+    const cached = PrismaComplaintRepository.officerResolutionCache.get(officerIdStr);
+    if (cached && Date.now() < cached.expiresAt) {
+      resolvedOfficerId = cached.resolvedOfficerId;
+      resolvedUnitId = cached.resolvedUnitId;
+    } else {
+      const [officer, regUnit] = await Promise.all([
+        prisma.policeOfficer.findFirst({
+          where: {
+            OR: [
+              { id: officerId },
+              { user_id: officerId },
+              { nrp: officerIdStr },
+            ],
+          },
+        }),
+        prisma.registeredUnit.findFirst({
+          where: { nrp: officerIdStr },
+        }),
+      ]);
 
-    const dispatchConditions: any[] = [
-      { officer_id: officer ? officer.id : officerId },
-    ];
+      if (officer) {
+        resolvedOfficerId = officer.id;
+        resolvedUnitId = officer.unit_id || null;
+      }
 
-    let resolvedUnitId: number | null = officer?.unit_id || null;
-
-    if (!resolvedUnitId && regUnit?.unitId) {
-      const matchUnit = await prisma.masterOperationalUnit.findFirst({
-        where: {
-          OR: [
-            { key: regUnit.unitId },
-            { key: regUnit.unitId.toLowerCase() },
-            { short_name: regUnit.satuanNama },
-            { unit_name: regUnit.satuanNama },
-          ],
-        },
-      });
-      if (matchUnit) {
-        resolvedUnitId = matchUnit.id;
-        if (officer && !officer.unit_id) {
-          try {
-            await prisma.policeOfficer.update({
-              where: { id: officer.id },
-              data: { unit_id: matchUnit.id },
-            });
-          } catch (_) {}
+      if (!resolvedUnitId && regUnit?.unitId) {
+        const matchUnit = await prisma.masterOperationalUnit.findFirst({
+          where: {
+            OR: [
+              { key: regUnit.unitId },
+              { key: regUnit.unitId.toLowerCase() },
+              { short_name: regUnit.satuanNama },
+              { unit_name: regUnit.satuanNama },
+            ],
+          },
+        });
+        if (matchUnit) {
+          resolvedUnitId = matchUnit.id;
+          if (officer && !officer.unit_id) {
+            try {
+              await prisma.policeOfficer.update({
+                where: { id: officer.id },
+                data: { unit_id: matchUnit.id },
+              });
+            } catch (_) {}
+          }
         }
       }
+
+      PrismaComplaintRepository.officerResolutionCache.set(officerIdStr, {
+        resolvedOfficerId,
+        resolvedUnitId,
+        expiresAt: Date.now() + 5 * 60 * 1000, // 5 menit TTL
+      });
     }
 
+    const dispatchConditions: any[] = [
+      { officer_id: resolvedOfficerId },
+    ];
     if (resolvedUnitId) {
       dispatchConditions.push({ unit_id: resolvedUnitId });
     }

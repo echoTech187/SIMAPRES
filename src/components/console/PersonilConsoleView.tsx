@@ -133,9 +133,13 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
     }
   }, [initialSection]);
 
+  const activeTabRef = useRef<string>(activeTab);
+  activeTabRef.current = activeTab;
+
   // Tab & Per-Page switcher: sinkronkan ke URL browser secara mulus
   const switchTab = (tabId: string) => {
     setActiveTab(tabId);
+    activeTabRef.current = tabId;
     const slug = personilTabToSlug(tabId);
     const targetUrl = slug ? `/console/${slug}` : '/console';
     if (typeof window !== 'undefined') {
@@ -1495,11 +1499,12 @@ function PersonilContent({ session, initialSection = 'beranda' }: { session?: an
       }
     });
 
-    // 3. Real-time background polling interval (Setiap 10 Detik & dijeda saat tab diminimize)
+    // 3. Real-time background polling interval (Setiap 25 Detik, otomatis jeda saat tab diminimize atau sedang di Wizard)
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
+      if (activeTabRef.current === 'view-wizard') return; // Jangan polling saat personil sedang di wizard/kamera
       loadData();
-    }, 10000);
+    }, 25000);
 
     return () => clearInterval(pollInterval);
   }, [nrpParam]);
