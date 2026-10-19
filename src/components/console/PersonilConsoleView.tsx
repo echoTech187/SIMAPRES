@@ -215,6 +215,36 @@ function PersonilContent({
 
   const [taktisStatus, setTaktisStatus] = useState<string>('siaga');
 
+  // Helper: Mengecek apakah personel yang sedang login sudah menerima tugas ini
+  const hasOfficerAcceptedTask = (task: any) => {
+    if (!task) return false;
+    const activeNrp = officer.nrp || session?.identifier || nrpParam || '';
+    const activeId = officer.id || (session?.userId ? String(session.userId) : '');
+    const dispatches: any[] = task.dispatches || [];
+
+    const acceptedInDispatches = dispatches.some(
+      (d: any) =>
+        d.accepted_at &&
+        ((activeId && String(d.officer_id) === String(activeId)) ||
+          d.officer?.nrp === activeNrp ||
+          d.officer?.user?.identifier === activeNrp)
+    );
+    if (acceptedInDispatches) return true;
+
+    if (
+      task.assignedOfficer?.nrp === activeNrp &&
+      (task.status === 'SEDANG_DITANGANI' ||
+        task.status === 'MENUJU_TKP' ||
+        task.status === 'TIBA_DI_TKP' ||
+        task.status === 'PENANGANAN_TKP' ||
+        task.status === 'MENUNGGU_PENGESAHAN')
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
   // Complaints & Active Emergency (Dimuat langsung dari Server Component RSC jika tersedia)
   const [complaints, setComplaints] = useState<any[]>(() => initialComplaints || []);
 
@@ -398,36 +428,6 @@ function PersonilContent({
       playTone(880, 0.5, 0.18);
       playTone(1318.51, 0.68, 0.45);
     } catch (_) { }
-  };
-
-  // Helper: Mengecek apakah personel yang sedang login sudah menerima tugas ini
-  const hasOfficerAcceptedTask = (task: any) => {
-    if (!task) return false;
-    const activeNrp = officer.nrp || session?.identifier || nrpParam || '';
-    const activeId = officer.id || (session?.userId ? String(session.userId) : '');
-    const dispatches: any[] = task.dispatches || [];
-
-    const acceptedInDispatches = dispatches.some(
-      (d: any) =>
-        d.accepted_at &&
-        ((activeId && String(d.officer_id) === String(activeId)) ||
-          d.officer?.nrp === activeNrp ||
-          d.officer?.user?.identifier === activeNrp)
-    );
-    if (acceptedInDispatches) return true;
-
-    if (
-      task.assignedOfficer?.nrp === activeNrp &&
-      (task.status === 'SEDANG_DITANGANI' ||
-        task.status === 'MENUJU_TKP' ||
-        task.status === 'TIBA_DI_TKP' ||
-        task.status === 'PENANGANAN_TKP' ||
-        task.status === 'MENUNGGU_PENGESAHAN')
-    ) {
-      return true;
-    }
-
-    return false;
   };
 
   // Helper: Mendapatkan informasi kuota dan jumlah personel yang telah menerima tugas
