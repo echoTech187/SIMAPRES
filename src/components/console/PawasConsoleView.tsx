@@ -593,11 +593,39 @@ function CommandCenterContent({
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [kinerjaDate, setKinerjaDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
-  // Load Real Data from Server Actions
-  const loadData = async () => {
+  // Load Real Data from Server Actions with Parallel Fetch & Lock to prevent continuous fetching
+  const isDataLoadingRef = useRef(false);
+  const dataLoadedRef = useRef(false);
+
+  const loadData = async (force = false) => {
+    if (isDataLoadingRef.current) return;
+    if (dataLoadedRef.current && !force) return;
+    isDataLoadingRef.current = true;
+
     try {
-      const filterRes = await getMasterFilterOptionsAction();
-      if (filterRes.success && filterRes.data) {
+      const [
+        filterRes,
+        qRes,
+        allRes,
+        uRes,
+        fRes,
+        oRes,
+        hRes,
+        ikmRes,
+        rankRes,
+      ] = await Promise.all([
+        !initialMasterData ? getMasterFilterOptionsAction() : Promise.resolve(null),
+        getPendingComplaintsAction(),
+        getAllRecentComplaintsAction(100),
+        getRegisteredUnitsAction(),
+        getPatrolFleetUnitsAction(),
+        getPoliceOfficesAction(),
+        getHotspotsAction(),
+        getIkmStatsAction(),
+        getOfficerPerformanceRankingsAction(),
+      ]);
+
+      if (filterRes?.success && filterRes?.data) {
         setDbCategories(filterRes.data.categories || []);
         setDbSubcategories(filterRes.data.subcategories || []);
         setDbPlatforms(filterRes.data.platforms || []);
@@ -612,12 +640,10 @@ function CommandCenterContent({
         }
       }
 
-      const qRes = await getPendingComplaintsAction();
-      if (qRes.success && qRes.data) {
+      if (qRes?.success && qRes?.data) {
         setAntreanPawas(qRes.data);
       }
 
-      const allRes = await getAllRecentComplaintsAction(100);
       if (allRes?.success && allRes?.data) {
         setAllRecentComplaints(allRes.data);
         if (!selectedValComplaint && allRes.data.length > 0) {
@@ -625,37 +651,35 @@ function CommandCenterContent({
         }
       }
 
-      const uRes = await getRegisteredUnitsAction();
       if (uRes?.success && uRes?.data) {
         setRegisteredUnits(uRes.data);
       }
 
-      const fRes = await getPatrolFleetUnitsAction();
       if (fRes?.success && fRes?.data) {
         setFleetUnits(fRes.data);
       }
 
-      const oRes = await getPoliceOfficesAction();
       if (oRes?.success && oRes?.data) {
         setPoliceOffices(oRes.data);
       }
 
-      const hRes = await getHotspotsAction();
       if (hRes?.success && hRes?.data) {
         setHotspots(hRes.data);
       }
 
-      const ikmRes = await getIkmStatsAction();
       if (ikmRes?.success && ikmRes?.data) {
         setIkmStats(ikmRes.data);
       }
 
-      const rankRes = await getOfficerPerformanceRankingsAction();
       if (rankRes?.success && rankRes?.data) {
         setOfficerRankings(rankRes.data);
       }
+
+      dataLoadedRef.current = true;
     } catch (e) {
       console.warn('Error loading command-center data:', e);
+    } finally {
+      isDataLoadingRef.current = false;
     }
   };
 
@@ -5641,7 +5665,7 @@ function CommandCenterContent({
                                   <div style={{ textAlign: 'right' }}>
                                     <div style={{ fontSize: '10px', color: '#64748B' }}>Respon Rata-rata</div>
                                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#153E75' }}>
-                                      ± {item.avgResponseTimeMinutes} m
+                                      ± {item.avgResponseTimeMinutes != null && item.avgResponseTimeMinutes > 0 ? `${item.avgResponseTimeMinutes} m` : '-'}
                                     </div>
                                   </div>
                                 </>
@@ -5720,7 +5744,7 @@ function CommandCenterContent({
                                   </div>
                                 </td>
                                 <td style={{ padding: '8px 10px', fontWeight: 600, color: '#1E293B' }}>
-                                  ± {item.avgResponseTimeMinutes} Menit
+                                  {item.avgResponseTimeMinutes != null && item.avgResponseTimeMinutes > 0 ? `± ${item.avgResponseTimeMinutes} Menit` : '-'}
                                 </td>
                                 <td style={{ padding: '8px 10px' }}>
                                   <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>

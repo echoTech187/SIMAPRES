@@ -1005,7 +1005,7 @@ export interface OfficerPerformanceRankItem {
   totalSelesai: number;
   totalProses: number;
   completionRate: number;
-  avgResponseTimeMinutes: number;
+  avgResponseTimeMinutes: number | null;
   avgRating: number;
   totalReviews: number;
   predikat: string;
@@ -1063,10 +1063,14 @@ export async function getOfficerPerformanceRankingsAction() {
           totalProses++;
         }
 
-        if (d.dispatched_at && d.arrived_at) {
-          const diffMin = Math.round((d.arrived_at.getTime() - d.dispatched_at.getTime()) / 60000);
-          if (diffMin > 0 && diffMin < 120) {
-            totalResponseTime += diffMin;
+        // Hitung selisih waktu dari pertama kali tiket didisposikan sampai tiba di TKP
+        const dispatchTime = d.dispatched_at ? new Date(d.dispatched_at).getTime() : null;
+        const arrivalTime = d.arrived_at ? new Date(d.arrived_at).getTime() : null;
+
+        if (dispatchTime && arrivalTime && arrivalTime >= dispatchTime) {
+          const diffMin = Math.round((arrivalTime - dispatchTime) / 60000);
+          if (diffMin >= 0) {
+            totalResponseTime += Math.max(1, diffMin);
             responseCount++;
           }
         }
@@ -1081,7 +1085,8 @@ export async function getOfficerPerformanceRankingsAction() {
       }
 
       const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 0;
-      const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 8;
+      // Jangan di-hardcode: jika personel belum tiba di lokasi, respon rata-rata adalah null (bukan angka 8 default)
+      const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
 
       let avgRating = 0;
       if (reviewCount > 0) {
@@ -1130,7 +1135,10 @@ export async function getOfficerPerformanceRankingsAction() {
     const productivityRanking = [...items].sort((a, b) => {
       if (b.totalSelesai !== a.totalSelesai) return b.totalSelesai - a.totalSelesai;
       if (b.completionRate !== a.completionRate) return b.completionRate - a.completionRate;
-      return b.totalDiterima - a.totalDiterima;
+      if (b.totalDiterima !== a.totalDiterima) return b.totalDiterima - a.totalDiterima;
+      const aTime = a.avgResponseTimeMinutes ?? 999999;
+      const bTime = b.avgResponseTimeMinutes ?? 999999;
+      return aTime - bTime;
     });
 
     const satisfactionRanking = [...items].sort((a, b) => {
