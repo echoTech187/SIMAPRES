@@ -5,16 +5,29 @@ import React, { useEffect, useRef, useState } from 'react';
 export interface MapUnitData {
   key: string;
   nrp?: string;
+  officerId?: string;
   pos: { lat: number; lng: number };
   iconEmoji: string;
   title: string;
   petugas: string;
+  pangkat?: string;
+  namaLengkap?: string;
+  satuan?: string;
+  jabatan?: string;
   sub: string;
   status: string;
+  statusLabel?: string;
   statusColor: string;
   tugas: string;
+  aktivitas?: string;
+  lokasiTeks?: string;
   telemetri: string;
+  speedKmh?: number;
+  batteryLevel?: number;
   category?: string;
+  routePoints?: { lat: number; lng: number }[];
+  assignedVehicle?: string | null;
+  lastHeartbeat?: string;
 }
 
 interface SimapresGoogleMapProps {
@@ -25,7 +38,9 @@ interface SimapresGoogleMapProps {
   hotspots?: any[];
   showTraffic?: boolean;
   showOtherOfficers?: boolean;
-  activeFilter?: 'all' | 'samapta' | 'perintis' | 'lantas' | 'hotspot';
+  showPatrolRoutes?: boolean;
+  focusedUnitKey?: string | null;
+  activeFilter?: 'all' | 'samapta' | 'perintis' | 'lantas' | 'reskrim' | 'intelkam' | 'binmas' | 'pawas' | 'hotspot';
   onSelectUnit?: (unit: MapUnitData) => void;
   onOpenSos?: () => void;
   onOpenCrudRawan?: () => void;
@@ -117,6 +132,8 @@ export default function SimapresGoogleMap({
   hotspots = [],
   showTraffic = true,
   showOtherOfficers = true,
+  showPatrolRoutes = true,
+  focusedUnitKey = null,
   activeFilter = 'all',
   onSelectUnit,
   onOpenSos,
@@ -134,6 +151,7 @@ export default function SimapresGoogleMap({
   const mapInstanceRef = useRef<any>(null);
   const trafficLayerRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  const patrolPolylinesRef = useRef<any[]>([]);
   const myUnitMarkerRef = useRef<any>(null);
   const directionsRendererRef = useRef<any>(null);
   const lastFittedComplaintIdRef = useRef<string | null>(null);
@@ -142,6 +160,19 @@ export default function SimapresGoogleMap({
   const handleUnitClick = (unit: any) => {
     if (onSelectUnit) onSelectUnit(unit);
     if (onUnitClick) onUnitClick(unit);
+  };
+
+  const escapeXml = (unsafe: string) => {
+    return (unsafe || '').replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case '\'': return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
   };
 
   // SVG Halo Badge Icon Generator matching Prototype/js/personil.js lines 98-111
@@ -160,6 +191,47 @@ export default function SimapresGoogleMap({
       url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
       scaledSize: (window as any).google?.maps?.Size ? new (window as any).google.maps.Size(52, 52) : undefined,
       anchor: (window as any).google?.maps?.Point ? new (window as any).google.maps.Point(26, 26) : undefined,
+    };
+  };
+
+  // Tactical Unit Icon dengan Floating Pill Tag (Pawas Tactical Command Map)
+  const makeTacticalUnitIcon = (
+    emoji: string,
+    strokeColor: string,
+    haloColor: string,
+    labelTitle: string = '',
+    labelSubtitle: string = '',
+    isFocused: boolean = false
+  ) => {
+    if (!labelTitle) {
+      return makeHaloBadgeIcon(emoji, strokeColor, haloColor);
+    }
+
+    const safeTitle = escapeXml(labelTitle.length > 22 ? labelTitle.slice(0, 21) + '…' : labelTitle);
+    const safeSub = escapeXml(labelSubtitle.length > 26 ? labelSubtitle.slice(0, 25) + '…' : labelSubtitle);
+
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="220" height="54" viewBox="0 0 220 54">
+        <!-- Floating Pill Tag Background -->
+        <rect x="42" y="8" width="172" height="38" rx="8" fill="${isFocused ? '#0F172A' : '#0B132B'}" fill-opacity="0.94" stroke="${isFocused ? '#38BDF8' : strokeColor}" stroke-width="${isFocused ? '2.5' : '1.5'}"/>
+        <!-- Title / Officer Name -->
+        <text x="52" y="24" font-size="11" font-weight="800" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif">${safeTitle}</text>
+        <!-- Status / Location Dot & Text -->
+        <circle cx="56" cy="35" r="3" fill="${strokeColor}" />
+        <text x="63" y="38" font-size="9" font-weight="700" fill="${isFocused ? '#38BDF8' : strokeColor}" font-family="system-ui, -apple-system, sans-serif">${safeSub}</text>
+        <!-- Outer Pulsing Halo Ring -->
+        <circle cx="24" cy="27" r="21" fill="${haloColor}" fill-opacity="${isFocused ? '0.55' : '0.28'}" stroke="${strokeColor}" stroke-width="${isFocused ? '2.5' : '1.5'}" stroke-dasharray="4,2"/>
+        <!-- Inner Solid White Circle -->
+        <circle cx="24" cy="27" r="14.5" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2"/>
+        <!-- Centered Emoji/Icon -->
+        <text x="24" y="33" font-size="16" text-anchor="middle" font-family="'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif">${emoji}</text>
+      </svg>
+    `;
+
+    return {
+      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+      scaledSize: (window as any).google?.maps?.Size ? new (window as any).google.maps.Size(220, 54) : undefined,
+      anchor: (window as any).google?.maps?.Point ? new (window as any).google.maps.Point(24, 27) : undefined,
     };
   };
 
@@ -246,9 +318,13 @@ export default function SimapresGoogleMap({
 
     return () => {
       isSubscribed = false;
-      // Clean up markers
+      // Clean up markers and polylines
       markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current = [];
+      patrolPolylinesRef.current.forEach((p) => {
+        try { p.setMap(null); } catch (_) {}
+      });
+      patrolPolylinesRef.current = [];
       if (myUnitMarkerRef.current) {
         myUnitMarkerRef.current.setMap(null);
         myUnitMarkerRef.current = null;
@@ -273,9 +349,13 @@ export default function SimapresGoogleMap({
 
   // Sync Markers when filters or data change
   const renderMarkers = (map: any, maps: any) => {
-    // Clear old markers (kecuali marker unit sendiri yang di-update posisinya secara smooth)
+    // Clear old markers & polylines (kecuali marker unit sendiri yang di-update posisinya secara smooth)
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
+    patrolPolylinesRef.current.forEach((p) => {
+      try { p.setMap(null); } catch (_) {}
+    });
+    patrolPolylinesRef.current = [];
 
     // 1. My Unit (Smooth update posisi tanpa kedip/recreate marker)
     if (myUnit && myUnit.pos?.lat && myUnit.pos?.lng && Number(myUnit.pos.lat) !== 0) {
@@ -333,7 +413,7 @@ export default function SimapresGoogleMap({
       markersRef.current.push(makoMarker);
     });
 
-    // 3. Operational Fleet Units (Dinamis Murni dari Database MySQL tabel patrol_fleet_units)
+    // 3. Operational Fleet Units & On-Duty Picket Personnel
     if (showOtherOfficers) {
       (fleetUnits || []).forEach((unit) => {
         if (myUnit && unit.key === myUnit.key) return;
@@ -344,25 +424,53 @@ export default function SimapresGoogleMap({
         if (activeFilter === 'samapta' && !cat.includes('samapta')) return;
         if (activeFilter === 'perintis' && !cat.includes('perintis')) return;
         if (activeFilter === 'lantas' && !cat.includes('lantas') && !cat.includes('pjr')) return;
+        if (activeFilter === 'reskrim' && !cat.includes('reskrim')) return;
+        if (activeFilter === 'intelkam' && !cat.includes('intelkam')) return;
+        if (activeFilter === 'binmas' && !cat.includes('binmas')) return;
+        if (activeFilter === 'pawas' && !cat.includes('pawas')) return;
         if (activeFilter === 'hotspot') return;
 
-        let strokeColor = '#0284C7';
+        const isFocused = focusedUnitKey === unit.key;
+
+        let strokeColor = unit.statusColor || '#0284C7';
         let haloColor = '#38BDF8';
-        if (cat.includes('perintis')) {
+        if (unit.status === 'MENUJU_TKP') {
+          strokeColor = '#EF4444';
+          haloColor = '#F87171';
+        } else if (cat.includes('perintis')) {
           strokeColor = '#D97706';
           haloColor = '#FBBF24';
         } else if (cat.includes('lantas') || cat.includes('pjr')) {
           strokeColor = '#1D4ED8';
           haloColor = '#60A5FA';
+        } else if (cat.includes('reskrim')) {
+          strokeColor = '#8B5CF6';
+          haloColor = '#C4B5FD';
+        } else if (cat.includes('pawas')) {
+          strokeColor = '#2563EB';
+          haloColor = '#93C5FD';
         }
 
-        const icon = makeHaloBadgeIcon(unit.iconEmoji, strokeColor, haloColor);
+        const shortName = unit.namaLengkap || unit.title || unit.petugas;
+        const statusBadgeStr = unit.statusLabel || (unit.status === 'PATROLI' ? 'Patroli' : unit.status);
+        const subSector = unit.lokasiTeks || unit.sub || '';
+        const shortSub = `${statusBadgeStr} • ${subSector}`;
+
+        const icon = makeTacticalUnitIcon(
+          unit.iconEmoji,
+          strokeColor,
+          haloColor,
+          shortName,
+          shortSub,
+          isFocused
+        );
+
         const marker = new maps.Marker({
           position: unit.pos,
           map,
           icon,
-          title: unit.title,
-          zIndex: 900,
+          title: `${unit.title} - ${unit.status}`,
+          zIndex: isFocused ? 1200 : 900,
         });
 
         marker.addListener('click', () => {
@@ -370,6 +478,18 @@ export default function SimapresGoogleMap({
         });
 
         markersRef.current.push(marker);
+
+        // Render tactical patrol route polyline
+        if ((showPatrolRoutes || isFocused) && unit.routePoints && unit.routePoints.length >= 2) {
+          const poly = new maps.Polyline({
+            path: unit.routePoints,
+            strokeColor: strokeColor,
+            strokeOpacity: isFocused ? 0.95 : 0.55,
+            strokeWeight: isFocused ? 5 : 3.5,
+            map,
+          });
+          patrolPolylinesRef.current.push(poly);
+        }
       });
     }
 
@@ -526,7 +646,17 @@ export default function SimapresGoogleMap({
       const maps = (window as any).google.maps;
       renderMarkers(mapInstanceRef.current, maps);
     }
-  }, [activeFilter, showOtherOfficers, hotspots, policeOffices, fleetUnits, myUnit, targetComplaint]);
+  }, [activeFilter, showOtherOfficers, showPatrolRoutes, focusedUnitKey, hotspots, policeOffices, fleetUnits, myUnit, targetComplaint]);
+
+  // Center & zoom to focused unit when selected from tactical sidebar
+  useEffect(() => {
+    if (!focusedUnitKey || !mapInstanceRef.current || !fleetUnits) return;
+    const target = fleetUnits.find((u) => u.key === focusedUnitKey);
+    if (target?.pos?.lat && target?.pos?.lng) {
+      mapInstanceRef.current.panTo({ lat: Number(target.pos.lat), lng: Number(target.pos.lng) });
+      mapInstanceRef.current.setZoom(16);
+    }
+  }, [focusedUnitKey, fleetUnits]);
 
 // Center to my unit / GPS
 const handleCenterGps = () => {

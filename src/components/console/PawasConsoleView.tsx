@@ -202,9 +202,14 @@ function CommandCenterContent({
   const [loading, setLoading] = useState(false);
 
   // Map Filter & View Controls
-  const [focusedFleet, setFocusedFleet] = useState<'all' | 'samapta' | 'perintis' | 'lantas' | 'hotspot'>('all');
+  const [focusedFleet, setFocusedFleet] = useState<'all' | 'samapta' | 'perintis' | 'lantas' | 'reskrim' | 'intelkam' | 'binmas' | 'pawas' | 'hotspot'>('all');
   const [showTraffic, setShowTraffic] = useState(true);
   const [showOtherOfficers, setShowOtherOfficers] = useState(true);
+  const [showPatrolRoutes, setShowPatrolRoutes] = useState(true);
+  const [focusedUnitKey, setFocusedUnitKey] = useState<string | null>(null);
+  const [isPicketSidebarOpen, setIsPicketSidebarOpen] = useState(true);
+  const [picketSearch, setPicketSearch] = useState('');
+  const [picketFilterCategory, setPicketFilterCategory] = useState<'ALL' | 'PATROLI' | 'SIAGA' | 'DARURAT'>('ALL');
   const [mapUnitDetail, setMapUnitDetail] = useState<any | null>(null);
 
   // Time & Attendance State
@@ -726,6 +731,25 @@ function CommandCenterContent({
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [roleParam]);
+
+  // Real-time Tactical Auto-Polling (Live Refresh setiap 8 detik di Peta Pawas)
+  useEffect(() => {
+    if (activeTab !== 'view-peta') return;
+
+    const pollFleet = async () => {
+      try {
+        const fRes = await getPatrolFleetUnitsAction();
+        if (fRes.success && fRes.data) {
+          setFleetUnits(fRes.data);
+        }
+      } catch (err) {
+        console.warn('Auto-polling fleet units error:', err);
+      }
+    };
+
+    const pollInterval = setInterval(pollFleet, 8000);
+    return () => clearInterval(pollInterval);
+  }, [activeTab]);
 
   // Tab & Per-Page switcher: sinkronkan ke URL browser secara mulus
   const switchTab = (tabId: string) => {
@@ -2450,135 +2474,585 @@ function CommandCenterContent({
           {/* ======================================================== */}
           {/* SCREEN 2: PETA FULLSCREEN (TACTICAL MAP)                 */}
           {/* ======================================================== */}
-          {activeTab === 'view-peta' && (
-            <section id="view-peta" className="view active" style={{ position: 'relative', height: 'calc(100vh - 130px)', width: '100%' }}>
-              {/* Floating Header */}
-              <div
-                className="floating-header"
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  left: '16px',
-                  zIndex: 999,
-                  background: 'rgba(21,62,117,0.92)',
-                  color: 'white',
-                  padding: '12px 16px',
-                  borderRadius: '10px',
-                  fontWeight: 800,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-                }}
-              >
-                <div style={{ fontSize: '13px', letterSpacing: '0.5px' }}>PETA RUTE PATROLI PRESI 110</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label
-                    id="container-toggle-personel"
-                    style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.2)', padding: '6px 10px', borderRadius: '4px' }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={showOtherOfficers}
-                      onChange={(e) => setShowOtherOfficers(e.target.checked)}
-                      style={{ cursor: 'pointer' }}
-                    />
-                    Lihat Sebaran Personel Lain
-                  </label>
-                  <label
-                    id="container-toggle-traffic"
-                    style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(16,185,129,0.3)', border: '1px solid rgba(16,185,129,0.4)', padding: '6px 10px', borderRadius: '4px' }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={showTraffic}
-                      onChange={(e) => setShowTraffic(e.target.checked)}
-                      style={{ cursor: 'pointer', accentColor: '#10B981' }}
-                    />
-                    🚦 Tampilkan Traffic Line (Lalu Lintas)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowHotspotModal(true)}
-                    style={{
-                      background: 'rgba(220,38,38,0.85)',
-                      color: 'white',
-                      border: '1px solid rgba(254,202,202,0.4)',
-                      padding: '6px 10px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                    }}
-                  >
-                    <span>⚠️</span> Kelola Titik Rawan (CRUD)
-                  </button>
-                </div>
-              </div>
+          {activeTab === 'view-peta' && (() => {
+            const picketUnitsList = fleetUnits || [];
+            const patrolCount = picketUnitsList.filter((u) => u.status === 'PATROLI').length;
+            const siagaCount = picketUnitsList.filter((u) => u.status === 'SIAGA').length;
+            const daruratCount = picketUnitsList.filter((u) => u.status === 'MENUJU_TKP' || u.status === 'DI_TKP').length;
 
-              {/* Map Canvas Fullscreen */}
-              <div style={{ width: '100%', height: '100%' }}>
-                <SimapresLeafletMap
-                  interactive={true}
-                  fleetUnits={showOtherOfficers ? fleetUnits : []}
-                  hotspots={hotspots}
-                  policeOffices={policeOffices}
-                  centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
-                  centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
-                  onUnitClick={(unit: any) => setMapUnitDetail(unit)}
-                />
-              </div>
+            const filteredPicketList = picketUnitsList.filter((u) => {
+              if (picketFilterCategory === 'PATROLI' && u.status !== 'PATROLI') return false;
+              if (picketFilterCategory === 'SIAGA' && u.status !== 'SIAGA') return false;
+              if (picketFilterCategory === 'DARURAT' && u.status !== 'MENUJU_TKP' && u.status !== 'DI_TKP') return false;
+              if (picketSearch) {
+                const q = picketSearch.toLowerCase();
+                const matchName = (u.namaLengkap || u.title || '').toLowerCase().includes(q);
+                const matchNrp = (u.nrp || '').toLowerCase().includes(q);
+                const matchRank = (u.pangkat || '').toLowerCase().includes(q);
+                const matchSub = (u.sub || '').toLowerCase().includes(q);
+                const matchLoc = (u.lokasiTeks || '').toLowerCase().includes(q);
+                const matchAct = (u.aktivitas || u.tugas || '').toLowerCase().includes(q);
+                return matchName || matchNrp || matchRank || matchSub || matchLoc || matchAct;
+              }
+              return true;
+            });
 
-              {/* Floating Unit Detail Modal Fullscreen */}
-              {mapUnitDetail && (
+            return (
+              <section id="view-peta" className="view active" style={{ position: 'relative', height: 'calc(100vh - 130px)', width: '100%', overflow: 'hidden' }}>
+                {/* Floating Header (Top-Left Tactical Control) */}
                 <div
-                  id="modal-map-unit-detail-fs"
+                  className="floating-header"
                   style={{
                     position: 'absolute',
-                    top: '86px',
+                    top: '16px',
                     left: '16px',
-                    zIndex: 9999,
-                    background: '#FFFFFF',
+                    zIndex: 999,
+                    background: 'rgba(15, 23, 42, 0.94)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    color: 'white',
+                    padding: '12px 16px',
                     borderRadius: '12px',
-                    boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
-                    border: '1px solid #CBD5E1',
-                    padding: '15px 17px',
-                    width: '340px',
-                    maxWidth: 'calc(100% - 32px)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    fontWeight: 800,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                    maxWidth: '310px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                    <div style={{ fontSize: '15px', fontWeight: 800, color: '#0284C7', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <span>🚔</span>
-                      <span>{mapUnitDetail.title || mapUnitDetail.unitName}</span>
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ fontSize: '13px', letterSpacing: '0.5px', color: '#38BDF8' }}>PETA TAKTIS PRESI 110</div>
+                    <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.2)', color: '#34D399', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                      🟢 LIVE GPS
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>
+                    Monitoring Pengawasan Personel & Ranmor Patroli
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
+                    <label
+                      id="container-toggle-personel"
+                      style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={showOtherOfficers}
+                        onChange={(e) => setShowOtherOfficers(e.target.checked)}
+                        style={{ cursor: 'pointer', accentColor: '#38BDF8' }}
+                      />
+                      Lihat Sebaran Seluruh Personel ({picketUnitsList.length})
+                    </label>
+                    <label
+                      id="container-toggle-traffic"
+                      style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '6px 10px', borderRadius: '6px' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={showTraffic}
+                        onChange={(e) => setShowTraffic(e.target.checked)}
+                        style={{ cursor: 'pointer', accentColor: '#10B981' }}
+                      />
+                      🚦 Tampilkan Traffic Line (Real-time)
+                    </label>
+                    <label
+                      id="container-toggle-routes"
+                      style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', padding: '6px 10px', borderRadius: '6px' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={showPatrolRoutes}
+                        onChange={(e) => setShowPatrolRoutes(e.target.checked)}
+                        style={{ cursor: 'pointer', accentColor: '#38BDF8' }}
+                      />
+                      🛤️ Tampilkan Rute Beat Patroli
+                    </label>
                     <button
                       type="button"
-                      onClick={() => setMapUnitDetail(null)}
-                      style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}
+                      onClick={() => setShowHotspotModal(true)}
+                      style={{
+                        background: 'rgba(220,38,38,0.85)',
+                        color: 'white',
+                        border: '1px solid rgba(254,202,202,0.4)',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
                     >
-                      ✕
+                      <span>⚠️</span> Kelola Titik Rawan (CRUD)
                     </button>
                   </div>
-                  <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#1E293B', lineHeight: 1.3, marginTop: '4px' }}>
-                    {mapUnitDetail.petugas || mapUnitDetail.nama}
+                </div>
+
+                {/* Map Canvas Fullscreen */}
+                <div style={{ width: '100%', height: '100%' }}>
+                  <SimapresLeafletMap
+                    interactive={true}
+                    fleetUnits={showOtherOfficers ? fleetUnits : []}
+                    hotspots={hotspots}
+                    policeOffices={policeOffices}
+                    showTraffic={showTraffic}
+                    showOtherOfficers={showOtherOfficers}
+                    showPatrolRoutes={showPatrolRoutes}
+                    focusedUnitKey={focusedUnitKey}
+                    centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
+                    centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
+                    onUnitClick={(unit: any) => {
+                      setFocusedUnitKey(unit.key);
+                      setMapUnitDetail(unit);
+                    }}
+                    onSelectUnit={(unit: any) => {
+                      setFocusedUnitKey(unit.key);
+                      setMapUnitDetail(unit);
+                    }}
+                  />
+                </div>
+
+                {/* Toggle Button for Tactical Sidebar */}
+                <button
+                  type="button"
+                  id="btn-toggle-piket-sidebar"
+                  onClick={() => setIsPicketSidebarOpen(!isPicketSidebarOpen)}
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: isPicketSidebarOpen ? '396px' : '16px',
+                    zIndex: 999,
+                    background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                    color: '#FFFFFF',
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: '10px',
+                    padding: isPicketSidebarOpen ? '8px 12px' : '10px 16px',
+                    fontWeight: 800,
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    cursor: 'pointer',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                    transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                >
+                  {isPicketSidebarOpen ? '▶ Tutup Panel' : `👮 Personel Piket (${fleetUnits.length})`}
+                </button>
+
+                {/* ======================================================== */}
+                {/* TACTICAL SIDEBAR: PERSONEL PIKET AKTIF & PERGERAKAN      */}
+                {/* ======================================================== */}
+                <div
+                  id="sidebar-personel-piket-pawas"
+                  style={{
+                    position: 'absolute',
+                    top: '16px',
+                    right: isPicketSidebarOpen ? '16px' : '-410px',
+                    bottom: '16px',
+                    width: '370px',
+                    maxWidth: 'calc(100vw - 32px)',
+                    background: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    borderRadius: '16px',
+                    boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+                    zIndex: 998,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    overflow: 'hidden',
+                    color: '#FFFFFF',
+                  }}
+                >
+                  {/* Sidebar Header */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.6) 0%, rgba(15, 23, 42, 0.4) 100%)',
+                      borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#38BDF8', letterSpacing: '0.4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>👮</span>
+                        <span>PERSONEL PIKET AKTIF</span>
+                      </div>
+                      <span style={{ fontSize: '10.5px', background: 'rgba(56,189,248,0.2)', color: '#7DD3FC', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
+                        {picketUnitsList.length} Bertugas
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                      Piket Operasi Siaga 1x24 Jam • Regu Alpha Presisi
+                    </div>
+
+                    {/* Filter Pills */}
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setPicketFilterCategory('ALL')}
+                        style={{
+                          flex: 1,
+                          padding: '5px 4px',
+                          borderRadius: '6px',
+                          border: picketFilterCategory === 'ALL' ? '1px solid #38BDF8' : '1px solid rgba(255,255,255,0.1)',
+                          background: picketFilterCategory === 'ALL' ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)',
+                          color: picketFilterCategory === 'ALL' ? '#FFFFFF' : '#94A3B8',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Semua ({picketUnitsList.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPicketFilterCategory('PATROLI')}
+                        style={{
+                          flex: 1,
+                          padding: '5px 4px',
+                          borderRadius: '6px',
+                          border: picketFilterCategory === 'PATROLI' ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                          background: picketFilterCategory === 'PATROLI' ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.05)',
+                          color: picketFilterCategory === 'PATROLI' ? '#34D399' : '#94A3B8',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Patroli ({patrolCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPicketFilterCategory('SIAGA')}
+                        style={{
+                          flex: 1,
+                          padding: '5px 4px',
+                          borderRadius: '6px',
+                          border: picketFilterCategory === 'SIAGA' ? '1px solid #2563EB' : '1px solid rgba(255,255,255,0.1)',
+                          background: picketFilterCategory === 'SIAGA' ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.05)',
+                          color: picketFilterCategory === 'SIAGA' ? '#93C5FD' : '#94A3B8',
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Siaga ({siagaCount})
+                      </button>
+                      {daruratCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPicketFilterCategory('DARURAT')}
+                          style={{
+                            flex: 1,
+                            padding: '5px 4px',
+                            borderRadius: '6px',
+                            border: picketFilterCategory === 'DARURAT' ? '1px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
+                            background: picketFilterCategory === 'DARURAT' ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.05)',
+                            color: picketFilterCategory === 'DARURAT' ? '#FCA5A5' : '#94A3B8',
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          TKP ({daruratCount})
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Quick Search Bar */}
+                    <div style={{ marginTop: '8px', position: 'relative' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Cari nama, NRP, sektor..."
+                        value={picketSearch}
+                        onChange={(e) => setPicketSearch(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '6px 28px 6px 10px',
+                          background: 'rgba(0, 0, 0, 0.35)',
+                          border: '1px solid rgba(56, 189, 248, 0.25)',
+                          borderRadius: '6px',
+                          color: '#FFFFFF',
+                          fontSize: '11px',
+                          outline: 'none',
+                        }}
+                      />
+                      {picketSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setPicketSearch('')}
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            background: 'none',
+                            border: 'none',
+                            color: '#94A3B8',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                    {mapUnitDetail.sub || mapUnitDetail.kendaraan}
-                  </div>
-                  <div style={{ borderTop: '1px solid #E2E8F0', margin: '10px 0 8px 0' }} />
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#10B981' }}>
-                    Status: {mapUnitDetail.status || 'SIAGA'}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#475569', marginTop: '3px' }}>
-                    Tugas: {mapUnitDetail.tugas || 'Patroli Rute Sektor Presisi'}
+
+                  {/* Scrollable Cards List */}
+                  <div
+                    style={{
+                      flex: 1,
+                      overflowY: 'auto',
+                      padding: '10px 12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                    }}
+                  >
+                    {filteredPicketList.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '30px 15px', color: '#94A3B8', fontSize: '12px' }}>
+                        Tidak ada personel yang sesuai filter pencarian.
+                      </div>
+                    ) : (
+                      filteredPicketList.map((unit) => {
+                        const isFocused = focusedUnitKey === unit.key;
+                        const isPatrol = unit.status === 'PATROLI';
+                        const isTkp = unit.status === 'MENUJU_TKP' || unit.status === 'DI_TKP';
+                        const statusBadgeBg = isTkp ? 'rgba(239,68,68,0.2)' : isPatrol ? 'rgba(16,185,129,0.2)' : 'rgba(37,99,235,0.2)';
+                        const statusBadgeColor = isTkp ? '#F87171' : isPatrol ? '#34D399' : '#93C5FD';
+                        const statusBorder = isTkp ? 'rgba(239,68,68,0.4)' : isPatrol ? 'rgba(16,185,129,0.4)' : 'rgba(37,99,235,0.4)';
+
+                        return (
+                          <div
+                            key={unit.key}
+                            id={`card-piket-${unit.key}`}
+                            onClick={() => {
+                              setFocusedUnitKey(unit.key);
+                              setMapUnitDetail(unit);
+                            }}
+                            style={{
+                              background: isFocused ? 'rgba(2, 132, 199, 0.25)' : 'rgba(30, 41, 59, 0.65)',
+                              border: isFocused ? '1.5px solid #38BDF8' : '1px solid rgba(148, 163, 184, 0.15)',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '6px',
+                              boxShadow: isFocused ? '0 0 16px rgba(56, 189, 248, 0.3)' : 'none',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            {/* Card Top: Avatar/Icon + Name + NRP */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '18px' }}>{unit.iconEmoji}</span>
+                                <div>
+                                  <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2 }}>
+                                    {unit.namaLengkap || unit.title}
+                                  </div>
+                                  <div style={{ fontSize: '10.5px', color: '#94A3B8', marginTop: '1px' }}>
+                                    {unit.pangkat ? `${unit.pangkat} • ` : ''}NRP {unit.nrp || '-'}
+                                  </div>
+                                </div>
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '9.5px',
+                                  fontWeight: 800,
+                                  padding: '3px 7px',
+                                  borderRadius: '999px',
+                                  background: statusBadgeBg,
+                                  color: statusBadgeColor,
+                                  border: `1px solid ${statusBorder}`,
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {unit.statusLabel || unit.status}
+                              </span>
+                            </div>
+
+                            {/* Card Satuan & Ranmor */}
+                            <div style={{ fontSize: '10.5px', color: '#38BDF8', fontWeight: 600 }}>
+                              {unit.satuan || unit.sub}
+                            </div>
+
+                            {/* Card Sedang Di Mana (Lokasi) */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', color: '#E2E8F0', background: 'rgba(0,0,0,0.25)', padding: '5px 8px', borderRadius: '6px' }}>
+                              <span style={{ color: '#F59E0B' }}>📍</span>
+                              <div style={{ lineHeight: 1.3 }}>
+                                <strong style={{ color: '#94A3B8', fontSize: '10px' }}>LOKASI: </strong>
+                                {unit.lokasiTeks || unit.sub || 'Wilayah Hukum Polres Jaksel'}
+                              </div>
+                            </div>
+
+                            {/* Card Sedang Melakukan Apa (Aktivitas Taktis) */}
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', color: '#E2E8F0', background: 'rgba(0,0,0,0.25)', padding: '5px 8px', borderRadius: '6px' }}>
+                              <span style={{ color: '#10B981' }}>🎯</span>
+                              <div style={{ lineHeight: 1.3 }}>
+                                <strong style={{ color: '#94A3B8', fontSize: '10px' }}>KEGIATAN: </strong>
+                                {unit.aktivitas || unit.tugas || 'Patroli Keamanan & Ketertiban'}
+                              </div>
+                            </div>
+
+                            {/* Card Bottom: Telemetry + Action */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
+                              <span style={{ fontSize: '10px', color: '#94A3B8' }}>
+                                ⚡ {unit.telemetri || 'GPS Aktif'}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  color: '#38BDF8',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <span>🎯</span> Sorot Peta
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
-              )}
+
+                {/* Floating Unit Detail Modal Fullscreen */}
+                {mapUnitDetail && (
+                  <div
+                    id="modal-map-unit-detail-fs"
+                    style={{
+                      position: 'absolute',
+                      top: '86px',
+                      left: '16px',
+                      zIndex: 9999,
+                      background: 'rgba(15, 23, 42, 0.96)',
+                      backdropFilter: 'blur(16px)',
+                      WebkitBackdropFilter: 'blur(16px)',
+                      borderRadius: '14px',
+                      boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      padding: '16px 18px',
+                      width: '360px',
+                      maxWidth: 'calc(100% - 32px)',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        <span>{mapUnitDetail.iconEmoji || '🚔'}</span>
+                        <span>{mapUnitDetail.satuan || mapUnitDetail.title || mapUnitDetail.unitName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMapUnitDetail(null)}
+                        style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.3 }}>
+                      {mapUnitDetail.petugas || mapUnitDetail.namaLengkap || mapUnitDetail.title || mapUnitDetail.nama}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
+                      {mapUnitDetail.sub || mapUnitDetail.kendaraan || 'Personel Operasional Presisi'}
+                    </div>
+
+                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '10px 0 8px 0' }} />
+
+                    {/* Status Badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Status Kedinasan:</span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: mapUnitDetail.statusColor ? `${mapUnitDetail.statusColor}25` : 'rgba(16,185,129,0.2)',
+                          color: mapUnitDetail.statusColor || '#10B981',
+                          border: `1px solid ${mapUnitDetail.statusColor || '#10B981'}`,
+                        }}
+                      >
+                        {mapUnitDetail.statusLabel || mapUnitDetail.status || 'SIAGA'}
+                      </span>
+                    </div>
+
+                    {/* Sedang Di Mana */}
+                    <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.3)', padding: '7px 9px', borderRadius: '6px', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 700 }}>📍 SEDANG DI MANA:</div>
+                      <div style={{ color: '#E2E8F0', marginTop: '2px', fontWeight: 600 }}>
+                        {mapUnitDetail.lokasiTeks || mapUnitDetail.sub || 'Sektor Presisi Kewilayahan'}
+                      </div>
+                    </div>
+
+                    {/* Sedang Melakukan Apa */}
+                    <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.3)', padding: '7px 9px', borderRadius: '6px', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '10px', color: '#34D399', fontWeight: 700 }}>🎯 SEDANG MELAKUKAN APA:</div>
+                      <div style={{ color: '#E2E8F0', marginTop: '2px', fontWeight: 600 }}>
+                        {mapUnitDetail.aktivitas || mapUnitDetail.tugas || 'Patroli Keamanan & Ketertiban'}
+                      </div>
+                    </div>
+
+                    {/* Live Telemetry */}
+                    <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '12px' }}>
+                      ⚡ {mapUnitDetail.telemetri || 'GPS Aktif'}
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFocusedUnitKey(mapUnitDetail.key);
+                          showFriendlyToast('info', 'Fokus Unit', `Kamera peta dipusatkan ke posisi ${mapUnitDetail.namaLengkap || mapUnitDetail.title}`);
+                        }}
+                        style={{
+                          flex: 1,
+                          background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '7px 10px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        🎯 Pusatkan Peta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          showFriendlyToast('success', 'Panggilan Radio HT', `Menghubungi frekuensi HT Presisi 110 personel ${mapUnitDetail.namaLengkap || mapUnitDetail.title}...`);
+                        }}
+                        style={{
+                          flex: 1,
+                          background: 'rgba(255,255,255,0.08)',
+                          color: '#38BDF8',
+                          border: '1px solid rgba(56,189,248,0.3)',
+                          borderRadius: '6px',
+                          padding: '7px 10px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        📻 Hubungi HT
+                      </button>
+                    </div>
+                  </div>
+                )}
 
               {/* Floating Panel Rute & Navigasi Respon Cepat (Hanya tampil jika ada insiden aktif) */}
               {highPriorityIncident && (
@@ -2667,10 +3141,10 @@ function CommandCenterContent({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                 }}
               >
-                <span style={{ color: '#EF4444', fontSize: '16px' }}>●</span> Titik Rawan
               </div>
             </section>
-          )}
+          );
+        })()}
 
           {/* ======================================================== */}
           {/* SCREEN 3: BUAT LOG (+) (INPUT LOG KEGIATAN & MUTASI)     */}
