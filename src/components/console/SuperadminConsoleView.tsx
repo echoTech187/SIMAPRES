@@ -1162,6 +1162,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                     onChange={(e) => setPangkat(e.target.value)}
                     required
                   >
+                    <option value="">Pilih Pangkat</option>
                     {masterItems.filter((m) => m.tipe === 'pangkat').map((m) => (
                       <option key={m.id} value={m.code || m.label}>
                         {m.label}
@@ -1213,6 +1214,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                     onChange={(e) => setRole(e.target.value)}
                     required
                   >
+                    <option value="">Pilih Role</option>
                     {masterItems
                       .filter((m) => m.tipe === 'role')
                       .map((m) => {
@@ -1264,6 +1266,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                     onChange={(e) => handleUnitSelectChange(e.target.value)}
                     required
                   >
+                    <option value="">Pilih Satuan</option>
                     {masterItems.filter((m) => m.tipe === 'satuan').map((m) => (
                       <option key={m.id} value={m.code}>
                         {m.label}
