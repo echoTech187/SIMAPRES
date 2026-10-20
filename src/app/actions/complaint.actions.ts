@@ -1058,9 +1058,11 @@ export async function getOfficerPerformanceRankingsAction() {
         const c = d.complaint;
         if (!c) continue;
 
-        if (c.status === 'SELESAI') {
+        const isOfficerCompleted = d.dispatch_status === 'COMPLETED' || d.completed_at != null;
+
+        if (isOfficerCompleted) {
           totalSelesai++;
-        } else if (c.status === 'MENUJU_TKP' || c.status === 'PENANGANAN_TKP') {
+        } else {
           totalProses++;
         }
 
@@ -1072,7 +1074,7 @@ export async function getOfficerPerformanceRankingsAction() {
           }
         }
 
-        if (c.citizen_review_rel?.star_rating) {
+        if (isOfficerCompleted && c.citizen_review_rel?.star_rating) {
           totalStars += c.citizen_review_rel.star_rating;
           reviewCount++;
           if (!recentReviewText && c.citizen_review_rel.review_text) {
@@ -1081,20 +1083,21 @@ export async function getOfficerPerformanceRankingsAction() {
         }
       }
 
-      const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 100;
+      const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 0;
       const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 8;
 
       let avgRating = 0;
       if (reviewCount > 0) {
         avgRating = Math.round((totalStars / reviewCount) * 10) / 10;
-      } else if (totalSelesai > 0) {
-        avgRating = 4.8;
       }
 
       let predikat = 'Belum Ada Ulasan';
       let predikatColor = '#64748B';
 
-      if (avgRating >= 4.7) {
+      if (totalProses > 0 && totalSelesai === 0) {
+        predikat = 'Sedang Bertugas';
+        predikatColor = '#2563EB';
+      } else if (avgRating >= 4.7) {
         predikat = 'Sangat Presisi (Teladan)';
         predikatColor = '#059669';
       } else if (avgRating >= 4.0) {
