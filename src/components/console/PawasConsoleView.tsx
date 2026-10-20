@@ -2960,7 +2960,7 @@ function CommandCenterContent({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                        <span>{mapUnitDetail.iconEmoji || '🚔'}</span>
+                        <span>{mapUnitDetail.iconEmoji || '👮'}</span>
                         <span>{mapUnitDetail.satuan || mapUnitDetail.title || mapUnitDetail.unitName}</span>
                       </div>
                       <button

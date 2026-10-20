@@ -1326,7 +1326,7 @@ function PersonilContent({
   const myUnitData = useMemo(() => ({
     key: 'my_unit',
     pos: currentGps,
-    iconEmoji: '🚔',
+    iconEmoji: '👮',
     title: `${officer.satuan}`,
     petugas: `${officer.fullName} (NRP ${officer.nrp})`,
     sub: `${officer.satuan}${officer.kendaraan ? ` • ${officer.kendaraan}` : ''}`,
@@ -2451,7 +2451,7 @@ function PersonilContent({
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                             <div style={{ fontSize: '15px', fontWeight: 800, color: '#0284C7', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                              <span style={{ fontSize: '16px' }}>{mapUnitDetail.iconEmoji || '🚔'}</span>
+                              <span style={{ fontSize: '16px' }}>{mapUnitDetail.iconEmoji || '👮'}</span>
                               <span>{mapUnitDetail.title}</span>
                             </div>
                             <button
@@ -2959,7 +2959,7 @@ function PersonilContent({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                     <div style={{ fontSize: '15px', fontWeight: 800, color: '#0284C7', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                      <span style={{ fontSize: '16px' }}>{mapUnitDetail.iconEmoji || '🚔'}</span>
+                      <span style={{ fontSize: '16px' }}>{mapUnitDetail.iconEmoji || '👮'}</span>
                       <span>{mapUnitDetail.title}</span>
                     </div>
                     <button

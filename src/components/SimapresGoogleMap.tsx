@@ -363,7 +363,7 @@ export default function SimapresGoogleMap({
         myUnitMarkerRef.current.setPosition(myUnit.pos);
         myUnitMarkerRef.current.setMap(map);
       } else {
-        const myIcon = makeHaloBadgeIcon(myUnit.iconEmoji || '🚔', '#0284C7', '#38BDF8');
+        const myIcon = makeHaloBadgeIcon(myUnit.iconEmoji || '👮', '#0284C7', '#38BDF8');
         const marker = new maps.Marker({
           position: myUnit.pos,
           map,
@@ -457,7 +457,7 @@ export default function SimapresGoogleMap({
         const shortSub = `${statusBadgeStr} • ${subSector}`;
 
         const icon = makeTacticalUnitIcon(
-          unit.iconEmoji,
+          unit.iconEmoji || '👮',
           strokeColor,
           haloColor,
           shortName,
