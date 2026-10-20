@@ -57,6 +57,7 @@ import {
   updateMasterResolutionDocumentAction,
   deleteMasterResolutionDocumentAction,
 } from '@/app/actions/master.actions';
+import AddressLocationPicker from '@/components/common/AddressLocationPicker';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
@@ -1986,148 +1987,22 @@ export default function MasterDataManager({
                     </div>
                   </div>
 
-                  {/* Koordinat GPS & Peta Interaktif */}
-                  <div
-                    style={{
-                      background: '#F8FAFC',
-                      border: '1px solid #E2E8F0',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      marginBottom: '14px',
+                  {/* Koordinat GPS & Peta Interaktif (Lat/Lng Tersembunyi Otomatis) */}
+                  <AddressLocationPicker
+                    label="Pilih Titik Lokasi Rawan (Peta &amp; GPS)"
+                    required={false}
+                    placeholder="Ketik alamat jalan atau cari nama lokasi rawan..."
+                    value={formData.title}
+                    lat={formData.lat}
+                    lng={formData.lng}
+                    onChangeAddress={(newAddress) => {
+                      setFormData((prev: any) => ({ ...prev, title: newAddress }));
                     }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '8px',
-                        marginBottom: '8px',
-                      }}
-                    >
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                        Titik Koordinat Lokasi Rawan
-                      </span>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setShowMiniPickerRawan(!showMiniPickerRawan)}
-                          style={{
-                            background: '#0284C7',
-                            color: 'white',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                          }}
-                        >
-                          📖 {showMiniPickerRawan ? 'Sembunyikan Peta' : 'Pilih Titik dari Maps'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (typeof navigator !== 'undefined' && navigator.geolocation) {
-                              navigator.geolocation.getCurrentPosition(
-                                (pos) => {
-                                  setFormData((prev: any) => ({
-                                    ...prev,
-                                    lat: Number(pos.coords.latitude.toFixed(6)),
-                                    lng: Number(pos.coords.longitude.toFixed(6)),
-                                  }));
-                                  showToast('✓ Lokasi GPS saat ini berhasil diambil!');
-                                },
-                                (err) => {
-                                  alert('Gagal mengambil GPS: ' + err.message);
-                                },
-                                { enableHighAccuracy: true }
-                              );
-                            }
-                          }}
-                          style={{
-                            background: '#FFFFFF',
-                            color: '#DC2626',
-                            border: '1px solid #FECACA',
-                            padding: '6px 12px',
-                            borderRadius: '6px',
-                            fontSize: '11.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '5px',
-                          }}
-                        >
-                          📍 Lokasi Saya (GPS)
-                        </button>
-                      </div>
-                    </div>
-
-                    {showMiniPickerRawan && (
-                      <div style={{ marginBottom: '10px', marginTop: '10px' }}>
-                        <MiniMapPicker
-                          lat={formData.lat}
-                          lng={formData.lng}
-                          onChange={(pickedLat, pickedLng) => {
-                            setFormData((prev: any) => ({
-                              ...prev,
-                              lat: pickedLat,
-                              lng: pickedLng,
-                            }));
-                          }}
-                          height="220px"
-                        />
-                      </div>
-                    )}
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '6px' }}>
-                      <div>
-                        <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '2px', fontWeight: 600 }}>
-                          Latitude
-                        </label>
-                        <input
-                          type="number"
-                          step="0.00000001"
-                          value={formData.lat}
-                          onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) || 0 })}
-                          style={{
-                            width: '100%',
-                            padding: '7px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #CBD5E1',
-                            fontSize: '12px',
-                            fontFamily: 'monospace',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', color: '#64748B', display: 'block', marginBottom: '2px', fontWeight: 600 }}>
-                          Longitude
-                        </label>
-                        <input
-                          type="number"
-                          step="0.00000001"
-                          value={formData.lng}
-                          onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) || 0 })}
-                          style={{
-                            width: '100%',
-                            padding: '7px 10px',
-                            borderRadius: '6px',
-                            border: '1px solid #CBD5E1',
-                            fontSize: '12px',
-                            fontFamily: 'monospace',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                    onChangeCoords={(newLat, newLng) => {
+                      setFormData((prev: any) => ({ ...prev, lat: newLat, lng: newLng }));
+                    }}
+                    mapHeight="230px"
+                  />
 
                   {/* Urutan & Keaktifan */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
@@ -2826,45 +2701,17 @@ export default function MasterDataManager({
                           />
                         </div>
                       </div>
-                      <div style={{ marginBottom: '14px' }}>
-                        <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                          Alamat Lengkap Mako <span style={{ color: 'red' }}>*</span>
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Contoh: Jl. Wijaya II No. 42, Kebayoran Baru, Jakarta Selatan"
-                          value={formData.address}
-                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                            Latitude Mako
-                          </label>
-                          <input
-                            type="number"
-                            step="0.00000001"
-                            value={formData.office_lat}
-                            onChange={(e) => setFormData({ ...formData, office_lat: parseFloat(e.target.value) || 0 })}
-                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                            Longitude Mako
-                          </label>
-                          <input
-                            type="number"
-                            step="0.00000001"
-                            value={formData.office_lng}
-                            onChange={(e) => setFormData({ ...formData, office_lng: parseFloat(e.target.value) || 0 })}
-                            style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                      </div>
+                      <AddressLocationPicker
+                        label="Alamat Lengkap Mako"
+                        required={true}
+                        placeholder="Contoh: Jl. Wijaya II No. 42, Kebayoran Baru, Jakarta Selatan"
+                        value={formData.address || ''}
+                        lat={formData.office_lat || 0}
+                        lng={formData.office_lng || 0}
+                        onChangeAddress={(newAddr) => setFormData((prev: any) => ({ ...prev, address: newAddr }))}
+                        onChangeCoords={(newLat, newLng) => setFormData((prev: any) => ({ ...prev, office_lat: newLat, office_lng: newLng }))}
+                        mapHeight="230px"
+                      />
                     </>
                   )}
 

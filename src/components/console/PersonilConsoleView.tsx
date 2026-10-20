@@ -51,6 +51,7 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
 });
 
 import KpiGaugeChart from '@/components/KpiGaugeChart';
+import AddressLocationPicker from '@/components/common/AddressLocationPicker';
 import { ConsoleSkeleton } from './ConsoleSkeleton';
 
 function parsePersonilTab(section?: string): string {
@@ -7594,27 +7595,30 @@ function PersonilContent({
                     <button type="button" onClick={() => setShowHotspotAddForm(false)} style={{ background: 'none', border: 'none', color: '#9A3412', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>✕ Batal</button>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>🔍 Cari Alamat / Lokasi Rawan *</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Nama jalan / kawasan (Cth: Kemang, Tebet, Senayan)..."
-                        value={newHotspotTitle}
-                        onChange={(e) => setNewHotspotTitle(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Wilayah / Polsek Pengampu *</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder="Contoh: Polsek Tebet / Sektor Timur"
-                        value={newHotspotWilayah}
-                        onChange={(e) => setNewHotspotWilayah(e.target.value)}
-                      />
-                    </div>
+                  <AddressLocationPicker
+                    label="Nama Kawasan / Titik Rawan"
+                    required={true}
+                    placeholder="Nama jalan / kawasan (Cth: Kemang, Tebet, Senayan) atau pilih di peta..."
+                    value={newHotspotTitle}
+                    lat={newHotspotLat}
+                    lng={newHotspotLng}
+                    onChangeAddress={(addr) => setNewHotspotTitle(addr)}
+                    onChangeCoords={(lat, lng) => {
+                      setNewHotspotLat(lat);
+                      setNewHotspotLng(lng);
+                    }}
+                    mapHeight="220px"
+                  />
+
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Wilayah / Polsek Pengampu *</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Contoh: Polsek Tebet / Sektor Timur"
+                      value={newHotspotWilayah}
+                      onChange={(e) => setNewHotspotWilayah(e.target.value)}
+                    />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
@@ -7680,48 +7684,7 @@ function PersonilContent({
                     </div>
                   </div>
 
-                  {/* Interactive Mini Map Picker Box */}
-                  {showMiniPickerRawan && (
-                    <div style={{ marginBottom: '12px', background: '#FFFFFF', border: '1px solid #CBD5E1', borderRadius: '8px', padding: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                        <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#1E293B' }}>🗺️ Klik lokasi pada peta di bawah ini untuk mengambil titik:</span>
-                        <button type="button" onClick={() => setShowMiniPickerRawan(false)} style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}>✕ Tutup Peta</button>
-                      </div>
-                      <MiniMapPicker
-                        lat={newHotspotLat}
-                        lng={newHotspotLng}
-                        onChange={(pickedLat, pickedLng) => {
-                          setNewHotspotLat(pickedLat);
-                          setNewHotspotLng(pickedLng);
-                        }}
-                        height="220px"
-                      />
-                    </div>
-                  )}
-
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowMiniPickerRawan(!showMiniPickerRawan)}
-                      style={{ background: '#0284C7', color: 'white', border: 'none', padding: '7px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
-                    >
-                      🗺️ {showMiniPickerRawan ? 'Sembunyikan Peta' : 'Pilih Titik dari Maps'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (navigator.geolocation) {
-                          navigator.geolocation.getCurrentPosition((pos) => {
-                            setNewHotspotLat(Number(pos.coords.latitude.toFixed(6)));
-                            setNewHotspotLng(Number(pos.coords.longitude.toFixed(6)));
-                            alert(`✓ Titik koordinat GPS terkunci: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`);
-                          });
-                        }
-                      }}
-                      style={{ background: '#E2E8F0', color: '#334155', border: 'none', padding: '7px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      📍 Lokasi Saya (GPS)
-                    </button>
                     <button
                       type="button"
                       onClick={async () => {

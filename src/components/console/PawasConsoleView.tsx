@@ -43,6 +43,7 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
 });
 
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
+import AddressLocationPicker from '@/components/common/AddressLocationPicker';
 
 function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
@@ -7795,17 +7796,22 @@ function CommandCenterContent({
                   <div style={{ fontSize: '13px', fontWeight: 800, color: '#9A3412', marginBottom: '10px' }}>
                     ➕ TAMBAH TITIK RAWAN BARU
                   </div>
+                  <AddressLocationPicker
+                    label="Nama Kawasan / Titik Rawan"
+                    required={true}
+                    placeholder="Contoh: Flyover Antasari, Panglima Polim, atau cari nama jalan..."
+                    value={newHotspotTitle}
+                    lat={newHotspotLat}
+                    lng={newHotspotLng}
+                    onChangeAddress={(addr) => setNewHotspotTitle(addr)}
+                    onChangeCoords={(lat, lng) => {
+                      setNewHotspotLat(lat);
+                      setNewHotspotLng(lng);
+                    }}
+                    mapHeight="220px"
+                  />
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Nama Kawasan Rawan *</label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Flyover Antasari, Panglima Polim..."
-                        value={newHotspotTitle}
-                        onChange={(e) => setNewHotspotTitle(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
-                      />
-                    </div>
                     <div>
                       <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Wilayah Polsek *</label>
                       <input
@@ -7814,24 +7820,6 @@ function CommandCenterContent({
                         onChange={(e) => setNewHotspotWilayah(e.target.value)}
                         style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
                       />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kategori Kerawanan</label>
-                      <select
-                        value={newHotspotKategori}
-                        onChange={(e) => setNewHotspotKategori(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
-                      >
-                        <option value="">-- Pilih Kategori Kerawanan --</option>
-                        {dbCategories.map((c) => (
-                          <option key={c.id || c.key} value={c.label || c.key}>
-                            {c.label}
-                          </option>
-                        ))}
-                      </select>
                     </div>
                     <div>
                       <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Jadwal / Jam Rawan</label>
@@ -7844,27 +7832,23 @@ function CommandCenterContent({
                     </div>
                   </div>
 
-                  {showMiniPickerRawan && (
-                    <div style={{ marginBottom: '10px', border: '1px solid #CBD5E1', borderRadius: '8px', overflow: 'hidden' }}>
-                      <MiniMapPicker
-                        lat={newHotspotLat}
-                        lng={newHotspotLng}
-                        onChange={(lat, lng) => {
-                          setNewHotspotLat(lat);
-                          setNewHotspotLng(lng);
-                        }}
-                      />
-                    </div>
-                  )}
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kategori Kerawanan</label>
+                    <select
+                      value={newHotspotKategori}
+                      onChange={(e) => setNewHotspotKategori(e.target.value)}
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
+                    >
+                      <option value="">-- Pilih Kategori Kerawanan --</option>
+                      {dbCategories.map((c) => (
+                        <option key={c.id || c.key} value={c.label || c.key}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowMiniPickerRawan(!showMiniPickerRawan)}
-                      style={{ background: '#0284C7', color: 'white', border: 'none', padding: '7px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      🗺️ {showMiniPickerRawan ? 'Sembunyikan Peta' : 'Pilih Titik di Peta'}
-                    </button>
                     <button
                       type="button"
                       onClick={async () => {
