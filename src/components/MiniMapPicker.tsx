@@ -140,8 +140,8 @@ export default function MiniMapPicker({
         );
       }
 
-      // Auto-dismiss Google Maps dev popup
-      const dismissInterval = setInterval(() => {
+      // Auto-dismiss Google Maps dev popup with auto-stop after 5s
+      let dismissInterval: NodeJS.Timeout | null = setInterval(() => {
         if (typeof document !== 'undefined') {
           document.querySelectorAll('.dismissButton').forEach((btn: any) => btn.click());
           document.querySelectorAll('.gm-err-container, .gm-err-content').forEach((el: any) => {
@@ -150,6 +150,10 @@ export default function MiniMapPicker({
           });
         }
       }, 350);
+      const dismissStopTimeout = setTimeout(() => {
+        if (dismissInterval) clearInterval(dismissInterval);
+        dismissInterval = null;
+      }, 5000);
 
       // Event click on map
       map.addListener('click', (e: any) => {
@@ -160,6 +164,11 @@ export default function MiniMapPicker({
         onChange(newLat, newLng);
         geocodeLatLng(newLat, newLng, maps);
       });
+
+      return () => {
+        if (dismissInterval) clearInterval(dismissInterval);
+        clearTimeout(dismissStopTimeout);
+      };
     });
 
     return () => {

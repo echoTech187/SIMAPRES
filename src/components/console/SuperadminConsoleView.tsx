@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import {
@@ -21,6 +21,7 @@ import { getMasterCountersAction } from '@/app/actions/master.actions';
 import MasterDataManager, { MasterTabType } from './master/MasterDataManager';
 import { ConsoleSkeleton } from './ConsoleSkeleton';
 import HeaderProfileBadge, { getInitials } from './HeaderProfileBadge';
+import { toast } from '@/components/ui/Toast';
 import '@/app/registrasi-unit/registrasi-unit.css';
 
 export type SuperadminTab = 'unit' | 'profil' | MasterTabType;
@@ -57,7 +58,6 @@ export default function SuperadminConsoleView({ session, initialSection, initial
   const [masterItems, setMasterItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [toast, setToast] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<any>(session || null);
 
@@ -303,10 +303,9 @@ export default function SuperadminConsoleView({ session, initialSection, initial
     return () => clearInterval(interval);
   }, []);
 
-  const showNotification = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 4000);
-  };
+  const showNotification = useCallback((msg: string) => {
+    toast.showNotification(msg, 4000);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -2950,9 +2949,6 @@ export default function SuperadminConsoleView({ session, initialSection, initial
           </div>
         </div>
       )}
-
-      {/* Toast Notification */}
-      {toast && <div className="toast-box-reg">{toast}</div>}
     </div>
   );
 }

@@ -29,6 +29,7 @@ import {
   deleteHotspotAction,
 } from '@/app/actions/hotspot.actions';
 import { createLogbookAction } from '@/app/actions/logbook.actions';
+import { toast } from '@/components/ui/Toast';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
   ssr: false,
@@ -245,26 +246,14 @@ function CommandCenterContent({
   } | null>(null);
   const [rankingCategoryTab, setRankingCategoryTab] = useState<'produktivitas' | 'kepuasan'>('produktivitas');
 
-  // Friendly Toast Notification State
-  const [toastList, setToastList] = useState<
-    Array<{ id: string; type: 'success' | 'warning' | 'error' | 'info'; title: string; message: string; duration?: number }>
-  >([]);
-
+  // Friendly Toast Notification State routed through unified global Toast system
   const showFriendlyToast = useCallback((
     type: 'success' | 'warning' | 'error' | 'info',
     title: string,
     message: string,
-    duration = 5000
+    duration = 4500
   ) => {
-    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
-    setToastList((prev) => [...prev, { id, type, title, message, duration }]);
-    setTimeout(() => {
-      setToastList((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
-  }, []);
-
-  const removeFriendlyToast = useCallback((id: string) => {
-    setToastList((prev) => prev.filter((t) => t.id !== id));
+    toast.show(type, title, message, duration);
   }, []);
 
   // CAD Form Validation Errors

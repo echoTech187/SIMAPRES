@@ -280,7 +280,7 @@ export default function MasterDataManager({
         setDataList(res.data);
       }
     } catch (err: any) {
-      showToast(`Gagal memuat master data: ${err.message}`);
+      console.warn('Gagal memuat master data:', err);
     } finally {
       setLoading(false);
     }

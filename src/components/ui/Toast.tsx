@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 
 export type ToastType = 'success' | 'warning' | 'error' | 'info';
 
@@ -12,16 +12,38 @@ export interface ToastItem {
   duration?: number;
 }
 
+// Track last dispatched messages to prevent duplicate spam loops across all components
+const recentDispatches = new Map<string, number>();
+const DEDUPE_WINDOW_MS = 2500;
+
 export const toast = {
-  show: (type: ToastType, title: string, message = '', duration = 4500) => {
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(
-        new CustomEvent('simapres-toast', {
-          detail: { type, title, message, duration },
-        })
-      );
+  show: (type: ToastType, title: string, message = '', duration = 4000) => {
+    if (typeof window === 'undefined') return;
+
+    const key = `${type}|${title.trim()}|${message.trim()}`;
+    const now = Date.now();
+    const lastTime = recentDispatches.get(key) || 0;
+
+    // Reject duplicate toast if it was already dispatched within DEDUPE_WINDOW_MS
+    if (now - lastTime < DEDUPE_WINDOW_MS) {
+      return;
     }
+    recentDispatches.set(key, now);
+
+    // Clean up old entries
+    if (recentDispatches.size > 50) {
+      for (const [k, t] of recentDispatches.entries()) {
+        if (now - t > 10000) recentDispatches.delete(k);
+      }
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('simapres-toast', {
+        detail: { type, title, message, duration },
+      })
+    );
   },
+
   success: (title: string, message = '', duration?: number) =>
     toast.show('success', title, message, duration),
   warning: (title: string, message = '', duration?: number) =>
@@ -30,13 +52,56 @@ export const toast = {
     toast.show('error', title, message, duration),
   info: (title: string, message = '', duration?: number) =>
     toast.show('info', title, message, duration),
+
+  // Smart helper for raw strings with auto-detection of icons & status
+  showNotification: (text: string, customDuration = 4000) => {
+    const cleanText = String(text ?? '').trim();
+    if (!cleanText) return;
+
+    const isSuccess =
+      cleanText.includes('✓') ||
+      cleanText.includes('✅') ||
+      cleanText.toLowerCase().includes('berhasil') ||
+      cleanText.includes('🏆');
+    const isError =
+      cleanText.toLowerCase().includes('gagal') ||
+      cleanText.toLowerCase().includes('error') ||
+      cleanText.toLowerCase().includes('kesalahan') ||
+      cleanText.includes('❌') ||
+      cleanText.includes('⛔');
+    const isWarning =
+      cleanText.toLowerCase().includes('wajib') ||
+      cleanText.toLowerCase().includes('mohon') ||
+      cleanText.toLowerCase().includes('peringatan') ||
+      cleanText.includes('⚠️') ||
+      cleanText.includes('🔒');
+
+    const type: ToastType = isSuccess ? 'success' : isError ? 'error' : isWarning ? 'warning' : 'info';
+    const stripped = cleanText.replace(/^[✓✅⚠️⚡🏆❌⛔\s]+/, '').trim();
+    const title = isSuccess
+      ? 'Operasi Berhasil'
+      : isError
+      ? 'Terjadi Kendala'
+      : isWarning
+      ? 'Pemberitahuan Sistem'
+      : 'Informasi Presisi';
+
+    toast.show(type, title, stripped, customDuration);
+  },
 };
 
 export default function ToastContainer() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const timersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    // Clear timer if active
+    const t = timersRef.current.get(id);
+    if (t) {
+      clearTimeout(t);
+      timersRef.current.delete(id);
+    }
+    setToasts((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
   useEffect(() => {
@@ -45,41 +110,43 @@ export default function ToastContainer() {
     window.alert = (message?: any) => {
       const text = String(message ?? '').trim();
       if (!text) return;
-
-      const isSuccess = text.includes('✓') || text.includes('✅') || text.toLowerCase().includes('berhasil') || text.includes('🏆');
-      const isError = text.toLowerCase().includes('gagal') || text.toLowerCase().includes('error') || text.toLowerCase().includes('kesalahan');
-      const isWarning = text.toLowerCase().includes('wajib') || text.toLowerCase().includes('mohon') || text.toLowerCase().includes('peringatan') || text.includes('⚠️');
-
-      const type: ToastType = isSuccess ? 'success' : isError ? 'error' : isWarning ? 'warning' : 'info';
-      const cleanText = text.replace(/^[✓✅⚠️⚡🏆\s]+/, '').trim();
-      const title = isSuccess
-        ? 'Operasi Berhasil'
-        : isError
-        ? 'Terjadi Kendala'
-        : isWarning
-        ? 'Pemberitahuan Sistem'
-        : 'Informasi Presisi';
-
-      toast.show(type, title, cleanText, 5000);
+      toast.showNotification(text, 4500);
     };
 
     const handleToastEvent = (e: Event) => {
       const detail = (e as CustomEvent<Omit<ToastItem, 'id'>>).detail;
       if (!detail) return;
+
       const id = Date.now().toString() + Math.random().toString(36).substring(2, 6);
       const newItem: ToastItem = {
         id,
         type: detail.type || 'info',
         title: detail.title || 'Pemberitahuan',
         message: detail.message || '',
-        duration: detail.duration || 4500,
+        duration: detail.duration || 4000,
       };
 
-      setToasts((prev) => [...prev, newItem]);
+      setToasts((prev) => {
+        // Prevent duplicate cards with identical title & message already visible
+        const exists = prev.some(
+          (t) => t.type === newItem.type && t.title === newItem.title && t.message === newItem.message
+        );
+        if (exists) return prev;
+        // Keep maximum 3 toasts on screen at any time to avoid clutter
+        const next = [...prev, newItem];
+        if (next.length > 3) {
+          const oldest = next[0];
+          removeToast(oldest.id);
+          return next.slice(next.length - 3);
+        }
+        return next;
+      });
 
-      setTimeout(() => {
+      const timerId = setTimeout(() => {
         removeToast(id);
       }, newItem.duration);
+
+      timersRef.current.set(id, timerId);
     };
 
     window.addEventListener('simapres-toast', handleToastEvent);
@@ -87,6 +154,9 @@ export default function ToastContainer() {
     return () => {
       window.alert = originalAlert;
       window.removeEventListener('simapres-toast', handleToastEvent);
+      // Clean up all pending timers
+      timersRef.current.forEach((t) => clearTimeout(t));
+      timersRef.current.clear();
     };
   }, [removeToast]);
 
