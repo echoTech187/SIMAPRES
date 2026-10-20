@@ -310,22 +310,27 @@ export default function SuperadminConsoleView({ session, initialSection, initial
   const loadData = async () => {
     setLoading(true);
     try {
-      const resUnits = await getRegisteredUnitsAction();
-      if (resUnits.success && resUnits.data) {
+      const [resUnits, resMasters, resCounters, resComplaints] = await Promise.all([
+        getRegisteredUnitsAction(),
+        getMasterDropdownsAction(),
+        getMasterCountersAction(),
+        getAllRecentComplaintsAction(50),
+      ]);
+
+      if (resUnits?.success && resUnits.data) {
         setUnits(resUnits.data);
       }
-      const resMasters = await getMasterDropdownsAction();
-      if (resMasters.success && resMasters.data) {
+      if (resMasters?.success && resMasters.data) {
         setMasterItems(resMasters.data);
       }
-      const resCounters = await getMasterCountersAction();
-      if (resCounters.success && resCounters.data) {
+      if (resCounters?.success && resCounters.data) {
         setCounters(resCounters.data);
       }
-      const resComplaints = await getAllRecentComplaintsAction(50);
-      if (resComplaints.success && resComplaints.data) {
+      if (resComplaints?.success && resComplaints.data) {
         setComplaints(resComplaints.data);
       }
+    } catch (err) {
+      console.warn('loadData warning:', err);
     } finally {
       setLoading(false);
       setInitialLoading(false);

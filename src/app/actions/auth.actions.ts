@@ -569,9 +569,6 @@ export async function registerNewUnitAction(input: {
 
     try {
       revalidatePath('/console');
-      revalidatePath('/console/unit');
-      revalidatePath('/registrasi-unit');
-      revalidatePath('/');
     } catch (_) {}
     return { success: true, data: serializeBigInt({ ...reg, role: assignedRole }) };
   } catch (error: any) {
@@ -615,9 +612,6 @@ export async function deleteRegisteredUnitAction(idOrNrp: string) {
 
     try {
       revalidatePath('/console');
-      revalidatePath('/console/unit');
-      revalidatePath('/registrasi-unit');
-      revalidatePath('/');
     } catch (_) {}
 
     return {

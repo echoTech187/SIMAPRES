@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import {
+  getAllMasterLookupsBundleAction,
   getMasterRanksAction,
   createMasterRankAction,
   updateMasterRankAction,
@@ -208,37 +209,12 @@ export default function MasterDataManager({
           break;
         case 'station':
           res = await getPoliceStationsMasterAction();
-          if (stationLevelsList.length === 0) {
-            getMasterStationLevelsAction().then((slRes) => {
-              if (slRes.success && slRes.data) setStationLevelsList(slRes.data);
-            });
-          }
           break;
         case 'armada':
           res = await getMasterVehiclesAction();
-          if (vehicleTypesList.length === 0) {
-            getMasterVehicleTypesAction().then((vtRes) => {
-              if (vtRes.success && vtRes.data) setVehicleTypesList(vtRes.data);
-            });
-          }
-          if (vehicleStatusesList.length === 0) {
-            getMasterVehicleStatusesAction().then((vsRes) => {
-              if (vsRes.success && vsRes.data) setVehicleStatusesList(vsRes.data);
-            });
-          }
           break;
         case 'hotspot':
           res = await getMasterHotspotsAction();
-          if (hotspotCategoriesList.length === 0) {
-            getMasterHotspotCategoriesAction().then((hcRes) => {
-              if (hcRes.success && hcRes.data) setHotspotCategoriesList(hcRes.data);
-            });
-          }
-          if (dangerLevelsList.length === 0) {
-            getMasterHotspotDangerLevelsAction().then((dlRes) => {
-              if (dlRes.success && dlRes.data) setDangerLevelsList(dlRes.data);
-            });
-          }
           break;
         case 'hotspot_cat':
           res = await getMasterHotspotCategoriesAction();
@@ -246,26 +222,9 @@ export default function MasterDataManager({
         case 'kategori':
           res = await getMasterIncidentCategoriesAction();
           break;
-        case 'subkategori': {
+        case 'subkategori':
           res = await getMasterIncidentSubcategoriesAction();
-          // Muat referensi kategori & satuan jika belum ada
-          if (categoriesList.length === 0) {
-            getMasterIncidentCategoriesAction().then((cRes) => {
-              if (cRes.success && cRes.data) setCategoriesList(cRes.data);
-            });
-          }
-          if (unitsList.length === 0) {
-            getMasterOperationalUnitsAction().then((uRes) => {
-              if (uRes.success && uRes.data) setUnitsList(uRes.data);
-            });
-          }
-          if (urgencyLevelsList.length === 0) {
-            getMasterUrgencyLevelsAction().then((urgRes) => {
-              if (urgRes.success && urgRes.data) setUrgencyLevelsList(urgRes.data);
-            });
-          }
           break;
-        }
         case 'duty':
           res = await getMasterDutyStatusesAction();
           break;
@@ -286,31 +245,26 @@ export default function MasterDataManager({
     }
   };
 
+  const lookupsLoadedRef = useRef(false);
+
   useEffect(() => {
-    // Preload semua master lookup tables dari database
-    getMasterStationLevelsAction().then((res) => {
-      if (res.success && res.data) setStationLevelsList(res.data);
-    });
-    getMasterUrgencyLevelsAction().then((res) => {
-      if (res.success && res.data) setUrgencyLevelsList(res.data);
-    });
-    getMasterVehicleTypesAction().then((res) => {
-      if (res.success && res.data) setVehicleTypesList(res.data);
-    });
-    getMasterVehicleStatusesAction().then((res) => {
-      if (res.success && res.data) setVehicleStatusesList(res.data);
-    });
-    getMasterHotspotDangerLevelsAction().then((res) => {
-      if (res.success && res.data) setDangerLevelsList(res.data);
-    });
-    getMasterIncidentCategoriesAction().then((res) => {
-      if (res.success && res.data) setCategoriesList(res.data);
-    });
-    getMasterOperationalUnitsAction().then((res) => {
-      if (res.success && res.data) setUnitsList(res.data);
-    });
-    getMasterHotspotCategoriesAction().then((res) => {
-      if (res.success && res.data) setHotspotCategoriesList(res.data);
+    // Muat semua master lookup tables dalam 1 query bundle tunggal (sangat cepat & anti-lemot)
+    if (lookupsLoadedRef.current) return;
+    lookupsLoadedRef.current = true;
+
+    getAllMasterLookupsBundleAction().then((res) => {
+      if (res?.success && res?.data) {
+        if (res.data.stationLevels) setStationLevelsList(res.data.stationLevels);
+        if (res.data.urgencyLevels) setUrgencyLevelsList(res.data.urgencyLevels);
+        if (res.data.vehicleTypes) setVehicleTypesList(res.data.vehicleTypes);
+        if (res.data.vehicleStatuses) setVehicleStatusesList(res.data.vehicleStatuses);
+        if (res.data.dangerLevels) setDangerLevelsList(res.data.dangerLevels);
+        if (res.data.categories) setCategoriesList(res.data.categories);
+        if (res.data.units) setUnitsList(res.data.units);
+        if (res.data.hotspotCategories) setHotspotCategoriesList(res.data.hotspotCategories);
+      }
+    }).catch((err) => {
+      console.warn('Bundle lookup load warning:', err);
     });
   }, []);
 

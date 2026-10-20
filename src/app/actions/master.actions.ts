@@ -107,6 +107,77 @@ export async function getMasterCountersAction() {
 }
 
 // ==============================================================================
+// 1.1 BUNDLED LOOKUPS UNTUK SUPERADMIN / MASTER (SANGAT CEPAT - 1 ROUND-TRIP)
+// ==============================================================================
+export async function getAllMasterLookupsBundleAction() {
+  try {
+    const [
+      stationLevels,
+      urgencyLevels,
+      dangerLevels,
+      categories,
+      units,
+      hotspotCategories,
+      vehicleTypes,
+      vehicleStatuses,
+    ] = await Promise.all([
+      prisma.masterStationLevel.findMany({
+        where: { is_active: true },
+        orderBy: { level_order: 'asc' },
+      }),
+      prisma.masterUrgencyLevel.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.masterHotspotDangerLevel.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.masterIncidentCategory.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.masterOperationalUnit.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.masterHotspotCategory.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.$queryRawUnsafe(`
+        SELECT id, \`key\`, label, icon_emoji, display_order 
+        FROM master_vehicle_types 
+        WHERE is_active = 1 
+        ORDER BY display_order ASC
+      `).catch(() => []),
+      prisma.$queryRawUnsafe(`
+        SELECT id, \`key\`, label, badge_color, display_order 
+        FROM master_vehicle_statuses 
+        WHERE is_active = 1 
+        ORDER BY display_order ASC
+      `).catch(() => []),
+    ]);
+
+    return {
+      success: true,
+      data: serializeBigInt({
+        stationLevels,
+        urgencyLevels,
+        dangerLevels,
+        categories,
+        units,
+        hotspotCategories,
+        vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [],
+        vehicleStatuses: Array.isArray(vehicleStatuses) ? vehicleStatuses : [],
+      }),
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
 // 2. MASTER PANGKAT KEPOLISIAN (master_ranks)
 // ==============================================================================
 export async function getMasterRanksAction(params?: { isActive?: boolean; search?: string }) {
