@@ -532,16 +532,13 @@ export async function disposisiMultiSatuanAction(input: {
         }
       }
 
-      const unitOfficer = await prisma.policeOfficer.findFirst({
-        where: { unit_id: s.id },
-        select: { id: true },
-      });
-
+      // Saat Pawas menerbitkan disposisi ke satuan, officer_id HARUS null karena belum ada personel yang menerima tugas.
+      // Tabel complaint_dispatches untuk personel baru terisi satu-satu saat personel mengklik 'Terima Tugas'.
       await prisma.complaintDispatch.create({
         data: {
           complaint_id: complaintIdBig,
           unit_id: s.id,
-          officer_id: unitOfficer?.id || null,
+          officer_id: null,
           is_primary_unit: i === 0,
           personnel_quota: input.kuotaPersonel || 4,
           tactical_orders: input.arahanTaktis || s.default_orders,
