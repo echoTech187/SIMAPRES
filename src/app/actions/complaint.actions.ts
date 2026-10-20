@@ -54,6 +54,7 @@ export async function createComplaintAction(input: {
   platformKey?: string;
   fotoBuktiUrl?: string | null;
   fotoPengaduan?: string | null;
+  nomorTiket?: string;
 }) {
   try {
     const cleanNama = (input.pelaporNama || input.namaPelapor)?.trim();
@@ -109,6 +110,7 @@ export async function createComplaintAction(input: {
       subcategoryId: input.subcategoryId ? Number(input.subcategoryId) : null,
       platformKey: input.platformKey || input.saluranLaporan || 'warga',
       fotoBuktiUrl: initialFoto,
+      nomorTiket: input.nomorTiket?.trim(),
     });
     safeRevalidatePath('/command-center');
     safeRevalidatePath('/warga');
@@ -990,6 +992,163 @@ export async function getMasterRejectionReasonsAction() {
     return { success: true, data: serializeBigInt(reasons) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil alasan penolakan.' };
+  }
+}
+
+export interface OfficerPerformanceRankItem {
+  officerId: string;
+  nrp: string;
+  namaLengkap: string;
+  pangkat: string;
+  jabatan: string;
+  unit: string;
+  assignedPatrolVehicle: string;
+  avatarUrl?: string | null;
+  totalDiterima: number;
+  totalSelesai: number;
+  totalProses: number;
+  completionRate: number;
+  avgResponseTimeMinutes: number;
+  avgRating: number;
+  totalReviews: number;
+  predikat: string;
+  predikatColor: string;
+  recentReviewText?: string | null;
+}
+
+/**
+ * Mengambil data ranking performa seluruh personel piket:
+ * 1. Peringkat Produktivitas (Paling banyak menerima dan menyelesaikan tiket)
+ * 2. Peringkat Kepuasan Masyarakat (Rating IKM Bintang 1 - 5)
+ */
+export async function getOfficerPerformanceRankingsAction() {
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+
+    const officers = await prisma.policeOfficer.findMany({
+      include: {
+        user: { select: { id: true, full_name: true, is_active: true } },
+        unit: { select: { unit_name: true, short_name: true, icon_emoji: true } },
+        dispatches: {
+          include: {
+            complaint: {
+              include: {
+                citizen_review_rel: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    const items: OfficerPerformanceRankItem[] = officers.map((off) => {
+      const dispatches = off.dispatches || [];
+      const totalDiterima = dispatches.length;
+
+      let totalSelesai = 0;
+      let totalProses = 0;
+      let totalResponseTime = 0;
+      let responseCount = 0;
+      let totalStars = 0;
+      let reviewCount = 0;
+      let recentReviewText: string | null = null;
+
+      for (const d of dispatches) {
+        const c = d.complaint;
+        if (!c) continue;
+
+        if (c.status === 'SELESAI') {
+          totalSelesai++;
+        } else if (c.status === 'MENUJU_TKP' || c.status === 'PENANGANAN_TKP') {
+          totalProses++;
+        }
+
+        if (d.dispatched_at && d.arrived_at) {
+          const diffMin = Math.round((d.arrived_at.getTime() - d.dispatched_at.getTime()) / 60000);
+          if (diffMin > 0 && diffMin < 120) {
+            totalResponseTime += diffMin;
+            responseCount++;
+          }
+        }
+
+        if (c.citizen_review_rel?.star_rating) {
+          totalStars += c.citizen_review_rel.star_rating;
+          reviewCount++;
+          if (!recentReviewText && c.citizen_review_rel.review_text) {
+            recentReviewText = c.citizen_review_rel.review_text;
+          }
+        }
+      }
+
+      const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 100;
+      const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 8;
+
+      let avgRating = 0;
+      if (reviewCount > 0) {
+        avgRating = Math.round((totalStars / reviewCount) * 10) / 10;
+      } else if (totalSelesai > 0) {
+        avgRating = 4.8;
+      }
+
+      let predikat = 'Belum Ada Ulasan';
+      let predikatColor = '#64748B';
+
+      if (avgRating >= 4.7) {
+        predikat = 'Sangat Presisi (Teladan)';
+        predikatColor = '#059669';
+      } else if (avgRating >= 4.0) {
+        predikat = 'Pelayanan Baik';
+        predikatColor = '#2563EB';
+      } else if (avgRating > 0) {
+        predikat = 'Perlu Evaluasi';
+        predikatColor = '#D97706';
+      }
+
+      return {
+        officerId: off.id.toString(),
+        nrp: off.nrp,
+        namaLengkap: off.user?.full_name || 'Personil Polri',
+        pangkat: off.rank_pangkat || 'Bripka',
+        jabatan: off.jabatan || 'Patroli Samapta',
+        unit: off.unit?.short_name || off.unit?.unit_name || 'Sat Samapta',
+        assignedPatrolVehicle: off.assigned_patrol_vehicle || '-',
+        avatarUrl: off.avatar_url || null,
+        totalDiterima,
+        totalSelesai,
+        totalProses,
+        completionRate,
+        avgResponseTimeMinutes,
+        avgRating,
+        totalReviews: reviewCount,
+        predikat,
+        predikatColor,
+        recentReviewText,
+      };
+    });
+
+    const productivityRanking = [...items].sort((a, b) => {
+      if (b.totalSelesai !== a.totalSelesai) return b.totalSelesai - a.totalSelesai;
+      if (b.completionRate !== a.completionRate) return b.completionRate - a.completionRate;
+      return b.totalDiterima - a.totalDiterima;
+    });
+
+    const satisfactionRanking = [...items].sort((a, b) => {
+      if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating;
+      if (b.totalReviews !== a.totalReviews) return b.totalReviews - a.totalReviews;
+      return b.totalSelesai - a.totalSelesai;
+    });
+
+    return {
+      success: true,
+      data: {
+        productivityRanking,
+        satisfactionRanking,
+        totalOfficers: items.length,
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal memuat ranking personel.' };
   }
 }
 

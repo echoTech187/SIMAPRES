@@ -15,6 +15,7 @@ export interface CreateComplaintInput {
   subcategoryId?: number | null;
   platformKey?: string;
   fotoBuktiUrl?: string | null;
+  nomorTiket?: string;
 }
 
 export class CreateComplaintUseCase {
@@ -53,11 +54,26 @@ export class CreateComplaintUseCase {
       throw new Error('Uraian keterangan kejadian wajib diisi.');
     }
 
-    // Generator Nomor Registrasi Tiket Resmi: LP-110-YYYYMM-XXXX
-    const now = new Date();
-    const yearMonth = now.toISOString().slice(0, 7).replace('-', '');
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const nomorTiket = `LP-110-${yearMonth}-${randomSuffix}`;
+    // Nomor Registrasi Tiket Resmi (Format Baku Wallboard 110: #TICKET-0018xxxxxx)
+    let nomorTiket = input.nomorTiket?.trim();
+    if (nomorTiket) {
+      // Normalisasi format baku: jika hanya mengetik angka atau TICKET-
+      if (!nomorTiket.startsWith('#TICKET-') && !nomorTiket.startsWith('TICKET-') && !nomorTiket.startsWith('#')) {
+        nomorTiket = `#TICKET-${nomorTiket}`;
+      } else if (nomorTiket.startsWith('TICKET-')) {
+        nomorTiket = `#${nomorTiket}`;
+      }
+
+      // Validasi anti-duplikasi nomor tiket
+      const existing = await this.complaintRepo.findByNomorTiket(nomorTiket);
+      if (existing) {
+        throw new Error(`Nomor tiket ${nomorTiket} sudah terdaftar di pangkalan data! Kasus ini telah tercatat sebelumnya.`);
+      }
+    } else {
+      // Generate format baku 10 digit #TICKET-0018xxxxxx
+      const random10Digit = String(Math.floor(1800000000 + Math.random() * 99999999)).padStart(10, '0');
+      nomorTiket = `#TICKET-${random10Digit}`;
+    }
 
     const complaint = new ComplaintEntity({
       nomorTiket,
@@ -81,7 +97,7 @@ export class CreateComplaintUseCase {
           tahapTitle: 'Laporan Diterima',
           catatan: 'Pengaduan dicatat dan masuk ke buku register antrean.',
           fotoBuktiUrl: input.fotoBuktiUrl || null,
-          createdAt: now,
+          createdAt: new Date(),
         },
       ],
     });
