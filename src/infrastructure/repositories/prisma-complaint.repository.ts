@@ -79,8 +79,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         ? new Date(logMeluncur.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
         : evidenceMenuju?.uploaded_at
         ? new Date(evidenceMenuju.uploaded_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-        : primaryDispatch?.dispatched_at
-        ? new Date(primaryDispatch.dispatched_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+        : primaryDispatch?.departed_at
+        ? new Date(primaryDispatch.departed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
         : null;
 
       const koordinatGps = logMeluncur?.action_lat && logMeluncur?.action_lng

@@ -121,8 +121,7 @@ function computeWizardStepFromComplaint(complaint: any): number {
   const status = String(complaint.status || '').toUpperCase();
   const tahap = Number(complaint.tahap) || 1;
 
-  // Tahap >= 5: Menunggu Pengesahan Pawas atau Selesai atau Tindakan TKP dilaporkan
-  // Sesuai Prototype: Langkah 1 & 2 selesai (✅), Langkah 3 aktif (⏳)
+  // Langkah 3 Aktif (⏳) jika: Tindakan di TKP sudah selesai dilakukan dan kini masuk tahap BAP / pengesahan
   const isTindakanDone = Boolean(
     status === 'SELESAI' ||
     status === 'MENUNGGU_PENGESAHAN' ||
@@ -130,30 +129,32 @@ function computeWizardStepFromComplaint(complaint: any): number {
     Boolean(complaint.pengesahanPawas) ||
     Boolean(complaint.catatanTindakan) ||
     tahap >= 5 ||
-    (complaint.timelines && complaint.timelines.some((t: any) => t.tahapTitle?.includes('Tindakan') || t.tahapKe >= 3)) ||
-    (complaint.complaintLogs && complaint.complaintLogs.some((l: any) => l.action?.includes('Tindakan') || l.action === 'DOKUMENTASI_TKP_FLAGGED'))
+    (complaint.timelines && complaint.timelines.some((t: any) => t.tahapTitle?.includes('Tindakan') || t.tahapTitle?.includes('BAP') || t.tahapTitle?.includes('Selesai'))) ||
+    (complaint.complaintLogs && complaint.complaintLogs.some((l: any) => l.action?.includes('Tindakan') || l.action?.includes('BAP') || l.action === 'DOKUMENTASI_TKP_FLAGGED'))
   );
 
   if (isTindakanDone) {
     return 3;
   }
 
-  // Tahap 4: Petugas sedang meluncur (MENUJU_TKP) atau tiba di TKP (TIBA_DI_TKP)
-  // Sesuai Prototype: Langkah 1 selesai (✅), Langkah 2 aktif (⏳), Langkah 3 terkunci (🔒)
-  if (
+  // Langkah 2 Aktif (⏳) jika: Petugas sudah meluncur ke TKP atau tiba di TKP (Langkah 1 selesai)
+  const isMeluncurOrTiba = Boolean(
     status === 'MENUJU_TKP' ||
     status === 'TIBA_DI_TKP' ||
     tahap === 4 ||
     Boolean(complaint.waktuMeluncur) ||
     Boolean(complaint.waktuTiba) ||
     Boolean(complaint.responTibaTkpAt) ||
-    (complaint.dispatches && complaint.dispatches.some((d: any) => d.departed_at || d.arrived_at))
-  ) {
+    (complaint.dispatches && complaint.dispatches.some((d: any) => d.departed_at || d.arrived_at)) ||
+    (complaint.complaintLogs && complaint.complaintLogs.some((l: any) => l.action?.includes('Meluncur') || l.action?.includes('Tiba'))) ||
+    (complaint.timelines && complaint.timelines.some((t: any) => t.tahapTitle?.includes('Meluncur') || t.tahapTitle?.includes('Tiba')))
+  );
+
+  if (isMeluncurOrTiba) {
     return 2;
   }
 
-  // Tahap <= 3: Baru diterima/didisposisikan (SEDANG_DITANGANI, ACCEPTED, DISPOSISI, DIPROSES)
-  // Sesuai Prototype: Langkah 1 aktif (⏳), Langkah 2 & 3 terkunci (🔒)
+  // Langkah 1 Aktif (⏳): Petugas baru menerima tugas/disposisi, bersiap meluncur ke TKP
   return 1;
 }
 
