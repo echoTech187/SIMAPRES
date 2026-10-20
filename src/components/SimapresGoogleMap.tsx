@@ -695,17 +695,20 @@ const handleZoomOut = () => {
   }
 };
 
-return (
-  <div style={{ position: 'relative', width: '100%', height, overflow: 'hidden' }}>
-    {/* Native Google Maps Canvas */}
-    <div
-      ref={mapContainerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#E2E8F0',
-      }}
-    />
+  const effectiveHeight = mode === 'fullscreen' ? '100%' : (height || '350px');
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: effectiveHeight, minHeight: mode === 'fullscreen' ? '100%' : undefined, overflow: 'hidden' }}>
+      {/* Native Google Maps Canvas */}
+      <div
+        ref={mapContainerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          minHeight: '100%',
+          background: '#E2E8F0',
+        }}
+      />
 
     {/* Floating Map Controls on Top-Right matching Prototype */}
     <div

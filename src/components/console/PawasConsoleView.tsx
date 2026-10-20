@@ -2601,8 +2601,10 @@ function CommandCenterContent({
                 </div>
 
                 {/* Map Canvas Fullscreen */}
-                <div style={{ width: '100%', height: '100%' }}>
+                <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }}>
                   <SimapresLeafletMap
+                    mode="fullscreen"
+                    height="100%"
                     interactive={true}
                     fleetUnits={showOtherOfficers ? fleetUnits : []}
                     hotspots={hotspots}
