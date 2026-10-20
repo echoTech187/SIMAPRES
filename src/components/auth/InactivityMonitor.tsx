@@ -79,14 +79,21 @@ export default function InactivityMonitor() {
 
     let throttleTimer: NodeJS.Timeout | null = null;
     const handleUserActivity = () => {
+      const now = Date.now();
+      // Hanya update jika peringatan belum muncul atau saat user klik tombol
+      if (!isWarningVisible) {
+        lastActivityRef.current = now;
+      }
+
       if (throttleTimer) return;
       throttleTimer = setTimeout(() => {
         throttleTimer = null;
       }, 3000); // Throttle 3 detik
 
-      // Hanya update jika peringatan belum muncul atau saat user klik tombol
-      if (!isWarningVisible) {
-        lastActivityRef.current = Date.now();
+      // Refresh cookie sesi server setiap 10 menit pemakaian aktif
+      if (now - lastTouchRef.current > 10 * 60 * 1000) {
+        lastTouchRef.current = now;
+        touchSessionAction().catch(() => {});
       }
     };
 

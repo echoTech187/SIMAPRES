@@ -180,12 +180,12 @@ function calculatePatrolPosition(
   const nowSec = (Date.now() / 1000) + offsetSeed;
   const progress = (nowSec % cycleDurationSec) / cycleDurationSec;
 
-  const totalSegments = routePoints.length - 1;
-  const currentSegment = Math.floor(progress * totalSegments);
+  const totalSegments = Math.max(1, routePoints.length - 1);
+  const currentSegment = Math.min(Math.floor(progress * totalSegments), routePoints.length - 1);
   const segProgress = (progress * totalSegments) - currentSegment;
 
   const p1 = routePoints[currentSegment];
-  const p2 = routePoints[(currentSegment + 1) % routePoints.length];
+  const p2 = routePoints[(currentSegment + 1) % routePoints.length] || p1;
 
   if (!p1 || !p2) return { lat: baseLat, lng: baseLng };
 
@@ -230,9 +230,7 @@ export async function getPatrolFleetUnitsAction() {
       prisma.complaintDispatch.findMany({
         where: {
           complaint: {
-            status_rel: {
-              key: { notIn: ['SELESAI', 'DITOLAK'] },
-            },
+            status: { notIn: ['SELESAI', 'DITOLAK'] },
           },
         },
         include: {

@@ -493,7 +493,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
 
     const interval = setInterval(async () => {
       const res = await checkDevicePairingSessionAction(qrSessionToken);
-      if (res.success && res.data && res.data.status === 'PAIRED') {
+      if (res?.success && res?.data && res.data.status === 'PAIRED') {
         if (res.data.deviceId) setDeviceId(res.data.deviceId);
         if (res.data.lat) setLiveLat(res.data.lat);
         if (res.data.lng) setLiveLng(res.data.lng);

@@ -606,7 +606,7 @@ function CommandCenterContent({
       }
 
       const allRes = await getAllRecentComplaintsAction(100);
-      if (allRes.success && allRes.data) {
+      if (allRes?.success && allRes?.data) {
         setAllRecentComplaints(allRes.data);
         if (!selectedValComplaint && allRes.data.length > 0) {
           setSelectedValComplaint(allRes.data[0]);
@@ -614,27 +614,27 @@ function CommandCenterContent({
       }
 
       const uRes = await getRegisteredUnitsAction();
-      if (uRes.success && uRes.data) {
+      if (uRes?.success && uRes?.data) {
         setRegisteredUnits(uRes.data);
       }
 
       const fRes = await getPatrolFleetUnitsAction();
-      if (fRes.success && fRes.data) {
+      if (fRes?.success && fRes?.data) {
         setFleetUnits(fRes.data);
       }
 
       const oRes = await getPoliceOfficesAction();
-      if (oRes.success && oRes.data) {
+      if (oRes?.success && oRes?.data) {
         setPoliceOffices(oRes.data);
       }
 
       const hRes = await getHotspotsAction();
-      if (hRes.success && hRes.data) {
+      if (hRes?.success && hRes?.data) {
         setHotspots(hRes.data);
       }
 
       const ikmRes = await getIkmStatsAction();
-      if (ikmRes.success && ikmRes.data) {
+      if (ikmRes?.success && ikmRes?.data) {
         setIkmStats(ikmRes.data);
       }
     } catch (e) {
@@ -736,19 +736,28 @@ function CommandCenterContent({
   useEffect(() => {
     if (activeTab !== 'view-peta') return;
 
+    let isMounted = true;
     const pollFleet = async () => {
       try {
         const fRes = await getPatrolFleetUnitsAction();
-        if (fRes.success && fRes.data) {
+        if (!isMounted) return;
+        if (fRes?.success && Array.isArray(fRes.data)) {
           setFleetUnits(fRes.data);
+        } else if ((fRes as any)?.unauthenticated) {
+          if (typeof window !== 'undefined') {
+            window.location.href = '/?alert=unauthenticated&from=/console';
+          }
         }
       } catch (err) {
-        console.warn('Auto-polling fleet units error:', err);
+        console.warn('Auto-polling fleet units warning:', err);
       }
     };
 
     const pollInterval = setInterval(pollFleet, 8000);
-    return () => clearInterval(pollInterval);
+    return () => {
+      isMounted = false;
+      clearInterval(pollInterval);
+    };
   }, [activeTab]);
 
   // Tab & Per-Page switcher: sinkronkan ke URL browser secara mulus

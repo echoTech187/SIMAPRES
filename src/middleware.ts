@@ -4,6 +4,7 @@ import type { NextRequest } from 'next/server';
 import {
   SESSION_COOKIE_NAME,
   verifySession,
+  signSession,
   SESSION_MAX_AGE_SECONDS,
 } from './lib/session-token';
 
@@ -51,8 +52,21 @@ export async function middleware(request: NextRequest) {
 
   // 4. Proteksi Rute /console dan semua sub-halamannya (/console/komando, /console/buat-pengaduan, dll.)
   if (pathname === '/console' || pathname.startsWith('/console/')) {
+    const isActionRequest = request.headers.has('next-action') || request.method === 'POST';
+
     // A. Belum Login atau Cookie Tidak Valid / Rusak
     if (!session) {
+      if (isActionRequest) {
+        const res = NextResponse.json(
+          { success: false, error: 'Sesi dinas belum terautentikasi.', unauthenticated: true },
+          { status: 401 }
+        );
+        if (sessionCookie) {
+          res.cookies.delete(SESSION_COOKIE_NAME);
+        }
+        return res;
+      }
+
       const loginUrl = new URL('/', request.url);
       loginUrl.searchParams.set('alert', 'unauthenticated');
       loginUrl.searchParams.set('from', '/console');
@@ -69,6 +83,15 @@ export async function middleware(request: NextRequest) {
     const isTokenExpired = session.expiresAt && (now > session.expiresAt);
 
     if (isIdleTimeout || isTokenExpired) {
+      if (isActionRequest) {
+        const res = NextResponse.json(
+          { success: false, error: 'Sesi dinas telah kedaluwarsa.', unauthenticated: true },
+          { status: 401 }
+        );
+        res.cookies.delete(SESSION_COOKIE_NAME);
+        return res;
+      }
+
       const loginUrl = new URL('/', request.url);
       loginUrl.searchParams.set('alert', 'inactivity_timeout');
       const res = NextResponse.redirect(loginUrl);
@@ -76,8 +99,27 @@ export async function middleware(request: NextRequest) {
       return res;
     }
 
-    // Sesi valid -> teruskan ke Server Component /console/page.tsx
-    return NextResponse.next();
+    // Sesi valid -> perpanjang lastActiveAt jika sudah lebih dari 2 menit berlalu (sliding session)
+    const response = NextResponse.next();
+    if (session.lastActiveAt && (now - session.lastActiveAt > 2 * 60 * 1000)) {
+      try {
+        const refreshedSession = {
+          ...session,
+          lastActiveAt: now,
+          expiresAt: now + SESSION_MAX_AGE_SECONDS * 1000,
+        };
+        const newToken = await signSession(refreshedSession);
+        response.cookies.set(SESSION_COOKIE_NAME, newToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: SESSION_MAX_AGE_SECONDS,
+        });
+      } catch (_) {}
+    }
+
+    return response;
   }
 
   // 5. Jika Mengunjungi Portal Masuk / Login (/)

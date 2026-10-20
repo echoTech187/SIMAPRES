@@ -1490,27 +1490,27 @@ function PersonilContent({
         getMasterResolutionDocumentsAction(),
       ]);
 
-      if (hOptRes.success && hOptRes.data) {
+      if (hOptRes?.success && hOptRes?.data) {
         setDbHotspotCategories(hOptRes.data.categories || []);
         setDbHotspotDangerLevels(hOptRes.data.dangerLevels || []);
       }
-      if (oRes.success && oRes.data) {
+      if (oRes?.success && oRes?.data) {
         setPoliceOffices(oRes.data);
       }
-      if (filterRes.success && filterRes.data) {
+      if (filterRes?.success && filterRes?.data) {
         setDbDutyStatuses(filterRes.data.dutyStatuses || []);
         setDbGiats(filterRes.data.giats || []);
       }
-      if (hRes.success && hRes.data) {
+      if (hRes?.success && hRes?.data) {
         setHotspots(hRes.data);
       }
-      if (fRes.success && fRes.data) {
+      if (fRes?.success && fRes?.data) {
         setFleetUnits(fRes.data);
       }
-      if (locRes && locRes.success && locRes.data) {
+      if (locRes?.success && locRes?.data) {
         setResolutionLocations(locRes.data);
       }
-      if (docRes && docRes.success && docRes.data) {
+      if (docRes?.success && docRes?.data) {
         setResolutionDocuments(docRes.data);
       }
     } catch (e) {
@@ -1534,7 +1534,7 @@ function PersonilContent({
         activeOfficerId && needsLogbooks ? getOfficerLogbooksAction(String(activeOfficerId)) : Promise.resolve(null),
       ]);
 
-      if (cRes.success && cRes.data) {
+      if (cRes?.success && cRes?.data) {
         setComplaints(cRes.data);
 
         // 1. Deteksi apakah ada penugasan baru yang membutuhkan konfirmasi (Terima Tugas)
