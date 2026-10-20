@@ -1552,8 +1552,18 @@ function CommandCenterContent({
     ? ((ratedComplaints.filter((c) => (c.citizenRating || 0) >= 4).length / ratedComplaints.length) * 100).toFixed(1)
     : '0.0';
 
-  // Prominent Breaking Incident
-  const highPriorityIncident = antreanPawas.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI') || antreanPawas[0] || allRecentComplaints[0];
+  // Active / Ongoing Complaints (yang belum selesai dan belum ditolak)
+  const activeUnfinishedComplaints = allRecentComplaints.filter(
+    (c) => c.status !== 'SELESAI' && c.status !== 'DITOLAK'
+  );
+
+  // Prominent Breaking Incident (Hanya insiden aktif yang butuh atensi Pawas)
+  const highPriorityIncident =
+    antreanPawas.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI') ||
+    antreanPawas[0] ||
+    activeUnfinishedComplaints.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI' || (c.platformKey || '').toLowerCase().includes('sos')) ||
+    activeUnfinishedComplaints.find((c) => ['MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI', 'MENUNGGU_PENGESAHAN'].includes(c.status)) ||
+    null;
 
   // Filtered Complaints for Screen 4 (view-validasi)
   const filteredValidasiComplaints = filterComplaintList(
@@ -1654,8 +1664,8 @@ function CommandCenterContent({
                 </button>
               </div>
 
-              {/* Banner Alert Insiden Menonjol Khusus Pimpinan */}
-              {highPriorityIncident && (
+              {/* Banner Alert Insiden Menonjol Khusus Pimpinan (Hanya tampil jika ada insiden aktif) */}
+              {highPriorityIncident ? (
                 <div
                   id="pimpinan-breaking-alert"
                   style={{
@@ -1716,7 +1726,13 @@ function CommandCenterContent({
                         type="button"
                         onClick={() => {
                           setSelectedValComplaint(highPriorityIncident);
-                          openValidasiList('menunggu');
+                          if (highPriorityIncident.status === 'MENUNGGU_PENGESAHAN') {
+                            openValidasiList('menunggu_pengesahan');
+                          } else if (['MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI'].includes(highPriorityIncident.status)) {
+                            openValidasiList('diproses');
+                          } else {
+                            openValidasiList('menunggu');
+                          }
                         }}
                         style={{
                           background: '#153E75',
@@ -1755,6 +1771,52 @@ function CommandCenterContent({
                         <span>🗺️ Cek Lokasi di Peta</span>
                       </button>
                     </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  id="pimpinan-kondusif-banner"
+                  style={{
+                    margin: '0 20px 16px',
+                    background: 'linear-gradient(135deg, #065F46 0%, #047857 100%)',
+                    color: 'white',
+                    padding: '12px 18px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    boxShadow: '0 4px 15px rgba(4, 120, 87, 0.12)',
+                    border: '1px solid #10B981',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '22px' }}>🛡️</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.3px' }}>
+                        SITUASI KAMTIBMAS KONDUSIF &amp; TERPANTAU
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#A7F3D0', marginTop: '2px' }}>
+                        Tidak ada panggilan darurat aktif di wilayah hukum. Semua laporan masyarakat telah tuntas ditangani sesuai SOP.
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => switchTab('view-peta')}
+                      style={{
+                        background: 'rgba(255,255,255,0.15)',
+                        border: '1px solid rgba(255,255,255,0.3)',
+                        color: 'white',
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      🗺️ Pantau Peta Rute
+                    </button>
                   </div>
                 </div>
               )}
@@ -2518,79 +2580,77 @@ function CommandCenterContent({
                 </div>
               )}
 
-              {/* Floating Panel Rute & Navigasi Respon Cepat */}
-              <div
-                id="panel-navigasi-rute-tkp"
-                style={{
-                  position: 'absolute',
-                  bottom: '20px',
-                  left: '16px',
-                  right: '16px',
-                  zIndex: 9999,
-                  maxWidth: '440px',
-                  margin: '0 auto',
-                  background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                  color: 'white',
-                  borderRadius: '14px',
-                  boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
-                  border: '1.5px solid #334155',
-                  padding: '14px 16px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#10B981', borderRadius: '50%', boxShadow: '0 0 10px #10B981' }} />
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                      NAVIGASI MENUJU TKP
-                    </span>
+              {/* Floating Panel Rute & Navigasi Respon Cepat (Hanya tampil jika ada insiden aktif) */}
+              {highPriorityIncident && (
+                <div
+                  id="panel-navigasi-rute-tkp"
+                  style={{
+                    position: 'absolute',
+                    bottom: '20px',
+                    left: '16px',
+                    right: '16px',
+                    zIndex: 9999,
+                    maxWidth: '440px',
+                    margin: '0 auto',
+                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                    color: 'white',
+                    borderRadius: '14px',
+                    boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
+                    border: '1.5px solid #334155',
+                    padding: '14px 16px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#10B981', borderRadius: '50%', boxShadow: '0 0 10px #10B981' }} />
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                        NAVIGASI MENUJU TKP
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const el = document.getElementById('panel-navigasi-rute-tkp');
+                        if (el) el.style.display = 'none';
+                      }}
+                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#94A3B8', fontSize: '14px', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('panel-navigasi-rute-tkp');
-                      if (el) el.style.display = 'none';
-                    }}
-                    style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#94A3B8', fontSize: '14px', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}
-                  >
-                    ✕
-                  </button>
+
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {highPriorityIncident.jenisKejadian} - {highPriorityIncident.tkpAlamatTeks}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>📍</span> {highPriorityIncident.tkpAlamatTeks}
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
+                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>STATUS RESPON</div>
+                      <div style={{ fontSize: '14px', fontWeight: 900, color: '#10B981', marginTop: '2px' }}>
+                        {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi' : highPriorityIncident.status}
+                      </div>
+                      <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {resolveUrgencyLevel(highPriorityIncident.urgensi).label}</div>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
+                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>SALURAN PENGADUAN</div>
+                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>
+                        {highPriorityIncident.platformRel?.label || highPriorityIncident.platformKey || 'Layanan 110'}
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#A7F3D0' }}>Pelapor: {highPriorityIncident.pelaporNama}</div>
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '20px' }}>📢</span>
+                    <div style={{ fontSize: '11.5px', lineHeight: 1.4, color: '#E2E8F0' }}>
+                      {highPriorityIncident.ringkasanKeterangan || 'Petugas piket siaga bersiap menerima komando arahan taktis lapangan.'}
+                    </div>
+                  </div>
                 </div>
-
-                {highPriorityIncident && (
-                  <>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
-                      {highPriorityIncident.jenisKejadian} - {highPriorityIncident.tkpAlamatTeks}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span>📍</span> {highPriorityIncident.tkpAlamatTeks}
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                        <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>STATUS RESPON</div>
-                        <div style={{ fontSize: '14px', fontWeight: 900, color: '#10B981', marginTop: '2px' }}>
-                          {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi' : highPriorityIncident.status}
-                        </div>
-                        <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {resolveUrgencyLevel(highPriorityIncident.urgensi).label}</div>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                        <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>SALURAN PENGADUAN</div>
-                        <div style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>
-                          {highPriorityIncident.platformRel?.label || highPriorityIncident.platformKey || 'Layanan 110'}
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#A7F3D0' }}>Pelapor: {highPriorityIncident.pelaporNama}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '20px' }}>📢</span>
-                      <div style={{ fontSize: '11.5px', lineHeight: 1.4, color: '#E2E8F0' }}>
-                        {highPriorityIncident.ringkasanKeterangan || 'Petugas piket siaga bersiap menerima komando arahan taktis lapangan.'}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              )}
 
               {/* Map Legend */}
               <div
