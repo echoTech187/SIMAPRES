@@ -49,7 +49,12 @@ export async function generateMetadata({ params }: { params?: { section?: string
 }
 
 import { getMasterFilterOptionsAction, getOfficerComplaintsAction } from '@/app/actions/complaint.actions';
-import { getOfficerProfileByNrpAction } from '@/app/actions/auth.actions';
+import {
+  getOfficerProfileByNrpAction,
+  getRegisteredUnitsAction,
+  getMasterDropdownsAction,
+} from '@/app/actions/auth.actions';
+import { getMasterCountersAction } from '@/app/actions/master.actions';
 
 export default async function ConsoleSectionPage({
   params,
@@ -68,41 +73,59 @@ export default async function ConsoleSectionPage({
 
   const section = params?.section?.toLowerCase() || searchParams?.page || searchParams?.tab || 'beranda';
 
-  // 2. Load Master Data directly from Database on the Server
-  const masterRes = await getMasterFilterOptionsAction();
-  const initialMasterData = masterRes.success ? masterRes.data : null;
-
-  // 3. Jika role PERSONIL, ambil data penugasan & profile langsung di Server (RSC)
+  // 2. Pre-fetch targeted data secara paralel langsung di Server (RSC) per-role
+  let initialMasterData: any = null;
+  let initialSuperadminData: any = null;
   let initialComplaints: any[] = [];
   let initialOfficer: any = null;
-  if (session.role === 'PERSONIL') {
-    const targetNrp = searchParams?.nrp || session.identifier || '92031145';
-    const [cRes, pRes] = await Promise.all([
-      getOfficerComplaintsAction(targetNrp),
-      getOfficerProfileByNrpAction(targetNrp),
+
+  if (session.role === 'SUPERADMIN') {
+    const [unitsRes, dropdownsRes, countersRes] = await Promise.all([
+      getRegisteredUnitsAction(),
+      getMasterDropdownsAction(),
+      getMasterCountersAction(),
     ]);
-    if (cRes.success && cRes.data) initialComplaints = cRes.data;
-    if (pRes.success && pRes.data) initialOfficer = pRes.data;
+    initialSuperadminData = {
+      units: unitsRes.success && unitsRes.data ? unitsRes.data : [],
+      dropdowns: dropdownsRes.success && dropdownsRes.data ? dropdownsRes.data : [],
+      counters: countersRes.success && countersRes.data ? countersRes.data : null,
+    };
+  } else {
+    const masterRes = await getMasterFilterOptionsAction();
+    initialMasterData = masterRes.success ? masterRes.data : null;
+
+    if (session.role === 'PERSONIL') {
+      const targetNrp = searchParams?.nrp || session.identifier || '92031145';
+      const [cRes, pRes] = await Promise.all([
+        getOfficerComplaintsAction(targetNrp),
+        getOfficerProfileByNrpAction(targetNrp),
+      ]);
+      if (cRes.success && cRes.data) initialComplaints = cRes.data;
+      if (pRes.success && pRes.data) initialOfficer = pRes.data;
+    }
   }
 
-  // 4. Audit Trail: Catat akses halaman spesifik ke tabel user_log_activities
-  try {
-    await logUserActivity({
-      userId: session.userId,
-      identifier: session.identifier,
-      userName: session.fullName,
-      role: session.role,
-      activityType: 'ACCESS_CONSOLE',
-      description: `${session.role} (${session.identifier} - ${session.fullName}) membuka halaman konsol [${section}]`,
-      endpoint: `/console/${section}`,
-    });
-  } catch (_) {}
+  // 3. Audit Trail: Catat akses halaman spesifik secara non-blocking
+  logUserActivity({
+    userId: session.userId,
+    identifier: session.identifier,
+    userName: session.fullName,
+    role: session.role,
+    activityType: 'ACCESS_CONSOLE',
+    description: `${session.role} (${session.identifier} - ${session.fullName}) membuka halaman konsol [${section}]`,
+    endpoint: `/console/${section}`,
+  }).catch(() => {});
 
-  // 5. Render Tampilan Client Component dengan initialSection, initialComplaints, dan initialOfficer dari database
+  // 4. Render Tampilan Client Component dengan initialSuperadminData pre-loaded
   return (
     <Suspense fallback={<ConsoleSkeleton role={session.role} />}>
       {session.role === 'SUPERADMIN' && (
-        <SuperadminConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />
+        <SuperadminConsoleView
+          session={session}
+          initialSection={section}
+          initialMasterData={initialMasterData}
+          initialSuperadminData={initialSuperadminData}
+        />
       )}
       {session.role === 'PAWAS' && (
         <PawasConsoleView session={session} initialSection={section} initialMasterData={initialMasterData} />

@@ -53,11 +53,25 @@ function parseSuperadminTab(section?: string): SuperadminTab {
   return 'unit';
 }
 
-export default function SuperadminConsoleView({ session, initialSection, initialMasterData }: { session?: any; initialSection?: string; initialMasterData?: any }) {
-  const [units, setUnits] = useState<any[]>([]);
-  const [masterItems, setMasterItems] = useState<any[]>([]);
+export default function SuperadminConsoleView({
+  session,
+  initialSection,
+  initialMasterData,
+  initialSuperadminData,
+}: {
+  session?: any;
+  initialSection?: string;
+  initialMasterData?: any;
+  initialSuperadminData?: {
+    units?: any[];
+    dropdowns?: any[];
+    counters?: any;
+  };
+}) {
+  const [units, setUnits] = useState<any[]>(initialSuperadminData?.units || []);
+  const [masterItems, setMasterItems] = useState<any[]>(initialSuperadminData?.dropdowns || []);
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(!initialSuperadminData);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<any>(session || null);
 
@@ -73,7 +87,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
     return parseSuperadminTab(initialSection);
   });
 
-  const [counters, setCounters] = useState({
+  const [counters, setCounters] = useState(initialSuperadminData?.counters || {
     ranks: 0,
     units: 0,
     roles: 0,
@@ -369,9 +383,11 @@ export default function SuperadminConsoleView({ session, initialSection, initial
   }, []);
 
   useEffect(() => {
-    loadData();
+    if (!initialSuperadminData) {
+      loadData();
+    }
     setDeviceId(`DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
-    if (!currentUser) {
+    if (!currentUser && !session) {
       getCurrentSessionAction().then((res) => {
         if (res.success && res.data) {
           setCurrentUser(res.data);
