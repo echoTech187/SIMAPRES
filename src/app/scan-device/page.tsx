@@ -176,7 +176,7 @@ function ScanDeviceContent() {
         <div className="header-band">
           <div className="pulse-ring">📡</div>
           <h2 style={{ fontSize: '18px', fontWeight: 900, letterSpacing: '0.5px' }}>TERMINAL GPS PERSONIL AKTIF</h2>
-          <p style={{ fontSize: '12px', color: '#BFDBFE', marginTop: '4px' }}>Sistem Pengawasan Presisi Terpadu (SIMAPRES 110)</p>
+          <p style={{ fontSize: '12px', color: '#BFDBFE', marginTop: '4px' }}>Sistem Monitoring Polisi Bersama Masyarakat (SIMOPMAS 110)</p>
         </div>
 
         {/* Body Info */}

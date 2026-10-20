@@ -11,7 +11,7 @@ import PawasConsoleView from '@/components/console/PawasConsoleView';
 import PersonilConsoleView from '@/components/console/PersonilConsoleView';
 
 export const metadata = {
-  title: 'Konsol Operasional Terpadu - SIMAPRES 110 Presisi',
+  title: 'Konsol Operasional Terpadu - SIMOPMAS 110',
   description: 'Pusat Komando dan Operasional Rantai Komando Presisi 110',
 };
 

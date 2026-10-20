@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'SIMAPRES 110 - Sistem Monitoring & Akuntabilitas Pengaduan Presisi',
-  description: 'Sistem Terpadu Pelayanan, Pemantauan, dan Akuntabilitas Pengaduan Polri Presisi 110',
+  title: 'SIMOPMAS 110 - Sistem Monitoring Polisi Bersama Masyarakat',
+  description: 'Sistem Terpadu Monitoring Polisi Bersama Masyarakat - Layanan 110 Presisi',
   icons: {
     icon: '/favicon.ico',
   },

@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params?: { section?: string
   const section = params?.section?.toLowerCase() || 'beranda';
   const title = sectionTitleMap[section] || 'Konsol Operasional';
   return {
-    title: `${title} - SIMAPRES 110 Presisi`,
+    title: `${title} - SIMOPMAS 110`,
     description: `Pusat Operasional Presisi 110: ${title}`,
   };
 }

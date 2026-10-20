@@ -754,7 +754,7 @@ export default function MasterDataManager({
 
   // Handle Delete
   const handleDelete = async (id: number | string, label: string) => {
-    if (!confirm(`Hapus data master "${label}"? Tindakan ini permanen di database SIMAPRES.`)) {
+    if (!confirm(`Hapus data master "${label}"? Tindakan ini permanen di database SIMOPMAS 110.`)) {
       return;
     }
 

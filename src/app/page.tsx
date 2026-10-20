@@ -64,7 +64,7 @@ function LoginForm() {
       <div className="logo-container">
         <div className="shield"></div>
         <div>
-          <div className="brand-title">E TRIBRATA LOG</div>
+          <div className="brand-title">SIMOPMAS 110</div>
           <div
             style={{
               fontSize: '11px',
@@ -73,7 +73,7 @@ function LoginForm() {
               letterSpacing: '0.5px',
             }}
           >
-            SISTEM LOGBOOK &amp; OPERASIONAL PRESISI
+            SISTEM MONITORING POLISI BERSAMA MASYARAKAT
           </div>
         </div>
       </div>

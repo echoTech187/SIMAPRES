@@ -1632,7 +1632,7 @@ function CommandCenterContent({
                 }}
               />
             </div>
-            E TRIBRATA LOG
+            SIMOPMAS 110
           </div>
 
           <div className="user-profile">
@@ -5547,7 +5547,7 @@ function CommandCenterContent({
                     </span>
                   </div>
                   <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                    Sentra Pelayanan Kepolisian Terpadu (SPKT) • SIMAPRES
+                    Sentra Pelayanan Kepolisian Terpadu (SPKT) • SIMOPMAS 110
                   </div>
                 </div>
               </div>
@@ -7698,7 +7698,7 @@ function CommandCenterContent({
               <div style={{ marginBottom: '14px' }}>
                 <strong>III. INDEKS KEPUASAN MASYARAKAT &amp; VALIDITAS ADUAN 110:</strong>
                 <div style={{ paddingLeft: '18px' }}>
-                  Berdasarkan evaluasi survei masyarakat melalui portal publik SIMAPRES, diperoleh <strong>Indeks Kepuasan Masyarakat (IKM): {ikmStats?.avgRating ? ikmStats.avgRating.toFixed(1) + ' / 5.0' : '-'}</strong>.
+                  Berdasarkan evaluasi survei masyarakat melalui portal publik SIMOPMAS 110, diperoleh <strong>Indeks Kepuasan Masyarakat (IKM): {ikmStats?.avgRating ? ikmStats.avgRating.toFixed(1) + ' / 5.0' : '-'}</strong>.
                 </div>
               </div>
 
@@ -8269,7 +8269,7 @@ function CommandCenterContent({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>
               <div>
                 <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>{lightboxImg.title}</h4>
-                <span style={{ fontSize: '11px', color: '#64748B' }}>Dokumentasi Resmi SIMAPRES 110</span>
+                <span style={{ fontSize: '11px', color: '#64748B' }}>Dokumentasi Resmi SIMOPMAS 110</span>
               </div>
               <button type="button" onClick={() => setShowLightboxModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
             </div>

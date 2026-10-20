@@ -776,7 +776,7 @@ export default function PortalWargaPage() {
     if (!found) {
       setIsSearching(false);
       showAlert(
-        `❌ Nomor Tiket "${q}" tidak ditemukan di database SIMAPRES 110.\n\n` +
+        `❌ Nomor Tiket "${q}" tidak ditemukan di database SIMOPMAS 110.\n\n` +
           `Pastikan nomor tiket Anda sesuai dengan tanda bukti lapor atau klik salah satu tiket aktif di bawah.`,
         'Tiket Tidak Ditemukan',
         '⚠️'
@@ -2195,7 +2195,7 @@ export default function PortalWargaPage() {
             <div className="lightbox-img-wrap">
               <img id="modal-img" src={lightboxData.img} alt="Bukti Foto" />
               <div className="lightbox-watermark" id="modal-watermark">
-                SIMAPRES 110 • WATERMARK RESMI POLRI
+                SIMOPMAS 110 • WATERMARK RESMI POLRI
               </div>
             </div>
             <div className="lightbox-footer" id="modal-desc">
@@ -2522,7 +2522,7 @@ export default function PortalWargaPage() {
       <footer className="footer">
         &copy; 2026 Kepolisian Negara Republik Indonesia.
         <br />
-        Sistem Informasi Manajemen Presisi (SIMAPRES) • Layanan 110 Terpadu Masyarakat.
+        Sistem Monitoring Polisi Bersama Masyarakat (SIMOPMAS 110) • Layanan 110 Terpadu Masyarakat.
       </footer>
     </>
   );

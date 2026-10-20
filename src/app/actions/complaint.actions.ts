@@ -871,7 +871,7 @@ export async function scanArmadaQrAction(input: {
     });
 
     if (!vehicle) {
-      return { success: false, error: 'QR Code Armada tidak dikenali / tidak terdaftar di sistem SIMAPRES.' };
+      return { success: false, error: 'QR Code Armada tidak dikenali / tidak terdaftar di sistem SIMOPMAS 110.' };
     }
 
     const officer = await prisma.policeOfficer.findUnique({

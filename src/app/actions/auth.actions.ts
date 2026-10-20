@@ -43,7 +43,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
     if (!user) {
       return {
         success: false,
-        error: `Akses Ditolak: Akun dengan NRP / ID "${trimmedNrp}" tidak terdaftar dalam pangkalan data SIMAPRES 110!`,
+        error: `Akses Ditolak: Akun dengan NRP / ID "${trimmedNrp}" tidak terdaftar dalam pangkalan data SIMOPMAS 110!`,
       };
     }
 

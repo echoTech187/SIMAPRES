@@ -2072,7 +2072,7 @@ function PersonilContent({
                 }}
               />
             </div>
-            E TRIBRATA LOG
+            SIMOPMAS 110
           </div>
           <div className="user-profile">
             <HeaderProfileBadge
@@ -5392,7 +5392,7 @@ function PersonilContent({
                     </span>
                   </div>
                   <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                    Sentra Pelayanan Kepolisian Terpadu (SPKT) • SIMAPRES
+                    Sentra Pelayanan Kepolisian Terpadu (SPKT) • SIMOPMAS 110
                   </div>
                 </div>
               </div>

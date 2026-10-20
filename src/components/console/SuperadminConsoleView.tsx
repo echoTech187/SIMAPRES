@@ -592,7 +592,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
         <Link href="/" className="topbar-brand">
           <div className="brand-icon">🛡️</div>
           <div>
-            <div className="brand-title">SIMAPRES 110 • POLRI</div>
+            <div className="brand-title">SIMOPMAS 110 • POLRI</div>
             <div className="brand-subtitle">Modul Pendaftaran &amp; Manajemen Satuan Unit Terpadu</div>
           </div>
         </Link>
@@ -1401,7 +1401,7 @@ export default function SuperadminConsoleView({ session, initialSection, initial
                 <h2>
                   <span>🚔</span> Database Personel &amp; Satuan Unit Aktif
                 </h2>
-                <p>Data tersimpan permanen di database SIMAPRES dan disinkronkan ke radar komando</p>
+                <p>Data tersimpan permanen di database SIMOPMAS 110 dan disinkronkan ke radar komando</p>
               </div>
               <span
                 style={{
