@@ -2541,18 +2541,29 @@ function CommandCenterContent({
                     Monitoring Pengawasan Personel & Ranmor Patroli
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
-                    <label
-                      id="container-toggle-personel"
-                      style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}
+                    {/* Status Otomatis: Seluruh Personel Piket Aktif Selalu Terpantau di Peta */}
+                    <div
+                      id="container-status-personel-aktif"
+                      style={{
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'rgba(56,189,248,0.12)',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(56,189,248,0.3)',
+                        color: '#E0F2FE',
+                        fontWeight: 700,
+                      }}
                     >
-                      <input
-                        type="checkbox"
-                        checked={showOtherOfficers}
-                        onChange={(e) => setShowOtherOfficers(e.target.checked)}
-                        style={{ cursor: 'pointer', accentColor: '#38BDF8' }}
-                      />
-                      Lihat Sebaran Seluruh Personel ({picketUnitsList.length})
-                    </label>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>👮</span> Personel Piket Aktif (Live)
+                      </span>
+                      <span style={{ background: '#0284C7', color: '#FFFFFF', padding: '1px 8px', borderRadius: '999px', fontSize: '10.5px', fontWeight: 800 }}>
+                        {picketUnitsList.length} Bertugas
+                      </span>
+                    </div>
                     <label
                       id="container-toggle-traffic"
                       style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '6px 10px', borderRadius: '6px' }}
@@ -2606,11 +2617,11 @@ function CommandCenterContent({
                     mode="fullscreen"
                     height="100%"
                     interactive={true}
-                    fleetUnits={showOtherOfficers ? fleetUnits : []}
+                    fleetUnits={fleetUnits}
                     hotspots={hotspots}
                     policeOffices={policeOffices}
                     showTraffic={showTraffic}
-                    showOtherOfficers={showOtherOfficers}
+                    showOtherOfficers={true}
                     showPatrolRoutes={showPatrolRoutes}
                     focusedUnitKey={focusedUnitKey}
                     centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
