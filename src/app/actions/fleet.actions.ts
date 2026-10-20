@@ -210,9 +210,14 @@ export async function getPatrolFleetUnitsAction() {
       return { success: true, data: patrolFleetCache.data };
     }
 
-    // 1. Ambil seluruh personil polisi dari database beserta user, satuan, dan disposisi insiden aktif
+    // 1. Ambil seluruh personil polisi dengan role PERSONIL dari database beserta user, satuan, dan disposisi insiden aktif
     const [officers, vehicles, activeDispatches] = await Promise.all([
       prisma.policeOfficer.findMany({
+        where: {
+          user: {
+            role: 'PERSONIL',
+          },
+        },
         include: {
           user: true,
           unit: true,
@@ -395,15 +400,14 @@ export async function getPatrolFleetUnitsAction() {
       };
     });
 
-    // Gabungkan: Prioritaskan daftar personil piket yang bertugas
-    const combined = [...formattedOfficers, ...formattedVehicles];
-    const serialized = serializeBigInt(combined);
+    // Kembalikan HANYA personil piket yang bertugas dengan role PERSONIL (tanpa ranmor/kendaraan & tanpa role lain)
+    const serialized = serializeBigInt(formattedOfficers);
     patrolFleetCache = { data: serialized, expiresAt: now + PATROL_FLEET_CACHE_TTL_MS };
     return { success: true, data: serialized };
   } catch (error: any) {
     return {
       success: false,
-      error: error.message || 'Gagal mengambil data unit armada & personel piket.',
+      error: error.message || 'Gagal mengambil data personel piket.',
     };
   }
 }
