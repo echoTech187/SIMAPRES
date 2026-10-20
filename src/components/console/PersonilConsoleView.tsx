@@ -27,7 +27,7 @@ import {
   getPoliceOfficesAction,
   logoutAction,
 } from '@/app/actions/auth.actions';
-import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
+import { getPatrolFleetUnitsAction, submitOfficerPresensiAction } from '@/app/actions/fleet.actions';
 import {
   getMasterResolutionLocationsAction,
   getMasterResolutionDocumentsAction,
@@ -232,6 +232,7 @@ function PersonilContent({
         stationRadius: initialOfficer.stationRadius ?? 1000,
         currentGpsLat: initialOfficer.currentGpsLat ?? null,
         currentGpsLng: initialOfficer.currentGpsLng ?? null,
+        dutyStatus: initialOfficer.dutyStatus || initialOfficer.duty_status || 'DINAS_PATROLI',
       };
     }
     return {
@@ -251,6 +252,7 @@ function PersonilContent({
       stationRadius: 1000,
       currentGpsLat: null,
       currentGpsLng: null,
+      dutyStatus: session?.dutyStatus || 'DINAS_PATROLI',
     };
   });
 
@@ -1041,7 +1043,7 @@ function PersonilContent({
   }, [distanceToMakoMeters]);
 
   // Handler Presensi Masuk dengan Validasi Geofence Radius Mako Utama
-  const handlePresensiMasuk = () => {
+  const handlePresensiMasuk = async () => {
     if (!isWithinMakoRadius) {
       alert(
         `⛔ PRESENSI DITOLAK!\n\n` +
@@ -1054,9 +1056,26 @@ function PersonilContent({
       return;
     }
 
-    const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    setPresensiMasukTime(now);
-    alert(`✓ Presensi Masuk Berhasil!\n\nWaktu: ${now}\nLokasi: Lingkungan ${makoUtama?.name || 'Mako'}\nStatus: Siaga Piket Aktif`);
+    const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    try {
+      const res = await submitOfficerPresensiAction({
+        nrp: officer.nrp,
+        officerId: officer.id,
+        type: 'MASUK',
+        lat: currentGps?.lat ? Number(currentGps.lat) : undefined,
+        lng: currentGps?.lng ? Number(currentGps.lng) : undefined,
+      });
+
+      if (res?.success) {
+        setPresensiMasukTime(nowStr);
+        setOfficer((prev: any) => ({ ...prev, dutyStatus: 'DINAS_PATROLI' }));
+        alert(`✓ Presensi Masuk Berhasil!\n\nWaktu: ${nowStr}\nLokasi: Lingkungan ${makoUtama?.name || 'Mako'}\nStatus: Dinas Patroli Aktif\nPosisi Anda kini aktif terpantau di Peta Pawas.`);
+      } else {
+        alert(`Gagal presensi masuk: ${res?.error || 'Kesalahan server'}`);
+      }
+    } catch (err: any) {
+      alert(`Terjadi kesalahan saat presensi masuk: ${err?.message || err}`);
+    }
   };
 
   // Handler Presensi Pulang dengan Validasi Geofence Radius Mako Utama
@@ -5467,8 +5486,16 @@ function PersonilContent({
                       <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '11.5px' }}>
                           <span style={{ color: '#64748B' }}>Status Kehadiran:</span>
-                          <span style={{ fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '2px 8px', borderRadius: '6px' }}>
-                            ● Dinas Aktif
+                          <span
+                            style={{
+                              fontWeight: 800,
+                              color: officer.dutyStatus === 'LEPAS_DINAS' ? '#DC2626' : '#15803D',
+                              background: officer.dutyStatus === 'LEPAS_DINAS' ? '#FEE2E2' : '#DCFCE7',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                            }}
+                          >
+                            ● {officer.dutyStatus === 'LEPAS_DINAS' ? 'Lepas Dinas' : 'Dinas Aktif'}
                           </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
@@ -7318,15 +7345,32 @@ function PersonilContent({
                 <button
                   type="button"
                   disabled={!isWithinMakoRadius}
-                  onClick={() => {
+                  onClick={async () => {
                     if (!isWithinMakoRadius) {
                       alert(`⛔ Gagal: Anda berada di luar radius Mako (${distanceToMakoFormatted}).`);
                       setShowPresensiPulangModal(false);
                       return;
                     }
-                    const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-                    setPresensiPulangTime(now);
-                    alert(`✓ Presensi Pulang berhasil terekam pukul ${now}!`);
+                    const nowStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+                    try {
+                      const res = await submitOfficerPresensiAction({
+                        nrp: officer.nrp,
+                        officerId: officer.id,
+                        type: 'PULANG',
+                        lat: currentGps?.lat ? Number(currentGps.lat) : undefined,
+                        lng: currentGps?.lng ? Number(currentGps.lng) : undefined,
+                      });
+
+                      if (res?.success) {
+                        setPresensiPulangTime(nowStr);
+                        setOfficer((prev: any) => ({ ...prev, dutyStatus: 'LEPAS_DINAS' }));
+                        alert(`✓ Presensi Pulang Berhasil!\n\nWaktu: ${nowStr}\nStatus: Lepas Dinas\nPosisi Anda telah dinonaktifkan dari Peta Pawas.`);
+                      } else {
+                        alert(`Gagal presensi pulang: ${res?.error || 'Kesalahan server'}`);
+                      }
+                    } catch (err: any) {
+                      alert(`Terjadi kesalahan saat presensi pulang: ${err?.message || err}`);
+                    }
                     setShowPresensiPulangModal(false);
                   }}
                   style={{

@@ -27,13 +27,14 @@ export async function getPatrolFleetUnitsAction() {
       return { success: true, data: patrolFleetCache.data };
     }
 
-    // 1. Ambil personil polisi dengan role PERSONIL dari database beserta logbook dan data satuan
+    // 1. Ambil personil polisi dengan role PERSONIL yang SEDANG BERDINAS AKTIF (sudah absen masuk)
     const [officers, vehicles, activeDispatches] = await Promise.all([
       prisma.policeOfficer.findMany({
         where: {
           user: {
             role: 'PERSONIL',
           },
+          duty_status: { in: ['DINAS_PATROLI', 'PIKET_SPKT'] },
         },
         include: {
           user: true,
@@ -241,3 +242,66 @@ export async function updatePatrolFleetTelemetryAction(input: {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * Aksi Presensi Piket (Masuk & Pulang) dari Portal Personil
+ * - Saat MASUK: duty_status disetel ke DINAS_PATROLI, koordinat GPS direkam -> personil langsung tampil di Peta Pawas.
+ * - Saat PULANG: duty_status disetel ke LEPAS_DINAS -> personil otomatis hilang dari Peta Pawas.
+ */
+export async function submitOfficerPresensiAction(input: {
+  nrp?: string;
+  officerId?: string;
+  type: 'MASUK' | 'PULANG';
+  lat?: number;
+  lng?: number;
+}) {
+  try {
+    const whereClause: any = {};
+    if (input.nrp) {
+      whereClause.nrp = input.nrp;
+    } else if (input.officerId) {
+      whereClause.id = BigInt(input.officerId);
+    } else {
+      return { success: false, error: 'Identitas personel (NRP/ID) tidak valid.' };
+    }
+
+    const officer = await prisma.policeOfficer.findFirst({
+      where: whereClause,
+      include: { user: true },
+    });
+
+    if (!officer) {
+      return { success: false, error: 'Data personel tidak ditemukan di database.' };
+    }
+
+    const now = new Date();
+    const isMasuk = input.type === 'MASUK';
+
+    await prisma.policeOfficer.update({
+      where: { id: officer.id },
+      data: {
+        duty_status: isMasuk ? 'DINAS_PATROLI' : 'LEPAS_DINAS',
+        current_gps_lat: input.lat !== undefined ? input.lat : undefined,
+        current_gps_lng: input.lng !== undefined ? input.lng : undefined,
+        last_gps_heartbeat_at: isMasuk ? now : undefined,
+        assigned_patrol_vehicle: isMasuk ? undefined : null,
+      },
+    });
+
+    patrolFleetCache = null;
+    revalidatePath('/console');
+    revalidatePath('/console/peta');
+    revalidatePath('/console/profil');
+
+    return {
+      success: true,
+      message: isMasuk
+        ? '✓ Presensi Masuk Berhasil! Status dinas aktif dan posisi Anda terpantau di Peta Pawas.'
+        : '✓ Presensi Pulang Berhasil! Status dinas telah dilepas.',
+      dutyStatus: isMasuk ? 'DINAS_PATROLI' : 'LEPAS_DINAS',
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal memproses presensi dinas.' };
+  }
+}
+
