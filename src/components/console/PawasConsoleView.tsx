@@ -2541,29 +2541,6 @@ function CommandCenterContent({
                     Monitoring Pengawasan Personel & Ranmor Patroli
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
-                    {/* Status Otomatis: Seluruh Personel Piket Aktif Selalu Terpantau di Peta */}
-                    <div
-                      id="container-status-personel-aktif"
-                      style={{
-                        fontSize: '11px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: 'rgba(56,189,248,0.12)',
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        border: '1px solid rgba(56,189,248,0.3)',
-                        color: '#E0F2FE',
-                        fontWeight: 700,
-                      }}
-                    >
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>👮</span> Personel Piket Aktif (Live)
-                      </span>
-                      <span style={{ background: '#0284C7', color: '#FFFFFF', padding: '1px 8px', borderRadius: '999px', fontSize: '10.5px', fontWeight: 800 }}>
-                        {picketUnitsList.length} Bertugas
-                      </span>
-                    </div>
                     <label
                       id="container-toggle-traffic"
                       style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '6px 10px', borderRadius: '6px' }}
@@ -2575,18 +2552,6 @@ function CommandCenterContent({
                         style={{ cursor: 'pointer', accentColor: '#10B981' }}
                       />
                       🚦 Tampilkan Traffic Line (Real-time)
-                    </label>
-                    <label
-                      id="container-toggle-routes"
-                      style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)', padding: '6px 10px', borderRadius: '6px' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={showPatrolRoutes}
-                        onChange={(e) => setShowPatrolRoutes(e.target.checked)}
-                        style={{ cursor: 'pointer', accentColor: '#38BDF8' }}
-                      />
-                      🛤️ Tampilkan Rute Beat Patroli
                     </label>
                     <button
                       type="button"
@@ -2622,7 +2587,7 @@ function CommandCenterContent({
                     policeOffices={policeOffices}
                     showTraffic={showTraffic}
                     showOtherOfficers={true}
-                    showPatrolRoutes={showPatrolRoutes}
+                    showPatrolRoutes={false}
                     focusedUnitKey={focusedUnitKey}
                     centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
                     centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
