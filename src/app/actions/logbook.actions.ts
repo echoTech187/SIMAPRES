@@ -16,30 +16,32 @@ const OFFICER_LOGBOOKS_CACHE_TTL_MS = 20 * 1000; // 20 detik
 
 export async function createLogbookAction(input: {
   officerId: string;
-  complaintId?: string | null;
+  complaintId?: string;
   jenisAksi: string;
   lokasiKlaimAlamat: string;
   lokasiKlaimLat: number;
   lokasiKlaimLng: number;
   lokasiGpsAktualLat: number;
   lokasiGpsAktualLng: number;
-  jamMulai: string;
-  jamSelesai: string;
+  jamMulai?: string;
+  jamSelesai?: string;
   fotoBuktiUrl?: string | null;
   fotoExifLat?: number | null;
   fotoExifLng?: number | null;
   deskripsiKegiatan: string;
 }) {
   try {
+    const nowTime = new Date().toTimeString().slice(0, 5);
     const useCase = UseCaseFactory.getCreateLogbookEntryUseCase();
     const created = await useCase.execute({
       ...input,
       officerId: BigInt(input.officerId),
       complaintId: input.complaintId ? BigInt(input.complaintId) : null,
+      jamMulai: input.jamMulai || nowTime,
+      jamSelesai: input.jamSelesai || nowTime,
     });
     officerLogbooksCache.clear();
-    revalidatePath('/personil');
-    revalidatePath('/command-center');
+    revalidatePath('/console', 'layout');
     return { success: true, data: serializeBigInt(created.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menyimpan logbook.' };

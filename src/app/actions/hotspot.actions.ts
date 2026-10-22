@@ -106,8 +106,7 @@ export async function createHotspotAction(input: {
       unitTerdekat: cleanUnit,
     });
     hotspotsCache = null;
-    revalidatePath('/personil');
-    revalidatePath('/command-center');
+    revalidatePath('/console', 'layout');
     return { success: true, data: serializeBigInt(created.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal membuat titik rawan.' };
@@ -134,8 +133,7 @@ export async function updateHotspotAction(
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const updated = await useCase.updateHotspot(key, input);
     hotspotsCache = null;
-    revalidatePath('/personil');
-    revalidatePath('/command-center');
+    revalidatePath('/console', 'layout');
     return { success: true, data: serializeBigInt(updated.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memperbarui titik rawan.' };
@@ -147,8 +145,7 @@ export async function deleteHotspotAction(key: string) {
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const deleted = await useCase.deleteHotspot(key);
     hotspotsCache = null;
-    revalidatePath('/personil');
-    revalidatePath('/command-center');
+    revalidatePath('/console', 'layout');
     return { success: true, deleted };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menghapus titik rawan.' };

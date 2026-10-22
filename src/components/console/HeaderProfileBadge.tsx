@@ -1,6 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
+import { Bell } from 'lucide-react';
+import NameInitialAvatar, { getInitialsFromName } from '@/components/ui/NameInitialAvatar';
+
+export { getInitialsFromName as getInitials };
 
 export interface HeaderProfileBadgeProps {
   /** Nama lengkap pengguna / petugas */
@@ -28,23 +32,8 @@ export interface HeaderProfileBadgeProps {
 }
 
 /**
- * Helper untuk menghitung inisial 1-2 huruf kapital dari nama.
- * Contoh: "Aiptu Herman Sulistyo" -> "AH", "Budi" -> "BU"
- */
-export function getInitials(fullName: string): string {
-  if (!fullName) return 'U';
-  const cleanName = fullName.trim();
-  const parts = cleanName.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'U';
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-/**
- * Reusable Header Profile Component untuk Navigasi Atas (Topbar) SIMAPRES.
- * Mendukung avatar fallback inisial otomatis & kontrol cerdas ikon lonceng per role.
+ * Reusable Header Profile Component untuk Navigasi Atas (Topbar) SIMOPMAS 110.
+ * Menggunakan NameInitialAvatar standar emas untuk fallback inisial nama otomatis tanpa emoji.
  */
 export default function HeaderProfileBadge({
   name,
@@ -59,12 +48,6 @@ export default function HeaderProfileBadge({
   style,
   className,
 }: HeaderProfileBadgeProps) {
-  const [imgError, setImgError] = useState(false);
-
-  React.useEffect(() => {
-    setImgError(false);
-  }, [avatar]);
-
   // Superadmin tidak menampilkan lonceng, role lain menampilkannya secara default
   const isSuperadmin =
     role?.toLowerCase() === 'superadmin' ||
@@ -72,7 +55,6 @@ export default function HeaderProfileBadge({
     role?.toLowerCase() === 'administrator';
 
   const shouldShowBell = showBell !== undefined ? showBell : !isSuperadmin;
-  const initials = getInitials(name);
 
   // Format NRP / Subtext
   const formattedSubtitle = React.useMemo(() => {
@@ -124,7 +106,7 @@ export default function HeaderProfileBadge({
           }}
           title="Notifikasi & Panggilan Masuk"
         >
-          🔔
+          <Bell size={19} color="#FFFFFF" strokeWidth={2.2} />
           {hasNotification && <div className="bell-dot" />}
         </div>
       )}
@@ -180,49 +162,14 @@ export default function HeaderProfileBadge({
           )}
         </div>
 
-        {/* Avatar: Gambar jika ada, atau Inisial Nama jika belum ada photo */}
-        {!avatar || imgError ? (
-          <div
-            id="user-avatar-initial"
-            className="user-avatar"
-            style={{
-              width: '38px',
-              height: '38px',
-              minWidth: '38px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%)',
-              border: '2px solid #FBBF24',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#FFFFFF',
-              fontWeight: 800,
-              fontSize: '13px',
-              letterSpacing: '0.5px',
-              userSelect: 'none',
-            }}
-          >
-            {initials}
-          </div>
-        ) : (
-          <img
-            id="user-avatar-top"
-            src={avatar}
-            alt={name}
-            className="user-avatar"
-            onError={() => setImgError(true)}
-            style={{
-              width: '38px',
-              height: '38px',
-              minWidth: '38px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              border: '2px solid #FBBF24',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            }}
-          />
-        )}
+        {/* Standardized Name Initial Avatar */}
+        <NameInitialAvatar
+          name={name}
+          avatarUrl={avatar}
+          size={38}
+          variant="gold"
+          title={name}
+        />
       </div>
     </div>
   );

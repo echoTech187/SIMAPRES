@@ -3,22 +3,24 @@
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entity';
 import { revalidatePath } from 'next/cache';
+import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
 
-// Cache in-memory server untuk mereduksi latensi query jaringan remote TiDB
-const officerComplaintsCache = new Map<string, { data: any; expiresAt: number }>();
-
-function clearOfficerComplaintsCache() {
-  officerComplaintsCache.clear();
+export async function invalidateComplaintCaches() {
+  cacheInvalidate('antrean_pawas');
+  cacheInvalidate('recent_complaints');
+  cacheInvalidate('officer_performance_rankings');
+  cacheInvalidate('ikm_stats');
+  cacheInvalidate('pawas_unified_data');
+  cacheInvalidate('officer_complaints');
 }
 
-function safeRevalidatePath(path: string) {
-  clearOfficerComplaintsCache();
+function safeRevalidatePath(path?: string) {
+  invalidateComplaintCaches();
   try {
-    revalidatePath(path);
-    if (path === '/personil' || path === '/command-center') {
-      revalidatePath('/console');
-      revalidatePath('/console/beranda');
-      revalidatePath('/console/peta');
+    revalidatePath('/console', 'layout');
+    revalidatePath('/warga');
+    if (path && path !== '/console' && path !== '/warga') {
+      revalidatePath(path);
     }
   } catch (_e) {
     // Graceful fallback when executed outside Next.js request context (e.g. test scripts)
@@ -112,11 +114,109 @@ export async function createComplaintAction(input: {
       fotoBuktiUrl: initialFoto,
       nomorTiket: input.nomorTiket?.trim(),
     });
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/warga');
+    safeRevalidatePath();
     return { success: true, data: serializeBigInt(result.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal membuat pengaduan.' };
+  }
+}
+
+/**
+ * Buat Pengaduan & Langsung Siarkan (Broadcast Terbuka) ke Seluruh Armada Siaga 110
+ * Menghilangkan disposisi manual; sistem langsung menyiarkan serentak ke semua personil yang sedang bertugas.
+ */
+export async function createComplaintAndBroadcastAction(input: {
+  pelaporNama?: string;
+  namaPelapor?: string;
+  pelaporHp?: string;
+  noHpPelapor?: string;
+  jenisKejadian?: string;
+  kategoriLaporan?: string;
+  urgensi?: UrgensiLevel;
+  tkpAlamatTeks: string;
+  tkpLat: number;
+  tkpLng: number;
+  ringkasanKeterangan?: string;
+  deskripsiKejadian?: string;
+  saluranLaporan?: string;
+  operatorId?: string | null;
+  kategoriKey?: string;
+  subcategoryId?: number | string | null;
+  platformKey?: string;
+  fotoBuktiUrl?: string | null;
+  fotoPengaduan?: string | null;
+  nomorTiket?: string;
+}) {
+  const createRes = await createComplaintAction(input);
+  if (!createRes.success || !createRes.data) {
+    return createRes;
+  }
+
+  const complaintData = createRes.data;
+  if (!complaintData.id) {
+    return createRes;
+  }
+  const complaintIdBig = BigInt(complaintData.id);
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+
+    // 1. Ambil seluruh master unit operasional aktif
+    const operationalUnits = await prisma.masterOperationalUnit.findMany({
+      where: { is_active: true },
+    });
+
+    const satuans = operationalUnits.length > 0 ? operationalUnits : [{ id: 1, default_orders: 'Laksanakan respon cepat ke TKP' }];
+
+    // 2. Ubah status pengaduan menjadi DISPOSISI (Tahap 2: Disiarkan ke seluruh armada)
+    await prisma.complaint.update({
+      where: { id: complaintIdBig },
+      data: {
+        status: 'DISPOSISI',
+        tahap: 2,
+      },
+    });
+
+    // 3. Buat rekaman broadcast dispatch untuk setiap satuan operasional (Kuota: 1 = First-come, first-served)
+    for (let i = 0; i < satuans.length; i++) {
+      const s = satuans[i];
+      await prisma.complaintDispatch.create({
+        data: {
+          complaint_id: complaintIdBig,
+          unit_id: s.id,
+          officer_id: null,
+          is_primary_unit: i === 0,
+          personnel_quota: 1, // Siapa cepat dia dapat (1 personil mengunci tiket)
+          tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks}`,
+          dispatch_status: 'DISPATCHED',
+          dispatched_at: new Date(),
+        },
+      });
+    }
+
+    // 4. Catat Audit Log
+    await prisma.complaintAuditLog.create({
+      data: {
+        complaint_id: complaintIdBig,
+        actor_name: 'Sistem Terpadu 110',
+        actor_role: 'OPERATOR',
+        action: 'Siaran Serentak (Open Broadcast 110)',
+        notes: `Laporan diterima dan langsung disiarkan serentak ke seluruh armada/personil siaga tanpa sekat satuan. Mode: Siapa cepat dia dapat.`,
+      },
+    });
+
+    safeRevalidatePath('/console');
+    return {
+      success: true,
+      data: {
+        ...complaintData,
+        status: 'DISPOSISI',
+        tahap: 2,
+      },
+    };
+  } catch (err: any) {
+    console.error('Error in auto broadcast dispatch:', err);
+    return { success: true, data: complaintData };
   }
 }
 
@@ -134,8 +234,7 @@ export async function dispatchComplaintAction(input: {
       pawasUserId: BigInt(input.pawasUserId),
       arahanPawas: input.arahanPawas,
     });
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/personil');
+    safeRevalidatePath();
     return { success: true, data: serializeBigInt(result.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mendisposisikan pengaduan.' };
@@ -219,9 +318,7 @@ export async function fieldStepAction(input: {
       resolutionDocumentKey: input.resolutionDocumentKey,
       resolutionDocumentName: input.resolutionDocumentName,
     });
-    safeRevalidatePath('/personil');
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/warga');
+    safeRevalidatePath();
     return { success: true, data: serializeBigInt(result.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memperbarui tahapan penanganan.' };
@@ -237,11 +334,7 @@ export async function submitRatingAction(input: {
   try {
     const useCase = UseCaseFactory.getSubmitRatingUseCase();
     const result = await useCase.execute(input);
-    officerComplaintsCache.clear();
-    safeRevalidatePath('/warga');
-    safeRevalidatePath('/console');
-    safeRevalidatePath('/personil');
-    safeRevalidatePath('/command-center');
+    safeRevalidatePath();
     return { success: true, data: serializeBigInt(result.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengirim ulasan rating.' };
@@ -270,16 +363,16 @@ export async function getComplaintsByPhoneAction(phone: string) {
 }
 
 export async function getOfficerComplaintsAction(officerId: string, activeOnly = false) {
-  const cacheKey = `c_${officerId}_${activeOnly}`;
-  const cached = officerComplaintsCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt) {
-    return cached.data;
+  const cacheKey = `officer_complaints_${officerId}_${activeOnly}`;
+  const cached = cacheGet<any>(cacheKey);
+  if (cached) {
+    return cached;
   }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const results = await repo.findAssignedToOfficer(BigInt(officerId), activeOnly);
     const result = { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
-    officerComplaintsCache.set(cacheKey, { data: result, expiresAt: Date.now() + 15000 }); // 15 detik TTL
+    cacheSet(cacheKey, result, 15000); // 15 detik TTL
     return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil tugas personel.' };
@@ -287,30 +380,51 @@ export async function getOfficerComplaintsAction(officerId: string, activeOnly =
 }
 
 export async function getAntreanPawasAction() {
+  const cacheKey = 'antrean_pawas';
+  const cached = cacheGet<any>(cacheKey);
+  if (cached) {
+    return cached;
+  }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const results = await repo.findAntreanPawas();
-    return { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    const result = { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    cacheSet(cacheKey, result, 15000); // 15 detik TTL
+    return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil antrean Pawas.' };
   }
 }
 
 export async function getAllRecentComplaintsAction(limit = 50) {
+  const cacheKey = `recent_complaints_${limit}`;
+  const cached = cacheGet<any>(cacheKey);
+  if (cached) {
+    return cached;
+  }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const results = await repo.findAllRecent(limit);
-    return { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    const result = { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    cacheSet(cacheKey, result, 15000); // 15 detik TTL
+    return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil pengaduan terkini.' };
   }
 }
 
 export async function getIkmStatsAction() {
+  const cacheKey = 'ikm_stats';
+  const cached = cacheGet<any>(cacheKey);
+  if (cached) {
+    return cached;
+  }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const stats = await repo.getIkmStats();
-    return { success: true, data: stats };
+    const result = { success: true, data: stats };
+    cacheSet(cacheKey, result, 60000); // 60 detik TTL
+    return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil statistik IKM.' };
   }
@@ -330,7 +444,9 @@ export async function getCadRecommendationsAction(
   }
 }
 
-export const getPendingComplaintsAction = getAntreanPawasAction;
+export async function getPendingComplaintsAction() {
+  return getAntreanPawasAction();
+}
 
 export async function getComplaintsByStatusAction(status: string) {
   try {
@@ -361,9 +477,7 @@ export async function updateComplaintStatusAction(input: {
       (complaint as any).props.pawasValidasiId = BigInt(input.pawasUserId);
     }
     const updated = await repo.update(complaint);
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/personil');
-    safeRevalidatePath('/warga');
+    safeRevalidatePath();
     return { success: true, data: serializeBigInt(updated.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memperbarui status pengaduan.' };
@@ -560,10 +674,7 @@ export async function disposisiMultiSatuanAction(input: {
         notes: `Disiarkan ke: ${satuanNames} • Kuota: ${input.kuotaPersonel} Personel. Arahan: "${input.arahanTaktis}"`,
       },
     });
-
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/personil');
-    safeRevalidatePath('/console/operator');
+    safeRevalidatePath('/console');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menerbitkan disposisi.' };
@@ -687,7 +798,19 @@ export async function acceptOfficerDispatchAction(input: {
       };
     }
 
-    // 5. Cek pembatasan kuota personil untuk unit ini
+    // 5. Cek pembatasan kuota personil (Mode Siaran Terbuka: Siapa cepat dia dapat)
+    const anyAcceptedAcrossComplaint = allDispatches.find(
+      (d) => d.accepted_at !== null && d.officer_id !== null
+    );
+
+    if (quota === 1 && anyAcceptedAcrossComplaint) {
+      const takerName = anyAcceptedAcrossComplaint.officer?.user?.full_name || anyAcceptedAcrossComplaint.officer?.nrp || 'Personel Lain';
+      return {
+        success: false,
+        error: `Tiket ini telah diambil oleh ${takerName}. Anda tidak dapat mengambil tiket yang sama.`,
+      };
+    }
+
     const acceptedInUnit = allDispatches.filter(
       (d) =>
         d.unit_id === targetUnitId &&
@@ -698,14 +821,17 @@ export async function acceptOfficerDispatchAction(input: {
     if (acceptedInUnit.length >= quota) {
       return {
         success: false,
-        error: `Kuota personel untuk satuan Anda sudah terpenuhi (${acceptedInUnit.length}/${quota} personel). Tiket telah ditangani oleh personel lain dalam regu.`,
+        error: `Kuota personel untuk penugasan ini sudah terpenuhi (${acceptedInUnit.length}/${quota} personel). Tiket telah ditangani oleh personel lain.`,
       };
     }
 
     // 6. Catat penerimaan tugas oleh personel ini
-    const unacceptedDispatch = allDispatches.find(
+    let unacceptedDispatch = allDispatches.find(
       (d) => d.unit_id === targetUnitId && d.accepted_at === null
     );
+    if (!unacceptedDispatch) {
+      unacceptedDispatch = allDispatches.find((d) => d.accepted_at === null);
+    }
 
     let officerDist = baseDispatch.estimated_distance;
     let officerEta = baseDispatch.estimated_eta;
@@ -759,6 +885,19 @@ export async function acceptOfficerDispatchAction(input: {
       });
     }
 
+    // Jika mode broadcast kuota 1 (siapa cepat dia dapat): bersihkan entri dispatch satuan lain yang belum terisi
+    if (quota === 1 && unacceptedDispatch) {
+      try {
+        await prisma.complaintDispatch.deleteMany({
+          where: {
+            complaint_id: complaintIdBig,
+            accepted_at: null,
+            id: { not: unacceptedDispatch.id },
+          },
+        });
+      } catch (_) {}
+    }
+
     // 7. Update status complaint menjadi 'SEDANG_DITANGANI' dan tahap = 3 (Tahap 3: Meluncur ke TKP)
     await prisma.complaint.update({
       where: { id: complaintIdBig },
@@ -781,12 +920,7 @@ export async function acceptOfficerDispatchAction(input: {
       },
     });
 
-    safeRevalidatePath('/personil');
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/console');
-    safeRevalidatePath('/console/tugas');
-    safeRevalidatePath('/console/wizard');
-    safeRevalidatePath('/warga');
+    safeRevalidatePath();
 
     return {
       success: true,
@@ -842,9 +976,7 @@ export async function sahkanKasusPawasAction(input: {
       },
     });
 
-    safeRevalidatePath('/command-center');
-    safeRevalidatePath('/personil');
-    safeRevalidatePath('/warga');
+    safeRevalidatePath();
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengesahkan kasus.' };
@@ -1019,6 +1151,11 @@ export interface OfficerPerformanceRankItem {
  * 2. Peringkat Kepuasan Masyarakat (Rating IKM Bintang 1 - 5)
  */
 export async function getOfficerPerformanceRankingsAction() {
+  const cached = cacheGet<any>('officer_performance_rankings');
+  if (cached) {
+    return { success: true, data: cached };
+  }
+
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
@@ -1027,10 +1164,19 @@ export async function getOfficerPerformanceRankingsAction() {
         user: { select: { id: true, full_name: true, is_active: true } },
         unit: { select: { unit_name: true, short_name: true, icon_emoji: true } },
         dispatches: {
-          include: {
+          select: {
+            dispatch_status: true,
+            dispatched_at: true,
+            arrived_at: true,
+            completed_at: true,
             complaint: {
-              include: {
-                citizen_review_rel: true,
+              select: {
+                citizen_review_rel: {
+                  select: {
+                    star_rating: true,
+                    review_text: true,
+                  },
+                },
               },
             },
           },
@@ -1147,13 +1293,17 @@ export async function getOfficerPerformanceRankingsAction() {
       return b.totalSelesai - a.totalSelesai;
     });
 
+    const payload = {
+      productivityRanking,
+      satisfactionRanking,
+      totalOfficers: items.length,
+    };
+
+    cacheSet('officer_performance_rankings', payload, 60000); // 60 detik TTL
+
     return {
       success: true,
-      data: {
-        productivityRanking,
-        satisfactionRanking,
-        totalOfficers: items.length,
-      },
+      data: payload,
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memuat ranking personel.' };

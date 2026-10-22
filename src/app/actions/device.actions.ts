@@ -121,9 +121,8 @@ export async function pairDeviceSessionAction(input: {
       });
     }
 
+    revalidatePath('/console', 'layout');
     revalidatePath('/registrasi-unit');
-    revalidatePath('/personil');
-    revalidatePath('/command-center');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

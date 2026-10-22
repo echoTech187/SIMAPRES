@@ -1,12 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Home, Map, Headphones, Plus, PlusCircle, ShieldAlert, BarChart3, User, Shield } from 'lucide-react';
 import {
   getPendingComplaintsAction,
   disposisiMultiSatuanAction,
-  createComplaintAction,
   getAllRecentComplaintsAction,
   getIkmStatsAction,
   updateComplaintStatusAction,
@@ -18,35 +17,39 @@ import {
   getRegisteredUnitsAction,
   getPoliceOfficesAction,
   getOfficerProfileByNrpAction,
+  getCurrentSessionAction,
   logoutAction,
 } from '@/app/actions/auth.actions';
 import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
+import { getPawasUnifiedDataAction } from '@/app/actions/pawas.actions';
 import { ConsoleSkeleton } from './ConsoleSkeleton';
 import HeaderProfileBadge from './HeaderProfileBadge';
-import {
-  getHotspotsAction,
-  createHotspotAction,
-  deleteHotspotAction,
-} from '@/app/actions/hotspot.actions';
+import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import { createLogbookAction } from '@/app/actions/logbook.actions';
 import { toast } from '@/components/ui/Toast';
+import '@/app/registrasi-unit/registrasi-unit.css';
 
-const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
-  ssr: false,
-  loading: () => (
-    <div style={{ width: '100%', height: '100%', minHeight: '350px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748B', fontWeight: 700 }}>
-      🛰️ Memuat Peta Rute Patroli &amp; Sebaran Unit...
-    </div>
-  ),
-});
+import { PawasTab, PresensiStatusType } from './pawas/types';
+import TabProfilPawas from './profile/TabProfilPawas';
+import TabBerandaPawas from './pawas/tabs/TabBerandaPawas';
+import TabTacticalMapPawas from './pawas/tabs/TabTacticalMapPawas';
+import TabBuatLogPawas from './pawas/tabs/TabBuatLogPawas';
+import { TabValidasiPawas } from './pawas/tabs/TabValidasiPawas';
+import TabKinerjaPawas from './pawas/tabs/TabKinerjaPawas';
+import TabOperatorCadPawas from './pawas/tabs/TabOperatorCadPawas';
+import TabTolakLogPawas from './pawas/tabs/TabTolakLogPawas';
 
-const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
-  ssr: false,
-  loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
-});
-
-import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
-import AddressLocationPicker from '@/components/common/AddressLocationPicker';
+import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
+import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
+import ModalSlaMonitoring from './pawas/modals/ModalSlaMonitoring';
+import ModalKuatPers from './pawas/modals/ModalKuatPers';
+import ModalIkm from './pawas/modals/ModalIkm';
+import ModalCetakLaporan from './pawas/modals/ModalCetakLaporan';
+import ModalHotspotPawas from './pawas/modals/ModalHotspotPawas';
+import ModalTimePicker from './pawas/modals/ModalTimePicker';
+import ModalPresensiPulang from './pawas/modals/ModalPresensiPulang';
+import ModalKeamananPawas from './pawas/modals/ModalKeamananPawas';
+import ModalLightbox from './pawas/modals/ModalLightbox';
 
 function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
@@ -71,10 +74,7 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
     };
   }
 
-  // 1. Ambil relasi subkategori dari database jika sudah ada
   const sub = item?.subcategory || item?.subcategory_rel;
-
-  // 2. Jika belum ada di relasi, cari di master_incident_subcategories (dbSubcategories)
   const targetSubId = item?.subcategory_id || item?.subcategoryId;
   const matchedSub =
     sub ||
@@ -99,7 +99,6 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
     };
   }
 
-  // 3. Jika subkategori kasus belum terdaftar di database, kembalikan null / empty murni tanpa kata kunci hardcode
   return {
     primarySatuanId: null,
     secondarySatuanIds: [],
@@ -108,11 +107,12 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
   };
 }
 
-function parsePawasTab(section?: string, roleParam?: string | null): string {
-  if (!section) return roleParam === 'operator' ? 'view-operator' : 'view-beranda';
-  const clean = section.toLowerCase().trim();
-  switch (clean) {
+function parsePawasTab(tabOrSection?: string | null, roleParam?: string | null): PawasTab {
+  const t = (tabOrSection || '').toLowerCase().trim();
+  switch (t) {
     case 'peta':
+    case 'map':
+    case 'tactical-map':
       return 'view-peta';
     case 'komando':
     case 'komando-pawas':
@@ -163,17 +163,19 @@ function CommandCenterContent({
   session,
   initialSection = 'beranda',
   initialMasterData,
+  initialPawasData,
 }: {
   session?: any;
   initialSection?: string;
   initialMasterData?: any;
+  initialPawasData?: any;
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const roleParam = searchParams.get('role');
   const nrpParam = searchParams.get('nrp') || session?.identifier;
 
-  // Active Tab: Terikat dengan URL Path/Page agar saat direfresh tidak mental ke beranda
+  // Active Tab
   const [activeTab, setActiveTab] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       const parts = window.location.pathname.split('/').filter(Boolean);
@@ -186,39 +188,49 @@ function CommandCenterContent({
   });
 
   // User Profile
-  const [userProfile, setUserProfile] = useState<any>({
-    fullName: session?.fullName,
-    nrp: session?.identifier,
-    pangkat: session?.rankPangkat,
-    title: session?.title,
-    roleBadge: session?.roleBadge,
-    avatar: session?.avatar_url,
+  const [userProfile, setUserProfile] = useState<any>(() => {
+    if (session) {
+      return {
+        ...session,
+        fullName: session.fullName ,
+        identifier: session.identifier,
+        nrp: session.identifier,
+        pangkat: session.rankPangkat ,
+        satuanNama: session.satuanNama,
+        unit: session.satuanNama,
+        role: session.role,
+        roleBadge: session.roleBadge,
+        avatar: session.avatar || session.avatar_url || null,
+      };
+    }
+    return {
+      fullName: '',
+      identifier: '',
+      nrp: '',
+      pangkat: '',
+      satuanNama: '',
+      unit: '',
+      role: '',
+      roleBadge: '',
+      avatar: null,
+    };
   });
 
   // Data Collections
-  const [antreanPawas, setAntreanPawas] = useState<any[]>([]);
-  const [allRecentComplaints, setAllRecentComplaints] = useState<any[]>([]);
-  const [registeredUnits, setRegisteredUnits] = useState<any[]>([]);
-  const [policeOffices, setPoliceOffices] = useState<any[]>([]);
-  const [fleetUnits, setFleetUnits] = useState<any[]>([]);
-  const [hotspots, setHotspots] = useState<any[]>([]);
-  const [ikmStats, setIkmStats] = useState<any>(null);
+  const [antreanPawas, setAntreanPawas] = useState<any[]>(() => initialPawasData?.pendingComplaints || []);
+  const [allRecentComplaints, setAllRecentComplaints] = useState<any[]>(() => initialPawasData?.allRecentComplaints || []);
+  const [registeredUnits, setRegisteredUnits] = useState<any[]>(() => initialPawasData?.registeredUnits || []);
+  const [policeOffices, setPoliceOffices] = useState<any[]>(() => initialPawasData?.policeOffices || []);
+  const [fleetUnits, setFleetUnits] = useState<any[]>(() => initialPawasData?.fleetUnits || []);
+  const [hotspots, setHotspots] = useState<any[]>(() => initialPawasData?.hotspots || []);
+  const [ikmStats, setIkmStats] = useState<any>(() => initialPawasData?.ikmStats || null);
+  const [recentActivities, setRecentActivities] = useState<any[]>(() => initialPawasData?.recentLogbooks || []);
   const [loading, setLoading] = useState(false);
-
-  // Map Filter & View Controls
-  const [focusedFleet, setFocusedFleet] = useState<'all' | 'samapta' | 'perintis' | 'lantas' | 'reskrim' | 'intelkam' | 'binmas' | 'pawas' | 'hotspot'>('all');
-  const [showTraffic, setShowTraffic] = useState(true);
-  const [showOtherOfficers, setShowOtherOfficers] = useState(true);
-  const [showPatrolRoutes, setShowPatrolRoutes] = useState(true);
-  const [focusedUnitKey, setFocusedUnitKey] = useState<string | null>(null);
-  const [isPicketSidebarOpen, setIsPicketSidebarOpen] = useState(true);
-  const [picketSearch, setPicketSearch] = useState('');
-  const [picketFilterCategory, setPicketFilterCategory] = useState<'ALL' | 'PATROLI' | 'SIAGA' | 'DARURAT'>('ALL');
-  const [mapUnitDetail, setMapUnitDetail] = useState<any | null>(null);
+  const [isServerDataLoaded, setIsServerDataLoaded] = useState(() => !!initialPawasData);
 
   // Time & Attendance State
   const [liveClock, setLiveClock] = useState('');
-  const [presensiStatus, setPresensiStatus] = useState('BELUM_MASUK'); // 'BELUM_MASUK' | 'SUDAH_MASUK' | 'SUDAH_PULANG'
+  const [presensiStatus, setPresensiStatus] = useState<PresensiStatusType>('BELUM_MASUK');
   const [jamMasukPiket, setJamMasukPiket] = useState('-');
   const [jamPulangPiket, setJamPulangPiket] = useState('-');
 
@@ -235,18 +247,15 @@ function CommandCenterContent({
     lat: 0,
     lng: 0,
   });
-  const [isCallActive, setIsCallActive] = useState(false);
-  const [callTimer, setCallTimer] = useState('');
 
-  // Officer Performance Ranking (Leaderboard) State
+  // Officer Performance Ranking State
   const [officerRankings, setOfficerRankings] = useState<{
     productivityRanking: OfficerPerformanceRankItem[];
     satisfactionRanking: OfficerPerformanceRankItem[];
     totalOfficers: number;
-  } | null>(null);
-  const [rankingCategoryTab, setRankingCategoryTab] = useState<'produktivitas' | 'kepuasan'>('produktivitas');
+  } | null>(() => initialPawasData?.officerRankings || null);
 
-  // Friendly Toast Notification State routed through unified global Toast system
+  // Toast Notification
   const showFriendlyToast = useCallback((
     type: 'success' | 'warning' | 'error' | 'info',
     title: string,
@@ -256,17 +265,16 @@ function CommandCenterContent({
     toast.show(type, title, message, duration);
   }, []);
 
-  // CAD Form Validation Errors
-  const [cadFormErrors, setCadFormErrors] = useState<Record<string, string>>({});
+  const showToast = useCallback((msg: string) => {
+    toast.showNotification(msg, 4000);
+  }, []);
 
-  // Disposisi Modal Validation Errors
+  // Validation Errors
+  const [cadFormErrors, setCadFormErrors] = useState<Record<string, string>>({});
   const [disposisiFormErrors, setDisposisiFormErrors] = useState<Record<string, string>>({});
 
-  // Validasi Formulir Penerimaan Laporan (CAD 110)
   const validateCadForm = () => {
     const errors: Record<string, string> = {};
-
-    // 1. Nomor Telepon Pelapor
     const rawPhone = (simCaller.telepon || '').trim();
     const digitsOnly = rawPhone.replace(/\D/g, '');
     if (!rawPhone) {
@@ -279,7 +287,6 @@ function CommandCenterContent({
       errors.telepon = 'Format nomor belum sesuai. Awali dengan 08... atau +62... (contoh: 08123456789).';
     }
 
-    // 2. Nama Warga Pelapor
     const cleanNama = (simCaller.nama || '').trim();
     if (!cleanNama) {
       errors.nama = 'Nama warga pelapor wajib diisi.';
@@ -289,17 +296,14 @@ function CommandCenterContent({
       errors.nama = 'Nama pelapor tidak boleh hanya berupa angka. Silakan masukkan nama yang benar.';
     }
 
-    // 3. Kategori Laporan Kejadian
     if (!simCaller.subcategoryId && !simCaller.kategori) {
       errors.kategori = 'Silakan pilih kategori laporan kejadian sesuai keterangan penelepon agar SOP penanganan tepat.';
     }
 
-    // 4. Tingkat Urgensi Penanganan
     if (!simCaller.urgensi) {
       errors.urgensi = 'Silakan tentukan tingkat urgensi penanganan (Darurat, Sedang, atau Normal).';
     }
 
-    // 5. Lokasi Kejadian (TKP)
     const cleanAlamat = (simCaller.alamat || '').trim();
     if (!cleanAlamat) {
       errors.alamat = 'Alamat TKP atau patokan lokasi wajib diisi (atau klik "Pilih Titik di Peta").';
@@ -307,7 +311,6 @@ function CommandCenterContent({
       errors.alamat = 'Keterangan alamat terlalu singkat (minimal 5 karakter, misal nama jalan, RT/RW, atau nama gedung).';
     }
 
-    // 6. Ringkasan Uraian Kejadian
     const cleanUraian = (simCaller.uraian || '').trim();
     if (!cleanUraian) {
       errors.uraian = 'Ringkasan uraian kejadian wajib diisi sebagai informasi awal bagi petugas patroli.';
@@ -318,33 +321,24 @@ function CommandCenterContent({
     return errors;
   };
 
-  // Validasi Lembar Disposisi Taktis
   const validateDisposisiForm = () => {
     const errors: Record<string, string> = {};
-
-    // 1. Satuan Tugas
     if (selectedSatuanKeys.length === 0) {
       errors.satuan = 'Silakan pilih minimal 1 Satuan Tugas (Unit Patroli) yang siap diterjunkan ke TKP.';
     }
-
-    // 2. Kuota Personel
     if (!kuotaPersonel || kuotaPersonel < 1) {
       errors.kuota = 'Alokasi kuat personel minimal 2 orang.';
     }
-
-    // 3. Arahan Taktis Pawas
     const cleanArahan = (arahanPawas || '').trim();
     if (!cleanArahan) {
       errors.arahan = 'Mohon sertakan petunjuk khusus / instruksi taktis (minimal 5 karakter), atau pilih salah satu template cepat di atas.';
     } else if (cleanArahan.length < 5) {
       errors.arahan = 'Arahan taktis terlalu singkat (minimal 5 karakter) demi kejelasan instruksi kepada personel di lapangan.';
     }
-
     return errors;
   };
 
-  // Operator CAD Location & Map Picker State
-  const [showMapPickerCad, setShowMapPickerCad] = useState(false);
+  // Location suggestions for Operator CAD
   const [cadLocationSuggestions, setCadLocationSuggestions] = useState<
     Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
   >([]);
@@ -373,9 +367,7 @@ function CommandCenterContent({
             const p = feat.properties || {};
             const coords = feat.geometry?.coordinates || [0, 0];
             const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city].filter(
-              (part) => part && part !== title
-            );
+            const subParts = [p.street, p.district, p.city].filter((part) => part && part !== title);
             const sub = subParts.join(', ');
             const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
             const full = Array.from(new Set(fullParts)).join(', ') || title;
@@ -427,16 +419,10 @@ function CommandCenterContent({
   const [showSuksesModal, setShowSuksesModal] = useState(false);
   const [suksesDisposisiData, setSuksesDisposisiData] = useState<any | null>(null);
 
-  // Modals Detail Audits
+  // Modals
   const [showSlaModal, setShowSlaModal] = useState(false);
-  const [filterSlaTab, setFilterSlaTab] = useState<'all' | 'lt5' | '5to10' | 'gt10'>('all');
-
   const [showKuatPersModal, setShowKuatPersModal] = useState(false);
-  const [filterPersTab, setFilterPersTab] = useState<'semua' | 'tugas' | 'siaga' | 'cadangan' | 'ranmor'>('semua');
-
   const [showIkmModal, setShowIkmModal] = useState(false);
-  const [filterIkmTab, setFilterIkmTab] = useState<'semua' | 'star5' | 'star4'>('semua');
-
   const [showCetakModal, setShowCetakModal] = useState(false);
   const [showPresensiPulangModal, setShowPresensiPulangModal] = useState(false);
   const [showKeamananModal, setShowKeamananModal] = useState(false);
@@ -444,20 +430,10 @@ function CommandCenterContent({
   const [showTimePickerModal, setShowTimePickerModal] = useState(false);
   const [showLightboxModal, setShowLightboxModal] = useState(false);
   const [lightboxImg, setLightboxImg] = useState({ url: '', title: '', meta: '', desc: '' });
-  // Hotspot CRUD Modal
   const [showHotspotModal, setShowHotspotModal] = useState(false);
-  const [showHotspotAddForm, setShowHotspotAddForm] = useState(false);
-  const [showMiniPickerRawan, setShowMiniPickerRawan] = useState(false);
-  const [newHotspotTitle, setNewHotspotTitle] = useState('');
-  const [newHotspotWilayah, setNewHotspotWilayah] = useState('');
-  const [newHotspotKategori, setNewHotspotKategori] = useState('');
-  const [newHotspotStatus, setNewHotspotStatus] = useState('');
-  const [newHotspotJadwal, setNewHotspotJadwal] = useState('');
-  const [newHotspotLat, setNewHotspotLat] = useState(0);
-  const [newHotspotLng, setNewHotspotLng] = useState(0);
 
-  // Supervisi & Validasi State (Default 'menunggu' 1:1 Prototype e-tribrata-log)
-  const [valFilterStatus, setValFilterStatus] = useState<string>('all');
+  // Supervisi & Validasi State
+  const [valFilterStatus, setValFilterStatus] = useState<string>('semua');
   const [valFilterPlatform, setValFilterPlatform] = useState<string>('all');
   const [valFilterKategori, setValFilterKategori] = useState<string>('all');
   const [selectedValComplaint, setSelectedValComplaint] = useState<any | null>(null);
@@ -489,21 +465,17 @@ function CommandCenterContent({
   const [logDeskripsi, setLogDeskripsi] = useState('');
   const [logFotoPreview, setLogFotoPreview] = useState<string | null>(null);
 
-  // Profil Riwayat Log Filters
-  const [profilLogSearch, setProfilLogSearch] = useState('');
-  const [profilLogFilter, setProfilLogFilter] = useState('semua');
+  // Master Filter Options from Database
+  const [dbCategories, setDbCategories] = useState<any[]>(() => initialMasterData?.categories || initialPawasData?.filterData?.categories || []);
+  const [dbSubcategories, setDbSubcategories] = useState<any[]>(() => initialMasterData?.subcategories || initialPawasData?.filterData?.subcategories || []);
+  const [dbPlatforms, setDbPlatforms] = useState<any[]>(() => initialMasterData?.platforms || initialPawasData?.filterData?.platforms || []);
+  const [dbGiats, setDbGiats] = useState<any[]>(() => initialMasterData?.giats || initialPawasData?.filterData?.giats || []);
+  const [dbSatuans, setDbSatuans] = useState<any[]>(() => initialMasterData?.satuans || initialPawasData?.filterData?.satuans || []);
+  const [dbStatuses, setDbStatuses] = useState<any[]>(() => initialMasterData?.statuses || initialPawasData?.filterData?.statuses || []);
+  const [dbRejectionReasons, setDbRejectionReasons] = useState<any[]>(() => initialMasterData?.rejectionReasons || initialPawasData?.filterData?.rejectionReasons || []);
+  const [dbUrgencyLevels, setDbUrgencyLevels] = useState<any[]>(() => initialMasterData?.urgencyLevels || initialPawasData?.filterData?.urgencyLevels || []);
 
-  // Master Filter Options from Database (Preloaded via Server Component, refreshed on mount)
-  const [dbCategories, setDbCategories] = useState<any[]>(() => initialMasterData?.categories || []);
-  const [dbSubcategories, setDbSubcategories] = useState<any[]>(() => initialMasterData?.subcategories || []);
-  const [dbPlatforms, setDbPlatforms] = useState<any[]>(() => initialMasterData?.platforms || []);
-  const [dbGiats, setDbGiats] = useState<any[]>(() => initialMasterData?.giats || []);
-  const [dbSatuans, setDbSatuans] = useState<any[]>(() => initialMasterData?.satuans || []);
-  const [dbStatuses, setDbStatuses] = useState<any[]>(() => initialMasterData?.statuses || []);
-  const [dbRejectionReasons, setDbRejectionReasons] = useState<any[]>(() => initialMasterData?.rejectionReasons || []);
-  const [dbUrgencyLevels, setDbUrgencyLevels] = useState<any[]>(() => initialMasterData?.urgencyLevels || []);
-
-  // Daftar Satuan Armada Presisi Dinamis (Sinkron Database Master Operational Units & Registered Units)
+  // Daftar Satuan Armada Presisi Dinamis
   const daftarArmadaAktif = useMemo(() => {
     const sourceSatuans = dbSatuans.length > 0 ? dbSatuans : [];
     const defaultOffice = policeOffices.length > 0 ? policeOffices[0] : null;
@@ -518,38 +490,36 @@ function CommandCenterContent({
         (f) =>
           (f.category || f.unit_key || f.unitId || '').toLowerCase() === mu.key.toLowerCase() ||
           ((mu.key.toLowerCase() === 'sabhara' || mu.key.toLowerCase() === 'samapta') &&
-           (f.category === 'sabhara' || f.category === 'samapta' || f.category === 'perintis'))
+            (f.category === 'sabhara' || f.category === 'samapta' || f.category === 'perintis'))
       );
 
+      const cleanOfficerNama = officer?.nama || '';
+      const cleanPangkat = (officer?.pangkat || '').trim();
+      const formattedKomandanName = (cleanPangkat && cleanOfficerNama.toLowerCase().startsWith(cleanPangkat.toLowerCase()))
+        ? cleanOfficerNama
+        : cleanPangkat ? `${cleanPangkat} ${cleanOfficerNama}`.trim() : cleanOfficerNama;
+
       const komandan = officer
-        ? `${officer.pangkat ? officer.pangkat + ' ' : ''}${officer.nama}`.trim() + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
+        ? formattedKomandanName + (officer.kelompokRegu ? ` (${officer.kelompokRegu})` : '')
         : 'Belum ada personel standby';
 
       const nrpKomandan = officer?.nrp || '-';
-      const posisiSaatIni = officer?.kelompokRegu || (vehicle ? `Standby ${vehicle.title || vehicle.key}` : 'Siaga Mako');
+      const posisiSaatIni = officer?.kelompokRegu;
 
-      const kekuatan = vehicle
-        ? `Siaga Tim Presisi • ${vehicle.title || vehicle.key} (${vehicle.sub || 'Armada Siaga'})`
-        : (officer ? 'Unit Siaga Personel' : 'Unit Belum Diawaki');
+      const kekuatan = vehicle ? vehicle.title : 'Unit Belum Diawaki';
 
-      // Ambil koordinat GPS riil (dari kendaraan patroli aktif atau GPS personel on-duty, fallback mako terdaftar)
-      const unitLat = vehicle?.pos?.lat != null
-        ? Number(vehicle.pos.lat)
-        : officer?.live_lat != null
+      const unitLat = officer?.live_lat != null
         ? Number(officer.live_lat)
         : officer?.lat != null
         ? Number(officer.lat)
         : fallbackLat;
 
-      const unitLng = vehicle?.pos?.lng != null
-        ? Number(vehicle.pos.lng)
-        : officer?.live_lng != null
+      const unitLng = officer?.live_lng != null
         ? Number(officer.live_lng)
         : officer?.lng != null
         ? Number(officer.lng)
         : fallbackLng;
 
-      // Hitung jarak dasar ke Mako secara dinamis menggunakan Haversine jika koordinat tersedia
       const distToOffice = (unitLat != null && unitLng != null && fallbackLat != null && fallbackLng != null)
         ? calculateDistanceHaversineKm(unitLat, unitLng, fallbackLat, fallbackLng)
         : 0;
@@ -559,9 +529,9 @@ function CommandCenterContent({
       return {
         id: mu.key,
         satuanId: mu.key,
-        nama: mu.unit_name || '-',
-        namaSingkat: mu.short_name || mu.unit_name || '-',
-        satuan: mu.unit_name || '-',
+        nama: mu.unit_name,
+        namaSingkat: mu.unit_name,
+        satuan: mu.unit_name,
         sektorUtama: posisiSaatIni,
         komandan,
         nrpKomandan,
@@ -571,115 +541,63 @@ function CommandCenterContent({
         lng: unitLng,
         jarakBase,
         etaBase,
-        icon: mu.icon_emoji || '🚔',
-        tupoksi: mu.duties || '',
-        arahanDefault: mu.default_orders || '',
+        icon: mu.icon_emoji,
+        tupoksi: mu.duties,
+        arahanDefault: mu.default_orders,
       };
     });
   }, [dbSatuans, registeredUnits, fleetUnits, policeOffices]);
 
-  // Kinerja Period Filter
-  const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
-  const [kinerjaDate, setKinerjaDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
-
-  // Load Real Data from Server Actions with Parallel Fetch & Lock to prevent continuous fetching
   const isDataLoadingRef = useRef(false);
-  const dataLoadedRef = useRef(false);
+  const dataLoadedRef = useRef(!!initialPawasData);
 
   const loadData = async (force = false) => {
-    if (isDataLoadingRef.current) return;
-    if (dataLoadedRef.current && !force) return;
+    if (isDataLoadingRef.current || (dataLoadedRef.current && !force)) return;
     isDataLoadingRef.current = true;
+    setLoading(true);
 
     try {
-      const [
-        filterRes,
-        qRes,
-        allRes,
-        uRes,
-        fRes,
-        oRes,
-        hRes,
-        ikmRes,
-        rankRes,
-      ] = await Promise.all([
-        !initialMasterData ? getMasterFilterOptionsAction() : Promise.resolve(null),
-        getPendingComplaintsAction(),
-        getAllRecentComplaintsAction(100),
-        getRegisteredUnitsAction(),
-        getPatrolFleetUnitsAction(),
-        getPoliceOfficesAction(),
-        getHotspotsAction(),
-        getIkmStatsAction(),
-        getOfficerPerformanceRankingsAction(),
-      ]);
-
-      if (filterRes?.success && filterRes?.data) {
-        setDbCategories(filterRes.data.categories || []);
-        setDbSubcategories(filterRes.data.subcategories || []);
-        setDbPlatforms(filterRes.data.platforms || []);
-        setDbGiats(filterRes.data.giats || []);
-        setDbSatuans(filterRes.data.satuans || []);
-        setDbStatuses(filterRes.data.statuses || []);
-        if (filterRes.data.rejectionReasons) {
-          setDbRejectionReasons(filterRes.data.rejectionReasons || []);
+      const res = await getPawasUnifiedDataAction();
+      if (res.success && res.data) {
+        const d = res.data;
+        if (d.filterData) {
+          if (Array.isArray(d.filterData.categories)) setDbCategories(d.filterData.categories);
+          if (Array.isArray(d.filterData.subcategories)) setDbSubcategories(d.filterData.subcategories);
+          if (Array.isArray(d.filterData.platforms)) setDbPlatforms(d.filterData.platforms);
+          if (Array.isArray(d.filterData.giats)) setDbGiats(d.filterData.giats);
+          if (Array.isArray(d.filterData.satuans)) setDbSatuans(d.filterData.satuans);
+          if (Array.isArray(d.filterData.statuses)) setDbStatuses(d.filterData.statuses);
+          if (Array.isArray(d.filterData.rejectionReasons)) setDbRejectionReasons(d.filterData.rejectionReasons);
+          if (Array.isArray(d.filterData.urgencyLevels)) setDbUrgencyLevels(d.filterData.urgencyLevels);
         }
-        if (filterRes.data.urgencyLevels) {
-          setDbUrgencyLevels(filterRes.data.urgencyLevels || []);
-        }
-      }
 
-      if (qRes?.success && qRes?.data) {
-        setAntreanPawas(qRes.data);
-      }
+        if (Array.isArray(d.pendingComplaints)) setAntreanPawas(d.pendingComplaints);
+        if (Array.isArray(d.allRecentComplaints)) setAllRecentComplaints(d.allRecentComplaints);
+        if (Array.isArray(d.registeredUnits)) setRegisteredUnits(d.registeredUnits);
+        if (Array.isArray(d.fleetUnits)) setFleetUnits(d.fleetUnits);
+        if (Array.isArray(d.policeOffices)) setPoliceOffices(d.policeOffices);
+        if (Array.isArray(d.hotspots)) setHotspots(d.hotspots);
+        if (d.ikmStats) setIkmStats(d.ikmStats);
+        if (d.officerRankings) setOfficerRankings(d.officerRankings);
+        if (Array.isArray(d.recentLogbooks)) setRecentActivities(d.recentLogbooks);
 
-      if (allRes?.success && allRes?.data) {
-        setAllRecentComplaints(allRes.data);
-        if (!selectedValComplaint && allRes.data.length > 0) {
-          setSelectedValComplaint(allRes.data[0]);
-        }
+        dataLoadedRef.current = true;
       }
-
-      if (uRes?.success && uRes?.data) {
-        setRegisteredUnits(uRes.data);
-      }
-
-      if (fRes?.success && fRes?.data) {
-        setFleetUnits(fRes.data);
-      }
-
-      if (oRes?.success && oRes?.data) {
-        setPoliceOffices(oRes.data);
-      }
-
-      if (hRes?.success && hRes?.data) {
-        setHotspots(hRes.data);
-      }
-
-      if (ikmRes?.success && ikmRes?.data) {
-        setIkmStats(ikmRes.data);
-      }
-
-      if (rankRes?.success && rankRes?.data) {
-        setOfficerRankings(rankRes.data);
-      }
-
-      dataLoadedRef.current = true;
     } catch (e) {
       console.warn('Error loading command-center data:', e);
     } finally {
       isDataLoadingRef.current = false;
+      setIsServerDataLoaded(true);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    // Clock ticker
     const timer = setInterval(() => {
       const now = new Date();
       setLiveClock(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB');
     }, 1000);
 
-    // Sinkronisasi query parameters jika ada (?tab=... / ?page=...)
     if (typeof window !== 'undefined' && window.location.search) {
       const qParams = new URLSearchParams(window.location.search);
       const tabQ = qParams.get('tab') || qParams.get('page');
@@ -689,6 +607,27 @@ function CommandCenterContent({
         const slug = pawasTabToSlug(matchedTab);
         window.history.replaceState(null, '', slug ? `/console/${slug}` : '/console');
       }
+    }
+
+    // 1. Ambil data sesi dinas terkini dari server jika belum dioper
+    if (!session) {
+      getCurrentSessionAction().then((res) => {
+        if (res?.success && res?.data) {
+          const d = res.data as any;
+          setUserProfile((prev: any) => ({
+            ...prev,
+            ...d,
+            fullName: d.fullName || prev.fullName,
+            identifier: d.identifier || prev.identifier,
+            nrp: d.identifier || prev.nrp,
+            pangkat: d.pangkat || d.rankPangkat || prev.pangkat,
+            unit: d.unit || d.satuanNama || prev.unit,
+            role: d.role || prev.role,
+            roleBadge: '',
+            avatar: d.avatar || prev.avatar,
+          }));
+        }
+      });
     }
 
     let sessionUser: any = null;
@@ -702,50 +641,46 @@ function CommandCenterContent({
 
     if (sessionUser && sessionUser.fullName) {
       const isOp = effectiveRole === 'operator' || sessionUser.role === 'operator';
-      setUserProfile({
-        fullName: sessionUser.fullName || sessionUser.nama || '',
-        nrp: sessionUser.nrp || '',
-        pangkat: sessionUser.pangkat || '',
-        title: isOp,
-        roleBadge: isOp,
-        avatar: sessionUser.avatar || null,
-      });
+      setUserProfile((prev: any) => ({
+        ...prev,
+        ...sessionUser,
+        fullName: sessionUser.fullName || sessionUser.nama || prev.fullName,
+        identifier: sessionUser.nrp || sessionUser.identifier || prev.identifier,
+        nrp: sessionUser.nrp || sessionUser.identifier || prev.nrp,
+        pangkat: sessionUser.pangkat || prev.pangkat,
+        role: sessionUser.role || prev.role,
+        roleBadge: isOp ? 'OPERATOR' : sessionUser.role,
+        title: isOp ? 'Operator SPKT 110' : sessionUser.role,
+        avatar: sessionUser.avatar || prev.avatar,
+      }));
       if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
-    }
-
-    if (effectiveNrp) {
+    } else if (effectiveNrp && !session?.fullName) {
       getOfficerProfileByNrpAction(effectiveNrp).then((res) => {
-        if (res.success && res.data) {
+        if (res?.success && res?.data) {
           const isOp = effectiveRole === 'operator' || res.data.role === 'operator';
-          setUserProfile({
-            fullName: res.data.fullName || '',
-            nrp: res.data.nrp || '',
-            pangkat: res.data.pangkat || '',
-            title: isOp,
-            roleBadge: isOp,
-            avatar: res.data.avatar || null,
-          });
-          if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
-        } else if (!sessionUser) {
-          const isOp = effectiveRole === 'operator';
-          setUserProfile({
-            fullName: session?.fullName || '',
-            nrp: effectiveNrp,
-            pangkat: session?.rankPangkat || '',
-            title: isOp,
-            roleBadge: isOp,
-            avatar: session?.avatar_url || null,
-          });
+          setUserProfile((prev: any) => ({
+            ...prev,
+            fullName: res.data.nama || res.data.namaLengkap || prev.fullName,
+            nrp: res.data.nrp || prev.nrp,
+            identifier: res.data.nrp || prev.identifier,
+            pangkat: res.data.pangkat || res.data.rankPangkat || prev.pangkat,
+            unit: res.data.satuanNama || prev.unit,
+            role: res.data.role || prev.role,
+            roleBadge: isOp ? 'OPERATOR' : res.data.role,
+            title: isOp ? 'Operator SPKT 110' : res.data.role,
+            avatar: res.data.avatarUrl || prev.avatar,
+          }));
           if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
         }
       });
     }
 
-    loadData();
+    if (!dataLoadedRef.current) {
+      loadData();
+    }
     return () => clearInterval(timer);
   }, [roleParam, nrpParam]);
 
-  // Listener tombol navigasi Back/Forward browser
   useEffect(() => {
     const handlePopState = () => {
       if (typeof window !== 'undefined') {
@@ -762,17 +697,25 @@ function CommandCenterContent({
     return () => window.removeEventListener('popstate', handlePopState);
   }, [roleParam]);
 
-  // Real-time Tactical Auto-Polling (Live Refresh setiap 8 detik di Peta Pawas)
   useEffect(() => {
     if (activeTab !== 'view-peta') return;
 
     let isMounted = true;
     const pollFleet = async () => {
+      // Jangan polling jika tab diminimize atau browser sedang tidak aktif
+      if (typeof document !== 'undefined' && document.hidden) return;
+
       try {
         const fRes = await getPatrolFleetUnitsAction();
         if (!isMounted) return;
         if (fRes?.success && Array.isArray(fRes.data)) {
-          setFleetUnits(fRes.data);
+          // Bandingkan isi data untuk menghindari re-render dan kalkulasi ulang yang berlebihan
+          setFleetUnits((prev) => {
+            if (JSON.stringify(prev) === JSON.stringify(fRes.data)) {
+              return prev;
+            }
+            return fRes.data;
+          });
         } else if ((fRes as any)?.unauthenticated) {
           if (typeof window !== 'undefined') {
             window.location.href = '/?alert=unauthenticated&from=/console';
@@ -783,14 +726,14 @@ function CommandCenterContent({
       }
     };
 
-    const pollInterval = setInterval(pollFleet, 8000);
+    // Polling setiap 20 detik (sebelumnya 8 detik) untuk ketenangan jaringan dan responsivitas optimal
+    const pollInterval = setInterval(pollFleet, 20000);
     return () => {
       isMounted = false;
       clearInterval(pollInterval);
     };
   }, [activeTab]);
 
-  // Tab & Per-Page switcher: sinkronkan ke URL browser secara mulus
   const switchTab = (tabId: string) => {
     setActiveTab(tabId);
     const slug = pawasTabToSlug(tabId);
@@ -801,15 +744,16 @@ function CommandCenterContent({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const isComplaintRejected = (c: any) => Boolean(c?.status === 'DITOLAK');
+  const isComplaintRejected = (c: any) => {
+    if (c?.status === 'DITOLAK') return true;
+    if (c?.tahap_revisi === true) return true;
+    const ket = (c?.ringkasanKeterangan || '').toUpperCase();
+    return ket.includes('[DITOLAK PAWAS]') || ket.includes('[REVISI PAWAS]') || ket.includes('DITOLAK PAWAS');
+  };
 
-  // Dynamic complaint status resolver powered 100% by dbStatuses from master_complaint_statuses table
-  const resolveComplaintStatus = (rawStatus?: string | null, isRejectedFlag?: boolean) => {
+  const resolveComplaintStatus = (rawStatus?: string | null, isRejected?: boolean) => {
     const s = (rawStatus || '').toUpperCase().trim();
-    const isRej = isRejectedFlag || s === 'DITOLAK';
-
-    // Canonical key mapped to database keys
-    const targetKey = isRej
+    const targetKey = isRejected || s === 'DITOLAK'
       ? 'DITOLAK'
       : s === 'SELESAI'
       ? 'SELESAI'
@@ -827,29 +771,34 @@ function CommandCenterContent({
       (item) => item.key?.toUpperCase() === targetKey || item.key?.toUpperCase() === s
     );
 
-    if (dbItem) {
-      return {
-        id: dbItem.id,
-        key: dbItem.key.toUpperCase(),
-        label: dbItem.label,
-        badge_color: dbItem.badge_color || '#2563EB',
-        badge_bg: dbItem.badge_bg || '#EFF6FF',
-        badge_border: dbItem.badge_border || '#BFDBFE',
-        display_order: dbItem.display_order ?? 1,
-        icon: (dbItem as any).icon_emoji || (dbItem as any).icon || 'ℹ️',
-      };
-    }
+    // Modern polished design-system palette for statuses (pure CSS, no DB dependency)
+    const statusTheme: Record<string, { bg: string; color: string; border: string }> = {
+      DITOLAK: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
+      SELESAI: { bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' },
+      MENUNGGU_PENGESAHAN: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
+      TIBA_DI_TKP: { bg: '#ECFDF5', color: '#10B981', border: '#D1FAE5' },
+      MENUJU_TKP: { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE' },
+      SEDANG_DITANGANI: { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
+      DISPOSISI: { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
+      BELUM_DITANGANI: { bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
+      MENUNGGU: { bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
+    };
 
-    // Neutral state when dbStatuses has no matching entry or is still loading
+    const resolvedKey = dbItem ? dbItem.key.toUpperCase() : targetKey;
+    const theme = statusTheme[resolvedKey] || { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' };
+
+    const rawLabel = dbItem?.label || resolvedKey;
+    const cleanLabel = rawLabel.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() || rawLabel;
+
     return {
-      id: 0,
-      key: s || 'MEMUAT',
-      label: s || 'Memuat status...',
-      badge_color: '#64748B',
-      badge_bg: '#F1F5F9',
-      badge_border: '#CBD5E1',
-      display_order: 99,
-      icon: 'ℹ️',
+      id: dbItem?.id ?? 0,
+      key: resolvedKey,
+      label: cleanLabel,
+      badge_color: theme.color,
+      badge_bg: theme.bg,
+      badge_border: theme.border,
+      display_order: dbItem?.display_order ?? 1,
+      icon: '',
     };
   };
 
@@ -862,7 +811,6 @@ function CommandCenterContent({
 
     if (stUpper === meta.key || stLower === meta.key.toLowerCase()) return true;
 
-    // Harmonisasikan alias status
     if (stLower === 'diproses' || stLower === 'sedang_ditangani') {
       return ['SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP'].includes(meta.key);
     }
@@ -882,15 +830,15 @@ function CommandCenterContent({
         return {
           key: found.key,
           label: found.label,
-          badge_bg: found.badge_bg || '',
-          badge_color: found.badge_color || '',
-          icon_emoji: found.icon_emoji || '',
+          badge_bg: found.badge_bg,
+          badge_color: found.badge_color,
+          icon_emoji: found.icon_emoji,
         };
       }
     }
     return {
-      key: u || '-',
-      label: u || '-',
+      key: u,
+      label: u,
       badge_bg: '',
       badge_color: '',
       icon_emoji: '',
@@ -909,16 +857,42 @@ function CommandCenterContent({
     return getComplaintPlatform(c) === platform;
   };
 
-  // Dynamic Category & Badge Info Resolver (100% Master-driven from DB master_incident_categories & master_incident_subcategories)
   const getComplaintKategoriInfo = (c: any) => {
-    // 0. Direct Subcategory relation from Database (c.subcategory / c.subcategory_rel)
+    const cleanNoEmoji = (str: string) => (str || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+
+    const getSafeCategoryStyle = (key?: string, dbBg?: string, dbColor?: string, dbBorder?: string) => {
+      if (dbBg && dbColor) {
+        return {
+          background: dbBg,
+          color: dbColor,
+          border: `1px solid ${dbBorder || 'transparent'}`,
+        };
+      }
+      const k = (key || '').toUpperCase();
+      if (k === 'KRIMINAL' || k === '3C') {
+        return { background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' };
+      }
+      if (k === 'KAMTIBMAS') {
+        return { background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' };
+      }
+      if (k === 'LANTAS') {
+        return { background: '#FFFBEB', color: '#D97706', border: '1px solid #FDE68A' };
+      }
+      if (k === 'DARURAT' || k === 'BENCANA') {
+        return { background: '#FFF1F2', color: '#E11D48', border: '1px solid #FECDD3' };
+      }
+      if (k === 'PELAYANAN') {
+        return { background: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0' };
+      }
+      return { background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE' };
+    };
+
     const sub = c?.subcategory || c?.subcategory_rel;
     if (sub) {
       const subCat = sub.category_rel || dbCategories.find((cat: any) => cat.key === sub.category_key || cat.id === sub.category_id);
       if (subCat) {
-        const rawLabel = subCat.label || subCat.key || '';
-        const icon = subCat.icon || '';
-        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        const rawLabel = sub.nama_kasus || subCat.label || subCat.key || '';
+        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
         return {
           key: subCat.key,
           kategori: rawLabel,
@@ -926,155 +900,78 @@ function CommandCenterContent({
           subKasus: sub.nama_kasus,
           subUnitKey: sub.unit_key,
           badgeText,
-          badgeStyle: {
-            background: subCat.badge_bg || '#F1F5F9',
-            color: subCat.badge_color || '#1E293B',
-            border: `1px solid ${subCat.badge_border || '#CBD5E1'}`,
-          },
+          badgeStyle: getSafeCategoryStyle(subCat.key, subCat.badge_bg, subCat.badge_color, subCat.badge_border),
         };
       }
     }
 
-    // 0.1 Check if subcategoryId is provided and match in loaded dbSubcategories
-    const targetSubId = c?.subcategory_id || c?.subcategoryId;
-    if (targetSubId && dbSubcategories.length > 0) {
-      const foundSub = dbSubcategories.find((s: any) => s.id === targetSubId);
-      if (foundSub) {
-        const subCat = foundSub.category_rel || dbCategories.find((cat: any) => cat.key === foundSub.category_key || cat.id === foundSub.category_id);
-        if (subCat) {
-          const rawLabel = subCat.label || subCat.key || '';
-          const icon = subCat.icon || '';
-          const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
-          return {
-            key: subCat.key,
-            kategori: rawLabel,
-            label: rawLabel,
-            subKasus: foundSub.nama_kasus,
-            subUnitKey: foundSub.unit_key,
-            badgeText,
-            badgeStyle: {
-              background: subCat.badge_bg || '',
-              color: subCat.badge_color || '',
-              border: `1px solid ${subCat.badge_border || 'transparent'}`,
-            },
-          };
-        }
-      }
-    }
-
-    // 1. Direct relation from Database (c.kategoriRel / c.category_rel)
     const rel = c?.kategoriRel || c?.category_rel;
     if (rel) {
       const rawLabel = rel.label || rel.key || '';
-      const icon = rel.icon || '';
-      const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+      const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
       return {
         key: rel.key,
         kategori: rawLabel,
         label: rawLabel,
         badgeText,
-        badgeStyle: {
-          background: rel.badge_bg || '',
-          color: rel.badge_color || '',
-          border: `1px solid ${rel.badge_border || 'transparent'}`,
-        },
+        badgeStyle: getSafeCategoryStyle(rel.key, rel.badge_bg, rel.badge_color, rel.badge_border),
       };
     }
 
-    // 2. Lookup in loaded master dbCategories from DB by ID
     const targetId = c?.category_id || c?.kategoriId;
     if (targetId && dbCategories.length > 0) {
       const foundById = dbCategories.find((cat: any) => cat.id === targetId);
       if (foundById) {
         const rawLabel = foundById.label || foundById.key || '';
-        const icon = foundById.icon || '';
-        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
         return {
           key: foundById.key,
           kategori: rawLabel,
           label: rawLabel,
           badgeText,
-          badgeStyle: {
-            background: foundById.badge_bg || '',
-            color: foundById.badge_color || '',
-            border: `1px solid ${foundById.badge_border || 'transparent'}`,
-          },
+          badgeStyle: getSafeCategoryStyle(foundById.key, foundById.badge_bg, foundById.badge_color, foundById.badge_border),
         };
       }
     }
 
-    // 3. Lookup in loaded master dbCategories by key or label
     const rawKey = (c?.kategoriKey || c?.kategori_key || '').toUpperCase();
     if (rawKey && dbCategories.length > 0) {
       const foundByKey = dbCategories.find((cat: any) => cat.key.toUpperCase() === rawKey || cat.label.toUpperCase() === rawKey);
       if (foundByKey) {
         const rawLabel = foundByKey.label || foundByKey.key || '';
-        const icon = foundByKey.icon || '';
-        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
         return {
           key: foundByKey.key,
           kategori: rawLabel,
           label: rawLabel,
           badgeText,
-          badgeStyle: {
-            background: foundByKey.badge_bg || '',
-            color: foundByKey.badge_color || '',
-            border: `1px solid ${foundByKey.badge_border || 'transparent'}`,
-          },
+          badgeStyle: getSafeCategoryStyle(foundByKey.key, foundByKey.badge_bg, foundByKey.badge_color, foundByKey.badge_border),
         };
-      }
-      // Check if it matches master Giat Personel (masterActivityType) from DB
-      if (dbGiats.length > 0) {
-        const foundGiat = dbGiats.find((g: any) => g.key.toUpperCase() === rawKey || g.label.toUpperCase() === rawKey);
-        if (foundGiat) {
-          const rawLabel = foundGiat.label || foundGiat.key || '';
-          const icon = foundGiat.icon || '';
-          const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
-          return {
-            key: foundGiat.key,
-            kategori: rawLabel,
-            label: rawLabel,
-            badgeText,
-            badgeStyle: {
-              background: foundGiat.badge_bg || foundGiat.active_bg || '',
-              color: foundGiat.badge_color || foundGiat.inactive_color || '',
-              border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || 'transparent'}`,
-            },
-          };
-        }
       }
     }
 
-    // 4. Giat Personel (Platform: personel) from master DB
     const platform = getComplaintPlatform(c);
     if (platform === 'personel' && dbGiats.length > 0) {
       const textGiat = `${c?.jenisAksi || ''} ${c?.jenisKejadian || ''} ${c?.ringkasanKeterangan || ''}`.toUpperCase();
       const foundGiat = dbGiats.find((g: any) => textGiat.includes((g.key || '').toUpperCase()) || textGiat.includes((g.label || '').toUpperCase()));
       if (foundGiat) {
-        const rawLabel = foundGiat.label || foundGiat.key || '';
-        const icon = foundGiat.icon || '';
-        const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+        const rawLabel = foundGiat.label || foundGiat.key;
+        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
         return {
           key: foundGiat.key,
           kategori: rawLabel,
           label: rawLabel,
           badgeText,
-          badgeStyle: {
-            background: foundGiat.badge_bg || foundGiat.active_bg || '',
-            color: foundGiat.badge_color || foundGiat.inactive_color || '',
-            border: `1px solid ${foundGiat.badge_border || foundGiat.border_color || 'transparent'}`,
-          },
+          badgeStyle: getSafeCategoryStyle(foundGiat.key, foundGiat.badge_bg, foundGiat.badge_color, foundGiat.badge_border),
         };
       }
     }
 
-    // 5. Intelligent Classifier Fallback (Synchronized with SOP Wewenang Satuan Unit Kepolisian)
     const jenis = (c?.jenisKejadian || '').toLowerCase();
     const katLaporan = (c?.kategoriLaporan || '').toLowerCase();
     const combined = `${jenis} ${katLaporan}`;
     const ringkasan = (c?.ringkasanKeterangan || '').toLowerCase();
 
-    // Cek kecocokan dengan masterIncidentSubcategories jika ada
     if (dbSubcategories.length > 0) {
       const matchedSub = dbSubcategories.find((s: any) => {
         const subName = (s.nama_kasus || '').toLowerCase();
@@ -1084,8 +981,7 @@ function CommandCenterContent({
         const subCat = matchedSub.category_rel || dbCategories.find((cat: any) => cat.key === matchedSub.category_key || cat.id === matchedSub.category_id);
         if (subCat) {
           const rawLabel = subCat.label || subCat.key || '';
-          const icon = subCat.icon || '';
-          const badgeText = (icon && !rawLabel.includes(icon)) ? `${icon} ${rawLabel}` : rawLabel;
+          const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
           return {
             key: subCat.key,
             kategori: rawLabel,
@@ -1093,31 +989,26 @@ function CommandCenterContent({
             subKasus: matchedSub.nama_kasus,
             subUnitKey: matchedSub.unit_key,
             badgeText,
-            badgeStyle: {
-              background: subCat.badge_bg || '',
-              color: subCat.badge_color || '',
-              border: `1px solid ${subCat.badge_border || 'transparent'}`,
-            },
+            badgeStyle: getSafeCategoryStyle(subCat.key, subCat.badge_bg, subCat.badge_color, subCat.badge_border),
           };
         }
       }
     }
 
-    // Jika kasus tidak terdaftar dalam subkategori atau kategori di database, kembalikan status netral tanpa kata kunci tiruan
+    const fallbackLabel = cleanNoEmoji(c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan') || 'Belum Dikategorikan';
     return {
       key: 'TIDAK_TERKATEGORI',
-      kategori: c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan',
-      label: c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan',
-      badgeText: c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan',
+      kategori: fallbackLabel,
+      label: fallbackLabel,
+      badgeText: fallbackLabel,
       badgeStyle: {
-        background: '',
-        color: '',
-        border: '1px dashed transparent',
+        background: '#F1F5F9',
+        color: '#475569',
+        border: '1px solid #E2E8F0',
       },
     };
   };
 
-  // Helper returning the category key or label
   const getComplaintKategori = (c: any): string => {
     return getComplaintKategoriInfo(c).key;
   };
@@ -1129,26 +1020,16 @@ function CommandCenterContent({
     if (catInfo.key && catInfo.key.toUpperCase() === target) return true;
     if (catInfo.label && catInfo.label.toUpperCase().includes(target)) return true;
 
-    // Direct match against dbCategories from DB
     if (c?.category_id && dbCategories.length > 0) {
-      const dbCat = dbCategories.find((dc) => dc.key.toUpperCase() === target);
-      if (dbCat && c.category_id === dbCat.id) return true;
+      const cat = dbCategories.find((cc: any) => cc.id === c.category_id);
+      if (cat && cat.key && cat.key.toUpperCase() === target) return true;
     }
-    if (c?.kategoriId && dbCategories.length > 0) {
-      const dbCat = dbCategories.find((dc) => dc.key.toUpperCase() === target);
-      if (dbCat && c.kategoriId === dbCat.id) return true;
-    }
-    if (c?.kategoriRel?.key && c.kategoriRel.key.toUpperCase() === target) return true;
-    if (c?.kategoriKey && c.kategoriKey.toUpperCase() === target) return true;
 
-    // Alias mapping (e.g. 'Kriminalitas' vs 'KRIMINALITAS', 'Laka Lantas' vs 'LAKALANTAS', etc.)
-    const aliasMap: Record<string, string> = {};
-    const normTarget = aliasMap[target] || target;
-    const normCurrent = aliasMap[catInfo.key.toUpperCase()] || catInfo.key.toUpperCase();
+    const normTarget = target;
+    const normCurrent = catInfo.key.toUpperCase();
     return normTarget === normCurrent;
   };
 
-  // 3-way AND filtering: status && platform && kategori
   const filterComplaintList = (
     status: string,
     platform: string,
@@ -1160,7 +1041,6 @@ function CommandCenterContent({
     );
   };
 
-  // Open Validasi with Status Filter and Auto-Select First Card (1:1 openValidasiList Prototype)
   const openValidasiList = (status: string, doSwitch = true) => {
     setValFilterStatus(status);
     const nextFiltered = filterComplaintList(status, valFilterPlatform, valFilterKategori, allRecentComplaints);
@@ -1175,7 +1055,6 @@ function CommandCenterContent({
     }
   };
 
-  // Open Validasi with Platform Filter (1:1 openValidasiWithPlatform Prototype)
   const openValidasiWithPlatform = (plat: string) => {
     setValFilterPlatform(plat);
     setValFilterKategori('all');
@@ -1189,10 +1068,8 @@ function CommandCenterContent({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handle Secondary Platform Filter
   const handleSelectPlatformFilter = (plat: string) => {
     setValFilterPlatform(plat);
-    // Reset kategori ke 'all' saat ganti platform (1:1 Prototype line 5944)
     setValFilterKategori('all');
     const nextFiltered = filterComplaintList(valFilterStatus, plat, 'all', allRecentComplaints);
     if (nextFiltered.length > 0) {
@@ -1202,7 +1079,6 @@ function CommandCenterContent({
     }
   };
 
-  // Handle Secondary Kategori Filter
   const handleSelectKategoriFilter = (kat: string) => {
     setValFilterKategori(kat);
     const nextFiltered = filterComplaintList(valFilterStatus, valFilterPlatform, kat, allRecentComplaints);
@@ -1213,7 +1089,6 @@ function CommandCenterContent({
     }
   };
 
-  // Handle Reset Filters (1:1 Prototype resetActiveFilters: mempertahankan status tab aktif, mereset platform & kategori ke 'all')
   const handleResetFilters = () => {
     setValFilterPlatform('all');
     setValFilterKategori('all');
@@ -1225,25 +1100,18 @@ function CommandCenterContent({
     }
   };
 
-  // Quick template for Pawas instruction
   const tambahArahanCepatPawas = (text: string) => {
     setArahanPawas((prev) => (prev ? `${prev} ${text}` : text));
   };
 
-  // Buka Modal Disposisi Pawas (Manual Selection: Operator bebas mencentang satuan tugas secara manual)
   const bukaModalDisposisi = (item: any) => {
     setSelectedDisposisiItem(item);
-
-    // Reset error validasi disposisi
     setDisposisiFormErrors({});
-
-    // Daftar satuan tampil netral tanpa ada yang tercentang otomatis
     setSelectedSatuanKeys([]);
     setActivePreviewSatuanKey('');
     setShowEditPersonel(false);
     setCustomPersonelNama('-');
 
-    // Kuota kuat personel SOP (berdasarkan urgensi laporan)
     const urgensiStr = (item.urgensi || '').toLowerCase();
     const textKasus = ((item.jenisKejadian || item.title || '') + ' ' + (item.kategori || '') + ' ' + (item.deskripsiKejadian || '')).toLowerCase();
     if (urgensiStr === 'darurat' || textKasus.includes('tawuran') || textKasus.includes('curas') || textKasus.includes('begal') || textKasus.includes('kebakaran')) {
@@ -1256,14 +1124,10 @@ function CommandCenterContent({
       setKuotaPersonel(4);
     }
 
-    // Set instruksi taktis otomatis yang mewakili kasus/pengaduan di tiket
-    const sopRec = getSopRecommendationByIncident(item, dbSubcategories);
     const initialInstruksi =
-      sopRec.sopText ||
       item.deskripsi_sop ||
       `Lakukan penanganan cepat di TKP terkait ${item.jenisKejadian || item.title || 'laporan warga'}, sterilisasi perimeter dan berikan pertolongan segera kepada warga/korban.`;
     setArahanPawas(initialInstruksi);
-
     setShowDisposisiModal(true);
   };
 
@@ -1281,7 +1145,6 @@ function CommandCenterContent({
       }
 
       if (!exists) {
-        // Baru saja dipilih
         setActivePreviewSatuanKey(unitId);
         const target = daftarArmadaAktif.find((a) => a.id === unitId);
         if (target) {
@@ -1296,7 +1159,6 @@ function CommandCenterContent({
           }
         }
       } else {
-        // Batal dipilih
         if (activePreviewSatuanKey === unitId) {
           const nextLead = updated.length > 0 ? updated[0] : '';
           setActivePreviewSatuanKey(nextLead);
@@ -1313,7 +1175,6 @@ function CommandCenterContent({
     });
   };
 
-  // Confirm Disposisi Handler (Phase 2 -> Phase 3 Disposisi Pawas)
   const handleConfirmDisposisi = async () => {
     if (!selectedDisposisiItem) return;
 
@@ -1333,10 +1194,10 @@ function CommandCenterContent({
       const incidentLat = Number(selectedDisposisiItem?.tkpLat ?? selectedDisposisiItem?.lat ?? selectedDisposisiItem?.tkp_lat ?? 0);
       const incidentLng = Number(selectedDisposisiItem?.tkpLng ?? selectedDisposisiItem?.lng ?? selectedDisposisiItem?.tkp_lng ?? 0);
 
-      let computedDistance = leadArmada?.jarakBase ? `${leadArmada.jarakBase} km` : 'Terkonfirmasi di Sektor';
-      let computedEta = leadArmada?.etaBase ? `± ${leadArmada.etaBase} Menit` : 'Siaga Meluncur';
+      let computedDistance = '1.2 km';
+      let computedEta = '± 4 Menit';
 
-      if (incidentLat && incidentLng && leadArmada?.lat && leadArmada?.lng) {
+      if (leadArmada && leadArmada.lat && leadArmada.lng && incidentLat && incidentLng) {
         const rawDistance = calculateDistanceHaversineKm(incidentLat, incidentLng, leadArmada.lat, leadArmada.lng);
         const d = rawDistance > 0 ? rawDistance : 0.5;
         computedDistance = `${d} km`;
@@ -1371,7 +1232,6 @@ function CommandCenterContent({
         setShowDisposisiModal(false);
         setShowSuksesModal(true);
         await loadData();
-        // Switch to "Sedang Ditangani" (sedang_ditangani) and focus on newly dispatched complaint
         setValFilterStatus('sedang_ditangani');
         setSelectedValComplaint({
           ...selectedDisposisiItem,
@@ -1389,7 +1249,6 @@ function CommandCenterContent({
     }
   };
 
-  // Simpan Log Kegiatan Mandiri
   const handleSimpanLogKegiatan = async () => {
     const activeUserId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
     if (!activeUserId) {
@@ -1427,7 +1286,6 @@ function CommandCenterContent({
     }
   };
 
-  // Submit Penolakan Log / Kasus (Phase 2 -> Ditolak)
   const handleSubmitPenolakan = async () => {
     if (!tolakComplaint) return;
     setLoading(true);
@@ -1458,7 +1316,6 @@ function CommandCenterContent({
     }
   };
 
-  // Handle Pengajuan Revisi Laporan Ditolak (1:1 Prototype koreksiLogDitolak)
   const handleAjukanRevisi = async (complaint: any) => {
     if (!complaint) return;
     const catatanRevisi = prompt(
@@ -1496,8 +1353,6 @@ function CommandCenterContent({
     }
   };
 
-
-  // Otorisasi / Pengesahan Kasus (Phase 4 Menunggu Pengesahan -> Phase 5 Selesai)
   const handleSahkanPenutupanKasus = async (complaint: any) => {
     if (!complaint) return;
     setLoading(true);
@@ -1506,7 +1361,7 @@ function CommandCenterContent({
       const res = await updateComplaintStatusAction({
         complaintId: complaint.id.toString(),
         status: 'SELESAI',
-        catatan: 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi 110. Tiket resmi ditutup oleh Pawas.',
+        catatan: 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri SIMOPMAS 110. Tiket resmi ditutup oleh Pawas.',
         pawasUserId: activePawasId,
       });
       if (res.success) {
@@ -1528,7 +1383,6 @@ function CommandCenterContent({
     }
   };
 
-  // Attendance handlers
   const handlePresensiMasuk = () => {
     setPresensiStatus('SUDAH_MASUK');
     const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
@@ -1548,7 +1402,7 @@ function CommandCenterContent({
     showFriendlyToast('info', 'Presensi Pulang Berhasil', `Pukul ${jam}. Terima kasih atas pelaksanaan dinas supervisi.`);
   };
 
-  // 1. Global Summary for Beranda & General Statistics (1:1 Prototype e-tribrata-log Section 1)
+  // Metrics calculation
   const totalLaporan = allRecentComplaints.length;
   const menungguCount = allRecentComplaints.filter((c) => matchesStatus(c, 'menunggu')).length;
   const ditolakCount = allRecentComplaints.filter((c) => matchesStatus(c, 'ditolak')).length;
@@ -1561,21 +1415,12 @@ function CommandCenterContent({
   const hotline110Count = allRecentComplaints.filter((c) => matchesPlatform(c, 'layanan110')).length;
   const personelCount = allRecentComplaints.filter((c) => matchesPlatform(c, 'personel')).length;
 
-  // 2. Status Tabs Counts (Interconnected with active Platform & Kategori - Section 2)
   const logsForStatusTabs = allRecentComplaints.filter(
     (c) => matchesPlatform(c, valFilterPlatform) && matchesKategori(c, valFilterKategori)
   );
   const tabCountSemua = logsForStatusTabs.length;
   const tabCountMenunggu = logsForStatusTabs.filter((c) => matchesStatus(c, 'menunggu')).length;
-  const tabCountDisposisi = logsForStatusTabs.filter((c) => matchesStatus(c, 'disposisi')).length;
-  const tabCountMenujuTkp = logsForStatusTabs.filter((c) => matchesStatus(c, 'menuju_tkp')).length;
-  const tabCountTibaTkp = logsForStatusTabs.filter((c) => matchesStatus(c, 'tiba_di_tkp')).length;
-  const tabCountPengesahan = logsForStatusTabs.filter((c) => matchesStatus(c, 'menunggu_pengesahan')).length;
-  const tabCountSelesai = logsForStatusTabs.filter((c) => matchesStatus(c, 'selesai')).length;
-  const tabCountDitolak = logsForStatusTabs.filter((c) => matchesStatus(c, 'ditolak')).length;
-  const tabCountDiproses = logsForStatusTabs.filter((c) => matchesStatus(c, 'diproses')).length;
 
-  // 3. Platform Bar Counts (Interconnected with active Status & Kategori - Section 3)
   const logsForPlatform = allRecentComplaints.filter(
     (c) => matchesStatus(c, valFilterStatus) && matchesKategori(c, valFilterKategori)
   );
@@ -1585,13 +1430,11 @@ function CommandCenterContent({
   const platCount110 = logsForPlatform.filter((c) => matchesPlatform(c, 'layanan110')).length;
   const platCountPersonel = logsForPlatform.filter((c) => matchesPlatform(c, 'personel')).length;
 
-  // 4. Kategori / Giat Bar Counts (Interconnected with active Status & Platform - Section 4)
   const logsForKategori = allRecentComplaints.filter(
     (c) => matchesStatus(c, valFilterStatus) && matchesPlatform(c, valFilterPlatform)
   );
   const katCountAll = logsForKategori.length;
 
-  // Dynamic SLA & IKM Metrics derived 100% from database
   const completedWithTime = allRecentComplaints.filter((c) => typeof c.responseTimeMinutes === 'number' && c.responseTimeMinutes > 0);
   const avgResponseTime = completedWithTime.length > 0
     ? (completedWithTime.reduce((sum, c) => sum + (c.responseTimeMinutes || 0), 0) / completedWithTime.length).toFixed(1)
@@ -1615,12 +1458,10 @@ function CommandCenterContent({
     ? ((ratedComplaints.filter((c) => (c.citizenRating || 0) >= 4).length / ratedComplaints.length) * 100).toFixed(1)
     : '0.0';
 
-  // Active / Ongoing Complaints (yang belum selesai dan belum ditolak)
   const activeUnfinishedComplaints = allRecentComplaints.filter(
     (c) => c.status !== 'SELESAI' && c.status !== 'DITOLAK'
   );
 
-  // Prominent Breaking Incident (Hanya insiden aktif yang butuh atensi Pawas)
   const highPriorityIncident =
     antreanPawas.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI') ||
     antreanPawas[0] ||
@@ -1628,7 +1469,6 @@ function CommandCenterContent({
     activeUnfinishedComplaints.find((c) => ['MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI', 'MENUNGGU_PENGESAHAN'].includes(c.status)) ||
     null;
 
-  // Filtered Complaints for Screen 4 (view-validasi)
   const filteredValidasiComplaints = filterComplaintList(
     valFilterStatus,
     valFilterPlatform,
@@ -1636,7004 +1476,582 @@ function CommandCenterContent({
     allRecentComplaints
   );
 
-  // Active Complaint dynamically resolved to match current filter 1:1 with Prototype
   const activeComplaint =
     filteredValidasiComplaints.find((c) => c.id === selectedValComplaint?.id) ||
     filteredValidasiComplaints[0] ||
     null;
 
   return (
-    <div style={{ background: '#F1F5F9', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
-      <div className="app-container" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-
-        {/* ======================================================== */}
-        {/* TOP APP BAR (Identik 1:1 Prototype e-tribrata-log.html)  */}
-        {/* ======================================================== */}
-        <header className="top-bar">
-          <div className="brand" onClick={() => switchTab('view-beranda')} style={{ cursor: 'pointer' }}>
-            <div className="brand-logo">
-              <div
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  background: '#FBBF24',
-                  clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                  marginRight: '8px',
-                }}
-              />
-            </div>
-            SIMOPMAS 110
-          </div>
-
-          <div className="user-profile">
-            <HeaderProfileBadge
-              name={userProfile.fullName}
-              identifier={userProfile.nrp}
-              role="pawas"
-              avatar={userProfile.avatar}
-              isActive={activeTab === 'view-profil'}
-              hasNotification={menungguCount > 0}
-              onBellClick={() => openValidasiList('menunggu')}
-              onClick={() => switchTab('view-profil')}
-            />
-          </div>
-        </header>
-
-        {/* ======================================================== */}
-        {/* VIEW CONTAINER                                           */}
-        {/* ======================================================== */}
-        <main className="view-container">
-
-          {/* ======================================================== */}
-          {/* SCREEN 1: BERANDA (DASHBOARD OPERASIONAL PAWAS)          */}
-          {/* ======================================================== */}
-          {activeTab === 'view-beranda' && (
-            <section id="view-beranda" className="view active">
-              <div
-                className="dashboard-header"
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '16px 20px 10px' }}
-              >
-                <div>
-                  <div style={{ fontSize: '18px', fontWeight: 900, color: '#1E293B' }}>DASHBOARD OPERASIONAL</div>
-                  <div className="status-text" style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>
-                    {presensiStatus === 'SUDAH_MASUK' ? 'STATUS: DINAS PIKET AKTIF' : 'STATUS: TIDAK DINAS'}
-                  </div>
-                </div>
-
-                {/* Tombol Tambah Pengaduan (🎧 Operator CAD) */}
-                <button
-                  id="btn-top-spkt-disposisi"
-                  type="button"
-                  onClick={() => switchTab('view-operator')}
-                  style={{
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 18px',
-                    borderRadius: '10px',
-                    fontWeight: 800,
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 4px 12px rgba(16,185,129,0.3)',
-                    transition: 'transform 0.15s, box-shadow 0.15s',
-                  }}
-                  title="Buka Sentra Pelayanan untuk Tambah Pengaduan Darurat & Disposisi Cepat"
-                >
-                  <span style={{ fontSize: '15px' }}>🎧</span>
-                  <span>+ Tambah Pengaduan</span>
-                </button>
-              </div>
-
-              {/* Banner Alert Insiden Menonjol Khusus Pimpinan (Hanya tampil jika ada insiden aktif) */}
-              {highPriorityIncident ? (
-                <div
-                  id="pimpinan-breaking-alert"
-                  style={{
-                    margin: '0 20px 16px',
-                    background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%)',
-                    border: '1.5px solid #FCA5A5',
-                    borderLeft: '6px solid #DC2626',
-                    borderRadius: '12px',
-                    padding: '14px 18px',
-                    boxShadow: '0 4px 15px rgba(220, 38, 38, 0.08)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                      <div
-                        style={{
-                          width: '42px',
-                          height: '42px',
-                          borderRadius: '10px',
-                          background: '#FEE2E2',
-                          border: '1px solid #FECACA',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '22px',
-                          flexShrink: 0,
-                        }}
-                      >
-                        🚨
-                      </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
-                          <span style={{ background: '#DC2626', color: 'white', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '6px', letterSpacing: '0.5px' }}>
-                            INSIDEN MENONJOL
-                          </span>
-                          <span id="pimpinan-alert-waktu" style={{ fontSize: '11px', color: '#991B1B', fontWeight: 700 }}>
-                            ⏱️ Waktu Respon Target &lt; 10:00 (SLA Siaga)
-                          </span>
-                        </div>
-                        <div id="pimpinan-alert-judul" style={{ fontSize: '13.5px', fontWeight: 800, color: '#991B1B', marginBottom: '4px' }}>
-                          {highPriorityIncident.jenisKejadian} di {highPriorityIncident.tkpAlamatTeks}
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#475569', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <span>📍 {highPriorityIncident.tkpAlamatTeks}</span>
-                          <span>•</span>
-                          <span>Pelapor: {highPriorityIncident.pelaporNama} ({highPriorityIncident.pelaporHp})</span>
-                          <span>•</span>
-                          <span style={{ color: '#2563EB', fontWeight: 700 }}>
-                            Status: {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi Pawas' : highPriorityIncident.status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                      <button
-                        id="pimpinan-alert-btn-tindak"
-                        type="button"
-                        onClick={() => {
-                          setSelectedValComplaint(highPriorityIncident);
-                          if (highPriorityIncident.status === 'MENUNGGU_PENGESAHAN') {
-                            openValidasiList('menunggu_pengesahan');
-                          } else if (['MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI'].includes(highPriorityIncident.status)) {
-                            openValidasiList('diproses');
-                          } else {
-                            openValidasiList('menunggu');
-                          }
-                        }}
-                        style={{
-                          background: '#153E75',
-                          color: 'white',
-                          border: 'none',
-                          padding: '8px 14px',
-                          borderRadius: '8px',
-                          fontWeight: 700,
-                          fontSize: '11.5px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          boxShadow: '0 2px 8px rgba(21,62,117,0.25)',
-                        }}
-                      >
-                        <span>👨‍✈️ Tindak Lanjut Insiden</span> ➔
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => switchTab('view-peta')}
-                        style={{
-                          background: 'white',
-                          color: '#1E293B',
-                          border: '1px solid #CBD5E1',
-                          padding: '8px 12px',
-                          borderRadius: '8px',
-                          fontWeight: 700,
-                          fontSize: '11.5px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <span>🗺️ Cek Lokasi di Peta</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  id="pimpinan-kondusif-banner"
-                  style={{
-                    margin: '0 20px 16px',
-                    background: 'linear-gradient(135deg, #065F46 0%, #047857 100%)',
-                    color: 'white',
-                    padding: '12px 18px',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    boxShadow: '0 4px 15px rgba(4, 120, 87, 0.12)',
-                    border: '1px solid #10B981',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '22px' }}>🛡️</span>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, letterSpacing: '0.3px' }}>
-                        SITUASI KAMTIBMAS KONDUSIF &amp; TERPANTAU
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#A7F3D0', marginTop: '2px' }}>
-                        Tidak ada panggilan darurat aktif di wilayah hukum. Semua laporan masyarakat telah tuntas ditangani sesuai SOP.
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={() => switchTab('view-peta')}
-                      style={{
-                        background: 'rgba(255,255,255,0.15)',
-                        border: '1px solid rgba(255,255,255,0.3)',
-                        color: 'white',
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      🗺️ Pantau Peta Rute
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* 2-Column Grid Layout */}
-              <div className="beranda-grid" style={{ display: 'flex', gap: '16px', padding: '0 20px 20px', alignItems: 'flex-start' }}>
-
-                {/* Left Column */}
-                <div id="beranda-col-left" style={{ flex: 1, minWidth: 0 }}>
-
-                  {/* Peta Card */}
-                  <div className="card-panel" id="card-map-beranda" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', flexDirection: 'column', alignItems: 'flex-start', marginBottom: '12px' }}>
-                      <div className="card-title" style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginBottom: '8px' }}>
-                        Peta Rute Patroli
-                      </div>
-
-                      {/* Fleet Badges Khusus Pimpinan */}
-                      <div id="pimpinan-map-badges" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <span
-                          onClick={() => setFocusedFleet('samapta')}
-                          style={{
-                            background: focusedFleet === 'samapta' ? '#BFDBFE' : '#EFF6FF',
-                            color: '#1D4ED8',
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            padding: '4px 9px',
-                            borderRadius: '6px',
-                            border: '1px solid #BFDBFE',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                          }}
-                          title="Klik untuk fokus Unit Patroli Samapta R-4"
-                        >
-                          🚔 {fleetUnits.filter((u) => u.category === 'samapta' || (u.key && u.key.toLowerCase().includes('samapta'))).length} Samapta R-4
-                        </span>
-                        <span
-                          onClick={() => setFocusedFleet('perintis')}
-                          style={{
-                            background: focusedFleet === 'perintis' ? '#FDE68A' : '#FEF3C7',
-                            color: '#B45309',
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            padding: '4px 9px',
-                            borderRadius: '6px',
-                            border: '1px solid #FDE68A',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                          }}
-                          title="Klik untuk fokus Tim Perintis Presisi R-2"
-                        >
-                          🏍️ {fleetUnits.filter((u) => u.category === 'perintis' || (u.key && u.key.toLowerCase().includes('perintis'))).length} Perintis R-2
-                        </span>
-                        <span
-                          onClick={() => setFocusedFleet('lantas')}
-                          style={{
-                            background: focusedFleet === 'lantas' ? '#DCFCE7' : '#F0FDF4',
-                            color: '#15803D',
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            padding: '4px 9px',
-                            borderRadius: '6px',
-                            border: '1px solid #BBF7D0',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                          }}
-                          title="Klik untuk fokus Patroli Turjawali Satlantas"
-                        >
-                          🚓 {fleetUnits.filter((u) => u.category === 'lantas' || (u.key && (u.key.toLowerCase().includes('lantas') || u.key.toLowerCase().includes('pjr')))).length} Lantas R-4
-                        </span>
-                        <span
-                          onClick={() => setFocusedFleet('hotspot')}
-                          id="badge-hotspot-count"
-                          style={{
-                            background: focusedFleet === 'hotspot' ? '#FEE2E2' : '#FEF2F2',
-                            color: '#DC2626',
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            padding: '4px 9px',
-                            borderRadius: '6px',
-                            border: '1px solid #FECACA',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                          }}
-                          title="Klik untuk fokus Titik Rawan Kejahatan"
-                        >
-                          🔴 {hotspots.length} Titik Rawan Kejahatan
-                        </span>
-                        <span
-                          onClick={() => setShowHotspotModal(true)}
-                          style={{
-                            background: '#FFF1F2',
-                            color: '#BE123C',
-                            fontSize: '10.5px',
-                            fontWeight: 800,
-                            padding: '4px 9px',
-                            borderRadius: '6px',
-                            border: '1px solid #FECDD3',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                          title="Kelola Data Titik Rawan (Tambah, Edit, Hapus)"
-                        >
-                          ⚙️ Kelola Titik Rawan
-                        </span>
-                        <span
-                          onClick={() => setShowTraffic(!showTraffic)}
-                          style={{
-                            background: showTraffic ? '#ECFDF5' : '#F1F5F9',
-                            color: showTraffic ? '#047857' : '#64748B',
-                            fontSize: '10.5px',
-                            fontWeight: 800,
-                            padding: '4px 9px',
-                            borderRadius: '6px',
-                            border: '1px solid #A7F3D0',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                          title="Klik untuk toggle Live Traffic"
-                        >
-                          🚦 Live Traffic: {showTraffic ? 'ON' : 'OFF'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ position: 'relative', width: '100%', height: '350px', borderRadius: '8px', overflow: 'hidden' }}>
-                      <SimapresLeafletMap
-                        interactive={true}
-                        fleetUnits={fleetUnits}
-                        hotspots={hotspots}
-                        policeOffices={policeOffices}
-                        centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
-                        centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
-                        onUnitClick={(unit: any) => setMapUnitDetail(unit)}
-                      />
-
-                      {/* Floating Map Unit Detail Modal */}
-                      {mapUnitDetail && (
-                        <div
-                          id="modal-map-unit-detail"
-                          style={{
-                            position: 'absolute',
-                            top: '12px',
-                            left: '12px',
-                            zIndex: 9999,
-                            background: '#FFFFFF',
-                            borderRadius: '12px',
-                            boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
-                            border: '1px solid #CBD5E1',
-                            padding: '15px 17px',
-                            width: '320px',
-                            maxWidth: 'calc(100% - 70px)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#0284C7', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                              <span>🚔</span>
-                              <span>{mapUnitDetail.title || mapUnitDetail.unitName}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => setMapUnitDetail(null)}
-                              style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}
-                            >
-                              ✕
-                            </button>
-                          </div>
-                          <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B', marginTop: '4px' }}>
-                            {mapUnitDetail.petugas || mapUnitDetail.nama}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                            {mapUnitDetail.sub || mapUnitDetail.kendaraan}
-                          </div>
-                          <div style={{ borderTop: '1px solid #E2E8F0', margin: '8px 0' }} />
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#10B981' }}>
-                            Status: {mapUnitDetail.status || 'SIAGA'}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
-                            Tugas: {mapUnitDetail.tugas || 'Patroli Rute Sektor Presisi'}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Floating Mini Legend */}
-                      <div
-                        className="map-legend-mini"
-                        style={{
-                          position: 'absolute',
-                          bottom: '10px',
-                          left: '10px',
-                          zIndex: 999,
-                          background: 'white',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-                        }}
-                      >
-                        <span style={{ color: '#EF4444', fontSize: '14px' }}>●</span> Titik Rawan
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rekapitulasi Hari Ini */}
-                  <div id="rekap-card" className="card-panel" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-                    <div className="card-title" style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginBottom: '12px' }}>
-                      Rekapitulasi Hari Ini
-                    </div>
-
-                    <div className="rekap-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-                      <div
-                        className="rekap-box"
-                        onClick={() => openValidasiList('semua')}
-                        style={{ cursor: 'pointer', background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', textAlign: 'center' }}
-                      >
-                        <div className="rekap-label" style={{ fontSize: '10px', fontWeight: 800, color: '#64748B' }}>TOTAL LAPORAN</div>
-                        <div className="rekap-val" style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A', marginTop: '2px' }}>{totalLaporan}</div>
-                      </div>
-
-                      <div
-                        className="rekap-box"
-                        onClick={() => openValidasiList('menunggu')}
-                        style={{ cursor: 'pointer', background: '#fffdfa', border: '1px solid #f0e1c9', borderRadius: '8px', padding: '10px', textAlign: 'center' }}
-                      >
-                        <div className="rekap-label" style={{ fontSize: '10px', fontWeight: 800, color: '#D97706' }}>MENUNGGU TINDAKAN</div>
-                        <div className="rekap-val orange" style={{ fontSize: '20px', fontWeight: 900, color: '#D97706', marginTop: '2px' }}>{menungguCount}</div>
-                      </div>
-
-                      <div
-                        className="rekap-box"
-                        onClick={() => openValidasiList('ditolak')}
-                        style={{ cursor: 'pointer', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '8px', padding: '10px', textAlign: 'center' }}
-                      >
-                        <div className="rekap-label" style={{ fontSize: '10px', fontWeight: 800, color: '#DC2626' }}>DITOLAK</div>
-                        <div className="rekap-val red" style={{ fontSize: '20px', fontWeight: 900, color: '#DC2626', marginTop: '2px' }}>{ditolakCount}</div>
-                      </div>
-
-                      <div
-                        className="rekap-box"
-                        onClick={() => openValidasiList('diproses')}
-                        style={{ cursor: 'pointer', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '10px', textAlign: 'center' }}
-                      >
-                        <div className="rekap-label" style={{ fontSize: '10px', fontWeight: 800, color: '#1D4ED8' }}>SEDANG DITANGANI</div>
-                        <div className="rekap-val primary" style={{ fontSize: '20px', fontWeight: 900, color: '#1D4ED8', marginTop: '2px' }}>{diprosesCount}</div>
-                      </div>
-
-                      <div
-                        className="rekap-box"
-                        onClick={() => openValidasiList('menunggu_pengesahan')}
-                        style={{ cursor: 'pointer', background: '#EDE9FE', border: '1px solid #DDD6FE', borderRadius: '8px', padding: '10px', textAlign: 'center' }}
-                      >
-                        <div className="rekap-label" style={{ fontSize: '10px', fontWeight: 800, color: '#7C3AED' }}>PENGESAHAN PAWAS</div>
-                        <div className="rekap-val purple" style={{ fontSize: '20px', fontWeight: 900, color: '#7C3AED', marginTop: '2px' }}>{pengesahanCount}</div>
-                      </div>
-
-                      <div
-                        className="rekap-box"
-                        onClick={() => openValidasiList('selesai')}
-                        style={{ cursor: 'pointer', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '10px', textAlign: 'center' }}
-                      >
-                        <div className="rekap-label" style={{ fontSize: '10px', fontWeight: 800, color: '#15803D' }}>SELESAI</div>
-                        <div className="rekap-val secondary" style={{ fontSize: '20px', fontWeight: 900, color: '#15803D', marginTop: '2px' }}>{selesaiCount}</div>
-                      </div>
-                    </div>
-
-                    {/* Breakdown 4 Saluran Platform */}
-                    <div
-                      id="rekap-platform-breakdown"
-                      style={{
-                        marginTop: '12px',
-                        padding: '10px 12px',
-                        background: '#F8FAFC',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '8px',
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                        gap: '8px',
-                        fontSize: '11px',
-                      }}
-                    >
-                      <div
-                        style={{ background: 'white', border: '1px solid #FECACA', borderRadius: '6px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        onClick={() => openValidasiWithPlatform('sos')}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 800, color: '#DC2626' }}>
-                          <span>🚨</span> SOS PANIC
-                        </span>
-                        <span style={{ fontWeight: 800, color: '#DC2626', fontSize: '12px' }}>{sosCount}</span>
-                      </div>
-
-                      <div
-                        style={{ background: 'white', border: '1px solid #BAE6FD', borderRadius: '6px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        onClick={() => openValidasiWithPlatform('warga')}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 800, color: '#0284C7' }}>
-                          <span>📱</span> WARGA
-                        </span>
-                        <span style={{ fontWeight: 800, color: '#0284C7', fontSize: '12px' }}>{wargaCount}</span>
-                      </div>
-
-                      <div
-                        style={{ background: 'white', border: '1px solid #BFDBFE', borderRadius: '6px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        onClick={() => openValidasiWithPlatform('layanan110')}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 800, color: '#1D4ED8' }}>
-                          <span>📞</span> 110 HOTLINE
-                        </span>
-                        <span style={{ fontWeight: 800, color: '#1D4ED8', fontSize: '12px' }}>{hotline110Count}</span>
-                      </div>
-
-                      <div
-                        style={{ background: 'white', border: '1px solid #FDE68A', borderRadius: '6px', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
-                        onClick={() => openValidasiWithPlatform('personel')}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 800, color: '#92400E' }}>
-                          <span>👮</span> PERSONEL
-                        </span>
-                        <span style={{ fontWeight: 800, color: '#92400E', fontSize: '12px' }}>{personelCount}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Feed Komando & Situasi Lapangan (Real-Time) */}
-                  <div className="card-panel" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                      <div>
-                        <div className="card-title" style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', marginBottom: '2px' }}>
-                          FEED KOMANDO &amp; SITUASI LAPANGAN (REAL-TIME)
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#64748B' }}>
-                          Pantauan eskalasi insiden darurat, panggilan 110, dan status penanganan kasus di wilayah hukum Polres
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="timeline" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {allRecentComplaints.slice(0, 3).map((inc) => {
-                        const timeStr = inc.createdAt ? new Date(inc.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini';
-                        const isSelesai = inc.status === 'SELESAI';
-                        const isMeluncur = inc.status === 'MENUJU_TKP';
-                        const isPenanganan = inc.status === 'PENANGANAN_TKP';
-                        const isDarurat = inc.urgensi === 'DARURAT' || inc.urgensi === 'PRIORITAS_TINGGI';
-
-                        const borderColor = isSelesai ? '#10B981' : isMeluncur ? '#3B82F6' : isPenanganan ? '#8B5CF6' : isDarurat ? '#EF4444' : '#F59E0B';
-                        const badgeBg = isSelesai ? '#F0FDF4' : isMeluncur ? '#EFF6FF' : isPenanganan ? '#F5F3FF' : isDarurat ? '#FEF2F2' : '#FFFBEB';
-                        const badgeColor = isSelesai ? '#16A34A' : isMeluncur ? '#1D4ED8' : isPenanganan ? '#6D28D9' : isDarurat ? '#DC2626' : '#D97706';
-                        const badgeBorder = isSelesai ? '#BBF7D0' : isMeluncur ? '#BFDBFE' : isPenanganan ? '#DDD6FE' : isDarurat ? '#FECACA' : '#FDE68A';
-
-                        let badgeText = '⏳ MENUNGGU';
-                        if (isSelesai) badgeText = `✓ TUNTAS ${inc.citizenRating ? `(⭐ ${inc.citizenRating}.0)` : ''}`;
-                        else if (isMeluncur) badgeText = '⚡ MELUNCUR';
-                        else if (isPenanganan) badgeText = '● TINDAKAN TKP';
-                        else if (isDarurat) badgeText = '🚨 DARURAT';
-
-                        let descText = inc.ringkasanKeterangan;
-                        if (isSelesai) {
-                          descText = inc.citizenReview || (inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat} ${inc.assignedOfficer.namaLengkap} telah menuntaskan penanganan dan menyerahkan laporan resmi.` : 'Kasus telah ditangani dan dinyatakan tuntas.');
-                        } else if (isMeluncur) {
-                          descText = `${inc.assignedOfficer?.assignedPatrolVehicle || 'Unit Samapta Presisi'} (${inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat} ${inc.assignedOfficer.namaLengkap}` : 'Personel'}) meluncur ke TKP. Estimasi tiba 3-5 menit.`;
-                        } else if (isPenanganan) {
-                          descText = `Personel berada di TKP melaksanakan tindakan kepolisian dan pengamanan perimeter.`;
-                        }
-
-                        return (
-                          <div key={inc.id} className="tl-item" style={{ borderLeft: `3px solid ${borderColor}`, paddingLeft: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-                              <div>
-                                <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B' }}>
-                                  {timeStr} - {inc.jenisKejadian} ({inc.tkpAlamatTeks?.split(',')[0] || 'Wilayah Hukum'})
-                                </div>
-                                <div style={{ fontSize: '11.5px', color: '#475569', marginTop: '2px' }}>
-                                  {descText}
-                                </div>
-                              </div>
-                              <span style={{ fontSize: '10px', fontWeight: 800, background: badgeBg, color: badgeColor, padding: '3px 8px', borderRadius: '6px', border: `1px solid ${badgeBorder}`, whiteSpace: 'nowrap' }}>
-                                {badgeText}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Executive Command Sidebar */}
-                <div id="beranda-col-right" style={{ width: '330px', flexShrink: 0 }}>
-                  <div id="pimpinan-executive-sidebar">
-
-                    {/* Widget 1: SLA Waktu Tanggap Patroli */}
-                    <div
-                      id="card-pimpinan-sla"
-                      className="card-panel"
-                      onClick={() => setShowSlaModal(true)}
-                      style={{
-                        padding: '16px',
-                        marginBottom: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        background: 'white',
-                      }}
-                      title="Klik untuk melihat audit rincian waktu tanggap seluruh kasus"
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div className="card-title" style={{ marginBottom: 0, fontSize: '12.5px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>WAKTU TANGGAP PATROLI</span>
-                          <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '1px 6px', borderRadius: '10px' }}>
-                            🔍 DETAIL
-                          </span>
-                        </div>
-                        <span style={{ background: '#F0FDF4', color: '#15803D', fontWeight: 800, fontSize: '10px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
-                          TARGET &lt; 10 MENIT
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
-                        <div style={{ width: '75px', height: '75px', position: 'relative', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#EFF6FF', borderRadius: '50%', border: '4px solid #1D4ED8' }}>
-                          <span style={{ fontSize: '18px', fontWeight: 900, color: '#153E75', lineHeight: 1 }}>{completedWithTime.length > 0 ? avgResponseTime : '-'}</span>
-                          <span style={{ fontSize: '9px', color: '#64748B', fontWeight: 700 }}>{completedWithTime.length > 0 ? 'MENIT' : 'STANDBY'}</span>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#15803D', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>✓</span> {completedWithTime.length > 0 ? `Tepat Waktu: ${onTimeRate}%` : 'Standar Respon Siaga Presisi 110'}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.4, marginTop: '2px' }}>
-                            {completedWithTime.length > 0 ? 'Rata-rata kecepatan tiba unit patroli di TKP sejak laporan diterima.' : 'Waktu respon tanggap dihitung otomatis saat kasus selesai ditangani.'}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', background: '#F8FAFC', padding: '8px', borderRadius: '8px', border: '1px solid #E2E8F0', textAlign: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '9.5px', color: '#64748B', fontWeight: 700 }}>&lt; 5 Menit</div>
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#16A34A' }}>
-                            {fastCount} ({completedWithTime.length > 0 ? Math.round((fastCount / completedWithTime.length) * 100) : 0}%)
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '9.5px', color: '#64748B', fontWeight: 700 }}>5-10 Menit</div>
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#2563EB' }}>
-                            {mediumCount} ({completedWithTime.length > 0 ? Math.round((mediumCount / completedWithTime.length) * 100) : 0}%)
-                          </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '9.5px', color: '#64748B', fontWeight: 700 }}>&gt; 10 Menit</div>
-                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#DC2626' }}>
-                            {slowCount} ({completedWithTime.length > 0 ? Math.round((slowCount / completedWithTime.length) * 100) : 0}%)
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Widget 2: Kuat Pers & Kendaraan Dinas */}
-                    <div
-                      id="card-pimpinan-personel"
-                      className="card-panel"
-                      onClick={() => setShowKuatPersModal(true)}
-                      style={{
-                        padding: '16px',
-                        marginBottom: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        background: 'white',
-                      }}
-                      title="Klik untuk melihat gelar kekuatan riil personel & armada patroli"
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div className="card-title" style={{ marginBottom: 0, fontSize: '12.5px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>KUAT PERSONEL &amp; KENDARAAN</span>
-                          <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '1px 6px', borderRadius: '10px' }}>
-                            🔍 DETAIL
-                          </span>
-                        </div>
-                        <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontWeight: 800, fontSize: '10px', padding: '2px 8px', borderRadius: '6px', border: '1px solid #BFDBFE' }}>
-                          TOTAL {registeredUnits.length} PERSONEL
-                        </span>
-                      </div>
-
-                      {(() => {
-                        const meluncurCount = registeredUnits.filter(
-                          (u) => u.dutyStatus === 'DINAS_PATROLI' || u.dutyStatus === 'MENUJU_TKP'
-                        ).length;
-                        const cadanganCount = registeredUnits.filter(
-                          (u) => u.dutyStatus === 'CADANGAN' || u.dutyStatus === 'LEPAS_DINAS'
-                        ).length;
-                        const siagaCount = Math.max(0, registeredUnits.length - meluncurCount - cadanganCount);
-
-                        return (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F0FDF4', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #16A34A' }}>
-                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#166534' }}>🟢 Siaga di Mako Polres</span>
-                              <span style={{ fontSize: '12px', fontWeight: 800, color: '#166534' }}>{siagaCount} Pers</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#EFF6FF', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #2563EB' }}>
-                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#1E40AF' }}>🔵 Meluncur / Di TKP</span>
-                              <span style={{ fontSize: '12px', fontWeight: 800, color: '#1E40AF' }}>{meluncurCount} Pers</span>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFFBEB', padding: '8px 10px', borderRadius: '6px', borderLeft: '3px solid #D97706' }}>
-                              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#92400E' }}>🟡 Cadangan Siaga Piket</span>
-                              <span style={{ fontSize: '12px', fontWeight: 800, color: '#92400E' }}>{cadanganCount} Pers</span>
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '10px' }}>
-                        <div style={{ fontSize: '10.5px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
-                          Kendaraan Dinas Patroli Tergelar:
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#F1F5F9', color: '#334155', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-                            🚔 Samapta R-4: {fleetUnits.filter((u) => u.category === 'samapta' || (u.key && u.key.toLowerCase().includes('samapta'))).length} Unit
-                          </span>
-                          <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#F1F5F9', color: '#334155', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-                            🏍️ Perintis R-2: {fleetUnits.filter((u) => u.category === 'perintis' || (u.key && u.key.toLowerCase().includes('perintis'))).length} Unit
-                          </span>
-                          <span style={{ fontSize: '10.5px', fontWeight: 700, background: '#F1F5F9', color: '#334155', padding: '3px 8px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
-                            🚓 Lantas R-4: {fleetUnits.filter((u) => u.category === 'lantas' || (u.key && (u.key.toLowerCase().includes('lantas') || u.key.toLowerCase().includes('pjr')))).length} Unit
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Widget 3: Indeks Kepuasan Masyarakat (IKM) */}
-                    <div
-                      id="card-pimpinan-ikm"
-                      className="card-panel"
-                      onClick={() => setShowIkmModal(true)}
-                      style={{
-                        padding: '16px',
-                        marginBottom: '16px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        border: '1px solid #E2E8F0',
-                        borderRadius: '12px',
-                        background: 'white',
-                      }}
-                      title="Klik untuk melihat audit transparansi ulasan dan voting warga"
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <div className="card-title" style={{ marginBottom: 0, fontSize: '12.5px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>INDEKS KEPUASAN WARGA (IKM)</span>
-                          <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#2563EB', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '1px 6px', borderRadius: '10px' }}>
-                            🔍 DETAIL
-                          </span>
-                        </div>
-                        <span style={{ color: '#F59E0B', fontWeight: 800, fontSize: '12px' }}>⭐⭐⭐⭐⭐</span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                        <div>
-                          <div style={{ fontSize: '24px', fontWeight: 900, color: '#1E293B', lineHeight: 1 }}>
-                            {satisfactionRating} <span style={{ fontSize: '13px', color: '#64748B', fontWeight: 600 }}>/ 5.0</span>
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#16A34A', fontWeight: 700, marginTop: '2px' }}>
-                            {satisfactionPercent}% Sangat Puas
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>
-                            {allRecentComplaints.filter(c => c.citizenRating).length} Ulasan
-                          </div>
-                          <div style={{ fontSize: '10px', color: '#64748B' }}>Survei Warga Terverifikasi</div>
-                        </div>
-                      </div>
-
-                      {(() => {
-                        const topReview = allRecentComplaints.find(c => c.citizenReview);
-                        return topReview ? (
-                          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', fontSize: '11px', color: '#475569', lineHeight: 1.4, fontStyle: 'italic' }}>
-                            "{topReview.citizenReview}"
-                            <div style={{ fontStyle: 'normal', fontWeight: 700, color: '#1E293B', marginTop: '4px', fontSize: '10px', textAlign: 'right' }}>
-                              — {topReview.pelaporNama || 'Warga'} ({topReview.nomorTiket})
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px', fontSize: '11px', color: '#64748B', textAlign: 'center' }}>
-                            Belum ada ulasan warga di database
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Widget 4: Log Aktivitas Personel Real-Time */}
-                    <div className="card-panel" style={{ padding: '16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <div>
-                          <div className="card-title" style={{ marginBottom: '2px', fontSize: '12.5px', fontWeight: 800 }}>
-                            AKTIVITAS PERSONEL TERBARU
-                          </div>
-                          <div style={{ fontSize: '10.5px', color: '#64748B' }}>
-                            Log pergerakan regu patroli di lapangan
-                          </div>
-                        </div>
-                        <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontWeight: 800, fontSize: '9.5px', padding: '2px 7px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
-                          ● REAL-TIME
-                        </span>
-                      </div>
-
-                      <div className="timeline" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                        <div style={{ fontSize: '11px', color: '#334155', borderLeft: '2px solid #2563EB', paddingLeft: '8px' }}>
-                          <strong>09:30 WIB</strong> - Patroli Samapta Unit 110-A menyelesaikan rute beat pasar &amp; perbankan.
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#334155', borderLeft: '2px solid #10B981', paddingLeft: '8px' }}>
-                          <strong>10:15 WIB</strong> - Turjawali Satlantas stand by pos simpang protokol mengurai kemacetan.
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#334155', borderLeft: '2px solid #F59E0B', paddingLeft: '8px' }}>
-                          <strong>11:20 WIB</strong> - Tim Perintis Presisi patroli dialogis di pemukiman padat warga.
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-              </div>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 2: PETA FULLSCREEN (TACTICAL MAP)                 */}
-          {/* ======================================================== */}
-          {activeTab === 'view-peta' && (() => {
-            const picketUnitsList = fleetUnits || [];
-            const patrolCount = picketUnitsList.filter((u) => u.status === 'PATROLI').length;
-            const siagaCount = picketUnitsList.filter((u) => u.status === 'SIAGA').length;
-            const daruratCount = picketUnitsList.filter((u) => u.status === 'MENUJU_TKP' || u.status === 'DI_TKP').length;
-
-            const filteredPicketList = picketUnitsList.filter((u) => {
-              if (picketFilterCategory === 'PATROLI' && u.status !== 'PATROLI') return false;
-              if (picketFilterCategory === 'SIAGA' && u.status !== 'SIAGA') return false;
-              if (picketFilterCategory === 'DARURAT' && u.status !== 'MENUJU_TKP' && u.status !== 'DI_TKP') return false;
-              if (picketSearch) {
-                const q = picketSearch.toLowerCase();
-                const matchName = (u.namaLengkap || u.title || '').toLowerCase().includes(q);
-                const matchNrp = (u.nrp || '').toLowerCase().includes(q);
-                const matchRank = (u.pangkat || '').toLowerCase().includes(q);
-                const matchSub = (u.sub || '').toLowerCase().includes(q);
-                const matchLoc = (u.lokasiTeks || '').toLowerCase().includes(q);
-                const matchAct = (u.aktivitas || u.tugas || '').toLowerCase().includes(q);
-                return matchName || matchNrp || matchRank || matchSub || matchLoc || matchAct;
-              }
-              return true;
-            });
-
-            return (
-              <section id="view-peta" className="view active" style={{ position: 'relative', height: 'calc(100vh - 130px)', width: '100%', overflow: 'hidden' }}>
-                {/* Floating Header (Top-Left Tactical Control) */}
-                <div
-                  className="floating-header"
-                  style={{
-                    position: 'absolute',
-                    top: '16px',
-                    left: '16px',
-                    zIndex: 999,
-                    background: 'rgba(15, 23, 42, 0.94)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    color: 'white',
-                    padding: '12px 16px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    fontWeight: 800,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                    maxWidth: '310px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                    <div style={{ fontSize: '13px', letterSpacing: '0.5px', color: '#38BDF8' }}>PETA TAKTIS PRESI 110</div>
-                    <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.2)', color: '#34D399', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                      🟢 LIVE GPS
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500 }}>
-                    Monitoring Pengawasan Personel & Ranmor Patroli
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
-                    <label
-                      id="container-toggle-traffic"
-                      style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '6px 10px', borderRadius: '6px' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={showTraffic}
-                        onChange={(e) => setShowTraffic(e.target.checked)}
-                        style={{ cursor: 'pointer', accentColor: '#10B981' }}
-                      />
-                      🚦 Tampilkan Traffic Line (Real-time)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowHotspotModal(true)}
-                      style={{
-                        background: 'rgba(220,38,38,0.85)',
-                        color: 'white',
-                        border: '1px solid rgba(254,202,202,0.4)',
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <span>⚠️</span> Kelola Titik Rawan (CRUD)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Map Canvas Fullscreen */}
-                <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 1 }}>
-                  <SimapresLeafletMap
-                    mode="fullscreen"
-                    height="100%"
-                    interactive={true}
-                    fleetUnits={fleetUnits}
-                    hotspots={hotspots}
-                    policeOffices={policeOffices}
-                    showTraffic={showTraffic}
-                    showOtherOfficers={true}
-                    showPatrolRoutes={false}
-                    focusedUnitKey={focusedUnitKey}
-                    centerLat={policeOffices[0]?.lat ? Number(policeOffices[0].lat) : undefined}
-                    centerLng={policeOffices[0]?.lng ? Number(policeOffices[0].lng) : undefined}
-                    onUnitClick={(unit: any) => {
-                      setFocusedUnitKey(unit.key);
-                      setMapUnitDetail(unit);
-                    }}
-                    onSelectUnit={(unit: any) => {
-                      setFocusedUnitKey(unit.key);
-                      setMapUnitDetail(unit);
-                    }}
-                  />
-                </div>
-
-                {/* Toggle Button for Tactical Sidebar */}
-                <button
-                  type="button"
-                  id="btn-toggle-piket-sidebar"
-                  onClick={() => setIsPicketSidebarOpen(!isPicketSidebarOpen)}
-                  style={{
-                    position: 'absolute',
-                    top: '16px',
-                    right: isPicketSidebarOpen ? '396px' : '16px',
-                    zIndex: 999,
-                    background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
-                    color: '#FFFFFF',
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '10px',
-                    padding: isPicketSidebarOpen ? '8px 12px' : '10px 16px',
-                    fontWeight: 800,
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                    transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                >
-                  {isPicketSidebarOpen ? '▶ Tutup Panel' : `👮 Personel Piket (${fleetUnits.length})`}
-                </button>
-
-                {/* ======================================================== */}
-                {/* TACTICAL SIDEBAR: PERSONEL PIKET AKTIF & PERGERAKAN      */}
-                {/* ======================================================== */}
-                <div
-                  id="sidebar-personel-piket-pawas"
-                  style={{
-                    position: 'absolute',
-                    top: '16px',
-                    right: isPicketSidebarOpen ? '16px' : '-410px',
-                    bottom: '16px',
-                    width: '370px',
-                    maxWidth: 'calc(100vw - 32px)',
-                    background: 'rgba(15, 23, 42, 0.95)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                    borderRadius: '16px',
-                    boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
-                    zIndex: 998,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    overflow: 'hidden',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  {/* Sidebar Header */}
-                  <div
-                    style={{
-                      padding: '14px 16px',
-                      background: 'linear-gradient(180deg, rgba(30, 58, 138, 0.6) 0%, rgba(15, 23, 42, 0.4) 100%)',
-                      borderBottom: '1px solid rgba(56, 189, 248, 0.2)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#38BDF8', letterSpacing: '0.4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>👮</span>
-                        <span>PERSONEL PIKET AKTIF</span>
-                      </div>
-                      <span style={{ fontSize: '10.5px', background: 'rgba(56,189,248,0.2)', color: '#7DD3FC', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
-                        {picketUnitsList.length} Bertugas
-                      </span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                      Piket Operasi Siaga 1x24 Jam • Regu Alpha Presisi
-                    </div>
-
-                    {/* Filter Pills */}
-                    <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
-                      <button
-                        type="button"
-                        onClick={() => setPicketFilterCategory('ALL')}
-                        style={{
-                          flex: 1,
-                          padding: '5px 4px',
-                          borderRadius: '6px',
-                          border: picketFilterCategory === 'ALL' ? '1px solid #38BDF8' : '1px solid rgba(255,255,255,0.1)',
-                          background: picketFilterCategory === 'ALL' ? 'rgba(56,189,248,0.25)' : 'rgba(255,255,255,0.05)',
-                          color: picketFilterCategory === 'ALL' ? '#FFFFFF' : '#94A3B8',
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Semua ({picketUnitsList.length})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPicketFilterCategory('PATROLI')}
-                        style={{
-                          flex: 1,
-                          padding: '5px 4px',
-                          borderRadius: '6px',
-                          border: picketFilterCategory === 'PATROLI' ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
-                          background: picketFilterCategory === 'PATROLI' ? 'rgba(16,185,129,0.25)' : 'rgba(255,255,255,0.05)',
-                          color: picketFilterCategory === 'PATROLI' ? '#34D399' : '#94A3B8',
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Patroli ({patrolCount})
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPicketFilterCategory('SIAGA')}
-                        style={{
-                          flex: 1,
-                          padding: '5px 4px',
-                          borderRadius: '6px',
-                          border: picketFilterCategory === 'SIAGA' ? '1px solid #2563EB' : '1px solid rgba(255,255,255,0.1)',
-                          background: picketFilterCategory === 'SIAGA' ? 'rgba(37,99,235,0.25)' : 'rgba(255,255,255,0.05)',
-                          color: picketFilterCategory === 'SIAGA' ? '#93C5FD' : '#94A3B8',
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Siaga ({siagaCount})
-                      </button>
-                      {daruratCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setPicketFilterCategory('DARURAT')}
-                          style={{
-                            flex: 1,
-                            padding: '5px 4px',
-                            borderRadius: '6px',
-                            border: picketFilterCategory === 'DARURAT' ? '1px solid #EF4444' : '1px solid rgba(255,255,255,0.1)',
-                            background: picketFilterCategory === 'DARURAT' ? 'rgba(239,68,68,0.25)' : 'rgba(255,255,255,0.05)',
-                            color: picketFilterCategory === 'DARURAT' ? '#FCA5A5' : '#94A3B8',
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                          }}
-                        >
-                          TKP ({daruratCount})
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Quick Search Bar */}
-                    <div style={{ marginTop: '8px', position: 'relative' }}>
-                      <input
-                        type="text"
-                        placeholder="🔍 Cari nama, NRP, sektor..."
-                        value={picketSearch}
-                        onChange={(e) => setPicketSearch(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '6px 28px 6px 10px',
-                          background: 'rgba(0, 0, 0, 0.35)',
-                          border: '1px solid rgba(56, 189, 248, 0.25)',
-                          borderRadius: '6px',
-                          color: '#FFFFFF',
-                          fontSize: '11px',
-                          outline: 'none',
-                        }}
-                      />
-                      {picketSearch && (
-                        <button
-                          type="button"
-                          onClick={() => setPicketSearch('')}
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            background: 'none',
-                            border: 'none',
-                            color: '#94A3B8',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                          }}
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Scrollable Cards List */}
-                  <div
-                    style={{
-                      flex: 1,
-                      overflowY: 'auto',
-                      padding: '10px 12px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                    }}
-                  >
-                    {filteredPicketList.length === 0 ? (
-                      <div style={{ textAlign: 'center', padding: '30px 15px', color: '#94A3B8', fontSize: '12px' }}>
-                        Tidak ada personel yang sesuai filter pencarian.
-                      </div>
-                    ) : (
-                      filteredPicketList.map((unit) => {
-                        const isFocused = focusedUnitKey === unit.key;
-                        const isPatrol = unit.status === 'PATROLI';
-                        const isTkp = unit.status === 'MENUJU_TKP' || unit.status === 'DI_TKP';
-                        const statusBadgeBg = isTkp ? 'rgba(239,68,68,0.2)' : isPatrol ? 'rgba(16,185,129,0.2)' : 'rgba(37,99,235,0.2)';
-                        const statusBadgeColor = isTkp ? '#F87171' : isPatrol ? '#34D399' : '#93C5FD';
-                        const statusBorder = isTkp ? 'rgba(239,68,68,0.4)' : isPatrol ? 'rgba(16,185,129,0.4)' : 'rgba(37,99,235,0.4)';
-
-                        return (
-                          <div
-                            key={unit.key}
-                            id={`card-piket-${unit.key}`}
-                            onClick={() => {
-                              setFocusedUnitKey(unit.key);
-                              setMapUnitDetail(unit);
-                            }}
-                            style={{
-                              background: isFocused ? 'rgba(2, 132, 199, 0.25)' : 'rgba(30, 41, 59, 0.65)',
-                              border: isFocused ? '1.5px solid #38BDF8' : '1px solid rgba(148, 163, 184, 0.15)',
-                              borderRadius: '10px',
-                              padding: '10px 12px',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: '6px',
-                              boxShadow: isFocused ? '0 0 16px rgba(56, 189, 248, 0.3)' : 'none',
-                              transition: 'all 0.15s ease',
-                            }}
-                          >
-                            {/* Card Top: Avatar/Icon + Name + NRP */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontSize: '18px' }}>{unit.iconEmoji}</span>
-                                <div>
-                                  <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.2 }}>
-                                    {unit.namaLengkap || unit.title}
-                                  </div>
-                                  <div style={{ fontSize: '10.5px', color: '#94A3B8', marginTop: '1px' }}>
-                                    {unit.pangkat ? `${unit.pangkat} • ` : ''}NRP {unit.nrp || '-'}
-                                  </div>
-                                </div>
-                              </div>
-                              <span
-                                style={{
-                                  fontSize: '9.5px',
-                                  fontWeight: 800,
-                                  padding: '3px 7px',
-                                  borderRadius: '999px',
-                                  background: statusBadgeBg,
-                                  color: statusBadgeColor,
-                                  border: `1px solid ${statusBorder}`,
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {unit.statusLabel || unit.status}
-                              </span>
-                            </div>
-
-                            {/* Card Satuan & Ranmor */}
-                            <div style={{ fontSize: '10.5px', color: '#38BDF8', fontWeight: 600 }}>
-                              {unit.satuan || unit.sub}
-                            </div>
-
-                            {/* Card Sedang Di Mana (Lokasi) */}
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', color: '#E2E8F0', background: 'rgba(0,0,0,0.25)', padding: '5px 8px', borderRadius: '6px' }}>
-                              <span style={{ color: '#F59E0B' }}>📍</span>
-                              <div style={{ lineHeight: 1.3 }}>
-                                <strong style={{ color: '#94A3B8', fontSize: '10px' }}>LOKASI: </strong>
-                                {unit.lokasiTeks || unit.sub || 'Wilayah Hukum Polres Jaksel'}
-                              </div>
-                            </div>
-
-                            {/* Card Sedang Melakukan Apa (Aktivitas Taktis) */}
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11px', color: '#E2E8F0', background: 'rgba(0,0,0,0.25)', padding: '5px 8px', borderRadius: '6px' }}>
-                              <span style={{ color: '#10B981' }}>🎯</span>
-                              <div style={{ lineHeight: 1.3 }}>
-                                <strong style={{ color: '#94A3B8', fontSize: '10px' }}>KEGIATAN: </strong>
-                                {unit.aktivitas || unit.tugas || 'Patroli Keamanan & Ketertiban'}
-                              </div>
-                            </div>
-
-                            {/* Card Bottom: Telemetry + Action */}
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
-                              <span style={{ fontSize: '10px', color: '#94A3B8' }}>
-                                ⚡ {unit.telemetri || 'GPS Aktif'}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '10.5px',
-                                  fontWeight: 700,
-                                  color: '#38BDF8',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                }}
-                              >
-                                <span>🎯</span> Sorot Peta
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {/* Floating Unit Detail Modal Fullscreen */}
-                {mapUnitDetail && (
-                  <div
-                    id="modal-map-unit-detail-fs"
-                    style={{
-                      position: 'absolute',
-                      top: '86px',
-                      left: '16px',
-                      zIndex: 9999,
-                      background: 'rgba(15, 23, 42, 0.96)',
-                      backdropFilter: 'blur(16px)',
-                      WebkitBackdropFilter: 'blur(16px)',
-                      borderRadius: '14px',
-                      boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      padding: '16px 18px',
-                      width: '360px',
-                      maxWidth: 'calc(100% - 32px)',
-                      color: '#FFFFFF',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                        <span>{mapUnitDetail.iconEmoji || '👮'}</span>
-                        <span>{mapUnitDetail.satuan || mapUnitDetail.title || mapUnitDetail.unitName}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setMapUnitDetail(null)}
-                        style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '16px', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.3 }}>
-                      {mapUnitDetail.petugas || mapUnitDetail.namaLengkap || mapUnitDetail.title || mapUnitDetail.nama}
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-                      {mapUnitDetail.sub || mapUnitDetail.kendaraan || 'Personel Operasional Presisi'}
-                    </div>
-
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '10px 0 8px 0' }} />
-
-                    {/* Status Badge */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Status Kedinasan:</span>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 800,
-                          padding: '3px 8px',
-                          borderRadius: '6px',
-                          background: mapUnitDetail.statusColor ? `${mapUnitDetail.statusColor}25` : 'rgba(16,185,129,0.2)',
-                          color: mapUnitDetail.statusColor || '#10B981',
-                          border: `1px solid ${mapUnitDetail.statusColor || '#10B981'}`,
-                        }}
-                      >
-                        {mapUnitDetail.statusLabel || mapUnitDetail.status || 'SIAGA'}
-                      </span>
-                    </div>
-
-                    {/* Sedang Di Mana */}
-                    <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.3)', padding: '7px 9px', borderRadius: '6px', marginBottom: '6px' }}>
-                      <div style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 700 }}>📍 SEDANG DI MANA:</div>
-                      <div style={{ color: '#E2E8F0', marginTop: '2px', fontWeight: 600 }}>
-                        {mapUnitDetail.lokasiTeks || mapUnitDetail.sub || 'Sektor Presisi Kewilayahan'}
-                      </div>
-                    </div>
-
-                    {/* Sedang Melakukan Apa */}
-                    <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.3)', padding: '7px 9px', borderRadius: '6px', marginBottom: '8px' }}>
-                      <div style={{ fontSize: '10px', color: '#34D399', fontWeight: 700 }}>🎯 SEDANG MELAKUKAN APA:</div>
-                      <div style={{ color: '#E2E8F0', marginTop: '2px', fontWeight: 600 }}>
-                        {mapUnitDetail.aktivitas || mapUnitDetail.tugas || 'Patroli Keamanan & Ketertiban'}
-                      </div>
-                    </div>
-
-                    {/* Live Telemetry */}
-                    <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '12px' }}>
-                      ⚡ {mapUnitDetail.telemetri || 'GPS Aktif'}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFocusedUnitKey(mapUnitDetail.key);
-                          showFriendlyToast('info', 'Fokus Unit', `Kamera peta dipusatkan ke posisi ${mapUnitDetail.namaLengkap || mapUnitDetail.title}`);
-                        }}
-                        style={{
-                          flex: 1,
-                          background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: '6px',
-                          padding: '7px 10px',
-                          fontSize: '11.5px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        🎯 Pusatkan Peta
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          showFriendlyToast('success', 'Panggilan Radio HT', `Menghubungi frekuensi HT Presisi 110 personel ${mapUnitDetail.namaLengkap || mapUnitDetail.title}...`);
-                        }}
-                        style={{
-                          flex: 1,
-                          background: 'rgba(255,255,255,0.08)',
-                          color: '#38BDF8',
-                          border: '1px solid rgba(56,189,248,0.3)',
-                          borderRadius: '6px',
-                          padding: '7px 10px',
-                          fontSize: '11.5px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        📻 Hubungi HT
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-              {/* Floating Panel Rute & Navigasi Respon Cepat (Hanya tampil jika ada insiden aktif) */}
-              {highPriorityIncident && (
-                <div
-                  id="panel-navigasi-rute-tkp"
-                  style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    left: '16px',
-                    right: '16px',
-                    zIndex: 9999,
-                    maxWidth: '440px',
-                    margin: '0 auto',
-                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                    color: 'white',
-                    borderRadius: '14px',
-                    boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
-                    border: '1.5px solid #334155',
-                    padding: '14px 16px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#10B981', borderRadius: '50%', boxShadow: '0 0 10px #10B981' }} />
-                      <span style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                        NAVIGASI MENUJU TKP
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const el = document.getElementById('panel-navigasi-rute-tkp');
-                        if (el) el.style.display = 'none';
-                      }}
-                      style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#94A3B8', fontSize: '14px', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-
-                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
-                    {highPriorityIncident.jenisKejadian} - {highPriorityIncident.tkpAlamatTeks}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span>📍</span> {highPriorityIncident.tkpAlamatTeks}
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>STATUS RESPON</div>
-                      <div style={{ fontSize: '14px', fontWeight: 900, color: '#10B981', marginTop: '2px' }}>
-                        {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi' : highPriorityIncident.status}
-                      </div>
-                      <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {resolveUrgencyLevel(highPriorityIncident.urgensi).label}</div>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
-                      <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>SALURAN PENGADUAN</div>
-                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>
-                        {highPriorityIncident.platformRel?.label || highPriorityIncident.platformKey || 'Layanan 110'}
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#A7F3D0' }}>Pelapor: {highPriorityIncident.pelaporNama}</div>
-                    </div>
-                  </div>
-
-                  <div style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '20px' }}>📢</span>
-                    <div style={{ fontSize: '11.5px', lineHeight: 1.4, color: '#E2E8F0' }}>
-                      {highPriorityIncident.ringkasanKeterangan || 'Petugas piket siaga bersiap menerima komando arahan taktis lapangan.'}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Map Legend */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '16px',
-                  left: '16px',
-                  zIndex: 999,
-                  background: 'white',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                }}
-              >
-              </div>
-            </section>
-          );
-        })()}
-
-          {/* ======================================================== */}
-          {/* SCREEN 3: BUAT LOG (+) (INPUT LOG KEGIATAN & MUTASI)     */}
-          {/* ======================================================== */}
-          {activeTab === 'view-log' && (
-            <section id="view-log" className="view active" style={{ padding: '20px' }}>
-              <h2 className="page-title" style={{ fontSize: '18px', fontWeight: 800, marginBottom: '16px' }}>
-                Input Log Kegiatan
-              </h2>
-
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>
-                  Waktu Mulai &amp; Rentang Jam
-                </label>
-                <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => setShowTimePickerModal(true)}>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Waktu Mulai"
-                    value={logWaktuMulai}
-                    style={{ cursor: 'pointer', paddingRight: '40px' }}
-                    readOnly
-                  />
-                  <span
-                    id="log-calendar-icon"
-                    style={{ position: 'absolute', right: '14px', top: '12px', fontSize: '16px', cursor: 'pointer' }}
-                  >
-                    📅
-                  </span>
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>
-                  Sektor Patroli
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Sektor Patroli"
-                  value={logSektor}
-                  onChange={(e) => setLogSektor(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>
-                  Jenis Kegiatan
-                </label>
-                <select
-                  className="form-control"
-                  value={logJenis}
-                  onChange={(e) => setLogJenis(e.target.value as any)}
-                >
-                  <option value="">-- Pilih Jenis Kegiatan --</option>
-                  {dbGiats.map((g) => (
-                    <option key={g.id || g.key} value={g.key}>
-                      {g.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>
-                  Deskripsi Kejadian
-                </label>
-                <textarea
-                  className="form-control"
-                  rows={4}
-                  value={logDeskripsi}
-                  onChange={(e) => setLogDeskripsi(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px' }}>
-                  Lampiran Foto Bukti
-                </label>
-                <input
-                  type="file"
-                  id="log-file-input"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const url = URL.createObjectURL(file);
-                      setLogFotoPreview(url);
-                    }
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn-blue"
-                  onClick={() => document.getElementById('log-file-input')?.click()}
-                  style={{ marginBottom: '10px', background: '#153E75', color: 'white', padding: '8px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer' }}
-                >
-                  📸 Pilih Foto dari Perangkat
-                </button>
-                {logFotoPreview ? (
-                  <div style={{ width: '200px', height: '150px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #CBD5E1' }}>
-                    <img
-                      src={logFotoPreview}
-                      alt="Preview"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
-                ) : (
-                  <div style={{ width: '200px', height: '70px', borderRadius: '8px', border: '1px dashed #CBD5E1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: '11px' }}>
-                    Belum ada foto dipilih
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                className="btn-blue"
-                onClick={handleSimpanLogKegiatan}
-                disabled={loading}
-                style={{
-                  marginTop: '16px',
-                  background: '#10B981',
-                  color: 'white',
-                  border: 'none',
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  fontWeight: 800,
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                }}
-              >
-                <span>💾</span> Simpan Log Kegiatan
-              </button>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 4: SENTRA VALIDASI & PENGESAHAN (view-validasi)  */}
-          {/* ======================================================== */}
-          {activeTab === 'view-validasi' && (
-            <section id="view-validasi" className="view active" style={{ paddingBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '16px 16px 8px', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2 className="page-title" style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1E293B' }}>
-                      Konsol Monitoring &amp; Komando Operasional
-                    </h2>
-                    <span style={{ fontSize: '10px', fontWeight: 800, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '2px 8px', borderRadius: '12px' }}>
-                      SUPERVISI PIKET
-                    </span>
-                  </div>
-                  <div className="page-subtitle" style={{ margin: '2px 0 0', color: '#64748B', fontSize: '12px' }}>
-                    Supervisi Operasional: Validasi, Disposisi Satuan Lapangan &amp; Otorisasi Penutupan Kasus
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ fontSize: '11.5px', fontWeight: 700, color: '#1E40AF', background: '#EFF6FF', padding: '6px 12px', borderRadius: '6px', border: '1px solid #BFDBFE', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span>👮</span> <span>Piket Operasi Siaga 24 Jam</span>
-                  </div>
-                  <div
-                    onClick={() => switchTab('view-beranda')}
-                    style={{ fontSize: '12px', fontWeight: 700, color: '#153E75', cursor: 'pointer', background: '#F1F5F9', padding: '6px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <span>🏠</span> Beranda
-                  </div>
-                </div>
-              </div>
-
-              {/* Status Filter Tabs (Dynamically Generated from Database dbStatuses) */}
-              <div className="val-filter-tabs" style={{ display: 'flex', gap: '6px', margin: '8px 16px', overflowX: 'auto', paddingBottom: '4px' }}>
-                {[
-                  { key: 'semua', label: 'Semua', count: tabCountSemua, badgeBg: '#F1F5F9', badgeColor: '#475569' },
-                  ...(dbStatuses.length > 0
-                    ? dbStatuses.map((st: any) => {
-                        const icon =
-                          st.key === 'MENUNGGU' ? '⏳ ' :
-                          st.key === 'DISPOSISI' ? '📋 ' :
-                          st.key === 'MENUJU_TKP' ? '🚔 ' :
-                          st.key === 'TIBA_DI_TKP' ? '📍 ' :
-                          st.key === 'MENUNGGU_PENGESAHAN' ? '📝 ' :
-                          st.key === 'SELESAI' ? '✓ ' :
-                          st.key === 'DITOLAK' ? '✕ ' : '';
-                        return {
-                          key: st.key.toLowerCase(),
-                          label: `${icon}${st.label}`,
-                          count: logsForStatusTabs.filter((c) => matchesStatus(c, st.key)).length,
-                          badgeBg: st.badge_bg || '#EFF6FF',
-                          badgeColor: st.badge_color || '#2563EB',
-                        };
-                      })
-                    : [
-                        { key: 'menunggu', label: '⏳ Menunggu', count: tabCountMenunggu, badgeBg: '#FFFBEB', badgeColor: '#F59E0B' },
-                      ]),
-                ].map((tab) => {
-                  const isActive = valFilterStatus === tab.key;
-                  return (
-                    <button
-                      key={tab.key}
-                      type="button"
-                      id={`val-tab-${tab.key}`}
-                      className={`val-tab-btn ${isActive ? 'active' : ''}`}
-                      onClick={() => openValidasiList(tab.key, false)}
-                      style={{
-                        padding: '7px 14px',
-                        borderRadius: '20px',
-                        border: isActive ? '1px solid #153E75' : '1px solid #E2E8F0',
-                        background: isActive ? '#153E75' : 'white',
-                        color: isActive ? 'white' : '#1E293B',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        boxShadow: isActive ? '0 2px 6px rgba(21, 62, 117, 0.25)' : 'none',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      {tab.label}{' '}
-                      <span
-                        className={`val-tab-badge ${tab.key}`}
-                        style={{
-                          background: isActive ? 'rgba(255, 255, 255, 0.25)' : tab.badgeBg,
-                          color: isActive ? 'white' : tab.badgeColor,
-                          padding: '2px 7px',
-                          borderRadius: '10px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          marginLeft: '2px',
-                        }}
-                      >
-                        {tab.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Secondary Filter Bar: Platform & Kategori 1:1 Prototype */}
-              <div
-                id="val-filter-secondary-bar"
-                style={{
-                  background: 'white',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '10px',
-                  padding: '10px 14px',
-                  margin: '6px 16px 12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                }}
-              >
-                {/* Row 1: Platform Pelaporan */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>📡</span> PLATFORM:
-                    </span>
-                    {(dbPlatforms.length > 0 ? [
-                      {
-                        key: 'all',
-                        label: 'Semua Platform',
-                        count: platCountAll,
-                        activeBg: '#0F172A',
-                        activeText: 'white',
-                        activeBorder: 'transparent',
-                        inactiveBg: '#F1F5F9',
-                        inactiveText: '#475569',
-                        inactiveBorder: '#CBD5E1',
-                        inactiveBadgeBg: '#E2E8F0',
-                        inactiveBadgeColor: '#475569',
-                      },
-                      ...dbPlatforms.map((p) => {
-                        const pKey = p.key;
-                        const count = pKey === 'sos' ? platCountSos : pKey === 'warga' ? platCountWarga : pKey === 'layanan110' ? platCount110 : platCountPersonel;
-                        return {
-                          key: pKey,
-                          label: p.label.startsWith(p.icon) ? p.label : `${p.icon} ${p.label}`,
-                          count,
-                          activeBg: p.active_bg,
-                          activeText: p.active_text,
-                          activeBorder: 'transparent',
-                          inactiveBg: p.inactive_bg,
-                          inactiveText: p.inactive_text,
-                          inactiveBorder: p.inactive_border,
-                          inactiveBadgeBg: p.inactive_bg,
-                          inactiveBadgeColor: p.inactive_text,
-                        };
-                      })
-                    ] : [
-                      {
-                        key: 'all',
-                        label: 'Semua Platform',
-                        count: platCountAll,
-                        activeBg: '#0F172A',
-                        activeText: 'white',
-                        activeBorder: 'transparent',
-                        inactiveBg: '#F1F5F9',
-                        inactiveText: '#475569',
-                        inactiveBorder: '#CBD5E1',
-                        inactiveBadgeBg: '#E2E8F0',
-                        inactiveBadgeColor: '#475569',
-                      },
-                      {
-                        key: 'sos',
-                        label: '🚨 SOS Panik',
-                        count: platCountSos,
-                        activeBg: '#DC2626',
-                        activeText: 'white',
-                        activeBorder: 'transparent',
-                        inactiveBg: '#FEF2F2',
-                        inactiveText: '#DC2626',
-                        inactiveBorder: '#FECACA',
-                        inactiveBadgeBg: '#FEE2E2',
-                        inactiveBadgeColor: '#DC2626',
-                      },
-                      {
-                        key: 'warga',
-                        label: '📱 Portal Warga',
-                        count: platCountWarga,
-                        activeBg: '#0284C7',
-                        activeText: 'white',
-                        activeBorder: 'transparent',
-                        inactiveBg: '#F0F9FF',
-                        inactiveText: '#0284C7',
-                        inactiveBorder: '#BAE6FD',
-                        inactiveBadgeBg: '#E0F2FE',
-                        inactiveBadgeColor: '#0284C7',
-                      },
-                      {
-                        key: 'layanan110',
-                        label: '📞 Layanan 110',
-                        count: platCount110,
-                        activeBg: '#1D4ED8',
-                        activeText: 'white',
-                        activeBorder: 'transparent',
-                        inactiveBg: '#EFF6FF',
-                        inactiveText: '#1D4ED8',
-                        inactiveBorder: '#BFDBFE',
-                        inactiveBadgeBg: '#DBEAFE',
-                        inactiveBadgeColor: '#1D4ED8',
-                      },
-                      {
-                        key: 'personel',
-                        label: '👮 Patroli Personel',
-                        count: platCountPersonel,
-                        activeBg: '#92400E',
-                        activeText: 'white',
-                        activeBorder: 'transparent',
-                        inactiveBg: '#FEF3C7',
-                        inactiveText: '#92400E',
-                        inactiveBorder: '#FDE68A',
-                        inactiveBadgeBg: '#FEF3C7',
-                        inactiveBadgeColor: '#92400E',
-                      },
-                    ]).map((p) => {
-                      const isPlatActive = valFilterPlatform === p.key;
-                      return (
-                        <button
-                          key={p.key}
-                          type="button"
-                          id={`filter-platform-${p.key}`}
-                          className={`btn-filter-platform ${isPlatActive ? 'active' : ''}`}
-                          onClick={() => handleSelectPlatformFilter(p.key)}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: '6px',
-                            border: `1px solid ${isPlatActive ? p.activeBorder : p.inactiveBorder}`,
-                            background: isPlatActive ? p.activeBg : p.inactiveBg,
-                            color: isPlatActive ? p.activeText : p.inactiveText,
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            transition: '0.15s',
-                          }}
-                        >
-                          {p.label}{' '}
-                          <span
-                            className="badge-mini"
-                            style={{
-                              background: isPlatActive ? 'rgba(255,255,255,0.25)' : p.inactiveBadgeBg,
-                              color: isPlatActive ? 'white' : p.inactiveBadgeColor,
-                              padding: '1px 6px',
-                              borderRadius: '10px',
-                              marginLeft: '2px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {p.count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Reset Filter Button: Only visible when platform or kategori is filtered (1:1 Prototype) */}
-                  {(valFilterPlatform !== 'all' || valFilterKategori !== 'all') && (
-                    <div
-                      id="btn-reset-filter"
-                      onClick={handleResetFilters}
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        color: '#EF4444',
-                        cursor: 'pointer',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        background: '#FEE2E2',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: '0.15s',
-                      }}
-                      title="Reset filter platform dan kategori"
-                    >
-                      ✕ Reset Filter
-                    </div>
-                  )}
-                </div>
-
-                {/* Row 2: Kategori Jenis Pengaduan / Giat Personel (Dynamic Switch 1:1 Prototype from Database) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
-                  {valFilterPlatform === 'personel' ? (
-                    <>
-                      <span id="filter-kat-label" style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>👮</span> JENIS GIAT:
-                      </span>
-                      {[
-                        { key: 'all', label: 'Semua Giat', count: katCountAll, activeBg: '#1E293B', inactiveBg: '#F8FAFC', inactiveColor: '#64748B', border: 'transparent' },
-                        ...dbGiats.map((g) => ({
-                          key: g.key,
-                          label: `${g.icon || ''} ${g.label || g.key}`,
-                          count: logsForKategori.filter((c) => matchesKategori(c, g.key)).length,
-                          activeBg: g.active_bg || '#1D4ED8',
-                          inactiveBg: g.inactive_bg || '#EFF6FF',
-                          inactiveColor: g.inactive_color || '#1D4ED8',
-                          border: g.border_color ? `1px solid ${g.border_color}` : '1px solid #BFDBFE',
-                        }))
-                      ].map((giat) => {
-                        const isGiatActive = valFilterKategori === giat.key;
-                        return (
-                          <button
-                            key={giat.key}
-                            type="button"
-                            className={`btn-filter-kategori ${isGiatActive ? 'active' : ''}`}
-                            onClick={() => handleSelectKategoriFilter(giat.key)}
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '5px',
-                              border: `1px solid ${isGiatActive ? 'transparent' : giat.border}`,
-                              background: isGiatActive ? giat.activeBg : giat.inactiveBg,
-                              color: isGiatActive ? 'white' : giat.inactiveColor,
-                              fontSize: '10.5px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              transition: '0.15s',
-                            }}
-                          >
-                            {giat.label}{' '}
-                            <span
-                              className="badge-mini"
-                              style={{
-                                background: isGiatActive ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
-                                color: isGiatActive ? 'white' : giat.inactiveColor,
-                                padding: '1px 5px',
-                                borderRadius: '10px',
-                                marginLeft: '3px',
-                                fontSize: '9.5px',
-                                fontWeight: 700,
-                              }}
-                            >
-                              {giat.count}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <>
-                      <span id="filter-kat-label" style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>📁</span> JENIS ADUAN:
-                      </span>
-                      {[
-                        { key: 'all', label: 'Semua Jenis', count: katCountAll },
-                        ...dbCategories.map((cat) => ({
-                          key: cat.key,
-                          label: cat.label?.startsWith(cat.icon) ? cat.label : `${cat.icon || ''} ${cat.label || cat.key}`,
-                          count: logsForKategori.filter((c) => matchesKategori(c, cat.key)).length,
-                        }))
-                      ].map((kat) => {
-                        const isKatActive = valFilterKategori === kat.key;
-                        return (
-                          <button
-                            key={kat.key}
-                            type="button"
-                            className={`btn-filter-kategori ${isKatActive ? 'active' : ''}`}
-                            onClick={() => handleSelectKategoriFilter(kat.key)}
-                            style={{
-                              padding: '3px 8px',
-                              borderRadius: '5px',
-                              border: '1px solid #E2E8F0',
-                              background: isKatActive ? '#1E293B' : '#F8FAFC',
-                              color: isKatActive ? 'white' : '#64748B',
-                              fontSize: '10.5px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              transition: '0.15s',
-                            }}
-                          >
-                            {kat.label}{' '}
-                            <span
-                              className="badge-mini"
-                              style={{
-                                background: isKatActive ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
-                                color: isKatActive ? 'white' : '#475569',
-                                padding: '1px 5px',
-                                borderRadius: '10px',
-                                marginLeft: '3px',
-                                fontSize: '9.5px',
-                                fontWeight: 700,
-                              }}
-                            >
-                              {kat.count}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Subtitle Counter Bar (Dynamically pulls label from dbStatuses) */}
-              <div id="val-subtitle-text" style={{ margin: '0 16px 10px', fontWeight: 700, fontSize: '12px', color: '#475569' }}>
-                Menampilkan: <strong>
-                  {filteredValidasiComplaints.length} Data {
-                    valFilterStatus === 'semua'
-                      ? 'Semua Pengaduan'
-                      : (dbStatuses.find((s) => s.key?.toLowerCase() === valFilterStatus.toLowerCase())?.label || valFilterStatus.toUpperCase())
-                  }
-                </strong>
-              </div>
-
-              {/* Split Layout: List Left + Dossier Detail Right (1:1 Prototype) */}
-              <div className="split-layout" style={{ display: 'flex', gap: '16px', margin: '0 16px', alignItems: 'flex-start' }}>
-
-                {/* Left Column: List Kartu Pengaduan (.val-list) */}
-                <div
-                  className="val-list"
-                  id="val-list-container"
-                  style={{
-                    flex: '1.2',
-                    minWidth: '340px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                  }}
-                >
-                  {filteredValidasiComplaints.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '48px 24px', background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0', width: '100%', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                      <div style={{ fontSize: '44px', marginBottom: '12px' }}>📭</div>
-                      <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '15px' }}>Tidak Ada Data Laporan Ditemukan</div>
-                      <div style={{ fontSize: '12.5px', color: '#64748B', margin: '6px auto 0', maxWidth: '480px', lineHeight: 1.5 }}>
-                        Tidak ada laporan pengaduan yang cocok dengan kombinasi status, platform, atau jenis pengaduan yang sedang aktif.
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setValFilterPlatform('all');
-                          setValFilterKategori('all');
-                          setValFilterStatus('semua');
-                        }}
-                        style={{ marginTop: '16px', padding: '8px 18px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 6px rgba(21,62,117,0.25)' }}
-                      >
-                        🔄 Tampilkan Semua Laporan (Reset Filter)
-                      </button>
-                    </div>
-                  ) : (
-                    filteredValidasiComplaints.map((log) => {
-                      const isSos = log.jenisKejadian?.toLowerCase().includes('sos') || log.jenisKejadian?.toLowerCase().includes('panic');
-                      const is110 = !!log.operatorId;
-                      const platform = isSos ? 'sos' : is110 ? 'layanan110' : 'warga';
-
-                      let avatarBorder = '#7DD3FC';
-                      let avatarIcon = '📱';
-                      let avatarIconBg = '#0284C7';
-                      let platformBadge = (
-                        <span style={{ fontSize: '9.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', background: '#F0F9FF', color: '#0284C7', border: '1px solid #BAE6FD', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                          📱 PORTAL WARGA
-                        </span>
-                      );
-                      let kontakMeta = `📞 ${log.pelaporHp} • 🪪 NIK Dukcapil Valid`;
-
-                      if (platform === 'sos') {
-                        avatarBorder = '#FCA5A5';
-                        avatarIcon = '🚨';
-                        avatarIconBg = '#DC2626';
-                        platformBadge = (
-                          <span style={{ fontSize: '9.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            🚨 SOS PANIC
-                          </span>
-                        );
-                        kontakMeta = `📞 ${log.pelaporHp} • 🛰️ GPS: ${log.tkpLat?.toFixed(4)}, ${log.tkpLng?.toFixed(4)}`;
-                      } else if (platform === 'layanan110') {
-                        avatarBorder = '#93C5FD';
-                        avatarIcon = '📞';
-                        avatarIconBg = '#1D4ED8';
-                        platformBadge = (
-                          <span style={{ fontSize: '9.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                            📞 LAYANAN 110
-                          </span>
-                        );
-                        kontakMeta = `📞 ${log.pelaporHp} • 🎧 Call Center 110`;
-                      }
-
-                      // Kategori styling (100% synchronized with getComplaintKategori)
-                      const katInfo = getComplaintKategoriInfo(log);
-                      const katBadgeStyle = katInfo.badgeStyle;
-                      const katBadgeText = katInfo.badgeText;
-
-                      // Status text & colors strictly matching MySQL master_complaint_statuses table
-                      const isRejected = isComplaintRejected(log);
-                      const statMeta = resolveComplaintStatus(log.status, isRejected);
-                      const statusColor = statMeta.badge_color;
-                      const statusText = statMeta.label;
-                      let cardFooterText = '⚡ Disposisi Tugas ➔';
-                      let cardFooterColor = '#1E40AF';
-
-                      if (statMeta.key === 'DITOLAK') {
-                        cardFooterText = '✕ Laporan Ditolak Pawas';
-                        cardFooterColor = '#DC2626';
-                      } else if (statMeta.key === 'DISPOSISI') {
-                        cardFooterText = '📋 Personil Sudah Ditugaskan ➔';
-                        cardFooterColor = '#2563EB';
-                      } else if (statMeta.key === 'MENUJU_TKP') {
-                        cardFooterText = '⏱️ Personil Meluncur ke TKP (< 10m) ➔';
-                        cardFooterColor = '#8B5CF6';
-                      } else if (statMeta.key === 'TIBA_DI_TKP') {
-                        cardFooterText = '📍 Personil Tiba & Penanganan di TKP ➔';
-                        cardFooterColor = '#10B981';
-                      } else if (statMeta.key === 'MENUNGGU_PENGESAHAN') {
-                        cardFooterText = '✍️ Tindakan Rampung & Menunggu BAP Disahkan ➔';
-                        cardFooterColor = '#EF4444';
-                      } else if (statMeta.key === 'SELESAI') {
-                        cardFooterText = '✓ Berita Acara Disahkan & Ditutup Resmi (Pawas) ➔';
-                        cardFooterColor = '#2563EB';
-                      }
-
-                      const isSelected = activeComplaint?.id === log.id;
-
-                      return (
-                        <div
-                          key={log.id}
-                          id={`card-log-${log.id}`}
-                          className={`val-card ${isSelected ? 'selected' : ''}`}
-                          onClick={() => setSelectedValComplaint(log)}
-                          style={{
-                            background: isSelected ? '#F0F9FF' : 'white',
-                            border: isSelected ? '2px solid #0284C7' : '1px solid #E2E8F0',
-                            borderRadius: '12px',
-                            padding: '14px',
-                            cursor: 'pointer',
-                            boxShadow: isSelected ? '0 4px 12px rgba(2,132,199,0.15)' : '0 1px 3px rgba(0,0,0,0.03)',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {/* Header Kartu: Avatar Pelapor, Nama, Waktu, Status, Platform */}
-                          <div className="val-user" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                            <div style={{ position: 'relative', flexShrink: 0 }}>
-                              {log.pelaporAvatarUrl ? (
-                                <img
-                                  src={log.pelaporAvatarUrl}
-                                  alt="User"
-                                  style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: `2px solid ${avatarBorder}`, display: 'block' }}
-                                />
-                              ) : (
-                                <div
-                                  style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F1F5F9', border: `2px solid ${avatarBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}
-                                >
-                                  {log.platformKey === 'sos' ? '🚨' : log.platformKey === 'personil' ? '👮' : '👤'}
-                                </div>
-                              )}
-                              <span
-                                style={{
-                                  position: 'absolute',
-                                  bottom: '-3px',
-                                  right: '-3px',
-                                  fontSize: '9px',
-                                  background: avatarIconBg,
-                                  color: 'white',
-                                  borderRadius: '50%',
-                                  width: '16px',
-                                  height: '16px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  border: '1.5px solid white',
-                                }}
-                              >
-                                {avatarIcon}
-                              </span>
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                                <div style={{ fontWeight: 700, fontSize: '13px', color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {log.pelaporNama}
-                                </div>
-                                <div style={{ fontSize: '10px', color: '#64748B', flexShrink: 0 }}>
-                                  {new Date(log.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', gap: '4px', flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: statMeta.badge_bg, color: statMeta.badge_color, border: `1px solid ${statMeta.badge_border}` }}>
-                                  {statMeta.icon} {statusText}
-                                </span>
-                                {platformBadge}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Baris Kombinasi: Jenis Pengaduan & Tingkat Urgensi */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '9.5px', fontWeight: 800, padding: '2px 7px', borderRadius: '4px', ...katBadgeStyle }}>
-                              {katBadgeText}
-                            </span>
-                            <span
-                              style={{
-                                fontSize: '9.5px',
-                                fontWeight: 800,
-                                padding: '1.5px 6px',
-                                borderRadius: '4px',
-                                whiteSpace: 'nowrap',
-                                background: (log.urgensi === 'DARURAT' || log.urgensi === 'PRIORITAS_TINGGI') ? '#FEE2E2' : log.urgensi === 'SEDANG' ? '#FEF3C7' : '#EFF6FF',
-                                color: (log.urgensi === 'DARURAT' || log.urgensi === 'PRIORITAS_TINGGI') ? '#DC2626' : log.urgensi === 'SEDANG' ? '#D97706' : '#1D4ED8',
-                              }}
-                            >
-                              {(log.urgensi === 'DARURAT' || log.urgensi === 'PRIORITAS_TINGGI') ? '🚨 Darurat' : log.urgensi === 'SEDANG' ? '⚠️ Sedang' : 'ℹ️ Normal'}
-                            </span>
-                          </div>
-
-                          {/* Judul & Ringkasan Laporan */}
-                          <div style={{ fontWeight: 700, fontSize: '12.5px', color: '#1E293B', lineHeight: 1.35, marginBottom: '4px' }}>
-                            {log.jenisKejadian}
-                          </div>
-                          <div className="val-text" style={{ fontSize: '11.5px', color: '#475569', marginBottom: '6px', lineHeight: 1.45 }}>
-                            {log.ringkasanKeterangan}
-                          </div>
-
-                          {/* Metadata Lokasi, Kontak & Tiket */}
-                          <div style={{ fontSize: '10.5px', color: '#64748B', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '6px 8px', marginBottom: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span>📍</span> <span style={{ fontWeight: 600, color: '#334155' }}>{log.tkpAlamatTeks}</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
-                              <span style={{ color: '#475569' }}>{kontakMeta}</span>
-                              <span style={{ color: '#64748B' }}>Tiket: <strong>{log.nomorTiket}</strong></span>
-                            </div>
-                          </div>
-
-                          {/* Badge info & Card footer */}
-                          {isRejected && (
-                            <div style={{ marginTop: '8px', background: '#FEF2F2', borderLeft: '3px solid #EF4444', padding: '8px 10px', borderRadius: '4px', fontSize: '11px', color: '#991B1B', lineHeight: 1.4 }}>
-                              <strong>⚠️ Catatan Penolakan:</strong> {log.ringkasanKeterangan?.includes('[DITOLAK PAWAS]:') ? log.ringkasanKeterangan.split('[DITOLAK PAWAS]:')[1]?.trim() : 'Laporan perlu direvisi oleh personel lapangan.'}
-                            </div>
-                          )}
-
-                          <div
-                            onClick={(e) => {
-                              if (isRejected) {
-                                e.stopPropagation();
-                                handleAjukanRevisi(log);
-                              }
-                            }}
-                            style={{ fontSize: '11px', color: cardFooterColor, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px' }}
-                          >
-                            {cardFooterText}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {/* Right Column: Dossier Detail & Timeline Pelacakan (.val-detail) */}
-                <div
-                  className="val-detail"
-                  id="val-detail-box"
-                  style={{
-                    flex: '1',
-                    background: 'white',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                    height: 'auto',
-                  }}
-                >
-                  {activeComplaint ? (
-                    <div>
-                      {(() => {
-                        const isRejected = isComplaintRejected(activeComplaint);
-                        const activeStatMeta = resolveComplaintStatus(activeComplaint.status, isRejected);
-                        const rejectionReason = activeComplaint.ringkasanKeterangan?.includes('[DITOLAK PAWAS]:')
-                          ? activeComplaint.ringkasanKeterangan.split('[DITOLAK PAWAS]:')[1]?.trim()
-                          : (activeComplaint.ringkasanKeterangan || 'Laporan dikembalikan untuk melengkapi dokumentasi dan identifikasi pelaku.');
-
-                        return (
-                          <>
-                            {/* GLOBAL MACRO MILESTONE STEPPER 1:1 PROTOTYPE */}
-                            <div id="macro-milestone-box" style={{ marginBottom: '14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                <div style={{ fontSize: '10px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                  <span>🌐</span> SIKLUS HIDUP LAPORAN
-                                </div>
-                                <div style={{ fontSize: '10px', fontWeight: 700, color: '#153E75', background: '#EFF6FF', padding: '2px 8px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
-                                  {activeComplaint.jenisKejadian?.toLowerCase().includes('sos') ? '🚨 SOS Panik' : activeComplaint.operatorId ? '📞 Layanan 110' : '📱 Portal Warga'}
-                                </div>
-                              </div>
-
-                              <div className="macro-stepper" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                                {/* Step 1 */}
-                                <div style={{ textAlign: 'center', padding: '6px 4px', borderRadius: '6px', background: '#ECFDF5', border: '1px solid #A7F3D0' }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: '#10B981' }}>✓</div>
-                                  <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>1. Lapor Masuk</div>
-                                  <div style={{ fontSize: '8.5px', color: '#059669', fontWeight: 600 }}>Tercatat</div>
-                                </div>
-                                {/* Step 2 */}
-                                <div style={{
-                                  textAlign: 'center',
-                                  padding: '6px 4px',
-                                  borderRadius: '6px',
-                                  background: isRejected ? '#FEE2E2' : activeStatMeta.key === 'MENUNGGU' ? '#FEF3C7' : '#ECFDF5',
-                                  border: isRejected ? '1px solid #EF4444' : activeStatMeta.key === 'MENUNGGU' ? '1px solid #F59E0B' : '1px solid #A7F3D0'
-                                }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: isRejected ? '#DC2626' : activeStatMeta.key === 'MENUNGGU' ? '#D97706' : '#10B981' }}>
-                                    {isRejected ? '✕' : activeStatMeta.key === 'MENUNGGU' ? '⏳' : '✓'}
-                                  </div>
-                                  <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>2. Validasi</div>
-                                  <div style={{ fontSize: '8.5px', color: isRejected ? '#DC2626' : activeStatMeta.key === 'MENUNGGU' ? '#D97706' : '#059669', fontWeight: 600 }}>
-                                    {isRejected ? 'Ditolak/Revisi' : activeStatMeta.key === 'MENUNGGU' ? 'Review Pawas' : 'Pawas'}
-                                  </div>
-                                </div>
-                                {/* Step 3 */}
-                                <div style={{
-                                  textAlign: 'center',
-                                  padding: '6px 4px',
-                                  borderRadius: '6px',
-                                  background: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '#EFF6FF' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#ECFDF5' : '#F8FAFC',
-                                  border: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '1px solid #93C5FD' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
-                                  opacity: (isRejected || activeStatMeta.key === 'MENUNGGU') ? 0.6 : 1,
-                                }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: isRejected ? '#94A3B8' : ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '#2563EB' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#10B981' : '#94A3B8' }}>
-                                    {isRejected ? '⛔' : activeStatMeta.key === 'MENUNGGU' ? '🔒' : ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '🚔' : '✓'}
-                                  </div>
-                                  <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>3. Lapangan</div>
-                                  <div style={{ fontSize: '8.5px', color: ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) ? '#2563EB' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#059669' : '#94A3B8', fontWeight: 600 }}>
-                                    {isRejected ? 'Terkunci' : activeStatMeta.key === 'DISPOSISI' ? 'Disposisi' : activeStatMeta.key === 'MENUJU_TKP' ? 'Meluncur' : activeStatMeta.key === 'TIBA_DI_TKP' ? 'Di TKP' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? 'Tuntas' : 'Menunggu'}
-                                  </div>
-                                </div>
-                                {/* Step 4 */}
-                                <div style={{
-                                  textAlign: 'center',
-                                  padding: '6px 4px',
-                                  borderRadius: '6px',
-                                  background: activeStatMeta.key === 'SELESAI' ? '#ECFDF5' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '#FEF2F2' : '#F8FAFC',
-                                  border: activeStatMeta.key === 'SELESAI' ? '1px solid #A7F3D0' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '1px solid #FECACA' : '1px solid #E2E8F0',
-                                  opacity: (isRejected || activeStatMeta.key === 'MENUNGGU' || ['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key)) ? 0.6 : 1,
-                                }}>
-                                  <div style={{ fontSize: '11px', fontWeight: 800, color: activeStatMeta.key === 'SELESAI' ? '#10B981' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '#EF4444' : '#94A3B8' }}>
-                                    {isRejected ? '⛔' : activeStatMeta.key === 'SELESAI' ? '✓' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '📝' : '🔒'}
-                                  </div>
-                                  <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#1E293B', marginTop: '2px' }}>4. Selesai</div>
-                                  <div style={{ fontSize: '8.5px', color: activeStatMeta.key === 'SELESAI' ? '#059669' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? '#EF4444' : '#94A3B8', fontWeight: 600 }}>
-                                    {activeStatMeta.key === 'SELESAI' ? 'Selesai 100%' : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? 'Pengesahan BAP' : 'Menunggu'}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Audit Log Terakhir */}
-                              <div id="macro-audit-drawer" style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed #CBD5E1', fontSize: '10px', color: '#64748B' }}>
-                                <span style={{ fontWeight: 600 }}>
-                                  {isRejected ? (
-                                    <>⚠️ <strong>Catatan Revisi:</strong> "{rejectionReason}"</>
-                                  ) : activeStatMeta.key === 'MENUNGGU' ? (
-                                    <>🕒 <strong>Menunggu Penugasan Pawas:</strong> Laporan Diterima &amp; Menunggu Verifikasi Pawas</>
-                                  ) : activeStatMeta.key === 'DISPOSISI' ? (
-                                    <>📋 <strong>Disposisi Pawas:</strong> Personel Siaga Telah Ditugaskan Meluncur</>
-                                  ) : activeStatMeta.key === 'MENUJU_TKP' ? (
-                                    <>🚀 <strong>Sedang Ditangani:</strong> Personel Meluncur ke Lokasi TKP (SLA &lt; 10 Menit)</>
-                                  ) : activeStatMeta.key === 'TIBA_DI_TKP' ? (
-                                    <>📍 <strong>Tiba di TKP:</strong> Petugas Tiba di Lokasi &amp; Melakukan Tindakan Kepolisian</>
-                                  ) : activeStatMeta.key === 'MENUNGGU_PENGESAHAN' ? (
-                                    <>⚖️ <strong>Menunggu Pengesahan:</strong> Laporan Telah Selesai Ditangani dan BAP Terbit (Menunggu Otorisasi Pawas)</>
-                                  ) : (
-                                    <>🏆 <strong>Kasus Ditutup:</strong> Berita Acara Disahkan &amp; Kasus Selesai Resmi</>
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* CONDITION 1: STANDARD DETAIL VIEW (Menunggu Tindakan / Ditolak) */}
-                            {activeStatMeta.key === 'MENUNGGU' || isRejected ? (
-                              <div id="detail-standard-view">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>Detail Laporan</div>
-                                  <span style={{
-                                    fontSize: '11px',
-                                    fontWeight: 700,
-                                    padding: '3px 10px',
-                                    borderRadius: '12px',
-                                    background: isRejected ? '#FEE2E2' : '#FEF3C7',
-                                    color: isRejected ? '#DC2626' : '#D97706',
-                                  }}>
-                                    {isRejected ? 'Ditolak / Revisi' : 'Menunggu Validasi'}
-                                  </span>
-                                </div>
-
-                                <div style={{ fontSize: '13px', fontWeight: 700, color: '#153E75', marginBottom: '12px', lineHeight: 1.4 }}>
-                                  {activeComplaint.jenisKejadian}
-                                </div>
-
-                                {activeComplaint.fotoTkpUrl ? (
-                                  <div style={{ position: 'relative', marginBottom: '12px', borderRadius: '8px', overflow: 'hidden', height: '180px', background: '#0F172A' }}>
-                                    <img
-                                      src={activeComplaint.fotoTkpUrl}
-                                      alt="Foto Bukti"
-                                      style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                                      onClick={() => {
-                                        setLightboxImg({
-                                          url: activeComplaint.fotoTkpUrl,
-                                          title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
-                                          meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
-                                          desc: activeComplaint.ringkasanKeterangan,
-                                        });
-                                        setShowLightboxModal(true);
-                                      }}
-                                    />
-                                    <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(0,0,0,0.65)', color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                                      📷 Foto Lampiran
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div style={{ padding: '16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', textAlign: 'center', color: '#94A3B8', fontSize: '12px', marginBottom: '12px' }}>
-                                    📷 Tidak ada foto bukti yang dilampirkan
-                                  </div>
-                                )}
-
-                                <div className="detail-text" style={{ fontSize: '12px', lineHeight: 1.6, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                  <div>
-                                    <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Waktu Pengiriman:</div>
-                                    <span style={{ color: '#1E293B', fontWeight: 700 }}>
-                                      {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Sektor / Wilayah:</div>
-                                    <span style={{ color: '#1E293B', fontWeight: 700 }}>{activeComplaint.tkpAlamatTeks}</span>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Identitas Pelapor:</div>
-                                    <div style={{ color: '#1E293B', fontWeight: 700 }}>
-                                      {activeComplaint.pelaporNama}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Kontak &amp; Koordinat:</div>
-                                    <div style={{ color: '#1E293B', fontWeight: 700 }}>
-                                      📞 {activeComplaint.pelaporHp} • 🛰️ {activeComplaint.tkpLat?.toFixed(4)}, {activeComplaint.tkpLng?.toFixed(4)}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Saluran / Sumber Laporan:</div>
-                                    <div style={{ color: '#1D4ED8', fontWeight: 700 }}>
-                                      {activeComplaint.jenisKejadian?.toLowerCase().includes('sos')
-                                        ? '🚨 PANGGILAN DARURAT SOS (PANIC BUTTON)'
-                                        : activeComplaint.operatorId
-                                          ? '📞 PANGGILAN DARURAT 110 (CALL CENTER)'
-                                          : '📱 PORTAL PRESISI WARGA (ONLINE)'}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Deskripsi Kejadian:</div>
-                                    <span style={{ color: '#1E293B', lineHeight: 1.4, display: 'block', marginTop: '2px' }}>
-                                      {activeComplaint.ringkasanKeterangan}
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {isRejected && (
-                                  <div style={{ background: '#FEF2F2', borderLeft: '3px solid #EF4444', padding: '8px 10px', borderRadius: '4px', fontSize: '11px', color: '#991B1B', marginTop: '10px', lineHeight: 1.4 }}>
-                                    <strong>⚠️ Catatan Penolakan:</strong> {rejectionReason}
-                                  </div>
-                                )}
-
-                                {/* Action buttons inside detail-standard-view */}
-                                {isRejected ? (
-                                  <div style={{ marginTop: '14px' }}>
-                                    <button
-                                      type="button"
-                                      className="btn-blue"
-                                      onClick={() => handleAjukanRevisi(activeComplaint)}
-                                      style={{
-                                        width: '100%',
-                                        margin: 0,
-                                        padding: '12px',
-                                        background: '#D97706',
-                                        fontSize: '13px',
-                                        fontWeight: 700,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        color: 'white',
-                                        cursor: 'pointer',
-                                        boxShadow: '0 2px 6px rgba(217,119,6,0.3)',
-                                      }}
-                                    >
-                                      <span>✏️</span> Ajukan Revisi &amp; Kirim Ulang ke Atasan ➔
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div style={{ marginTop: '14px', display: 'flex', gap: '8px' }}>
-                                    <button
-                                      type="button"
-                                      id="btn-buka-modal-disposisi"
-                                      className="btn-blue"
-                                      onClick={() => {
-                                        bukaModalDisposisi(activeComplaint);
-                                      }}
-                                      style={{
-                                        flex: 1.4,
-                                        padding: '12px 14px',
-                                        background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
-                                        color: 'white',
-                                        fontSize: '13px',
-                                        fontWeight: 800,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        borderRadius: '8px',
-                                        border: 'none',
-                                        boxShadow: '0 3px 10px rgba(21,62,117,0.3)',
-                                        cursor: 'pointer',
-                                      }}
-                                    >
-                                      <span>⚡</span> Disposisi Tugas ➔
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn-rej"
-                                      onClick={() => {
-                                        setTolakComplaint(activeComplaint);
-                                        switchTab('view-tolak');
-                                      }}
-                                      style={{
-                                        flex: 0.8,
-                                        padding: '12px 10px',
-                                        borderRadius: '8px',
-                                        border: '1px solid #FCA5A5',
-                                        background: '#FEF2F2',
-                                        color: '#DC2626',
-                                        fontWeight: 700,
-                                        fontSize: '12px',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '4px',
-                                      }}
-                                    >
-                                      <span>✕</span> Tolak / Revisi
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              /* CONDITION 2: TIMELINE TRACKING VIEW (Diproses, Menuju TKP, Penanganan, Selesai) 1:1 PROTOTYPE */
-                              <div id="detail-timeline-view">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                  <div>
-                                    <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#1E293B', margin: 0 }}>Hasil Pelacakan</h3>
-                                    <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Timeline Progress Penanganan Kasus</div>
-                                  </div>
-                                  <span
-                                    style={{
-                                      fontSize: '11px',
-                                      fontWeight: 700,
-                                      padding: '4px 10px',
-                                      borderRadius: '12px',
-                                      background: activeStatMeta.badge_bg,
-                                      color: activeStatMeta.badge_color,
-                                      border: `1px solid ${activeStatMeta.badge_border}`,
-                                    }}
-                                  >
-                                    {activeStatMeta.icon} {activeStatMeta.label}
-                                  </span>
-                                </div>
-
-                                {/* Incident Meta Details Card */}
-                                <div className="incident-meta-card" style={{ marginBottom: '14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                                    <div>
-                                      <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>Nomor Laporan</div>
-                                      <div style={{ color: '#153E75', fontFamily: 'monospace', fontSize: '13px', fontWeight: 800 }}>
-                                        {activeComplaint.nomorTiket}
-                                      </div>
-                                    </div>
-                                    <div style={{ textAlign: 'right' }}>
-                                      <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>Waktu Lapor</div>
-                                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E293B' }}>
-                                        Hari ini, {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  <div style={{ fontSize: '12px', color: '#334155', marginBottom: '4px' }}>
-                                    <span style={{ color: '#64748B', fontWeight: 600 }}>Jenis Insiden:</span>{' '}
-                                    <strong>{activeComplaint.jenisKejadian}</strong>
-                                  </div>
-                                  <div style={{ fontSize: '12px', color: '#334155', marginBottom: '10px' }}>
-                                    <span style={{ color: '#64748B', fontWeight: 600 }}>Lokasi TKP:</span>{' '}
-                                    <span style={{ color: '#64748B' }}>{activeComplaint.tkpAlamatTeks}</span>
-                                  </div>
-
-                                  {/* Foto Bukti Laporan Warga Full-Width dengan Tombol Perbesar */}
-                                  {activeComplaint.fotoTkpUrl ? (
-                                    <div
-                                      style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', background: '#0F172A', cursor: 'pointer' }}
-                                      onClick={() => {
-                                        setLightboxImg({
-                                          url: activeComplaint.fotoTkpUrl,
-                                          title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
-                                          meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
-                                          desc: activeComplaint.ringkasanKeterangan,
-                                        });
-                                        setShowLightboxModal(true);
-                                      }}
-                                      title="Klik untuk perbesar foto laporan"
-                                    >
-                                      <img
-                                        src={activeComplaint.fotoTkpUrl}
-                                        alt="Bukti TKP"
-                                        style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
-                                      />
-                                      <div
-                                        style={{
-                                          position: 'absolute',
-                                          inset: 0,
-                                          background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 50%)',
-                                          display: 'flex',
-                                          alignItems: 'flex-end',
-                                          justifyContent: 'space-between',
-                                          padding: '8px 10px',
-                                          color: 'white',
-                                          fontSize: '10px',
-                                          fontWeight: 600,
-                                        }}
-                                      >
-                                        <span>Foto Bukti Laporan 110 • {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
-                                        <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
-                                          🔍 Perbesar
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div style={{ padding: '16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', textAlign: 'center', color: '#94A3B8', fontSize: '12px' }}>
-                                      📷 Tidak ada foto bukti laporan yang dilampirkan
-                                    </div>
-                                  )}
-
-                                  <div style={{ fontSize: '11px', color: '#1E293B', lineHeight: 1.4, marginTop: '8px', fontStyle: 'italic' }}>
-                                    "{activeComplaint.ringkasanKeterangan}"
-                                  </div>
-                                </div>
-
-                                {/* DYNAMIC 5-STEP VERTICAL TIMELINE 1:1 PROTOTYPE */}
-                                <div className="timeline" style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '16px' }}>
-                                  {/* Step 1: Laporan Diterima */}
-                                  <div className="step completed" style={{ borderLeft: '3px solid #10B981', paddingLeft: '12px', position: 'relative' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>1. Laporan Diterima (SPKT)</div>
-                                      <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 700, background: '#ECFDF5', padding: '2px 6px', borderRadius: '4px' }}>✓ SELESAI</span>
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                      Laporan Anda telah divalidasi oleh operator 110 dan diteruskan ke komando wilayah.
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                                      <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                        📅 Waktu: {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
-                                      </span>
-                                      {activeComplaint.fotoTkpUrl && (
-                                        <span
-                                          onClick={() => {
-                                            setLightboxImg({
-                                              url: activeComplaint.fotoTkpUrl,
-                                              title: 'Foto Bukti SPKT 110',
-                                              meta: activeComplaint.nomorTiket,
-                                              desc: activeComplaint.ringkasanKeterangan,
-                                            });
-                                            setShowLightboxModal(true);
-                                          }}
-                                          style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                        >
-                                          📷 Bukti Laporan 110 ➔
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Step 2: Disposisi Personel */}
-                                  <div className="step completed" style={{ borderLeft: activeComplaint.status === 'BELUM_DITANGANI' ? '3px solid #CBD5E1' : '3px solid #10B981', paddingLeft: '12px', position: 'relative' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>2. Disposisi Personel</div>
-                                      <span style={{
-                                        fontSize: '10px',
-                                        fontWeight: 700,
-                                        background: activeComplaint.status === 'BELUM_DITANGANI' ? '#F1F5F9' : '#ECFDF5',
-                                        color: activeComplaint.status === 'BELUM_DITANGANI' ? '#64748B' : '#10B981',
-                                        padding: '2px 6px',
-                                        borderRadius: '4px'
-                                      }}>
-                                        {activeComplaint.status === 'BELUM_DITANGANI' ? '🔒 MENUNGGU DISPOSISI' : '✓ SELESAI'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                      {activeComplaint.assignedOfficer ? `Tugas penanganan telah diserahkan kepada ${activeComplaint.assignedOfficer.rankPangkat} ${activeComplaint.assignedOfficer.namaLengkap} (${activeComplaint.assignedOfficer.assignedPatrolVehicle || 'Unit Presisi'}).` : 'Menunggu penugasan personel dan armada reaksi cepat oleh Pawas.'}
-                                    </div>
-                                    <div style={{ marginTop: '8px', fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                      📅 Disposisi Pawas: {activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : activeComplaint.status !== 'BELUM_DITANGANI' ? 'Telah Diteruskan' : 'Menunggu Validasi'}
-                                    </div>
-                                  </div>
-
-                                  {/* Step 3: Personel Menuju Lokasi */}
-                                  <div
-                                    className="step active"
-                                    style={{
-                                      borderLeft: activeComplaint.status === 'MENUJU_TKP' ? '3px solid #3B82F6' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '3px solid #10B981' : '3px solid #CBD5E1',
-                                      paddingLeft: '12px',
-                                      position: 'relative',
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>3. Personel Menuju Lokasi</div>
-                                      <span
-                                        style={{
-                                          fontSize: '10px',
-                                          fontWeight: 700,
-                                          padding: '2px 6px',
-                                          borderRadius: '4px',
-                                          background: activeComplaint.status === 'MENUJU_TKP' ? '#DBEAFE' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '#ECFDF5' : '#F1F5F9',
-                                          color: activeComplaint.status === 'MENUJU_TKP' ? '#1D4ED8' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '#10B981' : '#64748B',
-                                        }}
-                                      >
-                                        {activeComplaint.status === 'MENUJU_TKP' ? '● SEDANG BERLANGSUNG' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '✓ SELESAI' : '🔒 TERKUNCI'}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                      {activeComplaint.assignedOfficer ? `Tim ${activeComplaint.assignedOfficer.assignedPatrolVehicle || 'Presisi'} sedang meluncur ke lokasi kejadian. Sirine biru aktif dan pantauan GPS terhubung.` : 'Menunggu unit meluncur.'}
-                                    </div>
-
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                                      <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                        📅 Meluncur: {activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'}
-                                      </span>
-                                      {activeComplaint.fotoPersiapan && (
-                                        <span
-                                          onClick={() => {
-                                            setLightboxImg({
-                                              url: activeComplaint.fotoPersiapan,
-                                              title: 'Bukti Persiapan & GPS Lapangan',
-                                              meta: activeComplaint.assignedOfficer?.assignedPatrolVehicle || '-',
-                                              desc: 'Armada dalam perjalanan menuju TKP',
-                                            });
-                                            setShowLightboxModal(true);
-                                          }}
-                                          style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF', background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                        >
-                                          📷 Bukti Persiapan &amp; GPS ➔
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {/* Tracking Map Card */}
-                                    <div
-                                      style={{ position: 'relative', marginTop: '8px', borderRadius: '8px', overflow: 'hidden', height: '110px', background: 'radial-gradient(circle at center, #1E3A8A 0%, #0F172A 100%)' }}
-                                    >
-                                      {activeComplaint.fotoPersiapan ? (
-                                        <img src={activeComplaint.fotoPersiapan} alt="Patrol Car" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                      ) : (
-                                        <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#93C5FD', fontSize: '11px', fontWeight: 700 }}>
-                                          🛰️ Tracking Satelit Armada Aktif
-                                        </div>
-                                      )}
-                                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        {activeComplaint.assignedOfficer?.avatarUrl ? (
-                                          <img src={activeComplaint.assignedOfficer.avatarUrl} alt="Petugas" style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1.5px solid white' }} />
-                                        ) : (
-                                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#1E3A8A', border: '1.5px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👮</div>
-                                        )}
-                                        <div>
-                                          <div style={{ color: 'white', fontSize: '11px', fontWeight: 800 }}>
-                                            {activeComplaint.assignedOfficer ? `${activeComplaint.assignedOfficer.assignedPatrolVehicle || 'Unit Presisi'} (${activeComplaint.assignedOfficer.rankPangkat} ${activeComplaint.assignedOfficer.namaLengkap})` : 'Unit Patroli Presisi'}
-                                          </div>
-                                          <div style={{ color: '#38BDF8', fontSize: '9.5px' }}>Status: {activeComplaint.status === 'MENUJU_TKP' ? 'Menuju Lokasi' : 'Tepat Waktu'}</div>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* GPS Terkunci Box */}
-                                    <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '6px', padding: '6px 10px', marginTop: '8px' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>📍 GPS TITIK TKP:</span>
-                                        <span style={{ fontSize: '9.5px', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>TERKUNCI</span>
-                                      </div>
-                                      <div style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', fontFamily: 'monospace' }}>
-                                        {activeComplaint.tkpLat?.toFixed(4)}, {activeComplaint.tkpLng?.toFixed(4)}
-                                      </div>
-                                      <div style={{ fontSize: '10.5px', color: '#475569', fontStyle: 'italic', marginTop: '3px' }}>
-                                        "{activeComplaint.timelines?.find((t: any) => t.tahapKe === 2 || t.tahapKe === 3)?.catatan || `Unit bergerak menuju ${activeComplaint.tkpAlamatTeks}`}"
-                                      </div>
-                                    </div>
-
-                                    {/* DAFTAR PERSONEL REGU YANG IKUT / MENYETUJUI TUGAS */}
-                                    {(() => {
-                                      const dispatches: any[] = activeComplaint.dispatches || [];
-                                      const list: any[] = [];
-                                      const seen = new Set<string>();
-
-                                      dispatches.forEach((d: any) => {
-                                        const isAcc = Boolean(d.accepted_at || d.dispatch_status === 'ACCEPTED' || d.arrived_at || d.completed_at);
-                                        if (!isAcc && !d.officer) return;
-                                        const off = d.officer;
-                                        const rawName = off?.user?.full_name || off?.user?.nama_lengkap || off?.namaLengkap || '';
-                                        const rank = off?.rank_pangkat || off?.rankPangkat || '';
-                                        let name = (rawName || '').trim();
-                                        if (!name && rank) name = `${rank} Petugas`;
-                                        if (!name) name = 'Personel Lapangan';
-                                        if (rank && !name.toLowerCase().startsWith(rank.toLowerCase())) {
-                                          name = `${rank} ${name}`;
-                                        }
-                                        const nrp = off?.nrp || off?.user?.identifier || '';
-                                        const unit = d.unit?.unit_name || d.unit?.short_name || '';
-                                        const key = (nrp || name).trim().toLowerCase();
-                                        if (!seen.has(key)) {
-                                          seen.add(key);
-                                          let acceptedAt: string | null = null;
-                                          if (d.accepted_at) {
-                                            try {
-                                              acceptedAt = new Date(d.accepted_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-                                            } catch (_) {}
-                                          }
-                                          const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
-                                          const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
-                                          list.push({
-                                            name,
-                                            rank,
-                                            nrp,
-                                            unit,
-                                            acceptedAt,
-                                            avatarUrl: off?.avatar_url || off?.avatarUrl || null,
-                                            initials,
-                                            isPrimary: Boolean(d.is_primary_unit || list.length === 0),
-                                          });
-                                        }
-                                      });
-
-                                      if (list.length === 0 && activeComplaint.assignedOfficer) {
-                                        const ao = activeComplaint.assignedOfficer;
-                                        const rawName = ao.namaLengkap || ao.name || '';
-                                        const rank = ao.rankPangkat || '';
-                                        let name = (rawName || '').trim();
-                                        if (!name && rank) name = `${rank} Petugas`;
-                                        if (!name) name = 'Personel Lapangan';
-                                        if (rank && !name.toLowerCase().startsWith(rank.toLowerCase())) {
-                                          name = `${rank} ${name}`;
-                                        }
-                                        const nrp = ao.nrp || '';
-                                        const nameParts = name.replace(/^(Bripka|Ipda|Aiptu|Aipda|Briptu|Bripda|AKP|Kompol|AKBP|Kombes|Brigadir)\s+/i, '').trim().split(' ');
-                                        const initials = ((nameParts[0]?.[0] || 'P') + (nameParts[1]?.[0] || '')).toUpperCase();
-                                        list.push({
-                                          name,
-                                          rank,
-                                          nrp,
-                                          unit: ao.assignedPatrolVehicle || '',
-                                          acceptedAt: activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : null,
-                                          avatarUrl: ao.avatarUrl || null,
-                                          initials,
-                                          isPrimary: true,
-                                        });
-                                      }
-
-                                      if (list.length === 0) return null;
-
-                                      return (
-                                        <div
-                                          style={{
-                                            marginTop: '10px',
-                                            background: '#F8FAFC',
-                                            border: '1px solid #E2E8F0',
-                                            borderRadius: '8px',
-                                            padding: '10px 12px',
-                                            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-                                          }}
-                                        >
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                              <span style={{ fontSize: '13px' }}>👥</span>
-                                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                                                Personel yang Ikut / Menyetujui
-                                              </span>
-                                              <span
-                                                style={{
-                                                  fontSize: '10px',
-                                                  fontWeight: 800,
-                                                  background: '#DBEAFE',
-                                                  color: '#1E40AF',
-                                                  padding: '1px 6px',
-                                                  borderRadius: '10px',
-                                                }}
-                                              >
-                                                {list.length} Personel
-                                              </span>
-                                            </div>
-                                            <span
-                                              style={{
-                                                fontSize: '9.5px',
-                                                background: '#DCFCE7',
-                                                color: '#15803D',
-                                                fontWeight: 700,
-                                                padding: '2px 7px',
-                                                borderRadius: '4px',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '3px',
-                                              }}
-                                            >
-                                              <span>✓</span> Terkonfirmasi Siaga
-                                            </span>
-                                          </div>
-
-                                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                            {list.map((off, idx) => (
-                                              <div
-                                                key={idx}
-                                                style={{
-                                                  display: 'flex',
-                                                  alignItems: 'center',
-                                                  justifyContent: 'space-between',
-                                                  background: 'white',
-                                                  border: '1px solid #E2E8F0',
-                                                  borderRadius: '6px',
-                                                  padding: '7px 10px',
-                                                }}
-                                              >
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                                                  {off.avatarUrl ? (
-                                                    <img
-                                                      src={off.avatarUrl}
-                                                      alt={off.name}
-                                                      style={{
-                                                        width: '30px',
-                                                        height: '30px',
-                                                        borderRadius: '50%',
-                                                        objectFit: 'cover',
-                                                        border: '1.5px solid #CBD5E1',
-                                                        flexShrink: 0,
-                                                      }}
-                                                    />
-                                                  ) : (
-                                                    <div
-                                                      style={{
-                                                        width: '30px',
-                                                        height: '30px',
-                                                        borderRadius: '50%',
-                                                        background: 'linear-gradient(135deg, #1E40AF, #3B82F6)',
-                                                        color: 'white',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        fontSize: '11px',
-                                                        fontWeight: 800,
-                                                        letterSpacing: '0.5px',
-                                                        flexShrink: 0,
-                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-                                                      }}
-                                                    >
-                                                      {off.initials || '👮'}
-                                                    </div>
-                                                  )}
-                                                  <div style={{ minWidth: 0 }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                                                      <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap' }}>
-                                                        {off.name}
-                                                      </span>
-                                                      {off.isPrimary && (
-                                                        <span
-                                                          style={{
-                                                            fontSize: '9px',
-                                                            background: '#EFF6FF',
-                                                            color: '#1D4ED8',
-                                                            border: '1px solid #BFDBFE',
-                                                            padding: '0.5px 5px',
-                                                            borderRadius: '3px',
-                                                            fontWeight: 700,
-                                                          }}
-                                                        >
-                                                          Lead Regu
-                                                        </span>
-                                                      )}
-                                                    </div>
-                                                    <div
-                                                      style={{
-                                                        fontSize: '10px',
-                                                        color: '#64748B',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px',
-                                                        marginTop: '1px',
-                                                        flexWrap: 'wrap',
-                                                      }}
-                                                    >
-                                                      <span>NRP: <strong style={{ color: '#334155' }}>{off.nrp || '-'}</strong></span>
-                                                      {off.unit && <span>• {off.unit}</span>}
-                                                    </div>
-                                                  </div>
-                                                </div>
-
-                                                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '8px' }}>
-                                                  <div
-                                                    style={{
-                                                      fontSize: '9.5px',
-                                                      fontWeight: 700,
-                                                      color: '#15803D',
-                                                      background: '#F0FDF4',
-                                                      border: '1px solid #BBF7D0',
-                                                      padding: '1.5px 6px',
-                                                      borderRadius: '4px',
-                                                      display: 'inline-flex',
-                                                      alignItems: 'center',
-                                                      gap: '3px',
-                                                    }}
-                                                  >
-                                                    <span>✓</span> Menyetujui
-                                                  </div>
-                                                  {off.acceptedAt && (
-                                                    <div style={{ fontSize: '9px', color: '#64748B', marginTop: '2px', fontWeight: 600 }}>
-                                                      {off.acceptedAt}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      );
-                                    })()}
-                                  </div>
-
-                                  {/* Step 4: Penanganan di Lokasi */}
-                                  {(() => {
-                                    const isStep4Completed = activeComplaint.status === 'SELESAI' || activeComplaint.status === 'MENUNGGU_PENGESAHAN' || (activeComplaint.tahap >= 5);
-                                    const isStep4Active = activeComplaint.status === 'PENANGANAN_TKP' || activeComplaint.status === 'TIBA_DI_TKP' || Boolean(activeComplaint.responTibaTkpAt) || (activeComplaint.tahap === 4);
-
-                                    const step4Evidences = (activeComplaint.evidences || []).filter(
-                                      (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || (e.caption || '').toLowerCase().includes('tindakan') || (e.caption || '').toLowerCase().includes('tiba')
-                                    );
-                                    const resolvedFotoTindakan = activeComplaint.fotoTindakan || activeComplaint.fotoTiba || step4Evidences[0]?.file_url;
-
-                                    return (
-                                      <div
-                                        className="step"
-                                        style={{
-                                          borderLeft: isStep4Completed ? '3px solid #10B981' : isStep4Active ? '3px solid #7C3AED' : '3px solid #CBD5E1',
-                                          paddingLeft: '12px',
-                                          position: 'relative',
-                                        }}
-                                      >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>4. Penanganan di Lokasi</div>
-                                          <span
-                                            style={{
-                                              fontSize: '10px',
-                                              fontWeight: 700,
-                                              padding: '2px 6px',
-                                              borderRadius: '4px',
-                                              background: isStep4Completed ? '#ECFDF5' : isStep4Active ? '#EDE9FE' : '#F1F5F9',
-                                              color: isStep4Completed ? '#10B981' : isStep4Active ? '#6D28D9' : '#64748B',
-                                            }}
-                                          >
-                                            {isStep4Completed ? '✓ SELESAI' : isStep4Active ? '● SEDANG BERLANGSUNG' : '🔒 TERKUNCI'}
-                                          </span>
-                                        </div>
-                                        <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                          Personel tiba di lokasi dan sedang melakukan tindakan kepolisian.
-                                        </div>
-
-                                        {isStep4Completed || isStep4Active ? (
-                                          <>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-                                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                                📅 Tiba di TKP: {activeComplaint.responTibaTkpAt ? new Date(activeComplaint.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
-                                              </span>
-                                              {step4Evidences.length > 0 ? (
-                                                <span
-                                                  onClick={() => {
-                                                    setLightboxImg({
-                                                      url: step4Evidences[0].file_url,
-                                                      title: `Bukti Tindakan TKP (1/${step4Evidences.length})`,
-                                                      meta: `${activeComplaint.nomorTiket} • ${step4Evidences[0].watermark_text || 'Terverifikasi GPS'}`,
-                                                      desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
-                                                    });
-                                                    setShowLightboxModal(true);
-                                                  }}
-                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                                >
-                                                  📸 {step4Evidences.length} Foto Tindakan TKP ➔
-                                                </span>
-                                              ) : resolvedFotoTindakan ? (
-                                                <span
-                                                  onClick={() => {
-                                                    setLightboxImg({
-                                                      url: resolvedFotoTindakan,
-                                                      title: 'Foto Tindakan Kepolisian di TKP',
-                                                      meta: activeComplaint.nomorTiket,
-                                                      desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
-                                                    });
-                                                    setShowLightboxModal(true);
-                                                  }}
-                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                                >
-                                                  📸 Bukti Tindakan TKP ➔
-                                                </span>
-                                              ) : null}
-                                            </div>
-
-                                            {/* Strip Galeri Foto Tindakan di TKP */}
-                                            {step4Evidences.length > 0 && (
-                                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
-                                                {step4Evidences.map((ev: any, idx: number) => (
-                                                  <div
-                                                    key={ev.id || idx}
-                                                    onClick={() => {
-                                                      setLightboxImg({
-                                                        url: ev.file_url,
-                                                        title: `Foto Tindakan #${idx + 1} - ${activeComplaint.nomorTiket}`,
-                                                        meta: `${activeComplaint.nomorTiket} • ${ev.watermark_text || 'GPS Sah'}`,
-                                                        desc: ev.caption || 'Pengamanan TKP dan tindakan presisi di lapangan',
-                                                      });
-                                                      setShowLightboxModal(true);
-                                                    }}
-                                                    style={{
-                                                      position: 'relative',
-                                                      width: '42px',
-                                                      height: '42px',
-                                                      borderRadius: '6px',
-                                                      overflow: 'hidden',
-                                                      border: '1.5px solid #10B981',
-                                                      cursor: 'pointer',
-                                                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                                    }}
-                                                    title={`Klik untuk perbesar Foto #${idx + 1}`}
-                                                  >
-                                                    <img
-                                                      src={ev.file_url}
-                                                      alt={`Foto Tindakan ${idx + 1}`}
-                                                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                    />
-                                                    <span style={{
-                                                      position: 'absolute',
-                                                      bottom: 0,
-                                                      right: 0,
-                                                      background: 'rgba(0,0,0,0.65)',
-                                                      color: 'white',
-                                                      fontSize: '8px',
-                                                      fontWeight: 800,
-                                                      padding: '0 3px',
-                                                      borderTopLeftRadius: '3px',
-                                                    }}>
-                                                      #{idx + 1}
-                                                    </span>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            )}
-
-                                            <div style={{ background: '#FEFCE8', borderLeft: '3px solid #EAB308', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#854D0E', marginBottom: '2px' }}>📝 BERITA ACARA TINDAKAN TKP:</div>
-                                              <div style={{ fontSize: '11px', color: '#1E293B' }}>
-                                                {(() => {
-                                                  const rawNote =
-                                                    activeComplaint.catatanTindakan ||
-                                                    (activeComplaint.timelines || []).slice().reverse().find((t: any) => ((t.tahapTitle || '').includes('Tindakan') || (t.tahapTitle || '').includes('TKP')) && t.catatan)?.catatan ||
-                                                    (activeComplaint.complaintLogs || []).slice().reverse().find((l: any) => ((l.action || '').includes('Tindakan') || (l.action || '').includes('TKP')) && l.notes)?.notes;
-                                                  const cleanNote = rawNote
-                                                    ? rawNote.replace(/^Catatan:\s*/i, '').trim()
-                                                    : 'Personel tiba di TKP, mengamankan perimeter dan memastikan situasi kamtibmas kondusif.';
-                                                  return `"${cleanNote}"`;
-                                                })()}
-                                              </div>
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <div style={{ fontSize: '10.5px', color: '#94A3B8', fontStyle: 'italic', marginTop: '6px' }}>
-                                            Menunggu Personel Tiba di TKP
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-
-                                  {/* Step 5: Kasus Selesai Ditangani */}
-                                  {(() => {
-                                    const isStep5Completed = activeComplaint.status === 'SELESAI';
-                                    const isStep5Awaiting = activeComplaint.status === 'MENUNGGU_PENGESAHAN';
-                                    const isStep5Open = isStep5Completed || isStep5Awaiting || Boolean(activeComplaint.catatanSelesai) || (activeComplaint.tahap >= 5);
-
-                                    const step5Evidences = (activeComplaint.evidences || []).filter(
-                                      (e: any) =>
-                                        e.incident_phase === 'SELESAI_KONDUSIF' ||
-                                        e.incident_phase === 'SELESAI' ||
-                                        (e.caption || '').toLowerCase().includes('selesai') ||
-                                        (e.caption || '').toLowerCase().includes('bap') ||
-                                        (e.caption || '').toLowerCase().includes('mediasi') ||
-                                        (e.caption || '').toLowerCase().includes('kondusif')
-                                    );
-                                    const resolvedFotoSelesai =
-                                      activeComplaint.fotoSelesai ||
-                                      step5Evidences.find((e: any) => !e.file_url?.match(/\.(pdf|doc|docx|mp4|webm|mov)$/i))?.file_url;
-
-                                    return (
-                                      <div
-                                        className="step"
-                                        style={{
-                                          borderLeft: isStep5Completed ? '3px solid #10B981' : isStep5Awaiting ? '3px solid #F59E0B' : '3px solid #CBD5E1',
-                                          paddingLeft: '12px',
-                                          position: 'relative',
-                                        }}
-                                      >
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B' }}>5. Kasus Selesai Ditangani</div>
-                                          <span
-                                            style={{
-                                              fontSize: '10px',
-                                              fontWeight: 700,
-                                              padding: '2px 6px',
-                                              borderRadius: '4px',
-                                              background: isStep5Completed ? '#ECFDF5' : isStep5Awaiting ? '#FEF3C7' : '#F1F5F9',
-                                              color: isStep5Completed ? '#10B981' : isStep5Awaiting ? '#B45309' : '#64748B',
-                                            }}
-                                          >
-                                            {isStep5Completed ? '✓ SELESAI' : isStep5Awaiting ? '⏳ MENUNGGU OTORISASI' : '🔒 TERKUNCI'}
-                                          </span>
-                                        </div>
-                                        <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                                          Penanganan selesai dan berita acara penutupan kasus disahkan resmi oleh Pawas.
-                                        </div>
-
-                                        {isStep5Open ? (
-                                          <div style={{ marginTop: '8px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                              <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#1E293B' }}>
-                                                📅 {isStep5Completed ? 'Disahkan:' : 'Pengajuan BAP:'} {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
-                                              </span>
-                                              {step5Evidences.length > 0 ? (
-                                                <span
-                                                  onClick={() => {
-                                                    const firstMedia = step5Evidences[0];
-                                                    if (firstMedia.file_url?.match(/\.(pdf|doc|docx)$/i)) {
-                                                      window.open(firstMedia.file_url, '_blank');
-                                                    } else {
-                                                      setLightboxImg({
-                                                        url: firstMedia.file_url,
-                                                        title: firstMedia.caption || 'Berkas Bukti Selesai',
-                                                        meta: `${activeComplaint.nomorTiket}`,
-                                                        desc: `Bukti penutupan kasus diajukan personil`,
-                                                      });
-                                                      setShowLightboxModal(true);
-                                                    }
-                                                  }}
-                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                                >
-                                                  📎 {step5Evidences.length} Berkas Bukti Selesai ➔
-                                                </span>
-                                              ) : resolvedFotoSelesai ? (
-                                                <span
-                                                  onClick={() => {
-                                                    setLightboxImg({
-                                                      url: resolvedFotoSelesai,
-                                                      title: 'Foto Situasi Akhir & BAP',
-                                                      meta: activeComplaint.nomorTiket,
-                                                      desc: 'Situasi kondusif dan berita acara penanganan tuntas',
-                                                    });
-                                                    setShowLightboxModal(true);
-                                                  }}
-                                                  style={{ fontSize: '10px', fontWeight: 700, color: '#10B981', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer' }}
-                                                >
-                                                  ✅ Bukti Situasi Akhir ➔
-                                                </span>
-                                              ) : null}
-                                            </div>
-
-                                            {/* Strip Galeri Multi-Media Bukti Penyelesaian */}
-                                            {step5Evidences.length > 0 && (
-                                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
-                                                {step5Evidences.map((ev: any, idx: number) => {
-                                                  const isDoc = ev.file_url?.match(/\.(pdf|doc|docx)$/i);
-                                                  const isVid = ev.file_url?.match(/\.(mp4|webm|mov)$/i);
-
-                                                  if (isDoc) {
-                                                    return (
-                                                      <a
-                                                        key={ev.id || idx}
-                                                        href={ev.file_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        style={{
-                                                          display: 'inline-flex',
-                                                          alignItems: 'center',
-                                                          gap: '5px',
-                                                          padding: '4px 8px',
-                                                          background: '#F5F3FF',
-                                                          border: '1px solid #DDD6FE',
-                                                          borderRadius: '6px',
-                                                          fontSize: '10px',
-                                                          fontWeight: 700,
-                                                          color: '#6D28D9',
-                                                          textDecoration: 'none',
-                                                        }}
-                                                        title="Buka Dokumen Resmi BAP (PDF / DOCX)"
-                                                      >
-                                                        <span>📄</span>
-                                                        <span>{ev.caption || 'Dokumen BAP (PDF)'}</span>
-                                                        <span style={{ fontSize: '9px' }}>↗</span>
-                                                      </a>
-                                                    );
-                                                  }
-
-                                                  if (isVid) {
-                                                    return (
-                                                      <button
-                                                        key={ev.id || idx}
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          setLightboxImg({
-                                                            url: ev.file_url,
-                                                            title: ev.caption || 'Video Mediasi Lapangan',
-                                                            meta: `${activeComplaint.nomorTiket} • Video Mediasi`,
-                                                            desc: `Rekaman video mediasi/kesepakatan musyawarah warga`,
-                                                          });
-                                                          setShowLightboxModal(true);
-                                                        }}
-                                                        style={{
-                                                          display: 'inline-flex',
-                                                          alignItems: 'center',
-                                                          gap: '5px',
-                                                          padding: '4px 8px',
-                                                          background: '#FFFBEB',
-                                                          border: '1px solid #FDE68A',
-                                                          borderRadius: '6px',
-                                                          fontSize: '10px',
-                                                          fontWeight: 700,
-                                                          color: '#B45309',
-                                                          cursor: 'pointer',
-                                                        }}
-                                                        title="Putar Video Mediasi"
-                                                      >
-                                                        <span>🎥</span>
-                                                        <span>{ev.caption || 'Video Mediasi'}</span>
-                                                        <span style={{ fontSize: '9px' }}>▶</span>
-                                                      </button>
-                                                    );
-                                                  }
-
-                                                  return (
-                                                    <div
-                                                      key={ev.id || idx}
-                                                      onClick={() => {
-                                                        setLightboxImg({
-                                                          url: ev.file_url,
-                                                          title: `Bukti Foto Penyelesaian #${idx + 1}`,
-                                                          meta: `${activeComplaint.nomorTiket} • ${ev.watermark_text || 'Terverifikasi GPS'}`,
-                                                          desc: ev.caption || 'Dokumentasi visual situasi kondusif',
-                                                        });
-                                                        setShowLightboxModal(true);
-                                                      }}
-                                                      style={{
-                                                        position: 'relative',
-                                                        width: '42px',
-                                                        height: '42px',
-                                                        borderRadius: '6px',
-                                                        overflow: 'hidden',
-                                                        border: '1.5px solid #10B981',
-                                                        cursor: 'pointer',
-                                                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                                                      }}
-                                                      title={`Foto #${idx + 1}: ${ev.caption || 'Bukti Selesai'} (Klik perbesar)`}
-                                                    >
-                                                      <img
-                                                        src={ev.file_url}
-                                                        alt={`Bukti Selesai ${idx + 1}`}
-                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                      />
-                                                      <span style={{
-                                                        position: 'absolute',
-                                                        bottom: 0,
-                                                        right: 0,
-                                                        background: 'rgba(0,0,0,0.65)',
-                                                        color: 'white',
-                                                        fontSize: '8px',
-                                                        fontWeight: 800,
-                                                        padding: '0 3px',
-                                                        borderTopLeftRadius: '3px',
-                                                      }}>
-                                                        #{idx + 1}
-                                                      </span>
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                            )}
-
-                                            {/* Catatan Laporan Akhir Petugas Lapangan */}
-                                            <div style={{ background: '#ECFDF5', borderLeft: '3px solid #10B981', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857', marginBottom: '2px' }}>✓ LAPORAN AKHIR PETUGAS:</div>
-                                              <div style={{ fontSize: '11px', color: '#1E293B' }}>
-                                                &quot;{activeComplaint.catatanSelesai || (activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan) || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.'}&quot;
-                                              </div>
-                                            </div>
-
-                                            {isStep5Completed ? (
-                                              <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderLeft: '4px solid #16A34A', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#15803D' }}>⚖️ PENGESAHAN RESMI PIMPINAN (PAWAS):</span>
-                                                  <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
-                                                </div>
-                                                <div style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px' }}>
-                                                  <strong>Pengesah:</strong> {activeComplaint.pawas?.namaLengkap || userProfile.fullName} (Pawas) • <strong>Waktu:</strong> {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
-                                                </div>
-                                                <div style={{ fontSize: '11px', color: '#1E293B', fontStyle: 'italic', marginTop: '2px' }}>
-                                                  &quot;{activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}&quot;
-                                                </div>
-                                              </div>
-                                            ) : isStep5Awaiting ? (
-                                              <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderLeft: '4px solid #F59E0B', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
-                                                <div style={{ fontSize: '10px', fontWeight: 800, color: '#B45309' }}>⏳ MENUNGGU OTORISASI PENGESAHAN PAWAS:</div>
-                                                <div style={{ fontSize: '11px', color: '#78350F', marginTop: '2px' }}>
-                                                  Petugas lapangan telah menyelesaikan penanganan dan melampirkan berkas bukti di atas. Silakan lakukan evaluasi dan klik tombol <strong>Otorisasi Pengesahan</strong> di bawah.
-                                                </div>
-                                              </div>
-                                            ) : null}
-                                          </div>
-                                        ) : (
-                                          <div style={{ fontSize: '10.5px', color: '#94A3B8', fontStyle: 'italic', marginTop: '6px' }}>
-                                            Menunggu Otorisasi Penutupan Kasus
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-
-                                {/* ACTION & SLA COCKPIT BOX 1:1 PROTOTYPE */}
-                                <div id="tl-actions-box" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                  {/* Indikator Evaluasi 3 Lapis SLA Presisi */}
-                                  <div style={{ background: '#0F172A', color: '#F8FAFC', borderRadius: '10px', padding: '12px', borderLeft: '4px solid #38BDF8', boxShadow: '0 4px 14px rgba(0,0,0,0.2)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={{ fontSize: '12px' }}>⏱️</span>
-                                        <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#E2E8F0', letterSpacing: '0.4px', textTransform: 'uppercase' }}>
-                                          MONITORING 3 TAHAPAN SLA POLRI
-                                        </span>
-                                      </div>
-                                      <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#38BDF8', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.25)', padding: '1px 7px', borderRadius: '4px' }}>
-                                        STANDAR PRESISI
-                                      </span>
-                                    </div>
-
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                      {/* SLA 1 */}
-                                      {(() => {
-                                        const tCreate = activeComplaint.createdAt ? new Date(activeComplaint.createdAt) : null;
-                                        const tDisp = activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt) : null;
-                                        const mDisp = tCreate && tDisp ? Math.max(1, Math.round((tDisp.getTime() - tCreate.getTime()) / 60000)) : null;
-                                        return (
-                                          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '6px 9px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
-                                              <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#F1F5F9' }}>1. Respon Pawas (Disposisi)</div>
-                                              <div style={{ fontSize: '9.5px', color: '#94A3B8' }}>
-                                                Target &le; 5 Menit ({tCreate ? tCreate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'} ➔ {tDisp ? tDisp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Menunggu'})
-                                              </div>
-                                            </div>
-                                            <span style={{ fontSize: '9.5px', fontWeight: 700, background: mDisp && mDisp <= 5 ? '#065F46' : '#854D0E', color: mDisp && mDisp <= 5 ? '#34D399' : '#FDE68A', padding: '2px 7px', borderRadius: '4px' }}>
-                                              {mDisp !== null ? `✓ Respon Cepat (${mDisp}m)` : '● Menunggu Disposisi'}
-                                            </span>
-                                          </div>
-                                        );
-                                      })()}
-
-                                      {/* SLA 2 */}
-                                      {(() => {
-                                        const tDisp = activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt) : null;
-                                        const tTiba = activeComplaint.responTibaTkpAt ? new Date(activeComplaint.responTibaTkpAt) : null;
-                                        const mTiba = tDisp && tTiba ? Math.max(1, Math.round((tTiba.getTime() - tDisp.getTime()) / 60000)) : null;
-                                        return (
-                                          <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '6px 9px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
-                                              <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#F1F5F9' }}>2. Respon Anggota (Tanggap)</div>
-                                              <div style={{ fontSize: '9.5px', color: '#94A3B8' }}>
-                                                Target &le; 3 Menit ({tDisp ? tDisp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'} ➔ {activeComplaint.status !== 'BELUM_DITANGANI' ? 'Diterima' : 'Menunggu'})
-                                              </div>
-                                            </div>
-                                            <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#065F46', color: '#34D399', padding: '2px 7px', borderRadius: '4px' }}>
-                                              {activeComplaint.status !== 'BELUM_DITANGANI' ? '✓ Tanggap Cepat (2m)' : '● Belum Bergerak'}
-                                            </span>
-                                          </div>
-                                        );
-                                      })()}
-
-                                      {/* SLA 3 */}
-                                      <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #0284C7', borderRadius: '6px', padding: '7px 9px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                          <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#F1F5F9' }}>3. Tempuh ke TKP (Target &le; 10m)</div>
-                                          <span style={{ fontSize: '9px', fontWeight: 700, background: activeComplaint.status === 'MENUJU_TKP' ? '#0C4A6E' : '#065F46', color: activeComplaint.status === 'MENUJU_TKP' ? '#38BDF8' : '#34D399', padding: '2px 6px', borderRadius: '4px' }}>
-                                            {activeComplaint.status === 'MENUJU_TKP' ? '● Sedang Meluncur' : ['PENANGANAN_TKP', 'SELESAI'].includes(activeComplaint.status) ? '● Tepat di TKP' : '● Standby'}
-                                          </span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <div style={{ fontSize: '9.5px', color: '#94A3B8' }}>
-                                            {activeComplaint.status === 'MENUJU_TKP'
-                                              ? `Berangkat: ${activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-'} WIB`
-                                              : activeComplaint.responTibaTkpAt
-                                              ? `Tiba: ${new Date(activeComplaint.responTibaTkpAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`
-                                              : 'Estimasi: ± 4-6 Menit'}
-                                          </div>
-                                          <div style={{ fontFamily: 'inherit', fontSize: '14px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.3px' }}>
-                                            {activeComplaint.status === 'MENUJU_TKP'
-                                              ? formatSlaClock(slaClockSeconds)
-                                              : activeComplaint.responseTimeMinutes
-                                              ? `${activeComplaint.responseTimeMinutes} Menit`
-                                              : '06:00'}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* Disposisi Pasukan oleh Pawas */}
-                                  <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '12px 14px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                      <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B' }}>🚔 DISPOSISI PASUKAN OLEH PAWAS</span>
-                                      <span style={{ fontSize: '10px', fontWeight: 700, background: activeStatMeta.badge_bg, color: activeStatMeta.badge_color, border: `1px solid ${activeStatMeta.badge_border}`, padding: '2px 6px', borderRadius: '4px' }}>
-                                        {activeStatMeta.key === 'SELESAI' ? 'Penanganan Selesai' : activeStatMeta.key === 'MENUNGGU' ? 'Menunggu Penugasan' : activeStatMeta.label}
-                                      </span>
-                                    </div>
-                                    <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.55 }}>
-                                      <div>• <strong>Satuan Bertugas:</strong> {activeComplaint.assignedOfficer?.assignedPatrolVehicle || 'Patroli Samapta Presisi (Unit Roda 4)'}</div>
-                                      <div>• <strong>Pimpinan Regu:</strong> {activeComplaint.assignedOfficer ? `${activeComplaint.assignedOfficer.rankPangkat} ${activeComplaint.assignedOfficer.namaLengkap} (NRP: ${activeComplaint.assignedOfficer.nrp})` : 'Menunggu Disposisi Pawas'}</div>
-                                      <div>• <strong>Posisi Awal Armada:</strong> <span style={{ color: '#475569' }}>{activeComplaint.assignedOfficer?.jabatan || 'Polres Metro Jaksel / Posko Presisi'}</span></div>
-                                      <div>• <strong>Waktu Disposisi:</strong> {activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Dalam Antrean'}</div>
-                                      <div style={{ marginTop: '4px', background: 'white', borderLeft: '3px solid #3B82F6', padding: '6px 8px', borderRadius: '0 6px 6px 0', fontSize: '11.5px', fontStyle: 'italic' }}>
-                                        "{activeComplaint.timelines?.find((t: any) => t.tahapKe === 2 || t.tahapKe === 1)?.catatan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan perlindungan warga dan amankan barang bukti.'}"
-                                      </div>
-                                      <div style={{ marginTop: '4px', background: '#EFF6FF', borderLeft: '3px solid #0284C7', padding: '6px 8px', borderRadius: '0 6px 6px 0', fontSize: '11.5px', color: '#0369A1' }}>
-                                        <strong>🚔 Back-Up Siaga:</strong> {fleetUnits.find(u => u.nrp !== activeComplaint.assignedOfficer?.nrp)?.title || 'Unit Perintis Presisi R-2'} standby radius terdekat
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                  {/* EKSEKUSI OPERASIONAL 1:1 PROTOTYPE (Disposisi Unit Cadangan / Backup) */}
-                                  {['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(activeStatMeta.key) && (
-                                    <>
-                                      {/* Tombol Kerahkan Unit Cadangan / Back-Up */}
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          bukaModalDisposisi(activeComplaint);
-                                        }}
-                                        style={{
-                                          width: '100%',
-                                          padding: '11px 12px',
-                                          background: '#0284C7',
-                                          color: 'white',
-                                          border: 'none',
-                                          borderRadius: '8px',
-                                          fontSize: '12px',
-                                          fontWeight: 700,
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          gap: '6px',
-                                        }}
-                                      >
-                                        <span>🚔</span> Kerahkan Unit Cadangan / Back-Up Tambahan
-                                      </button>
-                                    </>
-                                  )}
-
-                                  {/* Tombol Sahkan & Tutup Kasus (Pawas) */}
-                                  {(activeStatMeta.key === 'MENUNGGU_PENGESAHAN' || activeComplaint.status === 'PENANGANAN_TKP') && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSahkanPenutupanKasus(activeComplaint)}
-                                      style={{
-                                        width: '100%',
-                                        padding: '13px',
-                                        background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '8px',
-                                        fontSize: '13px',
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '6px',
-                                        boxShadow: '0 3px 10px rgba(16,185,129,0.35)',
-                                      }}
-                                    >
-                                      <span>✍️</span> Sahkan &amp; Tutup Kasus ➔
-                                    </button>
-                                  )}
-
-                                  {/* Penilaian Warga (Hanya muncul jika warga telah memberikan ulasan) */}
-                                  {activeComplaint.status === 'SELESAI' && (
-                                    activeComplaint.citizenRating ? (
-                                      <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: '8px', padding: '12px', boxShadow: '0 2px 6px rgba(245,158,11,0.08)' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                            ⭐ Penilaian Warga (Portal 110)
-                                          </span>
-                                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
-                                            {'★'.repeat(activeComplaint.citizenRating)}{'☆'.repeat(5 - activeComplaint.citizenRating)} ({activeComplaint.citizenRating}/5)
-                                          </span>
-                                        </div>
-                                        {activeComplaint.citizenTags && (
-                                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', margin: '6px 0' }}>
-                                            {activeComplaint.citizenTags.split(',').map((t: string) => t.trim()).filter(Boolean).map((t: string) => (
-                                              <span key={t} style={{ fontSize: '10px', background: '#FEF3C7', color: '#92400E', padding: '2px 7px', borderRadius: '10px', fontWeight: 600 }}>
-                                                {t}
-                                              </span>
-                                            ))}
-                                          </div>
-                                        )}
-                                        {activeComplaint.citizenReview && (
-                                          <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#78350F', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px dashed #FCD34D', marginTop: '4px' }}>
-                                            &quot;{activeComplaint.citizenReview}&quot;
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '8px', padding: '10px 12px' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                          <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                            ⭐ Penilaian Warga (Portal 110)
-                                          </span>
-                                          <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#F1F5F9', color: '#64748B', padding: '1px 6px', borderRadius: '4px' }}>
-                                            MENUNGGU ULASAN
-                                          </span>
-                                        </div>
-                                        <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px', fontStyle: 'italic' }}>
-                                          Kasus telah tuntas disahkan. Warga pelapor belum memberikan penilaian &amp; ulasan di Portal 110.
-                                        </div>
-                                      </div>
-                                    )
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-                      Pilih kartu laporan di sebelah kiri untuk melihat rincian kasus.
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 5: KINERJA OPERASIONAL (view-laporan)             */}
-          {/* ======================================================== */}
-          {activeTab === 'view-laporan' && (
-            <section id="view-laporan" className="view active" style={{ paddingBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '16px 20px 0', marginBottom: '12px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2 className="page-title" style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#153E75' }}>
-                      Laporan Kinerja Operasional
-                    </h2>
-                    <span style={{ fontSize: '10px', fontWeight: 800, background: '#FEF3C7', color: '#B45309', padding: '2px 8px', borderRadius: '12px', border: '1px solid #FCD34D' }}>
-                      PIKET 1X24 JAM
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '3px' }}>
-                    Posko Pengendalian • <strong>{userProfile.fullName} (NRP: {userProfile.nrp})</strong>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowCetakModal(true)}
-                  style={{ padding: '8px 14px', background: '#153E75', color: 'white', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span>🖨️</span> Cetak Berkas PDF
-                </button>
-              </div>
-
-              {/* Periode Tabs & Date Picker */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 20px 14px' }}>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setKinerjaPeriod('harian')}
-                    style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #CBD5E1', background: kinerjaPeriod === 'harian' ? '#153E75' : 'white', color: kinerjaPeriod === 'harian' ? 'white' : '#475569', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Harian (1x24 Jam)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setKinerjaPeriod('mingguan')}
-                    style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #CBD5E1', background: kinerjaPeriod === 'mingguan' ? '#153E75' : 'white', color: kinerjaPeriod === 'mingguan' ? 'white' : '#475569', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Mingguan (7 Hari)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setKinerjaPeriod('bulanan')}
-                    style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #CBD5E1', background: kinerjaPeriod === 'bulanan' ? '#153E75' : 'white', color: kinerjaPeriod === 'bulanan' ? 'white' : '#475569', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Bulanan
-                  </button>
-                </div>
-                <input
-                  type="date"
-                  value={kinerjaDate}
-                  onChange={(e) => setKinerjaDate(e.target.value)}
-                  style={{ padding: '6px 10px', fontSize: '12px', border: '1px solid #CBD5E1', borderRadius: '6px', fontWeight: 700, color: '#153E75' }}
-                />
-              </div>
-
-              {/* 2 Donut Progress Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '0 20px 14px' }}>
-                {(() => {
-                  const samaptaTotal = allRecentComplaints.filter(c => c.assignedOfficer?.assignedPatrolVehicle?.toLowerCase().includes('samapta') || c.assignedOfficer?.jabatan?.toLowerCase().includes('samapta')).length;
-                  const perintisTotal = allRecentComplaints.filter(c => c.assignedOfficer?.assignedPatrolVehicle?.toLowerCase().includes('raimas') || c.assignedOfficer?.assignedPatrolVehicle?.toLowerCase().includes('perintis') || c.assignedOfficer?.assignedPatrolVehicle?.toLowerCase().includes('trail')).length;
-                  const lantasTotal = allRecentComplaints.filter(c => c.assignedOfficer?.assignedPatrolVehicle?.toLowerCase().includes('lantas') || c.assignedOfficer?.assignedPatrolVehicle?.toLowerCase().includes('turjawali')).length;
-                  const grandTotal = Math.max(1, samaptaTotal + perintisTotal + lantasTotal);
-
-                  return (
-                    <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
-                      <div style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B', marginBottom: '8px' }}>
-                        Beban Satuan Reaksi Cepat
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Samapta R-4</span>
-                          <strong>{samaptaTotal} Penugasan ({Math.round((samaptaTotal / grandTotal) * 100)}%)</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Perintis R-2</span>
-                          <strong>{perintisTotal} Penugasan ({Math.round((perintisTotal / grandTotal) * 100)}%)</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Turjawali Lantas</span>
-                          <strong>{lantasTotal} Penugasan ({Math.round((lantasTotal / grandTotal) * 100)}%)</strong>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B', marginBottom: '8px' }}>
-                    Waktu Tanggap Respon Patroli (&lt; 10m)
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ fontSize: '24px', fontWeight: 900, color: '#16A34A' }}>{onTimeRate}%</div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>
-                      {onTimeCount} dari {completedWithTime.length || totalLaporan} insiden tertangani dalam batas standar target Mabes Polri.
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ringkasan Indikator Utama */}
-              <div style={{ margin: '0 20px 14px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '10px' }}>
-                  Indikator Utama Akuntabilitas Tugas (1x24 Jam)
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-                  <div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Waktu Respon Rata-rata Tiba TKP</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#16A34A' }}>{avgResponseTime} Menit ({onTimeRate}%)</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Total Laporan Masuk</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#153E75' }}>{totalLaporan} Laporan</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Armada Patroli Tergelar</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#D97706' }}>{fleetUnits.length} Unit Siaga ({registeredUnits.length} Pers)</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '11px', color: '#64748B' }}>Indeks Kepuasan Warga</div>
-                    <div style={{ fontSize: '14px', fontWeight: 800, color: '#10B981' }}>⭐ {satisfactionRating} / 5.0 ({satisfactionPercent}% Puas)</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ======================================================== */}
-              {/* LEADERBOARD & PERINGKAT KINERJA PERSONEL PIKET          */}
-              {/* ======================================================== */}
-              <div style={{ margin: '0 20px 14px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px', borderBottom: '1px solid #F1F5F9', paddingBottom: '12px' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '18px' }}>🏅</span>
-                      <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#153E75' }}>
-                        Peringkat &amp; Evaluasi Kinerja Personel Piket (Leaderboard)
-                      </h3>
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                      Akuntabilitas penanganan aduan masyarakat 110 &amp; indeks kepuasan kinerja per-personel.
-                    </div>
-                  </div>
-
-                  {/* Filter Sub-tab Toggle */}
-                  <div style={{ display: 'flex', background: '#F1F5F9', padding: '3px', borderRadius: '8px', gap: '4px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setRankingCategoryTab('produktivitas')}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        background: rankingCategoryTab === 'produktivitas' ? '#153E75' : 'transparent',
-                        color: rankingCategoryTab === 'produktivitas' ? 'white' : '#64748B',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <span>🚀</span>
-                      <span>Produktivitas Tiket</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRankingCategoryTab('kepuasan')}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        border: 'none',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        background: rankingCategoryTab === 'kepuasan' ? '#153E75' : 'transparent',
-                        color: rankingCategoryTab === 'kepuasan' ? 'white' : '#64748B',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <span>⭐</span>
-                      <span>Kepuasan Masyarakat (IKM)</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Content: Podium Top 3 & Table */}
-                {(() => {
-                  const currentList = rankingCategoryTab === 'produktivitas'
-                    ? (officerRankings?.productivityRanking || [])
-                    : (officerRankings?.satisfactionRanking || []);
-
-                  if (currentList.length === 0) {
-                    return (
-                      <div style={{ padding: '30px 10px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-                        <div style={{ fontSize: '28px', marginBottom: '8px' }}>📋</div>
-                        <strong>Belum Ada Data Penugasan Personel</strong>
-                        <div style={{ marginTop: '4px' }}>Data peringkat akan terisi secara otomatis setelah personel menerima dan merespons tiket aduan warga.</div>
-                      </div>
-                    );
-                  }
-
-                  const topThree = currentList.slice(0, 3);
-                  const medals = ['🥇', '🥈', '🥉'];
-                  const borderGradients = [
-                    'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-                    'linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%)',
-                    'linear-gradient(135deg, #FFEDD5 0%, #FED7AA 100%)',
-                  ];
-                  const borderColors = ['#F59E0B', '#94A3B8', '#EA580C'];
-
-                  return (
-                    <div>
-                      {/* Top 3 Podium Cards */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '16px' }}>
-                        {topThree.map((item, idx) => (
-                          <div
-                            key={item.officerId}
-                            style={{
-                              background: borderGradients[idx] || '#F8FAFC',
-                              border: `1.5px solid ${borderColors[idx] || '#CBD5E1'}`,
-                              borderRadius: '10px',
-                              padding: '12px 14px',
-                              position: 'relative',
-                              overflow: 'hidden',
-                              boxShadow: idx === 0 ? '0 4px 12px rgba(245, 158, 11, 0.15)' : 'none',
-                            }}
-                          >
-                            <div style={{ position: 'absolute', right: '10px', top: '8px', fontSize: '24px' }}>
-                              {medals[idx]}
-                            </div>
-                            <div style={{ fontSize: '10px', fontWeight: 800, color: borderColors[idx], textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              Peringkat {idx + 1} • {rankingCategoryTab === 'produktivitas' ? 'Terbanyak Selesai' : 'Rating Tertinggi'}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
-                              <div
-                                style={{
-                                  width: '40px',
-                                  height: '40px',
-                                  borderRadius: '50%',
-                                  background: '#153E75',
-                                  color: 'white',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontWeight: 800,
-                                  fontSize: '13px',
-                                  flexShrink: 0,
-                                  border: `2px solid ${borderColors[idx]}`,
-                                }}
-                              >
-                                {item.namaLengkap.slice(0, 2).toUpperCase()}
-                              </div>
-                              <div style={{ minWidth: 0, flex: 1 }}>
-                                <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                  {item.pangkat} {item.namaLengkap}
-                                </div>
-                                <div style={{ fontSize: '10.5px', color: '#64748B' }}>
-                                  NRP {item.nrp} • {item.unit}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Metrics Highlight */}
-                            <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              {rankingCategoryTab === 'produktivitas' ? (
-                                <>
-                                  <div>
-                                    <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Selesai / Masuk</div>
-                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#15803D' }}>
-                                      {item.totalSelesai} / {item.totalDiterima} ({item.completionRate}%)
-                                    </div>
-                                  </div>
-                                  <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '10px', color: '#64748B' }}>Respon Rata-rata</div>
-                                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#153E75' }}>
-                                      ± {item.avgResponseTimeMinutes != null && item.avgResponseTimeMinutes > 0 ? `${item.avgResponseTimeMinutes} m` : '-'}
-                                    </div>
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div>
-                                    <div style={{ fontSize: '10px', color: '#64748B' }}>Rating Kepuasan (IKM)</div>
-                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                      ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'} <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 500 }}>({item.totalReviews} ulasan)</span>
-                                    </div>
-                                  </div>
-                                  <div style={{ textAlign: 'right' }}>
-                                    <span style={{ background: item.predikatColor, color: 'white', fontSize: '9.5px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px' }}>
-                                      {item.predikat}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Detail Table */}
-                      <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '8px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
-                          <thead>
-                            <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700 }}>
-                              <th style={{ padding: '8px 10px', width: '45px', textAlign: 'center' }}>Pos</th>
-                              <th style={{ padding: '8px 10px' }}>Personel &amp; NRP</th>
-                              <th style={{ padding: '8px 10px' }}>Satuan / Armada</th>
-                              <th style={{ padding: '8px 10px' }}>Tiket Diterima</th>
-                              <th style={{ padding: '8px 10px' }}>Selesai (Rate %)</th>
-                              <th style={{ padding: '8px 10px' }}>Waktu Respon</th>
-                              <th style={{ padding: '8px 10px' }}>Indeks Kepuasan (IKM)</th>
-                              <th style={{ padding: '8px 10px' }}>Predikat &amp; Evaluasi</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {currentList.map((item, idx) => (
-                              <tr
-                                key={item.officerId}
-                                style={{
-                                  borderBottom: '1px solid #F1F5F9',
-                                  background: idx === 0 ? '#FFFBEB' : idx % 2 === 1 ? '#FAFAFA' : 'white',
-                                }}
-                              >
-                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800 }}>
-                                  {idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `${idx + 1}`}
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <div style={{ fontWeight: 700, color: '#1E293B' }}>
-                                    {item.pangkat} {item.namaLengkap}
-                                  </div>
-                                  <div style={{ fontSize: '10px', color: '#64748B' }}>NRP: {item.nrp}</div>
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <div style={{ fontWeight: 600 }}>{item.unit}</div>
-                                  <div style={{ fontSize: '10px', color: '#64748B' }}>{item.assignedPatrolVehicle}</div>
-                                </td>
-                                <td style={{ padding: '8px 10px', fontWeight: 700, color: '#153E75' }}>
-                                  {item.totalDiterima} Tiket
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <div style={{ fontWeight: 700, color: item.completionRate >= 80 ? '#15803D' : '#D97706' }}>
-                                    {item.totalSelesai} Tiket ({item.completionRate}%)
-                                  </div>
-                                  <div style={{ width: '100%', height: '4px', background: '#E2E8F0', borderRadius: '2px', marginTop: '3px', overflow: 'hidden' }}>
-                                    <div
-                                      style={{
-                                        width: `${Math.min(item.completionRate, 100)}%`,
-                                        height: '100%',
-                                        background: item.completionRate >= 80 ? '#16A34A' : '#F59E0B',
-                                      }}
-                                    />
-                                  </div>
-                                </td>
-                                <td style={{ padding: '8px 10px', fontWeight: 600, color: '#1E293B' }}>
-                                  {item.avgResponseTimeMinutes != null && item.avgResponseTimeMinutes > 0 ? `± ${item.avgResponseTimeMinutes} Menit` : '-'}
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                    ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'} / 5.0
-                                  </div>
-                                  <div style={{ fontSize: '10px', color: '#64748B' }}>
-                                    {item.totalReviews > 0 ? `${item.totalReviews} ulasan warga` : 'Belum ada ulasan'}
-                                  </div>
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <span
-                                    style={{
-                                      background: item.predikatColor,
-                                      color: 'white',
-                                      padding: '2px 8px',
-                                      borderRadius: '4px',
-                                      fontSize: '10px',
-                                      fontWeight: 700,
-                                      display: 'inline-block',
-                                    }}
-                                  >
-                                    {item.predikat}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Kejadian Menonjol Selama Piket 1x24 Jam Table */}
-              <div style={{ margin: '0 20px 14px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B', marginBottom: '10px' }}>
-                  Kejadian Menonjol Selama Piket 1x24 Jam
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
-                    <thead>
-                      <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700 }}>
-                        <th style={{ padding: '6px 8px' }}>No. Tiket</th>
-                        <th style={{ padding: '6px 8px' }}>Waktu</th>
-                        <th style={{ padding: '6px 8px' }}>Kejadian &amp; TKP</th>
-                        <th style={{ padding: '6px 8px' }}>Satuan</th>
-                        <th style={{ padding: '6px 8px' }}>Respon</th>
-                        <th style={{ padding: '6px 8px' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allRecentComplaints.slice(0, 5).map((inc) => (
-                        <tr key={inc.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 700 }}>{inc.nomorTiket}</td>
-                          <td style={{ padding: '8px' }}>
-                            {inc.createdAt ? new Date(inc.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
-                          </td>
-                          <td style={{ padding: '8px' }}><strong>{inc.jenisKejadian}</strong> - {inc.tkpAlamatTeks}</td>
-                          <td style={{ padding: '8px' }}>
-                            {inc.assignedOfficer?.assignedPatrolVehicle || (inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat} ${inc.assignedOfficer.namaLengkap}` : '-')}
-                          </td>
-                          <td style={{ padding: '8px', color: '#16A34A', fontWeight: 700 }}>
-                            {inc.responseTimeMinutes ? `± ${inc.responseTimeMinutes} Menit` : '-'}
-                          </td>
-                          <td style={{ padding: '8px' }}>
-                            <span style={{
-                              background: inc.status === 'SELESAI' ? '#DCFCE7' : inc.status === 'MENUJU_TKP' ? '#DBEAFE' : inc.status === 'PENANGANAN_TKP' ? '#EDE9FE' : '#FEF3C7',
-                              color: inc.status === 'SELESAI' ? '#15803D' : inc.status === 'MENUJU_TKP' ? '#1D4ED8' : inc.status === 'PENANGANAN_TKP' ? '#6D28D9' : '#B45309',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '10px',
-                              fontWeight: 700
-                            }}>
-                              {inc.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Bottom Action Button */}
-              <div style={{ padding: '0 20px 24px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCetakModal(true)}
-                  style={{ width: '100%', padding: '12px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer' }}
-                >
-                  🖨️ Cetak / Ekspor Laporan Akhir Tugas Pawas (PDF)
-                </button>
-              </div>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 6: PROFIL PETUGAS PAWAS (view-profil)            */}
-          {/* ======================================================== */}
-          {activeTab === 'view-profil' && (
-            <section id="view-profil" className="view active" style={{ paddingBottom: '95px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #E2E8F0', background: 'white' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2 className="page-title" style={{ margin: 0, fontSize: '18px' }}>Profil Petugas</h2>
-                    <span style={{ background: '#EFF6FF', color: '#1D4ED8', fontSize: '11px', fontWeight: 800, padding: '3px 10px', borderRadius: '12px', border: '1px solid #DBEAFE' }}>
-                      PAWAS
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                    Sentra Pelayanan Kepolisian Terpadu (SPKT) • SIMOPMAS 110
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ margin: '20px auto', padding: '0 16px' }}>
-                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', justifyContent: 'center', flexWrap: 'wrap' }}>
-
-                  {/* Kolom Kiri: Kartu Identitas, Presensi, Pengaturan */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: '1 1 360px', maxWidth: '420px' }}>
-
-                    {/* Kartu Identitas Petugas */}
-                    <div
-                      style={{
-                        background: 'linear-gradient(135deg, #0F2D56 0%, #153E75 60%, #1E3A8A 100%)',
-                        borderRadius: '16px',
-                        padding: '20px',
-                        color: 'white',
-                        boxShadow: '0 12px 24px -4px rgba(21,62,117,0.3)',
-                        position: 'relative',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.15)', paddingBottom: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '16px' }}>🛡️</span>
-                          <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.8px', color: '#FDE68A' }}>
-                            POLRES METRO JAKARTA SELATAN
-                          </span>
-                        </div>
-                        <span style={{ fontSize: '9.5px', fontWeight: 800, background: 'rgba(16,185,129,0.25)', color: '#6EE7B7', border: '1px solid rgba(110,231,183,0.3)', padding: '2px 8px', borderRadius: '12px' }}>
-                          {presensiStatus === 'SUDAH_MASUK' ? 'SIAGA PIKET AKTIF' : 'BELUM MASUK DINAS'}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '14px', alignItems: 'center', marginBottom: '16px' }}>
-                        <img
-                          src={userProfile.avatar}
-                          alt="Avatar"
-                          style={{ width: '76px', height: '76px', borderRadius: '12px', objectFit: 'cover', border: '2.5px solid #FBBF24' }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#93C5FD', textTransform: 'uppercase' }}>
-                            {userProfile.pangkat || 'KOMISARIS BESAR POLISI'}
-                          </div>
-                          <h3 style={{ fontSize: '16px', color: 'white', fontWeight: 800, margin: '2px 0 3px' }}>
-                            {userProfile.fullName}
-                          </h3>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#FDE68A', fontFamily: 'monospace' }}>
-                            NRP: {userProfile.nrp}
-                          </div>
-                          <div style={{ fontSize: '10.5px', color: '#E2E8F0', marginTop: '3px' }}>
-                            Perwira Pengawas (PAWAS) • Posko Pengendalian
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.25)', padding: '10px', borderRadius: '10px', textAlign: 'center' }}>
-                        <div>
-                          <div style={{ fontSize: '9.5px', color: '#94A3B8' }}>Total Laporan</div>
-                          <div style={{ fontSize: '15px', fontWeight: 900, color: '#FBBF24' }}>{totalLaporan}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '9.5px', color: '#94A3B8' }}>Respon Cepat</div>
-                          <div style={{ fontSize: '15px', fontWeight: 900, color: '#34D399' }}>96.4%</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '9.5px', color: '#94A3B8' }}>Laporan Selesai</div>
-                          <div style={{ fontSize: '15px', fontWeight: 900, color: '#60A5FA' }}>{selesaiCount}</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Kartu Presensi Petugas */}
-                    <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '18px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '18px' }}>⏱️</span>
-                          <div>
-                            <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: '#1E293B' }}>Presensi Piket</h4>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>Pencatatan Kehadiran Tugas Piket</div>
-                          </div>
-                        </div>
-                        <span style={{ fontSize: '12px', fontWeight: 800, color: '#153E75', fontFamily: 'monospace', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px', border: '1px solid #DBEAFE' }}>
-                          {liveClock}
-                        </span>
-                      </div>
-
-                      <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '11.5px' }}>
-                          <span style={{ color: '#64748B' }}>Status Kehadiran:</span>
-                          <span style={{ fontWeight: 800, color: presensiStatus === 'SUDAH_MASUK' ? '#15803D' : '#B45309', background: presensiStatus === 'SUDAH_MASUK' ? '#DCFCE7' : '#FEF3C7', padding: '2px 8px', borderRadius: '6px' }}>
-                            {presensiStatus === 'SUDAH_MASUK' ? '● Dinas Aktif' : '○ Belum Masuk Dinas'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
-                          <span style={{ color: '#64748B' }}>Jam Masuk Piket:</span>
-                          <span style={{ fontWeight: 700, color: '#1E293B' }}>{jamMasukPiket}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
-                          <span style={{ color: '#64748B' }}>Jam Pulang / Lepas:</span>
-                          <span style={{ fontWeight: 700, color: '#64748B' }}>{jamPulangPiket}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', borderTop: '1px dashed #E2E8F0', paddingTop: '6px', marginTop: '6px' }}>
-                          <span style={{ color: '#64748B' }}>Radius Mako:</span>
-                          <span style={{ fontWeight: 700, color: '#153E75' }}>📍 Area Mako Polres (Radius 50m)</span>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px' }}>
-                        <button
-                          type="button"
-                          onClick={handlePresensiMasuk}
-                          disabled={presensiStatus === 'SUDAH_MASUK'}
-                          style={{
-                            flex: 1,
-                            padding: '11px 12px',
-                            background: presensiStatus === 'SUDAH_MASUK' ? '#E2E8F0' : '#10B981',
-                            color: presensiStatus === 'SUDAH_MASUK' ? '#94A3B8' : 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: 800,
-                            fontSize: '12.5px',
-                            cursor: presensiStatus === 'SUDAH_MASUK' ? 'default' : 'pointer',
-                          }}
-                        >
-                          <span>✅</span> Presensi Masuk
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handlePresensiPulang}
-                          disabled={presensiStatus !== 'SUDAH_MASUK'}
-                          style={{
-                            flex: 1,
-                            padding: '11px 12px',
-                            background: presensiStatus !== 'SUDAH_MASUK' ? '#E2E8F0' : '#EF4444',
-                            color: presensiStatus !== 'SUDAH_MASUK' ? '#94A3B8' : 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontWeight: 800,
-                            fontSize: '12.5px',
-                            cursor: presensiStatus !== 'SUDAH_MASUK' ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          <span>🚪</span> Presensi Pulang
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Pengaturan Akun */}
-                    <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '6px 14px' }}>
-                      <div style={{ padding: '10px 6px 6px', fontSize: '12px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase' }}>
-                        Pengaturan Akun Petugas
-                      </div>
-                      <div
-                        onClick={() => setShowKeamananModal(true)}
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 6px', borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span>🔒</span>
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>Keamanan Akun &amp; PIN Komando</div>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>Ganti kata sandi login &amp; otorisasi PIN dinas</div>
-                          </div>
-                        </div>
-                        <span style={{ color: '#94A3B8' }}>➔</span>
-                      </div>
-
-                      <div
-                        onClick={async () => {
-                          if (typeof window !== 'undefined') {
-                            sessionStorage.removeItem('simapres_active_user');
-                          }
-                          await logoutAction();
-                          window.location.href = '/?alert=logged_out';
-                        }}
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 6px', cursor: 'pointer' }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span>🚪</span>
-                          <div>
-                            <div style={{ fontSize: '13px', fontWeight: 800, color: '#DC2626' }}>Logout / Keluar Sesi Dinas</div>
-                            <div style={{ fontSize: '11px', color: '#F87171' }}>Akhiri sesi dan kembali ke portal masuk</div>
-                          </div>
-                        </div>
-                        <span style={{ color: '#DC2626' }}>➔</span>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Kolom Kanan: Riwayat Log Lengkap */}
-                  <div style={{ flex: '1 1 450px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '18px' }}>📋</span>
-                          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#1E293B' }}>Riwayat Log Lengkap</h3>
-                          <span style={{ background: '#EFF6FF', color: '#153E75', fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '10px', border: '1px solid #DBEAFE' }}>
-                            {allRecentComplaints.length} Laporan
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
-                          Rekam jejak seluruh penanganan laporan oleh jajaran posko
-                        </div>
-                      </div>
-
-                      <input
-                        type="text"
-                        placeholder="Cari tiket, kasus, TKP..."
-                        value={profilLogSearch}
-                        onChange={(e) => setProfilLogSearch(e.target.value)}
-                        style={{ fontSize: '11.5px', padding: '6px 10px', border: '1px solid #CBD5E1', borderRadius: '6px' }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', borderBottom: '1px solid #F1F5F9', paddingBottom: '10px', flexWrap: 'wrap' }}>
-                      {['semua', 'menunggu', 'diproses', 'selesai'].map((st) => (
-                        <button
-                          key={st}
-                          type="button"
-                          onClick={() => setProfilLogFilter(st)}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            borderRadius: '6px',
-                            border: profilLogFilter === st ? '1px solid #BFDBFE' : '1px solid #E2E8F0',
-                            background: profilLogFilter === st ? '#EFF6FF' : '#F8FAFC',
-                            color: profilLogFilter === st ? '#153E75' : '#64748B',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {st.toUpperCase()}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '500px', overflowY: 'auto' }}>
-                      {allRecentComplaints
-                        .filter((c) => {
-                          if (profilLogFilter === 'menunggu' && c.status !== 'BELUM_DITANGANI') return false;
-                          if (profilLogFilter === 'diproses' && !['DISPOSISI', 'MENUJU_TKP', 'PENANGANAN_TKP'].includes(c.status)) return false;
-                          if (profilLogFilter === 'selesai' && c.status !== 'SELESAI') return false;
-                          if (profilLogSearch && !c.jenisKejadian?.toLowerCase().includes(profilLogSearch.toLowerCase()) && !c.nomorTiket?.toLowerCase().includes(profilLogSearch.toLowerCase())) {
-                            return false;
-                          }
-                          return true;
-                        })
-                        .map((c) => (
-                          <div
-                            key={c.id}
-                            style={{ padding: '10px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC' }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
-                              <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '11.5px', color: '#153E75' }}>
-                                {c.nomorTiket}
-                              </span>
-                              <span style={{ fontSize: '10px', fontWeight: 800, color: c.status === 'SELESAI' ? '#16A34A' : '#D97706' }}>
-                                {c.status}
-                              </span>
-                            </div>
-                            <div style={{ fontWeight: 700, fontSize: '12.5px', color: '#1E293B' }}>
-                              {c.jenisKejadian}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#64748B' }}>📍 {c.tkpAlamatTeks}</div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 7: OPERATOR CAD & SENTRA 110 (view-operator)      */}
-          {/* ======================================================== */}
-          {activeTab === 'view-operator' && (
-            <section id="view-operator" className="view active" style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div
-                  onClick={() => switchTab('view-beranda')}
-                  style={{ fontSize: '13px', fontWeight: 700, color: '#153E75', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span>←</span> Kembali ke Beranda
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                <div>
-                  <h2 className="page-title" style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>
-                    Konsol Pengaduan &amp; Disposisi Terpadu
-                  </h2>
-                  <div style={{ color: '#64748B', fontSize: '12px' }}>
-                    Perekaman Laporan Masyarakat Masuk &amp; Penugasan Unit Patroli
-                  </div>
-                </div>
-                <span style={{ fontSize: '11.5px', fontWeight: 800, background: '#EFF6FF', color: '#1D4ED8', padding: '5px 12px', borderRadius: '8px', border: '1px solid #BFDBFE' }}>
-                  👑 Akses Penuh: Input Laporan &amp; Disposisi Unit
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                {/* Kolom Kiri: Panggilan Masuk & Form */}
-                <div style={{ flex: '1 1 500px' }}>
-
-                 
-
-                  {/* Formulir Penerimaan Laporan */}
-                  <div id="cad-form-container" style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>📝 Formulir Penerimaan Laporan</span>
-                      <span style={{ fontSize: '11px', color: '#64748B' }}>Petugas: <strong>{userProfile.fullName}</strong></span>
-                    </div>
-
-                    {/* Ringkasan Kesalahan Validasi CAD (jika ada) */}
-                    {Object.keys(cadFormErrors).length > 0 && (
-                      <div
-                        style={{
-                          background: '#FEF2F2',
-                          border: '1px solid #FECACA',
-                          borderRadius: '8px',
-                          padding: '10px 14px',
-                          marginBottom: '14px',
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '10px',
-                          boxShadow: '0 2px 6px rgba(239, 68, 68, 0.08)',
-                        }}
-                      >
-                        <span style={{ fontSize: '16px', lineHeight: 1 }}>⚠️</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#991B1B' }}>
-                            Mohon lengkapi {Object.keys(cadFormErrors).length} kolom wajib berikut:
-                          </div>
-                          <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '11.5px', color: '#B91C1C', lineHeight: 1.5 }}>
-                            {Object.values(cadFormErrors).map((msg, i) => (
-                              <li key={i}>{msg}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Input Nomor Tiket Resmi (Format Baku Wallboard 110: #TICKET-0018xxxxxx) */}
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0, fontWeight: 700, color: '#153E75', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <span>🎫 Nomor Tiket (Opsional / Wallboard 110)</span>
-                        </label>
-                        <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600 }}>Format Baku: #TICKET-0018xxxxxx</span>
-                      </div>
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={simCaller.nomorTiket || ''}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            setSimCaller({ ...simCaller, nomorTiket: val });
-                          }}
-                          placeholder="Contoh: #TICKET-0018396186 (Kosongkan jika ingin auto-generate)"
-                          style={{
-                            border: '1px solid #CBD5E1',
-                            background: simCaller.nomorTiket ? '#F0FDF4' : 'white',
-                            color: simCaller.nomorTiket ? '#166534' : '#1E293B',
-                            fontWeight: simCaller.nomorTiket ? 700 : 400,
-                            fontFamily: 'monospace',
-                            fontSize: '12px',
-                            paddingLeft: '32px',
-                            letterSpacing: '0.5px',
-                          }}
-                        />
-                        <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px' }}>
-                          🎫
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '4px', lineHeight: 1.4 }}>
-                        ℹ️ Jika nomor tiket sudah ada dari sistem Call Center 110 / Wallboard Polri, cantumkan di sini agar nomor tidak digenerate ulang.
-                      </div>
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
-                          Nomor Telepon Penelepon (Pelapor) <span style={{ color: 'red' }}>*</span>
-                        </label>
-                        <span style={{ fontSize: '10px', color: '#64748B' }}>Format: 08xx / +62xx (9–14 digit)</span>
-                      </div>
-                      <input
-                        type="tel"
-                        className="form-control"
-                        value={simCaller.telepon}
-                        onChange={(e) => {
-                          const val = e.target.value.replace(/[^\d+-\s]/g, '');
-                          setSimCaller({ ...simCaller, telepon: val });
-                          if (cadFormErrors.telepon) {
-                            setCadFormErrors((prev) => {
-                              const next = { ...prev };
-                              delete next.telepon;
-                              return next;
-                            });
-                          }
-                        }}
-                        placeholder="Contoh: 08123456789"
-                        style={{
-                          border: cadFormErrors.telepon ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
-                          background: cadFormErrors.telepon ? '#FEF2F2' : 'white',
-                          transition: 'all 0.15s ease',
-                        }}
-                      />
-                      {cadFormErrors.telepon && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <span>⚠️</span> {cadFormErrors.telepon}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Nama Warga Pelapor <span style={{ color: 'red' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={simCaller.nama}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSimCaller({ ...simCaller, nama: val });
-                          if (cadFormErrors.nama) {
-                            setCadFormErrors((prev) => {
-                              const next = { ...prev };
-                              delete next.nama;
-                              return next;
-                            });
-                          }
-                        }}
-                        placeholder="Contoh: Bpk. Budi Santoso"
-                        style={{
-                          border: cadFormErrors.nama ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
-                          background: cadFormErrors.nama ? '#FEF2F2' : 'white',
-                          transition: 'all 0.15s ease',
-                        }}
-                      />
-                      {cadFormErrors.nama && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <span>⚠️</span> {cadFormErrors.nama}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Kategori Laporan Kejadian <span style={{ color: 'red' }}>*</span>
-                      </label>
-                      <div style={{ border: cadFormErrors.kategori ? '1.5px solid #EF4444' : 'none', borderRadius: '8px' }}>
-                        <Select2CategoryDropdown
-                          subcategories={dbSubcategories}
-                          selectedId={simCaller.subcategoryId}
-                          onSelect={(item) => {
-                            if (item) {
-                              setSimCaller({
-                                ...simCaller,
-                                subcategoryId: item.id,
-                                kategori: item.nama_kasus,
-                                urgensi: (item.default_urgensi as any) || simCaller.urgensi || 'SEDANG',
-                                uraian: simCaller.uraian,
-                              });
-                              if (cadFormErrors.kategori || cadFormErrors.urgensi) {
-                                setCadFormErrors((prev) => {
-                                  const next = { ...prev };
-                                  delete next.kategori;
-                                  delete next.urgensi;
-                                  return next;
-                                });
-                              }
-                            } else {
-                              setSimCaller({
-                                ...simCaller,
-                                subcategoryId: undefined,
-                                kategori: '',
-                              });
-                            }
-                          }}
-                        />
-                      </div>
-                      {cadFormErrors.kategori && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <span>⚠️</span> {cadFormErrors.kategori}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tingkat Urgensi Presisi (Prototype L2088-2106) */}
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <label className="form-label" style={{ fontSize: '11.5px' }}>
-                        Tingkat Urgensi Penanganan <span style={{ color: 'red' }}>*</span>
-                      </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(dbUrgencyLevels.length, 1)}, 1fr)`, gap: '6px' }}>
-                        {dbUrgencyLevels.length === 0 ? (
-                          <div style={{ gridColumn: '1 / -1', padding: '8px', textAlign: 'center', color: '#64748B', fontSize: '11px', background: '#F8FAFC', borderRadius: '6px', border: '1px dashed #CBD5E1' }}>
-                            Data tingkat urgensi belum tersedia di database
-                          </div>
-                        ) : (
-                          dbUrgencyLevels.map((lvl: any) => {
-                            const isSelected = simCaller.urgensi === lvl.key;
-                            const borderColor = isSelected ? (lvl.badge_color || '#2563EB') : '1px solid #CBD5E1';
-                            const bgColor = isSelected ? (lvl.badge_bg || '#EFF6FF') : 'white';
-                            const textColor = isSelected ? (lvl.badge_color || '#2563EB') : '#64748B';
-                            return (
-                              <button
-                                key={lvl.id || lvl.key}
-                                type="button"
-                                id={`eb-urg-${lvl.key.toLowerCase()}`}
-                                onClick={() => {
-                                  setSimCaller({ ...simCaller, urgensi: lvl.key });
-                                  if (cadFormErrors.urgensi) {
-                                    setCadFormErrors((prev) => {
-                                      const next = { ...prev };
-                                      delete next.urgensi;
-                                      return next;
-                                    });
-                                  }
-                                }}
-                                style={{
-                                  padding: '8px 4px',
-                                  borderRadius: '6px',
-                                  fontSize: '11px',
-                                  fontWeight: 700,
-                                  border: isSelected ? `1.5px solid ${borderColor}` : '1px solid #CBD5E1',
-                                  background: bgColor,
-                                  color: textColor,
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s ease',
-                                }}
-                              >
-                                {lvl.icon_emoji ? `${lvl.icon_emoji} ` : ''}{lvl.label}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                      {cadFormErrors.urgensi && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <span>⚠️</span> {cadFormErrors.urgensi}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
-                          Lokasi Kejadian (TKP) &amp; Sektor <span style={{ color: 'red' }}>*</span>
-                        </label>
-                        <button
-                          type="button"
-                          id="btn-toggle-cad-map"
-                          onClick={() => setShowMapPickerCad(!showMapPickerCad)}
-                          style={{
-                            background: showMapPickerCad ? '#EFF6FF' : '#F8FAFC',
-                            border: showMapPickerCad ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
-                            color: showMapPickerCad ? '#1D4ED8' : '#334155',
-                            padding: '3px 9px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            boxShadow: showMapPickerCad ? '0 1px 4px rgba(37, 99, 235, 0.2)' : 'none',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <span>🗺️</span> {showMapPickerCad ? 'Tutup Peta' : 'Pilih Titik di Peta'}
-                        </button>
-                      </div>
-
-                      <div style={{ position: 'relative' }}>
-                        <input
-                          type="text"
-                          className="form-control"
-                          placeholder="Ketik alamat TKP atau cari nama tempat..."
-                          value={simCaller.alamat}
-                          onChange={(e) => {
-                            handleCadLocationSearch(e.target.value);
-                            if (cadFormErrors.alamat) {
-                              setCadFormErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.alamat;
-                                return next;
-                              });
-                            }
-                          }}
-                          onFocus={() => {
-                            if (cadLocationSuggestions.length > 0) setShowCadSuggestions(true);
-                          }}
-                          style={{
-                            paddingRight: '32px',
-                            border: cadFormErrors.alamat ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
-                            background: cadFormErrors.alamat ? '#FEF2F2' : 'white',
-                            transition: 'all 0.15s ease',
-                          }}
-                        />
-                        {isSearchingCadLocation && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              right: simCaller.alamat ? '28px' : '10px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              fontSize: '11px',
-                              color: '#3B82F6',
-                            }}
-                          >
-                            🔄
-                          </div>
-                        )}
-                        {simCaller.alamat && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSimCaller({ ...simCaller, alamat: '', lat: 0, lng: 0 });
-                              setCadLocationSuggestions([]);
-                              setShowCadSuggestions(false);
-                            }}
-                            style={{
-                              position: 'absolute',
-                              right: '8px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#94A3B8',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              fontWeight: 700,
-                            }}
-                            title="Hapus alamat"
-                          >
-                            ✕
-                          </button>
-                        )}
-
-                        {/* List Popup Lokasi (Google Maps Style Autocomplete Dropdown) */}
-                        {showCadSuggestions && cadLocationSuggestions.length > 0 && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: 'calc(100% + 4px)',
-                              left: 0,
-                              right: 0,
-                              background: '#FFFFFF',
-                              borderRadius: '8px',
-                              border: '1px solid #CBD5E1',
-                              boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25)',
-                              zIndex: 9999,
-                              maxHeight: '260px',
-                              overflowY: 'auto',
-                            }}
-                          >
-                            <div style={{ padding: '6px 10px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', fontSize: '10.5px', fontWeight: 700, color: '#64748B', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span>📍 HASIL PENCARIAN TEMPAT &amp; ALAMAT</span>
-                              <span
-                                style={{ cursor: 'pointer', color: '#94A3B8' }}
-                                onClick={() => setShowCadSuggestions(false)}
-                              >
-                                ✕ Tutup
-                              </span>
-                            </div>
-                            {cadLocationSuggestions.map((item, idx) => (
-                              <div
-                                key={idx}
-                                onClick={() => handleSelectCadSuggestion(item)}
-                                style={{
-                                  padding: '9px 12px',
-                                  cursor: 'pointer',
-                                  borderBottom: idx < cadLocationSuggestions.length - 1 ? '1px solid #F1F5F9' : 'none',
-                                  display: 'flex',
-                                  alignItems: 'flex-start',
-                                  gap: '10px',
-                                  transition: 'background 0.15s ease',
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
-                              >
-                                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>📍</span>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {item.label}
-                                  </div>
-                                  <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {item.subLabel}
-                                  </div>
-                                </div>
-                                <span style={{ fontSize: '10px', color: '#2563EB', background: '#DBEAFE', padding: '1px 5px', borderRadius: '4px', fontFamily: 'monospace', fontWeight: 600, alignSelf: 'center' }}>
-                                  PILIH
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      {cadFormErrors.alamat && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <span>⚠️</span> {cadFormErrors.alamat}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Interactive Google Map Picker (Opsi Pilih Titik di Peta Langsung) */}
-                    {showMapPickerCad && (
-                      <div style={{ marginBottom: '14px', border: '1.5px solid #93C5FD', borderRadius: '10px', overflow: 'hidden', background: '#F8FAFC', padding: '10px', boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            📍 Klik peta atau geser pin merah untuk mengunci titik TKP
-                          </span>
-                          <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 600 }}>
-                            Google Maps Live
-                          </span>
-                        </div>
-                        <MiniMapPicker
-                          lat={simCaller.lat}
-                          lng={simCaller.lng}
-                          height="240px"
-                          onChange={(lat, lng) => {
-                            setSimCaller((prev) => ({ ...prev, lat, lng }));
-                          }}
-                          onAddressChange={(alamat) => {
-                            setSimCaller((prev) => ({ ...prev, alamat }));
-                            if (cadFormErrors.alamat) {
-                              setCadFormErrors((prev) => {
-                                const next = { ...prev };
-                                delete next.alamat;
-                                return next;
-                              });
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-
-                    <div className="form-group" style={{ marginBottom: '16px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0 }}>
-                          Ringkasan Uraian Kejadian Dari Penelepon <span style={{ color: 'red' }}>*</span>
-                        </label>
-                        <span style={{ fontSize: '10px', color: '#64748B' }}>Minimal 10 karakter</span>
-                      </div>
-                      <textarea
-                        className="form-control"
-                        rows={3}
-                        style={{
-                          minHeight: '85px',
-                          fontSize: '12.5px',
-                          lineHeight: 1.5,
-                          border: cadFormErrors.uraian ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
-                          background: cadFormErrors.uraian ? '#FEF2F2' : 'white',
-                          transition: 'all 0.15s ease',
-                        }}
-                        placeholder="Tuliskan keterangan pelapor secara jelas (kronologi singkat, ciri-ciri pelaku jika ada, situasi terkini di TKP)..."
-                        value={simCaller.uraian}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setSimCaller({ ...simCaller, uraian: val });
-                          if (cadFormErrors.uraian) {
-                            setCadFormErrors((prev) => {
-                              const next = { ...prev };
-                              delete next.uraian;
-                              return next;
-                            });
-                          }
-                        }}
-                      />
-                      {cadFormErrors.uraian && (
-                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <span>⚠️</span> {cadFormErrors.uraian}
-                        </div>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button
-                        type="button"
-                        id="btn-cad-simpan-antrean"
-                        onClick={async () => {
-                          const errors = validateCadForm();
-                          if (Object.keys(errors).length > 0) {
-                            setCadFormErrors(errors);
-                            showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
-                            const el = document.getElementById('cad-form-container');
-                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            return;
-                          }
-
-                          setCadFormErrors({});
-                          setLoading(true);
-                          try {
-                            const res = await createComplaintAction({
-                              nomorTiket: simCaller.nomorTiket?.trim() || undefined,
-                              namaPelapor: simCaller.nama,
-                              noHpPelapor: simCaller.telepon,
-                              kategoriLaporan: simCaller.kategori,
-                              kategoriKey: simCaller.kategori,
-                              subcategoryId: simCaller.subcategoryId,
-                              platformKey: 'layanan110',
-                              urgensi: (simCaller as any).urgensi,
-                              tkpAlamatTeks: simCaller.alamat,
-                              tkpLat: simCaller.lat,
-                              tkpLng: simCaller.lng,
-                              deskripsiKejadian: simCaller.uraian,
-                              saluranLaporan: 'CALL_110',
-                              operatorId: session?.userId ? String(session.userId) : null,
-                            });
-                            if (res.success) {
-                              showFriendlyToast(
-                                'success',
-                                'Laporan Berhasil Disimpan',
-                                `Laporan dari ${simCaller.nama} berhasil dicatat dan masuk ke Antrean Menunggu Disposisi.`
-                              );
-                              setSimCaller({
-                                nomorTiket: '',
-                                nama: '',
-                                telepon: '',
-                                alamat: '',
-                                kategori: '',
-                                subcategoryId: undefined,
-                                urgensi: '',
-                                uraian: '',
-                                lat: 0,
-                                lng: 0,
-                              });
-                              await loadData();
-                            } else {
-                              showFriendlyToast('error', 'Gagal Menyimpan Laporan', res.error || 'Terjadi kendala saat menyimpan laporan. Silakan coba kembali.');
-                            }
-                          } catch (err: any) {
-                            showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat menyimpan laporan saat ini.');
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                        style={{ flex: 1, padding: '12px', background: '#0F766E', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', transition: 'background 0.15s ease' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#0D9488')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = '#0F766E')}
-                      >
-                        💾 Simpan ke Antrean
-                      </button>
-
-                      <button
-                        type="button"
-                        id="btn-cad-simpan-disposisi"
-                        onClick={async () => {
-                          const errors = validateCadForm();
-                          if (Object.keys(errors).length > 0) {
-                            setCadFormErrors(errors);
-                            showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
-                            const el = document.getElementById('cad-form-container');
-                            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            return;
-                          }
-
-                          setCadFormErrors({});
-                          setLoading(true);
-                          try {
-                            const res = await createComplaintAction({
-                              nomorTiket: simCaller.nomorTiket?.trim() || undefined,
-                              namaPelapor: simCaller.nama,
-                              noHpPelapor: simCaller.telepon,
-                              kategoriLaporan: simCaller.kategori,
-                              kategoriKey: simCaller.kategori,
-                              subcategoryId: simCaller.subcategoryId,
-                              platformKey: 'layanan110',
-                              urgensi: (simCaller as any).urgensi,
-                              tkpAlamatTeks: simCaller.alamat,
-                              tkpLat: simCaller.lat,
-                              tkpLng: simCaller.lng,
-                              deskripsiKejadian: simCaller.uraian,
-                              saluranLaporan: 'CALL_110',
-                              operatorId: session?.userId ? String(session.userId) : null,
-                            });
-                            if (res.success && res.data) {
-                              showFriendlyToast(
-                                'success',
-                                'Laporan Berhasil Disimpan',
-                                `Membuka Lembar Disposisi Taktis untuk penugasan unit patroli...`
-                              );
-                              bukaModalDisposisi(res.data);
-                              setSimCaller({
-                                nomorTiket: '',
-                                nama: '',
-                                telepon: '',
-                                alamat: '',
-                                kategori: '',
-                                subcategoryId: undefined,
-                                urgensi: '',
-                                uraian: '',
-                                lat: 0,
-                                lng: 0,
-                              });
-                              await loadData();
-                            } else {
-                              showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyimpan laporan.');
-                            }
-                          } catch (err: any) {
-                            showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat memproses laporan saat ini.');
-                          } finally {
-                            setLoading(false);
-                          }
-                        }}
-                        style={{ flex: 1.4, padding: '12px', background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(29, 78, 216, 0.25)' }}
-                      >
-                        ⚡ Simpan &amp; Disposisi ➔
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Kolom Kanan: Antrean Laporan & Disposisi Live */}
-                <div style={{ flex: '1 1 350px' }}>
-                  <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>📋 Antrean Menunggu Disposisi</span>
-                      <span style={{ background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '10px' }}>
-                        {antreanPawas.length}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto' }}>
-                      {antreanPawas.length === 0 ? (
-                        <div style={{ padding: '20px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-                          Tidak ada antrean menunggu disposisi saat ini.
-                        </div>
-                      ) : (
-                        antreanPawas.map((item) => (
-                          <div
-                            key={item.id}
-                            style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px' }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                              <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '11.5px', color: '#153E75' }}>
-                                {item.nomorTiket}
-                              </span>
-                              {(() => {
-                                const urgKey = (item.urgensi === 'DARURAT' || item.urgensi === 'PRIORITAS_TINGGI') ? 'DARURAT' : item.urgensi === 'SEDANG' ? 'SEDANG' : 'NORMAL';
-                                const urgBg = urgKey === 'DARURAT' ? '#FEE2E2' : urgKey === 'SEDANG' ? '#FEF3C7' : '#EFF6FF';
-                                const urgColor = urgKey === 'DARURAT' ? '#DC2626' : urgKey === 'SEDANG' ? '#D97706' : '#1D4ED8';
-                                return (
-                                  <span style={{ fontSize: '10px', background: urgBg, color: urgColor, fontWeight: 800, padding: '1px 6px', borderRadius: '4px' }}>
-                                    {urgKey}
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                            <div style={{ fontWeight: 800, fontSize: '12.5px', color: '#1E293B', marginBottom: '2px' }}>
-                              {item.jenisKejadian}
-                            </div>
-                            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '8px' }}>
-                              📍 {item.tkpAlamatTeks}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                bukaModalDisposisi(item);
-                              }}
-                              style={{ width: '100%', padding: '7px', background: '#153E75', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '11.5px', cursor: 'pointer' }}
-                            >
-                              ⚡ Disposisi Unit Sekarang ➔
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </section>
-          )}
-
-          {/* ======================================================== */}
-          {/* SCREEN 8: FORM ALASAN PENOLAKAN LOG (view-tolak)         */}
-          {/* ======================================================== */}
-          {activeTab === 'view-tolak' && (
-            <section id="view-tolak" className="view active" style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div
-                  onClick={() => switchTab('view-validasi')}
-                  style={{ fontSize: '13px', fontWeight: 700, color: '#153E75', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span>←</span> Kembali ke Validasi
-                </div>
-                <span style={{ fontSize: '11px', background: '#FEE2E2', color: '#DC2626', fontWeight: 700, padding: '4px 10px', borderRadius: '20px' }}>
-                  Revisi Laporan
-                </span>
-              </div>
-
-              <h2 className="page-title" style={{ fontSize: '18px', fontWeight: 800, marginBottom: '4px' }}>
-                Alasan Penolakan Log
-              </h2>
-              <div style={{ color: '#64748B', fontSize: '12px', marginBottom: '16px' }}>
-                Silakan isi alasan penolakan dan arahan revisi yang akan dikirimkan kepada personel.
-              </div>
-
-              {tolakComplaint && (
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '14px', marginBottom: '16px' }}>
-                  <div style={{ fontWeight: 800, fontSize: '13px', color: '#153E75', marginBottom: '2px' }}>
-                    {tolakComplaint.nomorTiket} - {tolakComplaint.jenisKejadian}
-                  </div>
-                  <div style={{ fontSize: '11.5px', color: '#64748B' }}>
-                    📍 {tolakComplaint.tkpAlamatTeks} • Pelapor: {tolakComplaint.pelaporNama}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <label className="form-label" style={{ fontSize: '12px', fontWeight: 700 }}>
-                    Kategori Alasan Penolakan <span style={{ color: 'red' }}>*</span>
-                  </label>
-                  <select
-                    className="form-control"
-                    value={tolakKategori}
-                    onChange={(e) => setTolakKategori(e.target.value)}
-                  >
-                    <option value="">-- Pilih Kategori Alasan Penolakan --</option>
-                    {dbRejectionReasons.length > 0 ? (
-                      dbRejectionReasons.map((r: any) => (
-                        <option key={r.id || r.key} value={r.label}>
-                          {r.label}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="" disabled>
-                        Data alasan penolakan tidak ditemukan di database
-                      </option>
-                    )}
-                  </select>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <label className="form-label" style={{ fontSize: '12px', fontWeight: 700 }}>
-                    Catatan &amp; Arahan Revisi untuk Personel <span style={{ color: 'red' }}>*</span>
-                  </label>
-                  <textarea
-                    className="form-control"
-                    rows={4}
-                    value={tolakAlasan}
-                    onChange={(e) => setTolakAlasan(e.target.value)}
-                    placeholder="Tuliskan catatan perbaikan secara spesifik, misalnya: Foto lampiran kurang jelas dan titik lokasi tidak terlihat..."
-                  />
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="button"
-                    onClick={() => switchTab('view-validasi')}
-                    style={{ flex: 1, padding: '10px', background: '#F1F5F9', border: '1px solid #CBD5E1', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSubmitPenolakan}
-                    disabled={loading}
-                    style={{ flex: 2, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    <span>✕</span> Konfirmasi Tolak &amp; Minta Revisi
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
-
-        </main>
-
-        {/* ======================================================== */}
-        {/* BOTTOM NAVIGATION (Identik 1:1 Prototype e-tribrata-log) */}
-        {/* ======================================================== */}
-        <nav className="bottom-nav">
-          <div
-            className={`nav-item ${activeTab === 'view-beranda' ? 'active' : ''}`}
-            onClick={() => switchTab('view-beranda')}
-          >
-            <span className="nav-icon">🏠</span>
-            <span>Beranda</span>
-          </div>
-          <div
-            className={`nav-item ${activeTab === 'view-peta' ? 'active' : ''}`}
-            onClick={() => switchTab('view-peta')}
-          >
-            <span className="nav-icon">🗺️</span>
-            <span>Peta</span>
-          </div>
-          {roleParam === 'operator' ? (
-            <div
-              id="nav-operator"
-              className={`nav-item ${activeTab === 'view-operator' ? 'active' : ''}`}
-              onClick={() => switchTab('view-operator')}
-            >
-              <span className="nav-icon">🎧</span>
-              <span>Operator 110</span>
-            </div>
-          ) : roleParam === 'personel' ? (
-            <div
-              id="nav-log"
-              className={`nav-item ${activeTab === 'view-log' ? 'active' : ''}`}
-              onClick={() => switchTab('view-log')}
-            >
-              <span className="nav-icon">➕</span>
-              <span>Buat Log (+)</span>
-            </div>
-          ) : (
-            <div
-              id="nav-validasi"
-              className={`nav-item ${activeTab === 'view-validasi' ? 'active' : ''}`}
-              onClick={() => switchTab('view-validasi')}
-            >
-              <span className="nav-icon">👮</span>
-              <span>Komando Pawas</span>
-            </div>
-          )}
-          <div
-            id="nav-kinerja"
-            className={`nav-item ${activeTab === 'view-laporan' ? 'active' : ''}`}
-            onClick={() => switchTab('view-laporan')}
-          >
-            <span className="nav-icon">📊</span>
-            <span>Kinerja</span>
-          </div>
-          <div
-            className={`nav-item ${activeTab === 'view-profil' ? 'active' : ''}`}
-            onClick={() => switchTab('view-profil')}
-          >
-            <span className="nav-icon">👤</span>
-            <span>Profil</span>
-          </div>
-        </nav>
-
-      </div>
-
-      {/* ======================================================== */}
-      {/* MODAL DISPOSISI TAKTIS PAWAS                             */}
-      {/* ======================================================== */}
-      {showDisposisiModal && selectedDisposisiItem && (
+    <div
+      className="registrasi-body"
+      style={activeTab === 'view-peta' ? { minHeight: '100vh', height: '100vh', overflow: 'hidden' } : undefined}
+    >
+
+      {/* ── TOPBAR (same design as Superadmin) ── */}
+      <header className="topbar">
         <div
-          id="modal-disposisi-pawas"
+          className="topbar-brand"
+          style={{ cursor: 'pointer', textDecoration: 'none' }}
+          onClick={() => switchTab('view-beranda')}
+        >
+          <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Shield size={22} color="#38BDF8" strokeWidth={2.4} />
+          </div>
+          <div>
+            <div className="brand-title">SIMOPMAS 110 • POLRI</div>
+            <div className="brand-subtitle">Konsol Operasional Terpadu – Pengawas &amp; Komando</div>
+          </div>
+        </div>
+
+        <div className="topbar-nav" style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <HeaderProfileBadge
+            name={userProfile.fullName || 'AKBP Bambang Wijaya, S.I.K., M.Si.'}
+            identifier={userProfile.identifier || userProfile.nrp || '78091122'}
+            role={userProfile.roleBadge || 'PAWAS'}
+            avatar={userProfile.avatar || null}
+            isActive={activeTab === 'view-profil'}
+            hasNotification={menungguCount > 0}
+            onBellClick={() => openValidasiList('menunggu')}
+            onClick={() => switchTab('view-profil')}
+          />
+        </div>
+      </header>
+
+      {/* ── HORIZONTAL TAB BAR (Desktop Only - Clean, Sleek, No Cluttered Badges) ── */}
+      {activeTab !== 'view-profil' && (
+        <div
+          className="tabs-master-wrapper pawas-desktop-tabs"
           style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.75)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
+            background: 'white',
+            borderBottom: '1px solid #E2E8F0',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+            position: 'sticky',
+            zIndex: 90,
           }}
-          onClick={() => setShowDisposisiModal(false)}
         >
           <div
+            className="tabs-master-scroller"
             style={{
-              background: 'white',
-              width: '100%',
-              maxWidth: '620px',
-              borderRadius: '14px',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-              overflow: 'hidden',
-              border: '1px solid #CBD5E1',
+              maxWidth: '1440px',
+              margin: '0 auto',
               display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '90vh',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div
+            {/* TAB: BERANDA */}
+            <button
+              type="button"
+              id="nav-beranda"
+              onClick={() => switchTab('view-beranda')}
               style={{
-                background: 'linear-gradient(135deg, #153E75 0%, #0F2A52 100%)',
-                color: 'white',
-                padding: '16px 20px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '2px solid #F59E0B',
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-beranda' ? '#153E75' : '#F8FAFC',
+                color: activeTab === 'view-beranda' ? 'white' : '#475569',
+                border: activeTab === 'view-beranda' ? '1px solid #153E75' : '1px solid #E2E8F0',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '20px' }}>👮</span>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 800 }}>LEMBAR DISPOSISI TAKTIS UNIT</div>
-                  <div style={{ fontSize: '11px', opacity: 0.85 }}>Posko Pengendalian Operasi Kepolisian</div>
-                </div>
-              </div>
+              <Home size={15} strokeWidth={2.2} />
+              <span>Beranda</span>
+            </button>
+
+            {/* TAB: PETA TAKTIS */}
+            <button
+              type="button"
+              id="nav-peta"
+              onClick={() => switchTab('view-peta')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-peta' ? '#153E75' : '#F8FAFC',
+                color: activeTab === 'view-peta' ? 'white' : '#475569',
+                border: activeTab === 'view-peta' ? '1px solid #153E75' : '1px solid #E2E8F0',
+              }}
+            >
+              <Map size={15} strokeWidth={2.2} />
+              <span>Peta Taktis</span>
+            </button>
+
+            {/* TAB 3: ROLE-AWARE (Komando / Operator 110 / Buat Log) */}
+            {roleParam === 'operator' ? (
               <button
                 type="button"
-                onClick={() => setShowDisposisiModal(false)}
-                style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Body */}
-            {(() => {
-              const sopRecommendation = getSopRecommendationByIncident(selectedDisposisiItem, dbSubcategories);
-              const incidentLat = Number(selectedDisposisiItem?.tkpLat ?? selectedDisposisiItem?.lat ?? selectedDisposisiItem?.tkp_lat ?? 0);
-              const incidentLng = Number(selectedDisposisiItem?.tkpLng ?? selectedDisposisiItem?.lng ?? selectedDisposisiItem?.tkp_lng ?? 0);
-
-              const calculatedArmadas = daftarArmadaAktif.map((armada) => {
-                const isPrimarySop = sopRecommendation.primarySatuanId ? armada.id === sopRecommendation.primarySatuanId : false;
-                const isSecondarySop = sopRecommendation.secondarySatuanIds ? (sopRecommendation.secondarySatuanIds as any).includes(armada.id): false;
-
-                let multiplier = 1.0;
-                if (isPrimarySop) multiplier = 0.7;
-                else if (isSecondarySop) multiplier = 0.85;
-
-                let jarakCalc: number | null = null;
-                let etaCalc: number | null = null;
-
-                if (incidentLat && incidentLng && armada.lat && armada.lng) {
-                  const rawDistance = calculateDistanceHaversineKm(incidentLat, incidentLng, armada.lat, armada.lng);
-                  jarakCalc = +(rawDistance * multiplier).toFixed(1);
-                  if (jarakCalc <= 0) jarakCalc = 0.5;
-                  etaCalc = Math.max(2, Math.round((jarakCalc / 30) * 60));
-                } else if (armada.jarakBase != null) {
-                  jarakCalc = +(armada.jarakBase * multiplier).toFixed(1);
-                  etaCalc = armada.etaBase != null ? Math.max(2, Math.round(armada.etaBase * multiplier)) : null;
-                }
-
-                return {
-                  ...armada,
-                  isPrimarySop,
-                  isSecondarySop,
-                  jarakCalc,
-                  etaCalc,
-                };
-              });
-
-              const activeArmada = calculatedArmadas.find((a) => a.id === activePreviewSatuanKey) || calculatedArmadas.find((a) => selectedSatuanKeys.includes(a.id)) || calculatedArmadas[0];
-
-              const isPersonel =
-                selectedDisposisiItem.platformKey === 'personel' ||
-                selectedDisposisiItem.tipePelapor === 'personel' ||
-                selectedDisposisiItem.pelaporTipe === 'PERSONEL' ||
-                Boolean(selectedDisposisiItem.pelaporNrp && selectedDisposisiItem.pelaporNrp.trim()) ||
-                Boolean(selectedDisposisiItem.nrp && selectedDisposisiItem.nrp.trim());
-
-              const isWarga = !isPersonel;
-
-              const saluranSumber =
-                selectedDisposisiItem.platformRel?.label ||
-                (selectedDisposisiItem.platformKey === 'warga'
-                  ? 'Portal Pengaduan Warga'
-                  : selectedDisposisiItem.platformKey === 'sos'
-                  ? 'Tombol Darurat SOS Presisi'
-                  : selectedDisposisiItem.platformKey === 'layanan110'
-                  ? 'Call Center 110'
-                  : selectedDisposisiItem.saluranLaporan || 'Call Center 110');
-
-              const badgePelapor = isPersonel
-                ? '👮 Patroli Internal'
-                : selectedDisposisiItem.platformKey === 'sos'
-                ? '🚨 Peringatan SOS Warga'
-                : '👤 Laporan Pengaduan Warga';
-
-              return (
-                <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1 }}>
-                  {/* Top Yellow Banner: Nomor Tiket & Target SLA Respon */}
-                  <div style={{ background: '#FEF3C7', border: '1px solid #FCD34D', borderRadius: '10px', padding: '12px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>NOMOR TIKET RESMI</div>
-                      <div style={{ fontSize: '15px', fontWeight: 900, fontFamily: 'monospace', color: '#92400E' }}>
-                        {selectedDisposisiItem.nomorTiket}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#B45309', textTransform: 'uppercase' }}>TARGET SLA RESPON</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#B45309' }}>⚡ &lt; 10 Menit Tiba di TKP</div>
-                    </div>
-                  </div>
-
-                  {/* Kasus / Lokasi TKP Box */}
-                  <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>Kasus / Lokasi TKP:</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        {(() => {
-                          const u = (selectedDisposisiItem.urgensi || '').toUpperCase();
-                          const isD = u === 'DARURAT' || u === 'PRIORITAS_TINGGI';
-                          const isS = u === 'SEDANG';
-                          const label = isD ? '🚨 DARURAT' : isS ? '⚠️ SEDANG' : 'ℹ️ NORMAL';
-                          const bg = isD ? '#FEE2E2' : isS ? '#FEF3C7' : '#EFF6FF';
-                          const color = isD ? '#DC2626' : isS ? '#D97706' : '#1D4ED8';
-                          const border = isD ? '1px solid #FECACA' : isS ? '1px solid #FDE68A' : '1px solid #BFDBFE';
-                          return (
-                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: bg, color, border }}>
-                              {label}
-                            </span>
-                          );
-                        })()}
-                        <span
-                          style={{
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            background: isWarga ? '#EFF6FF' : '#FEF3C7',
-                            color: isWarga ? '#1D4ED8' : '#92400E',
-                            border: isWarga ? '1px solid #BFDBFE' : '1px solid #FDE68A',
-                          }}
-                        >
-                          {badgePelapor}
-                        </span>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                      <div style={{ fontSize: '13.5px', fontWeight: 800, color: '#0F172A' }}>
-                        {selectedDisposisiItem.jenisKejadian || selectedDisposisiItem.title}
-                      </div>
-                    </div>
-
-                    {/* Uraian Singkat Kejadian dari Pelapor / Operator */}
-                    <div
-                      style={{
-                        fontSize: '11.5px',
-                        color: '#1E293B',
-                        background: '#F8FAFC',
-                        border: '1px solid #E2E8F0',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        marginBottom: '8px',
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      <div style={{ fontSize: '10px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>📝</span> Uraian Singkat Kejadian:
-                      </div>
-                      <div style={{ fontStyle: 'italic', color: '#334155' }}>
-                        "{selectedDisposisiItem.ringkasanKeterangan || selectedDisposisiItem.deskripsiKejadian || selectedDisposisiItem.keterangan || selectedDisposisiItem.uraian || 'Tidak ada uraian keterangan kejadian.'}"
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#475569', marginBottom: '6px' }}>
-                      📍 {selectedDisposisiItem.tkpAlamatTeks || selectedDisposisiItem.alamatTeks}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        color: isWarga ? '#1E40AF' : '#92400E',
-                        background: isWarga ? '#EFF6FF' : '#FFFBEB',
-                        padding: '6px 10px',
-                        borderRadius: '6px',
-                        border: isWarga ? '1px dashed #93C5FD' : '1px dashed #FCD34D',
-                      }}
-                    >
-                      {isWarga ? (
-                        <>👤 Pelapor: <strong>{selectedDisposisiItem.pelaporNama || selectedDisposisiItem.nama}</strong> {selectedDisposisiItem.pelaporHp || selectedDisposisiItem.noTelpPelapor ? `(${selectedDisposisiItem.pelaporHp || selectedDisposisiItem.noTelpPelapor})` : ''} via {saluranSumber}</>
-                      ) : (
-                        <>👮 Pelapor: <strong>{selectedDisposisiItem.pelaporNama || selectedDisposisiItem.nama}</strong> (NRP: {selectedDisposisiItem.pelaporNrp || selectedDisposisiItem.nrp || '-'}){selectedDisposisiItem.pelaporPangkat || selectedDisposisiItem.kesatuan ? ` • ${selectedDisposisiItem.pelaporPangkat || ''} ${selectedDisposisiItem.kesatuan || ''}` : ''}</>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 1. Disposisi ke Satuan Tugas (Broadcast Persatuan): * */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <div>
-                        <label style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B' }}>
-                          1. Disposisi ke Satuan Tugas (Broadcast Persatuan): <span style={{ color: '#DC2626' }}>*</span>
-                        </label>
-                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '1px' }}>
-                          Pilih satu atau lebih satuan tugas yang akan diberangkatkan ke TKP (centang manual):
-                        </div>
-                      </div>
-                      
-                    </div>
-
-                    {/* Container Multi-Satuan Checkbox Bersih & Netral */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px' }}>
-                        {calculatedArmadas.map((a) => {
-                          const isChecked = selectedSatuanKeys.includes(a.id);
-                          return (
-                            <div
-                              key={a.id}
-                              onClick={() => toggleSatuanSelection(a.id)}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '10px 12px',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                                background: isChecked ? '#EFF6FF' : '#FFFFFF',
-                                border: `2px solid ${isChecked ? '#2563EB' : a.isPrimarySop ? '#93C5FD' : '#CBD5E1'}`,
-                                boxShadow: isChecked ? '0 2px 8px rgba(37,99,235,0.18)' : '0 1px 3px rgba(0,0,0,0.03)',
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                                <input
-                                  type="checkbox"
-                                  id={`chk-satuan-${a.id}`}
-                                  checked={isChecked}
-                                  onChange={() => toggleSatuanSelection(a.id)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    cursor: 'pointer',
-                                    width: '18px',
-                                    height: '18px',
-                                    accentColor: '#2563EB',
-                                    flexShrink: 0,
-                                  }}
-                                />
-                                <div style={{ minWidth: 0, width: '100%' }}>
-                                  <div style={{ fontSize: '13px', fontWeight: 800, color: isChecked ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}><span>{a.icon}</span> <span>{a.namaSingkat}</span></div>
-                                    {a.isPrimarySop && (
-                                      <span style={{ fontSize: '9px', fontWeight: 800, background: '#DCFCE7', color: '#166534', border: '1px solid #86EFAC', padding: '1px 5px', borderRadius: '4px' }}>
-                                        ★ UTAMA
-                                      </span>
-                                    )}
-                                  </div>
-                                  
-                                </div>
-                              </div>
-                              {isChecked && (
-                                <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '2px 8px', borderRadius: '4px', background: '#DBEAFE', color: '#1D4ED8', flexShrink: 0, marginLeft: '6px' }}>
-                                  ✓ DIPILIH
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Status Pilihan Manual */}
-                      {selectedSatuanKeys.length === 0 ? (
-                        <div style={{ fontSize: '11px', color: '#B45309', background: '#FEF3C7', border: '1px dashed #F59E0B', padding: '7px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>ℹ️</span> <span>Belum ada satuan yang dipilih. Silakan centang minimal 1 satuan tugas di atas untuk diberangkatkan.</span>
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '11px', color: '#166534', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '7px 12px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontWeight: 700 }}>
-                            ✅ {selectedSatuanKeys.length} Satuan Tugas Dipilih: {calculatedArmadas.filter((a) => selectedSatuanKeys.includes(a.id)).map((a) => a.namaSingkat).join(' & ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 2. Alokasi Kuat Personel SOP (Pembatasan Kuota Maksimal Anggota ke TKP) */}
-                  <div style={{ marginBottom: '14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px' }}>
-                    <div style={{ marginBottom: '6px' }}>
-                      <label style={{ fontSize: '11.5px', fontWeight: 800, color: '#1E293B' }}>
-                        2. Alokasi Kuat Personel (Batas Maksimal Anggota ke TKP): <span style={{ color: '#DC2626' }}>*</span>
-                      </label>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                      <label
-                        onClick={() => setKuotaPersonel(2)}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '8px 6px',
-                          border: kuotaPersonel === 2 ? '2px solid #2563EB' : '2px solid #E2E8F0',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          background: kuotaPersonel === 2 ? '#EFF6FF' : 'white',
-                          textAlign: 'center',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="kuota-pers"
-                          checked={kuotaPersonel === 2}
-                          onChange={() => setKuotaPersonel(2)}
-                          style={{ marginBottom: '4px', accentColor: '#2563EB' }}
-                        />
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: kuotaPersonel === 2 ? '#1E40AF' : '#0F172A' }}>2 Personel</span>
-                        <span style={{ fontSize: '9.5px', color: '#64748B' }}>Buddy System</span>
-                      </label>
-
-                      <label
-                        onClick={() => setKuotaPersonel(4)}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '8px 6px',
-                          border: kuotaPersonel === 4 ? '2px solid #2563EB' : '2px solid #E2E8F0',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          background: kuotaPersonel === 4 ? '#EFF6FF' : 'white',
-                          textAlign: 'center',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="kuota-pers"
-                          checked={kuotaPersonel === 4}
-                          onChange={() => setKuotaPersonel(4)}
-                          style={{ marginBottom: '4px', accentColor: '#2563EB' }}
-                        />
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: kuotaPersonel === 4 ? '#1E40AF' : '#1E293B' }}>4 Personel</span>
-                        <span style={{ fontSize: '9.5px', color: '#2563EB', fontWeight: 700 }}>1 Unit Patroli ★</span>
-                      </label>
-
-                      <label
-                        onClick={() => setKuotaPersonel(6)}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '8px 6px',
-                          border: kuotaPersonel === 6 ? '2px solid #2563EB' : '2px solid #E2E8F0',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          background: kuotaPersonel === 6 ? '#EFF6FF' : 'white',
-                          textAlign: 'center',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="kuota-pers"
-                          checked={kuotaPersonel === 6}
-                          onChange={() => setKuotaPersonel(6)}
-                          style={{ marginBottom: '4px', accentColor: '#2563EB' }}
-                        />
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: kuotaPersonel === 6 ? '#1E40AF' : '#0F172A' }}>6 Personel</span>
-                        <span style={{ fontSize: '9.5px', color: '#64748B' }}>Regu Terpadu</span>
-                      </label>
-
-                      <label
-                        onClick={() => setKuotaPersonel(8)}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '8px 6px',
-                          border: kuotaPersonel === 8 ? '2px solid #2563EB' : '2px solid #E2E8F0',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          background: kuotaPersonel === 8 ? '#EFF6FF' : 'white',
-                          textAlign: 'center',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="kuota-pers"
-                          checked={kuotaPersonel === 8}
-                          onChange={() => setKuotaPersonel(8)}
-                          style={{ marginBottom: '4px', accentColor: '#2563EB' }}
-                        />
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: kuotaPersonel === 8 ? '#1E40AF' : '#0F172A' }}>8 Personel</span>
-                        <span style={{ fontSize: '9.5px', color: '#DC2626', fontWeight: 700 }}>Kontinjensi</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* 3. Instruksi Taktis Komando dengan Template Cepat */}
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                      <label style={{ fontSize: '11.5px', fontWeight: 800, color: '#1E293B' }}>
-                        3. Instruksi Taktis &amp; Petunjuk Khusus Operasi: <span style={{ color: '#DC2626' }}>*</span>
-                      </label>
-                      <span style={{ fontSize: '10px', color: '#64748B' }}>Klik template untuk arahan cepat:</span>
-                    </div>
-
-                    {/* Quick Template Chips */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => tambahArahanCepatPawas('🚨 Sirine Biru & Quick Response: Prioritaskan tiba < 10 menit.')}
-                        style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        🚨 Sirine Biru
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => tambahArahanCepatPawas('🛡️ Amankan perimeter TKP dan utamakan keselamatan warga/korban.')}
-                        style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        🛡️ Amankan Perimeter
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => tambahArahanCepatPawas('📹 Wajib aktifkan bodycam dan segera dokumentasikan bukti visual.')}
-                        style={{ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0', padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        📹 Rekam Bodycam
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => tambahArahanCepatPawas('🤝 Koordinasikan dengan pihak RT/RW dan tokoh masyarakat setempat.')}
-                        style={{ background: '#FFFBEB', color: '#B45309', border: '1px solid #FDE68A', padding: '3px 8px', borderRadius: '6px', fontSize: '10.5px', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        🤝 Koordinasi Warga
-                      </button>
-                    </div>
-
-                    <textarea
-                      className="form-control"
-                      rows={3}
-                      value={arahanPawas}
-                      onChange={(e) => setArahanPawas(e.target.value)}
-                      style={{ width: '100%', padding: '10px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '12px', color: '#0F172A', outline: 'none', lineHeight: 1.5, boxSizing: 'border-box' }}
-                    />
-                  </div>
-
-                  <div style={{ background: '#EFF6FF', borderLeft: '3px solid #3B82F6', padding: '10px 12px', borderRadius: '0 8px 8px 0', fontSize: '11px', color: '#1E40AF', lineHeight: 1.45 }}>
-                    <strong>⚖️ SOP Rantai Komando Presisi:</strong> Setelah disposisi diteken, tiket langsung diterbitkan, status berpindah ke <em>Tahap 3 (Personel Bergerak Menuju TKP)</em>, jam hitung mundur SLA (&lt; 10 menit) aktif otomatis, dan petugas lapangan menerima notifikasi penugasan.
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Modal Footer */}
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button
-                type="button"
-                onClick={() => setShowDisposisiModal(false)}
-                style={{ padding: '10px 16px', background: '#F1F5F9', color: '#475569', fontSize: '12px', fontWeight: 700, border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer' }}
-              >
-                Batalkan
-              </button>
-              <button
-                type="button"
-                id="btn-terbitkan-disposisi"
-                onClick={handleConfirmDisposisi}
-                disabled={loading || selectedSatuanKeys.length === 0}
+                id="nav-operator"
+                onClick={() => switchTab('view-operator')}
                 style={{
-                  padding: '10px 20px',
-                  background: selectedSatuanKeys.length === 0 ? '#94A3B8' : 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
-                  color: 'white',
-                  fontSize: '13px',
-                  fontWeight: 800,
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: selectedSatuanKeys.length === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: selectedSatuanKeys.length === 0 ? 'none' : '0 3px 10px rgba(21,62,117,0.3)',
-                  transition: 'all 0.15s ease',
+                  display: 'inline-flex', alignItems: 'center', gap: '8px',
+                  padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                  background: activeTab === 'view-operator' ? '#153E75' : '#F8FAFC',
+                  color: activeTab === 'view-operator' ? 'white' : '#475569',
+                  border: activeTab === 'view-operator' ? '1px solid #153E75' : '1px solid #E2E8F0',
                 }}
               >
-                {loading
-                  ? 'Menerbitkan...'
-                  : selectedSatuanKeys.length === 0
-                  ? 'Pilih Satuan Tugas Terlebih Dahulu'
-                  : `🚀 Terbitkan Disposisi Tugas (${selectedSatuanKeys.length} Satuan) ➔`}
+                <Headphones size={15} strokeWidth={2.2} />
+                <span>Operator 110</span>
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* MODAL SUKSES DISPOSISI TAKTIS                           */}
-      {/* ======================================================== */}
-      {showSuksesModal && suksesDisposisiData && (
-        <div
-          id="modal-sukses-disposisi"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999999,
-            background: 'rgba(15,23,42,0.82)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowSuksesModal(false)}
-        >
-          <div
-            style={{
-              background: 'white',
-              width: '100%',
-              maxWidth: '520px',
-              borderRadius: '16px',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
-              overflow: 'hidden',
-              border: '1px solid #CBD5E1',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: 'linear-gradient(135deg, #064E3B 0%, #065F46 60%, #047857 100%)', color: 'white', padding: '24px 20px', textAlign: 'center' }}>
-              <div style={{ width: '58px', height: '58px', background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.4)', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', marginBottom: '12px' }}>
-                ✓
-              </div>
-              <div style={{ fontSize: '17px', fontWeight: 900, textTransform: 'uppercase' }}>
-                Perintah Disposisi Berhasil Diterbitkan!
-              </div>
-              <div style={{ fontSize: '12px', color: '#A7F3D0', marginTop: '4px' }}>
-                Instruksi operasi telah ditransmisikan ke radio panggil &amp; konsol petugas lapangan
-              </div>
-            </div>
-
-            <div style={{ padding: '18px 20px' }}>
-              <div style={{ background: '#FEF3C7', border: '1.5px dashed #F59E0B', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '10px', fontWeight: 800, color: '#B45309' }}>NOMOR TIKET RESMI</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 900, color: '#92400E' }}>
-                    {suksesDisposisiData.nomorTiket}
-                  </div>
-                </div>
-                <span style={{ fontSize: '10.5px', fontWeight: 800, background: '#DCFCE7', color: '#166534', padding: '3px 8px', borderRadius: '6px' }}>
-                  ● LIVE CAD DISPATCH
-                </span>
-              </div>
-
-              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
-                  <span style={{ color: '#64748B' }}>🚔 Satuan Bertugas:</span>
-                  <strong>{suksesDisposisiData.unitName}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
-                  <span style={{ color: '#64748B' }}>👤 Pimpinan Regu:</span>
-                  <strong style={{ color: '#1E40AF' }}>{suksesDisposisiData.komandan}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
-                  <span style={{ color: '#64748B' }}>📍 Estimasi Jarak GPS:</span>
-                  <strong style={{ color: '#1D4ED8' }}>{suksesDisposisiData.jarak} ({suksesDisposisiData.eta})</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>⚡ Quick Response Target:</span>
-                  <strong style={{ color: '#15803D' }}>&lt; 10 Menit Tiba di TKP (SLA Aman ✅)</strong>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: '14px 20px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC', textAlign: 'right' }}>
+            ) : roleParam === 'personel' ? (
               <button
                 type="button"
-                onClick={() => setShowSuksesModal(false)}
-                style={{ padding: '10px 20px', background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer' }}
+                id="nav-log"
+                onClick={() => switchTab('view-log')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px',
+                  padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                  background: activeTab === 'view-log' ? '#153E75' : '#F8FAFC',
+                  color: activeTab === 'view-log' ? 'white' : '#475569',
+                  border: activeTab === 'view-log' ? '1px solid #153E75' : '1px solid #E2E8F0',
+                }}
               >
-                Pantau Penanganan di Timeline ➔
+                <PlusCircle size={15} strokeWidth={2.2} />
+                <span>Buat Log</span>
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* MODAL AUDIT 1: DETAIL SLA PIMPINAN                       */}
-      {/* ======================================================== */}
-      {showSlaModal && (
-        <div
-          id="modal-detail-sla-pimpinan"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowSlaModal(false)}
-        >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '16px',
-              maxWidth: '820px',
-              width: '100%',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '20px' }}>⏱️</span>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Audit Rincian Waktu Tanggap Patroli (SLA 110)</h3>
-                  <span style={{ fontSize: '11.5px', opacity: 0.9 }}>Standar Quick Response Mabes Polri • Target Respon TKP &lt; 10 Menit</span>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowSlaModal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1, background: '#F8FAFC' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#64748B' }}>RATA-RATA RESPON</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#153E75', marginTop: '2px' }}>{avgResponseTime} MENIT</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#15803D' }}>TEPAT WAKTU</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#16A34A', marginTop: '2px' }}>{onTimeRate}%</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>&lt; 5 MENIT</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#166534', marginTop: '2px' }}>{fastCount} Kasus</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF' }}>5-10 MENIT</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#2563EB', marginTop: '2px' }}>{mediumCount} Kasus</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #FECACA', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#991B1B' }}>&gt; 10 MENIT</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#DC2626', marginTop: '2px' }}>{slowCount} Kasus</div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {allRecentComplaints.slice(0, 10).map((c) => (
-                  <div key={c.id} style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '12.5px', color: '#1E293B' }}>{c.nomorTiket} - {c.jenisKejadian}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>📍 {c.tkpAlamatTeks} • Petugas: {c.assignedOfficer ? `${c.assignedOfficer.rankPangkat} ${c.assignedOfficer.namaLengkap}` : 'Belum Terdisposisi'}</div>
-                    </div>
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: c.responseTimeMinutes ? (c.responseTimeMinutes <= 10 ? '#16A34A' : '#DC2626') : '#2563EB', background: c.responseTimeMinutes ? (c.responseTimeMinutes <= 10 ? '#F0FDF4' : '#FEF2F2') : '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
-                      {c.responseTimeMinutes ? `⚡ ${c.responseTimeMinutes} Menit (${c.responseTimeMinutes <= 10 ? 'Tepat Waktu' : 'Terlambat'})` : c.status === 'MENUJU_TKP' ? '⚡ Sedang Meluncur' : '● Dalam Penanganan'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ padding: '12px 20px', background: 'white', borderTop: '1px solid #E2E8F0', textAlign: 'right' }}>
+            ) : (
               <button
                 type="button"
-                onClick={() => setShowSlaModal(false)}
-                style={{ padding: '8px 18px', background: '#F1F5F9', color: '#334155', fontSize: '12px', fontWeight: 700, border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer' }}
+                id="nav-validasi"
+                onClick={() => switchTab('view-validasi')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '8px',
+                  padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                  background: activeTab === 'view-validasi' ? '#153E75' : '#F8FAFC',
+                  color: activeTab === 'view-validasi' ? 'white' : '#475569',
+                  border: activeTab === 'view-validasi' ? '1px solid #153E75' : '1px solid #E2E8F0',
+                }}
               >
-                Tutup Rincian
+                <ShieldAlert size={15} strokeWidth={2.2} />
+                <span>Komando Pawas</span>
               </button>
-            </div>
+            )}
+
+            {/* TAB: KINERJA */}
+            <button
+              type="button"
+              id="nav-kinerja"
+              onClick={() => switchTab('view-laporan')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-laporan' ? '#153E75' : '#F8FAFC',
+                color: activeTab === 'view-laporan' ? 'white' : '#475569',
+                border: activeTab === 'view-laporan' ? '1px solid #153E75' : '1px solid #E2E8F0',
+              }}
+            >
+              <BarChart3 size={15} strokeWidth={2.2} />
+              <span>Kinerja</span>
+            </button>
+
           </div>
         </div>
       )}
 
-      {/* ======================================================== */}
-      {/* MODAL AUDIT 2: DETAIL KUAT PERSONEL                      */}
-      {/* ======================================================== */}
-      {showKuatPersModal && (
-        <div
-          id="modal-detail-kuat-personel"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowKuatPersModal(false)}
-        >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '16px',
-              maxWidth: '860px',
-              width: '100%',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
+      {/* ── MAIN CONTENT ── */}
+      <main className={`pawas-content-area ${activeTab === 'view-peta' ? 'pawas-peta-active' : 'registrasi-container'}`} style={activeTab === 'view-peta' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}>
+        {activeTab === 'view-beranda' && (
+          <TabBerandaPawas
+            userProfile={userProfile}
+            presensiStatus={presensiStatus}
+            isServerDataLoaded={isServerDataLoaded}
+            switchTab={switchTab}
+            highPriorityIncident={highPriorityIncident}
+            openValidasiList={openValidasiList}
+            openValidasiWithPlatform={openValidasiWithPlatform}
+            setSelectedValComplaint={setSelectedValComplaint}
+            setShowHotspotModal={setShowHotspotModal}
+            setShowSlaModal={setShowSlaModal}
+            setShowKuatPersModal={setShowKuatPersModal}
+            setShowIkmModal={setShowIkmModal}
+            fleetUnits={fleetUnits}
+            hotspots={hotspots}
+            policeOffices={policeOffices}
+            totalLaporan={totalLaporan}
+            menungguCount={menungguCount}
+            ditolakCount={ditolakCount}
+            diprosesCount={diprosesCount}
+            pengesahanCount={pengesahanCount}
+            selesaiCount={selesaiCount}
+            sosCount={sosCount}
+            wargaCount={wargaCount}
+            hotline110Count={hotline110Count}
+            personelCount={personelCount}
+            allRecentComplaints={allRecentComplaints}
+            completedWithTime={completedWithTime}
+            avgResponseTime={avgResponseTime}
+            onTimeRate={onTimeRate}
+            fastCount={fastCount}
+            mediumCount={mediumCount}
+            slowCount={slowCount}
+            registeredUnits={registeredUnits}
+            satisfactionRating={satisfactionRating}
+            satisfactionPercent={satisfactionPercent}
+            recentActivities={recentActivities}
+          />
+        )}
+
+        {activeTab === 'view-peta' && (
+          <TabTacticalMapPawas
+            userProfile={userProfile}
+            fleetUnits={fleetUnits}
+            hotspots={hotspots}
+            policeOffices={policeOffices}
+            setShowHotspotModal={setShowHotspotModal}
+            highPriorityIncident={highPriorityIncident}
+            resolveUrgencyLevel={resolveUrgencyLevel}
+            showFriendlyToast={showFriendlyToast}
+          />
+        )}
+
+        {activeTab === 'view-log' && (
+          <TabBuatLogPawas
+            logWaktuMulai={logWaktuMulai}
+            setShowTimePickerModal={setShowTimePickerModal}
+            logSektor={logSektor}
+            setLogSektor={setLogSektor}
+            logJenis={logJenis}
+            setLogJenis={setLogJenis}
+            dbGiats={dbGiats}
+            logDeskripsi={logDeskripsi}
+            setLogDeskripsi={setLogDeskripsi}
+            logFotoPreview={logFotoPreview}
+            setLogFotoPreview={setLogFotoPreview}
+            handleSimpanLogKegiatan={handleSimpanLogKegiatan}
+            loading={loading}
+          />
+        )}
+
+        {activeTab === 'view-validasi' && (
+          <TabValidasiPawas
+            userProfile={userProfile}
+            switchTab={switchTab}
+            dbStatuses={dbStatuses}
+            dbPlatforms={dbPlatforms}
+            dbCategories={dbCategories}
+            dbGiats={dbGiats}
+            logsForStatusTabs={logsForStatusTabs}
+            logsForKategori={logsForKategori}
+            tabCountSemua={tabCountSemua}
+            tabCountMenunggu={tabCountMenunggu}
+            platCountAll={platCountAll}
+            platCountSos={platCountSos}
+            platCountWarga={platCountWarga}
+            platCount110={platCount110}
+            platCountPersonel={platCountPersonel}
+            katCountAll={katCountAll}
+            valFilterStatus={valFilterStatus}
+            setValFilterStatus={setValFilterStatus}
+            valFilterPlatform={valFilterPlatform}
+            setValFilterPlatform={setValFilterPlatform}
+            valFilterKategori={valFilterKategori}
+            setValFilterKategori={setValFilterKategori}
+            openValidasiList={openValidasiList}
+            handleSelectPlatformFilter={handleSelectPlatformFilter}
+            handleSelectKategoriFilter={handleSelectKategoriFilter}
+            handleResetFilters={handleResetFilters}
+            filteredValidasiComplaints={filteredValidasiComplaints}
+            activeComplaint={activeComplaint}
+            setSelectedValComplaint={setSelectedValComplaint}
+            matchesStatus={matchesStatus}
+            matchesKategori={matchesKategori}
+            getComplaintKategoriInfo={getComplaintKategoriInfo}
+            isComplaintRejected={isComplaintRejected}
+            resolveComplaintStatus={resolveComplaintStatus}
+            bukaModalDisposisi={bukaModalDisposisi}
+            handleAjukanRevisi={handleAjukanRevisi}
+            handleSahkanPenutupanKasus={handleSahkanPenutupanKasus}
+            setTolakComplaint={setTolakComplaint}
+            setLightboxImg={setLightboxImg}
+            setShowLightboxModal={setShowLightboxModal}
+            fleetUnits={fleetUnits}
+            slaClockSeconds={slaClockSeconds}
+            formatSlaClock={formatSlaClock}
+            loading={loading}
+            isServerDataLoaded={isServerDataLoaded}
+          />
+        )}
+
+        {activeTab === 'view-laporan' && (
+          <TabKinerjaPawas
+            userProfile={userProfile}
+            setShowCetakModal={setShowCetakModal}
+            allRecentComplaints={allRecentComplaints}
+            onTimeRate={onTimeRate}
+            onTimeCount={onTimeCount}
+            completedWithTime={completedWithTime}
+            totalLaporan={totalLaporan}
+            avgResponseTime={avgResponseTime}
+            fleetUnits={fleetUnits}
+            registeredUnits={registeredUnits}
+            satisfactionRating={satisfactionRating}
+            satisfactionPercent={satisfactionPercent}
+            officerRankings={officerRankings}
+          />
+        )}
+
+        {activeTab === 'view-profil' && (
+          <TabProfilPawas
+            currentUser={userProfile}
+            setCurrentUser={setUserProfile}
+            totalLaporan={totalLaporan}
+            selesaiCount={selesaiCount}
+            responCepatPct={completedWithTime.length > 0 ? `${onTimeRate}%` : '0%'}
+            allRecentComplaints={allRecentComplaints}
+            units={fleetUnits.length > 0 ? fleetUnits : registeredUnits}
+            policeOffices={policeOffices}
+            showToast={showToast}
+            onBackToBeranda={() => switchTab('view-beranda')}
+            onLogout={async () => {
+              await logoutAction();
+              router.push('/');
             }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 100%)', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '20px' }}>🛡️</span>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Gelar Pasukan &amp; Alutsista Patroli Presisi</h3>
-                  <span style={{ fontSize: '11.5px', opacity: 0.9 }}>Daftar Riil Kekuatan {registeredUnits.length} Personel Terdaftar, Penugasan Operasi Lapangan, dan {fleetUnits.length} Unit Ranmor Dinas</span>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowKuatPersModal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-            </div>
+            presensiStatus={presensiStatus}
+            setPresensiStatus={setPresensiStatus}
+            jamMasukPiket={jamMasukPiket}
+            setJamMasukPiket={setJamMasukPiket}
+            jamPulangPiket={jamPulangPiket}
+            setJamPulangPiket={setJamPulangPiket}
+            onOpenPresensiPulangModal={handlePresensiPulang}
+          />
+        )}
 
-            <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1, background: '#F8FAFC' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ background: 'white', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1D4ED8' }}>TOTAL KUAT</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#1E3A8A' }}>{registeredUnits.length} PERS</div>
-                </div>
-                {(() => {
-                  const meluncurCount = registeredUnits.filter(
-                    (u) => u.dutyStatus === 'DINAS_PATROLI' || u.dutyStatus === 'MENUJU_TKP'
-                  ).length;
-                  const cadanganCount = registeredUnits.filter(
-                    (u) => u.dutyStatus === 'CADANGAN' || u.dutyStatus === 'LEPAS_DINAS'
-                  ).length;
-                  const siagaCount = Math.max(0, registeredUnits.length - meluncurCount - cadanganCount);
+        {activeTab === 'view-operator' && (
+          <TabOperatorCadPawas
+            switchTab={switchTab}
+            userProfile={userProfile}
+            simCaller={simCaller}
+            setSimCaller={setSimCaller}
+            cadFormErrors={cadFormErrors}
+            setCadFormErrors={setCadFormErrors}
+            dbSubcategories={dbSubcategories}
+            dbUrgencyLevels={dbUrgencyLevels}
+            cadLocationSuggestions={cadLocationSuggestions}
+            showCadSuggestions={showCadSuggestions}
+            setShowCadSuggestions={setShowCadSuggestions}
+            isSearchingCadLocation={isSearchingCadLocation}
+            handleCadLocationSearch={handleCadLocationSearch}
+            handleSelectCadSuggestion={handleSelectCadSuggestion}
+            validateCadForm={validateCadForm}
+            loading={loading}
+            setLoading={setLoading}
+            showFriendlyToast={showFriendlyToast}
+            bukaModalDisposisi={bukaModalDisposisi}
+            loadData={loadData}
+            session={session}
+            antreanPawas={antreanPawas}
+          />
+        )}
 
-                  return (
-                    <>
-                      <div style={{ background: 'white', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#166534' }}>🟢 Siaga Mako</div>
-                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#16A34A' }}>{siagaCount} Pers</div>
-                      </div>
-                      <div style={{ background: 'white', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF' }}>🔵 Meluncur/TKP</div>
-                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#2563EB' }}>{meluncurCount} Pers</div>
-                      </div>
-                      <div style={{ background: 'white', border: '1px solid #FDE68A', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: '10px', fontWeight: 700, color: '#92400E' }}>🟡 Cadangan</div>
-                        <div style={{ fontSize: '20px', fontWeight: 900, color: '#D97706' }}>{cadanganCount} Pers</div>
-                      </div>
-                    </>
-                  );
-                })()}
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#475569' }}>🚔 Ranmor Dinas</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#0F172A' }}>{fleetUnits.length} UNIT</div>
-                </div>
-              </div>
+        {activeTab === 'view-tolak' && (
+          <TabTolakLogPawas
+            switchTab={switchTab}
+            tolakComplaint={tolakComplaint}
+            tolakKategori={tolakKategori}
+            setTolakKategori={setTolakKategori}
+            dbRejectionReasons={dbRejectionReasons}
+            tolakAlasan={tolakAlasan}
+            setTolakAlasan={setTolakAlasan}
+            handleSubmitPenolakan={handleSubmitPenolakan}
+            loading={loading}
+          />
+        )}
+      </main>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {registeredUnits.map((u) => (
-                  <div key={u.nrp} style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B' }}>{u.pangkat} {u.nama}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>NRP: {u.nrp} • Satuan: {u.satuanNama || u.unitId}</div>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#15803D', background: '#DCFCE7', padding: '2px 8px', borderRadius: '4px' }}>
-                      🟢 Siaga Dinas
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ padding: '12px 20px', background: 'white', borderTop: '1px solid #E2E8F0', textAlign: 'right' }}>
-              <button
-                type="button"
-                onClick={() => setShowKuatPersModal(false)}
-                style={{ padding: '8px 18px', background: '#F1F5F9', color: '#334155', fontSize: '12px', fontWeight: 700, border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer' }}
-              >
-                Tutup Rincian
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================================================== */}
-      {/* MODAL AUDIT 3: DETAIL IKM WARGA                          */}
-      {/* ======================================================== */}
-      {showIkmModal && (
+      {/* ── BOTTOM NAVIGATION (Mobile & Tablet Pawas & Operator) ── */}
+      <nav className="bottom-nav pawas-bottom-nav">
+        {/* TAB: BERANDA */}
         <div
-          id="modal-detail-ikm-warga"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowIkmModal(false)}
+          id="pawas-bottom-nav-beranda"
+          className={`nav-item ${activeTab === 'view-beranda' ? 'active' : ''}`}
+          onClick={() => switchTab('view-beranda')}
         >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '16px',
-              maxWidth: '840px',
-              width: '100%',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: 'linear-gradient(135deg, #065F46 0%, #047857 100%)', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '20px' }}>⭐</span>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Audit Indeks Kepuasan Masyarakat (IKM)</h3>
-                  <span style={{ fontSize: '11.5px', opacity: 0.9 }}>Transparansi Penilaian Riil Warga Pelapor Atas Penanganan Kasus</span>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowIkmModal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ padding: '18px 20px', overflowY: 'auto', flex: 1, background: '#F8FAFC' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(135px, 1fr))', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ background: 'white', border: '1px solid #A7F3D0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#065F46' }}>SKOR RATA-RATA</div>
-                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#065F46', marginTop: '2px' }}>{satisfactionRating} / 5.0</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#15803D' }}>KEPUASAN WARGA</div>
-                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#16A34A', marginTop: '2px' }}>{satisfactionPercent}%</div>
-                </div>
-                <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, color: '#1E40AF' }}>TOTAL ULASAN</div>
-                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#153E75', marginTop: '2px' }}>
-                    {allRecentComplaints.filter((c) => c.citizenRating || c.citizenReview).length} Ulasan
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {allRecentComplaints.filter((c) => c.citizenRating || c.citizenReview).length > 0 ? (
-                  allRecentComplaints
-                    .filter((c) => c.citizenRating || c.citizenReview)
-                    .map((item) => (
-                      <div key={item.id} style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <div>
-                            <strong>{item.pelapor?.nama || 'Masyarakat'}</strong>
-                            {item.lokasi?.alamat && (
-                              <span style={{ fontSize: '11px', color: '#64748B', marginLeft: '6px' }}>({item.lokasi.alamat})</span>
-                            )}
-                          </div>
-                          {item.citizenRating ? (
-                            <span style={{ color: '#F59E0B', fontSize: '12px', letterSpacing: '2px' }}>
-                              {'★'.repeat(item.citizenRating)}{'☆'.repeat(5 - item.citizenRating)}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#94A3B8', fontSize: '11px', fontStyle: 'italic' }}>
-                              (Tanpa rating bintang)
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#475569', fontStyle: 'italic', marginBottom: '6px' }}>
-                          {item.citizenReview ? `"${item.citizenReview}"` : '(Warga memberikan rating bintang tanpa ulasan tertulis)'}
-                        </div>
-                        <div style={{ display: 'flex', gap: '6px', fontSize: '10px' }}>
-                          <span style={{ background: '#F1F5F9', color: '#475569', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                            {item.nomor_laporan}
-                          </span>
-                          <span style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                            {item.kategori}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '24px', color: '#94A3B8', fontSize: '13px' }}>
-                    Belum ada ulasan masyarakat yang tercatat di database.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div style={{ padding: '12px 20px', background: 'white', borderTop: '1px solid #E2E8F0', textAlign: 'right' }}>
-              <button
-                type="button"
-                onClick={() => setShowIkmModal(false)}
-                style={{ padding: '8px 18px', background: '#F1F5F9', color: '#334155', fontSize: '12px', fontWeight: 700, border: '1px solid #CBD5E1', borderRadius: '8px', cursor: 'pointer' }}
-              >
-                Tutup Rincian
-              </button>
-            </div>
-          </div>
+          <span className="nav-icon">
+            <Home size={20} strokeWidth={activeTab === 'view-beranda' ? 2.4 : 1.8} />
+          </span>
+          <span className="nav-label">Beranda</span>
         </div>
-      )}
 
-      {/* ======================================================== */}
-      {/* MODAL CETAK RESMI LAPORAN AKUNTABILITAS OPERASIONAL     */}
-      {/* ======================================================== */}
-      {showCetakModal && (
+        {/* TAB: PETA TAKTIS */}
         <div
-          id="modal-cetak-laporan-pawas"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.85)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowCetakModal(false)}
+          id="pawas-bottom-nav-peta"
+          className={`nav-item ${activeTab === 'view-peta' ? 'active' : ''}`}
+          onClick={() => switchTab('view-peta')}
         >
+          <span className="nav-icon">
+            <Map size={20} strokeWidth={activeTab === 'view-peta' ? 2.4 : 1.8} />
+          </span>
+          <span className="nav-label">Peta</span>
+        </div>
+
+        {/* TAB: ROLE-AWARE (Komando Pawas / Operator 110 / Buat Log) - Elevated Center Action Button */}
+        {roleParam === 'operator' ? (
           <div
-            style={{
-              background: 'white',
-              borderRadius: '12px',
-              maxWidth: '840px',
-              width: '100%',
-              maxHeight: '92vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-              overflow: 'hidden',
-              border: '1px solid #CBD5E1',
-            }}
-            onClick={(e) => e.stopPropagation()}
+            id="pawas-bottom-nav-operator"
+            className={`nav-item nav-item-center ${activeTab === 'view-operator' ? 'active' : ''}`}
+            onClick={() => switchTab('view-operator')}
+            title="Operator 110"
           >
-            <div style={{ background: '#0F172A', color: 'white', padding: '12px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>📄</span>
-                <span style={{ fontSize: '13px', fontWeight: 800 }}>PRATINJAU DOKUMEN MUTASI RESMI OPERASIONAL (FORMAT POLRI)</span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  style={{ background: '#10B981', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
-                >
-                  🖨️ Cetak Dokumen / PDF
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCetakModal(false)}
-                  style={{ background: 'rgba(255,255,255,0.15)', color: 'white', border: 'none', width: '28px', height: '28px', borderRadius: '50%', cursor: 'pointer' }}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Dokumen Format Standar Polri */}
-            <div style={{ padding: '40px 48px', overflowY: 'auto', flex: 1, fontFamily: "'Times New Roman', Times, serif", lineHeight: 1.45, fontSize: '13.5px', color: '#000000' }}>
-              <div style={{ borderBottom: '3px double #000000', paddingBottom: '10px', marginBottom: '18px' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '12.5pt', fontWeight: 'bold', letterSpacing: '1px' }}>
-                    KEPOLISIAN NEGARA REPUBLIK INDONESIA
-                  </div>
-                  <div style={{ fontSize: '12.5pt', fontWeight: 'bold', letterSpacing: '1px' }}>
-                    DAERAH METRO JAYA
-                  </div>
-                  <div style={{ fontSize: '13.5pt', fontWeight: 'bold', letterSpacing: '1.5px' }}>
-                    RESOR METRO JAKARTA SELATAN
-                  </div>
-                  <div style={{ fontSize: '9.5pt', fontStyle: 'italic', marginTop: '3px' }}>
-                    Jalan Wijaya II No. 42, Kebayoran Baru, Jakarta Selatan • Telp: (021) 7201110
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-                <div style={{ fontSize: '13pt', fontWeight: 'bold', textDecoration: 'underline' }}>
-                  LAPORAN HASIL PELAKSANAAN TUGAS PERWIRA PENGAWAS (PAWAS)
-                </div>
-                <div style={{ fontSize: '11pt', fontWeight: 'bold', marginTop: '3px' }}>
-                  Nomor: LAP-PAWAS / {new Date().getMonth() + 1} / {new Date().getFullYear()} / SPKT-METRO
-                </div>
-                <div style={{ fontSize: '10pt', fontStyle: 'italic', marginTop: '3px' }}>
-                  Masa Dinas Piket: {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <strong>I. DASAR HUKUM &amp; PENUGASAN:</strong>
-                <div style={{ paddingLeft: '18px', textAlign: 'justify' }}>
-                  1. Peraturan Kepala Kepolisian Negara Republik Indonesia Nomor 2 Tahun 2021 tentang Susunan Organisasi dan Tata Kerja Pada Tingkat Kepolisian Resor.<br />
-                  2. Surat Perintah Penunjukan Perwira Pengawas (PAWAS) Piket Siaga Markas Komando dan Sentra Pelayanan Kepolisian Terpadu 110.
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <strong>II. KUAT PERSONEL &amp; KESIAPSIAGAAN SARPRAS:</strong>
-                <div style={{ paddingLeft: '18px' }}>
-                  a. <strong>Kekuatan Riil Personel Piket:</strong> {registeredUnits.length} Personel terdaftar aktif di sistem.<br />
-                  b. <strong>Kesiapan Armada Taktis:</strong> {fleetUnits.length} Unit Ranmor Dinas Presisi aktif.<br />
-                  c. <strong>Inventaris Senpi &amp; Alkom:</strong> Gudang jaga lengkap terkunci, radio HT repeater Channel 110 aktif.
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <strong>III. INDEKS KEPUASAN MASYARAKAT &amp; VALIDITAS ADUAN 110:</strong>
-                <div style={{ paddingLeft: '18px' }}>
-                  Berdasarkan evaluasi survei masyarakat melalui portal publik SIMOPMAS 110, diperoleh <strong>Indeks Kepuasan Masyarakat (IKM): {ikmStats?.avgRating ? ikmStats.avgRating.toFixed(1) + ' / 5.0' : '-'}</strong>.
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '14px' }}>
-                <strong>IV. REKAPITULASI PELAYANAN PANGGILAN DARURAT 110:</strong>
-                <div style={{ paddingLeft: '18px' }}>
-                  Selama masa dinas telah diterima dan dikendalikan sebanyak <strong>{totalLaporan} Laporan Pengaduan Warga</strong> melalui Call Center 110.
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '30px' }}>
-                <div style={{ fontSize: '10.5pt' }}>
-                  <strong>Tembusan Yth:</strong><br />
-                  1. Kapolres Metro Jakarta Selatan<br />
-                  2. Wakapolres Metro Jakarta Selatan<br />
-                  3. Kabag Ops Polres Metro Jakarta Selatan<br />
-                  4. Kasi Propam Polres Metro Jakarta Selatan
-                </div>
-                <div style={{ textAlign: 'center', minWidth: '240px' }}>
-                  <div>Jakarta, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
-                  <div style={{ fontWeight: 'bold', marginTop: '2px' }}>PERWIRA PENGAWAS (PAWAS),</div>
-                  <div style={{ height: '55px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#153E75', fontSize: '11px', fontWeight: 'bold', border: '1px dashed #94A3B8', margin: '8px auto', width: '180px', borderRadius: '6px', background: '#F8FAFC' }}>
-                    [ TERVERIFIKASI DIGITAL ]
-                  </div>
-                  <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{userProfile.fullName}</div>
-                  <div style={{ fontSize: '10pt' }}>{userProfile.pangkat} NRP {userProfile.nrp}</div>
-                </div>
-              </div>
+            <div className="nav-center-btn">
+              <Headphones size={22} color="#FFFFFF" strokeWidth={2.4} />
             </div>
           </div>
-        </div>
-      )}
+        ) : roleParam === 'personel' ? (
+          <div
+            id="pawas-bottom-nav-log"
+            className={`nav-item nav-item-center ${activeTab === 'view-log' ? 'active' : ''}`}
+            onClick={() => switchTab('view-log')}
+            title="Buat Log"
+          >
+            <div className="nav-center-btn">
+              <Plus size={24} color="#FFFFFF" strokeWidth={2.8} />
+            </div>
+          </div>
+        ) : (
+          <div
+            id="pawas-bottom-nav-komando"
+            className={`nav-item nav-item-center ${activeTab === 'view-validasi' ? 'active' : ''}`}
+            onClick={() => switchTab('view-validasi')}
+            title="Komando Pawas"
+          >
+            <div className="nav-center-btn">
+              <ShieldAlert size={23} color="#FFFFFF" strokeWidth={2.4} />
+            </div>
+          </div>
+        )}
 
-      {/* ======================================================== */}
-      {/* MODAL CRUD TITIK RAWAN KAMTIBMAS                         */}
-      {/* ======================================================== */}
-      {showHotspotModal && (
+        {/* TAB: KINERJA */}
         <div
-          id="modal-crud-titik-rawan"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.7)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowHotspotModal(false)}
+          id="pawas-bottom-nav-kinerja"
+          className={`nav-item ${activeTab === 'view-laporan' ? 'active' : ''}`}
+          onClick={() => switchTab('view-laporan')}
         >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '14px',
-              width: '100%',
-              maxWidth: '680px',
-              maxHeight: '90vh',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
-              overflow: 'hidden',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: 'linear-gradient(135deg, #1E293B, #0F172A)', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '22px' }}>🔴</span>
-                <div>
-                  <div style={{ fontSize: '15px', fontWeight: 800 }}>MANAJEMEN TITIK RAWAN KAMTIBMAS</div>
-                  <div style={{ fontSize: '11.5px', color: '#94A3B8' }}>Kelola peta hotspot kerawanan, balap liar, tawuran &amp; kejahatan jalanan</div>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowHotspotModal(false)} style={{ background: 'none', border: 'none', color: '#CBD5E1', fontSize: '16px', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ padding: '12px 20px', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                Daftar Hotspot Aktif: <span style={{ background: '#EF4444', color: 'white', padding: '2px 8px', borderRadius: '10px', fontSize: '11px' }}>{hotspots.length}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowHotspotAddForm(!showHotspotAddForm)}
-                style={{ background: '#153E75', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 800, cursor: 'pointer' }}
-              >
-                {showHotspotAddForm ? '✕ Tutup Form' : '➕ Tambah Titik Rawan Baru'}
-              </button>
-            </div>
-
-            <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1 }}>
-              {showHotspotAddForm && (
-                <div style={{ background: '#FFF7ED', border: '1.5px solid #FDBA74', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#9A3412', marginBottom: '10px' }}>
-                    ➕ TAMBAH TITIK RAWAN BARU
-                  </div>
-                  <AddressLocationPicker
-                    label="Nama Kawasan / Titik Rawan"
-                    required={true}
-                    placeholder="Contoh: Flyover Antasari, Panglima Polim, atau cari nama jalan..."
-                    value={newHotspotTitle}
-                    lat={newHotspotLat}
-                    lng={newHotspotLng}
-                    onChangeAddress={(addr) => setNewHotspotTitle(addr)}
-                    onChangeCoords={(lat, lng) => {
-                      setNewHotspotLat(lat);
-                      setNewHotspotLng(lng);
-                    }}
-                    mapHeight="220px"
-                  />
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Wilayah Polsek *</label>
-                      <input
-                        type="text"
-                        value={newHotspotWilayah}
-                        onChange={(e) => setNewHotspotWilayah(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Jadwal / Jam Rawan</label>
-                      <input
-                        type="text"
-                        value={newHotspotJadwal}
-                        onChange={(e) => setNewHotspotJadwal(e.target.value)}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ marginBottom: '10px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>Kategori Kerawanan</label>
-                    <select
-                      value={newHotspotKategori}
-                      onChange={(e) => setNewHotspotKategori(e.target.value)}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', fontSize: '12px' }}
-                    >
-                      <option value="">-- Pilih Kategori Kerawanan --</option>
-                      {dbCategories.map((c) => (
-                        <option key={c.id || c.key} value={c.label || c.key}>
-                          {c.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (!newHotspotTitle.trim()) {
-                          showFriendlyToast('warning', 'Formulir Belum Lengkap', 'Mohon isi nama kawasan rawan terlebih dahulu.');
-                          return;
-                        }
-                        await createHotspotAction({
-                          title: newHotspotTitle,
-                          wilayahPolsek: newHotspotWilayah,
-                          kategori: newHotspotKategori,
-                          statusBahaya: newHotspotStatus,
-                          jadwalDisplay: newHotspotJadwal,
-                          lat: newHotspotLat,
-                          lng: newHotspotLng,
-                        });
-                        showFriendlyToast('success', 'Titik Rawan Tersimpan', 'Titik rawan berhasil ditambahkan ke database.');
-                        setNewHotspotTitle('');
-                        setShowHotspotAddForm(false);
-                        loadData();
-                      }}
-                      style={{ background: '#16A34A', color: 'white', border: 'none', padding: '7px 16px', borderRadius: '6px', fontSize: '11.5px', fontWeight: 800, cursor: 'pointer' }}
-                    >
-                      💾 Simpan Titik Rawan
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {hotspots.map((h) => (
-                  <div
-                    key={h.id || h.key}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px' }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '13px', color: '#1E293B' }}>🔴 {h.title}</div>
-                      <div style={{ fontSize: '11px', color: '#64748B' }}>{h.kategori} • {h.jadwalDisplay || h.jadwal}</div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (confirm(`Hapus titik rawan ${h.title}?`)) {
-                          await deleteHotspotAction(h.key);
-                          loadData();
-                        }
-                      }}
-                      style={{ background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      Hapus
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ padding: '12px 20px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', textAlign: 'right' }}>
-              <button
-                type="button"
-                onClick={() => setShowHotspotModal(false)}
-                style={{ background: '#334155', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
+          <span className="nav-icon">
+            <BarChart3 size={20} strokeWidth={activeTab === 'view-laporan' ? 2.4 : 1.8} />
+          </span>
+          <span className="nav-label">Kinerja</span>
         </div>
-      )}
 
-      {/* ======================================================== */}
-      {/* MODAL TIMEPICKER RENTANG JAM KEGIATAN                    */}
-      {/* ======================================================== */}
-      {showTimePickerModal && (
+        {/* TAB: PROFIL */}
         <div
-          id="modal-timepicker-log"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000000,
-            background: 'rgba(15,23,42,0.65)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowTimePickerModal(false)}
+          id="pawas-bottom-nav-profil"
+          className={`nav-item ${activeTab === 'view-profil' ? 'active' : ''}`}
+          onClick={() => switchTab('view-profil')}
         >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '14px',
-              maxWidth: '390px',
-              width: '100%',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
-              overflow: 'hidden',
-              borderTop: '5px solid #153E75',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '15px', fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <span>📅</span> Pilih Rentang Jam Kegiatan
-              </div>
-              <button type="button" onClick={() => setShowTimePickerModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', color: '#94A3B8', cursor: 'pointer' }}>✕</button>
-            </div>
-
-            <div style={{ padding: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '10px', alignItems: 'center', marginBottom: '14px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Jam Mulai</label>
-                  <input
-                    type="time"
-                    defaultValue=""
-                    id="tp-jam-mulai"
-                    style={{ width: '100%', padding: '10px 8px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}
-                  />
-                </div>
-                <div style={{ paddingTop: '18px', fontWeight: 800, color: '#64748B' }}>s/d</div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Sampai Jam</label>
-                  <input
-                    type="time"
-                    defaultValue=""
-                    id="tp-jam-selesai"
-                    style={{ width: '100%', padding: '10px 8px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '15px', fontWeight: 700, textAlign: 'center' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLogWaktuMulai('08:00 - 16:00 WIB (Shift Pagi)');
-                    setShowTimePickerModal(false);
-                  }}
-                  style={{ padding: '7px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textAlign: 'left', cursor: 'pointer' }}
-                >
-                  ☀️ Shift Pagi (08:00 - 16:00)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLogWaktuMulai('16:00 - 00:00 WIB (Shift Sore)');
-                    setShowTimePickerModal(false);
-                  }}
-                  style={{ padding: '7px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textAlign: 'left', cursor: 'pointer' }}
-                >
-                  🌇 Shift Sore (16:00 - 00:00)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLogWaktuMulai('00:00 - 08:00 WIB (Shift Malam)');
-                    setShowTimePickerModal(false);
-                  }}
-                  style={{ padding: '7px 10px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '11px', fontWeight: 700, textAlign: 'left', cursor: 'pointer' }}
-                >
-                  🌙 Shift Malam (00:00 - 08:00)
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowTimePickerModal(false)}
-                  style={{ flex: 1, background: '#F1F5F9', border: '1px solid #CBD5E1', padding: '11px', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer' }}
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const start = (document.getElementById('tp-jam-mulai') as HTMLInputElement)?.value || '09:00';
-                    const end = (document.getElementById('tp-jam-selesai') as HTMLInputElement)?.value || '14:30';
-                    setLogWaktuMulai(`${start} - ${end} WIB`);
-                    setShowTimePickerModal(false);
-                  }}
-                  style={{ flex: 1.4, background: '#153E75', border: 'none', color: 'white', padding: '11px', borderRadius: '8px', fontWeight: 800, fontSize: '12px', cursor: 'pointer' }}
-                >
-                  <span>✓</span> Terapkan Waktu
-                </button>
-              </div>
-            </div>
-          </div>
+          <span className="nav-icon">
+            <User size={20} strokeWidth={activeTab === 'view-profil' ? 2.4 : 1.8} />
+          </span>
+          <span className="nav-label">Profil</span>
         </div>
-      )}
+      </nav>
 
-      {/* ======================================================== */}
-      {/* MODAL KEAMANAN AKUN & PIN KOMANDO                        */}
-      {/* ======================================================== */}
-      {showKeamananModal && (
-        <div
-          id="modal-keamanan-profil"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowKeamananModal(false)}
-        >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '14px',
-              maxWidth: '500px',
-              width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
-              border: '1px solid #CBD5E1',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: '#153E75', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '20px' }}>🔒</span>
-                <div>
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Keamanan Akun &amp; PIN Komando</h3>
-                  <div style={{ fontSize: '11px', opacity: 0.85 }}>Kredensial SIPP Mabes Polri &amp; Otorisasi Dinas</div>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowKeamananModal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-            </div>
+      {/* MODAL COMPONENTS (MODULAR & REUSABLE) */}
+      <ModalDisposisiPawas
+        isOpen={showDisposisiModal}
+        onClose={() => setShowDisposisiModal(false)}
+        selectedItem={selectedDisposisiItem}
+        dbSubcategories={dbSubcategories}
+        daftarArmadaAktif={daftarArmadaAktif}
+        selectedSatuanKeys={selectedSatuanKeys}
+        toggleSatuanSelection={toggleSatuanSelection}
+        kuotaPersonel={kuotaPersonel}
+        setKuotaPersonel={setKuotaPersonel}
+        arahanPawas={arahanPawas}
+        setArahanPawas={setArahanPawas}
+        tambahArahanCepatPawas={tambahArahanCepatPawas}
+        handleConfirmDisposisi={handleConfirmDisposisi}
+        loading={loading}
+        getSopRecommendationByIncident={getSopRecommendationByIncident}
+        calculateDistanceHaversineKm={calculateDistanceHaversineKm}
+        activePreviewSatuanKey={activePreviewSatuanKey}
+      />
 
-            <div style={{ padding: '20px' }}>
-              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '10px', padding: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#166534' }}>Autentikasi 2-Faktor (2FA) Aktif</div>
-                  <div style={{ fontSize: '11px', color: '#15803D' }}>Token Terverifikasi • {session?.identifier ? `NRP: ${session.identifier}` : '-'}</div>
-                </div>
-                <span style={{ background: '#15803D', color: 'white', fontSize: '10px', fontWeight: 800, padding: '2px 8px', borderRadius: '10px' }}>SIAP</span>
-              </div>
+      <ModalSuksesDisposisi
+        isOpen={showSuksesModal}
+        onClose={() => setShowSuksesModal(false)}
+        data={suksesDisposisiData}
+      />
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>Kata Sandi</label>
-                <input type="password" placeholder="Masukkan kata sandi baru..." style={{ width: '100%', padding: '9px 12px', border: '1px solid #CBD5E1', borderRadius: '8px', fontSize: '13px' }} />
-              </div>
+      <ModalSlaMonitoring
+        isOpen={showSlaModal}
+        onClose={() => setShowSlaModal(false)}
+        avgResponseTime={Number(avgResponseTime) || 0}
+        onTimeRate={Number(onTimeRate) || 0}
+        fastCount={fastCount}
+        mediumCount={mediumCount}
+        slowCount={slowCount}
+        complaints={completedWithTime}
+      />
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>PIN Otorisasi Disposisi (6-Digit)</label>
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                  {pinOtorisasiPawas.map((d, i) => (
-                    <input
-                      key={i}
-                      type="password"
-                      maxLength={1}
-                      value={d}
-                      onChange={(e) => {
-                        const val = e.target.value.slice(-1);
-                        setPinOtorisasiPawas((prev) => {
-                          const next = [...prev];
-                          next[i] = val;
-                          return next;
-                        });
-                      }}
-                      style={{ width: '40px', height: '45px', textAlign: 'center', fontSize: '18px', fontWeight: 800, border: '2px solid #CBD5E1', borderRadius: '8px', background: '#F8FAFC' }}
-                    />
-                  ))}
-                </div>
-              </div>
+      <ModalKuatPers
+        isOpen={showKuatPersModal}
+        onClose={() => setShowKuatPersModal(false)}
+        registeredUnits={registeredUnits}
+        fleetUnits={fleetUnits}
+      />
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowKeamananModal(false)}
-                  style={{ flex: 1, padding: '10px', background: '#F1F5F9', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '12.5px', cursor: 'pointer' }}
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    showFriendlyToast('success', 'Kredensial Diperbarui', 'Kredensial akun & PIN otorisasi dinas berhasil diperbarui.');
-                    setShowKeamananModal(false);
-                  }}
-                  style={{ flex: 2, padding: '10px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer' }}
-                >
-                  💾 Simpan Perubahan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalIkm
+        isOpen={showIkmModal}
+        onClose={() => setShowIkmModal(false)}
+        satisfactionRating={Number(satisfactionRating) || 0}
+        satisfactionPercent={Number(satisfactionPercent) || 0}
+        complaints={allRecentComplaints}
+      />
 
-      {/* ======================================================== */}
-      {/* MODAL KONFIRMASI PRESENSI PULANG                         */}
-      {/* ======================================================== */}
-      {showPresensiPulangModal && (
-        <div
-          id="modal-presensi-pulang"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 99999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowPresensiPulangModal(false)}
-        >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '14px',
-              maxWidth: '460px',
-              width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4)',
-              border: '1px solid #CBD5E1',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ background: '#DC2626', color: 'white', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '22px' }}>🚪</span>
-                <div>
-                  <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Konfirmasi Presensi Pulang</h3>
-                  <div style={{ fontSize: '11px', opacity: 0.9 }}>Serah Terima Tugas Piket</div>
-                </div>
-              </div>
-              <button type="button" onClick={() => setShowPresensiPulangModal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '18px', cursor: 'pointer' }}>✕</button>
-            </div>
+      <ModalCetakLaporan
+        isOpen={showCetakModal}
+        onClose={() => setShowCetakModal(false)}
+        registeredUnits={registeredUnits}
+        fleetUnits={fleetUnits}
+        ikmStats={ikmStats}
+        totalLaporan={totalLaporan}
+        userProfile={userProfile}
+      />
 
-            <div style={{ padding: '20px', fontSize: '12.5px' }}>
-              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', padding: '12px', marginBottom: '16px', color: '#991B1B' }}>
-                <strong>Perhatian:</strong> Anda akan mengakhiri sesi dinas piket hari ini. Pastikan hal-hal berikut telah terpenuhi:
-              </div>
+      <ModalHotspotPawas
+        isOpen={showHotspotModal}
+        onClose={() => setShowHotspotModal(false)}
+        hotspots={hotspots}
+        dbCategories={dbCategories}
+        loadData={loadData}
+        showFriendlyToast={showFriendlyToast}
+      />
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="checkbox" style={{ accentColor: '#15803D', width: '16px', height: '16px' }} />
-                  <span>Seluruh laporan penugasan aktif telah diperbarui statusnya.</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="checkbox" style={{ accentColor: '#15803D', width: '16px', height: '16px' }} />
-                  <span>Siap melakukan apel serah terima kepada regu piket pengganti.</span>
-                </label>
-              </div>
+      <ModalTimePicker
+        isOpen={showTimePickerModal}
+        onClose={() => setShowTimePickerModal(false)}
+        onSelectTimeRange={(range: string) => {
+          setLogWaktuMulai(range);
+          setShowTimePickerModal(false);
+        }}
+      />
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowPresensiPulangModal(false)}
-                  style={{ flex: 1, padding: '10px', background: '#F1F5F9', border: 'none', borderRadius: '8px', fontWeight: 700, fontSize: '12.5px', cursor: 'pointer' }}
-                >
-                  Batal
-                </button>
-                <button
-                  type="button"
-                  onClick={handleKonfirmasiPulangFinal}
-                  style={{ flex: 1.5, padding: '10px', background: '#DC2626', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer' }}
-                >
-                  <span>✓</span> Konfirmasi Pulang
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalPresensiPulang
+        isOpen={showPresensiPulangModal}
+        onClose={() => setShowPresensiPulangModal(false)}
+        onConfirmPulang={handleKonfirmasiPulangFinal}
+      />
 
-      {/* ======================================================== */}
-      {/* LIGHTBOX MODAL PREVIEW FOTO BUKTI                        */}
-      {/* ======================================================== */}
-      {showLightboxModal && (
-        <div
-          id="lightbox-modal"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 999999,
-            background: 'rgba(15,23,42,0.85)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setShowLightboxModal(false)}
-        >
-          <div
-            style={{
-              background: 'white',
-              borderRadius: '12px',
-              maxWidth: '550px',
-              width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC' }}>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>{lightboxImg.title}</h4>
-                <span style={{ fontSize: '11px', color: '#64748B' }}>Dokumentasi Resmi SIMOPMAS 110</span>
-              </div>
-              <button type="button" onClick={() => setShowLightboxModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ background: '#0F172A', maxHeight: '420px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {lightboxImg.url?.match(/\.(mp4|webm|mov)$/i) || lightboxImg.title?.toLowerCase().includes('video') ? (
-                <video src={lightboxImg.url} controls autoPlay style={{ width: '100%', maxHeight: '400px', outline: 'none' }} />
-              ) : lightboxImg.url?.match(/\.(pdf)$/i) ? (
-                <iframe src={lightboxImg.url} style={{ width: '100%', height: '380px', border: 'none' }} title={lightboxImg.title} />
-              ) : (
-                <img src={lightboxImg.url} alt="Lightbox" style={{ width: '100%', maxHeight: '380px', objectFit: 'contain' }} />
-              )}
-            </div>
-            <div style={{ padding: '14px 16px' }}>
-              <div style={{ fontSize: '12px', color: '#1E293B', lineHeight: 1.5 }}>{lightboxImg.desc}</div>
-              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#64748B', borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
-                <span>{lightboxImg.meta}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <a
-                    href={lightboxImg.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      background: '#EFF6FF',
-                      color: '#1D4ED8',
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      textDecoration: 'none',
-                      border: '1px solid #BFDBFE',
-                      fontSize: '10.5px',
-                    }}
-                  >
-                    Buka File ↗
-                  </a>
-                  <span style={{ background: '#ECFDF5', color: '#15803D', fontWeight: 700, padding: '2px 8px', borderRadius: '4px' }}>✓ Terverifikasi GPS</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalKeamananPawas
+        isOpen={showKeamananModal}
+        onClose={() => setShowKeamananModal(false)}
+        session={session}
+        pinOtorisasiPawas={pinOtorisasiPawas}
+        setPinOtorisasiPawas={setPinOtorisasiPawas}
+        showFriendlyToast={showFriendlyToast}
+      />
+
+      <ModalLightbox
+        isOpen={showLightboxModal}
+        onClose={() => setShowLightboxModal(false)}
+        lightboxImg={lightboxImg}
+      />
 
     </div>
   );
@@ -8643,10 +2061,12 @@ export default function PawasConsoleView({
   session,
   initialSection = 'beranda',
   initialMasterData,
+  initialPawasData,
 }: {
   session?: any;
   initialSection?: string;
   initialMasterData?: any;
+  initialPawasData?: any;
 }) {
   return (
     <React.Suspense fallback={<ConsoleSkeleton role="PAWAS" />}>
@@ -8654,6 +2074,7 @@ export default function PawasConsoleView({
         session={session}
         initialSection={initialSection}
         initialMasterData={initialMasterData}
+        initialPawasData={initialPawasData}
       />
     </React.Suspense>
   );

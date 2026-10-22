@@ -4,6 +4,7 @@
 import { prisma } from '@/infrastructure/db/prisma.client';
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
+import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
 
 function serializeBigInt<T>(obj: T): T {
   return JSON.parse(
@@ -65,7 +66,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
     // 4. Standarisasi RBAC murni dari database (SUPERADMIN, PAWAS, PERSONIL)
     const userRole = user.role;
 
-    // 5. Rute Navigasi Terpadu (Single Console URL Presisi 110)
+    // 5. Rute Navigasi Terpadu (Single Console URL SIMOPMAS 110)
     const targetRoute = '/console';
 
     // 6. Terbitkan Sesi Terenkripsi ke HTTP-Only Cookies (Keamanan Ganda & Standby Timeout 1 Jam)
@@ -204,6 +205,11 @@ export async function touchSessionAction() {
 }
 
 export async function getRegisteredUnitsAction() {
+  const cached = cacheGet<any>('registered_units');
+  if (cached) {
+    return { success: true, data: cached };
+  }
+
   try {
     // Ambil data unit aktif langsung dari database
     const units = await prisma.registeredUnit.findMany({
@@ -259,7 +265,9 @@ export async function getRegisteredUnitsAction() {
         password: null,
       };
     });
-    return { success: true, data: serializeBigInt(safeUnits) };
+    const serialized = serializeBigInt(safeUnits);
+    cacheSet('registered_units', serialized, 30000); // 30 detik TTL
+    return { success: true, data: serialized };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data unit.' };
   }
@@ -284,7 +292,13 @@ export async function registerNewUnitAction(input: {
   try {
     const now = new Date();
     const assignedRole = input.role || 'PERSONIL';
-    const parsedStationId = input.stationId ? Number(input.stationId) : null;
+    let parsedStationId = input.stationId ? Number(input.stationId) : null;
+    if (!parsedStationId) {
+      const defaultSt = await prisma.policeStation.findFirst({
+        where: { station_level: 'POLRES' },
+      }).catch(() => null);
+      if (defaultSt) parsedStationId = defaultSt.id;
+    }
     const devId = input.deviceID && input.deviceID.trim() ? input.deviceID.trim() : null;
 
     // Tentukan apakah ini operasi Edit atau Pendaftaran Baru
@@ -473,6 +487,8 @@ export async function registerNewUnitAction(input: {
       }
 
       try {
+        cacheInvalidate('registered_units');
+        cacheInvalidate('pawas_unified_data');
         revalidatePath('/console');
         revalidatePath('/console/unit');
         revalidatePath('/registrasi-unit');
@@ -568,6 +584,8 @@ export async function registerNewUnitAction(input: {
     );
 
     try {
+      cacheInvalidate('registered_units');
+      cacheInvalidate('pawas_unified_data');
       revalidatePath('/console');
     } catch (_) {}
     return { success: true, data: serializeBigInt({ ...reg, role: assignedRole }) };
@@ -611,6 +629,8 @@ export async function deleteRegisteredUnitAction(idOrNrp: string) {
     }
 
     try {
+      cacheInvalidate('registered_units');
+      cacheInvalidate('pawas_unified_data');
       revalidatePath('/console');
     } catch (_) {}
 
@@ -980,5 +1000,48 @@ export async function updateUserProfileAndAvatarAction(input: {
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memperbarui profil.' };
+  }
+}
+
+export async function updateUserPasswordAction(newPassword: string, oldPassword?: string) {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { success: false, error: 'Sesi dinas tidak valid atau telah berakhir. Silakan login kembali.' };
+    }
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'Kata sandi minimal 6 karakter!' };
+    }
+    const user = await prisma.user.findUnique({
+      where: { identifier: session.identifier },
+    });
+    if (!user) {
+      return { success: false, error: 'Data pengguna tidak ditemukan.' };
+    }
+    if (oldPassword) {
+      const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
+      if (!isMatch) {
+        return { success: false, error: 'Kata sandi lama salah! Silakan periksa kembali kata sandi saat ini.' };
+      }
+    }
+    const hash = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { identifier: session.identifier },
+      data: { password_hash: hash },
+    });
+    try {
+      await logUserActivity({
+        userId: session.userId,
+        identifier: session.identifier,
+        userName: session.fullName,
+        role: session.role,
+        activityType: 'UPDATE_PASSWORD',
+        description: `${session.role} (${session.identifier}) memperbarui kata sandi akun`,
+        endpoint: '/console/profil',
+      });
+    } catch (_) {}
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal mengubah kata sandi.' };
   }
 }
