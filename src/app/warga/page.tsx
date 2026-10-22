@@ -52,6 +52,7 @@ interface DemoLog {
     komandan?: string;
     estimasiJarak?: string;
     estimasiEta?: string;
+    avatarUrl?: string;
   };
   acceptedPersonels?: Array<{ nama: string; pangkat?: string; nrp?: string }>;
   ratingKepuasan?: {
