@@ -83,6 +83,8 @@ export class FieldStepActionUseCase {
           },
           input.evidencesList
         );
+        // Sesuai alur baru: penanganan personil langsung bertransisi menjadi SELESAI
+        complaint.selesaikanKasus(input.catatan, input.fotoBuktiUrl);
         break;
       default:
         throw new Error(`Tahap aksi ${input.step} tidak valid.`);

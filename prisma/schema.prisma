@@ -596,6 +596,7 @@ model Complaint {
 
   dispatches            ComplaintDispatch[]
   complaint_logs        ComplaintAuditLog[]
+  chats                 ComplaintChat[]
   evidences             ComplaintEvidence[]
   citizen_review_rel    CitizenReview?
   logbooks              OfficerLogbook[]
@@ -667,6 +668,21 @@ model ComplaintAuditLog {
 
   @@index([complaint_id, created_at], map: "idx_audit_logs_created")
   @@map("complaint_audit_logs")
+}
+
+model ComplaintChat {
+  id                    BigInt        @id @default(autoincrement())
+  complaint_id          BigInt
+  complaint             Complaint     @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
+  
+  sender_role           String        @db.VarChar(20) // "WARGA" | "PERSONIL"
+  sender_name           String        @db.VarChar(120)
+  officer_nrp           String?       @db.VarChar(50)
+  message_text          String        @db.Text
+  created_at            DateTime      @default(now())
+
+  @@index([complaint_id, created_at], map: "idx_complaint_chats_created")
+  @@map("complaint_chats")
 }
 
 model ComplaintEvidence {

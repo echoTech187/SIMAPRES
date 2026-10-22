@@ -18,20 +18,31 @@ const COMPLAINT_INCLUDE = {
 
 export class PrismaComplaintRepository implements IComplaintRepository {
   private mapToEntity(record: any): ComplaintEntity {
-    // Cari dispatch utama (atau dispatch pertama) untuk petugas & ranmor yang ditugaskan
-    const primaryDispatch = record.dispatches?.find((d: any) => d.is_primary_unit) || record.dispatches?.[0];
+    // Cari dispatch yang sudah di-accept atau dispatch utama untuk petugas & ranmor yang ditugaskan
+    const acceptedDispatch = record.dispatches?.find((d: any) => d.accepted_at && d.officer);
+    const primaryDispatch = acceptedDispatch || record.dispatches?.find((d: any) => d.is_primary_unit) || record.dispatches?.[0];
     const assignedOfficer = primaryDispatch?.officer || null;
 
-    // Pawas yang memvalidasi diambil dari logbook audit log yang dilakukan oleh PAWAS
-    const pawasLog = (record.complaint_logs || []).slice().reverse().find((l: any) => l.actor_role === 'PAWAS');
+    // Pawas yang memvalidasi diambil dari logbook audit log yang dilakukan oleh PAWAS (eksklusif tindakan komando Pawas)
+    const pawasLog = (record.complaint_logs || []).slice().reverse().find((l: any) =>
+      l.actor_role === 'PAWAS' &&
+      !l.action?.includes('Meluncur') &&
+      !l.action?.includes('Tiba') &&
+      !l.action?.includes('Tindakan') &&
+      !l.actor_name?.toLowerCase().includes('bripka') &&
+      !l.actor_name?.toLowerCase().includes('brigadir') &&
+      !l.actor_name?.toLowerCase().includes('bharada')
+    );
 
     // Ulasan warga diambil dari relasi tabel citizen_reviews
     const citizenReview = record.citizen_review_rel;
 
-    // Hitung response time jika terdapat catatan waktu tiba dan disposisi di dispatch
+    // Hitung response time jika terdapat catatan waktu tiba dan disposisi di dispatch atau timeline audit log
     let responseTimeMinutes: number | null = null;
-    if (primaryDispatch?.dispatched_at && primaryDispatch?.arrived_at) {
-      const diffMs = new Date(primaryDispatch.arrived_at).getTime() - new Date(primaryDispatch.dispatched_at).getTime();
+    const dispTime = primaryDispatch?.dispatched_at || (record.complaint_logs || []).find((l: any) => l.action?.includes('Disposisi'))?.created_at || record.created_at;
+    const arrTime = primaryDispatch?.arrived_at || (record.complaint_logs || []).find((l: any) => l.action?.includes('Tiba') || l.action?.includes('TKP'))?.created_at;
+    if (dispTime && arrTime) {
+      const diffMs = new Date(arrTime).getTime() - new Date(dispTime).getTime();
       responseTimeMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
     }
 
@@ -75,12 +86,15 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         );
       const catatanSelesai = logBapOrSelesai?.notes?.replace(/^Catatan:\s*/i, '') || logBapOrSelesai?.notes || null;
 
-      const waktuMeluncur = logMeluncur?.created_at
-        ? new Date(logMeluncur.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-        : evidenceMenuju?.uploaded_at
-        ? new Date(evidenceMenuju.uploaded_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-        : primaryDispatch?.departed_at
-        ? new Date(primaryDispatch.departed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
+      const rawMeluncurDate =
+        primaryDispatch?.departed_at ||
+        logMeluncur?.created_at ||
+        evidenceMenuju?.uploaded_at ||
+        (['PENANGANAN_TKP', 'TIBA_DI_TKP', 'SELESAI', 'MENUNGGU_PENGESAHAN'].includes(record.status) || Number(record.tahap) >= 3
+          ? (primaryDispatch?.accepted_at || primaryDispatch?.dispatched_at || record.disposisi_at || record.created_at)
+          : null);
+      const waktuMeluncur = rawMeluncurDate
+        ? new Date(rawMeluncurDate).toISOString()
         : null;
 
       const koordinatGps = logMeluncur?.action_lat && logMeluncur?.action_lng
@@ -134,6 +148,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               currentGpsLat: assignedOfficer.current_gps_lat ? Number(assignedOfficer.current_gps_lat) : null,
               currentGpsLng: assignedOfficer.current_gps_lng ? Number(assignedOfficer.current_gps_lng) : null,
               namaLengkap: (assignedOfficer.user as any)?.full_name || (assignedOfficer.user as any)?.nama_lengkap || '',
+              phoneNumber: (assignedOfficer.user as any)?.phone_number || null,
+              unitName: primaryDispatch?.unit?.unit_name || primaryDispatch?.unit?.short_name || assignedOfficer.jabatan || null,
               avatarUrl: assignedOfficer.avatar_url,
             }
           : null,
@@ -220,8 +236,19 @@ export class PrismaComplaintRepository implements IComplaintRepository {
   }
 
   async findByNomorTiket(nomorTiket: string): Promise<ComplaintEntity | null> {
-    const record = await prisma.complaint.findUnique({
-      where: { nomor_tiket: nomorTiket },
+    if (!nomorTiket) return null;
+    const cleanTiket = nomorTiket.trim();
+    const cleanWithHash = cleanTiket.startsWith('#') ? cleanTiket : `#${cleanTiket}`;
+    const cleanWithoutHash = cleanTiket.startsWith('#') ? cleanTiket.slice(1) : cleanTiket;
+
+    const record = await prisma.complaint.findFirst({
+      where: {
+        OR: [
+          { nomor_tiket: cleanTiket },
+          { nomor_tiket: cleanWithHash },
+          { nomor_tiket: cleanWithoutHash },
+        ],
+      },
       include: COMPLAINT_INCLUDE,
     });
     return record ? this.mapToEntity(record) : null;
@@ -621,21 +648,26 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         }
 
         let dispatchStatus = 'DISPATCHED';
-        let arrivedAt: Date | null = data.responTibaTkpAt || null;
-        let completedAt: Date | null = data.selesaiAt || null;
-        let departedAt: Date | null = null;
+        let arrivedAt: Date | null = existingDispatch?.arrived_at || data.responTibaTkpAt || null;
+        let completedAt: Date | null = existingDispatch?.completed_at || data.selesaiAt || null;
+        let departedAt: Date | null = existingDispatch?.departed_at || null;
 
         if (data.status === 'SELESAI') {
           dispatchStatus = 'COMPLETED';
-          completedAt = data.selesaiAt || new Date();
+          if (!completedAt) completedAt = data.selesaiAt || new Date();
+          if (!departedAt) departedAt = existingDispatch?.dispatched_at || data.disposisiAt || new Date();
+          if (!arrivedAt) arrivedAt = existingDispatch?.dispatched_at || departedAt;
         } else if (data.status === 'MENUNGGU_PENGESAHAN') {
           dispatchStatus = 'REPORT_SUBMITTED';
+          if (!departedAt) departedAt = existingDispatch?.dispatched_at || data.disposisiAt || new Date();
+          if (!arrivedAt) arrivedAt = existingDispatch?.dispatched_at || departedAt;
         } else if (data.responTibaTkpAt || data.status === 'TIBA_DI_TKP' || data.status === 'PENANGANAN_TKP') {
           dispatchStatus = 'ARRIVED';
-          arrivedAt = data.responTibaTkpAt || new Date();
+          if (!arrivedAt) arrivedAt = data.responTibaTkpAt || new Date();
+          if (!departedAt) departedAt = existingDispatch?.dispatched_at || data.disposisiAt || new Date();
         } else if (data.status === 'MENUJU_TKP' || (data.timelines && data.timelines.some((t: any) => t.tahapTitle?.includes('Meluncur')))) {
           dispatchStatus = 'DEPARTED';
-          departedAt = new Date();
+          if (!departedAt) departedAt = new Date();
         } else if (data.status === 'SEDANG_DITANGANI' || existingDispatch?.dispatch_status === 'ACCEPTED') {
           dispatchStatus = 'ACCEPTED';
         } else {
@@ -692,11 +724,31 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             ? 'DOKUMENTASI_TKP_FLAGGED'
             : latestTimeline.tahapTitle;
 
+          // Tentukan actor dan role secara presisi sesuai hierarki kedinasan POLRI:
+          const isPawasAction =
+            auditAction.includes('Pengesahan') ||
+            auditAction.includes('Otorisasi') ||
+            auditAction.includes('Disposisi') ||
+            auditAction.includes('Validasi') ||
+            auditAction.includes('Penolakan');
+
+          let resolvedActorName = data.assignedOfficer?.namaLengkap;
+          let resolvedActorRole: 'PAWAS' | 'PERSONIL' | 'OPERATOR' | 'SISTEM' = 'PERSONIL';
+
+          if (isPawasAction) {
+            resolvedActorName = data.pawas?.namaLengkap || data.assignedOfficer?.namaLengkap || 'Perwira Pengawas (Pawas)';
+            resolvedActorRole = 'PAWAS';
+          } else {
+            // Tindakan operasional lapangan (Meluncur, Tiba TKP, Tindakan TKP, Laporan Penanganan) mutlak dilakukan PERSONIL
+            resolvedActorName = data.assignedOfficer?.namaLengkap || 'Personil Lapangan';
+            resolvedActorRole = 'PERSONIL';
+          }
+
           await prisma.complaintAuditLog.create({
             data: {
               complaint_id: data.id,
-              actor_name: data.assignedOfficer?.namaLengkap || data.pawas?.namaLengkap || 'Petugas Lapangan',
-              actor_role: data.pawas ? 'PAWAS' : 'PERSONIL',
+              actor_name: resolvedActorName,
+              actor_role: resolvedActorRole,
               action: auditAction,
               notes: latestTimeline.catatan || null,
               action_lat: latestTimeline.gpsLat || null,

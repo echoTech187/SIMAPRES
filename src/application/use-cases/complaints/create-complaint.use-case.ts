@@ -54,25 +54,25 @@ export class CreateComplaintUseCase {
       throw new Error('Uraian keterangan kejadian wajib diisi.');
     }
 
-    // Nomor Registrasi Tiket Resmi (Format Baku Wallboard 110: #TICKET-0018xxxxxx)
+    // Nomor Registrasi Tiket Resmi (Format Baku Wallboard 110: TICKET-0018xxxxxx tanpa tanda '#' di depan)
     let nomorTiket = input.nomorTiket?.trim();
     if (nomorTiket) {
-      // Normalisasi format baku: jika hanya mengetik angka atau TICKET-
-      if (!nomorTiket.startsWith('#TICKET-') && !nomorTiket.startsWith('TICKET-') && !nomorTiket.startsWith('#')) {
-        nomorTiket = `#TICKET-${nomorTiket}`;
-      } else if (nomorTiket.startsWith('TICKET-')) {
-        nomorTiket = `#${nomorTiket}`;
+      // Hapus karakter '#' di awal jika user menginputnya
+      nomorTiket = nomorTiket.replace(/^#+/, '');
+      // Normalisasi format baku: jika hanya mengetik angka
+      if (!nomorTiket.startsWith('TICKET-')) {
+        nomorTiket = `TICKET-${nomorTiket}`;
       }
 
       // Validasi anti-duplikasi nomor tiket
-      const existing = await this.complaintRepo.findByNomorTiket(nomorTiket);
+      const existing = (await this.complaintRepo.findByNomorTiket(nomorTiket)) || (await this.complaintRepo.findByNomorTiket(`#${nomorTiket}`));
       if (existing) {
         throw new Error(`Nomor tiket ${nomorTiket} sudah terdaftar di pangkalan data! Kasus ini telah tercatat sebelumnya.`);
       }
     } else {
-      // Generate format baku 10 digit #TICKET-0018xxxxxx
+      // Generate format baku 10 digit TICKET-0018xxxxxx tanpa tanda '#' di depan
       const random10Digit = String(Math.floor(1800000000 + Math.random() * 99999999)).padStart(10, '0');
-      nomorTiket = `#TICKET-${random10Digit}`;
+      nomorTiket = `TICKET-${random10Digit}`;
     }
 
     const complaint = new ComplaintEntity({

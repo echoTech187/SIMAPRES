@@ -45,6 +45,8 @@ export interface AssignedOfficerData {
   currentGpsLng?: number | null;
   namaLengkap?: string;
   avatarUrl?: string | null;
+  phoneNumber?: string | null;
+  unitName?: string | null;
 }
 
 export interface UserSummaryData {
