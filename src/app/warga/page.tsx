@@ -5,6 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import './warga.css';
 import Select2CategoryDropdown, { IncidentSubcategoryOption } from '@/components/Select2CategoryDropdown';
+import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
@@ -742,7 +743,7 @@ export default function PortalWargaPage() {
           waktuSelesai: waktuSelesai || undefined,
           sektor: 'Sektor Pusat Presisi',
           lokasiKejadian: dbItem.tkpAlamatTeks || '-',
-          sumberLaporan: '📱 Portal Presisi 110',
+          sumberLaporan: '📱 Portal SIMOPMAS 110',
           deskripsi: dbItem.ringkasanKeterangan || '-',
           deskripsiTindakan: deskripsiTindakan,
           catatanSelesai: catatanSelesai,
@@ -1787,6 +1788,54 @@ export default function PortalWargaPage() {
                   </span>
                 </h2>
 
+                {/* Banner Link ke Radar Pelacakan Live */}
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                    border: '1.5px solid #F59E0B',
+                    borderRadius: '14px',
+                    padding: '14px 18px',
+                    marginBottom: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '24px' }}>📡</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#FCD34D' }}>
+                        Radar Pelacakan Taktis Live 110
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                        Pantau posisi pergerakan armada patroli dan estimasi tiba via radar satelit
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href={`/tracking?tiket=${encodeURIComponent(currentActiveLog.nomorTiket)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      color: '#000000',
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 800,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <span>Buka Radar Live ➔</span>
+                  </a>
+                </div>
+
                 {/* Ticket Metadata Header */}
                 <div className="ticket-header" id="ticket-header-content">
                   <div className="ticket-row">
@@ -1939,21 +1988,12 @@ export default function PortalWargaPage() {
                           </div>
                         </div>
                         <div className="map-overlay">
-                          <div
-                            style={{
-                              width: '36px',
-                              height: '36px',
-                              borderRadius: '50%',
-                              background: '#153E75',
-                              border: '2px solid white',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '18px',
-                            }}
-                          >
-                            👮
-                          </div>
+                          <NameInitialAvatar
+                            name={currentActiveLog.disposisi?.komandan || currentActiveLog.nama || 'Petugas Patroli'}
+                            avatarUrl={currentActiveLog.disposisi?.avatarUrl}
+                            size={36}
+                            variant="blue"
+                          />
                           <div className="police-info">
                             <h4 id="map-police-name">
                               {currentActiveLog.disposisi?.komandan || currentActiveLog.nama || 'Petugas Patroli'}
@@ -2264,7 +2304,7 @@ export default function PortalWargaPage() {
                 {alertData.title}
               </div>
               <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>
-                Portal Pelayanan Masyarakat Presisi 110
+                Portal Pelayanan Masyarakat SIMOPMAS 110
               </div>
             </div>
             <div
@@ -2511,9 +2551,34 @@ export default function PortalWargaPage() {
                     boxShadow: '0 4px 12px rgba(29, 78, 216, 0.25)',
                   }}
                 >
-                  🔍 Lacak Status Sekarang ➔
+                  🔍 Lacak di Portal Warga
                 </button>
               </div>
+
+              {/* Dedicated Button ke Halaman Radar Taktis Baru */}
+              <a
+                href={`/tracking?tiket=${encodeURIComponent(successModal.nomorTiket)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '11px',
+                  background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                  color: '#FCD34D',
+                  border: '1.5px solid rgba(236, 196, 115, 0.5)',
+                  borderRadius: '10px',
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                  marginTop: '8px',
+                }}
+              >
+                <span>📡 Buka Radar Pelacakan Live (GPS Taktis) ➔</span>
+              </a>
             </div>
           </div>
         </div>

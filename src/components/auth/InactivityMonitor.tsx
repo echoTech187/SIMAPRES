@@ -196,7 +196,7 @@ export default function InactivityMonitor() {
 
         <p style={{ margin: '0 0 16px 0', fontSize: '13.5px', color: '#475569', lineHeight: 1.5 }}>
           Sistem mendeteksi tidak ada aktivitas pada perangkat Anda selama <strong>55 menit</strong>. Sesi operasional
-          Presisi 110 Anda akan otomatis ditutup dalam:
+          SIMOPMAS 110 Anda akan otomatis ditutup dalam:
         </p>
 
         <div

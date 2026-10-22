@@ -1,9 +1,15 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+};
 
 export const metadata: Metadata = {
   title: 'SIMOPMAS 110 - Sistem Monitoring Polisi Bersama Masyarakat',
-  description: 'Sistem Terpadu Monitoring Polisi Bersama Masyarakat - Layanan 110 Presisi',
+  description: 'Sistem Terpadu Monitoring Polisi Bersama Masyarakat - SIMOPMAS 110',
   icons: {
     icon: '/favicon.ico',
   },

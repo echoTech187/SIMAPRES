@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface IncidentSubcategoryOption {
   id: number;
@@ -38,8 +39,25 @@ export default function Select2CategoryDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownPanelRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const [coords, setCoords] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+    width: number;
+    openUp: boolean;
+  }>({ left: 0, width: 0, openUp: false });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Cari item yang sedang terpilih berdasarkan ID
+  const selectedItem = subcategories.find((s) => s.id === selectedId) || null;
 
   // Deteksi ukuran layar (Mobile Device < 768px)
   useEffect(() => {
@@ -63,13 +81,46 @@ export default function Select2CategoryDropdown({
     };
   }, [isOpen, isMobile]);
 
-  // Cari item yang sedang terpilih berdasarkan ID
-  const selectedItem = subcategories.find((s) => s.id === selectedId) || null;
+  // Hitung koordinat presisi agar tidak terpotong oleh modal / overflow
+  const updatePosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const openUp = spaceBelow < 280 && spaceAbove > spaceBelow;
 
-  // Tutup dropdown saat klik di luar container (hanya untuk mode desktop)
+    setCoords({
+      top: openUp ? undefined : rect.bottom + 4,
+      bottom: openUp ? window.innerHeight - rect.top + 4 : undefined,
+      left: Math.max(8, rect.left),
+      width: Math.min(rect.width, window.innerWidth - 16),
+      openUp,
+    });
+  };
+
+  // Update posisi saat scroll/resize (capture: true menangkap scroll dalam modal)
+  useEffect(() => {
+    if (isOpen && !isMobile) {
+      updatePosition();
+      const onScrollOrResize = () => {
+        updatePosition();
+      };
+      window.addEventListener('resize', onScrollOrResize);
+      window.addEventListener('scroll', onScrollOrResize, true);
+      return () => {
+        window.removeEventListener('resize', onScrollOrResize);
+        window.removeEventListener('scroll', onScrollOrResize, true);
+      };
+    }
+  }, [isOpen, isMobile]);
+
+  // Tutup dropdown saat klik di luar container atau floating panel
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (!isMobile && containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const insideTrigger = containerRef.current && containerRef.current.contains(target);
+      const insidePanel = dropdownPanelRef.current && dropdownPanelRef.current.contains(target);
+      if (!insideTrigger && !insidePanel) {
         setIsOpen(false);
       }
     }
@@ -213,7 +264,7 @@ export default function Select2CategoryDropdown({
       </div>
 
       {/* Render: Khusus Mobile Menggunakan Drawer-Bottom (Bottom Sheet) */}
-      {isOpen && isMobile && (
+      {isOpen && isMobile && mounted && createPortal(
         <>
           {/* Backdrop Overlay */}
           <div
@@ -420,24 +471,31 @@ export default function Select2CategoryDropdown({
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       {/* Render: Khusus Desktop Menggunakan Floating Dropdown (Select2 Style) */}
-      {isOpen && !isMobile && (
+      {isOpen && !isMobile && mounted && createPortal(
         <div
+          ref={dropdownPanelRef}
           style={{
-            position: 'absolute',
-            top: 'calc(100% + 4px)',
-            left: 0,
-            right: 0,
+            position: 'fixed',
+            top: coords.top !== undefined ? `${coords.top}px` : 'auto',
+            bottom: coords.bottom !== undefined ? `${coords.bottom}px` : 'auto',
+            left: `${coords.left}px`,
+            width: `${coords.width}px`,
             background: '#FFFFFF',
             border: '1.5px solid #2563EB',
             borderRadius: '8px',
-            boxShadow: '0 10px 25px -4px rgba(0, 0, 0, 0.2)',
-            zIndex: 99999,
+            boxShadow: '0 16px 36px -4px rgba(15, 23, 42, 0.25), 0 4px 12px rgba(0, 0, 0, 0.08)',
+            zIndex: 9999999,
             overflow: 'hidden',
+            maxHeight: '340px',
+            display: 'flex',
+            flexDirection: 'column',
             animation: 'fadeInSelect2 0.12s ease-out',
+            boxSizing: 'border-box',
           }}
         >
           {/* Header Search Box (Select2 Style) */}
@@ -583,7 +641,8 @@ export default function Select2CategoryDropdown({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

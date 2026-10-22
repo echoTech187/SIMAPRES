@@ -461,10 +461,10 @@ export default function LiveCameraWatermarkCapture({
     ctx.fillStyle = isDiscrepancy ? '#FCA5A5' : isFlexibleLocation ? '#6EE7B7' : '#FBBF24';
     ctx.fillText(
       isDiscrepancy
-        ? '⚠️ POLRI PRESISI 110 • DOKUMENTASI TERINDIKASI DILUAR LOKASI TKP'
+        ? '⚠️ POLRI SIMOPMAS 110 • DOKUMENTASI TERINDIKASI DILUAR LOKASI TKP'
         : isFlexibleLocation
-        ? '🛡️ POLRI PRESISI 110 • DOKUMENTASI PENYELESAIAN PERKARA (BAP)'
-        : '🛡️ POLRI PRESISI 110 • DOKUMENTASI VISUAL LAPANGAN RESMI',
+        ? '🛡️ POLRI SIMOPMAS 110 • DOKUMENTASI PENYELESAIAN PERKARA (BAP)'
+        : '🛡️ POLRI SIMOPMAS 110 • DOKUMENTASI VISUAL LAPANGAN RESMI',
       paddingX,
       currentY
     );

@@ -1,27 +1,31 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { Plus, Minus, LocateFixed, AlertTriangle, Maximize2 } from 'lucide-react';
 
 export interface MapUnitData {
-  key: string;
+  key?: string;
   nrp?: string;
+  callsign?: string;
   officerId?: string;
-  pos: { lat: number; lng: number };
-  iconEmoji: string;
-  title: string;
-  petugas: string;
+  pos?: { lat: number; lng: number };
+  lat?: number;
+  lng?: number;
+  iconEmoji?: string;
+  title?: string;
+  petugas?: string;
   pangkat?: string;
   namaLengkap?: string;
   satuan?: string;
   jabatan?: string;
-  sub: string;
-  status: string;
+  sub?: string;
+  status?: string;
   statusLabel?: string;
-  statusColor: string;
-  tugas: string;
+  statusColor?: string;
+  tugas?: string;
   aktivitas?: string;
   lokasiTeks?: string;
-  telemetri: string;
+  telemetri?: string;
   speedKmh?: number;
   batteryLevel?: number;
   category?: string;
@@ -52,6 +56,9 @@ interface SimapresGoogleMapProps {
   centerLng?: number;
   onUnitClick?: (unit: any) => void;
   targetComplaint?: any | null;
+  controlsPosition?: 'top-right' | 'bottom-right' | 'bottom-left';
+  controlsRightOffset?: string | number;
+  controlsBottomOffset?: string | number;
 }
 
 // Singleton script loader for Google Maps
@@ -99,7 +106,9 @@ export function loadGoogleMaps(): Promise<any> {
       }
 
       const script = document.createElement('script');
-      script.src = 'https://maps.googleapis.com/maps/api/js?libraries=places,geometry&v=weekly';
+      const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+      const keyParam = apiKey ? `&key=${apiKey}` : '';
+      script.src = `https://maps.googleapis.com/maps/api/js?libraries=places,geometry&v=weekly&loading=async${keyParam}`;
       script.async = true;
       script.defer = true;
       script.onload = () => {
@@ -123,6 +132,40 @@ export function loadGoogleMaps(): Promise<any> {
   return googleMapsPromise;
 }
 
+// In-memory cache for road geometry to prevent repeated network requests
+const roadGeometryCache = new Map<string, { lat: number; lng: number }[]>();
+
+// Helper to fetch real road-following coordinates via OSRM GeoJSON
+export async function getRealRoadPath(
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number
+): Promise<{ lat: number; lng: number }[] | null> {
+  if (!startLat || !startLng || !endLat || !endLng) return null;
+  const cacheKey = `${startLat.toFixed(4)},${startLng.toFixed(4)};${endLat.toFixed(4)},${endLng.toFixed(4)}`;
+  if (roadGeometryCache.has(cacheKey)) {
+    return roadGeometryCache.get(cacheKey)!;
+  }
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0 && data.routes[0].geometry?.coordinates) {
+      const path = data.routes[0].geometry.coordinates.map(([lng, lat]: [number, number]) => ({
+        lat,
+        lng,
+      }));
+      roadGeometryCache.set(cacheKey, path);
+      return path;
+    }
+  } catch (err) {
+    console.warn('Road routing error:', err);
+  }
+  return null;
+}
 
 export default function SimapresGoogleMap({
   mode = 'beranda',
@@ -146,6 +189,9 @@ export default function SimapresGoogleMap({
   centerLng,
   onUnitClick,
   targetComplaint = null,
+  controlsPosition = 'bottom-right',
+  controlsRightOffset,
+  controlsBottomOffset,
 }: SimapresGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -156,6 +202,7 @@ export default function SimapresGoogleMap({
   const directionsRendererRef = useRef<any>(null);
   const lastFittedComplaintIdRef = useRef<string | null>(null);
   const lastRouteFetchedCoordsRef = useRef<{ oLat: number; oLng: number; dLat: number; dLng: number } | null>(null);
+  const isFetchingRouteRef = useRef<boolean>(false);
 
   const handleUnitClick = (unit: any) => {
     if (onSelectUnit) onSelectUnit(unit);
@@ -242,9 +289,13 @@ export default function SimapresGoogleMap({
     loadGoogleMaps().then((maps) => {
       if (!isSubscribed || !maps || !mapContainerRef.current) return;
 
-      // Center around coordinates, unit, target TKP, or default Jakarta Pusat (-6.2088, 106.8456)
-      const defaultCenter = { lat: -6.2088, lng: 106.8456 };
-      const centerPos = (centerLat && centerLng)
+      // Center around coordinates, unit, target TKP, atau default Mako Kepolisian (Polres Pekalongan)
+      const firstOffice = policeOffices && policeOffices.length > 0 ? policeOffices[0] : null;
+      const defaultCenter = (firstOffice?.lat && firstOffice?.lng)
+        ? { lat: Number(firstOffice.lat), lng: Number(firstOffice.lng) }
+        : { lat: -7.026803, lng: 109.592982 };
+
+      const centerPos = (centerLat && centerLng && Number(centerLat) !== 0 && Number(centerLng) !== 0)
         ? { lat: Number(centerLat), lng: Number(centerLng) }
         : (myUnit?.pos?.lat && myUnit?.pos?.lng && Number(myUnit.pos.lat) !== 0
           ? { lat: Number(myUnit.pos.lat), lng: Number(myUnit.pos.lng) }
@@ -358,17 +409,18 @@ export default function SimapresGoogleMap({
     patrolPolylinesRef.current = [];
 
     // 1. My Unit (Smooth update posisi tanpa kedip/recreate marker)
-    if (myUnit && myUnit.pos?.lat && myUnit.pos?.lng && Number(myUnit.pos.lat) !== 0) {
+    const myPos = myUnit?.pos || (myUnit?.lat && myUnit?.lng ? { lat: Number(myUnit.lat), lng: Number(myUnit.lng) } : null);
+    if (myUnit && myPos && myPos.lat && myPos.lng && Number(myPos.lat) !== 0) {
       if (myUnitMarkerRef.current) {
-        myUnitMarkerRef.current.setPosition(myUnit.pos);
+        myUnitMarkerRef.current.setPosition(myPos);
         myUnitMarkerRef.current.setMap(map);
       } else {
         const myIcon = makeHaloBadgeIcon(myUnit.iconEmoji || '👮', '#0284C7', '#38BDF8');
         const marker = new maps.Marker({
-          position: myUnit.pos,
+          position: myPos,
           map,
           icon: myIcon,
-          title: myUnit.title,
+          title: myUnit.title || myUnit.petugas || 'Posisi Saya',
           zIndex: 1000,
         });
         marker.addListener('click', () => {
@@ -416,7 +468,15 @@ export default function SimapresGoogleMap({
     // 3. Operational Fleet Units & On-Duty Picket Personnel
     if (showOtherOfficers) {
       (fleetUnits || []).forEach((unit) => {
-        if (myUnit && unit.key === myUnit.key) return;
+        if (myUnit) {
+          const myNrp = (myUnit as any).nrp || (myUnit as any).callsign;
+          if (
+            unit.key === myUnit.key ||
+            (myNrp && (unit.nrp === myNrp || unit.callsign === myNrp || unit.key?.includes(myNrp)))
+          ) {
+            return;
+          }
+        }
 
         const cat = (unit.category || unit.key || '').toLowerCase();
 
@@ -479,16 +539,38 @@ export default function SimapresGoogleMap({
 
         markersRef.current.push(marker);
 
-        // Render tactical patrol route polyline
+        // Render tactical patrol route polyline (Mengikuti rute jalan raya resmi OSRM)
         if ((showPatrolRoutes || isFocused) && unit.routePoints && unit.routePoints.length >= 2) {
-          const poly = new maps.Polyline({
-            path: unit.routePoints,
-            strokeColor: strokeColor,
-            strokeOpacity: isFocused ? 0.95 : 0.55,
-            strokeWeight: isFocused ? 5 : 3.5,
-            map,
-          });
-          patrolPolylinesRef.current.push(poly);
+          if (unit.routePoints.length === 2) {
+            // Rute 2 titik (Unit ke TKP) - gunakan OSRM jalan raya asli bukan garis lurus!
+            getRealRoadPath(
+              unit.routePoints[0].lat,
+              unit.routePoints[0].lng,
+              unit.routePoints[1].lat,
+              unit.routePoints[1].lng
+            ).then((roadPath) => {
+              if (roadPath && roadPath.length > 0 && mapInstanceRef.current) {
+                const poly = new maps.Polyline({
+                  path: roadPath,
+                  strokeColor: strokeColor,
+                  strokeOpacity: isFocused ? 0.95 : 0.75,
+                  strokeWeight: isFocused ? 5 : 4,
+                  map: mapInstanceRef.current,
+                });
+                patrolPolylinesRef.current.push(poly);
+              }
+            });
+          } else {
+            // Rute patroli multi-waypoint
+            const poly = new maps.Polyline({
+              path: unit.routePoints,
+              strokeColor: strokeColor,
+              strokeOpacity: isFocused ? 0.95 : 0.55,
+              strokeWeight: isFocused ? 5 : 3.5,
+              map,
+            });
+            patrolPolylinesRef.current.push(poly);
+          }
         }
       });
     }
@@ -537,8 +619,10 @@ export default function SimapresGoogleMap({
     directionsRendererRef.current = null;
   }
 
-  if (targetComplaint && targetComplaint.tkpLat && targetComplaint.tkpLng) {
-    const tkpPos = { lat: Number(targetComplaint.tkpLat), lng: Number(targetComplaint.tkpLng) };
+  const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
+  const cLng = targetComplaint?.tkpLng ?? targetComplaint?.lng ?? targetComplaint?.tkp_lng;
+  if (targetComplaint && cLat && cLng) {
+    const tkpPos = { lat: Number(cLat), lng: Number(cLng) };
     const tkpIcon = makeHaloBadgeIcon('🚨', '#DC2626', '#FEF08A');
     const tkpMarker = new maps.Marker({
       position: tkpPos,
@@ -567,8 +651,11 @@ export default function SimapresGoogleMap({
     markersRef.current.push(tkpMarker);
 
       // Gambar rute Directions dan sesuaikan viewport peta otomatis
-      if (myUnit?.pos?.lat && myUnit?.pos?.lng && Number(myUnit.pos.lat) !== 0) {
-        const originPos = { lat: Number(myUnit.pos.lat), lng: Number(myUnit.pos.lng) };
+      const originLat = myUnit?.pos?.lat ?? (myUnit as any)?.lat;
+      const originLng = myUnit?.pos?.lng ?? (myUnit as any)?.lng;
+
+      if (originLat && originLng && Number(originLat) !== 0) {
+        const originPos = { lat: Number(originLat), lng: Number(originLng) };
 
         // Fit Bounds HANYA SEKALI saat target TKP pertama kali aktif agar peta tidak melompat terus
         const complaintKey = `${targetComplaint.id || targetComplaint.nomorTiket || 'current'}`;
@@ -592,7 +679,8 @@ export default function SimapresGoogleMap({
           Math.abs(lastRoute.dLat - tkpPos.lat) > 0.0005 ||
           Math.abs(lastRoute.dLng - tkpPos.lng) > 0.0005;
 
-        if (needsFetch) {
+        if (needsFetch && !isFetchingRouteRef.current) {
+          isFetchingRouteRef.current = true;
           lastRouteFetchedCoordsRef.current = {
             oLat: originPos.lat,
             oLng: originPos.lng,
@@ -600,39 +688,31 @@ export default function SimapresGoogleMap({
             dLng: tkpPos.lng,
           };
 
-          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originPos.lng},${originPos.lat};${tkpPos.lng},${tkpPos.lat}?overview=full&geometries=polyline`;
-          fetch(osrmUrl)
-            .then((res) => res.json())
-            .then((data) => {
-              let path = [originPos, tkpPos];
-              if (data.routes && data.routes.length > 0 && maps.geometry?.encoding?.decodePath) {
-                path = maps.geometry.encoding.decodePath(data.routes[0].geometry);
+          getRealRoadPath(originPos.lat, originPos.lng, tkpPos.lat, tkpPos.lng)
+            .then((path) => {
+              if (path && path.length > 0 && mapInstanceRef.current) {
+                if (directionsRendererRef.current) {
+                  try {
+                    if (typeof directionsRendererRef.current.setMap === 'function') {
+                      directionsRendererRef.current.setMap(null);
+                    }
+                  } catch (_) {}
+                }
+                const poly = new maps.Polyline({
+                  path,
+                  strokeColor: '#ECC473',
+                  strokeOpacity: 0.95,
+                  strokeWeight: 6,
+                  map: mapInstanceRef.current,
+                });
+                directionsRendererRef.current = poly;
               }
-              if (directionsRendererRef.current) {
-                try { directionsRendererRef.current.setMap(null); } catch (_) {}
-              }
-              const poly = new maps.Polyline({
-                path,
-                strokeColor: '#2563EB',
-                strokeOpacity: 0.9,
-                strokeWeight: 6,
-                map,
-              });
-              directionsRendererRef.current = poly;
             })
             .catch((err) => {
-              console.warn('OSRM routing fallback straight line:', err);
-              if (directionsRendererRef.current) {
-                try { directionsRendererRef.current.setMap(null); } catch (_) {}
-              }
-              const poly = new maps.Polyline({
-                path: [originPos, tkpPos],
-                strokeColor: '#2563EB',
-                strokeOpacity: 0.85,
-                strokeWeight: 6,
-                map,
-              });
-              directionsRendererRef.current = poly;
+              console.warn('Road routing notice:', err);
+            })
+            .finally(() => {
+              isFetchingRouteRef.current = false;
             });
         }
       } else {
@@ -646,17 +726,50 @@ export default function SimapresGoogleMap({
       const maps = (window as any).google.maps;
       renderMarkers(mapInstanceRef.current, maps);
     }
-  }, [activeFilter, showOtherOfficers, showPatrolRoutes, focusedUnitKey, hotspots, policeOffices, fleetUnits, myUnit, targetComplaint]);
+  }, [
+    activeFilter,
+    showOtherOfficers,
+    showPatrolRoutes,
+    focusedUnitKey,
+    hotspots?.length,
+    policeOffices?.length,
+    fleetUnits?.length,
+    myUnit?.key,
+    myUnit?.pos?.lat,
+    myUnit?.pos?.lng,
+    targetComplaint?.id,
+    targetComplaint?.nomorTiket,
+    targetComplaint?.status,
+    targetComplaint?.tkpLat ?? targetComplaint?.lat,
+    targetComplaint?.tkpLng ?? targetComplaint?.lng,
+  ]);
 
-  // Center & zoom to focused unit when selected from tactical sidebar
+  // Center & zoom to focused unit or TKP when selected
   useEffect(() => {
-    if (!focusedUnitKey || !mapInstanceRef.current || !fleetUnits) return;
+    if (!focusedUnitKey || !mapInstanceRef.current) return;
+    if (focusedUnitKey.startsWith('tkp_') && targetComplaint) {
+      const tLat = targetComplaint.tkpLat ?? targetComplaint.lat ?? targetComplaint.tkp_lat;
+      const tLng = targetComplaint.tkpLng ?? targetComplaint.lng ?? targetComplaint.tkp_lng;
+      if (tLat && tLng) {
+        mapInstanceRef.current.panTo({ lat: Number(tLat), lng: Number(tLng) });
+        mapInstanceRef.current.setZoom(16);
+        return;
+      }
+    }
+    if (!fleetUnits) return;
     const target = fleetUnits.find((u) => u.key === focusedUnitKey);
     if (target?.pos?.lat && target?.pos?.lng) {
       mapInstanceRef.current.panTo({ lat: Number(target.pos.lat), lng: Number(target.pos.lng) });
       mapInstanceRef.current.setZoom(16);
     }
-  }, [focusedUnitKey, fleetUnits]);
+  }, [focusedUnitKey, fleetUnits, targetComplaint]);
+
+  // Center dynamically when centerLat / centerLng change
+  useEffect(() => {
+    if (mapInstanceRef.current && centerLat && centerLng) {
+      mapInstanceRef.current.panTo({ lat: Number(centerLat), lng: Number(centerLng) });
+    }
+  }, [centerLat, centerLng]);
 
 // Center to my unit / GPS
 const handleCenterGps = () => {
@@ -710,16 +823,30 @@ const handleZoomOut = () => {
         }}
       />
 
-    {/* Floating Map Controls on Top-Right matching Prototype */}
+    {/* Floating Map Controls */}
     <div
+      id="floating-map-controls"
+      className="floating-map-controls"
       style={{
         position: 'absolute',
-        top: '12px',
-        right: '12px',
         zIndex: 30,
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
+        transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        ...(controlsPosition === 'bottom-left'
+          ? {
+              bottom: controlsBottomOffset ?? '24px',
+              left: '16px',
+              ...(controlsBottomOffset ? { ['--map-controls-bottom' as any]: controlsBottomOffset } : {}),
+            }
+          : controlsPosition === 'top-right'
+          ? { top: '12px', right: controlsRightOffset ?? '12px' }
+          : {
+              bottom: controlsBottomOffset ?? '24px',
+              right: controlsRightOffset ?? '20px',
+              ...(controlsBottomOffset ? { ['--map-controls-bottom' as any]: controlsBottomOffset } : {}),
+            }),
       }}
     >
       {/* SOS Button */}
@@ -746,7 +873,7 @@ const handleZoomOut = () => {
           onMouseOver={(e) => ((e.currentTarget as HTMLElement).style.transform = 'scale(1.08)')}
           onMouseOut={(e) => ((e.currentTarget as HTMLElement).style.transform = 'scale(1)')}
         >
-          🚨
+          <AlertTriangle size={18} />
         </button>
       )}
 
@@ -767,11 +894,9 @@ const handleZoomOut = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '20px',
-          fontWeight: 800,
         }}
       >
-        +
+        <Plus size={18} strokeWidth={2.5} />
       </button>
 
       {/* Zoom Out */}
@@ -791,11 +916,9 @@ const handleZoomOut = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '22px',
-          fontWeight: 800,
         }}
       >
-        −
+        <Minus size={18} strokeWidth={2.5} />
       </button>
 
       {/* GPS Center */}
@@ -815,10 +938,9 @@ const handleZoomOut = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '18px',
         }}
       >
-        🎯
+        <LocateFixed size={18} strokeWidth={2.2} />
       </button>
 
       {/* Fullscreen Toggle (if in beranda) */}
@@ -839,10 +961,9 @@ const handleZoomOut = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '17px',
           }}
         >
-          ⛶
+          <Maximize2 size={16} />
         </button>
       )}
     </div>

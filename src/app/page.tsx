@@ -304,7 +304,7 @@ export default function LoginPage() {
       <Suspense
         fallback={
           <div className="login-card" style={{ padding: '40px', color: '#64748B' }}>
-            Memuat Sistem Presisi 110...
+            Memuat Sistem SIMOPMAS 110...
           </div>
         }
       >
