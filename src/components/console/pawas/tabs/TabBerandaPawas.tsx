@@ -153,7 +153,7 @@ export default function TabBerandaPawas({
         const timeStr = c.created_at || c.createdAt
           ? new Date(c.created_at || c.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
           : '-';
-        const unitStr = c.assignedOfficer?.unitName || c.assignedUnitNama || 'Regu Presisi 110';
+        const unitStr = c.assignedOfficer?.unitName || c.assignedUnitNama || 'Regu SIMOPMAS 110';
         const statusLabel = c.status === 'SELESAI' ? 'Penanganan Selesai' : c.status === 'DIPROSES' ? 'Meluncur / Tiba di TKP' : 'Menerima Laporan';
         const text = `${unitStr}: [${c.nomorTiket || '110'}] ${statusLabel} untuk ${c.jenisKejadian || 'Aduan Warga'} di ${c.tkpAlamatTeks || 'TKP'}.`;
         const color = c.status === 'SELESAI' ? '#10B981' : c.status === 'DIPROSES' ? '#0284C7' : '#F59E0B';

@@ -166,7 +166,7 @@ export default function PersonilHeader({
               title="Perangkat HP ini terikat sah dengan akun kedinasan. Siap menerima disposisi tugas darurat."
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>HP TERIKAT</span>
+              <span>TERHUBUNG</span>
             </div>
           ) : (
             <div

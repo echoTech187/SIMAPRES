@@ -260,7 +260,12 @@ export default function TrackingMapModal({
     if (distanceMeters === null) return 'Menghitung...';
     if (distanceMeters <= 50) return 'Tiba di Lokasi';
     const minutes = Math.max(1, Math.round(distanceMeters / ((35 * 1000) / 60)));
-    return `± ${minutes} Menit`;
+    if (minutes >= 60) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return m > 0 ? `±${h} Jam ${m} Mnt` : `±${h} Jam`;
+    }
+    return `±${minutes} Mnt`;
   }, [distanceMeters]);
 
   const myUnitData: MapUnitData = useMemo(() => ({

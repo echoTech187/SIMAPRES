@@ -344,10 +344,20 @@ export class ComplaintEntity {
     if (this.props.status !== 'DIPROSES') {
       throw new Error(`Tiket ${this.props.nomorTiket} belum didisposisikan.`);
     }
+    const now = new Date();
     this.props.status = 'DIPROSES';
     this.props.tahap = 3;
+    this.props.waktuMeluncur = now.toISOString();
     if (fotoBuktiUrl) {
       this.props.fotoPersiapan = fotoBuktiUrl;
+    }
+    if (this.props.dispatches && this.props.dispatches.length > 0) {
+      for (const d of this.props.dispatches) {
+        if (!d.dispatch_status || d.dispatch_status === 'DISPATCHED') {
+          d.dispatch_status = 'DEPARTED';
+          d.departed_at = now;
+        }
+      }
     }
     this.props.timelines?.push({
       tahapKe: 1,
@@ -357,7 +367,7 @@ export class ComplaintEntity {
       fotoBuktiUrl,
       gpsLat: lat,
       gpsLng: lng,
-      createdAt: new Date(),
+      createdAt: now,
     });
   }
 
@@ -441,6 +451,14 @@ export class ComplaintEntity {
     if (fotoBuktiUrl) {
       this.props.fotoTiba = fotoBuktiUrl;
       this.props.fotoTindakan = fotoBuktiUrl;
+    }
+    if (this.props.dispatches && this.props.dispatches.length > 0) {
+      for (const d of this.props.dispatches) {
+        if (!d.dispatch_status || d.dispatch_status === 'DEPARTED' || d.dispatch_status === 'DISPATCHED') {
+          d.dispatch_status = 'ARRIVED';
+          d.arrived_at = now;
+        }
+      }
     }
 
     if (this.props.disposisiAt) {

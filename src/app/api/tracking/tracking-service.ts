@@ -161,7 +161,9 @@ async function loadTrackingData(
       dispatchesMap.set(dId, {
         id: dId,
         dispatchStatus: r.dispatch_status,
+        dispatch_status: r.dispatch_status,
         acceptedAt: r.accepted_at,
+        accepted_at: r.accepted_at,
         departedAt: r.departed_at,
         arrivedAt: r.arrived_at,
         completedAt: r.completed_at,
@@ -186,6 +188,7 @@ async function loadTrackingData(
                     full_name: r.full_name,
                     nama_lengkap: r.full_name,
                     phone_number: maskPhoneNumber(r.phone_number),
+                    raw_phone_number: r.phone_number,
                   }
                 : null,
             }
@@ -213,6 +216,7 @@ async function loadTrackingData(
     tahap: first.tahap,
     urgensi: first.urgensi,
     pelaporNama: maskName(first.pelapor_nama),
+    rawPelaporNama: first.pelapor_nama || undefined,
     pelaporHp: maskPhoneNumber(first.pelapor_hp),
     jenisKejadian: first.jenis_kejadian,
     deskripsiKejadian: first.ringkasan_keterangan,

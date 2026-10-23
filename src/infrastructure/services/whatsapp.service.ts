@@ -54,7 +54,7 @@ export class WhatsAppService {
   }
 
   /**
-   * Menyusun pesan WhatsApp resmi format Presisi 110
+   * Menyusun pesan WhatsApp resmi format SIMOPMAS 110
    */
   public static buildTicketMessage(payload: WhatsAppNotificationPayload): string {
     const { polresName, appUrl: defaultAppUrl } = this.getApiConfig();

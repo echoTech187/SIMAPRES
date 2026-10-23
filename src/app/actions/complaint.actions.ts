@@ -926,13 +926,13 @@ export async function acceptOfficerDispatchAction(input: {
       } catch (_) {}
     }
 
-    // 6. Update status complaint menjadi 'DIPROSES' (id: 2) dan tahap = 3
+    // 6. Update status complaint menjadi 'DIPROSES' (id: 2) dan tahap = 2 (Persiapan Personil)
     await prisma.complaint.update({
       where: { id: complaintIdBig },
       data: {
         status: 'DIPROSES',
         status_id: 2,
-        tahap: 3,
+        tahap: 2,
       },
     });
 

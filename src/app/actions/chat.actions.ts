@@ -152,11 +152,17 @@ export async function getTicketChatMessagesAction(
       } catch (_) {}
     }
 
-    // 5. Gabungkan dengan cache in-memory untuk pesan ultra-responsif
+    // 5. Gabungkan dengan cache in-memory untuk pesan ultra-responsif yang belum sempat tersimpan ke DB
     const cached = chatCache.get(cleanKey) || chatCache.get(rawKey) || [];
-    const dbIds = new Set(parsedMessages.map((m) => m.id));
     for (const c of cached) {
-      if (!dbIds.has(c.id)) {
+      const alreadyInDb = parsedMessages.some(
+        (m) =>
+          m.id === c.id ||
+          (m.senderRole === c.senderRole &&
+            m.text.trim() === c.text.trim() &&
+            Math.abs(new Date(m.timestamp).getTime() - new Date(c.timestamp).getTime()) < 30000)
+      );
+      if (!alreadyInDb) {
         parsedMessages.push(c);
       }
     }
@@ -166,12 +172,27 @@ export async function getTicketChatMessagesAction(
       (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
 
-    // Update cache pada kedua key
-    chatCache.set(cleanKey, parsedMessages);
-    chatCache.set(rawKey, parsedMessages);
-    if (withHash !== rawKey) chatCache.set(withHash, parsedMessages);
+    // Deduplikasi final: pastikan tidak ada pesan kembar (id sama, atau senderRole + text sama dalam selisih 15 detik)
+    const deduplicated: ChatMessageItem[] = [];
+    for (const msg of parsedMessages) {
+      const isDuplicate = deduplicated.some(
+        (existing) =>
+          existing.id === msg.id ||
+          (existing.senderRole === msg.senderRole &&
+            existing.text.trim() === msg.text.trim() &&
+            Math.abs(new Date(existing.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 15000)
+      );
+      if (!isDuplicate) {
+        deduplicated.push(msg);
+      }
+    }
 
-    return { success: true, data: parsedMessages, isTicketClosed: false };
+    // Update cache pada kedua key dengan pesan yang bersih dari duplikasi
+    chatCache.set(cleanKey, deduplicated);
+    chatCache.set(rawKey, deduplicated);
+    if (withHash !== rawKey) chatCache.set(withHash, deduplicated);
+
+    return { success: true, data: deduplicated, isTicketClosed: false };
   } catch (err: any) {
     console.error('getTicketChatMessagesAction error:', err);
     return {
@@ -240,7 +261,14 @@ export async function sendTicketChatMessageAction(input: {
     };
 
     // Optimistic cache update pada kedua key (raw & clean) agar instan tersinkronisasi
-    const existingClean = chatCache.get(cleanKey) || chatCache.get(rawKey) || [];
+    const existingClean = (chatCache.get(cleanKey) || chatCache.get(rawKey) || []).filter(
+      (m) =>
+        !(
+          m.senderRole === input.senderRole &&
+          m.text.trim() === cleanText &&
+          Math.abs(new Date(m.timestamp).getTime() - now.getTime()) < 5000
+        )
+    );
     const updatedMsgs = [...existingClean, newMsg];
     chatCache.set(cleanKey, updatedMsgs);
     chatCache.set(rawKey, updatedMsgs);

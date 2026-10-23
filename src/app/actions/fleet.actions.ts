@@ -244,8 +244,8 @@ export async function getPatrolFleetUnitsAction() {
       const rankPangkat = o.rank_pangkat || 'Personel';
       const cleanName = rawFullName.replace(new RegExp(`^${rankPangkat}\\s*`, 'i'), '').trim();
       const displayTitle = `${rankPangkat} ${cleanName}`;
-      const unitName = o.unit?.unit_name || o.jabatan || 'Regu Presisi 110';
-      const category = o.unit?.key?.toLowerCase() || 'samapta';
+      const unitName = o.unit?.unit_name || o.jabatan;
+      const category = o.unit?.key?.toLowerCase();
 
       const telemetri = isGpsValid
         ? (o.last_gps_heartbeat_at

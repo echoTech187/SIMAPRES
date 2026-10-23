@@ -229,6 +229,15 @@ export function hasOfficerAcceptedTask(task: any, activeNrp: string, activeId: s
     return true;
   }
 
+  if (
+    activeId &&
+    task.assignedOfficerId &&
+    String(task.assignedOfficerId) === String(activeId) &&
+    task.status === 'DIPROSES'
+  ) {
+    return true;
+  }
+
   return false;
 }
 

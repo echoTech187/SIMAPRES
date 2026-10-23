@@ -442,11 +442,11 @@ function PersonilContent({
     document.addEventListener('visibilitychange', handleWakeOrFocus);
     window.addEventListener('focus', handleWakeOrFocus);
 
-    // Polling interval dipercepat untuk respon siaga cepat (setiap 8 detik)
+    // Polling interval dipercepat untuk respon siaga cepat (setiap 5 detik)
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       loadData();
-    }, 100);
+    }, 5000);
 
     return () => {
       clearInterval(pollInterval);
@@ -511,12 +511,14 @@ function PersonilContent({
         if (stepKey === 'COMPLETED') {
           setActiveComplaint(null);
           activeComplaintRef.current = null;
+          isPollingRef.current = false;
           await loadData(officer.id);
         } else {
           if (res.data) {
             setActiveComplaint(res.data as any);
             activeComplaintRef.current = res.data as any;
           }
+          isPollingRef.current = false;
           await loadData(officer.id, activeComplaint.id);
         }
       } else {

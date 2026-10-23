@@ -111,9 +111,14 @@ export default function TabMapsPersonil({
 
   const etaMinutesText = useMemo(() => {
     if (distanceToTkpMeters === Infinity) return '-';
-    // Asumsi kecepatan rata-rata respon darurat ~30 km/jam
-    const minutes = Math.max(1, Math.round((distanceToTkpMeters / 1000 / 30) * 60));
-    return `±${minutes} Menit`;
+    // Asumsi kecepatan rata-rata respon darurat ~35 km/jam (sinkron presisi dengan portal warga)
+    const minutes = Math.max(1, Math.round((distanceToTkpMeters / 1000 / 35) * 60));
+    if (minutes >= 60) {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      return m > 0 ? `±${h} Jam ${m} Mnt` : `±${h} Jam`;
+    }
+    return `±${minutes} Mnt`;
   }, [distanceToTkpMeters]);
 
   // 3. Normalisasi nomor tiket agar tidak double hash
@@ -129,6 +134,19 @@ export default function TabMapsPersonil({
       activeComplaint.status !== 'SELESAI' &&
       activeComplaint.status !== 'DITOLAK'
   );
+
+  // URL Navigasi Langsung ke Google Maps App (Origin: Personil, Destination: TKP/Pelapor)
+  const gmapsNavigationUrl = useMemo(() => {
+    if (!tkpCoords?.lat || !tkpCoords?.lng) return null;
+    const dest = `${tkpCoords.lat},${tkpCoords.lng}`;
+    const originLat = currentGps?.lat ?? officer?.currentGpsLat;
+    const originLng = currentGps?.lng ?? officer?.currentGpsLng;
+
+    if (originLat && originLng) {
+      return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${dest}&travelmode=driving`;
+    }
+    return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
+  }, [tkpCoords, currentGps, officer]);
 
   // 4. Deteksi Tahap Tugas (Workflow Lifecycle Presisi berbasis MasterDispatchStatus):
   // - DISPATCHED: Persiapan / Berangkat
@@ -146,17 +164,41 @@ export default function TabMapsPersonil({
 
     const dispatchStatus = String(officerDispatch?.dispatch_status || officerDispatch?.dispatchStatus || '').toUpperCase();
 
-    if (dispatchStatus === 'ARRIVED' || dispatchStatus === 'REPORT_SUBMITTED' || dispatchStatus === 'COMPLETED') {
+    // 1. Tiba di TKP (ARRIVED / REPORT_SUBMITTED / COMPLETED / responTibaTkpAt)
+    if (
+      dispatchStatus === 'ARRIVED' ||
+      dispatchStatus === 'REPORT_SUBMITTED' ||
+      dispatchStatus === 'COMPLETED' ||
+      Boolean(officerDispatch?.arrived_at) ||
+      Boolean(activeComplaint?.responTibaTkpAt) ||
+      Boolean(activeComplaint?.waktuTiba) ||
+      Number(activeComplaint?.tahap) >= 4 ||
+      activeComplaint?.status === 'MENUNGGU_PENGESAHAN'
+    ) {
       return 'tiba';
     }
-    if (dispatchStatus === 'DEPARTED') {
+
+    // 2. Jika status dispatch personil adalah DISPATCHED (dan belum ada departed_at riil),
+    // maka personel MASIH DALAM PERSIAPAN dan BELUM KLIK MELUNCUR!
+    if (
+      dispatchStatus === 'DISPATCHED' &&
+      !officerDispatch?.departed_at &&
+      !activeComplaint?.waktuMeluncur
+    ) {
+      return 'persiapan';
+    }
+
+    // 3. Meluncur ke TKP (Hanya jika status DEPARTED atau memiliki departed_at / waktuMeluncur riil)
+    if (
+      dispatchStatus === 'DEPARTED' ||
+      Boolean(officerDispatch?.departed_at) ||
+      Boolean(activeComplaint?.waktuMeluncur) ||
+      Boolean(activeComplaint?.responMeluncurAt)
+    ) {
       return 'meluncur';
     }
 
-    // Fallback berdasarkan tahap numerik
-    const tahap = Number(activeComplaint?.tahap) || 1;
-    if (tahap >= 4 || activeComplaint?.status === 'MENUNGGU_PENGESAHAN') return 'tiba';
-    if (tahap === 3) return 'meluncur';
+    // 4. Default awal jika belum berangkat
     return 'persiapan';
   }, [isMissionActive, activeComplaint, officer.id, officer.nrp]);
 
@@ -623,24 +665,22 @@ const EMPTY_ARRAY: any[] = [];
                 )}
 
                 {/* 6. 3-Column Metrics (Jarak GPS, Estimasi, Status) */}
-                <div className="flex items-center justify-around sm:justify-start gap-4 p-2.5 rounded-2xl bg-white/5 border border-white/10 flex-shrink-0">
-                  <div className="text-center px-2">
-                    <div className="text-[9px] font-bold text-slate-400 tracking-wider">JARAK GPS</div>
-                    <div className="text-base sm:text-lg font-black text-amber-300">
+                <div className="grid grid-cols-3 divide-x divide-white/10 p-2.5 rounded-2xl bg-white/5 border border-white/10 flex-shrink-0">
+                  <div className="text-center px-1">
+                    <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">JARAK GPS</div>
+                    <div className="text-xs sm:text-sm font-black text-amber-300 whitespace-nowrap mt-0.5 font-mono">
                       {distanceFormatted}
                     </div>
                   </div>
-                  <div className="w-px h-8 bg-white/10" />
-                  <div className="text-center px-2">
-                    <div className="text-[9px] font-bold text-slate-400 tracking-wider">ESTIMASI</div>
-                    <div className="text-xs sm:text-sm font-bold text-slate-200">
+                  <div className="text-center px-1">
+                    <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">ESTIMASI</div>
+                    <div className="text-xs sm:text-sm font-bold text-slate-200 whitespace-nowrap mt-0.5">
                       {etaMinutesText}
                     </div>
                   </div>
-                  <div className="w-px h-8 bg-white/10" />
-                  <div className="text-center px-2">
-                    <div className="text-[9px] font-bold text-slate-400 tracking-wider">STATUS</div>
-                    <div className="text-xs font-bold" style={{ color: currentStatusStyle.color }}>
+                  <div className="text-center px-1">
+                    <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">STATUS</div>
+                    <div className="text-xs sm:text-sm font-bold whitespace-nowrap mt-0.5" style={{ color: currentStatusStyle.color }}>
                       {currentStatusStyle.label}
                     </div>
                   </div>
@@ -728,6 +768,20 @@ const EMPTY_ARRAY: any[] = [];
                     `${dispatchStatusMap['COMPLETED']?.label || 'Selesai'} ➔`
                   )}
                 </button>
+
+                {/* Tombol Navigasi Langsung ke Google Maps App (Hanya Icon Navigation) */}
+                {gmapsNavigationUrl && (
+                  <a
+                    href={gmapsNavigationUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2.5 rounded-xl text-sky-400 bg-sky-500/15 border border-sky-500/30 hover:bg-sky-500/25 active:scale-95 transition-all flex-shrink-0 flex items-center justify-center shadow-md"
+                    title="Buka Navigasi Google Maps (Rute Personil ke TKP)"
+                    aria-label="Buka Navigasi Google Maps"
+                  >
+                    <Navigation size={17} />
+                  </a>
+                )}
               </div>
 
               {/* Subtext Keterangan Kunci Radius */}

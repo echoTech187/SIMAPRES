@@ -579,7 +579,7 @@ export default function PortalWargaPage() {
       waktu: waktu,
       sektor: '-',
       lokasiKejadian: lokasiVal,
-      sumberLaporan: '📱 Portal Presisi 110',
+      sumberLaporan: '📱 Portal SIMOPMAS 110',
       deskripsi: uraianVal,
       koordinatGps: gpsCoords,
       fotoPengaduan: fotoBukti || '',

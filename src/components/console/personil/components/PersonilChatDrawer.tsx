@@ -51,13 +51,44 @@ export default function PersonilChatDrawer({
           setMessages([]);
         } else if (res.data) {
           setIsTicketClosed(false);
-          setMessages(res.data);
+          setMessages((prev) => {
+            const serverMsgs = res.data!;
+            const pendingTemps = prev.filter(
+              (p) =>
+                p.id.startsWith('temp-') &&
+                !serverMsgs.some(
+                  (s) =>
+                    s.senderRole === p.senderRole &&
+                    s.text.trim() === p.text.trim() &&
+                    Math.abs(new Date(s.timestamp).getTime() - new Date(p.timestamp).getTime()) < 15000
+                )
+            );
+            return [...serverMsgs, ...pendingTemps];
+          });
         }
       }
     } catch (e) {
       console.warn('Failed loading chat messages:', e);
     }
   };
+
+  // Deduplikasi pesan untuk render tampilan
+  const displayMessages = React.useMemo(() => {
+    const list: ChatMessageItem[] = [];
+    for (const msg of messages) {
+      const isDup = list.some(
+        (existing) =>
+          existing.id === msg.id ||
+          (existing.senderRole === msg.senderRole &&
+            existing.text.trim() === msg.text.trim() &&
+            Math.abs(new Date(existing.timestamp).getTime() - new Date(msg.timestamp).getTime()) < 15000)
+      );
+      if (!isDup) {
+        list.push(msg);
+      }
+    }
+    return list;
+  }, [messages]);
 
   useEffect(() => {
     if (isOpen && ticketId && !isFinished) {
@@ -74,7 +105,7 @@ export default function PersonilChatDrawer({
     if (isOpen) {
       scrollToBottom();
     }
-  }, [messages, isOpen]);
+  }, [displayMessages, isOpen]);
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -229,7 +260,7 @@ export default function PersonilChatDrawer({
                 Tugas telah selesai ditangani. Sesi percakapan antara petugas dan pelapor telah ditutup secara otomatis sesuai SOP kedinasan.
               </p>
             </div>
-          ) : messages.length === 0 ? (
+          ) : displayMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-12 text-center text-slate-400">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
@@ -248,7 +279,7 @@ export default function PersonilChatDrawer({
               </p>
             </div>
           ) : (
-            messages.map((msg) => {
+            displayMessages.map((msg) => {
               const isOfficer = msg.senderRole === 'PERSONIL';
               const isSystem = msg.senderRole === 'SISTEM';
 

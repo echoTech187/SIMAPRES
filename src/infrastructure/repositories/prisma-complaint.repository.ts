@@ -569,7 +569,14 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       // 2. Sinkronisasi tabel relasi complaint_dispatches jika ada petugas yang ditugaskan
       if (data.assignedOfficerId) {
         const existingDispatch = await tx.complaintDispatch.findFirst({
-          where: { complaint_id: complaintId, is_primary_unit: true },
+          where: {
+            complaint_id: complaintId,
+            OR: [
+              { officer_id: data.assignedOfficerId },
+              { is_primary_unit: true },
+            ],
+          },
+          orderBy: { is_primary_unit: 'desc' },
         });
 
         let unitId: number | null = null;
@@ -589,6 +596,9 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         let completedAt: Date | null = existingDispatch?.completed_at || data.selesaiAt || null;
         let departedAt: Date | null = existingDispatch?.departed_at || null;
 
+        const isLatestDeparted = (data as any).timelines?.length > 0 &&
+          (data as any).timelines[(data as any).timelines.length - 1]?.actionKey === 'OFFICER_DEPARTED';
+
         if (data.status === 'SELESAI') {
           dispatchStatus = 'COMPLETED';
           if (!completedAt) completedAt = data.selesaiAt || new Date();
@@ -602,9 +612,15 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           dispatchStatus = 'ARRIVED';
           if (!arrivedAt) arrivedAt = data.responTibaTkpAt || new Date();
           if (!departedAt) departedAt = existingDispatch?.dispatched_at || data.disposisiAt || new Date();
-        } else if ((data as any).tahap === 3 || data.disposisiAt) {
+        } else if (
+          departedAt ||
+          (data as any).waktuMeluncur ||
+          isLatestDeparted
+        ) {
           dispatchStatus = 'DEPARTED';
-          if (!departedAt) departedAt = data.disposisiAt || new Date();
+          if (!departedAt) {
+            departedAt = (data as any).waktuMeluncur ? new Date((data as any).waktuMeluncur) : new Date();
+          }
         } else {
           dispatchStatus = existingDispatch?.dispatch_status || 'DISPATCHED';
         }
@@ -626,6 +642,23 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               ...(completedAt ? { completed_at: completedAt } : {}),
             } as any,
           });
+
+          if (data.assignedOfficerId) {
+            await tx.complaintDispatch.updateMany({
+              where: {
+                complaint_id: complaintId,
+                officer_id: data.assignedOfficerId,
+                id: { not: existingDispatch.id },
+              },
+              data: {
+                dispatch_status: dispatchStatus,
+                dispatch_status_id: dispatchStatusId,
+                ...(departedAt ? { departed_at: departedAt } : {}),
+                ...(arrivedAt ? { arrived_at: arrivedAt } : {}),
+                ...(completedAt ? { completed_at: completedAt } : {}),
+              } as any,
+            });
+          }
         } else if (unitId) {
           await tx.complaintDispatch.create({
             data: {

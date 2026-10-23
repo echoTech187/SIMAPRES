@@ -26,6 +26,7 @@ import {
   Car,
   FileText,
   Search,
+  Zap,
 } from 'lucide-react';
 import { submitRatingAction } from '@/app/actions/complaint.actions';
 import {
@@ -153,8 +154,19 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
 
   const isMeluncur = useMemo(() => {
     if (!complaint || isCompleted || !isAccepted || isArrived) return false;
-    if (complaint.tahap && complaint.tahap >= 3) return true;
-    return !!(complaint.dispatches?.some((d: any) => (d.departedAt || d.departed_at || d.dispatch_status === 'DEPARTED') && !(d.arrivedAt || d.arrived_at)));
+    const dispatches: any[] = complaint.dispatches || [];
+    const hasDepartedDispatch = dispatches.some(
+      (d: any) =>
+        Boolean(d.departedAt || d.departed_at || d.dispatchStatus === 'DEPARTED' || d.dispatch_status === 'DEPARTED') &&
+        !(d.arrivedAt || d.arrived_at || d.dispatchStatus === 'ARRIVED' || d.dispatch_status === 'ARRIVED')
+    );
+    const hasDepartedComplaint = Boolean(
+      complaint.waktuMeluncur ||
+      complaint.waktu_meluncur ||
+      complaint.responMeluncurAt ||
+      (complaint.tahap && complaint.tahap === 3 && (complaint.timelines?.some((t: any) => t.actionKey === 'OFFICER_DEPARTED') || complaint.complaintLogs?.some((l: any) => l.action?.includes('Meluncur') || l.action === 'OFFICER_DEPARTED')))
+    );
+    return hasDepartedDispatch || hasDepartedComplaint;
   }, [complaint, isCompleted, isAccepted, isArrived]);
 
   // Live clock for Gambar 2 sync & elapsed scan timer
@@ -226,7 +238,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
           if (payload.chatMessages) {
             setChatMessages(payload.chatMessages);
           }
-        } catch (_) {}
+        } catch (_) { }
       });
 
       es.addEventListener('not_found', () => {
@@ -275,8 +287,9 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       currentGpsLat: o.current_gps_lat || o.currentGpsLat,
       currentGpsLng: o.current_gps_lng || o.currentGpsLng,
       phoneNumber: o.user?.phone_number,
+      callPhoneNumber: o.user?.raw_phone_number || o.user?.phone_number || '110',
       avatarUrl: o.avatar_url,
-      unitName: d.unit?.unit_name || d.unit?.unitName || 'Satuan Patroli',
+      unitName: d.unit?.unit_name || d.unit?.unitName || 'Satuan Samapta Presisi',
     };
   }, [complaint]);
 
@@ -301,6 +314,16 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     if (distanceKm < 1) return `${Math.round(distanceKm * 1000)} M`;
     return `${distanceKm} KM`;
   }, [distanceKm]);
+
+  const etaFormatted = useMemo(() => {
+    if (!etaMinutes) return '-';
+    if (etaMinutes >= 60) {
+      const h = Math.floor(etaMinutes / 60);
+      const m = etaMinutes % 60;
+      return m > 0 ? `±${h} Jam ${m} Mnt` : `±${h} Jam`;
+    }
+    return `±${etaMinutes} Mnt`;
+  }, [etaMinutes]);
 
   const mapUnit = useMemo(() => {
     if (!assignedOfficer || !officerLat || !officerLng) return null;
@@ -425,7 +448,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     try {
       const res = await sendTicketChatMessageAction({ complaintIdOrTiket: nomorTiket, senderRole: 'WARGA', senderName, text });
       if (res?.success && res.data) setChatMessages((prev) => prev.map((m) => m.id === optimistic.id ? res.data! : m));
-    } catch (_) {}
+    } catch (_) { }
     finally {
       setSendingChat(false);
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -439,7 +462,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     try {
       const res = await submitRatingAction({ nomorTiket, rating: starRating, review: reviewText.trim() || undefined, tags: selectedTags.join(', ') || undefined });
       if (res?.success) setRatingDone(true);
-    } catch (_) {}
+    } catch (_) { }
     finally { setSubmittingRating(false); }
   };
 
@@ -457,9 +480,8 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
   // ──────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className={`fixed inset-0 z-40 w-full h-[100dvh] ${
-        isCompleted || !isAccepted ? 'overflow-y-auto' : 'overflow-hidden'
-      } flex flex-col bg-[#090A0F] select-none`}
+      className={`fixed inset-0 z-40 w-full h-[100dvh] ${isCompleted || !isAccepted || (!isMeluncur && !isArrived) ? 'overflow-y-auto' : 'overflow-hidden'
+        } flex flex-col bg-[#090A0F] select-none`}
       style={{
         color: '#F1F5F9',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -467,7 +489,8 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       }}
     >
       {/* ───────────────── GLOBAL KEYFRAMES ───────────────── */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes clt-spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
         @keyframes clt-radar { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
         @keyframes clt-pulse { 0%{transform:scale(1);opacity:1} 100%{transform:scale(4);opacity:0} }
@@ -561,6 +584,34 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
             onCopyTicket={handleCopyTicket}
             copiedTicket={copiedTicket}
           />
+        ) : !isMeluncur && !isArrived ? (
+          <>
+            {/* GAMBAR 3: Tampilan Portal Tracking Saat Petugas Masih DISPATCHED (Bersiap Berangkat) */}
+            <OfficerPreparingIndependentView
+              complaint={complaint}
+              officer={assignedOfficer}
+              nomorTiket={nomorTiket}
+              onBack={onBack}
+              onCopyTicket={handleCopyTicket}
+              copiedTicket={copiedTicket}
+              chatMessages={chatMessages}
+              onOpenChat={() => setIsChatOpen(true)}
+            />
+
+            {/* Chat Bottom Drawer Overlay if citizen opens chat with preparing officer */}
+            {isChatOpen && (
+              <ChatBottomDrawer
+                officer={assignedOfficer}
+                messages={chatMessages}
+                input={chatInput}
+                sending={sendingChat}
+                onInputChange={setChatInput}
+                onSend={handleSendChat}
+                onClose={() => setIsChatOpen(false)}
+                chatEndRef={chatEndRef}
+              />
+            )}
+          </>
         ) : (
           <>
             {/* 1. INTERACTIVE FULL-SCREEN GOOGLE MAP BACKDROP */}
@@ -615,15 +666,14 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
                   background: isArrived
                     ? 'rgba(59,130,246,0.18)'
                     : isMeluncur
-                    ? 'rgba(16,185,129,0.18)'
-                    : 'rgba(245,158,11,0.18)',
-                  border: `1px solid ${
-                    isArrived
+                      ? 'rgba(16,185,129,0.18)'
+                      : 'rgba(245,158,11,0.18)',
+                  border: `1px solid ${isArrived
                       ? 'rgba(59,130,246,0.45)'
                       : isMeluncur
-                      ? 'rgba(16,185,129,0.45)'
-                      : 'rgba(245,158,11,0.45)'
-                  }`,
+                        ? 'rgba(16,185,129,0.45)'
+                        : 'rgba(245,158,11,0.45)'
+                    }`,
                   color: isArrived ? '#60A5FA' : isMeluncur ? '#34D399' : '#FBBF24',
                 }}
               >
@@ -639,10 +689,10 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
                   {isArrived
                     ? 'Tiba di TKP'
                     : isMeluncur
-                    ? 'Meluncur'
-                    : isAccepted
-                    ? 'Siaga'
-                    : 'Mencari'}
+                      ? 'Meluncur'
+                      : isAccepted
+                        ? 'Siaga'
+                        : 'Mencari'}
                 </span>
               </div>
             </div>
@@ -689,241 +739,268 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
                       {isArrived
                         ? 'PETUGAS DI LOKASI TKP'
                         : isMeluncur
-                        ? 'PETUGAS MENUJU LOKASI'
-                        : isAccepted
-                        ? 'PETUGAS BERSIAP BERANGKAT'
-                        : 'MENCARI PETUGAS TERDEKAT'}
+                          ? 'PETUGAS MENUJU LOKASI'
+                          : isAccepted
+                            ? 'PETUGAS BERSIAP BERANGKAT'
+                            : 'MENCARI PETUGAS TERDEKAT'}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Distance & ETA pill ONLY when actively meluncur / en-route (NOT when arrived) */}
-                    {isMeluncur && !isArrived && distanceKm > 0 && (
-                      <span className="text-[10px] font-mono font-bold text-amber-200 bg-amber-500/10 border border-amber-500/25 px-2.5 py-0.5 rounded-full shadow-sm">
-                        {distanceFormatted} • ±{etaMinutes} Mnt
-                      </span>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setIsDrawerExpanded((prev) => !prev)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                      title={isDrawerExpanded ? 'Perkecil Tampilan' : 'Perbesar Tampilan'}
-                    >
-                      {isDrawerExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDrawerExpanded((prev) => !prev)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                    title={isDrawerExpanded ? 'Perkecil Tampilan' : 'Perbesar Tampilan'}
+                  >
+                    {isDrawerExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                  </button>
                 </div>
 
                 {isAccepted ? (
-                /* ─── CASE B: PETUGAS DITUGASKAN (OfficerCard + Actions + Expandable Incident Details) ─── */
-                <div className="space-y-3">
-                  {/* Officer Row & Action Buttons */}
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <NameInitialAvatar
-                      name={assignedOfficer?.namaLengkap}
-                      avatarUrl={assignedOfficer?.avatarUrl}
-                      size={48}
-                      showOnlineDot={true}
-                      statusColor={isArrived ? '#3B82F6' : isMeluncur ? '#10B981' : '#F59E0B'}
-                      variant="gold"
-                    />
-
-                    {/* Officer Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="bg-amber-500/15 text-amber-300 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-                          {assignedOfficer?.rankPangkat || 'POLRI'}
+                  /* ─── CASE B: PETUGAS DITUGASKAN (OfficerCard + Actions + Expandable Incident Details) ─── */
+                  <div className="space-y-3">
+                    {/* Ketika Minimized & Sedang Meluncur: Tampilkan metrik ringkas simetris DI TENGAH */}
+                    {!isDrawerExpanded && isMeluncur && !isArrived && distanceKm > 0 && (
+                      <div
+                        onClick={() => setIsDrawerExpanded(true)}
+                        className="w-full flex items-center justify-center pt-0.5 cursor-pointer"
+                      >
+                        <span className="text-[10px] font-mono font-bold text-amber-200 bg-amber-500/10 border border-amber-500/25 px-3 py-1 rounded-full shadow-sm flex items-center gap-1.5 hover:bg-amber-500/15 transition-all">
+                          <Navigation size={10} className="text-amber-400 rotate-45" />
+                          <span>{distanceFormatted} • {etaFormatted}</span>
                         </span>
-                        <span className="text-[10px] text-emerald-400 font-bold">● Aktif</span>
                       </div>
-                      <div className="text-sm font-extrabold text-white truncate">
-                        {assignedOfficer?.namaLengkap || 'Petugas Lapangan'}
-                      </div>
-                      <div className="text-[11px] text-slate-400 truncate">
-                        🛡️ {assignedOfficer?.unitName || '110 Patroli'}
-                        {assignedOfficer?.assignedPatrolVehicle && ` · 🚘 ${assignedOfficer.assignedPatrolVehicle}`}
+                    )}
+                    {/* Officer Row & Action Buttons */}
+                    <div className="flex items-center gap-3">
+                      {/* Avatar */}
+                      <NameInitialAvatar
+                        name={assignedOfficer?.namaLengkap}
+                        avatarUrl={assignedOfficer?.avatarUrl}
+                        size={48}
+                        showOnlineDot={true}
+                        statusColor={isArrived ? '#3B82F6' : isMeluncur ? '#10B981' : '#F59E0B'}
+                        variant="gold"
+                      />
+
+                      {/* Officer Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="bg-amber-500/15 text-amber-300 text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                            {assignedOfficer?.rankPangkat || 'POLRI'}
+                          </span>
+                          <span className="text-[10px] text-emerald-400 font-bold">● Aktif</span>
+                        </div>
+                        <div className="text-sm font-extrabold text-white truncate">
+                          {assignedOfficer?.namaLengkap || 'Petugas Lapangan'}
+                        </div>
+                        <div className="text-[11px] text-slate-400 truncate">
+                          🛡️ {assignedOfficer?.unitName || '110 Patroli'}
+                          {assignedOfficer?.assignedPatrolVehicle && ` · 🚘 ${assignedOfficer.assignedPatrolVehicle}`}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Quick Action Buttons (Telepon & Chat) */}
-                  <div className="grid grid-cols-2 gap-2 pt-0.5">
-                    <a
-                      href={assignedOfficer?.phoneNumber ? `tel:${assignedOfficer.phoneNumber}` : 'tel:110'}
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs text-slate-950 transition-all active:scale-95 shadow-md"
-                      style={{
-                        background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-                      }}
-                    >
-                      <Phone size={14} />
-                      <span>{assignedOfficer?.phoneNumber ? 'Telepon Petugas' : 'Hotline 110'}</span>
-                    </a>
+                    {/* Quick Action Buttons (Telepon & Chat) */}
+                    <div className="grid grid-cols-2 gap-2 pt-0.5">
+                      <a
+                        href={assignedOfficer?.phoneNumber ? `tel:${assignedOfficer.phoneNumber}` : 'tel:110'}
+                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs text-slate-950 transition-all active:scale-95 shadow-md"
+                        style={{
+                          background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+                        }}
+                      >
+                        <Phone size={14} />
+                        <span>{assignedOfficer?.phoneNumber ? 'Telepon Petugas' : 'Hotline 110'}</span>
+                      </a>
 
-                    <button
-                      type="button"
-                      onClick={() => setIsChatOpen(true)}
-                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs text-amber-300 border border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20 transition-all active:scale-95 relative"
-                    >
-                      <MessageSquare size={14} />
-                      <span>Chat Petugas</span>
-                      {chatMessages.length > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      )}
-                    </button>
-                  </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsChatOpen(true)}
+                        className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl font-black text-xs text-amber-300 border border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20 transition-all active:scale-95 relative"
+                      >
+                        <MessageSquare size={14} />
+                        <span>Chat Petugas</span>
+                        {chatMessages.length > 0 && (
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        )}
+                      </button>
+                    </div>
 
-                  {/* Expanded Incident Information */}
-                  {isDrawerExpanded && (
-                    <div
-                      className="space-y-3 pt-2 max-h-[38vh] sm:max-h-[42vh] overflow-y-auto pr-1 animate-in fade-in duration-200 border-t border-white/10"
-                      style={{
-                        scrollbarWidth: 'thin',
-                        scrollbarColor: 'rgba(236, 196, 115, 0.3) transparent',
-                      }}
-                    >
-                      {/* Incident Details Card */}
-                      <div className="bg-black/30 rounded-2xl p-3.5 border border-white/5 space-y-2">
-                        {/* Ticket Number Row */}
-                        <div className="flex items-center justify-between pb-2 border-b border-white/5">
-                          <div>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                              Nomor Tiket
-                            </span>
-                            <span className="text-xs font-mono font-bold text-amber-300">
-                              {nomorTiket.replace(/^#/, '')}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleCopyTicket}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all active:scale-95"
-                            title="Salin Nomor Tiket"
-                          >
-                            {copiedTicket ? (
-                              <>
-                                <Check size={11} className="text-emerald-400" />
-                                <span className="text-emerald-400">Tersalin</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy size={10} className="text-amber-400" />
-                                <span>Salin</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                            Kategori Kejadian
-                          </span>
-                          <span className="text-xs font-black text-amber-300">
-                            {complaint.jenisKejadian || 'Darurat 110'}
-                          </span>
-                        </div>
-
-                        <div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                            <MapPin size={11} className="text-amber-400" />
-                            <span>Titik Lokasi (TKP)</span>
-                          </div>
-                          <div className="text-xs text-slate-200 leading-relaxed font-medium">
-                            {complaint.tkpAlamatTeks || '-'}
-                          </div>
-                        </div>
-
-                        {complaint.ringkasanKeterangan && (
-                          <div className="pt-1 border-t border-white/5">
-                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
-                              Keterangan Pelapor
+                    {/* Expanded Incident Information */}
+                    {isDrawerExpanded && (
+                      <div
+                        className="space-y-3 pt-2 max-h-[38vh] sm:max-h-[42vh] overflow-y-auto pr-1 animate-in fade-in duration-200 border-t border-white/10"
+                        style={{
+                          scrollbarWidth: 'thin',
+                          scrollbarColor: 'rgba(236, 196, 115, 0.3) transparent',
+                        }}
+                      >
+                        {/* 3-Column Metrics (Jarak GPS, Estimasi Waktu, Status Armada) saat Meluncur */}
+                        {isMeluncur && !isArrived && distanceKm > 0 && (
+                          <div className="grid grid-cols-3 divide-x divide-white/10 p-2.5 rounded-2xl bg-white/5 border border-white/10 flex-shrink-0">
+                            <div className="text-center px-1">
+                              <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">Jarak ke TKP</div>
+                              <div className="text-xs sm:text-sm font-black text-amber-300 whitespace-nowrap mt-0.5 font-mono">
+                                {distanceFormatted}
+                              </div>
                             </div>
-                            <div className="text-xs text-slate-300 italic">
-                              "{complaint.ringkasanKeterangan}"
+                            <div className="text-center px-1">
+                              <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">Estimasi Tiba</div>
+                              <div className="text-xs sm:text-sm font-bold text-slate-200 whitespace-nowrap mt-0.5">
+                                {etaFormatted}
+                              </div>
+                            </div>
+                            <div className="text-center px-1">
+                              <div className="text-[9px] font-bold text-slate-400 tracking-wider uppercase whitespace-nowrap">Status</div>
+                              <div className="text-xs sm:text-sm font-bold text-emerald-400 whitespace-nowrap mt-0.5">
+                                Meluncur
+                              </div>
                             </div>
                           </div>
                         )}
-                      </div>
 
-                      {/* Safety Advice Box */}
-                      <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3 flex items-start gap-2.5">
-                        <AlertTriangle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div className="text-xs text-amber-200/90 leading-relaxed">
-                          Tetap berada di lokasi aman. Pastikan ponsel Anda aktif agar personel dapat menghubungi jika memerlukan konfirmasi patokan lokasi.
+                        {/* Incident Details Card */}
+                        <div className="bg-black/30 rounded-2xl p-3.5 border border-white/5 space-y-2">
+                          {/* Ticket Number Row */}
+                          <div className="flex items-center justify-between pb-2 border-b border-white/5">
+                            <div>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                                Nomor Tiket
+                              </span>
+                              <span className="text-xs font-mono font-bold text-amber-300">
+                                {nomorTiket.replace(/^#/, '')}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleCopyTicket}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 transition-all active:scale-95"
+                              title="Salin Nomor Tiket"
+                            >
+                              {copiedTicket ? (
+                                <>
+                                  <Check size={11} className="text-emerald-400" />
+                                  <span className="text-emerald-400">Tersalin</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={10} className="text-amber-400" />
+                                  <span>Salin</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                              Kategori Kejadian
+                            </span>
+                            <span className="text-xs font-black text-amber-300">
+                              {complaint.jenisKejadian || 'Darurat 110'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                              <MapPin size={11} className="text-amber-400" />
+                              <span>Titik Lokasi (TKP)</span>
+                            </div>
+                            <div className="text-xs text-slate-200 leading-relaxed font-medium">
+                              {complaint.tkpAlamatTeks || '-'}
+                            </div>
+                          </div>
+
+                          {complaint.ringkasanKeterangan && (
+                            <div className="pt-1 border-t border-white/5">
+                              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                                Keterangan Pelapor
+                              </div>
+                              <div className="text-xs text-slate-300 italic">
+                                "{complaint.ringkasanKeterangan}"
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
 
-                      {/* Hotline Button */}
-                      <a
-                        href="tel:110"
-                        className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-500/20 transition-colors"
+                        {/* Safety Advice Box */}
+                        <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3 flex items-start gap-2.5">
+                          <AlertTriangle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+                          <div className="text-xs text-amber-200/90 leading-relaxed">
+                            Tetap berada di lokasi aman. Pastikan ponsel Anda aktif agar personel dapat menghubungi jika memerlukan konfirmasi patokan lokasi.
+                          </div>
+                        </div>
+
+                        {/* Hotline Button */}
+                        <a
+                          href="tel:110"
+                          className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-500/20 transition-colors"
+                        >
+                          <Phone size={13} />
+                          <span>Pusat Bantuan Darurat Hotline 110</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* ─── CASE C: MENCARI PETUGAS (RadarSearchingCard) ─── */
+                  <div className="space-y-3">
+                    {!isDrawerExpanded ? (
+                      <div
+                        onClick={() => setIsDrawerExpanded(true)}
+                        className="cursor-pointer bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-amber-500/15 transition-all"
                       >
-                        <Phone size={13} />
-                        <span>Pusat Bantuan Darurat Hotline 110</span>
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* ─── CASE C: MENCARI PETUGAS (RadarSearchingCard) ─── */
-                <div className="space-y-3">
-                  {!isDrawerExpanded ? (
-                    <div
-                      onClick={() => setIsDrawerExpanded(true)}
-                      className="cursor-pointer bg-amber-500/10 border border-amber-500/25 rounded-2xl p-3 flex items-center justify-between gap-3 hover:bg-amber-500/15 transition-all"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-300">
-                          <Radio size={16} className="animate-pulse" />
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-300">
+                            <Radio size={16} className="animate-pulse" />
+                          </div>
+                          <div>
+                            <div className="text-xs font-black text-white">Sistem Menghubungi Personil Terdekat</div>
+                            <div className="text-[11px] text-slate-400">Armada patroli sedang memverifikasi penugasan</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-xs font-black text-white">Sistem Menghubungi Personil Terdekat</div>
-                          <div className="text-[11px] text-slate-400">Armada patroli sedang memverifikasi penugasan</div>
-                        </div>
+                        <span className="text-xs font-bold text-amber-300 underline whitespace-nowrap">Detail</span>
                       </div>
-                      <span className="text-xs font-bold text-amber-300 underline whitespace-nowrap">Detail</span>
-                    </div>
-                  ) : (
-                    <div
-                      className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 animate-in fade-in duration-200"
-                      style={{
-                        scrollbarWidth: 'thin',
-                        scrollbarColor: 'rgba(236, 196, 115, 0.3) transparent',
-                      }}
-                    >
-                      <RadarSearchingCard complaint={complaint} />
-
-                      <a
-                        href="tel:110"
-                        className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-500/20 transition-colors"
+                    ) : (
+                      <div
+                        className="space-y-3 max-h-[45vh] overflow-y-auto pr-1 animate-in fade-in duration-200"
+                        style={{
+                          scrollbarWidth: 'thin',
+                          scrollbarColor: 'rgba(236, 196, 115, 0.3) transparent',
+                        }}
                       >
-                        <Phone size={13} />
-                        <span>Hotline Darurat 110</span>
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
+                        <RadarSearchingCard complaint={complaint} />
+
+                        <a
+                          href="tel:110"
+                          className="flex items-center justify-center gap-2 p-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold hover:bg-red-500/20 transition-colors"
+                        >
+                          <Phone size={13} />
+                          <span>Hotline Darurat 110</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* 4. CHAT BOTTOM DRAWER OVERLAY */}
-          {isChatOpen && (
-            <ChatBottomDrawer
-              officer={assignedOfficer}
-              messages={chatMessages}
-              input={chatInput}
-              sending={sendingChat}
-              onInputChange={setChatInput}
-              onSend={handleSendChat}
-              onClose={() => setIsChatOpen(false)}
-              chatEndRef={chatEndRef}
-            />
-          )}
-        </>
-      )
-    )}
+            {/* 4. CHAT BOTTOM DRAWER OVERLAY */}
+            {isChatOpen && (
+              <ChatBottomDrawer
+                officer={assignedOfficer}
+                messages={chatMessages}
+                input={chatInput}
+                sending={sendingChat}
+                onInputChange={setChatInput}
+                onSend={handleSendChat}
+                onClose={() => setIsChatOpen(false)}
+                chatEndRef={chatEndRef}
+              />
+            )}
+          </>
+        )
+      )}
     </div>
   );
 }
@@ -1361,6 +1438,328 @@ function RadarSearchingCard({ complaint }: any) {
   );
 }
 
+function OfficerPreparingIndependentView({
+  complaint,
+  officer,
+  nomorTiket,
+  onBack,
+  onCopyTicket,
+  copiedTicket,
+  chatMessages,
+  onOpenChat,
+}: {
+  complaint: any;
+  officer: any;
+  nomorTiket: string;
+  onBack?: () => void;
+  onCopyTicket: () => void;
+  copiedTicket: boolean;
+  chatMessages: ChatMessageItem[];
+  onOpenChat: () => void;
+}) {
+  const cleanTiket = (nomorTiket || complaint?.nomorTiket || '').replace(/^#/, '');
+
+  return (
+    <div
+      className="min-h-full flex flex-col justify-between"
+      style={{
+        background: '#090A0F',
+        backgroundImage:
+          'radial-gradient(ellipse at 50% -5%, rgba(236,196,115,0.14) 0%, transparent 55%)',
+      }}
+    >
+      {/* ─── 1. TOP HEADER (BRAND & TICKET BADGE) ─── */}
+      <div className="max-w-xl mx-auto w-full px-4 pt-4 pb-1">
+        <div className="flex items-center justify-between">
+          {/* Left: Brand SIMOPMAS 110 */}
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+                boxShadow: '0 2px 10px rgba(201,150,53,0.3)',
+              }}
+            >
+              <Shield size={20} className="text-[#0A0D14]" />
+            </div>
+            <div>
+              <div className="text-sm font-black text-white leading-tight">SIMOPMAS 110</div>
+              <div className="text-[11px] text-slate-400 leading-tight">Pelacakan Laporan</div>
+            </div>
+          </div>
+
+          {/* Right: Pill Badge */}
+          <div
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md"
+            style={{
+              background: 'rgba(6, 28, 18, 0.75)',
+              border: '1px solid rgba(16, 185, 129, 0.35)',
+            }}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#10B981]" />
+            <span className="text-xs font-mono font-bold text-amber-300">
+              #{cleanTiket}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── SCROLLABLE CARDS CONTAINER ─── */}
+      <div className="max-w-xl mx-auto w-full px-4 py-3 space-y-4 flex-1">
+        {/* ─── BANNER: PETUGAS BERSIAP BERANGKAT ─── */}
+        <div
+          className="rounded-[20px] p-4 relative overflow-hidden backdrop-blur-xl"
+          style={{
+            background: 'linear-gradient(180deg, rgba(35, 26, 12, 0.85) 0%, rgba(20, 16, 10, 0.95) 100%)',
+            border: '1.5px solid rgba(236, 196, 115, 0.38)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+          }}
+        >
+          <div className="flex items-center gap-2 mb-1.5">
+            <Zap size={16} className="text-amber-400 fill-amber-400 flex-shrink-0" />
+            <span className="text-sm font-black text-white tracking-wide">
+              Petugas Bersiap Berangkat
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-amber-200/90 leading-relaxed pl-0.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 shadow-[0_0_6px_#ECC473]" />
+            <span>Petugas telah menerima laporan dan sedang bersiap.</span>
+          </div>
+        </div>
+
+        {/* ─── CARD 1: OFFICER DETAILS ─── */}
+        <div
+          className="rounded-[24px] p-4 sm:p-5 relative overflow-hidden backdrop-blur-xl space-y-4"
+          style={{
+            background: 'linear-gradient(180deg, rgba(18, 22, 32, 0.95) 0%, rgba(10, 12, 18, 0.98) 100%)',
+            border: '1.5px solid rgba(236, 196, 115, 0.22)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.7)',
+          }}
+        >
+          <div className="flex items-center gap-3.5">
+            {/* Avatar with gold ring and check badge */}
+            <div className="relative flex-shrink-0">
+              <NameInitialAvatar
+                name={officer?.namaLengkap}
+                avatarUrl={officer?.avatarUrl}
+                size={54}
+                variant="gold"
+                showOnlineDot={false}
+              />
+              {/* Checkmark verification badge */}
+              <div
+                className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full flex items-center justify-center text-slate-950 font-black text-[10px]"
+                style={{
+                  background: 'linear-gradient(135deg, #ECC473 0%, #D4A346 100%)',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                }}
+              >
+                ✓
+              </div>
+            </div>
+
+            {/* Officer Details */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[#ECC473] text-[#0A0D14] text-[10px] font-black px-2 py-0.5 rounded tracking-wider uppercase">
+                  {officer?.rankPangkat || 'BRIPKA'}
+                </span>
+                <span className="text-emerald-400 font-bold text-xs flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Aktif
+                </span>
+              </div>
+              <div className="text-base sm:text-lg font-black text-white leading-snug">
+                {officer?.namaLengkap || 'Petugas Lapangan'}
+              </div>
+              <div className="text-xs text-slate-300 flex items-center gap-1.5 truncate mt-0.5">
+                <Shield size={13} className="text-sky-400 flex-shrink-0" />
+                <span className="truncate">{officer?.unitName || 'Satuan Samapta Presisi'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Call & Chat Buttons */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <a
+              href={`tel:${officer?.callPhoneNumber || officer?.phoneNumber || '110'}`}
+              className="py-2.5 px-4 rounded-xl font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all text-[#0A0D14] cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #ECC473 0%, #D4A346 100%)',
+                boxShadow: '0 4px 14px rgba(212, 163, 70, 0.35)',
+              }}
+            >
+              <Phone size={15} />
+              <span>Telepon</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={onOpenChat}
+              className="py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 cursor-pointer"
+            >
+              <MessageSquare size={15} />
+              <span>Chat Petugas</span>
+              {chatMessages.length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ─── CARD 2: PETA RUTE AKTIF OTOMATIS ─── */}
+        <div
+          className="rounded-[24px] p-5 relative overflow-hidden backdrop-blur-xl space-y-4"
+          style={{
+            background: 'linear-gradient(180deg, rgba(18, 22, 32, 0.95) 0%, rgba(10, 12, 18, 0.98) 100%)',
+            border: '1.5px solid rgba(236, 196, 115, 0.22)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.7)',
+          }}
+        >
+          <div className="flex items-center gap-3">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+              }}
+            >
+              <span className="text-base">📍</span>
+            </div>
+            <div>
+              <div className="text-sm font-black text-white leading-tight">
+                Peta Rute Aktif Otomatis
+              </div>
+              <div className="text-[11px] text-slate-400 leading-tight">
+                Tampil saat petugas mulai berangkat
+              </div>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-300 leading-relaxed font-normal">
+            Petugas telah menerima laporan Anda dan sedang mempersiapkan kendaraan. Peta navigasi dan estimasi waktu tiba akan otomatis muncul setelah petugas mulai meluncur ke lokasi Anda.
+          </p>
+
+          {/* Stepper Checklist */}
+          <div className="space-y-3 pt-1">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center flex-shrink-0 text-emerald-400">
+                <Check size={12} strokeWidth={3} />
+              </div>
+              <span className="text-xs font-semibold text-slate-200">
+                Laporan diterima &amp; petugas dikonfirmasi
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center flex-shrink-0 text-emerald-300 shadow-[0_0_8px_rgba(16,185,129,0.4)]">
+                <Check size={12} strokeWidth={3} />
+              </div>
+              <span className="text-xs font-bold text-emerald-400">
+                Persiapan kendaraan (sedang berlangsung)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full border border-slate-700 bg-transparent flex items-center justify-center flex-shrink-0" />
+              <span className="text-xs text-slate-500">
+                Perjalanan menuju lokasi (peta aktif)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 rounded-full border border-slate-700 bg-transparent flex items-center justify-center flex-shrink-0" />
+              <span className="text-xs text-slate-500">
+                Penanganan di lokasi kejadian
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ─── CARD 3: INFORMASI DETAIL TIKET ─── */}
+        <div
+          className="rounded-[24px] p-5 relative overflow-hidden backdrop-blur-xl"
+          style={{
+            background: 'linear-gradient(180deg, rgba(18, 22, 32, 0.95) 0%, rgba(10, 12, 18, 0.98) 100%)',
+            border: '1.5px solid rgba(236, 196, 115, 0.22)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.7)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              NOMOR TIKET RESMI
+            </span>
+            <button
+              type="button"
+              onClick={onCopyTicket}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-amber-300 bg-amber-400/10 border border-amber-400/30 hover:bg-amber-400/20 active:scale-95 transition-all cursor-pointer"
+            >
+              {copiedTicket ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+              <span>{copiedTicket ? 'Tersalin' : 'Salin'}</span>
+            </button>
+          </div>
+
+          <div className="text-lg font-black font-mono text-[#ECC473] mb-4">
+            #{cleanTiket}
+          </div>
+
+          <div className="space-y-3.5 text-left">
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                Nama Pelapor
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold text-white">
+                {complaint.rawPelaporNama || complaint.pelaporNama || 'Bpk. Pelapor'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                Kategori Insiden
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold text-white">
+                {complaint.jenisKejadian || complaint.kategori || 'Laporan Pengaduan Darurat'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                Titik Lokasi (TKP)
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold text-white leading-relaxed">
+                {complaint.tkpAlamatTeks || complaint.lokasi || '-'}
+              </div>
+            </div>
+
+            {(complaint.deskripsiKejadian || complaint.ringkasanKeterangan) && (
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                  Keterangan
+                </div>
+                <div className="text-xs text-slate-300 italic leading-relaxed">
+                  "{complaint.deskripsiKejadian || complaint.ringkasanKeterangan}"
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── 4. HOTLINE BUTTON ─── */}
+        <div className="pt-1 pb-6">
+          <a
+            href="tel:110"
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-red-950/70 via-red-900/60 to-red-950/70 border border-red-500/40 text-red-200 text-xs sm:text-sm font-black hover:bg-red-900/70 active:scale-95 transition-all shadow-lg text-center"
+          >
+            <Phone size={15} />
+            <span>Hubungi Hotline Darurat 110</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompletedIndependentView({
   complaint,
   officer,
@@ -1582,11 +1981,10 @@ function CompletedIndependentView({
                       key={t}
                       type="button"
                       onClick={() => onTagToggle(t)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                        selectedTags.includes(t)
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selectedTags.includes(t)
                           ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-sm'
                           : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
-                      }`}
+                        }`}
                     >
                       {selectedTags.includes(t) ? '✓ ' : ''}
                       {t}
@@ -1864,11 +2262,10 @@ function ChatBottomDrawer({
                     {isMe ? 'Anda (Pelapor)' : msg.senderName || 'Petugas Lapangan'}
                   </div>
                   <div
-                    className={`p-2.5 rounded-2xl text-xs break-words shadow-sm ${
-                      isMe
+                    className={`p-2.5 rounded-2xl text-xs break-words shadow-sm ${isMe
                         ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold rounded-tr-sm'
                         : 'bg-[#1A1F2C] text-slate-100 border border-amber-500/20 rounded-tl-sm font-medium'
-                    }`}
+                      }`}
                   >
                     {msg.text}
                   </div>
