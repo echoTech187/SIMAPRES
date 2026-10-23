@@ -109,8 +109,7 @@ export default function TabUnitPersonel({
       satuanNama: formData.satuanNama || '',
       kelompokRegu: formData.kelompokRegu || '',
       stationId: formData.stationId ? Number(formData.stationId) : null,
-      password: formData.password?.trim() ? formData.password.trim() : undefined,
-      deviceID: formData.deviceId || `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`,
+      deviceID: formData.deviceId?.trim() || undefined,
       liveLat: 0,
       liveLng: 0,
     });
@@ -169,7 +168,7 @@ export default function TabUnitPersonel({
     kelompokRegu: u.kelompokRegu ?? '',
     stationId: u.stationId ? String(u.stationId) : '',
     password: '',
-    deviceId: u.deviceID || `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`,
+    deviceId: u.deviceID || '',
   });
 
   // Filter berdasarkan Satuan, Mako, Role

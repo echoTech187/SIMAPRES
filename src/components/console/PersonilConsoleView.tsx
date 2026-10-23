@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ConsoleSkeleton } from './ConsoleSkeleton';
 import PersonilHeader from './personil/PersonilHeader';
 import PersonilNav from './personil/PersonilNav';
@@ -16,6 +15,7 @@ import {
   getOfficerComplaintsAction,
   fieldStepAction,
   acceptOfficerDispatchAction,
+  getMasterFilterOptionsAction,
 } from '@/app/actions/complaint.actions';
 import {
   getOfficerLogbooksAction,
@@ -23,8 +23,6 @@ import {
 } from '@/app/actions/logbook.actions';
 import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import {
-  updateDeviceTelemetryAction,
-  getOfficerProfileByNrpAction,
   getPoliceOfficesAction,
   logoutAction,
 } from '@/app/actions/auth.actions';
@@ -34,11 +32,10 @@ import {
   getMasterResolutionDocumentsAction,
 } from '@/app/actions/master.actions';
 
-import type { ComplaintData, OfficerProfile, PersonilTab } from './personil/types';
+import type { ComplaintData, OfficerProfile, PersonilTab, DispatchStepAction } from './personil/types';
 import {
   hasOfficerAcceptedTask,
   isTaskPendingAcceptance,
-  computeWizardStepFromComplaint,
 } from './personil/types';
 
 function parsePersonilTab(section?: string): PersonilTab {
@@ -131,7 +128,7 @@ function PersonilContent({
   if (initialFleetUnits?.length && !cachedFleetUnits) cachedFleetUnits = initialFleetUnits;
   if (initialHotspots?.length && !cachedHotspots) cachedHotspots = initialHotspots;
 
-  const nrpParam = session?.identifier || initialOfficer?.nrp || '92031145';
+  const nrpParam = session?.identifier || initialOfficer?.nrp;
 
   // Navigation tab state (Beranda, Maps, Profile)
   const [activeTab, setActiveTab] = useState<PersonilTab>(() => {
@@ -163,46 +160,46 @@ function PersonilContent({
   const [officer, setOfficer] = useState<OfficerProfile>(() => {
     if (initialOfficer) {
       return {
-        id: String(initialOfficer.id || session?.userId || '3'),
+        id: initialOfficer.id || session?.userId,
         nrp: initialOfficer.nrp || nrpParam,
-        fullName: initialOfficer.fullName || session?.fullName || 'Petugas Lapangan',
-        pangkat: initialOfficer.pangkat || session?.rankPangkat || 'BRIPKA',
-        jabatan: initialOfficer.jabatan || session?.title || 'Bintara Unit Samapta',
-        satuan: initialOfficer.satuan || 'Satuan Samapta',
-        unit_id: initialOfficer.unit_id || null,
-        unitId: initialOfficer.unitId || '',
-        kendaraan: initialOfficer.kendaraan || 'Ranmor Patroli R-4',
-        avatar: initialOfficer.avatar || session?.avatar_url || null,
-        kpi: initialOfficer.kpi ?? 96,
-        deviceId: initialOfficer.deviceId || null,
-        stationId: initialOfficer.stationId || null,
-        stationName: initialOfficer.stationName || 'Polres Metro Jakarta',
-        stationLat: initialOfficer.stationLat ?? -6.229728,
-        stationLng: initialOfficer.stationLng ?? 106.807447,
-        stationRadius: initialOfficer.stationRadius ?? 1000,
-        currentGpsLat: initialOfficer.currentGpsLat ?? null,
-        currentGpsLng: initialOfficer.currentGpsLng ?? null,
-        dutyStatus: initialOfficer.dutyStatus || initialOfficer.duty_status || 'DINAS_PATROLI',
+        fullName: initialOfficer.fullName || session?.fullName,
+        pangkat: initialOfficer.pangkat || session?.rankPangkat,
+        jabatan: initialOfficer.jabatan || session?.title,
+        satuan: initialOfficer.satuan || session?.unitName,
+        unit_id: initialOfficer.unit_id || session?.unit_id,
+        unitId: initialOfficer.unitId || session?.unitId,
+        kendaraan: initialOfficer.kendaraan || session?.vehicleName,
+        avatar: initialOfficer.avatar || session?.avatar_url,
+        kpi: initialOfficer.kpi || session?.kpi,
+        deviceId: initialOfficer.deviceId || session?.deviceId,
+        stationId: initialOfficer.stationId || session?.stationId,
+        stationName: initialOfficer.stationName || session?.stationName,
+        stationLat: initialOfficer.stationLat || session?.stationLat,
+        stationLng: initialOfficer.stationLng || session?.stationLng,
+        stationRadius: initialOfficer.stationRadius || session?.stationRadius,
+        currentGpsLat: initialOfficer.currentGpsLat || session?.currentGpsLat,
+        currentGpsLng: initialOfficer.currentGpsLng || session?.currentGpsLng,
+        dutyStatus: initialOfficer.dutyStatus || session?.dutyStatus,
       };
     }
     return {
-      id: session?.userId ? String(session.userId) : '3',
-      nrp: nrpParam,
-      fullName: session?.fullName || 'Petugas Lapangan',
-      pangkat: session?.rankPangkat || 'BRIPKA',
-      jabatan: session?.title || 'Bintara Unit Samapta',
-      satuan: 'Satuan Samapta',
-      kendaraan: 'Ranmor Patroli R-4',
-      avatar: session?.avatar_url || null,
-      kpi: 96,
-      stationId: null,
-      stationName: 'Polres Metro Jakarta',
-      stationLat: -6.229728,
-      stationLng: 106.807447,
-      stationRadius: 1000,
-      currentGpsLat: null,
-      currentGpsLng: null,
-      dutyStatus: session?.dutyStatus || 'DINAS_PATROLI',
+      id: session?.userId,
+      nrp: session?.nrp,
+      fullName: session?.fullName,
+      pangkat: session?.rankPangkat,
+      jabatan: session?.title,
+      satuan: session?.unitName,
+      kendaraan: session?.vehicleName,
+      avatar: session?.avatar_url,
+      kpi: session?.kpi,
+      stationId: session?.stationId,
+      stationName: session?.stationName,
+      stationLat: session?.stationLat,
+      stationLng: session?.stationLng,
+      stationRadius: session?.stationRadius,
+      currentGpsLat: session?.currentGpsLat,
+      currentGpsLng: session?.currentGpsLng,
+      dutyStatus: session?.dutyStatus,
     };
   });
 
@@ -218,13 +215,7 @@ function PersonilContent({
         (c: any) =>
           hasOfficerAcceptedTask(c, officer.nrp, officer.id) &&
           c.status !== 'SELESAI' &&
-          c.status !== 'DITOLAK' &&
-          (c.status === 'MENUJU_TKP' ||
-            c.status === 'PENANGANAN_TKP' ||
-            c.status === 'TIBA_DI_TKP' ||
-            c.status === 'SEDANG_DITANGANI' ||
-            c.status === 'DIPROSES' ||
-            c.status === 'MENUNGGU_PENGESAHAN')
+          c.status !== 'DITOLAK'
       ) || null
     );
   }, []);
@@ -239,12 +230,30 @@ function PersonilContent({
   const [isAcceptingTask, setIsAcceptingTask] = useState<boolean>(false);
   const promptedTaskIdsRef = useRef<Set<string>>(new Set());
 
-  // Chat & Wizard Modal state
+  // Deteksi Perangkat Fisik Terdaftar (Hanya HP yang telah diikat scan QR secara sukses)
+  const [isPairedDevice, setIsPairedDevice] = useState<boolean>(false);
+  const isPairedDeviceRef = useRef<boolean>(false);
+  isPairedDeviceRef.current = isPairedDevice;
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const localDevId = localStorage.getItem('simapres_hardware_device_id');
+      const isMatched = Boolean(
+        localDevId &&
+        officer.deviceId &&
+        localDevId.trim().toUpperCase() === officer.deviceId.trim().toUpperCase()
+      );
+      setIsPairedDevice(isMatched);
+      isPairedDeviceRef.current = isMatched;
+    }
+  }, [officer.deviceId]);
+
+  // Chat & Modal Penyelesaian Tugas
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [chatComplaint, setChatComplaint] = useState<ComplaintData | null>(null);
 
-  const [wizardModalOpen, setWizardModalOpen] = useState(false);
-  const [wizardComplaint, setWizardComplaint] = useState<ComplaintData | null>(null);
+  const [finishModalOpen, setFinishModalOpen] = useState(false);
+  const [finishComplaint, setFinishComplaint] = useState<ComplaintData | null>(null);
   const [isUpdatingStep, setIsUpdatingStep] = useState(false);
 
   // Database Static Master Data & Lists (Menggunakan Module Cache & Initial Server Props)
@@ -254,6 +263,7 @@ function PersonilContent({
   const [hotspots, setHotspots] = useState<any[]>(() => initialHotspots?.length ? initialHotspots : (cachedHotspots || []));
   const [resolutionLocations, setResolutionLocations] = useState<any[]>(() => cachedResolutionLocations || []);
   const [resolutionDocuments, setResolutionDocuments] = useState<any[]>(() => cachedResolutionDocuments || []);
+  const [dispatchStatuses, setDispatchStatuses] = useState<any[]>(() => initialMasterData?.dispatchStatuses || []);
 
   // GPS Telemetry
   const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number }>({
@@ -268,8 +278,8 @@ function PersonilContent({
     if (isPollingRef.current) return;
     isPollingRef.current = true;
     try {
-      const activeNrp = nrpParam || officer.nrp || '92031145';
-      const activeOfficerId = targetOfficerId || officer.id || '3';
+      const activeNrp = nrpParam || officer.nrp;
+      const activeOfficerId = targetOfficerId || officer.id;
 
       // Di tab Peta, hanya fetch complaints agar hemat bandwidth & tidak spam request logbook
       const shouldFetchLogbooks = activeTabRef.current !== 'peta';
@@ -290,7 +300,12 @@ function PersonilContent({
             )
           : null;
 
-        if (pending && isOfficerOnDuty) {
+        // PENTING: Hanya akun dengan role PERSONIL dan menggunakan HP lapangan terdaftar (hasil scan QR)
+        // yang berhak menerima modal notifikasi panggilan tugas darurat & berbunyi sirine.
+        // Role PAWAS, SUPERADMIN, atau perangkat Laptop dinonaktifkan sepenuhnya dari popup ini.
+        const isUserPersonilRole = (session?.role || 'PERSONIL').toUpperCase() === 'PERSONIL';
+
+        if (pending && isOfficerOnDuty && isPairedDeviceRef.current && isUserPersonilRole) {
           setPendingAcceptTask(pending);
           const taskId = String(pending.nomorTiket || pending.id);
           if (!promptedTaskIdsRef.current.has(taskId)) {
@@ -300,9 +315,7 @@ function PersonilContent({
           }
         } else {
           setPendingAcceptTask(null);
-          if (!isOfficerOnDuty) {
-            setShowAcceptModal(false);
-          }
+          setShowAcceptModal(false);
         }
 
         // Active ongoing complaint (Hanya tiket aktif yang belum SELESAI / DITOLAK)
@@ -326,13 +339,7 @@ function PersonilContent({
             (c: any) =>
               hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
               c.status !== 'SELESAI' &&
-              c.status !== 'DITOLAK' &&
-              (c.status === 'MENUJU_TKP' ||
-                c.status === 'PENANGANAN_TKP' ||
-                c.status === 'TIBA_DI_TKP' ||
-                c.status === 'SEDANG_DITANGANI' ||
-                c.status === 'DIPROSES' ||
-                c.status === 'MENUNGGU_PENGESAHAN')
+              c.status !== 'DITOLAK'
           );
         }
 
@@ -350,10 +357,10 @@ function PersonilContent({
     }
   };
 
-  // Lazy fetch master data penyelesaian hanya saat personel membuka modal wizard
-  const handleOpenWizard = (c: ComplaintData) => {
-    setWizardComplaint(c);
-    setWizardModalOpen(true);
+  // Lazy fetch master data penyelesaian saat personel membuka modal penyelesaian tugas
+  const handleOpenFinishModal = (c: ComplaintData) => {
+    setFinishComplaint(c);
+    setFinishModalOpen(true);
 
     if (!cachedResolutionLocations || !cachedResolutionDocuments) {
       Promise.all([
@@ -404,6 +411,14 @@ function PersonilContent({
       }
     }
 
+    if (!dispatchStatuses.length) {
+      getMasterFilterOptionsAction().then((mRes) => {
+        if (mRes?.success && mRes?.data?.dispatchStatuses) {
+          setDispatchStatuses(mRes.data.dispatchStatuses);
+        }
+      });
+    }
+
     // Geolocation watching
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -411,17 +426,33 @@ function PersonilContent({
           setCurrentGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         },
         () => {},
-        { enableHighAccuracy: true, timeout: 10000 }
+        { enableHighAccuracy: true, timeout: 30000 }
       );
     }
 
-    // Polling interval (every 30 seconds - hanya ketika tab aktif)
+    // Panggil loadData() seketika pada awal mount (tidak menunggu 30 detik pertama)
+    loadData();
+
+    // Deteksi saat layar HP menyala atau tab peramban kembali aktif / fokus
+    const handleWakeOrFocus = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        loadData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleWakeOrFocus);
+    window.addEventListener('focus', handleWakeOrFocus);
+
+    // Polling interval dipercepat untuk respon siaga cepat (setiap 8 detik)
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       loadData();
-    }, 30000);
+    }, 100);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleWakeOrFocus);
+      window.removeEventListener('focus', handleWakeOrFocus);
+    };
   }, []);
 
   // Accept Task Action (First-Come, First-Served)
@@ -434,16 +465,18 @@ function PersonilContent({
         officerNrp: officer.nrp,
         officerNama: officer.fullName,
         officerPangkat: officer.pangkat,
+        lat: currentGps?.lat,
+        lng: currentGps?.lng,
       });
 
       if (res?.success) {
         alert(
-          `✓ Penugasan #${task.nomorTiket || task.id} BERHASIL DITERIMA!\n\nStatus kini: SEDANG DITANGANI.\nMembuka Peta Navigasi Rute TKP...`
+          `✓ Penugasan #${task.nomorTiket || task.id} BERHASIL DITERIMA!\n\nStatus kini: DIPROSES.\nMembuka Peta Navigasi Rute TKP...`
         );
         setShowAcceptModal(false);
         setPendingAcceptTask(null);
 
-        const updated = { ...task, status: 'SEDANG_DITANGANI' };
+        const updated = { ...task, status: 'DIPROSES' };
         setActiveComplaint(updated);
         activeComplaintRef.current = updated;
 
@@ -459,35 +492,31 @@ function PersonilContent({
     }
   };
 
-  // Update Field Step Action (Meluncur, Tiba TKP, Tindakan TKP, Selesai)
-  const handleUpdateStep = async (stepKey: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai') => {
+  // Update Field Step Action (Meluncur / DEPARTED, Tiba TKP / ARRIVED, Selesai / COMPLETED)
+  const handleUpdateStep = async (stepKey: DispatchStepAction) => {
     if (!activeComplaint) return;
     setIsUpdatingStep(true);
     try {
       const res = await fieldStepAction({
         complaintId: String(activeComplaint.id),
         step: stepKey,
-        officerId: officer.id || '3',
+        officerId: officer.id,
         lat: currentGps.lat,
         lng: currentGps.lng,
       });
 
       if (res?.success) {
-        const statusMap = {
-          meluncur: 'MENUJU_TKP',
-          tiba_tkp: 'TIBA_DI_TKP',
-          tindakan_tkp: 'PENANGANAN_TKP',
-          selesai: 'SELESAI',
-        };
-        const updatedStatus = statusMap[stepKey] || activeComplaint.status;
-        alert(`✓ Status tugas #${activeComplaint.nomorTiket} berhasil diperbarui menjadi: ${updatedStatus}`);
+        alert(`✓ Tahap penanganan #${activeComplaint.nomorTiket} berhasil diperbarui.`);
 
-        if (stepKey === 'selesai' || updatedStatus === 'SELESAI') {
+        if (stepKey === 'COMPLETED') {
           setActiveComplaint(null);
           activeComplaintRef.current = null;
           await loadData(officer.id);
         } else {
-          setActiveComplaint((prev) => (prev ? { ...prev, status: updatedStatus } : null));
+          if (res.data) {
+            setActiveComplaint(res.data as any);
+            activeComplaintRef.current = res.data as any;
+          }
           await loadData(officer.id, activeComplaint.id);
         }
       } else {
@@ -504,7 +533,7 @@ function PersonilContent({
   const handlePresensiMasuk = async () => {
     try {
       const res = await submitOfficerPresensiAction({
-        officerId: officer.id || '3',
+        officerId: officer.id,
         type: 'MASUK',
         lat: currentGps.lat,
         lng: currentGps.lng,
@@ -523,7 +552,7 @@ function PersonilContent({
   const handlePresensiPulang = async () => {
     try {
       const res = await submitOfficerPresensiAction({
-        officerId: officer.id || '3',
+        officerId: officer.id,
         type: 'PULANG',
         lat: currentGps.lat,
         lng: currentGps.lng,
@@ -623,6 +652,7 @@ function PersonilContent({
         activeTab={activeTab}
         onTabChange={switchTab}
         hasActiveMission={Boolean(activeComplaint)}
+        isPairedDevice={isPairedDevice}
       />
 
       {/* 2. Main Content Container (Full-body untuk tab Peta, Inset Container untuk Beranda & Profil) */}
@@ -665,11 +695,12 @@ function PersonilContent({
             fleetUnits={fleetUnits}
             hotspots={hotspots}
             policeOffices={policeOffices}
+            dispatchStatuses={dispatchStatuses}
             onOpenChat={(c) => {
               setChatComplaint(c);
               setChatDrawerOpen(true);
             }}
-            onOpenWizard={handleOpenWizard}
+            onOpenWizard={handleOpenFinishModal}
             onUpdateStep={handleUpdateStep}
             isUpdatingStep={isUpdatingStep}
           />
@@ -706,15 +737,17 @@ function PersonilContent({
       />
 
       {/* 4. Modals & Drawers */}
-      {/* Task Accept Emergency Modal */}
-      <TaskAcceptModal
-        isOpen={showAcceptModal}
-        task={pendingAcceptTask}
-        officer={officer}
-        isAccepting={isAcceptingTask}
-        onAccept={handleAcceptTask}
-        onClose={() => setShowAcceptModal(false)}
-      />
+      {/* Task Accept Emergency Modal (MUTLAK HANYA UNTUK ROLE PERSONIL DI HP TERDAFTAR) */}
+      {isPairedDevice && session?.role === 'PERSONIL' && (
+        <TaskAcceptModal
+          isOpen={showAcceptModal}
+          task={pendingAcceptTask}
+          officer={officer}
+          isAccepting={isAcceptingTask}
+          onAccept={handleAcceptTask}
+          onClose={() => setShowAcceptModal(false)}
+        />
+      )}
 
       {/* In-App 2-Way Live Chat Drawer */}
       <PersonilChatDrawer
@@ -725,15 +758,15 @@ function PersonilContent({
       />
 
       {/* Modal Keterangan Penyelesaian Tugas Manual (Textarea) */}
-      {wizardModalOpen && wizardComplaint && (
+      {finishModalOpen && finishComplaint && (
         <ModalPenyelesaianTugas
-          isOpen={wizardModalOpen}
-          complaint={wizardComplaint}
+          isOpen={finishModalOpen}
+          complaint={finishComplaint}
           officer={officer}
           currentGps={currentGps}
-          onClose={() => setWizardModalOpen(false)}
+          onClose={() => setFinishModalOpen(false)}
           onSuccess={() => {
-            setWizardModalOpen(false);
+            setFinishModalOpen(false);
             setActiveComplaint(null);
             activeComplaintRef.current = null;
             loadData(officer.id);

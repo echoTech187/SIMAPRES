@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { updateDeviceTelemetryAction, getMasterDropdownsAction } from '@/app/actions/auth.actions';
 import { pairDeviceSessionAction } from '@/app/actions/device.actions';
@@ -103,7 +103,7 @@ function ScanDeviceContent() {
 
   const syncTelemetry = async (devId: string, currentCoords: { lat: number; lng: number }) => {
     try {
-      // 1. Simpan langsung ke Database MySQL (tabel device_pairing_sessions & registered_units)
+      // 1. Simpan langsung ke Database MySQL (tabel device_pairing_sessions & police_officers)
       await pairDeviceSessionAction({
         sessionToken: activeSessionToken,
         deviceId: devId,
@@ -126,6 +126,8 @@ function ScanDeviceContent() {
     }
   };
 
+  const watchIdRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
@@ -146,7 +148,19 @@ function ScanDeviceContent() {
         },
         (err) => {
           console.warn('GPS Error:', err);
-          setAccuracyText('Izin akses lokasi (GPS) belum diaktifkan pada peramban ini');
+          if (err.code === 1) {
+            if (!window.isSecureContext) {
+              setAccuracyText('Google Chrome memblokir GPS karena akses via HTTP. Pastikan flag Insecure origins diaktifkan (Enabled) & luncurkan ulang browser, lalu segarkan halaman.');
+            } else {
+              setAccuracyText('Izin akses lokasi ditolak oleh browser. Ketuk ikon gembok/setelan di URL bar lalu izinkan lokasi.');
+            }
+          } else if (err.code === 2) {
+            setAccuracyText('Sinyal satelit GPS tidak terdeteksi pada perangkat.');
+          } else if (err.code === 3) {
+            setAccuracyText('Waktu pencarian sinyal GPS habis (timeout).');
+          } else {
+            setAccuracyText('Izin akses lokasi (GPS) belum diaktifkan pada peramban ini.');
+          }
           setStatusBadge({
             text: 'GPS TIDAK AKTIF',
             bg: '#EF4444',
@@ -154,8 +168,14 @@ function ScanDeviceContent() {
         },
         { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
       );
+      watchIdRef.current = watchId;
 
-      return () => navigator.geolocation.clearWatch(watchId);
+      return () => {
+        if (watchIdRef.current !== null) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
+          watchIdRef.current = null;
+        }
+      };
     }
   }, [physicalDeviceId, deviceModel]);
 
@@ -245,6 +265,35 @@ function ScanDeviceContent() {
             </div>
             <div id="disp-accuracy" style={{ fontSize: '10.5px', color: '#64748B', marginTop: '4px' }}>
               {accuracyText}
+            </div>
+
+            <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.location.reload();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #1E40AF, #2563EB)',
+                  color: 'white',
+                  border: '1px solid #3B82F6',
+                  borderRadius: '8px',
+                  padding: '9px 12px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(37,99,235,0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>🔄</span> Segarkan Halaman
+              </button>
             </div>
           </div>
 

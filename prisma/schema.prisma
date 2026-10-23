@@ -548,7 +548,7 @@ model Complaint {
   nomor_tiket           String                  @unique @db.VarChar(35) // "C110-20261016-0001"
   pelapor_nama          String                  @db.VarChar(120)
   pelapor_hp            String                  @db.VarChar(50)
-  jenis_kejadian        String                  @db.VarChar(100)
+  jenis_kejadian        String                  @db.VarChar(255)
   
   urgency_id            Int?
   urgency_rel           MasterUrgencyLevel?     @relation(fields: [urgency_id], references: [id], onDelete: SetNull)
@@ -569,7 +569,7 @@ model Complaint {
   
   category_id           Int?
   category_rel          MasterIncidentCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
-  kategori_key          String?                 @db.VarChar(50)
+  kategori_key          String?                 @db.VarChar(255)
 
   subcategory_id        Int?
   subcategory_rel       MasterIncidentSubcategory? @relation(fields: [subcategory_id], references: [id], onDelete: SetNull)
@@ -857,31 +857,6 @@ model PatrolFleetUnit {
 
   @@index([category], map: "idx_fleet_category")
   @@map("patrol_fleet_units")
-}
-
-model RegisteredUnit {
-  id            String   @id @db.VarChar(64)
-  nrp           String   @unique @db.VarChar(20)
-  nama          String   @db.VarChar(120)
-  pangkat       String   @db.VarChar(50)
-  role          String   @default("PERSONIL") @db.VarChar(50)
-  unitId        String   @map("unit_id") @db.VarChar(50)
-  satuanNama    String   @map("satuan_nama") @db.VarChar(100)
-  kelompokRegu  String   @map("kelompok_regu") @db.VarChar(100)
-  password      String   @db.VarChar(100)
-  deviceID      String   @map("device_id") @db.VarChar(64)
-  live_lat      Decimal? @db.Decimal(10, 8)
-  live_lng      Decimal? @db.Decimal(11, 8)
-  status        String   @default("Aktif") @db.VarChar(30)
-  avatar_url    String?  @db.VarChar(255)
-  tanggalDaftar DateTime @map("tanggal_daftar") @db.Date
-  tanggalUpdate DateTime @map("tanggal_update") @db.Date
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-
-  @@index([deviceID], map: "idx_reg_dev")
-  @@index([status, unitId], map: "idx_reg_status_unit")
-  @@map("registered_units")
 }
 
 model UserLogActivity {

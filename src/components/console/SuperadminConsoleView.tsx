@@ -214,7 +214,7 @@ export default function SuperadminConsoleView({
     if (!initialSuperadminData) {
       loadData();
     }
-    setDeviceId(`DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
+    setDeviceId('');
     if (!currentUser && !session) {
       getCurrentSessionAction().then((res) => {
         if (res.success && res.data) {
@@ -291,7 +291,7 @@ export default function SuperadminConsoleView({
     setKelompokRegu('');
     setPassword('');
     setStationId('');
-    setDeviceId(`DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
+    setDeviceId('');
   };
 
   const handleEditUnit = (u: any) => {
@@ -305,7 +305,7 @@ export default function SuperadminConsoleView({
     setSatuanNama(u.satuanNama || '');
     setKelompokRegu(u.kelompokRegu || '');
     setStationId(u.stationId ? String(u.stationId) : '');
-    setDeviceId(u.deviceID || `DEV-HP-${Math.random().toString(16).slice(2, 10).toUpperCase()}`);
+    setDeviceId(u.deviceID || '');
     setPassword('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

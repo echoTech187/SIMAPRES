@@ -63,106 +63,67 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
     return cleanRank ? `${cleanRank} ${cleanName}` : cleanName;
   };
 
-  // Status Badge Resolver
+  // Status Badge Resolver Resmi Master Database
   const resolveStatusMeta = (statusRaw?: string) => {
     const s = String(statusRaw || '').toUpperCase();
     if (s === 'SELESAI') {
-      return { label: '✓ Selesai Ditangani', bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' };
+      return { label: '✓ Selesai & Kondusif', bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' };
     }
     if (s === 'MENUNGGU_PENGESAHAN') {
       return { label: '⚖️ Menunggu Pengesahan Pawas', bg: '#FAF5FF', color: '#7C3AED', border: '#DDD6FE' };
     }
-    if (s === 'PENANGANAN_TKP' || s === 'TIBA_DI_TKP') {
-      return { label: '📍 Penanganan di Lokasi (TKP)', bg: '#ECFDF5', color: '#10B981', border: '#D1FAE5' };
-    }
-    if (s === 'MENUJU_TKP') {
-      return { label: '🚔 Personel Meluncur ke TKP', bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' };
-    }
-    if (s === 'SEDANG_DITANGANI' || s === 'DIPROSES' || s === 'DISPOSISI') {
-      return { label: 'SEDANG_DITANGANI', bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' };
-    }
     if (s === 'DITOLAK') {
-      return { label: 'Ditolak', bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' };
+      return { label: '✕ Ditolak', bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' };
     }
-    return { label: 'Menunggu Disposisi', bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' };
+    if (s === 'DIPROSES') {
+      const tahap = Number(complaint.tahap || 2);
+      if (tahap >= 4) {
+        return { label: '📍 Penanganan di Lokasi (TKP)', bg: '#ECFDF5', color: '#10B981', border: '#D1FAE5' };
+      }
+      if (tahap === 3) {
+        return { label: '🚔 Personel Meluncur ke TKP', bg: '#EFF6FF', color: '#1D4ED8', border: '#BFDBFE' };
+      }
+      return { label: 'Sedang Ditangani', bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' };
+    }
+    return { label: 'Menunggu Validasi Pawas', bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' };
   };
 
   const statusMeta = resolveStatusMeta(complaint.status);
 
-  // Status Stepper Phases (1:1 Pawas Validasi SOP)
-  const isStep2Completed = complaint.status !== 'BELUM_DITANGANI';
+  // Status Stepper Phases (Baku mengikuti tahap operasional riil)
+  const isStep2Completed = complaint.status !== 'MENUNGGU' && (complaint.status as string) !== 'BELUM_DITANGANI';
 
   const isStep3Completed =
-    ['PENANGANAN_TKP', 'TIBA_DI_TKP', 'SELESAI', 'MENUNGGU_PENGESAHAN'].includes(complaint.status) ||
-    Boolean(complaint.responTibaTkpAt) ||
-    Number(complaint.tahap) >= 4;
-  const isStep3Active =
-    !isStep3Completed &&
-    (complaint.status === 'MENUJU_TKP' ||
-      complaint.status === 'SEDANG_DITANGANI' ||
-      Number(complaint.tahap) === 3 ||
-      Boolean(complaint.waktuMeluncur));
+    Number(complaint.tahap) >= 4 ||
+    complaint.status === 'SELESAI' ||
+    complaint.status === 'MENUNGGU_PENGESAHAN' ||
+    Boolean(complaint.responTibaTkpAt);
+  const isStep3Active = !isStep3Completed && Number(complaint.tahap) === 3;
   const step3StatusClass = isStep3Completed ? 'completed' : isStep3Active ? 'active' : 'pending';
 
   const isStep4Completed =
+    Number(complaint.tahap) >= 5 ||
     complaint.status === 'SELESAI' ||
-    complaint.status === 'MENUNGGU_PENGESAHAN' ||
-    Number(complaint.tahap) >= 5;
-  const isStep4Active =
-    !isStep4Completed &&
-    (complaint.status === 'PENANGANAN_TKP' ||
-      complaint.status === 'TIBA_DI_TKP' ||
-      Boolean(complaint.responTibaTkpAt) ||
-      Number(complaint.tahap) === 4);
+    complaint.status === 'MENUNGGU_PENGESAHAN';
+  const isStep4Active = !isStep4Completed && Number(complaint.tahap) === 4;
   const step4StatusClass = isStep4Completed ? 'completed' : isStep4Active ? 'active' : 'pending';
 
-  const isStep5Completed = complaint.status === 'SELESAI' || Boolean(complaint.pengesahanPawas);
+  const isStep5Completed = complaint.status === 'SELESAI';
   const isStep5Active = !isStep5Completed && complaint.status === 'MENUNGGU_PENGESAHAN';
   const step5StatusClass = isStep5Completed ? 'completed' : isStep5Active ? 'active' : 'pending';
 
-  // Waktu & Timestamps (Menampilkan Tanggal + Jam WIB)
-  const baseDate = complaint.createdAt || complaint.created_at || complaint.waktuLapor || new Date();
+  // Waktu & Timestamps Riil dari Database
+  const baseDate = complaint.created_at || complaint.createdAt || new Date();
   const primaryDispatch = (complaint.dispatches || []).find((d: any) => d.is_primary_unit) || (complaint.dispatches || [])[0];
-  const logMeluncur = (complaint.complaintLogs || []).find((l: any) => l.action?.includes('Meluncur') || l.action?.includes('MENUJU_TKP') || l.action?.includes('Persiapan') || l.action?.includes('DEPART'));
-  const timelineMeluncur = (complaint.timelines || []).find((t: any) => t.tahapKe === 3 || (t.tahapTitle || '').includes('Meluncur'));
-  const rawMeluncur =
-    complaint.waktuMeluncur ||
-    complaint.waktu_meluncur ||
-    primaryDispatch?.departed_at ||
-    primaryDispatch?.departedAt ||
-    logMeluncur?.created_at ||
-    timelineMeluncur?.createdAt ||
-    (isStep3Completed ? (complaint.disposisiAt || primaryDispatch?.accepted_at || primaryDispatch?.dispatched_at || baseDate) : null);
-  const formattedMeluncur = rawMeluncur
-    ? formatDateTimeWib(rawMeluncur, baseDate)
-    : (isStep3Completed ? formatDateTimeWib(complaint.disposisiAt || baseDate) : null);
 
-  const logTiba = (complaint.complaintLogs || []).find((l: any) => l.action?.includes('Tiba') || l.action?.includes('TKP'));
-  const timelineTiba = (complaint.timelines || []).find((t: any) => t.tahapKe === 4 || (t.tahapTitle || '').includes('Tiba'));
-  const rawTiba =
-    complaint.waktuTiba ||
-    complaint.responTibaTkpAt ||
-    primaryDispatch?.arrived_at ||
-    primaryDispatch?.arrivedAt ||
-    logTiba?.created_at ||
-    timelineTiba?.createdAt ||
-    (isStep4Completed ? (rawMeluncur || complaint.disposisiAt || baseDate) : null);
-  const formattedTiba = rawTiba
-    ? formatDateTimeWib(rawTiba, baseDate)
-    : (isStep4Completed ? (formattedMeluncur || formatDateTimeWib(baseDate)) : null);
+  const rawMeluncur = primaryDispatch?.departed_at || complaint.waktuMeluncur || null;
+  const formattedMeluncur = rawMeluncur ? formatDateTimeWib(rawMeluncur, baseDate) : null;
 
-  const logSelesai = (complaint.complaintLogs || []).slice().reverse().find((l: any) => l.action?.includes('BAP') || l.action?.includes('Selesai'));
-  const rawSelesai =
-    complaint.waktuSelesai ||
-    complaint.selesaiAt ||
-    complaint.waktuSelesaiDate ||
-    primaryDispatch?.completed_at ||
-    primaryDispatch?.completedAt ||
-    logSelesai?.created_at ||
-    (isStep5Completed ? (rawTiba || rawMeluncur || baseDate) : null);
-  const formattedSelesai = rawSelesai
-    ? formatDateTimeWib(rawSelesai, baseDate)
-    : (isStep5Completed ? (formattedTiba || formatDateTimeWib(baseDate)) : null);
+  const rawTiba = primaryDispatch?.arrived_at || complaint.responTibaTkpAt || complaint.waktuTiba || null;
+  const formattedTiba = rawTiba ? formatDateTimeWib(rawTiba, baseDate) : null;
+
+  const rawSelesai = primaryDispatch?.completed_at || complaint.selesaiAt || complaint.waktuSelesai || null;
+  const formattedSelesai = rawSelesai ? formatDateTimeWib(rawSelesai, baseDate) : null;
 
   // Evidences
   const step4Evidences = (complaint.evidences || []).filter(
@@ -269,7 +230,7 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
           <div>
             <div style={{ fontSize: '10px', color: '#64748B', fontWeight: 700 }}>Nomor Laporan</div>
             <div style={{ color: '#153E75', fontFamily: 'monospace', fontSize: '13px', fontWeight: 800 }}>
-              #{complaint.nomorTiket?.replace(/^#+/, '')}
+              {complaint.nomorTiket?.replace(/^#+/, '')}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -418,7 +379,7 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
         {/* Step 3: Personel Menuju Lokasi */}
         <div className={`glow-timeline-step ${step3StatusClass}`}>
           <div className="glow-timeline-node">
-            {isStep3Completed ? '✓' : isStep3Active ? '🚔' : '3'}
+            {isStep3Completed ? '✓' : isStep3Active ? '🚔' : null}
           </div>
           <div className="glow-timeline-body">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
@@ -508,7 +469,7 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
                     {complaint.assignedOfficer ? `${complaint.assignedOfficer.assignedPatrolVehicle || 'Unit Presisi'} (${formatOfficerName(complaint.assignedOfficer.rankPangkat, complaint.assignedOfficer.namaLengkap)})` : 'Unit Patroli Presisi'}
                   </div>
                   <div style={{ color: '#38BDF8', fontSize: '9.5px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span>Status: {complaint.status === 'MENUJU_TKP' ? 'Menuju Lokasi' : 'Tepat Waktu'}</span>
+                    <span>Status: {(complaint.tahap ?? 0) >= 3 ? 'Menuju Lokasi' : 'Tepat Waktu'}</span>
                     <span style={{ color: '#93C5FD', fontWeight: 700, fontSize: '9px' }}>Buka Peta ↗</span>
                   </div>
                 </div>

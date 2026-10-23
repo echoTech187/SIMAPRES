@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, X, Shield, User, Clock, CheckCheck, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Send, X, CheckCircle2 } from 'lucide-react';
 import {
   getTicketChatMessagesAction,
   sendTicketChatMessageAction,
 } from '@/app/actions/chat.actions';
 import type { ChatMessageItem } from '@/types/chat.types';
 import type { ComplaintData, OfficerProfile } from '../types';
+import { formatPhoneNumber } from '../types';
 
 interface PersonilChatDrawerProps {
   isOpen: boolean;
@@ -32,8 +33,7 @@ export default function PersonilChatDrawer({
   // Status tiket selesai penanganan
   const isFinished =
     isTicketClosed ||
-    (complaint?.status || '').toUpperCase() === 'SELESAI' ||
-    (complaint?.status || '').toUpperCase() === 'SELESAI_PENANGANAN';
+    (complaint?.status || '').toUpperCase() === 'SELESAI';
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -164,7 +164,10 @@ export default function PersonilChatDrawer({
               </div>
               <div className="text-[11px] text-slate-400 truncate max-w-[220px]">
                 Pelapor: <strong className="text-slate-200">{complaint.pelaporNama || 'Warga'}</strong>
-                {complaint.pelaporTelepon ? ` (${complaint.pelaporTelepon})` : ''}
+                {(() => {
+                  const pPhone = formatPhoneNumber(complaint.pelaporTelepon || complaint.pelaporHp || complaint.pelapor_hp);
+                  return pPhone ? ` (${pPhone})` : '';
+                })()}
               </div>
             </div>
           </div>
@@ -220,7 +223,7 @@ export default function PersonilChatDrawer({
                 <CheckCircle2 size={24} className="text-emerald-400" />
               </div>
               <p className="text-xs font-bold text-slate-200">
-                Penanganan Tiket #{complaint.nomorTiket} Selesai
+                Penanganan Tiket {complaint.nomorTiket?.replace(/^#+/, '')} Selesai
               </p>
               <p className="text-[11px] text-slate-400 max-w-xs leading-relaxed">
                 Tugas telah selesai ditangani. Sesi percakapan antara petugas dan pelapor telah ditutup secara otomatis sesuai SOP kedinasan.

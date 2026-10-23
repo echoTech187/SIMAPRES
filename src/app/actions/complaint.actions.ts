@@ -12,6 +12,7 @@ export async function invalidateComplaintCaches() {
   cacheInvalidate('ikm_stats');
   cacheInvalidate('pawas_unified_data');
   cacheInvalidate('officer_complaints');
+  cacheInvalidate('tracking_');
 }
 
 function safeRevalidatePath(path?: string) {
@@ -36,7 +37,7 @@ function serializeBigInt<T>(obj: T): T {
   );
 }
 
-export async function createComplaintAction(input: {
+export interface CreateComplaintActionInput {
   pelaporNama?: string;
   namaPelapor?: string;
   pelaporHp?: string;
@@ -57,24 +58,55 @@ export async function createComplaintAction(input: {
   fotoBuktiUrl?: string | null;
   fotoPengaduan?: string | null;
   nomorTiket?: string;
-}) {
+}
+
+function normalizeCreateComplaintInput(input: CreateComplaintActionInput) {
+  const cleanNama = (input.pelaporNama || input.namaPelapor || '').trim();
+  const cleanHp = (input.pelaporHp || input.noHpPelapor || '').trim();
+  const cleanJenis = (input.jenisKejadian || input.kategoriLaporan || input.kategoriKey || '').trim();
+  const cleanAlamat = (input.tkpAlamatTeks || '').trim();
+  const cleanRingkasan = (input.ringkasanKeterangan || input.deskripsiKejadian || '').trim();
+  const platformKey = input.platformKey || input.saluranLaporan || 'warga';
+  const initialFoto = input.fotoBuktiUrl || input.fotoPengaduan || null;
+  const kategoriKey = input.kategoriKey || cleanJenis;
+
+  return {
+    cleanNama,
+    cleanHp,
+    cleanJenis,
+    cleanAlamat,
+    cleanRingkasan,
+    platformKey,
+    initialFoto,
+    kategoriKey,
+  };
+}
+
+export async function createComplaintAction(input: CreateComplaintActionInput) {
   try {
-    const cleanNama = (input.pelaporNama || input.namaPelapor)?.trim();
+    const {
+      cleanNama,
+      cleanHp,
+      cleanJenis,
+      cleanAlamat,
+      cleanRingkasan,
+      platformKey,
+      initialFoto,
+      kategoriKey,
+    } = normalizeCreateComplaintInput(input);
+
     if (!cleanNama || cleanNama === '-') {
       return { success: false, error: 'Nama pelapor wajib diisi!' };
     }
 
-    const cleanHp = (input.pelaporHp || input.noHpPelapor)?.trim();
     if (!cleanHp || cleanHp === '-') {
       return { success: false, error: 'Nomor telepon / kontak pelapor wajib diisi!' };
     }
 
-    const cleanJenis = (input.jenisKejadian || input.kategoriLaporan || input.kategoriKey)?.trim();
     if (!cleanJenis || cleanJenis === '-') {
       return { success: false, error: 'Kategori / jenis kejadian laporan wajib dipilih!' };
     }
 
-    const cleanAlamat = input.tkpAlamatTeks?.trim();
     if (!cleanAlamat || cleanAlamat === '-') {
       return { success: false, error: 'Alamat tempat kejadian perkara (TKP) wajib diisi!' };
     }
@@ -90,12 +122,9 @@ export async function createComplaintAction(input: {
       return { success: false, error: 'Koordinat lokasi TKP (latitude & longitude) wajib diisi angka valid!' };
     }
 
-    const cleanRingkasan = (input.ringkasanKeterangan || input.deskripsiKejadian)?.trim();
     if (!cleanRingkasan || cleanRingkasan === '-') {
       return { success: false, error: 'Uraian ringkasan kejadian wajib diisi!' };
     }
-
-    const initialFoto = input.fotoBuktiUrl || input.fotoPengaduan || null;
 
     const useCase = UseCaseFactory.getCreateComplaintUseCase();
     const result = await useCase.execute({
@@ -108,14 +137,49 @@ export async function createComplaintAction(input: {
       tkpLng: Number(input.tkpLng),
       ringkasanKeterangan: cleanRingkasan,
       operatorId: input.operatorId ? BigInt(input.operatorId) : null,
-      kategoriKey: input.kategoriKey || cleanJenis,
+      kategoriKey,
       subcategoryId: input.subcategoryId ? Number(input.subcategoryId) : null,
-      platformKey: input.platformKey || input.saluranLaporan || 'warga',
+      platformKey,
       fotoBuktiUrl: initialFoto,
       nomorTiket: input.nomorTiket?.trim(),
     });
     safeRevalidatePath();
-    return { success: true, data: serializeBigInt(result.toJSON()) };
+    const { generateTrackingToken } = await import('@/lib/tracking-token');
+    const token = generateTrackingToken(result.nomorTiket);
+    const serialized = serializeBigInt(result.toJSON());
+
+    // Otomatis kirim notifikasi WhatsApp resmi ke nomor pelapor (non-blocking)
+    if (cleanHp && cleanHp !== '-') {
+      import('@/infrastructure/services/whatsapp.service')
+        .then(({ WhatsAppService }) => {
+          return WhatsAppService.sendTicketNotification({
+            nomorTiket: result.nomorTiket,
+            pelaporNama: cleanNama,
+            pelaporHp: cleanHp,
+            jenisKejadian: cleanJenis,
+            tkpAlamatTeks: cleanAlamat,
+          });
+        })
+        .then(async (sendRes) => {
+          if (sendRes.success && result.id) {
+            const { prisma } = await import('@/infrastructure/db/prisma.client');
+            await prisma.complaintAuditLog.create({
+              data: {
+                complaint_id: result.id,
+                actor_name: 'Sistem Gateway WhatsApp',
+                actor_role: 'SYSTEM',
+                action: 'WHATSAPP_NOTIFICATION',
+                notes: `Notifikasi registrasi tiket dan tautan radar pelacakan dikirim ke ${cleanHp}. Status: ${sendRes.statusText}`,
+              },
+            }).catch(() => {});
+          }
+        })
+        .catch((err) => {
+          console.warn('[WhatsApp] Gagal mengirim notifikasi background:', err);
+        });
+    }
+
+    return { success: true, data: { ...serialized, trackingToken: token } };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal membuat pengaduan.' };
   }
@@ -125,28 +189,7 @@ export async function createComplaintAction(input: {
  * Buat Pengaduan & Langsung Siarkan (Broadcast Terbuka) ke Seluruh Armada Siaga 110
  * Menghilangkan disposisi manual; sistem langsung menyiarkan serentak ke semua personil yang sedang bertugas.
  */
-export async function createComplaintAndBroadcastAction(input: {
-  pelaporNama?: string;
-  namaPelapor?: string;
-  pelaporHp?: string;
-  noHpPelapor?: string;
-  jenisKejadian?: string;
-  kategoriLaporan?: string;
-  urgensi?: UrgensiLevel;
-  tkpAlamatTeks: string;
-  tkpLat: number;
-  tkpLng: number;
-  ringkasanKeterangan?: string;
-  deskripsiKejadian?: string;
-  saluranLaporan?: string;
-  operatorId?: string | null;
-  kategoriKey?: string;
-  subcategoryId?: number | string | null;
-  platformKey?: string;
-  fotoBuktiUrl?: string | null;
-  fotoPengaduan?: string | null;
-  nomorTiket?: string;
-}) {
+export async function createComplaintAndBroadcastAction(input: CreateComplaintActionInput) {
   const createRes = await createComplaintAction(input);
   if (!createRes.success || !createRes.data) {
     return createRes;
@@ -168,11 +211,12 @@ export async function createComplaintAndBroadcastAction(input: {
 
     const satuans = operationalUnits.length > 0 ? operationalUnits : [{ id: 1, default_orders: 'Laksanakan respon cepat ke TKP' }];
 
-    // 2. Ubah status pengaduan menjadi DISPOSISI (Tahap 2: Disiarkan ke seluruh armada)
+    // 2. Ubah status pengaduan menjadi DIPROSES (Tahap 2: Disiarkan ke seluruh armada)
     await prisma.complaint.update({
       where: { id: complaintIdBig },
       data: {
-        status: 'DISPOSISI',
+        status: 'DIPROSES',
+        status_id: 2,
         tahap: 2,
       },
     });
@@ -188,6 +232,7 @@ export async function createComplaintAndBroadcastAction(input: {
           is_primary_unit: i === 0,
           personnel_quota: 1, // Siapa cepat dia dapat (1 personil mengunci tiket)
           tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks}`,
+          dispatch_status_id: 1,
           dispatch_status: 'DISPATCHED',
           dispatched_at: new Date(),
         },
@@ -195,13 +240,21 @@ export async function createComplaintAndBroadcastAction(input: {
     }
 
     // 4. Catat Audit Log
+    let sessionUser: any = null;
+      try {
+        const { getSession } = await import('@/lib/session');
+        sessionUser = await getSession();
+      } catch (_) {}
+    const actorName = sessionUser?.fullName;
+    const actorRole = sessionUser?.role;
+
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
-        actor_name: 'Sistem Terpadu 110',
-        actor_role: 'OPERATOR',
-        action: 'Siaran Serentak (Open Broadcast 110)',
-        notes: `Laporan diterima dan langsung disiarkan serentak ke seluruh armada/personil siaga tanpa sekat satuan. Mode: Siapa cepat dia dapat.`,
+        actor_name: actorName,
+        actor_role: actorRole,
+        action: 'BROADCAST_DISPATCH',
+        notes: `Siaran Serentak (Open Broadcast 110): Laporan diterima dan langsung disiarkan serentak ke seluruh armada/personil siaga tanpa sekat satuan. Petugas: ${actorName}. Mode: Siapa cepat dia dapat.`,
       },
     });
 
@@ -210,7 +263,7 @@ export async function createComplaintAndBroadcastAction(input: {
       success: true,
       data: {
         ...complaintData,
-        status: 'DISPOSISI',
+        status: 'DIPROSES',
         tahap: 2,
       },
     };
@@ -278,7 +331,12 @@ export async function assignComplaintAction(input: {
 
 export async function fieldStepAction(input: {
   complaintId: string;
-  step: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai';
+  step:
+    | 'DISPATCHED'
+    | 'DEPARTED'
+    | 'ARRIVED'
+    | 'REPORT_SUBMITTED'
+    | 'COMPLETED';
   officerId: string;
   catatan?: string;
   fotoBuktiUrl?: string;
@@ -607,7 +665,8 @@ export async function disposisiMultiSatuanAction(input: {
     await prisma.complaint.update({
       where: { id: complaintIdBig },
       data: {
-        status: 'DISPOSISI',
+        status: 'DIPROSES',
+        status_id: 2,
         tahap: 2,
       },
     });
@@ -654,8 +713,9 @@ export async function disposisiMultiSatuanAction(input: {
           unit_id: s.id,
           officer_id: null,
           is_primary_unit: i === 0,
-          personnel_quota: input.kuotaPersonel || 4,
-          tactical_orders: input.arahanTaktis || s.default_orders,
+          personnel_quota: input.kuotaPersonel ?? 4,
+          tactical_orders: input.arahanTaktis?.trim() || s.default_orders,
+          dispatch_status_id: 1,
           dispatch_status: 'DISPATCHED',
           dispatched_at: new Date(),
           estimated_distance: distStr,
@@ -665,13 +725,21 @@ export async function disposisiMultiSatuanAction(input: {
     }
 
     // Catat Audit Log Append-Only
+    let sessionUser: any = null;
+      try {
+        const { getSession } = await import('@/lib/session');
+        sessionUser = await getSession();
+      } catch (_) {}
+    const actorName = sessionUser?.fullName;
+    const actorRole = sessionUser?.role;
+
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
-        actor_name: input.pawasNama || 'Pawas',
-        actor_role: 'PAWAS',
-        action: 'Disposisi Multi-Satuan Diterbitkan',
-        notes: `Disiarkan ke: ${satuanNames} • Kuota: ${input.kuotaPersonel} Personel. Arahan: "${input.arahanTaktis}"`,
+        actor_name: actorName,
+        actor_role: actorRole,
+        action: 'DISPATCH_ISSUED',
+        notes: `Disposisi Multi-Satuan Diterbitkan: Disiarkan ke: ${satuanNames} • Kuota: ${input.kuotaPersonel} Personel. Arahan: "${input.arahanTaktis}"`,
       },
     });
     safeRevalidatePath('/console');
@@ -682,7 +750,7 @@ export async function disposisiMultiSatuanAction(input: {
 }
 
 /**
- * Konfirmasi Terima Tugas oleh Personil Lapangan (Dispatched -> Accepted)
+ * Konfirmasi Terima Tugas oleh Personil Lapangan
  */
 export async function acceptOfficerDispatchAction(input: {
   complaintId: string;
@@ -690,76 +758,34 @@ export async function acceptOfficerDispatchAction(input: {
   officerNama?: string;
   officerPangkat?: string;
   catatan?: string;
+  lat?: number;
+  lng?: number;
 }) {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
     const complaintIdBig = BigInt(input.complaintId);
     const now = new Date();
 
-    // 1. Ambil data officer berdasarkan NRP / Identifier
-    let officer = await prisma.policeOfficer.findFirst({
+    // 1. Ambil data officer berdasarkan NRP / Identifier (single source of truth)
+    const officer = await prisma.policeOfficer.findFirst({
       where: {
         OR: [
           { nrp: input.officerNrp },
           { user: { identifier: input.officerNrp } },
         ],
       },
-      include: { user: true },
-    });
-
-    const regUnit = await prisma.registeredUnit.findFirst({
-      where: { nrp: input.officerNrp },
+      include: { user: true, unit: true },
     });
 
     if (!officer) {
-      const user = await prisma.user.findFirst({
-        where: { identifier: input.officerNrp },
-      });
-      if (user) {
-        try {
-          officer = await prisma.policeOfficer.create({
-            data: {
-              user_id: user.id,
-              nrp: input.officerNrp,
-              rank_pangkat: regUnit?.pangkat || input.officerPangkat || 'Personil',
-              jabatan: regUnit?.satuanNama || 'Petugas Lapangan',
-            },
-            include: { user: true },
-          });
-        } catch (_) {}
-      }
+      return { success: false, error: `Personel dengan NRP ${input.officerNrp} tidak terdaftar di sistem.` };
     }
 
-    const officerName = input.officerNama || regUnit?.nama || officer?.user?.full_name || 'Petugas Lapangan';
-    const officerRank = input.officerPangkat || regUnit?.pangkat || officer?.rank_pangkat || 'Personil';
+    const officerName = officer.user.full_name;
+    const officerRank = officer.rank_pangkat;
+    const officerUnitId = officer.unit_id;
 
-    // 2. Tentukan unit id petugas
-    let officerUnitId: number | null = officer?.unit_id || null;
-    if (!officerUnitId && regUnit?.unitId) {
-      const matchUnit = await prisma.masterOperationalUnit.findFirst({
-        where: {
-          OR: [
-            { key: regUnit.unitId },
-            { key: regUnit.unitId.toLowerCase() },
-            { short_name: regUnit.satuanNama },
-            { unit_name: regUnit.satuanNama },
-          ],
-        },
-      });
-      if (matchUnit) {
-        officerUnitId = matchUnit.id;
-        if (officer && !officer.unit_id) {
-          try {
-            await prisma.policeOfficer.update({
-              where: { id: officer.id },
-              data: { unit_id: matchUnit.id },
-            });
-          } catch (_) {}
-        }
-      }
-    }
-
-    // 3. Ambil seluruh record dispatch untuk tiket pengaduan ini
+    // 2. Ambil seluruh record dispatch untuk tiket pengaduan ini
     const allDispatches = await prisma.complaintDispatch.findMany({
       where: { complaint_id: complaintIdBig },
       include: { unit: true, officer: { include: { user: true } } },
@@ -780,11 +806,11 @@ export async function acceptOfficerDispatchAction(input: {
     const targetUnitId = baseDispatch.unit_id;
     const quota = baseDispatch.personnel_quota || 4;
 
-    // 4. Cek apakah personil ini sudah pernah menerima tugas ini sebelumnya
+    // 3. Cek apakah personil ini sudah pernah menerima tugas ini sebelumnya
     const alreadyAccepted = allDispatches.some(
       (d) =>
         d.accepted_at !== null &&
-        ((officer?.id && d.officer_id === officer.id) ||
+        (d.officer_id === officer.id ||
           d.officer?.nrp === input.officerNrp ||
           d.officer?.user?.identifier === input.officerNrp)
     );
@@ -798,7 +824,7 @@ export async function acceptOfficerDispatchAction(input: {
       };
     }
 
-    // 5. Cek pembatasan kuota personil (Mode Siaran Terbuka: Siapa cepat dia dapat)
+    // 4. Cek pembatasan kuota personil (Mode Siaran Terbuka: Siapa cepat dia dapat)
     const anyAcceptedAcrossComplaint = allDispatches.find(
       (d) => d.accepted_at !== null && d.officer_id !== null
     );
@@ -825,7 +851,7 @@ export async function acceptOfficerDispatchAction(input: {
       };
     }
 
-    // 6. Catat penerimaan tugas oleh personel ini
+    // 5. Catat penerimaan tugas oleh personel ini
     let unacceptedDispatch = allDispatches.find(
       (d) => d.unit_id === targetUnitId && d.accepted_at === null
     );
@@ -841,7 +867,7 @@ export async function acceptOfficerDispatchAction(input: {
         where: { id: complaintIdBig },
         select: { tkp_lat: true, tkp_lng: true },
       });
-      if (compLocation?.tkp_lat && compLocation?.tkp_lng && officer?.current_gps_lat && officer?.current_gps_lng) {
+      if (compLocation?.tkp_lat && compLocation?.tkp_lng && officer.current_gps_lat && officer.current_gps_lng) {
         const { HaversineService } = await import('@/infrastructure/services/haversine.service');
         const dKm = HaversineService.calculateDistanceKm(
           Number(compLocation.tkp_lat),
@@ -859,9 +885,10 @@ export async function acceptOfficerDispatchAction(input: {
       await prisma.complaintDispatch.update({
         where: { id: unacceptedDispatch.id },
         data: {
-          dispatch_status: 'ACCEPTED',
+          dispatch_status: 'DISPATCHED',
+          dispatch_status_id: 1,
           accepted_at: now,
-          officer_id: officer?.id || unacceptedDispatch.officer_id,
+          officer_id: officer.id,
           ...(officerDist ? { estimated_distance: officerDist } : {}),
           ...(officerEta ? { estimated_eta: officerEta } : {}),
         },
@@ -872,11 +899,12 @@ export async function acceptOfficerDispatchAction(input: {
         data: {
           complaint_id: complaintIdBig,
           unit_id: targetUnitId,
-          officer_id: officer ? officer.id : null,
+          officer_id: officer.id,
           is_primary_unit: false,
           personnel_quota: quota,
           tactical_orders: baseDispatch.tactical_orders,
-          dispatch_status: 'ACCEPTED',
+          dispatch_status_id: 1,
+          dispatch_status: 'DISPATCHED',
           dispatched_at: baseDispatch.dispatched_at,
           accepted_at: now,
           estimated_distance: officerDist,
@@ -898,25 +926,31 @@ export async function acceptOfficerDispatchAction(input: {
       } catch (_) {}
     }
 
-    // 7. Update status complaint menjadi 'SEDANG_DITANGANI' dan tahap = 3 (Tahap 3: Meluncur ke TKP)
+    // 6. Update status complaint menjadi 'DIPROSES' (id: 2) dan tahap = 3
     await prisma.complaint.update({
       where: { id: complaintIdBig },
       data: {
-        status: 'SEDANG_DITANGANI',
+        status: 'DIPROSES',
+        status_id: 2,
         tahap: 3,
       },
     });
 
     const currentMemberCount = acceptedInUnit.length + 1;
 
-    // 8. Catat Audit Log Append-Only
+    const actionLat = input.lat ?? (officer.current_gps_lat ? Number(officer.current_gps_lat) : null);
+    const actionLng = input.lng ?? (officer.current_gps_lng ? Number(officer.current_gps_lng) : null);
+
+    // 7. Catat Audit Log Append-Only
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
         actor_name: `${officerRank} ${officerName}`.trim(),
         actor_role: 'PERSONIL',
-        action: 'Disposisi Tugas Diterima Personil (ACCEPTED)',
-        notes: `Perintah disposisi taktis Pawas telah dikonfirmasi dan diterima oleh ${officerRank} ${officerName} (NRP: ${input.officerNrp}) [Personel ${currentMemberCount}/${quota}]. Personel bersiap meluncur ke TKP.`,
+        action: 'DISPATCH_ACCEPTED',
+        notes: `Disposisi Tugas Diterima Personil: Perintah disposisi taktis Pawas telah dikonfirmasi dan diterima oleh ${officerRank} ${officerName} (NRP: ${officer.nrp}) [Personel ${currentMemberCount}/${quota}]. Personel bersiap meluncur ke TKP.`,
+        action_lat: actionLat,
+        action_lng: actionLng,
       },
     });
 
@@ -949,6 +983,7 @@ export async function sahkanKasusPawasAction(input: {
       where: { id: complaintIdBig },
       data: {
         status: 'SELESAI',
+        status_id: 4,
         tahap: 5,
       },
     });
@@ -958,21 +993,39 @@ export async function sahkanKasusPawasAction(input: {
       where: { complaint_id: complaintIdBig },
       data: {
         dispatch_status: 'COMPLETED',
+        dispatch_status_id: 5,
         completed_at: new Date(),
       },
     });
-    const officer = await prisma.policeOfficer.findUnique({
-      where: { user_id: Number(input.pawasUserId) },
-      include: { user: true },
-    });
+    const officer = input.pawasUserId
+      ? await prisma.policeOfficer.findFirst({
+          where: { user_id: BigInt(input.pawasUserId) },
+          include: { user: true },
+        })
+      : null;
     // Catat Audit Log
+    let sessionUser: any = null;
+      try {
+        const { getSession } = await import('@/lib/session');
+        sessionUser = await getSession();
+      } catch (_) {}
+    const actorName = sessionUser?.fullName;
+    const actorRole = sessionUser?.role;
+
+    const compLocation = await prisma.complaint.findUnique({
+      where: { id: complaintIdBig },
+      select: { tkp_lat: true, tkp_lng: true },
+    });
+
     await prisma.complaintAuditLog.create({
       data: {
         complaint_id: complaintIdBig,
-        actor_name: input.pawasNama,
-        actor_role:officer?.user?.role as string,
-        action: 'Pengesahan BAP & Kasus Selesai',
-        notes: input.catatanPengesahan || null,
+        actor_name: actorName,
+        actor_role: actorRole,
+        action: 'COMPLAINT_COMPLETED',
+        notes: input.catatanPengesahan || 'Pengesahan BAP dan penyelesaian kasus disahkan Pawas.',
+        action_lat: compLocation?.tkp_lat ?? null,
+        action_lng: compLocation?.tkp_lng ?? null,
       },
     });
 
@@ -1093,7 +1146,7 @@ export async function scanArmadaQrAction(input: {
           check_out_lat: input.scanLat,
           check_out_lng: input.scanLng,
           status_sesi: 'COMPLETED',
-          catatan_kondisi: input.catatanKondisi || '',
+          catatan_kondisi: input.catatanKondisi,
         },
       });
 
@@ -1259,12 +1312,12 @@ export async function getOfficerPerformanceRankingsAction() {
       return {
         officerId: off.id.toString(),
         nrp: off.nrp,
-        namaLengkap: off.user?.full_name || 'Personil Polri',
-        pangkat: off.rank_pangkat || 'Bripka',
-        jabatan: off.jabatan || 'Patroli Samapta',
-        unit: off.unit?.short_name || off.unit?.unit_name || 'Sat Samapta',
+        namaLengkap: off.user?.full_name || off.nrp,
+        pangkat: off.rank_pangkat,
+        jabatan: off.jabatan,
+        unit: off.unit?.short_name || off.unit?.unit_name || off.jabatan,
         assignedPatrolVehicle: off.assigned_patrol_vehicle || '-',
-        avatarUrl: off.avatar_url || null,
+        avatarUrl: off.avatar_url,
         totalDiterima,
         totalSelesai,
         totalProses,
@@ -1310,5 +1363,68 @@ export async function getOfficerPerformanceRankingsAction() {
   }
 }
 
+export async function generateTrackingTokenAction(ticketNo: string) {
+  try {
+    const { generateTrackingToken } = await import('@/lib/tracking-token');
+    const token = generateTrackingToken(ticketNo);
+    return { success: true, token };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal membuat token tracking.' };
+  }
+}
 
+/**
+ * Kirim Notifikasi WhatsApp Terpadu via FlowKirim REST API
+ */
+export async function sendWhatsAppNotificationAction(input: {
+  nomorTiket: string;
+  pelaporNama?: string;
+  pelaporHp: string;
+  jenisKejadian?: string;
+  tkpAlamatTeks?: string;
+  customMessage?: string;
+  complaintId?: string | number;
+}) {
+  try {
+    const { WhatsAppService } = await import('@/infrastructure/services/whatsapp.service');
+    const result = await WhatsAppService.sendTicketNotification({
+      nomorTiket: input.nomorTiket,
+      pelaporNama: input.pelaporNama,
+      pelaporHp: input.pelaporHp,
+      jenisKejadian: input.jenisKejadian,
+      tkpAlamatTeks: input.tkpAlamatTeks,
+      customMessage: input.customMessage,
+    });
 
+    if (result.success && input.complaintId) {
+      try {
+        const { prisma } = await import('@/infrastructure/db/prisma.client');
+        let sessionUser: any = null;
+      try {
+        const { getSession } = await import('@/lib/session');
+        sessionUser = await getSession();
+      } catch (_) {}
+        const actorName = sessionUser?.fullName;
+        const actorRole = sessionUser?.role;
+
+        await prisma.complaintAuditLog.create({
+          data: {
+            complaint_id: BigInt(input.complaintId),
+            actor_name: actorName,
+            actor_role: actorRole,
+            action: 'WHATSAPP_NOTIFICATION',
+            notes: `Pengiriman WhatsApp ke ${result.recipientPhone || input.pelaporHp} via FlowKirim: ${result.statusText}`,
+          },
+        });
+      } catch (_) {}
+    }
+
+    return result;
+  } catch (error: any) {
+    return {
+      success: false,
+      statusText: 'Gagal',
+      error: error.message || 'Terjadi kesalahan sistem saat mengirim WhatsApp.',
+    };
+  }
+}

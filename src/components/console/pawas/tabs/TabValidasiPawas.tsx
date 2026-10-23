@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PawasTab } from '../types';
 import { TabValidasiDossier } from './TabValidasiDossier';
+import { formatPhoneNumber } from '@/lib/format-phone';
 
 export interface TabValidasiPawasProps {
   userProfile: any;
@@ -54,7 +55,7 @@ export interface TabValidasiPawasProps {
   resolveComplaintStatus: (status: string, isRejected?: boolean) => any;
   bukaModalDisposisi: (c: any) => void;
   handleAjukanRevisi: (c: any) => void;
-  handleSahkanPenutupanKasus: (c: any) => void;
+  handleSahkanPenutupanKasus?: (c: any) => void;
   setTolakComplaint: (c: any) => void;
   setLightboxImg: (data: any) => void;
   setShowLightboxModal: (show: boolean) => void;
@@ -525,7 +526,8 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                       <Smartphone size={10} /> PORTAL WARGA
                     </span>
                   );
-                  let kontakMeta = `${log.pelaporHp || '-'} • NIK Valid`;
+                  const formattedHp = formatPhoneNumber(log.pelaporHp) || log.pelaporHp || '-';
+                  let kontakMeta = `${formattedHp} • NIK Valid`;
 
                   if (platform === 'sos') {
                     avatarBorder = '#FCA5A5';
@@ -536,7 +538,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                         <AlertTriangle size={10} /> SOS PANIC
                       </span>
                     );
-                    kontakMeta = `${log.pelaporHp || '-'} • GPS: ${log.tkpLat ? log.tkpLat.toFixed(4) : '-' }, ${log.tkpLng ? log.tkpLng.toFixed(4) : '-'}`;
+                    kontakMeta = `${formattedHp} • GPS: ${log.tkpLat ? log.tkpLat.toFixed(4) : '-' }, ${log.tkpLng ? log.tkpLng.toFixed(4) : '-'}`;
                   } else if (platform === 'layanan110') {
                     avatarBorder = '#93C5FD';
                     avatarIcon = <Headphones size={10} color="#FFFFFF" />;
@@ -546,7 +548,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                         <Headphones size={10} /> LAYANAN 110
                       </span>
                     );
-                    kontakMeta = `${log.pelaporHp || '-'} • Call Center 110`;
+                    kontakMeta = `${formattedHp} • Call Center 110`;
                   }
 
                   // Kategori styling (100% synchronized with getComplaintKategori)
@@ -565,15 +567,18 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                   if (statMeta.key === 'DITOLAK') {
                     cardFooterText = 'Laporan Ditolak Pawas';
                     cardFooterColor = '#DC2626';
-                  } else if (statMeta.key === 'DISPOSISI') {
-                    cardFooterText = 'Personil Sudah Ditugaskan';
-                    cardFooterColor = '#2563EB';
-                  } else if (statMeta.key === 'MENUJU_TKP') {
-                    cardFooterText = 'Personil Meluncur ke TKP (< 10m)';
-                    cardFooterColor = '#8B5CF6';
-                  } else if (statMeta.key === 'TIBA_DI_TKP') {
-                    cardFooterText = 'Personil Tiba & Penanganan di TKP';
-                    cardFooterColor = '#10B981';
+                  } else if (statMeta.key === 'DIPROSES') {
+                    const tahap = Number(log.tahap) || 2;
+                    if (tahap === 3) {
+                      cardFooterText = 'Personil Meluncur ke TKP (< 10m)';
+                      cardFooterColor = '#8B5CF6';
+                    } else if (tahap >= 4) {
+                      cardFooterText = 'Personil Tiba & Penanganan di TKP';
+                      cardFooterColor = '#10B981';
+                    } else {
+                      cardFooterText = 'Personil Sudah Ditugaskan';
+                      cardFooterColor = '#2563EB';
+                    }
                   } else if (statMeta.key === 'MENUNGGU_PENGESAHAN') {
                     cardFooterText = 'Tindakan Rampung & Menunggu BAP Disahkan';
                     cardFooterColor = '#EF4444';
@@ -592,7 +597,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                     borderLeftColor = '#991B1B';
                   } else if (statMeta.key === 'SELESAI') {
                     borderLeftColor = '#10B981';
-                  } else if (['DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP'].includes(statMeta.key)) {
+                  } else if (statMeta.key === 'DIPROSES') {
                     borderLeftColor = '#2563EB';
                   }
 
@@ -1278,10 +1283,10 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    Tiket #{activeComplaint.nomorTiket?.replace(/^#+/, '')}
+                    Tiket {activeComplaint.nomorTiket?.replace(/^#+/, '')}
                   </div>
                   <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {activeComplaint.pelaporNama} • {activeComplaint.pelaporHp}
+                    {activeComplaint.pelaporNama} • {formatPhoneNumber(activeComplaint.pelaporHp) || activeComplaint.pelaporHp || '-'}
                   </div>
                 </div>
               </div>

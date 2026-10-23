@@ -1,4 +1,5 @@
 import { prisma } from '@/infrastructure/db/prisma.client';
+import { cacheGetOrLoad } from '@/lib/app-cache';
 import type { ChatMessageItem } from '@/types/chat.types';
 
 export function serializeBigInt<T>(obj: T): T {
@@ -14,7 +15,37 @@ export interface TrackingDataResult {
   chatMessages: ChatMessageItem[];
 }
 
-export async function getTrackingData(
+// Micro-cache bersama untuk REST /api/tracking dan SSE stream: banyak penonton tiket yang sama = 1 query per TTL
+const TRACKING_CACHE_TTL_MS = 2000;
+
+export function getTrackingData(
+  tiket: string,
+  cleanTiket: string,
+  withHash: string
+): Promise<TrackingDataResult | null> {
+  return cacheGetOrLoad(`tracking_${cleanTiket}`, TRACKING_CACHE_TTL_MS, () =>
+    loadTrackingData(tiket, cleanTiket, withHash)
+  );
+}
+
+function maskPhoneNumber(phone?: string | null): string {
+  if (!phone) return '-';
+  const clean = String(phone).trim();
+  if (clean.length <= 6) return '0812****';
+  return `${clean.slice(0, 4)}****${clean.slice(-3)}`;
+}
+
+function maskName(name?: string | null): string {
+  if (!name) return 'Warga 110';
+  const parts = String(name).trim().split(/\s+/);
+  if (parts.length === 1) {
+    const p = parts[0];
+    return p.length > 2 ? `${p.slice(0, 2)}***` : `${p}*`;
+  }
+  return parts.map((p, idx) => (idx === 0 ? p : `${p[0]}***`)).join(' ');
+}
+
+async function loadTrackingData(
   tiket: string,
   cleanTiket: string,
   withHash: string
@@ -46,40 +77,52 @@ export async function getTrackingData(
   const first = rows[0];
   const compId = first.id;
 
-  // 2. Fetch Chat Messages (prioritaskan tabel terdedikasi complaint_chats)
-  const chatMessages: ChatMessageItem[] = [];
-  try {
-    const rawChats = await prisma.$queryRawUnsafe<any[]>(
-      `SELECT id, sender_role, sender_name, officer_nrp, message_text, created_at
-       FROM complaint_chats
-       WHERE complaint_id = ?
-       ORDER BY created_at ASC`,
-      compId
-    );
-    if (Array.isArray(rawChats) && rawChats.length > 0) {
-      for (const row of rawChats) {
-        chatMessages.push({
-          id: String(row.id),
-          senderRole: row.sender_role === 'WARGA' ? 'WARGA' : 'PERSONIL',
-          senderName: row.sender_name,
-          text: row.message_text,
-          timestamp: new Date(row.created_at).toISOString(),
-          officerNrp: row.officer_nrp || undefined,
-        });
-      }
-    }
-  } catch (_) {}
-
-  // Fallback audit logs jika belum ada di complaint_chats
-  if (chatMessages.length === 0) {
-    const chatLogs: any[] = await prisma.$queryRaw`
+  // 2. Chat (tabel complaint_chats), fallback chat di audit log, dan catatan penyelesaian diambil paralel
+  const [rawChats, legacyChatLogs, finishLogs] = await Promise.all([
+    prisma
+      .$queryRawUnsafe<any[]>(
+        `SELECT id, sender_role, sender_name, officer_nrp, message_text, created_at
+         FROM complaint_chats
+         WHERE complaint_id = ?
+         ORDER BY created_at ASC`,
+        compId
+      )
+      .catch(() => [] as any[]),
+    prisma.$queryRaw<any[]>`
       SELECT id, notes, actor_role, actor_name, created_at
       FROM complaint_audit_logs
       WHERE complaint_id = ${compId} AND action = 'CHAT_MESSAGE'
       ORDER BY created_at ASC
-    `;
+    `,
+    prisma.$queryRaw<any[]>`
+      SELECT notes
+      FROM complaint_audit_logs
+      WHERE complaint_id = ${compId}
+        AND notes IS NOT NULL
+        AND notes != ''
+        AND (action IN ('COMPLAINT_COMPLETED', 'REPORT_SUBMITTED', 'SELESAI') OR action LIKE '%Selesai%' OR action LIKE '%BAP%')
+      ORDER BY id DESC
+      LIMIT 1
+    `.catch(() => [] as any[]),
+  ]);
 
-    for (const log of chatLogs || []) {
+  const chatMessages: ChatMessageItem[] = [];
+  if (Array.isArray(rawChats) && rawChats.length > 0) {
+    for (const row of rawChats) {
+      chatMessages.push({
+        id: String(row.id),
+        senderRole: row.sender_role === 'WARGA' ? 'WARGA' : 'PERSONIL',
+        senderName: row.sender_name,
+        text: row.message_text,
+        timestamp: new Date(row.created_at).toISOString(),
+        officerNrp: row.officer_nrp || undefined,
+      });
+    }
+  }
+
+  // Fallback audit logs jika belum ada di complaint_chats
+  if (chatMessages.length === 0) {
+    for (const log of legacyChatLogs || []) {
       let text = log.notes || '';
       let role: 'WARGA' | 'PERSONIL' | 'SISTEM' = log.actor_role === 'WARGA' ? 'WARGA' : 'PERSONIL';
       let name = log.actor_name || (role === 'WARGA' ? 'Pelapor' : 'Personil Lapangan');
@@ -105,23 +148,9 @@ export async function getTrackingData(
     }
   }
 
-  // 2b. Fetch Catatan Penyelesaian oleh Personil (jika tiket telah berstatus selesai)
-  let catatanSelesai: string | null = null;
-  try {
-    const finishLogs: any[] = await prisma.$queryRaw`
-      SELECT notes
-      FROM complaint_audit_logs
-      WHERE complaint_id = ${compId} 
-        AND notes IS NOT NULL
-        AND notes != ''
-        AND (action = 'SELESAI' OR action LIKE '%Selesai%' OR action LIKE '%BAP%')
-      ORDER BY id DESC
-      LIMIT 1
-    `;
-    if (finishLogs && finishLogs.length > 0 && finishLogs[0].notes) {
-      catatanSelesai = finishLogs[0].notes;
-    }
-  } catch (_) {}
+  // 2b. Catatan Penyelesaian oleh Personil (jika tiket telah berstatus selesai)
+  const catatanSelesai: string | null =
+    finishLogs && finishLogs.length > 0 && finishLogs[0].notes ? finishLogs[0].notes : null;
 
   // 3. Assemble Dispatches
   const dispatchesMap = new Map<string, any>();
@@ -156,7 +185,7 @@ export async function getTrackingData(
                 ? {
                     full_name: r.full_name,
                     nama_lengkap: r.full_name,
-                    phone_number: r.phone_number,
+                    phone_number: maskPhoneNumber(r.phone_number),
                   }
                 : null,
             }
@@ -183,8 +212,8 @@ export async function getTrackingData(
     status: first.status,
     tahap: first.tahap,
     urgensi: first.urgensi,
-    pelaporNama: first.pelapor_nama,
-    pelaporHp: first.pelapor_hp,
+    pelaporNama: maskName(first.pelapor_nama),
+    pelaporHp: maskPhoneNumber(first.pelapor_hp),
     jenisKejadian: first.jenis_kejadian,
     deskripsiKejadian: first.ringkasan_keterangan,
     ringkasanKeterangan: first.ringkasan_keterangan,

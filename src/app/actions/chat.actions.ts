@@ -2,6 +2,7 @@
 
 import { prisma } from '@/infrastructure/db/prisma.client';
 import type { ChatMessageItem } from '@/types/chat.types';
+import { cacheInvalidate } from '@/lib/app-cache';
 
 // In-memory fallback / quick cache for ultra-responsive low-latency chat
 const chatCache = new Map<string, ChatMessageItem[]>();
@@ -74,7 +75,7 @@ export async function getTicketChatMessagesAction(
     // 2. Jika tiket / pengaduan SUDAH SELESAI, riwayat chat tidak perlu lagi ditampilkan
     // Data tetap tersimpan aman di tabel `complaint_chats` untuk audit kepolisian
     const statusUpper = (complaint.status || '').toUpperCase();
-    if (statusUpper === 'SELESAI' || statusUpper === 'SELESAI_PENANGANAN') {
+    if (statusUpper === 'SELESAI') {
       return {
         success: true,
         data: [],
@@ -223,7 +224,7 @@ export async function sendTicketChatMessageAction(input: {
     // Jika tiket sudah selesai, tidak diizinkan mengirim pesan lagi
     if (complaint) {
       const statusUpper = (complaint.status || '').toUpperCase();
-      if (statusUpper === 'SELESAI' || statusUpper === 'SELESAI_PENANGANAN') {
+      if (statusUpper === 'SELESAI') {
         return { success: false, error: 'Tiket telah selesai ditangani. Sesi percakapan telah ditutup.' };
       }
     }
@@ -244,6 +245,7 @@ export async function sendTicketChatMessageAction(input: {
     chatCache.set(cleanKey, updatedMsgs);
     chatCache.set(rawKey, updatedMsgs);
     if (withHash !== rawKey) chatCache.set(withHash, updatedMsgs);
+    cacheInvalidate('tracking_');
 
     // Simpan ke tabel terdedikasi `complaint_chats`
     if (complaint) {
@@ -297,6 +299,7 @@ export async function clearTicketChatMessagesAction(
 
     // 1. Clear memory cache
     chatCache.delete(key);
+    cacheInvalidate('tracking_');
 
     // 2. Clear from DB
     let complaintIdBig: bigint | null = null;

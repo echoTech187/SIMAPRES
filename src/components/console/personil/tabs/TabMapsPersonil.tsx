@@ -18,8 +18,8 @@ import {
   Radio,
   Clock,
 } from 'lucide-react';
-import { getDistanceFromLatLonInMeters } from '../types';
-import type { ComplaintData, OfficerProfile } from '../types';
+import { getDistanceFromLatLonInMeters, formatPhoneNumber, getCleanCallNumber } from '../types';
+import type { ComplaintData, OfficerProfile, DispatchStepAction } from '../types';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
   ssr: false,
@@ -40,9 +40,10 @@ interface TabMapsPersonilProps {
   fleetUnits: any[];
   hotspots: any[];
   policeOffices: any[];
+  dispatchStatuses?: any[];
   onOpenChat: (complaint: ComplaintData) => void;
   onOpenWizard: (complaint: ComplaintData) => void;
-  onUpdateStep: (stepKey: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai') => Promise<void>;
+  onUpdateStep: (stepKey: DispatchStepAction) => Promise<void>;
   isUpdatingStep: boolean;
 }
 
@@ -53,6 +54,7 @@ export default function TabMapsPersonil({
   fleetUnits,
   hotspots,
   policeOffices,
+  dispatchStatuses,
   onOpenChat,
   onOpenWizard,
   onUpdateStep,
@@ -128,24 +130,82 @@ export default function TabMapsPersonil({
       activeComplaint.status !== 'DITOLAK'
   );
 
-  // 4. Deteksi Tahap Tugas (Workflow Lifecycle Presisi):
-  // - persiapan: Tiket diterima tapi belum klik berangkat
-  // - meluncur: Personel sedang di jalan menuju TKP
-  // - tiba: Personel sudah tiba di TKP & penanganan
+  // 4. Deteksi Tahap Tugas (Workflow Lifecycle Presisi berbasis MasterDispatchStatus):
+  // - DISPATCHED: Persiapan / Berangkat
+  // - DEPARTED: Meluncur ke TKP
+  // - ARRIVED / REPORT_SUBMITTED: Tiba di TKP & Penanganan
   const complaintStage = useMemo<'persiapan' | 'meluncur' | 'tiba'>(() => {
     if (!isMissionActive) return 'persiapan';
-    const st = (activeComplaint?.status || '').toUpperCase();
-    if (st === 'MENUJU_TKP') return 'meluncur';
-    if (
-      st === 'TIBA_DI_TKP' ||
-      st === 'PENANGANAN_TKP' ||
-      st === 'MENUNGGU_PENGESAHAN' ||
-      (st === 'SEDANG_DITANGANI' && activeComplaint?.tahap && activeComplaint.tahap >= 4)
-    ) {
+
+    // Cek status pergerakan personil langsung dari relasi MasterDispatchStatus
+    const officerDispatch = activeComplaint?.dispatches?.find(
+      (d: any) =>
+        (d.officer_id && (String(d.officer_id) === String(officer.id) || d.officer?.nrp === officer.nrp)) ||
+        (d.officer?.user?.identifier === officer.nrp)
+    ) || activeComplaint?.dispatches?.[0];
+
+    const dispatchStatus = String(officerDispatch?.dispatch_status || officerDispatch?.dispatchStatus || '').toUpperCase();
+
+    if (dispatchStatus === 'ARRIVED' || dispatchStatus === 'REPORT_SUBMITTED' || dispatchStatus === 'COMPLETED') {
       return 'tiba';
     }
+    if (dispatchStatus === 'DEPARTED') {
+      return 'meluncur';
+    }
+
+    // Fallback berdasarkan tahap numerik
+    const tahap = Number(activeComplaint?.tahap) || 1;
+    if (tahap >= 4 || activeComplaint?.status === 'MENUNGGU_PENGESAHAN') return 'tiba';
+    if (tahap === 3) return 'meluncur';
     return 'persiapan';
-  }, [isMissionActive, activeComplaint]);
+  }, [isMissionActive, activeComplaint, officer.id, officer.nrp]);
+
+  // Master Dispatch Status Dictionary dari database MySQL (key -> { label, badge_color, badge_bg, badge_border })
+  const dispatchStatusMap = useMemo(() => {
+    const map: Record<string, { label: string; badge_color?: string; badge_bg?: string; badge_border?: string }> = {};
+    for (const item of dispatchStatuses || []) {
+      if (item?.key) {
+        map[String(item.key).toUpperCase()] = {
+          label: item.label,
+          badge_color: item.badge_color,
+          badge_bg: item.badge_bg,
+          badge_border: item.badge_border,
+        };
+      }
+    }
+    return map;
+  }, [dispatchStatuses]);
+
+  // Dynamic visual styling berdasarkan data master_dispatch_statuses di database
+  const currentStatusStyle = useMemo(() => {
+    if (complaintStage === 'persiapan') {
+      const s = dispatchStatusMap['DISPATCHED'];
+      return {
+        label: s?.label || 'Disposisi',
+        color: s?.badge_color || '#2563EB',
+        bg: s?.badge_bg || '#EFF6FF',
+        border: s?.badge_border || '#BFDBFE',
+      };
+    }
+    if (complaintStage === 'meluncur') {
+      const s = dispatchStatusMap['DEPARTED'];
+      return {
+        label: isWithin50Meters
+          ? `${s?.label || 'Meluncur'} (<50m)`
+          : (s?.label || 'Meluncur'),
+        color: isWithin50Meters ? '#10B981' : (s?.badge_color || '#8B5CF6'),
+        bg: isWithin50Meters ? '#ECFDF5' : (s?.badge_bg || '#F5F3FF'),
+        border: isWithin50Meters ? '#A7F3D0' : (s?.badge_border || '#DDD6FE'),
+      };
+    }
+    const s = dispatchStatusMap['ARRIVED'];
+    return {
+      label: s?.label || 'Tiba di TKP',
+      color: s?.badge_color || '#10B981',
+      bg: s?.badge_bg || '#ECFDF5',
+      border: s?.badge_border || '#A7F3D0',
+    };
+  }, [complaintStage, isWithin50Meters, dispatchStatusMap]);
 
   // Waktu pembuatan / disposisi tiket terformat
   const formattedTime = useMemo(() => {
@@ -233,19 +293,19 @@ const EMPTY_ARRAY: any[] = [];
     setTouchStartY(null);
   };
 
-  // Eksekusi Tombol Utama Sesuai Workflow Sekuensial
+  // Eksekusi Tombol Utama Sesuai Workflow Sekuensial MasterDispatchStatus
   const handleMainActionClick = async () => {
     if (!activeComplaint || isUpdatingStep) return;
 
     if (complaintStage === 'persiapan') {
-      // Tahap 1: Personel Berangkat ke TKP
-      await onUpdateStep('meluncur');
+      // Tahap 1: Personel Berangkat ke TKP (MasterDispatchStatus: DEPARTED)
+      await onUpdateStep('DEPARTED');
     } else if (complaintStage === 'meluncur') {
-      // Tahap 2: Konfirmasi Tiba di Lokasi (hanya aktif jika dalam radius 50m)
+      // Tahap 2: Konfirmasi Tiba di Lokasi (MasterDispatchStatus: ARRIVED)
       if (!isWithin50Meters) return;
-      await onUpdateStep('tiba_tkp');
+      await onUpdateStep('ARRIVED');
     } else if (complaintStage === 'tiba') {
-      // Tahap 3: Selesaikan Penanganan Tugas
+      // Tahap 3: Selesaikan Penanganan Tugas di Lapangan
       onOpenWizard(activeComplaint);
     }
   };
@@ -427,23 +487,14 @@ const EMPTY_ARRAY: any[] = [];
                 {/* 1. Baris Tag / Badge Kedinasan & Urgensi */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
-                      complaintStage === 'persiapan'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : complaintStage === 'meluncur'
-                        ? isWithin50Meters
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                    }`}
+                    className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider transition-colors"
+                    style={{
+                      color: currentStatusStyle.color,
+                      background: currentStatusStyle.bg,
+                      border: `1px solid ${currentStatusStyle.border}`,
+                    }}
                   >
-                    {complaintStage === 'persiapan'
-                      ? 'Siap Meluncur'
-                      : complaintStage === 'meluncur'
-                      ? isWithin50Meters
-                        ? 'Tiba di Radius (<50m)'
-                        : 'Dalam Perjalanan'
-                      : 'Penanganan TKP'}
+                    {currentStatusStyle.label}
                   </span>
 
                   {/* Tingkat Urgensi */}
@@ -510,25 +561,33 @@ const EMPTY_ARRAY: any[] = [];
                   </div>
 
                   {/* Kontak Pelapor / Korban */}
-                  {(activeComplaint.pelaporNama || activeComplaint.pelaporTelepon) && (
-                    <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2 text-[11px] text-slate-300">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <User size={13} className="text-amber-400 flex-shrink-0" />
-                        <span className="truncate">
-                          Pelapor: <strong className="text-white">{activeComplaint.pelaporNama || 'Warga 110'}</strong>
-                        </span>
+                  {(() => {
+                    const rawPhone = activeComplaint.pelaporTelepon || activeComplaint.pelaporHp || activeComplaint.pelapor_hp;
+                    const formattedPhone = formatPhoneNumber(rawPhone);
+                    const callPhone = getCleanCallNumber(rawPhone);
+
+                    if (!activeComplaint.pelaporNama && !formattedPhone) return null;
+
+                    return (
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2 text-[11px] text-slate-300">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <User size={13} className="text-amber-400 flex-shrink-0" />
+                          <span className="truncate">
+                            Pelapor: <strong className="text-white">{activeComplaint.pelaporNama || 'Warga 110'}</strong>
+                          </span>
+                        </div>
+                        {formattedPhone && (
+                          <a
+                            href={`tel:${callPhone}`}
+                            className="text-amber-300 font-mono font-bold hover:underline flex items-center gap-1 flex-shrink-0 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg"
+                          >
+                            <Phone size={11} />
+                            <span>{formattedPhone}</span>
+                          </a>
+                        )}
                       </div>
-                      {activeComplaint.pelaporTelepon && (
-                        <a
-                          href={`tel:${activeComplaint.pelaporTelepon}`}
-                          className="text-amber-300 font-mono font-bold hover:underline flex items-center gap-1 flex-shrink-0 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg"
-                        >
-                          <Phone size={11} />
-                          <span>{activeComplaint.pelaporTelepon}</span>
-                        </a>
-                      )}
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* 4. Uraian Lengkap Kejadian / Keterangan Pelapor */}
@@ -581,14 +640,8 @@ const EMPTY_ARRAY: any[] = [];
                   <div className="w-px h-8 bg-white/10" />
                   <div className="text-center px-2">
                     <div className="text-[9px] font-bold text-slate-400 tracking-wider">STATUS</div>
-                    <div className="text-xs font-bold text-emerald-400">
-                      {complaintStage === 'persiapan'
-                        ? 'Siap Berangkat'
-                        : complaintStage === 'meluncur'
-                        ? isWithin50Meters
-                          ? 'Dalam Radius'
-                          : 'Di Perjalanan'
-                        : 'Tiba di Lokasi'}
+                    <div className="text-xs font-bold" style={{ color: currentStatusStyle.color }}>
+                      {currentStatusStyle.label}
                     </div>
                   </div>
                 </div>
@@ -598,11 +651,11 @@ const EMPTY_ARRAY: any[] = [];
             {/* Bottom Action Row (Outside Red Box: Always Visible) */}
             <div className="space-y-1.5 pt-1 border-t border-white/5">
               <div className="flex items-center gap-2">
-                {activeComplaint.pelaporTelepon && (
+                {Boolean(activeComplaint.pelaporTelepon || activeComplaint.pelaporHp || activeComplaint.pelapor_hp) && (
                   <a
-                    href={`tel:${activeComplaint.pelaporTelepon}`}
+                    href={`tel:${getCleanCallNumber(activeComplaint.pelaporTelepon || activeComplaint.pelaporHp || activeComplaint.pelapor_hp)}`}
                     className="p-2.5 rounded-xl text-slate-300 bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0"
-                    title="Telepon Pelapor"
+                    title={`Telepon Pelapor (${formatPhoneNumber(activeComplaint.pelaporTelepon || activeComplaint.pelaporHp || activeComplaint.pelapor_hp)})`}
                   >
                     <Phone size={17} />
                   </a>
@@ -661,18 +714,18 @@ const EMPTY_ARRAY: any[] = [];
                   {isUpdatingStep ? (
                     'Merekam...'
                   ) : complaintStage === 'persiapan' ? (
-                    'Berangkat ke TKP ➔'
+                    `${dispatchStatusMap['DEPARTED']?.label || 'Meluncur'} ➔`
                   ) : complaintStage === 'meluncur' ? (
                     isWithin50Meters ? (
-                      'Konfirmasi Tiba di Lokasi ➔'
+                      `${dispatchStatusMap['ARRIVED']?.label || 'Tiba di TKP'} ➔`
                     ) : (
                       <>
                         <Lock size={14} className="opacity-70" />
-                        <span>Konfirmasi Tiba di Lokasi ➔</span>
+                        <span>{dispatchStatusMap['ARRIVED']?.label || 'Tiba di TKP'} ➔</span>
                       </>
                     )
                   ) : (
-                    'Selesaikan Tugas ➔'
+                    `${dispatchStatusMap['COMPLETED']?.label || 'Selesai'} ➔`
                   )}
                 </button>
               </div>

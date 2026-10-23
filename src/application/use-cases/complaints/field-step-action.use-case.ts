@@ -1,9 +1,16 @@
 import { IComplaintRepository } from '@/domain/repositories/complaint.repository.interface';
 import { ComplaintEntity } from '@/domain/entities/complaint.entity';
 
+export type DispatchStepKey =
+  | 'DISPATCHED'
+  | 'DEPARTED'
+  | 'ARRIVED'
+  | 'REPORT_SUBMITTED'
+  | 'COMPLETED';
+
 export interface FieldStepActionInput {
   complaintId: bigint;
-  step: 'meluncur' | 'tiba_tkp' | 'tindakan_tkp' | 'selesai';
+  step: DispatchStepKey;
   officerId: bigint;
   catatan?: string;
   fotoBuktiUrl?: string;
@@ -40,10 +47,13 @@ export class FieldStepActionUseCase {
     }
 
     switch (input.step) {
-      case 'meluncur':
+      case 'DISPATCHED':
+        // Persiapan penugasan personil
+        break;
+      case 'DEPARTED':
         complaint.personilMeluncur(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
-      case 'tiba_tkp':
+      case 'ARRIVED':
         complaint.tibaDiTkp(
             input.catatan,
             input.fotoBuktiUrl,
@@ -56,7 +66,7 @@ export class FieldStepActionUseCase {
             input.evidencesList
         );
         break;
-      case 'tindakan_tkp':
+      case 'REPORT_SUBMITTED':
         complaint.tindakanTkp(
             input.catatan,
             input.fotoBuktiUrl,
@@ -69,22 +79,8 @@ export class FieldStepActionUseCase {
             input.evidencesList
         );
         break;
-      case 'selesai':
-        complaint.ajukanPengesahanBap(
-          input.catatan,
-          input.fotoBuktiUrl,
-          {
-            locationId: input.resolutionLocationId,
-            locationKey: input.resolutionLocationKey,
-            locationName: input.resolutionLocationName,
-            documentId: input.resolutionDocumentId,
-            documentKey: input.resolutionDocumentKey,
-            documentName: input.resolutionDocumentName,
-          },
-          input.evidencesList
-        );
-        // Sesuai alur baru: penanganan personil langsung bertransisi menjadi SELESAI
-        complaint.selesaikanKasus(input.catatan, input.fotoBuktiUrl);
+      case 'COMPLETED':
+        complaint.selesaikanKasusLangsung(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
       default:
         throw new Error(`Tahap aksi ${input.step} tidak valid.`);

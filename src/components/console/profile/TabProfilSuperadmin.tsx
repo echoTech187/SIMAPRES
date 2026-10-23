@@ -261,8 +261,8 @@ export default function TabProfilSuperadmin({
   };
 
   const filteredComplaints = complaints.filter((c) => {
-    if (profilLogFilter === 'menunggu' && c.status !== 'BELUM_DITANGANI') return false;
-    if (profilLogFilter === 'diproses' && !['DISPOSISI', 'MENUJU_TKP', 'PENANGANAN_TKP'].includes(c.status)) return false;
+    if (profilLogFilter === 'menunggu' && c.status !== 'MENUNGGU') return false;
+    if (profilLogFilter === 'diproses' && c.status !== 'DIPROSES' && c.status !== 'MENUNGGU_PENGESAHAN') return false;
     if (profilLogFilter === 'selesai' && c.status !== 'SELESAI') return false;
     if (profilLogSearch) {
       const q = profilLogSearch.toLowerCase();
@@ -901,8 +901,8 @@ export default function TabProfilSuperadmin({
                   style={{
                     fontSize: '9.5px',
                     fontWeight: 800,
-                    background: c.status === 'SELESAI' ? '#DCFCE7' : c.status === 'MENUJU_TKP' ? '#DBEAFE' : c.status === 'PENANGANAN_TKP' ? '#EDE9FE' : '#FEF3C7',
-                    color: c.status === 'SELESAI' ? '#15803D' : c.status === 'MENUJU_TKP' ? '#1D4ED8' : c.status === 'PENANGANAN_TKP' ? '#6D28D9' : '#92400E',
+                    background: c.status === 'SELESAI' ? '#DCFCE7' : c.status === 'MENUNGGU_PENGESAHAN' ? '#EDE9FE' : c.status === 'DIPROSES' ? '#DBEAFE' : c.status === 'DITOLAK' ? '#FEE2E2' : '#FEF3C7',
+                    color: c.status === 'SELESAI' ? '#15803D' : c.status === 'MENUNGGU_PENGESAHAN' ? '#6D28D9' : c.status === 'DIPROSES' ? '#1D4ED8' : c.status === 'DITOLAK' ? '#B91C1C' : '#92400E',
                     padding: '2px 8px',
                     borderRadius: '4px',
                   }}

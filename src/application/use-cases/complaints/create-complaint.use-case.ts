@@ -94,6 +94,7 @@ export class CreateComplaintUseCase {
       timelines: [
         {
           tahapKe: 0,
+          actionKey: 'LAPORAN_MASUK',
           tahapTitle: 'Laporan Diterima',
           catatan: 'Pengaduan dicatat dan masuk ke buku register antrean.',
           fotoBuktiUrl: input.fotoBuktiUrl || null,

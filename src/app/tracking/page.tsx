@@ -30,6 +30,7 @@ function TrackingContent() {
   const router = useRouter();
 
   const ticketFromUrl = searchParams.get('tiket') || searchParams.get('lacak') || '';
+  const tokenFromUrl = searchParams.get('token') || searchParams.get('auth') || '';
 
   const [ticketInput, setTicketInput] = useState(ticketFromUrl);
   const [activeTicket, setActiveTicket] = useState(ticketFromUrl);
@@ -66,6 +67,7 @@ function TrackingContent() {
       {activeTicket ? (
         <CitizenLiveRadarTracker
           nomorTiket={activeTicket}
+          token={tokenFromUrl}
           onBack={() => {
             setActiveTicket('');
             router.push('/tracking');

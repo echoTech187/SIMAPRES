@@ -18,7 +18,7 @@ export default function ModalKuatPers({
   if (!isOpen) return null;
 
   const meluncurCount = registeredUnits.filter(
-    (u) => u.dutyStatus === 'DINAS_PATROLI' || u.dutyStatus === 'MENUJU_TKP'
+    (u) => u.dutyStatus === 'DINAS_PATROLI'
   ).length;
   const cadanganCount = registeredUnits.filter(
     (u) => u.dutyStatus === 'CADANGAN' || u.dutyStatus === 'LEPAS_DINAS'

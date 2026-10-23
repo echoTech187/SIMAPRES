@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import {
   Phone,
   MessageSquare,
@@ -69,6 +70,7 @@ interface CitizenLiveRadarTrackerProps {
   nomorTiket: string;
   initialData?: any;
   onBack?: () => void;
+  token?: string;
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -81,7 +83,7 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return Number((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1));
 }
 
-export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBack }: CitizenLiveRadarTrackerProps) {
+export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBack, token }: CitizenLiveRadarTrackerProps) {
   // ── State ──────────────────────────────────────────────────────────────────
   const [complaint, setComplaint] = useState<any>(initialData || null);
   const [loading, setLoading] = useState(!initialData);
@@ -125,30 +127,74 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
   const isCompleted = useMemo(() => {
     if (!complaint) return false;
     const s = (complaint.status || '').toUpperCase();
-    return ['PENANGANAN_SELESAI', 'MENUNGGU_PENGESAHAN', 'SELESAI', 'VALIDASI_SELESAI', 'DITUTUP'].includes(s) || complaint.tahap >= 5;
+    return s === 'SELESAI';
   }, [complaint]);
 
   const isAccepted = useMemo(() => {
     if (!complaint || isCompleted) return false;
-    const s = (complaint.status || '').toUpperCase();
-    return ['SEDANG_DITANGANI', 'PROSES', 'DIPROSES', 'ACCEPTED', 'MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP'].includes(s)
-      || (complaint.tahap && complaint.tahap >= 2)
-      || !!(complaint.dispatches?.find((d: any) => d.acceptedAt || d.accepted_at));
+    // An incident is only considered "Accepted" by an officer if:
+    // 1. There is an accepted dispatch with an officer assigned, OR
+    // 2. An officer is directly assigned to the complaint
+    const dispatches: any[] = complaint.dispatches || [];
+    const hasAcceptedDispatch = dispatches.some(
+      (d: any) => Boolean((d.acceptedAt || d.accepted_at) && (d.officer || d.officer_id || d.officerId))
+    );
+    const hasAssignedOfficer = Boolean(
+      complaint.assignedOfficer || complaint.assigned_officer_id || complaint.assignedOfficerId
+    );
+    return hasAcceptedDispatch || hasAssignedOfficer;
   }, [complaint, isCompleted]);
 
   const isArrived = useMemo(() => {
-    if (!complaint || isCompleted) return false;
-    const s = (complaint.status || '').toUpperCase();
-    if (['TIBA_DI_TKP', 'PENANGANAN_TKP'].includes(s)) return true;
-    return !!(complaint.dispatches?.some((d: any) => d.arrivedAt || d.arrived_at));
-  }, [complaint, isCompleted]);
+    if (!complaint || isCompleted || !isAccepted) return false;
+    return (complaint.tahap && complaint.tahap >= 4)
+      || !!(complaint.dispatches?.some((d: any) => d.arrivedAt || d.arrived_at || d.dispatch_status === 'ARRIVED'));
+  }, [complaint, isCompleted, isAccepted]);
 
   const isMeluncur = useMemo(() => {
     if (!complaint || isCompleted || !isAccepted || isArrived) return false;
-    const s = (complaint.status || '').toUpperCase();
-    if (s === 'MENUJU_TKP') return true;
-    return !!(complaint.dispatches?.some((d: any) => (d.departedAt || d.departed_at) && !(d.arrivedAt || d.arrived_at)));
+    if (complaint.tahap && complaint.tahap >= 3) return true;
+    return !!(complaint.dispatches?.some((d: any) => (d.departedAt || d.departed_at || d.dispatch_status === 'DEPARTED') && !(d.arrivedAt || d.arrived_at)));
   }, [complaint, isCompleted, isAccepted, isArrived]);
+
+  // Live clock for Gambar 2 sync & elapsed scan timer
+  const [liveSyncTime, setLiveSyncTime] = useState('');
+  const [scanSeconds, setScanSeconds] = useState(0);
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const ss = String(now.getSeconds()).padStart(2, '0');
+      setLiveSyncTime(`${hh}.${mm}.${ss}`);
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (!complaint) return;
+    const computeElapsed = () => {
+      const cTime = complaint.createdAt || complaint.created_at;
+      if (cTime) {
+        const diffSec = Math.max(0, Math.floor((Date.now() - new Date(cTime).getTime()) / 1000));
+        setScanSeconds(diffSec);
+      } else {
+        setScanSeconds((prev) => prev + 1);
+      }
+    };
+    computeElapsed();
+    const interval = setInterval(computeElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [complaint]);
+
+  const formattedScanTime = useMemo(() => {
+    const m = Math.floor(scanSeconds / 60);
+    const s = scanSeconds % 60;
+    return `${m}m ${s}s`;
+  }, [scanSeconds]);
 
   // Expand drawer automatically when task finishes so citizen immediately sees resolution notes & rating
   useEffect(() => {
@@ -165,7 +211,8 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     let isCancelled = false;
 
     try {
-      es = new EventSource(`/api/tracking/stream?tiket=${encodeURIComponent(nomorTiket)}`);
+      const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
+      es = new EventSource(`/api/tracking/stream?tiket=${encodeURIComponent(nomorTiket)}${tokenQuery}`);
 
       es.addEventListener('data', (event: MessageEvent) => {
         if (isCancelled) return;
@@ -193,7 +240,8 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
         setLoading(false);
       };
     } catch (_) {
-      fetch(`/api/tracking?tiket=${encodeURIComponent(nomorTiket)}`)
+      const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
+      fetch(`/api/tracking?tiket=${encodeURIComponent(nomorTiket)}${tokenQuery}`)
         .then((res) => res.json())
         .then((json) => {
           if (json?.data?.complaint) setComplaint(json.data.complaint);
@@ -267,7 +315,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       satuan: assignedOfficer.unitName,
       jabatan: assignedOfficer.jabatan,
       sub: assignedOfficer.assignedPatrolVehicle || 'Mobil Patroli',
-      status: isArrived ? 'TIBA_DI_TKP' : isMeluncur ? 'MENUJU_TKP' : 'STANDBY',
+      status: isArrived ? 'ARRIVED' : isMeluncur ? 'DEPARTED' : 'STANDBY',
       statusLabel: isArrived ? 'Tiba di Lokasi' : isMeluncur ? 'Sedang Meluncur' : 'Bersiap',
       statusColor: isArrived ? '#3B82F6' : isMeluncur ? '#10B981' : '#F59E0B',
       tugas: 'Respon 110',
@@ -285,9 +333,9 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       tkpAlamatTeks: complaint.tkpAlamatTeks,
       tkpLat,
       tkpLng,
-      status: isCompleted ? 'SELESAI' : isArrived ? 'TIBA_DI_TKP' : isMeluncur ? 'MENUJU_TKP' : 'DIPROSES',
+      status: isCompleted ? 'SELESAI' : 'DIPROSES',
     };
-  }, [complaint, tkpLat, tkpLng, isCompleted, isArrived, isMeluncur]);
+  }, [complaint, tkpLat, tkpLng, isCompleted]);
 
   // ── Auto scroll chat ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -410,7 +458,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
   return (
     <div
       className={`fixed inset-0 z-40 w-full h-[100dvh] ${
-        isCompleted ? 'overflow-y-auto' : 'overflow-hidden'
+        isCompleted || !isAccepted ? 'overflow-y-auto' : 'overflow-hidden'
       } flex flex-col bg-[#090A0F] select-none`}
       style={{
         color: '#F1F5F9',
@@ -503,6 +551,16 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
               />
             )}
           </>
+        ) : !isAccepted ? (
+          <RadarSearchingFullScreenView
+            complaint={complaint}
+            nomorTiket={nomorTiket}
+            onBack={onBack}
+            liveSyncTime={liveSyncTime}
+            formattedScanTime={formattedScanTime}
+            onCopyTicket={handleCopyTicket}
+            copiedTicket={copiedTicket}
+          />
         ) : (
           <>
             {/* 1. INTERACTIVE FULL-SCREEN GOOGLE MAP BACKDROP */}
@@ -873,6 +931,341 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
 // ══════════════════════════════════════════════════════════════════════════════
 // SUB-COMPONENTS
 // ══════════════════════════════════════════════════════════════════════════════
+
+function RadarSearchingFullScreenView({
+  complaint,
+  nomorTiket,
+  onBack,
+  liveSyncTime,
+  formattedScanTime,
+  onCopyTicket,
+  copiedTicket,
+}: {
+  complaint: any;
+  nomorTiket: string;
+  onBack?: () => void;
+  liveSyncTime: string;
+  formattedScanTime: string;
+  onCopyTicket: () => void;
+  copiedTicket: boolean;
+}) {
+  return (
+    <div
+      className="w-full min-h-[100dvh] flex flex-col bg-[#090A0F] animate-in fade-in duration-300"
+      style={{
+        backgroundImage:
+          'radial-gradient(ellipse at 50% 10%, rgba(236,196,115,0.08) 0%, transparent 60%)',
+      }}
+    >
+      {/* ─── 1. TOP HEADER ─── */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
+          background: 'rgba(10, 13, 20, 0.94)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: '1px solid rgba(236,196,115,0.18)',
+          padding: '12px 16px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+        }}
+      >
+        <div className="max-w-xl mx-auto flex items-center gap-2.5">
+          {/* Brand Left */}
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              boxShadow: '0 2px 10px rgba(201,150,53,0.35)',
+            }}
+          >
+            <div
+              style={{
+                width: '16px',
+                height: '16px',
+                background: '#0A0D14',
+                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
+              }}
+            />
+          </div>
+          <div>
+            <div className="text-xs sm:text-sm font-black text-white tracking-wide">
+              SIMOPMAS 110
+            </div>
+            <div className="text-[9.5px] sm:text-[10.5px] text-slate-400 font-medium">
+              Sistem Pemantauan Taktis Kepolisian & Warga
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ─── 2. CARD 1: RADAR SCANNING CARD ─── */}
+      <div className="max-w-xl mx-auto w-full px-4 pt-4 pb-2">
+        <div
+          className="rounded-[28px] p-5 sm:p-6 text-center relative overflow-hidden backdrop-blur-xl"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(18, 22, 32, 0.95) 0%, rgba(10, 12, 18, 0.98) 100%)',
+            border: '1.5px solid rgba(236, 196, 115, 0.22)',
+            boxShadow:
+              '0 16px 48px rgba(0,0,0,0.8), 0 0 30px rgba(236,196,115,0.05)',
+          }}
+        >
+          {/* Top Status Pill */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] font-black uppercase tracking-wider mb-3.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_#F59E0B]" />
+            <span>MENCARI PETUGAS TERDEKAT</span>
+          </div>
+
+          {/* Heading */}
+          <h1 className="text-base sm:text-lg font-black text-white uppercase tracking-tight leading-snug mb-2">
+            MOHON TUNGGU KAMI SEDANG MENCARI PETUGAS TERDEKAT...
+          </h1>
+
+          {/* Subtitle */}
+          <p className="text-xs sm:text-[13px] text-slate-400 leading-relaxed max-w-sm mx-auto mb-6">
+            Sinyal darurat disiarkan secara serentak ke seluruh armada patroli Presisi di sekitar wilayah Anda.
+          </p>
+
+          {/* Big Radar Graphic */}
+          <div
+            style={{
+              position: 'relative',
+              width: '260px',
+              height: '260px',
+              margin: '0 auto',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #161C2A 0%, #080A10 100%)',
+              border: '1.5px solid rgba(236,196,115,0.35)',
+              boxShadow:
+                '0 0 35px rgba(236,196,115,0.1), inset 0 0 30px rgba(0,0,0,0.85)',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {/* Concentric Rings */}
+            {[30, 56, 82].map((s, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  width: `${s}%`,
+                  height: `${s}%`,
+                  borderRadius: '50%',
+                  border: `1px solid rgba(236,196,115,${i === 0 ? 0.2 : 0.12})`,
+                  borderStyle: i === 0 ? 'dashed' : 'solid',
+                }}
+              />
+            ))}
+
+            {/* Crosshairs */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                top: '50%',
+                height: '1px',
+                background: 'rgba(236,196,115,0.14)',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '50%',
+                width: '1px',
+                background: 'rgba(236,196,115,0.14)',
+              }}
+            />
+
+            {/* Sweeping Conic Beam */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                background:
+                  'conic-gradient(from 0deg, rgba(236,196,115,0.45) 0deg, rgba(201,150,53,0.1) 45deg, transparent 80deg)',
+                animation: 'clt-radar 3s linear infinite',
+              }}
+            />
+
+            {/* Patrol Car Blips */}
+            {[
+              { top: '24%', left: '68%', delay: '0s', label: '🚓' },
+              { top: '65%', left: '22%', delay: '1.2s', label: '🚓' },
+              { top: '68%', left: '70%', delay: '0.6s', label: '🚓' },
+              { top: '32%', left: '38%', delay: '1.8s', label: '🚓' },
+            ].map((b, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  top: b.top,
+                  left: b.left,
+                  fontSize: '15px',
+                  filter: 'drop-shadow(0 0 6px #ECC473)',
+                  animation: `clt-blip ${3.4 + i * 0.4}s ease-in-out ${b.delay} infinite`,
+                }}
+              >
+                {b.label}
+              </div>
+            ))}
+
+            {/* Center Target Point */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 10,
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                background: '#ECC473',
+                boxShadow: '0 0 16px #ECC473',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  border: '2px solid #ECC473',
+                  animation: 'clt-pulse 2s ease-out infinite',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Stats Strip below Radar */}
+          <div
+            className="grid grid-cols-3 divide-x divide-white/10 rounded-2xl mt-6 py-3 px-2"
+            style={{
+              background: 'rgba(8, 10, 16, 0.75)',
+              border: '1px solid rgba(236, 196, 115, 0.15)',
+            }}
+          >
+            <div className="text-center px-1">
+              <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                WAKTU PEMINDAIAN
+              </div>
+              <div className="text-xs sm:text-sm font-black font-mono text-[#ECC473]">
+                {formattedScanTime}
+              </div>
+            </div>
+            <div className="text-center px-1">
+              <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                FREKUENSI CAD
+              </div>
+              <div className="text-xs sm:text-sm font-black font-mono text-white">
+                110.85 MHz
+              </div>
+            </div>
+            <div className="text-center px-1">
+              <div className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                RADIUS SEKTOR
+              </div>
+              <div className="text-xs sm:text-sm font-black font-mono text-white">
+                5.0 KM
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 4. CARD 2: INFORMASI TIKET LAPORAN ─── */}
+      <div className="max-w-xl mx-auto w-full px-4 pt-2 pb-10">
+        <div
+          className="rounded-[28px] p-5 relative overflow-hidden backdrop-blur-xl"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(18, 22, 32, 0.95) 0%, rgba(10, 12, 18, 0.98) 100%)',
+            border: '1.5px solid rgba(236, 196, 115, 0.22)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.7)',
+          }}
+        >
+          {/* Card Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+            <div className="text-xs font-black tracking-wider text-amber-400 uppercase">
+              INFORMASI TIKET LAPORAN
+            </div>
+            <span className="text-[10px] font-bold text-slate-300 bg-slate-800/90 px-2.5 py-0.5 rounded-full border border-slate-700/60">
+              Baru Saja
+            </span>
+          </div>
+
+          {/* Rows */}
+          <div className="space-y-3.5 text-left">
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                Nomor Tiket Resmi
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm sm:text-base font-black font-mono text-[#ECC473]">
+                  {nomorTiket}
+                </span>
+                <button
+                  type="button"
+                  onClick={onCopyTicket}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-amber-300 bg-amber-400/10 border border-amber-400/30 hover:bg-amber-400/20 active:scale-95 transition-all cursor-pointer"
+                >
+                  {copiedTicket ? (
+                    <Check size={12} className="text-emerald-400" />
+                  ) : (
+                    <Copy size={12} />
+                  )}
+                  <span>{copiedTicket ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                Kategori / Jenis Kejadian
+              </div>
+              <div className="text-xs sm:text-sm font-extrabold text-white">
+                {complaint.jenisKejadian ||
+                  complaint.kategori ||
+                  'Laporan Pengaduan Masyarakat'}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1">
+                <MapPin size={11} className="text-amber-400" />
+                <span>Titik Lokasi (TKP)</span>
+              </div>
+              <div className="text-xs text-slate-300 leading-relaxed font-medium">
+                {complaint.tkpAlamatTeks || complaint.lokasi || '-'}
+              </div>
+            </div>
+
+            {/* Hotline Call Button */}
+            <div className="pt-2 border-t border-white/10">
+              <a
+                href="tel:110"
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-black hover:bg-red-500/20 active:scale-95 transition-all shadow-md"
+              >
+                <Phone size={14} />
+                <span>Pusat Bantuan Darurat Hotline 110</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function RadarSearchingCard({ complaint }: any) {
   return (

@@ -123,8 +123,8 @@ export default function TabBerandaPawas({
     return 'Selamat Malam';
   }, []);
 
-  const officerName = userProfile?.fullName || 'AKBP Bambang Wijaya, S.I.K., M.Si.';
-  const officerMako = userProfile?.satuanNama || userProfile?.unit || 'Polres Metro Jakarta Selatan';
+  const officerName = userProfile?.fullName || userProfile?.nama || 'Perwira Pengawas';
+  const officerMako = userProfile?.stationName || userProfile?.satuanNama || 'Mako Komando';
 
   // Dynamic Real-time Activities derived from Database (OfficerLogbooks or Real Complaints Timeline)
   const dynamicActivities = useMemo(() => {
@@ -137,9 +137,9 @@ export default function TabBerandaPawas({
           ? new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
           : '-';
         const off = log.officer;
-        const offName = off?.user?.full_name || off?.nama || 'Petugas Lapangan';
-        const offRank = off?.rank_pangkat || off?.pangkat || '';
-        const offUnit = off?.unit?.short_name || off?.unit?.unit_name || off?.jabatan || off?.satuanNama || '';
+        const offName = off?.user?.full_name || off?.nrp || 'Petugas Lapangan';
+        const offRank = off?.rank_pangkat || '';
+        const offUnit = off?.unit?.short_name || off?.unit?.unit_name || off?.jabatan || '';
         const officerStr = offRank ? `${offRank} ${offName}${offUnit ? ` (${offUnit})` : ''}` : `${offName}${offUnit ? ` (${offUnit})` : ''}`;
         const desc = log.activity_description || `${log.action_type || 'Patroli'} di ${log.claimed_address || 'wilayah hukum'}`;
         const color = idx % 3 === 0 ? '#0284C7' : idx % 3 === 1 ? '#10B981' : '#F59E0B';
@@ -150,11 +150,11 @@ export default function TabBerandaPawas({
     // 2. If no logbooks yet, derive from recent real complaint activities in allRecentComplaints
     if (Array.isArray(allRecentComplaints) && allRecentComplaints.length > 0) {
       return allRecentComplaints.slice(0, 4).map((c: any, idx: number) => {
-        const timeStr = c.createdAt
-          ? new Date(c.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
-          : c.waktuLaporan || '-';
-        const unitStr = c.assignedUnitNama || c.assignedSatuan || 'Unit Siaga 110';
-        const statusLabel = c.tahapTerakhir || (c.status === 'SELESAI' ? 'Penanganan Selesai' : c.status === 'DIPROSES' ? 'Meluncur ke TKP' : 'Menerima Laporan');
+        const timeStr = c.created_at || c.createdAt
+          ? new Date(c.created_at || c.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
+          : '-';
+        const unitStr = c.assignedOfficer?.unitName || c.assignedUnitNama || 'Regu Presisi 110';
+        const statusLabel = c.status === 'SELESAI' ? 'Penanganan Selesai' : c.status === 'DIPROSES' ? 'Meluncur / Tiba di TKP' : 'Menerima Laporan';
         const text = `${unitStr}: [${c.nomorTiket || '110'}] ${statusLabel} untuk ${c.jenisKejadian || 'Aduan Warga'} di ${c.tkpAlamatTeks || 'TKP'}.`;
         const color = c.status === 'SELESAI' ? '#10B981' : c.status === 'DIPROSES' ? '#0284C7' : '#F59E0B';
         return { time: timeStr, text, color };
@@ -510,9 +510,7 @@ export default function TabBerandaPawas({
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '20px', fontWeight: 900, color: '#16A34A', lineHeight: 1 }}>
-                      {fleetUnits.filter((u) => u.category === 'lantas' || (u.key && (u.key.toLowerCase().includes('lantas') || u.key.toLowerCase().includes('pjr')))).length}
-                    </div>
+                      {fleetUnits.filter((u) => u.category === 'lantas').length}
                     <div style={{ fontSize: '9.5px', color: '#15803D', fontWeight: 800, marginTop: '2px' }}>TERGELAR</div>
                   </div>
                 </div>
@@ -895,8 +893,8 @@ export default function TabBerandaPawas({
                 {allRecentComplaints.slice(0, 3).map((inc) => {
                   const timeStr = inc.createdAt ? new Date(inc.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini';
                   const isSelesai = inc.status === 'SELESAI';
-                  const isMeluncur = inc.status === 'MENUJU_TKP';
-                  const isPenanganan = inc.status === 'PENANGANAN_TKP';
+                  const isMeluncur = inc.status === 'DIPROSES' && Number(inc.tahap) === 3;
+                  const isPenanganan = (inc.status === 'DIPROSES' && Number(inc.tahap) >= 4) || inc.status === 'MENUNGGU_PENGESAHAN';
                   const isDarurat = inc.urgensi === 'DARURAT' || inc.urgensi === 'PRIORITAS_TINGGI';
 
                   const borderColor = isSelesai ? '#10B981' : isMeluncur ? '#3B82F6' : isPenanganan ? '#8B5CF6' : isDarurat ? '#EF4444' : '#F59E0B';

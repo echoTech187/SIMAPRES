@@ -56,7 +56,7 @@ export default function TabArmada({ lookups, showToast, onRefreshDropdowns }: Ma
   const statusColor = (s: string) => {
     if (s === 'SIAGA') return { bg: '#ECFDF5', color: '#059669' };
     if (s === 'PATROLI') return { bg: '#EFF6FF', color: '#2563EB' };
-    if (s === 'MENUJU_TKP') return { bg: '#FEF2F2', color: '#DC2626' };
+    if (s === 'DARURAT') return { bg: '#FEF2F2', color: '#DC2626' };
     return { bg: '#F1F5F9', color: '#64748B' };
   };
 

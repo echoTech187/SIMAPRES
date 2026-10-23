@@ -14,6 +14,7 @@ interface PersonilHeaderProps {
   activeTab?: PersonilTab;
   onTabChange?: (tab: PersonilTab) => void;
   hasActiveMission?: boolean;
+  isPairedDevice?: boolean;
 }
 
 export default function PersonilHeader({
@@ -25,6 +26,7 @@ export default function PersonilHeader({
   activeTab,
   onTabChange,
   hasActiveMission = false,
+  isPairedDevice = false,
 }: PersonilHeaderProps) {
   const [liveTime, setLiveTime] = useState<string>('');
   const [avatarError, setAvatarError] = useState(false);
@@ -150,8 +152,36 @@ export default function PersonilHeader({
           </nav>
         )}
 
-        {/* Right: GPS Pulse, Live Clock & Profile Picture Button */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+        {/* Right: Device Mode, GPS Pulse, Live Clock & Profile Picture Button */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Device Pairing Indicator Badge */}
+          {isPairedDevice ? (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-black tracking-wide"
+              style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+                color: '#34D399',
+              }}
+              title="Perangkat HP ini terikat sah dengan akun kedinasan. Siap menerima disposisi tugas darurat."
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>HP TERIKAT</span>
+            </div>
+          ) : (
+            <div
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-bold tracking-wide"
+              style={{
+                background: 'rgba(148, 163, 184, 0.1)',
+                borderColor: 'rgba(148, 163, 184, 0.25)',
+                color: '#94A3B8',
+              }}
+              title="Mode Monitoring (Laptop/Desktop). Modal panggilan darurat dan sirine dinonaktifkan."
+            >
+              <span>💻 MONITORING</span>
+            </div>
+          )}
+
           {/* Live Clock & GPS (desktop) */}
           <div className="hidden md:flex flex-col items-end text-right">
             <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400">

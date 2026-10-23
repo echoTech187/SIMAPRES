@@ -229,7 +229,6 @@ function CommandCenterContent({
   const [isServerDataLoaded, setIsServerDataLoaded] = useState(() => !!initialPawasData);
 
   // Time & Attendance State
-  const [liveClock, setLiveClock] = useState('');
   const [presensiStatus, setPresensiStatus] = useState<PresensiStatusType>('BELUM_MASUK');
   const [jamMasukPiket, setJamMasukPiket] = useState('-');
   const [jamPulangPiket, setJamPulangPiket] = useState('-');
@@ -440,12 +439,15 @@ function CommandCenterContent({
 
   // Live Stopwatch SLA 3 Cockpit
   const [slaClockSeconds, setSlaClockSeconds] = useState<number>(0);
+  const slaClockStartRef = useRef<number>(Date.now());
+  // Detik hanya di-render ulang saat tab validasi aktif (satu-satunya pemakai), bukan seluruh konsol tiap detik
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSlaClockSeconds((s) => s + 1);
-    }, 1000);
+    if (activeTab !== 'view-validasi') return;
+    const tick = () => setSlaClockSeconds(Math.floor((Date.now() - slaClockStartRef.current) / 1000));
+    tick();
+    const timer = setInterval(tick, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [activeTab]);
 
   const formatSlaClock = (sec: number) => {
     const m = Math.floor(sec / 60);
@@ -593,11 +595,6 @@ function CommandCenterContent({
   };
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      setLiveClock(now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' WIB');
-    }, 1000);
-
     if (typeof window !== 'undefined' && window.location.search) {
       const qParams = new URLSearchParams(window.location.search);
       const tabQ = qParams.get('tab') || qParams.get('page');
@@ -678,7 +675,6 @@ function CommandCenterContent({
     if (!dataLoadedRef.current) {
       loadData();
     }
-    return () => clearInterval(timer);
   }, [roleParam, nrpParam]);
 
   useEffect(() => {
@@ -759,36 +755,25 @@ function CommandCenterContent({
       ? 'SELESAI'
       : s === 'MENUNGGU_PENGESAHAN'
       ? 'MENUNGGU_PENGESAHAN'
-      : s === 'TIBA_DI_TKP' || s === 'PENANGANAN_TKP'
-      ? 'TIBA_DI_TKP'
-      : s === 'MENUJU_TKP'
-      ? 'MENUJU_TKP'
-      : s === 'DISPOSISI' || s === 'DIPROSES' || s === 'SEDANG_DITANGANI'
-      ? 'SEDANG_DITANGANI'
-      : 'BELUM_DITANGANI';
+      : s === 'DIPROSES'
+      ? 'DIPROSES'
+      : 'MENUNGGU';
 
     const dbItem = dbStatuses.find(
-      (item) => item.key?.toUpperCase() === targetKey || item.key?.toUpperCase() === s
+      (item) => item.key?.toUpperCase() === targetKey
     );
 
-    // Modern polished design-system palette for statuses (pure CSS, no DB dependency)
     const statusTheme: Record<string, { bg: string; color: string; border: string }> = {
       DITOLAK: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
       SELESAI: { bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' },
-      MENUNGGU_PENGESAHAN: { bg: '#FEF2F2', color: '#B91C1C', border: '#FECACA' },
-      TIBA_DI_TKP: { bg: '#ECFDF5', color: '#10B981', border: '#D1FAE5' },
-      MENUJU_TKP: { bg: '#F5F3FF', color: '#7C3AED', border: '#DDD6FE' },
-      SEDANG_DITANGANI: { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
-      DISPOSISI: { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
-      BELUM_DITANGANI: { bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
+      MENUNGGU_PENGESAHAN: { bg: '#FAF5FF', color: '#7C3AED', border: '#DDD6FE' },
+      DIPROSES: { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
       MENUNGGU: { bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
     };
 
     const resolvedKey = dbItem ? dbItem.key.toUpperCase() : targetKey;
     const theme = statusTheme[resolvedKey] || { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' };
-
-    const rawLabel = dbItem?.label || resolvedKey;
-    const cleanLabel = rawLabel.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() || rawLabel;
+    const cleanLabel = dbItem?.label || (resolvedKey === 'DIPROSES' ? 'Sedang Ditangani' : resolvedKey === 'MENUNGGU' ? 'Menunggu Disposisi' : resolvedKey);
 
     return {
       id: dbItem?.id ?? 0,
@@ -807,15 +792,13 @@ function CommandCenterContent({
     const isRejected = isComplaintRejected(c);
     const meta = resolveComplaintStatus(c?.status, isRejected);
     const stUpper = status.toUpperCase().trim();
-    const stLower = status.toLowerCase().trim();
 
-    if (stUpper === meta.key || stLower === meta.key.toLowerCase()) return true;
-
-    if (stLower === 'diproses' || stLower === 'sedang_ditangani') {
-      return ['SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI', 'MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP'].includes(meta.key);
+    if (stUpper === meta.key) return true;
+    if (stUpper === 'DIPROSES') {
+      return meta.key === 'DIPROSES';
     }
-    if (stLower === 'menunggu' || stLower === 'belum_ditangani') {
-      return ['BELUM_DITANGANI', 'MENUNGGU'].includes(meta.key);
+    if (stUpper === 'MENUNGGU') {
+      return meta.key === 'MENUNGGU';
     }
     return false;
   };
@@ -1219,7 +1202,7 @@ function CommandCenterContent({
         showFriendlyToast(
           'success',
           'Disposisi Taktis Berhasil Diterbitkan',
-          `Tiket #${selectedDisposisiItem.nomorTiket} telah ditugaskan ke ${chosenArmadas.map((a) => a.namaSingkat).join(' & ')}. Personel segera meluncur ke TKP.`
+          `Tiket ${selectedDisposisiItem.nomorTiket} telah ditugaskan ke ${chosenArmadas.map((a) => a.namaSingkat).join(' & ')}. Personel segera meluncur ke TKP.`
         );
         setSuksesDisposisiData({
           nomorTiket: selectedDisposisiItem.nomorTiket,
@@ -1235,7 +1218,7 @@ function CommandCenterContent({
         setValFilterStatus('sedang_ditangani');
         setSelectedValComplaint({
           ...selectedDisposisiItem,
-          status: 'MENUJU_TKP',
+          status: 'DIPROSES',
           tahap: 3,
           disposisi_at: new Date().toISOString(),
         });
@@ -1365,7 +1348,7 @@ function CommandCenterContent({
         pawasUserId: activePawasId,
       });
       if (res.success) {
-        showFriendlyToast('success', 'Kasus Resmi Disahkan & Ditutup', `Tiket #${complaint.nomorTiket || complaint.id} resmi disahkan & berstatus SELESAI.`);
+        showFriendlyToast('success', 'Kasus Resmi Disahkan & Ditutup', `Tiket ${complaint.nomorTiket || complaint.id} resmi disahkan & berstatus SELESAI.`);
         await loadData();
         setValFilterStatus('selesai');
         setSelectedValComplaint({
@@ -1465,8 +1448,8 @@ function CommandCenterContent({
   const highPriorityIncident =
     antreanPawas.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI') ||
     antreanPawas[0] ||
-    activeUnfinishedComplaints.find((c) => c.urgensi === 'DARURAT' || c.urgensi === 'PRIORITAS_TINGGI' || (c.platformKey || '').toLowerCase().includes('sos')) ||
-    activeUnfinishedComplaints.find((c) => ['MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'SEDANG_DITANGANI', 'DIPROSES', 'DISPOSISI', 'MENUNGGU_PENGESAHAN'].includes(c.status)) ||
+    activeUnfinishedComplaints.find((c) => c.urgensi === 'DARURAT' || (c.platformKey || '').toLowerCase().includes('sos')) ||
+    activeUnfinishedComplaints[0] ||
     null;
 
   const filteredValidasiComplaints = filterComplaintList(

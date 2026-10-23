@@ -20,7 +20,7 @@ import {
   getMasterFilterOptionsAction,
 } from '@/app/actions/complaint.actions';
 
-interface DemoLog {
+export interface CitizenTrackingData {
   id: number;
   nomorTiket: string;
   title: string;
@@ -95,7 +95,7 @@ export default function PortalWargaPage() {
 
   // Tracking State
   const [ticketInput, setTicketInput] = useState('');
-  const [currentActiveLog, setCurrentActiveLog] = useState<DemoLog | null>(null);
+  const [currentActiveLog, setCurrentActiveLog] = useState<CitizenTrackingData | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
   // Survey Rating State
@@ -159,14 +159,16 @@ export default function PortalWargaPage() {
   const [successModal, setSuccessModal] = useState<{
     open: boolean;
     nomorTiket: string;
+    trackingToken?: string;
     kategori: string;
     pelapor: string;
     lokasi: string;
     waktu: string;
-    newLog: DemoLog | null;
+    newLog: CitizenTrackingData | null;
   }>({
     open: false,
     nomorTiket: '',
+    trackingToken: '',
     kategori: '',
     pelapor: '',
     lokasi: '',
@@ -466,20 +468,20 @@ export default function PortalWargaPage() {
       console.warn('Backend sync warning:', e);
     }
 
-    const newLog: DemoLog = {
+    const newLog: CitizenTrackingData = {
       id: Date.now(),
       nomorTiket: noTiket,
       title: '🚨 Peringatan SOS: Sinyal Bahaya Darurat Warga Terkunci GPS',
       jenisInsiden: 'Peringatan Darurat SOS 110',
       kategoriInsiden: 'Kamtibmas',
-      kategoriBadge: '💥 Kamtibmas & Tawuran',
+      kategoriBadge: '💥 Darurat SOS',
       nama: 'Warga Pelapor (Tombol SOS Darurat)',
       nrp: '-',
       status: 'diproses',
       statusText: 'Sedang Diproses',
       tahap: 2,
       waktu: waktu,
-      sektor: 'Sektor Pusat',
+      sektor: '-',
       lokasiKejadian: `Kawasan Presisi (Live Satelit GPS: ${gpsCoords})`,
       sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
       deskripsi: 'Aktivasi Tombol Darurat SOS Presisi: Warga membutuhkan bantuan polisi segera di lokasi. Koordinat satelit GPS telah terkunci real-time.',
@@ -528,6 +530,7 @@ export default function PortalWargaPage() {
     const uraianVal = uraian.trim();
     const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
     let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    let trackingToken = '';
 
     const finalLat = lat || 0;
     const finalLng = lng || 0;
@@ -536,8 +539,7 @@ export default function PortalWargaPage() {
       const dbRes = await createComplaintAction({
         pelaporNama: namaVal,
         pelaporHp: telpVal,
-        jenisKejadian: kategori || 'Pengaduan Warga',
-        kategoriKey: kategori,
+        jenisKejadian: kategori,
         subcategoryId: subcategoryId,
         platformKey: 'warga',
         urgensi: 'NORMAL',
@@ -549,6 +551,7 @@ export default function PortalWargaPage() {
       });
       if (dbRes.success && dbRes.data?.nomorTiket) {
         noTiket = dbRes.data.nomorTiket;
+        trackingToken = (dbRes.data as any).trackingToken || '';
       } else {
         showFriendlyToast('error', 'Gagal Mengirim Pengaduan', dbRes.error || 'Terjadi kendala pada pangkalan data.');
         return;
@@ -561,7 +564,7 @@ export default function PortalWargaPage() {
       setIsSubmitting(false);
     }
 
-    const newLog: DemoLog = {
+    const newLog: CitizenTrackingData = {
       id: Date.now(),
       nomorTiket: noTiket,
       title: kategori,
@@ -574,9 +577,9 @@ export default function PortalWargaPage() {
       statusText: 'Sedang Diproses',
       tahap: 1,
       waktu: waktu,
-      sektor: 'Jakarta Pusat',
+      sektor: '-',
       lokasiKejadian: lokasiVal,
-      sumberLaporan: '📱 Portal Presisi Warga Online',
+      sumberLaporan: '📱 Portal Presisi 110',
       deskripsi: uraianVal,
       koordinatGps: gpsCoords,
       fotoPengaduan: fotoBukti || '',
@@ -594,6 +597,7 @@ export default function PortalWargaPage() {
     setSuccessModal({
       open: true,
       nomorTiket: noTiket,
+      trackingToken,
       kategori: kategori,
       pelapor: namaVal,
       lokasi: lokasiVal,
@@ -616,7 +620,7 @@ export default function PortalWargaPage() {
     }
 
     setIsSearching(true);
-    let found: DemoLog | undefined = undefined;
+    let found: CitizenTrackingData | undefined = undefined;
 
     // 1. Prioritaskan Lookup Database MySQL Resmi Langsung
     try {
@@ -629,31 +633,19 @@ export default function PortalWargaPage() {
         const dispatchesList = dbItem.dispatches || [];
         const primaryDispatch = dispatchesList.find((d: any) => d.is_primary_unit) || dispatchesList[0] || null;
 
-        // Nama Satuan
+        // Nama Satuan murni dari relasi database
         const satuanNama =
-          primaryDispatch?.unit?.unit_name ||
-          primaryDispatch?.unit?.short_name ||
-          dbItem.subcategory?.unit_rel?.unit_name ||
-          (dispatchesList.length > 0 ? 'Satuan Samapta Presisi' : 'Satuan Tugas Lapangan');
+          primaryDispatch?.unit?.unit_name;
 
         // Komandan / Petugas Utama
         const komandanNama =
-          primaryDispatch?.officer?.user?.full_name ||
-          primaryDispatch?.officer?.user?.fullName ||
-          dbItem.assignedOfficer?.namaLengkap ||
-          dbItem.assignedOfficer?.user?.fullName ||
-          primaryDispatch?.officer_nama ||
-          (dbItem.tahap >= 2 ? 'Petugas Presisi Lapangan' : '-');
+          primaryDispatch?.officer?.user?.full_name;
 
         const pangkatPetugas =
-          primaryDispatch?.officer?.rank_pangkat ||
-          dbItem.assignedOfficer?.rankPangkat ||
-          '';
+          primaryDispatch?.officer?.rank_pangkat;
 
         const nrpPetugas =
-          primaryDispatch?.officer?.nrp ||
-          dbItem.assignedOfficer?.nrp ||
-          '-';
+          primaryDispatch?.officer?.nrp;
 
         const komandanLengkap = pangkatPetugas && komandanNama !== '-'
           ? `${pangkatPetugas} ${komandanNama}`
@@ -661,15 +653,15 @@ export default function PortalWargaPage() {
 
         // Daftar semua personel yang terdisposisi
         const acceptedPersonels = dispatchesList.map((d: any) => ({
-          nama: d.officer?.user?.full_name || d.officer?.user?.fullName || d.officer_nama || 'Petugas Lapangan',
-          pangkat: d.officer?.rank_pangkat || '',
-          nrp: d.officer?.nrp || '',
+          nama: d.officer?.user?.full_name,
+          pangkat: d.officer?.rank_pangkat,
+          nrp: d.officer?.nrp,
         }));
 
         // Waktu-waktu riil tahapan (WIB / Asia/Jakarta)
         const waktuDibuat = dbItem.createdAt
           ? new Date(dbItem.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-          : '17:55 WIB';
+          : '-';
 
         const waktuMeluncur = dbItem.waktuMeluncur || (primaryDispatch?.departed_at
           ? new Date(primaryDispatch.departed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
@@ -683,81 +675,57 @@ export default function PortalWargaPage() {
           ? new Date(primaryDispatch.completed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
           : null);
 
-        // Catatan tindakan & berita acara penyelesaian
+        // Catatan tindakan & berita acara penyelesaian dengan standardized audit log keys
         const deskripsiTindakan =
           dbItem.catatanTindakan ||
-          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => l.action?.includes('Tindakan') && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
-          (dbItem.tahap >= 4 ? 'Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.' : '-');
+          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => (l.action === 'REPORT_SUBMITTED' || l.action === 'DOKUMENTASI_TKP_FLAGGED') && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
+          '-';
 
         const catatanSelesai =
           dbItem.catatanSelesai ||
-          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => (l.action?.includes('Selesai') || l.action?.includes('BAP')) && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
-          (isDone ? 'Kasus telah tuntas diselesaikan oleh petugas dan Berita Acara Penanganan telah disahkan oleh Perwira Pengawas (Pawas).' : '-');
+          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => l.action === 'COMPLAINT_COMPLETED' && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
+          '-';
 
-        // Foto-foto bukti penanganan
-        const evidencesList = dbItem.evidences || [];
-        const fotoPengaduan =
-          dbItem.fotoBuktiUrl ||
-          dbItem.fotoTkpUrl ||
-          evidencesList.find((e: any) => e.incident_phase === 'LAPORAN_AWAL' || e.caption?.toLowerCase().includes('laporan'))?.file_url ||
-          '';
+        const fotoPengaduan = dbItem.fotoBuktiUrl;
 
-        const fotoPersiapan =
-          dbItem.fotoPersiapan ||
-          evidencesList.find((e: any) => e.incident_phase === 'MENUJU_TKP' || e.caption?.includes('Meluncur') || e.caption?.includes('Persiapan'))?.file_url ||
-          '';
 
-        const fotoTindakan =
-          dbItem.fotoTindakan ||
-          dbItem.fotoTiba ||
-          evidencesList.find((e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN' || e.caption?.includes('Tindakan'))?.file_url ||
-          '';
-
-        const fotoSelesai =
-          dbItem.fotoSelesai ||
-          evidencesList.find((e: any) => e.incident_phase === 'SELESAI_KONDUSIF' || e.incident_phase === 'SELESAI' || e.caption?.includes('Kondusif') || e.caption?.includes('BAP'))?.file_url ||
-          '';
-
-        const koordinatGps = dbItem.koordinatGps || `${dbItem.tkpLat || 0}, ${dbItem.tkpLng || 0}`;
+        const koordinatGps = dbItem.koordinatGps || (dbItem.tkpLat && dbItem.tkpLng ? `${dbItem.tkpLat}, ${dbItem.tkpLng}` : '-');
 
         found = {
           id: Number(dbItem.id || Date.now()),
           nomorTiket: dbItem.nomorTiket,
-          title: dbItem.jenisKejadian,
-          jenisInsiden: dbItem.jenisKejadian,
-          kategoriInsiden: dbItem.jenisKejadian,
-          kategoriBadge: '📱 Portal Warga (Database)',
+          title: dbItem.jenisKejadian || 'Laporan Warga',
+          jenisInsiden: dbItem.jenisKejadian || '-',
+          kategoriInsiden: dbItem.subcategory?.name || dbItem.jenisKejadian || '-',
+          kategoriBadge: dbItem.channel || 'SIMOPMAS 110',
           nama: komandanLengkap,
           nrp: nrpPetugas,
           status: isDone ? 'selesai' : 'diproses',
           statusText: isDone ? 'Kasus Selesai' : 'Sedang Diproses',
           tahap: isDone
             ? 5
-            : ['TIBA_DI_TKP', 'PENANGANAN_TKP', 'DI_TKP'].includes(dbItem.status)
-            ? 4
-            : dbItem.status === 'BELUM_DITANGANI' || dbItem.status === 'MENUNGGU'
-            ? 2
+            : (dbItem.tahap && Number(dbItem.tahap) >= 1)
+            ? Number(dbItem.tahap)
+            : dbItem.status === 'MENUNGGU'
+            ? 1
             : 3,
           waktu: waktuDibuat,
           waktuMeluncur: waktuMeluncur || undefined,
           waktuTiba: waktuTiba || undefined,
           waktuSelesai: waktuSelesai || undefined,
-          sektor: 'Sektor Pusat Presisi',
+          sektor: dbItem.wilayah?.nama || dbItem.subcategory?.unit_rel?.unit_name || '-',
           lokasiKejadian: dbItem.tkpAlamatTeks || '-',
-          sumberLaporan: '📱 Portal SIMOPMAS 110',
+          sumberLaporan: dbItem.channel || 'Portal SIMOPMAS 110',
           deskripsi: dbItem.ringkasanKeterangan || '-',
           deskripsiTindakan: deskripsiTindakan,
           catatanSelesai: catatanSelesai,
           koordinatGps: koordinatGps,
           fotoPengaduan: fotoPengaduan,
-          fotoPersiapan: fotoPersiapan,
-          fotoTindakan: fotoTindakan,
-          fotoSelesai: fotoSelesai,
           disposisi: {
             satuan: satuanNama,
             komandan: komandanLengkap,
-            estimasiJarak: primaryDispatch?.estimated_distance || '1.9 km',
-            estimasiEta: primaryDispatch?.estimated_eta || '± 4 Menit',
+            estimasiJarak: primaryDispatch?.estimated_distance || '-',
+            estimasiEta: primaryDispatch?.estimated_eta || '-',
           },
           acceptedPersonels: acceptedPersonels,
           ratingKepuasan: dbItem.citizenRating
@@ -765,7 +733,7 @@ export default function PortalWargaPage() {
                 skor: dbItem.citizenRating,
                 tags: dbItem.citizenTags ? dbItem.citizenTags.split(', ') : [],
                 ulasan: dbItem.citizenReview || '',
-                waktu: 'Hari ini',
+                waktu: dbItem.updatedAt ? new Date(dbItem.updatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB' : '-',
                 sudahDinilai: true,
               }
             : null,
@@ -1866,7 +1834,7 @@ export default function PortalWargaPage() {
                   <div className="ticket-row">
                     <span className="ticket-label">Personel Ditugaskan</span>
                     <span className="ticket-value" id="th-petugas">
-                      <strong>{currentActiveLog.disposisi?.satuan || 'Satuan Patroli Presisi'}</strong>
+                      <strong>{currentActiveLog.disposisi?.satuan || '-'}</strong>
                       {currentActiveLog.disposisi?.komandan && currentActiveLog.disposisi.komandan !== '-' ? (
                         <> ({currentActiveLog.disposisi.komandan})</>
                       ) : currentActiveLog.nama && currentActiveLog.nama !== '-' ? (
@@ -1985,7 +1953,7 @@ export default function PortalWargaPage() {
                           <div style={{ fontSize: '32px', marginBottom: '6px' }}>🛰️</div>
                           <div style={{ fontSize: '13px', fontWeight: 800 }}>Radar GPS Satelit Presisi Terkunci</div>
                           <div style={{ fontSize: '11px', color: '#93C5FD', marginTop: '2px' }}>
-                            {currentActiveLog.disposisi?.satuan || 'Unit Samapta Presisi'} • Meluncur ke Titik Aduan
+                            {currentActiveLog.disposisi?.satuan || 'Satuan Tugas Lapangan'} • Meluncur ke Titik Aduan
                           </div>
                         </div>
                         <div className="map-overlay">
@@ -2032,7 +2000,7 @@ export default function PortalWargaPage() {
                         <strong>Berita Acara Tindakan:</strong>
                         <br />
                         <span id="step-4-quote-text">
-                          {currentActiveLog.deskripsiTindakan || 'Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.'}
+                          {currentActiveLog.deskripsiTindakan && currentActiveLog.deskripsiTindakan !== '-' ? currentActiveLog.deskripsiTindakan : 'Personel telah tiba di lokasi dan melaksanakan penanganan.'}
                         </span>
                       </div>
                       <div style={{ marginTop: '6px' }}>
@@ -2054,7 +2022,7 @@ export default function PortalWargaPage() {
                     <div className="step-content">
                       <div className="step-title">5. Kasus Selesai &amp; Berita Acara Disahkan</div>
                       <div className="step-desc" id="step-5-desc">
-                        {currentActiveLog.catatanSelesai || 'Kasus telah tuntas diselesaikan oleh petugas dan Berita Acara Penanganan telah disahkan oleh Perwira Pengawas (Pawas).'}
+                        {currentActiveLog.catatanSelesai && currentActiveLog.catatanSelesai !== '-' ? currentActiveLog.catatanSelesai : 'Kasus telah tuntas diselesaikan oleh petugas dan Berita Acara Penanganan telah disahkan oleh Perwira Pengawas (Pawas).'}
                       </div>
                       <div className="step-time" id="step-5-time">
                         {currentActiveLog.waktuSelesai || '-'}
@@ -2509,6 +2477,26 @@ export default function PortalWargaPage() {
                 </div>
               </div>
 
+              {/* Indikator Notifikasi WhatsApp */}
+              <div
+                style={{
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: '10px',
+                  padding: '9px 12px',
+                  fontSize: '11.5px',
+                  color: '#166534',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontSize: '15px' }}>💬</span>
+                <span>
+                  Tautan radar pelacakan resmi juga dikirimkan secara otomatis ke nomor <strong>WhatsApp</strong> Anda.
+                </span>
+              </div>
+
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button
@@ -2558,7 +2546,7 @@ export default function PortalWargaPage() {
 
               {/* Dedicated Button ke Halaman Radar Taktis Baru */}
               <a
-                href={`/tracking?tiket=${encodeURIComponent(successModal.nomorTiket)}`}
+                href={`/tracking?tiket=${encodeURIComponent(successModal.nomorTiket)}${successModal.trackingToken ? `&token=${encodeURIComponent(successModal.trackingToken)}` : ''}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{

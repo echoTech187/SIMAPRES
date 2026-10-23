@@ -12,6 +12,22 @@ interface MiniMapPickerProps {
   fallbackCenter?: { lat: number; lng: number };
 }
 
+// Default coordinates for Mako Polres Pekalongan / Area Operasional Presisi
+const DEFAULT_CENTER = { lat: -7.026803, lng: 109.592982 };
+
+export const isValidMapCoord = (cLat?: any, cLng?: any): boolean => {
+  if (cLat === null || cLat === undefined || cLng === null || cLng === undefined) return false;
+  const nLat = Number(cLat);
+  const nLng = Number(cLng);
+  return (
+    !isNaN(nLat) &&
+    !isNaN(nLng) &&
+    (nLat !== 0 || nLng !== 0) &&
+    Math.abs(nLat) <= 80 &&
+    Math.abs(nLng) <= 180
+  );
+};
+
 export default function MiniMapPicker({
   lat,
   lng,
@@ -27,7 +43,7 @@ export default function MiniMapPicker({
 
   const geocodeLatLng = useCallback(
     async (targetLat: number, targetLng: number, mapsInstance?: any) => {
-      if (!onAddressChange) return;
+      if (!onAddressChange || !isValidMapCoord(targetLat, targetLng)) return;
       let resolved = false;
       const maps = mapsInstance || mapsRef.current;
 
@@ -77,21 +93,25 @@ export default function MiniMapPicker({
 
   useEffect(() => {
     let isSubscribed = true;
+    let resizeObserver: ResizeObserver | null = null;
+    let t1: NodeJS.Timeout | null = null;
+    let t2: NodeJS.Timeout | null = null;
+    let t3: NodeJS.Timeout | null = null;
 
     loadGoogleMaps().then((maps) => {
       if (!isSubscribed || !maps || !containerRef.current) return;
       mapsRef.current = maps;
 
-      const hasCoords = typeof lat === 'number' && typeof lng === 'number' && (lat !== 0 || lng !== 0);
+      const hasCoords = isValidMapCoord(lat, lng);
       const initialCenter = hasCoords
-        ? { lat, lng }
-        : (fallbackCenter && fallbackCenter.lat && fallbackCenter.lng
-          ? fallbackCenter
-          : null);
+        ? { lat: Number(lat), lng: Number(lng) }
+        : (isValidMapCoord(fallbackCenter?.lat, fallbackCenter?.lng)
+          ? { lat: Number(fallbackCenter!.lat), lng: Number(fallbackCenter!.lng) }
+          : DEFAULT_CENTER);
 
       const map = new maps.Map(containerRef.current, {
-        center: initialCenter || undefined,
-        zoom: hasCoords ? 15 : 12,
+        center: initialCenter,
+        zoom: hasCoords ? 15 : 13,
         disableDefaultUI: false,
         zoomControl: true,
         streetViewControl: false,
@@ -101,10 +121,34 @@ export default function MiniMapPicker({
       });
       mapRef.current = map;
 
+      // Auto-trigger resize saat peta dimuat di container fullscreen / modal
+      const triggerResize = () => {
+        if (mapRef.current && maps) {
+          maps.event.trigger(mapRef.current, 'resize');
+        }
+      };
+
+      t1 = setTimeout(triggerResize, 80);
+      t2 = setTimeout(triggerResize, 250);
+      t3 = setTimeout(triggerResize, 600);
+
+      if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+        resizeObserver = new ResizeObserver(() => {
+          triggerResize();
+        });
+        resizeObserver.observe(containerRef.current);
+      }
+
       const setOrUpdateMarker = (pos: any) => {
+        const pLat = typeof pos.lat === 'function' ? pos.lat() : pos.lat;
+        const pLng = typeof pos.lng === 'function' ? pos.lng() : pos.lng;
+        if (!isValidMapCoord(pLat, pLng)) return;
+
+        const normalizedPos = { lat: Number(pLat), lng: Number(pLng) };
+
         if (!markerRef.current) {
           const marker = new maps.Marker({
-            position: pos,
+            position: normalizedPos,
             map,
             draggable: true,
             animation: maps.Animation.DROP,
@@ -114,26 +158,29 @@ export default function MiniMapPicker({
             const draggedPos = e.latLng;
             const newLat = Number(draggedPos.lat().toFixed(6));
             const newLng = Number(draggedPos.lng().toFixed(6));
-            onChange(newLat, newLng);
-            geocodeLatLng(newLat, newLng, maps);
+            if (isValidMapCoord(newLat, newLng)) {
+              onChange(newLat, newLng);
+              geocodeLatLng(newLat, newLng, maps);
+            }
           });
           markerRef.current = marker;
         } else {
-          markerRef.current.setPosition(pos);
+          markerRef.current.setPosition(normalizedPos);
           markerRef.current.setMap(map);
         }
       };
 
       if (hasCoords) {
-        setOrUpdateMarker({ lat, lng });
+        setOrUpdateMarker({ lat: Number(lat), lng: Number(lng) });
       } else if (typeof window !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            if (mapRef.current && (!lat || !lng)) {
-              mapRef.current.panTo({
-                lat: pos.coords.latitude,
-                lng: pos.coords.longitude,
-              });
+            if (mapRef.current && !isValidMapCoord(lat, lng)) {
+              const curLat = Number(pos.coords.latitude.toFixed(6));
+              const curLng = Number(pos.coords.longitude.toFixed(6));
+              if (isValidMapCoord(curLat, curLng)) {
+                mapRef.current.panTo({ lat: curLat, lng: curLng });
+              }
             }
           },
           () => {}
@@ -158,9 +205,10 @@ export default function MiniMapPicker({
       // Event click on map
       map.addListener('click', (e: any) => {
         const clickedPos = e.latLng;
-        setOrUpdateMarker(clickedPos);
         const newLat = Number(clickedPos.lat().toFixed(6));
         const newLng = Number(clickedPos.lng().toFixed(6));
+        if (!isValidMapCoord(newLat, newLng)) return;
+        setOrUpdateMarker(clickedPos);
         onChange(newLat, newLng);
         geocodeLatLng(newLat, newLng, maps);
       });
@@ -168,11 +216,19 @@ export default function MiniMapPicker({
       return () => {
         if (dismissInterval) clearInterval(dismissInterval);
         clearTimeout(dismissStopTimeout);
+        if (t1) clearTimeout(t1);
+        if (t2) clearTimeout(t2);
+        if (t3) clearTimeout(t3);
+        if (resizeObserver) resizeObserver.disconnect();
       };
     });
 
     return () => {
       isSubscribed = false;
+      if (t1) clearTimeout(t1);
+      if (t2) clearTimeout(t2);
+      if (t3) clearTimeout(t3);
+      if (resizeObserver) resizeObserver.disconnect();
       if (markerRef.current) {
         markerRef.current.setMap(null);
       }
@@ -183,8 +239,8 @@ export default function MiniMapPicker({
   useEffect(() => {
     if (mapRef.current && (window as any).google?.maps) {
       const maps = (window as any).google.maps;
-      if (typeof lat === 'number' && typeof lng === 'number' && (lat !== 0 || lng !== 0)) {
-        const pos = { lat, lng };
+      if (isValidMapCoord(lat, lng)) {
+        const pos = { lat: Number(lat), lng: Number(lng) };
         if (markerRef.current) {
           markerRef.current.setPosition(pos);
           markerRef.current.setMap(mapRef.current);
@@ -200,8 +256,10 @@ export default function MiniMapPicker({
             const draggedPos = e.latLng;
             const newLat = Number(draggedPos.lat().toFixed(6));
             const newLng = Number(draggedPos.lng().toFixed(6));
-            onChange(newLat, newLng);
-            geocodeLatLng(newLat, newLng, maps);
+            if (isValidMapCoord(newLat, newLng)) {
+              onChange(newLat, newLng);
+              geocodeLatLng(newLat, newLng, maps);
+            }
           });
           markerRef.current = marker;
         }
@@ -219,6 +277,8 @@ export default function MiniMapPicker({
       navigator.geolocation.getCurrentPosition((pos) => {
         const curLat = Number(pos.coords.latitude.toFixed(6));
         const curLng = Number(pos.coords.longitude.toFixed(6));
+        if (!isValidMapCoord(curLat, curLng)) return;
+
         onChange(curLat, curLng);
         if (mapRef.current) {
           mapRef.current.panTo({ lat: curLat, lng: curLng });
@@ -236,8 +296,10 @@ export default function MiniMapPicker({
                 const draggedPos = e.latLng;
                 const newLat = Number(draggedPos.lat().toFixed(6));
                 const newLng = Number(draggedPos.lng().toFixed(6));
-                onChange(newLat, newLng);
-                geocodeLatLng(newLat, newLng, mapsRef.current);
+                if (isValidMapCoord(newLat, newLng)) {
+                  onChange(newLat, newLng);
+                  geocodeLatLng(newLat, newLng, mapsRef.current);
+                }
               });
               markerRef.current = marker;
             } else {
@@ -251,7 +313,7 @@ export default function MiniMapPicker({
     }
   };
 
-  const hasSelectedCoords = Boolean(typeof lat === 'number' && typeof lng === 'number' && (lat !== 0 || lng !== 0));
+  const hasSelectedCoords = isValidMapCoord(lat, lng);
 
   return (
     <div style={{ position: 'relative', width: '100%', height, borderRadius: '8px', overflow: 'hidden', border: '1px solid #CBD5E1' }}>

@@ -7,21 +7,15 @@ export type UrgensiLevel = 'DARURAT' | 'SEDANG' | 'NORMAL';
 
 export type ComplaintStatus =
   | 'MENUNGGU'
-  | 'DISPOSISI'
-  | 'MENUJU_TKP'
-  | 'TIBA_DI_TKP'
+  | 'DIPROSES'
   | 'MENUNGGU_PENGESAHAN'
   | 'SELESAI'
   | 'DITOLAK'
-  // Backward compatibility:
-  | 'BELUM_DITANGANI'
-  | 'PENANGANAN_TKP'
-  | 'DIPROSES'
-  | 'DIBATALKAN'
   | string;
 
 export interface TimelineStep {
   tahapKe: number;
+  actionKey?: string;
   tahapTitle: string;
   catatan?: string | null;
   fotoBuktiUrl?: string | null;
@@ -334,7 +328,7 @@ export class ComplaintEntity {
    * Disposisi oleh Pawas / Pimpinan (Fase 2)
    */
   public disposisiKePetugas(officerId: bigint, pawasId: bigint): void {
-    if (this.props.status !== 'BELUM_DITANGANI' && this.props.status !== 'MENUNGGU') {
+    if (this.props.status !== 'MENUNGGU' && (this.props.status as string) !== 'BELUM_DITANGANI') {
       throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status antrean verifikasi.`);
     }
     this.props.status = 'DIPROSES';
@@ -347,16 +341,17 @@ export class ComplaintEntity {
    * Personel Mengkonfirmasi Meluncur ke TKP (Fase 3 - Step 1)
    */
   public personilMeluncur(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
-    if (this.props.status !== 'DIPROSES' && this.props.status !== 'DISPOSISI' && this.props.status !== 'SEDANG_DITANGANI') {
+    if (this.props.status !== 'DIPROSES') {
       throw new Error(`Tiket ${this.props.nomorTiket} belum didisposisikan.`);
     }
-    this.props.status = 'MENUJU_TKP';
+    this.props.status = 'DIPROSES';
     this.props.tahap = 3;
     if (fotoBuktiUrl) {
       this.props.fotoPersiapan = fotoBuktiUrl;
     }
     this.props.timelines?.push({
       tahapKe: 1,
+      actionKey: 'OFFICER_DEPARTED',
       tahapTitle: 'Personel Meluncur ke TKP',
       catatan: catatan || null,
       fotoBuktiUrl,
@@ -406,7 +401,7 @@ export class ComplaintEntity {
       }
     }
 
-    if (this.props.status === 'TIBA_DI_TKP') {
+    if (this.props.status === 'DIPROSES' && (this.props.tahap ?? 0) >= 4) {
       // Jika personel sudah tercatat tiba di TKP (timestamp kedatangan sudah terkunci),
       // perbarui foto bukti tindakan & catatan laporan dan majukan ke tahap 5 / PENANGANAN_TKP
       if (fotoBuktiUrl) {
@@ -416,10 +411,11 @@ export class ComplaintEntity {
       if (catatan) {
         this.props.catatanTindakan = catatan;
       }
-      this.props.status = 'PENANGANAN_TKP';
+      this.props.status = 'DIPROSES';
       this.props.tahap = 5;
       this.props.timelines?.push({
         tahapKe: 2,
+        actionKey: 'OFFICER_ARRIVED',
         tahapTitle: formattedTitle,
         catatan: combinedNotes,
         fotoBuktiUrl,
@@ -435,16 +431,11 @@ export class ComplaintEntity {
       return;
     }
 
-    if (
-      this.props.status !== 'MENUJU_TKP' &&
-      this.props.status !== 'DIPROSES' &&
-      this.props.status !== 'DISPOSISI' &&
-      this.props.status !== 'SEDANG_DITANGANI'
-    ) {
-      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status perjalanan ke TKP.`);
+    if (this.props.status !== 'DIPROSES') {
+      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status penanganan perjalanan ke TKP.`);
     }
     const now = new Date();
-    this.props.status = 'TIBA_DI_TKP';
+    this.props.status = 'DIPROSES';
     this.props.tahap = 4;
     this.props.responTibaTkpAt = now;
     if (fotoBuktiUrl) {
@@ -463,6 +454,7 @@ export class ComplaintEntity {
 
     this.props.timelines?.push({
       tahapKe: 2,
+      actionKey: isDiscrepancy ? 'DOKUMENTASI_TKP_FLAGGED' : 'OFFICER_ARRIVED',
       tahapTitle: initialTitle,
       catatan: combinedNotes,
       fotoBuktiUrl,
@@ -517,7 +509,7 @@ export class ComplaintEntity {
       }
     }
 
-    this.props.status = 'PENANGANAN_TKP';
+    this.props.status = 'DIPROSES';
     this.props.tahap = 5;
     if (fotoBuktiUrl) {
       this.props.fotoTindakan = fotoBuktiUrl;
@@ -529,6 +521,7 @@ export class ComplaintEntity {
 
     this.props.timelines?.push({
       tahapKe: 2,
+      actionKey: 'REPORT_SUBMITTED',
       tahapTitle: formattedTitle,
       catatan: combinedNotes,
       fotoBuktiUrl,
@@ -558,17 +551,12 @@ export class ComplaintEntity {
       documentKey?: string | null;
       documentName?: string | null;
     },
-    evidencesList?: any[]
+    evidencesList?: any[],
+    lat?: number,
+    lng?: number
   ): void {
-    if (
-      this.props.status !== 'TIBA_DI_TKP' &&
-      this.props.status !== 'PENANGANAN_TKP' &&
-      this.props.status !== 'MENUJU_TKP' &&
-      this.props.status !== 'DIPROSES' &&
-      this.props.status !== 'DISPOSISI' &&
-      this.props.status !== 'SEDANG_DITANGANI'
-    ) {
-      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam penanganan.`);
+    if (this.props.status !== 'DIPROSES') {
+      throw new Error(`Tiket ${this.props.nomorTiket} tidak dalam status penanganan.`);
     }
     this.props.status = 'MENUNGGU_PENGESAHAN';
     this.props.tahap = 5;
@@ -625,10 +613,47 @@ export class ComplaintEntity {
 
     this.props.timelines?.push({
       tahapKe: 3,
+      actionKey: 'REPORT_SUBMITTED',
       tahapTitle,
       catatan: catatan || null,
       fotoBuktiUrl,
       evidences: evidencesList,
+      gpsLat: lat ?? this.props.tkpLat ?? null,
+      gpsLng: lng ?? this.props.tkpLng ?? null,
+      createdAt: new Date(),
+    });
+  }
+
+  /**
+   * Penanganan Tuntas Langsung oleh Personel di Lapangan (SOP Langsung Selesai)
+   */
+  public selesaikanKasusLangsung(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
+    this.props.status = 'SELESAI';
+    this.props.tahap = 5;
+    this.props.selesaiAt = new Date();
+    if (catatan) {
+      this.props.catatanSelesai = catatan;
+    }
+    if (fotoBuktiUrl) {
+      this.props.fotoSelesai = fotoBuktiUrl;
+    }
+    if (!this.props.waktuSelesai) {
+      this.props.waktuSelesai =
+        new Date().toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          timeZone: 'Asia/Jakarta',
+        }) + ' WIB';
+      this.props.waktuSelesaiDate = new Date();
+    }
+    this.props.timelines?.push({
+      tahapKe: 4,
+      actionKey: 'REPORT_SUBMITTED',
+      tahapTitle: 'Kasus Tuntas Selesai Ditangani Personil di Lapangan',
+      catatan: catatan || null,
+      fotoBuktiUrl,
+      gpsLat: lat,
+      gpsLng: lng,
       createdAt: new Date(),
     });
   }
@@ -636,7 +661,7 @@ export class ComplaintEntity {
   /**
    * Penanganan Tuntas & Pengesahan Kasus oleh Pawas (Fase 4 Selesai)
    */
-  public selesaikanKasus(catatan?: string, fotoBuktiUrl?: string): void {
+  public selesaikanKasus(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
     this.props.status = 'SELESAI';
     this.props.tahap = 5;
     this.props.selesaiAt = new Date();
@@ -645,9 +670,12 @@ export class ComplaintEntity {
     }
     this.props.timelines?.push({
       tahapKe: 4,
+      actionKey: 'COMPLAINT_COMPLETED',
       tahapTitle: 'Kasus Tuntas Selesai Ditangani & Berita Acara Disahkan Pawas',
       catatan: catatan || null,
       fotoBuktiUrl,
+      gpsLat: lat,
+      gpsLng: lng,
       createdAt: new Date(),
     });
   }

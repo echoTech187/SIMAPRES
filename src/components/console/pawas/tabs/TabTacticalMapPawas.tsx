@@ -66,12 +66,12 @@ export default function TabTacticalMapPawas({
   const picketUnitsList = fleetUnits || [];
   const patrolCount = picketUnitsList.filter((u) => u.status === 'PATROLI').length;
   const siagaCount = picketUnitsList.filter((u) => u.status === 'SIAGA').length;
-  const daruratCount = picketUnitsList.filter((u) => u.status === 'MENUJU_TKP' || u.status === 'DI_TKP').length;
+  const daruratCount = picketUnitsList.filter((u) => u.status === 'DARURAT').length;
 
   const filteredPicketList = picketUnitsList.filter((u) => {
     if (picketFilterCategory === 'PATROLI' && u.status !== 'PATROLI') return false;
     if (picketFilterCategory === 'SIAGA' && u.status !== 'SIAGA') return false;
-    if (picketFilterCategory === 'DARURAT' && u.status !== 'MENUJU_TKP' && u.status !== 'DI_TKP') return false;
+    if (picketFilterCategory === 'DARURAT' && u.status !== 'DARURAT') return false;
     if (picketSearch) {
       const q = picketSearch.toLowerCase();
       const matchName = (u.namaLengkap || u.title || '').toLowerCase().includes(q);
@@ -490,7 +490,7 @@ export default function TabTacticalMapPawas({
             filteredPicketList.map((unit) => {
               const isFocused = focusedUnitKey === unit.key;
               const isPatrol = unit.status === 'PATROLI';
-              const isTkp = unit.status === 'MENUJU_TKP' || unit.status === 'DI_TKP';
+              const isTkp = unit.status === 'DARURAT';
               const statusBadgeBg = isTkp ? 'rgba(239,68,68,0.2)' : isPatrol ? 'rgba(16,185,129,0.2)' : 'rgba(37,99,235,0.2)';
               const statusBadgeColor = isTkp ? '#F87171' : isPatrol ? '#34D399' : '#93C5FD';
               const statusBorder = isTkp ? 'rgba(239,68,68,0.4)' : isPatrol ? 'rgba(16,185,129,0.4)' : 'rgba(37,99,235,0.4)';

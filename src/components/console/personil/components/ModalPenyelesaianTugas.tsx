@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
   CheckCircle2,
   FileText,
-  Shield,
   X,
   Send,
   AlertCircle,
@@ -68,8 +67,8 @@ export default function ModalPenyelesaianTugas({
     try {
       const res = await fieldStepAction({
         complaintId: String(complaint.id),
-        step: 'selesai',
-        officerId: officer.id || '3',
+        step: 'COMPLETED',
+        officerId: officer.id,
         catatan: cleanText,
         lat: currentGps?.lat,
         lng: currentGps?.lng,
@@ -115,7 +114,7 @@ export default function ModalPenyelesaianTugas({
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs font-mono font-bold text-amber-300">
-                  #{complaint.nomorTiket?.replace(/^#+/, '')}
+                  {complaint.nomorTiket?.replace(/^#+/, '')}
                 </span>
                 <span className="text-slate-500">•</span>
                 <span className="text-xs text-slate-300 font-semibold truncate max-w-[200px]">

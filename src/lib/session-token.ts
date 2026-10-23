@@ -22,16 +22,30 @@ export const SESSION_MAX_AGE_SECONDS = 3600; // 1 hour (3600 seconds)
 
 const SECRET_KEY = process.env.SESSION_SECRET || 'simapres-presisi-110-secret-key-salt-2026';
 
-// Helper Web Crypto HMAC
-async function getCryptoKey(): Promise<CryptoKey> {
-  const enc = new TextEncoder();
-  return crypto.subtle.importKey(
-    'raw',
-    enc.encode(SECRET_KEY),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify']
-  );
+// Helper Web Crypto HMAC (key di-import sekali per proses, bukan per request)
+let cryptoKeyPromise: Promise<CryptoKey> | null = null;
+function getCryptoKey(): Promise<CryptoKey> {
+  if (!cryptoKeyPromise) {
+    cryptoKeyPromise = crypto.subtle
+      .importKey('raw', new TextEncoder().encode(SECRET_KEY), { name: 'HMAC', hash: 'SHA-256' }, false, [
+        'sign',
+        'verify',
+      ])
+      .catch((err) => {
+        cryptoKeyPromise = null;
+        throw err;
+      });
+  }
+  return cryptoKeyPromise;
+}
+
+function hexToBytes(hex: string): ArrayBuffer | null {
+  if (hex.length % 2 !== 0 || /[^0-9a-f]/i.test(hex)) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes.buffer;
 }
 
 function base64UrlEncode(str: string): string {
@@ -79,12 +93,12 @@ export async function verifySession(token: string, validateExpiry = true): Promi
     const [b64Payload, hexSig] = token.split('.');
     if (!b64Payload || !hexSig) return null;
 
-    const key = await getCryptoKey();
-    const enc = new TextEncoder();
-    const expectedSigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(b64Payload));
-    const expectedHex = bufferToHex(expectedSigBuf);
+    const sigBytes = hexToBytes(hexSig);
+    if (!sigBytes) return null;
 
-    if (hexSig !== expectedHex) {
+    const key = await getCryptoKey();
+    const isValid = await crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(b64Payload));
+    if (!isValid) {
       return null;
     }
 

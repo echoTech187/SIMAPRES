@@ -8,10 +8,10 @@ export interface OfficerProfile {
   jabatan: string;
   satuan: string;
   unit_id?: number | null;
-  unitId?: string;
+  unitId?: string | null;
   kendaraan: string;
   avatar: string | null;
-  kpi: number;
+  kpi?: number | null;
   deviceId?: string | null;
   stationId?: number | null;
   stationName?: string | null;
@@ -37,6 +37,8 @@ export interface ComplaintData {
   arahanPawas?: string;
   pelaporNama?: string;
   pelaporTelepon?: string;
+  pelaporHp?: string;
+  pelapor_hp?: string;
   disposisiAt?: string;
   waktuMeluncur?: string;
   waktuTibaTkp?: string;
@@ -107,13 +109,13 @@ export function computeWizardStepFromComplaint(complaint: any): number {
   const isTindakanDone = Boolean(
     status === 'SELESAI' ||
       status === 'MENUNGGU_PENGESAHAN' ||
-      status === 'PENANGANAN_TKP' ||
       Boolean(complaint.pengesahanPawas) ||
       Boolean(complaint.catatanTindakan) ||
       tahap >= 5 ||
       (complaint.timelines &&
         complaint.timelines.some(
           (t: any) =>
+            t.actionKey === 'REPORT_SUBMITTED' ||
             t.tahapTitle?.includes('Tindakan') ||
             t.tahapTitle?.includes('BAP') ||
             t.tahapTitle?.includes('Selesai')
@@ -121,6 +123,7 @@ export function computeWizardStepFromComplaint(complaint: any): number {
       (complaint.complaintLogs &&
         complaint.complaintLogs.some(
           (l: any) =>
+            l.action === 'REPORT_SUBMITTED' ||
             l.action?.includes('Tindakan') ||
             l.action?.includes('BAP') ||
             l.action === 'DOKUMENTASI_TKP_FLAGGED'
@@ -132,16 +135,21 @@ export function computeWizardStepFromComplaint(complaint: any): number {
   }
 
   const isTibaDone = Boolean(
-    status === 'TIBA_DI_TKP' ||
-      Boolean(complaint.waktuTibaTkp) ||
+    Boolean(complaint.waktuTibaTkp) ||
       tahap >= 4 ||
       (complaint.timelines &&
         complaint.timelines.some(
-          (t: any) => t.tahapTitle?.includes('Tiba') || t.tahapTitle?.includes('Lokasi')
+          (t: any) =>
+            t.actionKey === 'OFFICER_ARRIVED' ||
+            t.tahapTitle?.includes('Tiba') ||
+            t.tahapTitle?.includes('Lokasi')
         )) ||
       (complaint.complaintLogs &&
         complaint.complaintLogs.some(
-          (l: any) => l.action?.includes('TIBA') || l.action?.includes('Tiba')
+          (l: any) =>
+            l.action === 'OFFICER_ARRIVED' ||
+            l.action?.includes('TIBA') ||
+            l.action?.includes('Tiba')
         ))
   );
 
@@ -156,9 +164,9 @@ export function computeWizardStepFromComplaint(complaint: any): number {
 export function getTaskQuotaInfo(task: any, officerUnitId?: number | null) {
   if (!task) {
     return {
-      quota: 4,
+      quota: 0,
       acceptedCount: 0,
-      slotsRemaining: 4,
+      slotsRemaining: 0,
       isQuotaFull: false,
       acceptedOfficers: [],
       unitName: '',
@@ -186,10 +194,9 @@ export function getTaskQuotaInfo(task: any, officerUnitId?: number | null) {
     name:
       d.officer?.user?.full_name ||
       d.officer?.user?.nama_lengkap ||
-      d.officer?.rank_pangkat ||
-      'Petugas',
-    nrp: d.officer?.nrp || d.officer?.user?.identifier || '',
-    rank: d.officer?.rank_pangkat || 'Personil',
+      d.officer?.rank_pangkat,
+    nrp: d.officer?.nrp || d.officer?.user?.identifier ,
+    rank: d.officer?.rank_pangkat,
   }));
 
   return {
@@ -198,7 +205,7 @@ export function getTaskQuotaInfo(task: any, officerUnitId?: number | null) {
     slotsRemaining,
     isQuotaFull,
     acceptedOfficers,
-    unitName: unitDisp?.unit?.unit_name || unitDisp?.unit?.short_name || '',
+    unitName: unitDisp?.unit?.unit_name,
   };
 }
 
@@ -217,12 +224,7 @@ export function hasOfficerAcceptedTask(task: any, activeNrp: string, activeId: s
   if (acceptedInDispatches) return true;
 
   if (
-    task.assignedOfficer?.nrp === activeNrp &&
-    (task.status === 'SEDANG_DITANGANI' ||
-      task.status === 'MENUJU_TKP' ||
-      task.status === 'TIBA_DI_TKP' ||
-      task.status === 'PENANGANAN_TKP' ||
-      task.status === 'MENUNGGU_PENGESAHAN')
+    task.assignedOfficer?.nrp === activeNrp && task.status === 'DIPROSES'
   ) {
     return true;
   }
@@ -243,15 +245,22 @@ export function isTaskPendingAcceptance(
   const { isQuotaFull, slotsRemaining } = getTaskQuotaInfo(c, officerUnitId);
   if (isQuotaFull || slotsRemaining <= 0) return false;
 
-  if (c.status === 'DISPOSISI') return true;
-
   const dispatches = c.dispatches || [];
-  if (
-    dispatches.length > 0 &&
-    (c.status === 'SEDANG_DITANGANI' || c.status === 'DIPROSES' || c.status === 'MENUJU_TKP')
-  ) {
+  if (dispatches.length > 0 && (c.status === 'DIPROSES' || c.status === 'MENUNGGU')) {
     return true;
   }
 
   return false;
 }
+// Master Dispatch Status Keys (Presisi v3.3 - master_dispatch_statuses.key)
+// Digunakan untuk keamanan koding / type checking di editor (mencegah typo)
+export type DispatchStepAction =
+  | 'DISPATCHED'
+  | 'DEPARTED'
+  | 'ARRIVED'
+  | 'REPORT_SUBMITTED'
+  | 'COMPLETED';
+
+export type MasterDispatchStatusKey = DispatchStepAction;
+
+export { formatPhoneNumber, getCleanCallNumber } from '@/lib/format-phone';

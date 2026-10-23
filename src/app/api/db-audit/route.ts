@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/db/prisma.client';
+import { getSession } from '@/lib/session';
 
 export async function GET(request: Request) {
   try {
+    const session = await getSession();
+    if (!session || (session.role as string) !== 'SUPERADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Endpoint db-audit hanya dapat diakses oleh Superadmin.' },
+        { status: 401 }
+      );
+    }
+
     const url = new URL(request.url);
     const shouldFix = url.searchParams.get('fix') === 'true';
 
@@ -32,7 +41,11 @@ export async function GET(request: Request) {
         actionLower.includes('meluncur') ||
         actionLower.includes('tiba') ||
         actionLower.includes('tindakan') ||
-        actionLower.includes('diterima personil');
+        actionLower.includes('diterima personil') ||
+        log.action === 'OFFICER_DEPARTED' ||
+        log.action === 'OFFICER_ARRIVED' ||
+        log.action === 'REPORT_SUBMITTED' ||
+        log.action === 'DISPATCH_ACCEPTED';
 
       if (log.actor_role === 'PAWAS' && (isPersonilRank || isFieldAction)) {
         auditLogAnomalies.push({
@@ -101,14 +114,14 @@ export async function GET(request: Request) {
           expected_tahap: 5,
           issue: 'Status SELESAI tetapi tahap bukan 5',
         });
-      } else if (c.status === 'TIBA_DI_TKP' && c.tahap !== 4) {
+      } else if (!['MENUNGGU', 'DIPROSES', 'MENUNGGU_PENGESAHAN', 'SELESAI', 'DITOLAK'].includes(c.status)) {
         complaintAnomalies.push({
           id: c.id.toString(),
           nomor_tiket: c.nomor_tiket,
           status: c.status,
           tahap: c.tahap,
-          expected_tahap: 4,
-          issue: 'Status TIBA_DI_TKP tetapi tahap bukan 4',
+          expected_tahap: c.tahap,
+          issue: `Status '${c.status}' bukan status resmi master_complaint_statuses`,
         });
       }
     }

@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
-import { createComplaintAction, createComplaintAndBroadcastAction } from '@/app/actions/complaint.actions';
+import { createComplaintAndBroadcastAction, sendWhatsAppNotificationAction } from '@/app/actions/complaint.actions';
 import { PawasTab } from '../types';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
@@ -64,6 +64,23 @@ export default function TabOperatorCadPawas({
   const [broadcastModalData, setBroadcastModalData] = useState<any | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [showMapPickerCad, setShowMapPickerCad] = useState(false);
+  const [isSendingWa, setIsSendingWa] = useState(false);
+  const [waSendResult, setWaSendResult] = useState<{ success?: boolean; text?: string } | null>(null);
+
+  // Lock body scroll and trigger map canvas resize when fullscreen map opens
+  useEffect(() => {
+    if (showMapPickerCad) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      const resizeTimer = setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 150);
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        clearTimeout(resizeTimer);
+      };
+    }
+  }, [showMapPickerCad]);
 
   return (
     <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
@@ -130,7 +147,7 @@ export default function TabOperatorCadPawas({
               </div>
             )}
 
-            {/* Input Nomor Tiket Resmi (Format Baku Wallboard 110: #TICKET-0018xxxxxx) */}
+            {/* Input Nomor Tiket Resmi (Format Baku Wallboard 110: TICKET-0018xxxxxx) */}
             <div className="form-group" style={{ marginBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                 <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0, fontWeight: 700, color: '#153E75', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -251,7 +268,8 @@ export default function TabOperatorCadPawas({
                         ...simCaller,
                         subcategoryId: item.id,
                         kategori: item.nama_kasus,
-                        urgensi: (item.default_urgensi as any) || simCaller.urgensi || 'SEDANG',
+                        kategoriKey: item.category_key,
+                        urgensi: (item.default_urgensi as any) || simCaller.urgensi,
                         uraian: simCaller.uraian,
                       });
                       if (cadFormErrors.kategori || cadFormErrors.urgensi) {
@@ -267,6 +285,7 @@ export default function TabOperatorCadPawas({
                         ...simCaller,
                         subcategoryId: undefined,
                         kategori: '',
+                        kategoriKey: '',
                       });
                     }
                   }}
@@ -343,7 +362,12 @@ export default function TabOperatorCadPawas({
                 <button
                   type="button"
                   id="btn-toggle-cad-map"
-                  onClick={() => setShowMapPickerCad(!showMapPickerCad)}
+                  onClick={() => {
+                    if (Math.abs(simCaller.lat) > 80 || Math.abs(simCaller.lng) > 180) {
+                      setSimCaller((prev: any) => ({ ...prev, lat: 0, lng: 0 }));
+                    }
+                    setShowMapPickerCad(!showMapPickerCad);
+                  }}
                   style={{
                     background: showMapPickerCad ? '#EFF6FF' : '#F8FAFC',
                     border: showMapPickerCad ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
@@ -515,20 +539,20 @@ export default function TabOperatorCadPawas({
                   overflow: 'hidden',
                 }}
               >
-                {/* Header */}
+                {/* Header with quick search */}
                 <div
                   style={{
-                    padding: '12px 18px',
+                    padding: '10px 18px',
                     backgroundColor: '#1E293B',
                     borderBottom: '1px solid #334155',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '12px',
+                    gap: '14px',
                     zIndex: 30,
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '240px' }}>
                     <div
                       style={{
                         width: '34px',
@@ -546,19 +570,117 @@ export default function TabOperatorCadPawas({
                       🚨
                     </div>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#F8FAFC' }}>
-                        Peta Fullscreen — Tentukan Titik Lokasi TKP
+                      <div style={{ fontSize: '13.5px', fontWeight: 700, color: '#F8FAFC' }}>
+                        Peta Fullscreen — Titik Lokasi TKP
                       </div>
                       <div style={{ fontSize: '11px', color: '#94A3B8' }}>
-                        {simCaller.lat && simCaller.lng ? (
+                        {simCaller.lat && simCaller.lng && Math.abs(simCaller.lat) <= 80 ? (
                           <span style={{ color: '#34D399', fontWeight: 600, fontFamily: 'monospace' }}>
                             ✓ TKP: {simCaller.lat.toFixed(6)}, {simCaller.lng.toFixed(6)}
                           </span>
                         ) : (
-                          <span>Klik peta atau geser pin merah untuk mengunci titik TKP</span>
+                          <span>Pekalongan (Klik peta / cari alamat di atas)</span>
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Search Bar in Fullscreen Modal Header */}
+                  <div style={{ flex: 1, maxWidth: '520px', position: 'relative' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder="🔍 Cari jalan, kelurahan, atau nama tempat TKP..."
+                        value={simCaller.alamat || ''}
+                        onChange={(e) => {
+                          handleCadLocationSearch(e.target.value);
+                          if (cadFormErrors.alamat) {
+                            setCadFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.alamat;
+                              return next;
+                            });
+                          }
+                        }}
+                        onFocus={() => {
+                          if (cadLocationSuggestions.length > 0) setShowCadSuggestions(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '7px 32px 7px 12px',
+                          background: '#0F172A',
+                          border: '1.5px solid #334155',
+                          borderRadius: '7px',
+                          color: '#F8FAFC',
+                          fontSize: '12px',
+                          outline: 'none',
+                          boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.3)',
+                        }}
+                      />
+                      {isSearchingCadLocation && (
+                        <div style={{ position: 'absolute', right: '10px', fontSize: '11px', color: '#38BDF8' }}>
+                          🔄
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Autocomplete Dropdown in Fullscreen Modal */}
+                    {showCadSuggestions && cadLocationSuggestions.length > 0 && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: 0,
+                          right: 0,
+                          background: '#1E293B',
+                          borderRadius: '8px',
+                          border: '1px solid #334155',
+                          boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.6)',
+                          zIndex: 9999,
+                          maxHeight: '260px',
+                          overflowY: 'auto',
+                        }}
+                      >
+                        <div style={{ padding: '6px 10px', background: '#0F172A', borderBottom: '1px solid #334155', fontSize: '10px', fontWeight: 700, color: '#94A3B8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>📍 PILIH HASIL PENCARIAN TEMPAT</span>
+                          <span style={{ cursor: 'pointer', color: '#CBD5E1' }} onClick={() => setShowCadSuggestions(false)}>
+                            ✕ Tutup
+                          </span>
+                        </div>
+                        {cadLocationSuggestions.map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              handleSelectCadSuggestion(item);
+                            }}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              borderBottom: idx < cadLocationSuggestions.length - 1 ? '1px solid #334155' : 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              color: '#F8FAFC',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <span style={{ fontSize: '14px' }}>📍</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: 600, color: '#F8FAFC', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.label}
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.subLabel}
+                              </div>
+                            </div>
+                            <span style={{ fontSize: '10px', color: '#38BDF8', background: 'rgba(56,189,248,0.15)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                              PILIH
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <button
@@ -576,6 +698,7 @@ export default function TabOperatorCadPawas({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '4px',
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     <span>✕</span>
@@ -607,9 +730,10 @@ export default function TabOperatorCadPawas({
                     💡 Klik peta atau geser pin merah untuk mengunci titik TKP yang akurat
                   </div>
                   <MiniMapPicker
-                    lat={simCaller.lat}
-                    lng={simCaller.lng}
+                    lat={Math.abs(simCaller.lat) > 80 ? 0 : simCaller.lat}
+                    lng={Math.abs(simCaller.lat) > 80 ? 0 : simCaller.lng}
                     height="100%"
+                    fallbackCenter={{ lat: -7.026803, lng: 109.592982 }}
                     onChange={(lat, lng) => {
                       setSimCaller((prev: any) => ({ ...prev, lat, lng }));
                     }}
@@ -648,12 +772,12 @@ export default function TabOperatorCadPawas({
                       </span>
                     </div>
                     <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', fontWeight: 600, marginTop: '2px' }}>
-                      {simCaller.lat && simCaller.lng ? (
+                      {simCaller.lat && simCaller.lng && Math.abs(simCaller.lat) <= 80 ? (
                         <span style={{ color: '#059669' }}>
                           📐 TKP Lat: {simCaller.lat.toFixed(6)} | Lng: {simCaller.lng.toFixed(6)}
                         </span>
                       ) : (
-                        <span style={{ color: '#DC2626' }}>⚠️ Titik TKP belum ditentukan</span>
+                        <span style={{ color: '#DC2626' }}>⚠️ Titik TKP belum ditentukan (Pekalongan)</span>
                       )}
                     </div>
                   </div>
@@ -746,7 +870,7 @@ export default function TabOperatorCadPawas({
                       namaPelapor: simCaller.nama,
                       noHpPelapor: simCaller.telepon,
                       kategoriLaporan: simCaller.kategori,
-                      kategoriKey: simCaller.kategori,
+                      kategoriKey: (simCaller as any).kategoriKey || undefined,
                       subcategoryId: simCaller.subcategoryId,
                       platformKey: 'layanan110',
                       urgensi: (simCaller as any).urgensi,
@@ -761,7 +885,7 @@ export default function TabOperatorCadPawas({
                       showFriendlyToast(
                         'success',
                         'Laporan Berhasil Disimpan & Disiarkan',
-                        `Tiket #${res.data.nomorTiket || res.data.id} berhasil disiarkan secara serentak ke seluruh armada siaga.`
+                        `Tiket ${res.data.nomorTiket || res.data.id} berhasil disiarkan secara serentak ke seluruh armada siaga.`
                       );
                       setBroadcastModalData(res.data);
                       setSimCaller({
@@ -770,6 +894,7 @@ export default function TabOperatorCadPawas({
                         telepon: '',
                         alamat: '',
                         kategori: '',
+                        kategoriKey: '',
                         subcategoryId: undefined,
                         urgensi: '',
                         uraian: '',
@@ -997,7 +1122,8 @@ export default function TabOperatorCadPawas({
               {(() => {
                 const ticketNo = broadcastModalData.nomorTiket || broadcastModalData.id;
                 const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                const trackingUrl = `${origin}/tracking?tiket=${encodeURIComponent(ticketNo)}&auth=${encodeURIComponent(typeof btoa !== 'undefined' ? btoa(String(ticketNo)).slice(0, 10) : 'presisi110')}`;
+                const trackingToken = broadcastModalData.trackingToken || (typeof btoa !== 'undefined' ? btoa(String(ticketNo)).slice(0, 10) : 'presisi110');
+                const trackingUrl = `${origin}/tracking?tiket=${encodeURIComponent(ticketNo)}&token=${encodeURIComponent(trackingToken)}`;
                 const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(trackingUrl)}&margin=10`;
                 const cleanPhone = (broadcastModalData.pelaporHp || simCaller.telepon || '').replace(/\D/g, '').replace(/^0/, '62');
                 const waMessage = `Halo Bapak/Ibu ${broadcastModalData.pelaporNama || 'Warga'},\n\nPengaduan Anda telah kami terima di Layanan Polisi 110 dengan Nomor Tiket: *${ticketNo}*.\n\nLaporan ini telah disiarkan ke seluruh armada patroli terdekat. Anda dapat memantau pergerakan personel dan radar taktis secara langsung melalui tautan resmi berikut:\n${trackingUrl}\n\nTerima kasih. - Sentra Pelayanan Kepolisian Terpadu 110`;
@@ -1075,28 +1201,98 @@ export default function TabOperatorCadPawas({
 
                     {/* Tombol Kirim WhatsApp */}
                     {cleanPhone && (
-                      <a
-                        href={waHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          background: '#25D366',
-                          color: '#FFFFFF',
-                          borderRadius: '10px',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          textDecoration: 'none',
-                          boxShadow: '0 4px 14px rgba(37, 211, 102, 0.3)',
-                        }}
-                      >
-                        <span>💬</span> Kirim Tautan Pelacakan ke WhatsApp Warga
-                      </a>
+                      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button
+                          type="button"
+                          disabled={isSendingWa}
+                          onClick={async () => {
+                            setIsSendingWa(true);
+                            setWaSendResult(null);
+                            try {
+                              const res = await sendWhatsAppNotificationAction({
+                                nomorTiket: ticketNo,
+                                pelaporNama: broadcastModalData.pelaporNama,
+                                pelaporHp: cleanPhone,
+                                jenisKejadian: broadcastModalData.jenisKejadian,
+                                tkpAlamatTeks: broadcastModalData.tkpAlamatTeks,
+                                complaintId: broadcastModalData.id,
+                              });
+                              if (res.success) {
+                                setWaSendResult({ success: true, text: res.statusText || 'Pesan berhasil dikirim via FlowKirim!' });
+                                showFriendlyToast('success', 'WhatsApp Terkirim', `Notifikasi tiket ${ticketNo} telah dikirim ke nomor warga.`);
+                              } else {
+                                setWaSendResult({ success: false, text: res.error || res.statusText || 'Gagal mengirim pesan.' });
+                                showFriendlyToast('error', 'Gagal Kirim WhatsApp', res.error || 'Terjadi kendala pengiriman.');
+                              }
+                            } catch (e: any) {
+                              setWaSendResult({ success: false, text: e.message || 'Kendala koneksi' });
+                            } finally {
+                              setIsSendingWa(false);
+                            }
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '10px',
+                            fontWeight: 800,
+                            fontSize: '13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            cursor: isSendingWa ? 'not-allowed' : 'pointer',
+                            opacity: isSendingWa ? 0.7 : 1,
+                            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
+                          }}
+                        >
+                          <span>{isSendingWa ? '⏳' : '⚡'}</span>
+                          <span>{isSendingWa ? 'Mengirim via FlowKirim Gateway...' : 'Kirim Otomatis ke WhatsApp Warga (FlowKirim)'}</span>
+                        </button>
+
+                        {waSendResult && (
+                          <div
+                            style={{
+                              padding: '8px 12px',
+                              borderRadius: '8px',
+                              fontSize: '11.5px',
+                              background: waSendResult.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                              color: waSendResult.success ? '#34D399' : '#FCA5A5',
+                              border: `1px solid ${waSendResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {waSendResult.success ? '✓ ' : '⚠️ '}
+                            {waSendResult.text}
+                          </div>
+                        )}
+
+                        {/* Opsi Cadangan: WhatsApp Web Manual */}
+                        <a
+                          href={waHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            width: '100%',
+                            padding: '10px 14px',
+                            background: 'rgba(255, 255, 255, 0.06)',
+                            color: '#25D366',
+                            border: '1px solid rgba(37, 211, 102, 0.3)',
+                            borderRadius: '10px',
+                            fontWeight: 700,
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <span>💬</span> Buka WhatsApp Web Manual (wa.me)
+                        </a>
+                      </div>
                     )}
                   </div>
                 );
@@ -1114,7 +1310,10 @@ export default function TabOperatorCadPawas({
             >
               <button
                 type="button"
-                onClick={() => setBroadcastModalData(null)}
+                onClick={() => {
+                  setBroadcastModalData(null);
+                  setWaSendResult(null);
+                }}
                 style={{
                   width: '100%',
                   padding: '12px',

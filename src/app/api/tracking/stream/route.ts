@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const withHash = `#${cleanTiket}`;
 
   let isClosed = false;
-  let intervalId: NodeJS.Timeout | null = null;
+  let timerId: ReturnType<typeof setTimeout> | null = null;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -53,7 +53,8 @@ export async function GET(request: NextRequest) {
           }
 
           const nc = payload.complaint;
-          const sig = `${nc.status}_${nc.tahap}_${nc.dispatches?.length || 0}_${nc.dispatches?.[0]?.departedAt || ''}_${nc.dispatches?.[0]?.arrivedAt || ''}_${nc.dispatches?.[0]?.officer?.currentGpsLat || ''}_${nc.dispatches?.[0]?.officer?.currentGpsLng || ''}`;
+          const firstDispatch = nc.dispatches?.[0];
+          const sig = `${nc.status}_${nc.tahap}_${nc.dispatches?.length || 0}_${firstDispatch?.acceptedAt || firstDispatch?.accepted_at || ''}_${firstDispatch?.departedAt || ''}_${firstDispatch?.arrivedAt || ''}_${firstDispatch?.officer?.id || ''}_${firstDispatch?.officer?.currentGpsLat || ''}_${firstDispatch?.officer?.currentGpsLng || ''}`;
           const chatCount = payload.chatMessages?.length || 0;
 
           if (sig !== lastSignature || chatCount !== lastChatCount) {
@@ -66,16 +67,13 @@ export async function GET(request: NextRequest) {
 
           // If ticket is completed, send final update and close
           const statusUpper = (nc.status || '').toUpperCase();
-          const isDone =
-            ['PENANGANAN_SELESAI', 'MENUNGGU_PENGESAHAN', 'SELESAI', 'VALIDASI_SELESAI', 'DITUTUP'].includes(
-              statusUpper
-            ) || nc.tahap >= 5;
+          const isDone = statusUpper === 'SELESAI' || statusUpper === 'MENUNGGU_PENGESAHAN' || Number(nc.tahap) >= 5;
 
           if (isDone) {
             setTimeout(() => {
               if (!isClosed) {
                 isClosed = true;
-                if (intervalId) clearInterval(intervalId);
+                if (timerId) clearTimeout(timerId);
                 try {
                   controller.close();
                 } catch (_) {}
@@ -87,21 +85,22 @@ export async function GET(request: NextRequest) {
         }
       };
 
-      // 1. Initial push immediately
-      await checkAndUpdate();
-
-      // 2. Server-side check every 4 seconds (one persistent connection, zero polling requests on client!)
-      intervalId = setInterval(checkAndUpdate, 4000);
+      // Cek berikutnya dijadwalkan setelah cek sebelumnya selesai (tidak menumpuk saat DB lambat)
+      const loop = async () => {
+        await checkAndUpdate();
+        if (!isClosed) timerId = setTimeout(loop, 4000);
+      };
+      await loop();
     },
     cancel() {
       isClosed = true;
-      if (intervalId) clearInterval(intervalId);
+      if (timerId) clearTimeout(timerId);
     },
   });
 
   request.signal.addEventListener('abort', () => {
     isClosed = true;
-    if (intervalId) clearInterval(intervalId);
+    if (timerId) clearTimeout(timerId);
   });
 
   return new Response(stream, {

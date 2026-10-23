@@ -464,8 +464,8 @@ export default function TabKinerjaPawas({
                   </td>
                   <td style={{ padding: '8px' }}>
                     <span style={{
-                      background: inc.status === 'SELESAI' ? '#DCFCE7' : inc.status === 'MENUJU_TKP' ? '#DBEAFE' : inc.status === 'PENANGANAN_TKP' ? '#EDE9FE' : '#FEF3C7',
-                      color: inc.status === 'SELESAI' ? '#15803D' : inc.status === 'MENUJU_TKP' ? '#1D4ED8' : inc.status === 'PENANGANAN_TKP' ? '#6D28D9' : '#B45309',
+                      background: inc.status === 'SELESAI' ? '#DCFCE7' : inc.status === 'MENUNGGU_PENGESAHAN' ? '#EDE9FE' : inc.status === 'DIPROSES' ? '#DBEAFE' : inc.status === 'DITOLAK' ? '#FEE2E2' : '#FEF3C7',
+                      color: inc.status === 'SELESAI' ? '#15803D' : inc.status === 'MENUNGGU_PENGESAHAN' ? '#6D28D9' : inc.status === 'DIPROSES' ? '#1D4ED8' : inc.status === 'DITOLAK' ? '#B91C1C' : '#B45309',
                       padding: '2px 6px',
                       borderRadius: '4px',
                       fontSize: '10px',

@@ -353,7 +353,7 @@ export default function SimapresGoogleMap({
           });
         }, 350);
 
-        const clearTimer = setTimeout(() => clearInterval(dismissTimer), 8000);
+        const clearTimer = setTimeout(() => clearInterval(dismissTimer), 100);
 
         // Render markers
         renderMarkers(map, maps);
@@ -494,7 +494,7 @@ export default function SimapresGoogleMap({
 
         let strokeColor = unit.statusColor || '#0284C7';
         let haloColor = '#38BDF8';
-        if (unit.status === 'MENUJU_TKP') {
+        if (unit.status === 'DARURAT') {
           strokeColor = '#EF4444';
           haloColor = '#F87171';
         } else if (cat.includes('perintis')) {
@@ -639,7 +639,7 @@ export default function SimapresGoogleMap({
       title: `TKP: ${targetComplaint.jenisKejadian || 'Darurat 110'}`,
       petugas: `Nomor Tiket: ${targetComplaint.nomorTiket || '-'}`,
       sub: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
-      status: targetComplaint.status || 'MENUJU_TKP',
+      status: targetComplaint.status || 'DIPROSES',
       statusColor: '#DC2626',
       tugas: 'Target Penanganan Personel',
       telemetri: `Koordinat: ${tkpPos.lat.toFixed(5)}, ${tkpPos.lng.toFixed(5)}`,

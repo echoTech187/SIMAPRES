@@ -3,6 +3,7 @@
 // SIMAPRES 110 - Device Server Actions
 import { prisma } from '@/infrastructure/db/prisma.client';
 import { revalidatePath } from 'next/cache';
+import { cacheInvalidate } from '@/lib/app-cache';
 
 // Helper serialize BigInt
 function serializeBigInt<T>(obj: T): T {
@@ -14,26 +15,34 @@ function serializeBigInt<T>(obj: T): T {
 }
 
 // Inisialisasi tabel device_pairing_sessions di MySQL jika belum ada
-async function ensureDevicePairingTable() {
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS device_pairing_sessions (
-        session_token VARCHAR(64) PRIMARY KEY,
-        device_id VARCHAR(64),
-        device_brand VARCHAR(100),
-        nrp VARCHAR(20),
-        unit_id VARCHAR(50),
-        lat DECIMAL(10, 8),
-        lng DECIMAL(11, 8),
-        status VARCHAR(30) DEFAULT 'WAITING',
-        scanned_at DATETIME,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-  } catch (err) {
-    console.warn('ensureDevicePairingTable error:', err);
+let devicePairingTableReady: Promise<void> | null = null;
+
+function ensureDevicePairingTable(): Promise<void> {
+  if (!devicePairingTableReady) {
+    devicePairingTableReady = createDevicePairingTable().catch((err) => {
+      devicePairingTableReady = null;
+      console.warn('ensureDevicePairingTable error:', err);
+    });
   }
+  return devicePairingTableReady;
+}
+
+async function createDevicePairingTable() {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS device_pairing_sessions (
+      session_token VARCHAR(64) PRIMARY KEY,
+      device_id VARCHAR(64),
+      device_brand VARCHAR(100),
+      nrp VARCHAR(20),
+      unit_id VARCHAR(50),
+      lat DECIMAL(10, 8),
+      lng DECIMAL(11, 8),
+      status VARCHAR(30) DEFAULT 'WAITING',
+      scanned_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
 }
 
 export async function createDevicePairingSessionAction(input: {
@@ -98,18 +107,29 @@ export async function pairDeviceSessionAction(input: {
       );
     }
 
-    // Update juga tabel registered_units jika ada yang cocok
-    await prisma.registeredUnit.updateMany({
-      where: { deviceID: input.deviceId },
-      data: {
-        live_lat: input.lat,
-        live_lng: input.lng,
-        tanggalUpdate: new Date(),
-      },
-    });
+    // Eksklusivitas Perangkat (1 Device Fisik = 1 Akun Personil Aktif seperti WhatsApp):
+    if (input.nrp && input.deviceId) {
+      // 1. Lepaskan (unpair) deviceId ini dari akun personel lain yang sebelumnya pernah memindai
+      await prisma.policeOfficer.updateMany({
+        where: {
+          device_id: input.deviceId,
+          nrp: { not: input.nrp },
+        },
+        data: {
+          device_id: null,
+        },
+      });
 
-    // Update police_officers jika NRP diberikan
-    if (input.nrp) {
+      // 2. Tandai sesi pairing lama dari device ini untuk akun lain sebagai UNPAIRED
+      await prisma.$executeRawUnsafe(
+        `UPDATE device_pairing_sessions 
+         SET status = 'UNPAIRED', updated_at = NOW() 
+         WHERE device_id = ? AND nrp != ? AND status = 'PAIRED'`,
+        input.deviceId,
+        input.nrp
+      );
+
+      // 3. Tautkan secara eksklusif ke akun personel yang saat ini memindai
       await prisma.policeOfficer.updateMany({
         where: { nrp: input.nrp },
         data: {
@@ -119,8 +139,19 @@ export async function pairDeviceSessionAction(input: {
           device_id: input.deviceId,
         },
       });
+    } else if (input.deviceId) {
+      // Update telemetri koordinat jika hanya ada deviceId
+      await prisma.policeOfficer.updateMany({
+        where: { device_id: input.deviceId },
+        data: {
+          current_gps_lat: input.lat,
+          current_gps_lng: input.lng,
+          last_gps_heartbeat_at: new Date(),
+        },
+      });
     }
 
+    cacheInvalidate('active_officers_units');
     revalidatePath('/console', 'layout');
     revalidatePath('/registrasi-unit');
     return { success: true };

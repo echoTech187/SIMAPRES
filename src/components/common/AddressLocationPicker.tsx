@@ -931,6 +931,7 @@ export default function AddressLocationPicker({
               lat={tempLat}
               lng={tempLng}
               height="100%"
+              fallbackCenter={{ lat: -7.026803, lng: 109.592982 }}
               onChange={(newLat, newLng) => {
                 setTempLat(newLat);
                 setTempLng(newLng);

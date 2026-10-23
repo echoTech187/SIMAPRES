@@ -11,6 +11,9 @@ interface CacheEntry<T> {
 }
 
 const cacheStore = new Map<string, CacheEntry<any>>();
+const inFlight = new Map<string, Promise<any>>();
+const MAX_CACHE_ENTRIES = 500;
+let invalidationEpoch = 0;
 
 /**
  * Mengambil data dari cache jika masih dalam masa TTL aktif.
@@ -29,6 +32,16 @@ export function cacheGet<T>(key: string): T | null {
  * Menyimpan data ke dalam cache dengan batas kedaluwarsa (TTL).
  */
 export function cacheSet<T>(key: string, data: T, ttlMs: number): void {
+  if (cacheStore.size >= MAX_CACHE_ENTRIES && !cacheStore.has(key)) {
+    const now = Date.now();
+    for (const [k, v] of cacheStore) {
+      if (v.expiresAt < now) cacheStore.delete(k);
+    }
+    if (cacheStore.size >= MAX_CACHE_ENTRIES) {
+      const oldestKey = cacheStore.keys().next().value;
+      if (oldestKey !== undefined) cacheStore.delete(oldestKey);
+    }
+  }
   cacheStore.set(key, {
     data,
     expiresAt: Date.now() + ttlMs,
@@ -36,9 +49,32 @@ export function cacheSet<T>(key: string, data: T, ttlMs: number): void {
 }
 
 /**
+ * Ambil dari cache; jika kosong jalankan loader sekali saja walau dipanggil bersamaan (single-flight).
+ */
+export async function cacheGetOrLoad<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+  const hit = cacheGet<T>(key);
+  if (hit !== null) return hit;
+  const pending = inFlight.get(key);
+  if (pending) return pending as Promise<T>;
+  const startEpoch = invalidationEpoch;
+  const p = loader()
+    .then((data) => {
+      if (data !== null && data !== undefined && startEpoch === invalidationEpoch) cacheSet(key, data, ttlMs);
+      return data;
+    })
+    .finally(() => inFlight.delete(key));
+  inFlight.set(key, p);
+  return p;
+}
+
+/**
  * Menginvalidasi cache berdasarkan key eksak atau prefix.
  */
 export function cacheInvalidate(prefixOrKey: string): void {
+  invalidationEpoch++;
+  for (const k of Array.from(inFlight.keys())) {
+    if (k === prefixOrKey || k.startsWith(prefixOrKey)) inFlight.delete(k);
+  }
   for (const k of Array.from(cacheStore.keys())) {
     if (k === prefixOrKey || k.startsWith(prefixOrKey)) {
       cacheStore.delete(k);
@@ -50,5 +86,7 @@ export function cacheInvalidate(prefixOrKey: string): void {
  * Membersihkan seluruh cache memori server.
  */
 export function cacheClearAll(): void {
+  invalidationEpoch++;
+  inFlight.clear();
   cacheStore.clear();
 }

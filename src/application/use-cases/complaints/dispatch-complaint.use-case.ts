@@ -32,6 +32,7 @@ export class DispatchComplaintUseCase {
     // Tambahkan timeline milestone disposisi Pawas
     complaint.timelines.push({
       tahapKe: 1,
+      actionKey: 'DISPATCH_ISSUED',
       tahapTitle: `Disposisi Pawas ke Unit ${officer.rankPangkat} ${officer.nrp}`,
       catatan: input.arahanPawas,
       createdAt: new Date(),

@@ -31,7 +31,7 @@ import {
   Phone,
 } from 'lucide-react';
 import KpiGaugeChart from '@/components/KpiGaugeChart';
-import { getOfficerInitials } from '../types';
+import { getOfficerInitials, hasOfficerAcceptedTask, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile } from '../types';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
 import { formatIncidentDateTime, formatTimeWib, formatDateTimeWib } from '@/lib/date-utils';
@@ -301,25 +301,11 @@ export default function TabProfilPersonil({
         textClass: 'text-purple-400',
       };
     }
-    if (s === 'PENANGANAN_TKP' || s === 'TIBA_DI_TKP') {
-      return {
-        label: '📍 Penanganan di Lokasi (TKP)',
-        badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-        textClass: 'text-blue-400',
-      };
-    }
-    if (s === 'MENUJU_TKP') {
-      return {
-        label: '🚔 Personel Meluncur ke TKP',
-        badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-        textClass: 'text-blue-400',
-      };
-    }
-    if (s === 'SEDANG_DITANGANI' || s === 'DIPROSES' || s === 'DISPOSISI') {
+    if (s === 'DIPROSES') {
       return {
         label: 'Sedang Ditangani',
-        badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-        textClass: 'text-amber-400',
+        badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
+        textClass: 'text-blue-400',
       };
     }
     if (s === 'DITOLAK') {
@@ -339,35 +325,54 @@ export default function TabProfilPersonil({
   // Status classifier presisi untuk tab Riwayat Log
   const isStatusMenunggu = (st?: string) => {
     const s = (st || '').toUpperCase();
-    return ['BELUM_DITANGANI', 'MENUNGGU_DISPOSISI', 'PENDING', 'MENUNGGU_VERIFIKASI', 'TERKIRIM'].includes(s);
+    return s === 'MENUNGGU';
   };
 
   const isStatusDiproses = (st?: string) => {
     const s = (st || '').toUpperCase();
-    return [
-      'DISPOSISI',
-      'SEDANG_DITANGANI',
-      'DIPROSES',
-      'MENUJU_TKP',
-      'TIBA_DI_TKP',
-      'PENANGANAN_TKP',
-      'MENUNGGU_PENGESAHAN',
-    ].includes(s);
+    return s === 'DIPROSES' || s === 'MENUNGGU_PENGESAHAN';
   };
 
   const isStatusSelesai = (st?: string) => {
     const s = (st || '').toUpperCase();
-    return ['SELESAI', 'SELESAI_PENANGANAN', 'DITUTUP'].includes(s);
+    return s === 'SELESAI';
   };
 
-  const countSemua = complaints.length;
-  const countMenunggu = useMemo(() => complaints.filter((c) => isStatusMenunggu(c.status)).length, [complaints]);
-  const countDiproses = useMemo(() => complaints.filter((c) => isStatusDiproses(c.status)).length, [complaints]);
-  const countSelesai = useMemo(() => complaints.filter((c) => isStatusSelesai(c.status)).length, [complaints]);
+  // Filter khusus: Hanya tiket yang benar-benar ditugaskan / diterima oleh personil ini
+  const myComplaints = useMemo(() => {
+    return complaints.filter((c) => {
+      // 1. Cek apakah ada dispatch yang tercatat untuk personil ini
+      const dispatches = c.dispatches || [];
+      const isMatchedInDispatch = dispatches.some(
+        (d: any) =>
+          (d.officer_id && String(d.officer_id) === String(officer.id)) ||
+          (d.officer?.nrp && d.officer.nrp === officer.nrp) ||
+          (d.officer?.user?.identifier && d.officer.user.identifier === officer.nrp)
+      );
+      if (isMatchedInDispatch) return true;
+
+      // 2. Cek apakah ditugaskan langsung ke officer ini
+      if (
+        (c.assigned_officer_id && String(c.assigned_officer_id) === String(officer.id)) ||
+        (c.assignedOfficer?.nrp && c.assignedOfficer.nrp === officer.nrp) ||
+        (c.assignedOfficer?.id && String(c.assignedOfficer.id) === String(officer.id))
+      ) {
+        return true;
+      }
+
+      // 3. Cek helper hasOfficerAcceptedTask
+      return hasOfficerAcceptedTask(c, officer.nrp, officer.id);
+    });
+  }, [complaints, officer.id, officer.nrp]);
+
+  const countSemua = myComplaints.length;
+  const countMenunggu = useMemo(() => myComplaints.filter((c) => isStatusMenunggu(c.status)).length, [myComplaints]);
+  const countDiproses = useMemo(() => myComplaints.filter((c) => isStatusDiproses(c.status)).length, [myComplaints]);
+  const countSelesai = useMemo(() => myComplaints.filter((c) => isStatusSelesai(c.status)).length, [myComplaints]);
 
   // Filter complaints for Riwayat Log Lengkap
   const filteredComplaints = useMemo(() => {
-    return complaints.filter((c) => {
+    return myComplaints.filter((c) => {
       if (logFilter === 'menunggu' && !isStatusMenunggu(c.status)) return false;
       if (logFilter === 'diproses' && !isStatusDiproses(c.status)) return false;
       if (logFilter === 'selesai' && !isStatusSelesai(c.status)) return false;
@@ -380,7 +385,7 @@ export default function TabProfilPersonil({
       }
       return true;
     });
-  }, [complaints, logFilter, logSearch]);
+  }, [myComplaints, logFilter, logSearch]);
 
   return (
     <div className="w-full pb-6 flex flex-col gap-6">
@@ -480,7 +485,7 @@ export default function TabProfilPersonil({
               Total Tugas
             </span>
             <div className="text-xl sm:text-2xl font-black font-mono text-amber-300 leading-none my-1">
-              {complaints.length}
+              {myComplaints.length}
             </div>
             <span className="text-[9px] text-slate-400 font-medium leading-none">
               Kasus
@@ -1301,7 +1306,7 @@ export default function TabProfilPersonil({
                     🛡️ Tugas Tuntas di TKP
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-white">
-                    {complaints.filter((c) => c.status === 'SELESAI').length} Kasus
+                    {myComplaints.filter((c) => c.status === 'SELESAI').length} Kasus
                   </div>
                   <div className="text-[10px] text-slate-400 font-medium">Terselesaikan secara tuntas</div>
                 </div>
@@ -1368,34 +1373,30 @@ export default function TabProfilPersonil({
 
               // SOP Milestones State
               const isStep1Done = true;
-              const isStep2Done = sel.status !== 'BELUM_DITANGANI';
+              const isStep2Done = sel.status !== 'MENUNGGU';
 
               const isStep3Done =
-                ['PENANGANAN_TKP', 'TIBA_DI_TKP', 'SELESAI', 'SELESAI_PENANGANAN', 'MENUNGGU_PENGESAHAN'].includes(sel.status) ||
+                sel.status === 'SELESAI' ||
+                sel.status === 'MENUNGGU_PENGESAHAN' ||
                 Boolean(sel.responTibaTkpAt) ||
                 Boolean(sel.waktuTibaTkp) ||
                 Number(sel.tahap) >= 4;
               const isStep3Active =
                 !isStep3Done &&
-                (sel.status === 'MENUJU_TKP' ||
-                  sel.status === 'SEDANG_DITANGANI' ||
-                  Number(sel.tahap) === 3 ||
-                  Boolean(sel.waktuMeluncur));
+                (Number(sel.tahap) === 3 || Boolean(sel.waktuMeluncur));
 
               const isStep4Done =
-                ['SELESAI', 'SELESAI_PENANGANAN', 'MENUNGGU_PENGESAHAN'].includes(sel.status) ||
+                sel.status === 'SELESAI' ||
+                sel.status === 'MENUNGGU_PENGESAHAN' ||
                 Number(sel.tahap) >= 5;
               const isStep4Active =
                 !isStep4Done &&
-                (sel.status === 'PENANGANAN_TKP' ||
-                  sel.status === 'TIBA_DI_TKP' ||
+                (Number(sel.tahap) === 4 ||
                   Boolean(sel.responTibaTkpAt) ||
-                  Boolean(sel.waktuTibaTkp) ||
-                  Number(sel.tahap) === 4);
+                  Boolean(sel.waktuTibaTkp));
 
               const isStep5Done =
                 sel.status === 'SELESAI' ||
-                sel.status === 'SELESAI_PENANGANAN' ||
                 Boolean(sel.pengesahanPawas);
               const isStep5Active = !isStep5Done && sel.status === 'MENUNGGU_PENGESAHAN';
 
@@ -1650,14 +1651,22 @@ export default function TabProfilPersonil({
                         <div>
                           <span className="text-[11px] text-slate-400">Kontak:</span>
                           <div className="text-xs font-mono font-bold text-amber-300 mt-0.5 flex items-center gap-1.5">
-                            {sel.pelaporTelepon ? (
-                              <>
-                                <Phone size={12} />
-                                <span>{sel.pelaporTelepon}</span>
-                              </>
-                            ) : (
-                              <span>-</span>
-                            )}
+                            {(() => {
+                              const rawPh = sel.pelaporTelepon || sel.pelaporHp || sel.pelapor_hp;
+                              const formattedPh = formatPhoneNumber(rawPh);
+                              const callPh = getCleanCallNumber(rawPh);
+                              if (!formattedPh) return <span>-</span>;
+                              return (
+                                <a
+                                  href={`tel:${callPh}`}
+                                  className="hover:underline flex items-center gap-1.5 text-amber-300"
+                                  title="Hubungi Pelapor"
+                                >
+                                  <Phone size={12} />
+                                  <span>{formattedPh}</span>
+                                </a>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1846,7 +1855,7 @@ export default function TabProfilPersonil({
                                 }
                           }
                         >
-                          {isStep3Done ? '✓' : isStep3Active ? '🚔' : '3'}
+                          {isStep3Done ? '✓' : isStep3Active ? '🚔' : null}
                         </div>
                         <div className="flex-1 min-w-0 bg-white/[0.02] border border-white/5 rounded-2xl p-3.5 sm:p-4 space-y-2.5">
                           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -2086,7 +2095,7 @@ export default function TabProfilPersonil({
                                     : 'bg-white/5 text-slate-400 border border-white/10'
                                 }`}
                               >
-                                {isStep5Done ? '✓ SELESAI PENANGANAN' : isStep5Active ? '⚖️ MENUNGGU PENGESAHAN PAWAS' : '🔒 TERKUNCI'}
+                                {isStep5Done ? '✓ SELESAI' : '🔒 TERKUNCI'}
                               </span>
                               {timeSelesai && timeSelesai !== '-' && (
                                 <span className="text-[11px] font-mono text-slate-400 font-bold">
@@ -2290,12 +2299,14 @@ export default function TabProfilPersonil({
                             </span>
                             <span
                               className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                                c.status === 'SELESAI' || c.status === 'SELESAI_PENANGANAN' || c.status === 'DITUTUP'
+                                c.status === 'SELESAI'
                                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
                                   : c.status === 'MENUNGGU_PENGESAHAN'
                                   ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30'
-                                  : c.status === 'PENANGANAN_TKP' || c.status === 'MENUJU_TKP' || c.status === 'TIBA_DI_TKP'
+                                  : c.status === 'DIPROSES'
                                   ? 'bg-blue-500/15 text-blue-300 border border-blue-500/30'
+                                  : c.status === 'DITOLAK'
+                                  ? 'bg-red-500/15 text-red-300 border border-red-500/30'
                                   : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'
                               }`}
                             >

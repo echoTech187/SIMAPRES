@@ -80,9 +80,6 @@ export default function TabBerandaPersonil({
                 <span className="text-xs font-mono font-bold text-amber-400">
                   #{pendingAcceptTask.nomorTiket}
                 </span>
-                <span className="text-[10px] font-bold text-slate-300 bg-white/10 px-2.5 py-1 rounded-full">
-                  👥 Kuota: {pendingQuota.acceptedCount}/{pendingQuota.quota} (Sisa {pendingQuota.slotsRemaining} Slot)
-                </span>
               </div>
 
               <h2 className="text-lg sm:text-xl font-black text-white">
@@ -114,7 +111,7 @@ export default function TabBerandaPersonil({
                 }}
               >
                 <Shield size={16} />
-                <span>Terima Tugas ({pendingQuota.slotsRemaining} Slot) ➔</span>
+                <span>Terima Tugas  ➔</span>
               </button>
             </div>
           </div>

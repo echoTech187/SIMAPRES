@@ -80,7 +80,7 @@ export default async function ConsolePage({
     initialMasterData = masterRes.success ? masterRes.data : null;
 
     if (session.role === 'PERSONIL') {
-      const targetNrp = searchParams?.nrp || session.identifier || '92031145';
+      const targetNrp = searchParams?.nrp || session.identifier;
       const [cRes, pRes, poRes, fleetRes, hotRes] = await Promise.all([
         getOfficerComplaintsAction(targetNrp),
         getOfficerProfileByNrpAction(targetNrp),

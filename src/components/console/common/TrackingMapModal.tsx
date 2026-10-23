@@ -71,10 +71,10 @@ export default function TrackingMapModal({
   const isDeparted = useMemo(() => {
     if (!complaint) return false;
     const status = String(complaint.status || '').toUpperCase();
+    const tahap = Number(complaint.tahap) || 1;
     const primaryDispatch = (complaint.dispatches || []).find((d: any) => d.is_primary_unit) || (complaint.dispatches || [])[0];
     const hasDepartedAt = Boolean(complaint.waktuMeluncur || primaryDispatch?.departed_at);
-    const isMovingStatus = ['MENUJU_TKP', 'TIBA_DI_TKP', 'PENANGANAN_TKP', 'SELESAI', 'MENUNGGU_PENGESAHAN'].includes(status);
-    return isMovingStatus || hasDepartedAt;
+    return tahap >= 3 || status === 'SELESAI' || status === 'MENUNGGU_PENGESAHAN' || hasDepartedAt;
   }, [complaint]);
 
   // Resolusi Officer & Posisi GPS
@@ -370,7 +370,7 @@ export default function TrackingMapModal({
                 )}
               </div>
               <div style={{ fontSize: '10.5px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }}>
-                <strong style={{ color: '#CBD5E1', fontWeight: 600 }}>#{complaint.nomorTiket}</strong>
+                <strong style={{ color: '#CBD5E1', fontWeight: 600 }}>{complaint.nomorTiket?.replace(/^#+/, '')}</strong>
                 {complaint.jenisKejadian && (
                   <>
                     <span style={{ margin: '0 5px', color: '#475569' }}>•</span>

@@ -42,14 +42,13 @@ export async function getPatrolFleetUnitsAction() {
       return { success: true, data: patrolFleetCache.data };
     }
 
-    // 1. Ambil data personil, armada, disposisi, stasiun mako, sesi QR pairing, dan pendaftaran unit
+    // 1. Ambil data personil, armada, disposisi, stasiun mako, sesi QR pairing
     const [
       officers,
       vehicles,
       activeDispatches,
       stations,
       pairingSessions,
-      registeredUnits,
       vehicleUsageLogs,
     ] = await Promise.all([
       prisma.policeOfficer.findMany({
@@ -90,16 +89,15 @@ export async function getPatrolFleetUnitsAction() {
       }),
       prisma.policeStation.findMany().catch(() => []),
       prisma.devicePairingSession.findMany({ where: { status: 'PAIRED' } }).catch(() => []),
-      prisma.registeredUnit.findMany().catch(() => []),
       prisma.vehicleUsageLog.findMany({ where: { status_sesi: 'ACTIVE' } }).catch(() => []),
     ]);
 
-    // Mako Induk Utama (Polres atau Kantor Kepolisian Default)
+    // Mako Induk Utama (Polres atau Kantor Kepolisian Default dari Database)
     const primaryStation =
       stations.find((s) => s.station_level === 'POLRES') || stations[0] || null;
-    const defaultMakoLat = primaryStation?.office_lat ? Number(primaryStation.office_lat) : -7.026803;
-    const defaultMakoLng = primaryStation?.office_lng ? Number(primaryStation.office_lng) : 109.592982;
-    const defaultMakoName = primaryStation?.station_name || 'Mako Polres Pekalongan';
+    const defaultMakoLat = primaryStation?.office_lat ? Number(primaryStation.office_lat) : 0;
+    const defaultMakoLng = primaryStation?.office_lng ? Number(primaryStation.office_lng) : 0;
+    const defaultMakoName = primaryStation?.station_name || 'Mako Komando';
 
     // Map active dispatch by officer NRP or ID
     const activeDispatchMap = new Map<string, any>();
@@ -115,12 +113,6 @@ export async function getPatrolFleetUnitsAction() {
     pairingSessions.forEach((p) => {
       if (p.nrp) pairingMap.set(p.nrp, p);
       if (p.device_id) pairingMap.set(p.device_id, p);
-    });
-
-    // Map registered units
-    const regUnitMap = new Map<string, any>();
-    registeredUnits.forEach((r) => {
-      if (r.nrp) regUnitMap.set(r.nrp, r);
     });
 
     // Map vehicle check-in logs
@@ -141,8 +133,7 @@ export async function getPatrolFleetUnitsAction() {
       const makoName = station?.station_name || defaultMakoName;
 
       // Verifikasi Pendaftaran & Scan QR
-      const regRecord = regUnitMap.get(nrp);
-      const isDeviceRegistered = Boolean(regRecord || o.device_id);
+      const isDeviceRegistered = Boolean(o.device_id);
 
       const pairingRecord = pairingMap.get(nrp) || (o.device_id ? pairingMap.get(o.device_id) : null);
       const hasScannedQr = Boolean(pairingRecord && pairingRecord.scanned_at);
@@ -224,13 +215,13 @@ export async function getPatrolFleetUnitsAction() {
       let routePoints: { lat: number; lng: number }[] = [];
 
       if (activeDispatch) {
-        currentStatus = 'MENUJU_TKP';
+        currentStatus = 'DARURAT';
         statusColor = '#EF4444';
         statusLabel = 'Menuju TKP';
         const ticket = activeDispatch.complaint?.nomor_tiket || '110';
         const jenis = activeDispatch.complaint?.jenis_kejadian || 'Insiden Lapangan';
         const tkpAddr = activeDispatch.complaint?.tkp_alamat_teks || 'Lokasi TKP';
-        aktivitas = `Tanggap Darurat Tiket #${ticket}: ${jenis}`;
+        aktivitas = `Tanggap Darurat Tiket ${ticket.replace(/^#+/, '')}: ${jenis}`;
         lokasiTeks = `Meluncur ke ${tkpAddr}`;
 
         if (activeDispatch.complaint?.tkp_lat && activeDispatch.complaint?.tkp_lng) {
@@ -253,25 +244,8 @@ export async function getPatrolFleetUnitsAction() {
       const rankPangkat = o.rank_pangkat || 'Personel';
       const cleanName = rawFullName.replace(new RegExp(`^${rankPangkat}\\s*`, 'i'), '').trim();
       const displayTitle = `${rankPangkat} ${cleanName}`;
-      const unitName =
-        o.unit?.unit_name ||
-        (o.jabatan?.includes('Samapta')
-          ? 'Satuan Samapta'
-          : o.jabatan?.includes('Reskrim')
-          ? 'Satuan Reserse Kriminal'
-          : o.jabatan?.includes('Lantas')
-          ? 'Satuan Lalu Lintas'
-          : 'Regu SIMOPMAS 110');
-
-      const category = (o.jabatan || '').toLowerCase().includes('lantas')
-        ? 'lantas'
-        : (o.jabatan || '').toLowerCase().includes('reskrim')
-        ? 'reskrim'
-        : (o.jabatan || '').toLowerCase().includes('intel')
-        ? 'intelkam'
-        : (o.jabatan || '').toLowerCase().includes('perintis')
-        ? 'perintis'
-        : 'samapta';
+      const unitName = o.unit?.unit_name || o.jabatan || 'Regu Presisi 110';
+      const category = o.unit?.key?.toLowerCase() || 'samapta';
 
       const telemetri = isGpsValid
         ? (o.last_gps_heartbeat_at
