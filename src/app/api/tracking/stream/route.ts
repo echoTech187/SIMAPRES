@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server';
 import { getTrackingData } from '../tracking-service';
+import { verifyTrackingToken } from '@/lib/tracking-token';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const tiket = (searchParams.get('tiket') || searchParams.get('nomorTiket') || '').trim();
+  const token = (searchParams.get('token') || searchParams.get('auth') || '').trim();
 
   if (!tiket) {
     return new Response('Nomor tiket wajib diisi', { status: 400 });
@@ -13,6 +15,20 @@ export async function GET(request: NextRequest) {
 
   const cleanTiket = tiket.startsWith('#') ? tiket.slice(1) : tiket;
   const withHash = `#${cleanTiket}`;
+
+  // Validasi token keamanan pelacakan wajib
+  if (!token || !verifyTrackingToken(cleanTiket, token)) {
+    return new Response(
+      JSON.stringify({
+        error: 'Akses ditolak: Tautan pelacakan wajib menyertakan token verifikasi keamanan resmi.',
+        unauthorized: true,
+      }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
+  }
 
   let isClosed = false;
   let timerId: ReturnType<typeof setTimeout> | null = null;
@@ -53,8 +69,14 @@ export async function GET(request: NextRequest) {
           }
 
           const nc = payload.complaint;
-          const firstDispatch = nc.dispatches?.[0];
-          const sig = `${nc.status}_${nc.tahap}_${nc.dispatches?.length || 0}_${firstDispatch?.acceptedAt || firstDispatch?.accepted_at || ''}_${firstDispatch?.departedAt || ''}_${firstDispatch?.arrivedAt || ''}_${firstDispatch?.officer?.id || ''}_${firstDispatch?.officer?.currentGpsLat || ''}_${firstDispatch?.officer?.currentGpsLng || ''}`;
+          const dispatchSigs = (nc.dispatches || [])
+            .map(
+              (d: any) =>
+                `${d.id}_${d.dispatchStatus || d.dispatch_status}_${d.acceptedAt || d.accepted_at || ''}_${d.departedAt || d.departed_at || ''}_${d.arrivedAt || d.arrived_at || ''}_${d.completedAt || d.completed_at || ''}_${d.officer?.id || ''}_${d.officer?.currentGpsLat || ''}_${d.officer?.currentGpsLng || ''}`
+            )
+            .join('|');
+
+          const sig = `${nc.id}_${nc.status}_${nc.tahap}_${nc.waktuMeluncur || ''}_${nc.waktuTiba || ''}_${nc.selesaiAt || ''}_${nc.catatanSelesai || ''}_${nc.citizenRating || ''}_${nc.citizenReview || ''}_${dispatchSigs}`;
           const chatCount = payload.chatMessages?.length || 0;
 
           if (sig !== lastSignature || chatCount !== lastChatCount) {
@@ -64,31 +86,15 @@ export async function GET(request: NextRequest) {
           } else {
             sendPing();
           }
-
-          // If ticket is completed, send final update and close
-          const statusUpper = (nc.status || '').toUpperCase();
-          const isDone = statusUpper === 'SELESAI' || statusUpper === 'MENUNGGU_PENGESAHAN' || Number(nc.tahap) >= 5;
-
-          if (isDone) {
-            setTimeout(() => {
-              if (!isClosed) {
-                isClosed = true;
-                if (timerId) clearTimeout(timerId);
-                try {
-                  controller.close();
-                } catch (_) {}
-              }
-            }, 800);
-          }
         } catch (_) {
           sendPing();
         }
       };
 
-      // Cek berikutnya dijadwalkan setelah cek sebelumnya selesai (tidak menumpuk saat DB lambat)
+      // Cek berikutnya dijadwalkan setelah cek sebelumnya selesai (responsif 1.2s tanpa overload)
       const loop = async () => {
         await checkAndUpdate();
-        if (!isClosed) timerId = setTimeout(loop, 4000);
+        if (!isClosed) timerId = setTimeout(loop, 1200);
       };
       await loop();
     },

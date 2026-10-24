@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { getDistanceFromLatLonInMeters, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile, DispatchStepAction } from '../types';
+import { getRealRoadPath } from '@/components/SimapresGoogleMap';
+import { updateDeviceTelemetryAction } from '@/app/actions/auth.actions';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
   ssr: false,
@@ -69,8 +71,19 @@ export default function TabMapsPersonil({
   const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
 
-  // Dev bypass for testing radius when remote / dev testing
+  // Dev bypass & Realistic Navigation Simulation State
   const [bypassDevRadius, setBypassDevRadius] = useState(false);
+  const [simulatedGps, setSimulatedGps] = useState<{ lat: number; lng: number } | null>(null);
+  const [simulationRemainingRoute, setSimulationRemainingRoute] = useState<{ lat: number; lng: number }[] | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
+  const [simulationProgress, setSimulationProgress] = useState<number>(0);
+  const simulationTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Efektif koordinat unit (mengutamakan simulatedGps jika simulasi aktif)
+  const effectiveGps = useMemo(() => {
+    return simulatedGps || currentGps;
+  }, [simulatedGps, currentGps]);
 
   // 1. Ekstraksi koordinat TKP akurat dari berbagai format database entity
   const tkpCoords = useMemo(() => {
@@ -91,14 +104,14 @@ export default function TabMapsPersonil({
 
   // 2. Hitung jarak ke TKP
   const distanceToTkpMeters = useMemo(() => {
-    if (!tkpCoords || !currentGps?.lat || !currentGps?.lng) return Infinity;
+    if (!tkpCoords || !effectiveGps?.lat || !effectiveGps?.lng) return Infinity;
     return getDistanceFromLatLonInMeters(
-      currentGps.lat,
-      currentGps.lng,
+      effectiveGps.lat,
+      effectiveGps.lng,
       tkpCoords.lat,
       tkpCoords.lng
     );
-  }, [tkpCoords, currentGps]);
+  }, [tkpCoords, effectiveGps]);
 
   const isRealWithin50Meters = distanceToTkpMeters <= 50;
   const isWithin50Meters = isRealWithin50Meters || bypassDevRadius;
@@ -139,14 +152,14 @@ export default function TabMapsPersonil({
   const gmapsNavigationUrl = useMemo(() => {
     if (!tkpCoords?.lat || !tkpCoords?.lng) return null;
     const dest = `${tkpCoords.lat},${tkpCoords.lng}`;
-    const originLat = currentGps?.lat ?? officer?.currentGpsLat;
-    const originLng = currentGps?.lng ?? officer?.currentGpsLng;
+    const originLat = effectiveGps?.lat ?? officer?.currentGpsLat;
+    const originLng = effectiveGps?.lng ?? officer?.currentGpsLng;
 
     if (originLat && originLng) {
       return `https://www.google.com/maps/dir/?api=1&origin=${originLat},${originLng}&destination=${dest}&travelmode=driving`;
     }
     return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
-  }, [tkpCoords, currentGps, officer]);
+  }, [tkpCoords, effectiveGps, officer]);
 
   // 4. Deteksi Tahap Tugas (Workflow Lifecycle Presisi berbasis MasterDispatchStatus):
   // - DISPATCHED: Persiapan / Berangkat
@@ -352,6 +365,215 @@ const EMPTY_ARRAY: any[] = [];
     }
   };
 
+  // Helper untuk menghentikan / reset simulasi
+  const stopSimulation = () => {
+    if (simulationTimerRef.current) {
+      clearInterval(simulationTimerRef.current);
+      simulationTimerRef.current = null;
+    }
+    setIsSimulating(false);
+    setIsLoadingRoute(false);
+  };
+
+  const handleResetSimulation = () => {
+    stopSimulation();
+    setSimulatedGps(null);
+    setSimulationRemainingRoute(null);
+    setSimulationProgress(0);
+    setBypassDevRadius(false);
+  };
+
+  // Pastikan timer simulasi dibersihkan saat komponen di-unmount
+  useEffect(() => {
+    return () => {
+      if (simulationTimerRef.current) {
+        clearInterval(simulationTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Eksekusi Simulasi Perjalanan Nyata (Menyusuri Jalan Raya Asli OSRM, Rute Belakang Otomatis Terpotong)
+  const handleToggleSimulation = async () => {
+    // Jika sedang berjalan atau loading rute, klik tombol berarti batalkan / hentikan
+    if (isSimulating || isLoadingRoute) {
+      stopSimulation();
+      return;
+    }
+
+    // Jika sudah selesai simulasi / ada simulatedGps, klik lagi untuk reset
+    if (simulatedGps) {
+      handleResetSimulation();
+      return;
+    }
+
+    if (!tkpCoords || !effectiveGps) return;
+
+    setIsLoadingRoute(true);
+
+    try {
+      const startLat = effectiveGps.lat;
+      const startLng = effectiveGps.lng;
+      const destLat = tkpCoords.lat;
+      const destLng = tkpCoords.lng;
+
+      // 1. Dapatkan rute jalan raya resmi (OSRM) dengan fallback timeout 3.5 detik
+      let roadPoints: { lat: number; lng: number }[] | null = null;
+      try {
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
+        roadPoints = await Promise.race([
+          getRealRoadPath(startLat, startLng, destLat, destLng),
+          timeoutPromise,
+        ]);
+      } catch (e) {
+        console.warn('OSRM fetch notice, using fallback curve:', e);
+      }
+
+      // 2. Siapkan array fullPath koordinat
+      let fullPath: { lat: number; lng: number }[] = [];
+      if (roadPoints && roadPoints.length >= 2) {
+        fullPath = [...roadPoints];
+      } else {
+        // Fallback: Bentuk kurva jalan alami 200 titik interpolasi
+        const SAMPLES = 200;
+        const perpLat = -(destLng - startLng);
+        const perpLng = (destLat - startLat);
+        for (let i = 0; i <= SAMPLES; i++) {
+          const t = i / SAMPLES;
+          const curve = Math.sin(t * Math.PI) * 0.05 + Math.sin(t * 3 * Math.PI) * 0.015;
+          fullPath.push({
+            lat: startLat + (destLat - startLat) * t + perpLat * curve,
+            lng: startLng + (destLng - startLng) * t + perpLng * curve,
+          });
+        }
+      }
+
+      // Pastikan titik awal dan titik akhir presisi
+      fullPath[0] = { lat: startLat, lng: startLng };
+      // Titik akhir diposisikan ~25 meter dari TKP agar tepat berada di radius < 50m
+      fullPath[fullPath.length - 1] = {
+        lat: destLat + 0.00018,
+        lng: destLng + 0.00012,
+      };
+
+      // 3. Hitung jarak kumulatif di sepanjang lintasan jalan
+      const cumDistances: number[] = [0];
+      for (let i = 1; i < fullPath.length; i++) {
+        const segDist = getDistanceFromLatLonInMeters(
+          fullPath[i - 1].lat,
+          fullPath[i - 1].lng,
+          fullPath[i].lat,
+          fullPath[i].lng
+        );
+        cumDistances.push(cumDistances[i - 1] + segDist);
+      }
+      const totalDistance = cumDistances[cumDistances.length - 1];
+
+      // 4. Precompute frame simulasi: 52 langkah @ 1.4 detik (~72.8 detik total durasi)
+      // Cukup lama dan realistis agar pengguna leluasa menjelaskan alur sistem ke audiens
+      const TOTAL_STEPS = 52;
+      interface SimFrame {
+        pos: { lat: number; lng: number };
+        remainingRoute: { lat: number; lng: number }[];
+        progressPercent: number;
+      }
+
+      const frames: SimFrame[] = [];
+
+      for (let step = 0; step < TOTAL_STEPS; step++) {
+        const targetDist = (step / (TOTAL_STEPS - 1)) * totalDistance;
+
+        let segIdx = 0;
+        while (segIdx < cumDistances.length - 1 && cumDistances[segIdx + 1] < targetDist) {
+          segIdx++;
+        }
+
+        const p1 = fullPath[segIdx];
+        const p2 = fullPath[Math.min(segIdx + 1, fullPath.length - 1)];
+        const segStartDist = cumDistances[segIdx];
+        const segEndDist = cumDistances[Math.min(segIdx + 1, cumDistances.length - 1)];
+        const segLength = segEndDist - segStartDist;
+
+        let curPos = p1;
+        if (segLength > 0) {
+          const ratio = Math.max(0, Math.min(1, (targetDist - segStartDist) / segLength));
+          curPos = {
+            lat: p1.lat + (p2.lat - p1.lat) * ratio,
+            lng: p1.lng + (p2.lng - p1.lng) * ratio,
+          };
+        }
+
+        if (step === TOTAL_STEPS - 1) {
+          curPos = fullPath[fullPath.length - 1];
+        }
+
+        // Rute tersisa di depan kendaraan (garis di belakang kendaraan otomatis hilang/terpotong!)
+        const remainingRoute =
+          step === TOTAL_STEPS - 1
+            ? []
+            : [curPos, ...fullPath.slice(segIdx + 1)];
+
+        const progressPercent = Math.round((step / (TOTAL_STEPS - 1)) * 100);
+
+        frames.push({
+          pos: curPos,
+          remainingRoute,
+          progressPercent,
+        });
+      }
+
+      // 5. Jalankan Simulasi
+      setIsLoadingRoute(false);
+      setIsSimulating(true);
+
+      // Frame pertama langsung diterapkan
+      setSimulatedGps(frames[0].pos);
+      setSimulationRemainingRoute(frames[0].remainingRoute);
+      setSimulationProgress(frames[0].progressPercent);
+
+      let currentStep = 0;
+      simulationTimerRef.current = setInterval(() => {
+        currentStep++;
+        if (currentStep >= frames.length) {
+          if (simulationTimerRef.current) {
+            clearInterval(simulationTimerRef.current);
+            simulationTimerRef.current = null;
+          }
+          setIsSimulating(false);
+          const lastFrame = frames[frames.length - 1];
+          setSimulatedGps(lastFrame.pos);
+          setSimulationRemainingRoute([]);
+          setSimulationProgress(100);
+
+          // Update koordinat akhir ke database telemetri agar sinkron ke tracking warga & Pawas
+          updateDeviceTelemetryAction({
+            nrp: officer.nrp,
+            lat: lastFrame.pos.lat,
+            lng: lastFrame.pos.lng,
+          }).catch(() => {});
+          return;
+        }
+
+        const frame = frames[currentStep];
+        setSimulatedGps(frame.pos);
+        setSimulationRemainingRoute(frame.remainingRoute);
+        setSimulationProgress(frame.progressPercent);
+
+        // Sinkronisasi telemetri DB setiap 3 langkah (~4.2 detik)
+        if (currentStep % 3 === 0) {
+          updateDeviceTelemetryAction({
+            nrp: officer.nrp,
+            lat: frame.pos.lat,
+            lng: frame.pos.lng,
+          }).catch(() => {});
+        }
+      }, 1400);
+    } catch (err) {
+      console.error('Failed to start simulation:', err);
+      setIsLoadingRoute(false);
+      setIsSimulating(false);
+    }
+  };
+
   // Memoize myUnit data agar tidak re-trigger render marker Google Maps di setiap frame
   const memoizedMyUnit = useMemo(() => ({
     key: `petugas_${officer.id || officer.nrp}`,
@@ -360,10 +582,10 @@ const EMPTY_ARRAY: any[] = [];
     petugas: officer.fullName,
     pangkat: officer.pangkat,
     title: `${officer.pangkat} ${officer.fullName}`,
-    pos: { lat: currentGps.lat, lng: currentGps.lng },
-    lat: currentGps.lat,
-    lng: currentGps.lng,
-  }), [officer.id, officer.nrp, officer.fullName, officer.pangkat, currentGps.lat, currentGps.lng]);
+    pos: { lat: effectiveGps.lat, lng: effectiveGps.lng },
+    lat: effectiveGps.lat,
+    lng: effectiveGps.lng,
+  }), [officer.id, officer.nrp, officer.fullName, officer.pangkat, effectiveGps.lat, effectiveGps.lng]);
 
   const activeHotspots = useMemo(() => {
     return !activeComplaint && showHotspots ? hotspots : EMPTY_ARRAY;
@@ -376,6 +598,8 @@ const EMPTY_ARRAY: any[] = [];
         mode="fullscreen"
         height="100%"
         targetComplaint={isMissionActive ? activeComplaint : null}
+        customRoutePath={isSimulating || simulatedGps ? simulationRemainingRoute : undefined}
+        followMyUnit={Boolean(isSimulating || complaintStage === 'meluncur')}
         myUnit={memoizedMyUnit}
         hotspots={activeHotspots}
         policeOffices={policeOffices}
@@ -784,20 +1008,47 @@ const EMPTY_ARRAY: any[] = [];
                 )}
               </div>
 
-              {/* Subtext Keterangan Kunci Radius */}
-              {complaintStage === 'meluncur' && !isWithin50Meters && (
+              {/* Subtext Keterangan Kunci Radius & Tombol Simulasi Perjalanan */}
+              {complaintStage === 'meluncur' && (
                 <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5 px-1">
-                  <span className="flex items-center gap-1 text-amber-400/80">
-                    <Lock size={12} />
-                    Dekati radius TKP (&lt; 50m) untuk konfirmasi tiba
-                  </span>
-                  {/* Dev helper toggle untuk kemudahan testing lokal */}
+                  {!isWithin50Meters ? (
+                    isSimulating ? (
+                      <span className="flex items-center gap-1.5 text-sky-400 font-semibold animate-pulse">
+                        <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping inline-block" />
+                        Simulasi meluncur ({simulationProgress}%)
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-amber-400/80">
+                        <Lock size={12} />
+                        Dekati radius TKP (&lt; 50m) untuk konfirmasi tiba
+                      </span>
+                    )
+                  ) : (
+                    <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                      ✓ Tiba dalam radius TKP (&lt; 50m)
+                    </span>
+                  )}
+
+                  {/* Tombol Simulasi Perjalanan Sesuai Permintaan */}
                   <button
                     type="button"
-                    onClick={() => setBypassDevRadius(!bypassDevRadius)}
-                    className="text-[10px] text-slate-500 hover:text-amber-300 underline cursor-pointer"
+                    onClick={handleToggleSimulation}
+                    disabled={isLoadingRoute}
+                    className={`text-[11px] font-semibold underline cursor-pointer transition-colors ${
+                      isSimulating
+                        ? 'text-rose-400 hover:text-rose-300'
+                        : simulatedGps
+                        ? 'text-slate-400 hover:text-amber-300'
+                        : 'text-sky-400 hover:text-sky-300'
+                    }`}
                   >
-                    {bypassDevRadius ? 'Reset Radius Riil' : 'Simulasi Radius Dev'}
+                    {isLoadingRoute
+                      ? 'Menyiapkan rute...'
+                      : isSimulating
+                      ? 'Hentikan'
+                      : simulatedGps
+                      ? 'Reset Simulasi'
+                      : 'Simulasi'}
                   </button>
                 </div>
               )}

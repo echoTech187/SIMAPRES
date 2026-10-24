@@ -33,21 +33,31 @@ function TrackingContent() {
   const tokenFromUrl = searchParams.get('token') || searchParams.get('auth') || '';
 
   const [ticketInput, setTicketInput] = useState(ticketFromUrl);
+  const [tokenInput, setTokenInput] = useState(tokenFromUrl);
   const [activeTicket, setActiveTicket] = useState(ticketFromUrl);
+  const [activeToken, setActiveToken] = useState(tokenFromUrl);
 
   useEffect(() => {
-    if (ticketFromUrl) {
-      setTicketInput(ticketFromUrl);
-      setActiveTicket(ticketFromUrl);
-    }
+    setTicketInput(ticketFromUrl);
+    setActiveTicket(ticketFromUrl);
   }, [ticketFromUrl]);
+
+  useEffect(() => {
+    setTokenInput(tokenFromUrl);
+    setActiveToken(tokenFromUrl);
+  }, [tokenFromUrl]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = ticketInput.trim();
-    if (!clean) return;
-    setActiveTicket(clean);
-    router.push(`/tracking?tiket=${encodeURIComponent(clean)}`);
+    const cleanTicket = ticketInput.trim();
+    const cleanToken = tokenInput.trim();
+    if (!cleanTicket) return;
+    setActiveTicket(cleanTicket);
+    setActiveToken(cleanToken);
+    const targetUrl = cleanToken
+      ? `/tracking?tiket=${encodeURIComponent(cleanTicket)}&token=${encodeURIComponent(cleanToken)}`
+      : `/tracking?tiket=${encodeURIComponent(cleanTicket)}`;
+    router.push(targetUrl);
   };
 
   return (
@@ -67,9 +77,10 @@ function TrackingContent() {
       {activeTicket ? (
         <CitizenLiveRadarTracker
           nomorTiket={activeTicket}
-          token={tokenFromUrl}
+          token={activeToken}
           onBack={() => {
             setActiveTicket('');
+            setActiveToken('');
             router.push('/tracking');
           }}
         />
@@ -173,7 +184,6 @@ function TrackingContent() {
 
           {/* ─────────────── MAIN CONTENT ─────────────── */}
           <main style={{ flex: 1 }}>
-          /* ─── SEARCH CARD ─── */
           <div
             style={{
               maxWidth: '440px',
@@ -265,9 +275,57 @@ function TrackingContent() {
                     fontFamily: 'monospace',
                     letterSpacing: '0.5px',
                     outline: 'none',
-                    marginBottom: '12px',
+                    marginBottom: '16px',
                   }}
                 />
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '10.5px',
+                    fontWeight: 800,
+                    color: '#ECC473',
+                    marginBottom: '7px',
+                    letterSpacing: '0.5px',
+                  }}
+                >
+                  TOKEN VERIFIKASI KEAMANAN
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: 8646b7f837e4f414"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'rgba(9,10,15,0.85)',
+                    border: '1.5px solid rgba(236,196,115,0.28)',
+                    borderRadius: '13px',
+                    padding: '13px 16px',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.5px',
+                    outline: 'none',
+                    marginBottom: '8px',
+                  }}
+                />
+                <div
+                  style={{
+                    fontSize: '11px',
+                    color: '#94A3B8',
+                    lineHeight: 1.5,
+                    marginBottom: '20px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '6px',
+                  }}
+                >
+                  <span style={{ color: '#ECC473', fontSize: '13px' }}>🔒</span>
+                  <span>
+                    Token 16 karakter tertera pada pesan resmi WhatsApp 110 Anda. Akses tanpa token resmi akan ditolak demi perlindungan privasi pelapor.
+                  </span>
+                </div>
                 <button
                   type="submit"
                   style={{

@@ -98,8 +98,8 @@ export default function ModalPenyelesaianTugas({
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-amber-500/20 mb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-3 pb-3.5 border-b border-amber-500/20 mb-3.5">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
             <div
               className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-900 shadow-md flex-shrink-0"
               style={{
@@ -108,17 +108,13 @@ export default function ModalPenyelesaianTugas({
             >
               <CheckCircle2 size={22} className="stroke-[2.5]" />
             </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-black text-white leading-tight">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm sm:text-base font-black text-white leading-tight">
                 Keterangan Penyelesaian Tugas
               </h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs font-mono font-bold text-amber-300">
-                  {complaint.nomorTiket?.replace(/^#+/, '')}
-                </span>
-                <span className="text-slate-500">•</span>
-                <span className="text-xs text-slate-300 font-semibold truncate max-w-[200px]">
-                  {complaint.jenisKejadian}
+              <div className="mt-0.5">
+                <span className="font-mono font-bold text-amber-300 text-xs">
+                  {complaint.nomorTiket?.startsWith('#') ? complaint.nomorTiket : `#${complaint.nomorTiket || ''}`}
                 </span>
               </div>
             </div>
@@ -128,40 +124,45 @@ export default function ModalPenyelesaianTugas({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all flex-shrink-0 -mr-1 -mt-1 disabled:opacity-50"
+            title="Tutup Modal"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Ringkasan Singkat Lokasi & Pelapor */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-2xl bg-white/[0.03] border border-white/5 mb-4 text-xs">
-          <div className="flex items-center gap-2 text-slate-300">
-            <User size={14} className="text-amber-400 flex-shrink-0" />
-            <span className="truncate">
-              Pelapor: <strong className="text-slate-100">{complaint.pelaporNama || 'Warga'}</strong>
-            </span>
+        {/* Ringkasan Singkat Kejadian, Pelapor & TKP */}
+        <div className="space-y-2 p-3 rounded-2xl bg-white/[0.03] border border-white/5 mb-4 text-xs">
+          <div className="flex items-start gap-2 text-slate-300">
+            <AlertCircle size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="leading-relaxed break-words flex-1">
+              Kejadian: <strong className="text-slate-100">{complaint.jenisKejadian || 'Kejadian Lapangan'}</strong>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-slate-300">
-            <MapPin size={14} className="text-amber-400 flex-shrink-0" />
-            <span className="truncate" title={complaint.tkpAlamatTeks}>
-              TKP: <strong className="text-slate-100">{complaint.tkpAlamatTeks || '-'}</strong>
-            </span>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1.5 border-t border-white/5">
+            <div className="flex items-start gap-2 text-slate-300">
+              <User size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="leading-relaxed break-words flex-1">
+                Pelapor: <strong className="text-slate-100">{complaint.pelaporNama || 'Warga'}</strong>
+              </div>
+            </div>
+            <div className="flex items-start gap-2 text-slate-300">
+              <MapPin size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="leading-relaxed break-words flex-1">
+                TKP: <strong className="text-slate-100">{complaint.tkpAlamatTeks || '-'}</strong>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Form Input Keterangan Manual */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
-                <FileText size={14} />
-                <span>Uraian / Catatan Hasil Penanganan di TKP *</span>
-              </label>
-              <span className="text-[11px] font-mono text-slate-400">
-                {keterangan.trim().length} karakter
-              </span>
-            </div>
+            <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
+              <FileText size={14} className="text-amber-400 flex-shrink-0" />
+              <span>Uraian / Catatan Hasil Penanganan di TKP *</span>
+            </label>
             <p className="text-[11.5px] text-slate-400 mb-2 leading-relaxed">
               Ketikkan ringkasan penyelesaian kasus di lapangan oleh anggota regu patroli. Keterangan ini akan langsung tampil di halaman tracking tiket pelapor.
             </p>
@@ -180,6 +181,15 @@ export default function ModalPenyelesaianTugas({
               }}
               autoFocus
             />
+
+            {/* Panjang Karakter Dipindahkan ke Bawah Textarea Sebelah Kanan */}
+            <div className="flex justify-end mt-1.5">
+              <span className={`text-[11px] font-mono transition-colors ${
+                keterangan.trim().length >= 5 ? 'text-amber-300/90' : 'text-slate-400'
+              }`}>
+                {keterangan.trim().length} karakter
+              </span>
+            </div>
           </div>
 
           {/* Quick Preset Buttons (Opsi Cepat Membantu Petugas di Lapangan) */}

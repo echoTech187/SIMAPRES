@@ -67,6 +67,52 @@ const SimapresGoogleMap = dynamic(() => import('@/components/SimapresGoogleMap')
   ),
 });
 
+export const RATING_CRITERIA = [
+  {
+    id: 'responseTime',
+    number: '1',
+    title: 'Kecepatan Waktu Tanggap (Response Time)',
+    question: 'Seberapa puas Anda dengan kecepatan respon dan waktu kedatangan petugas Polri di lokasi setelah laporan dibuat?',
+    tagLabel: 'Respon',
+  },
+  {
+    id: 'humanis',
+    number: '2',
+    title: 'Sikap & Keramahan Petugas (Humanis)',
+    question: 'Bagaimana penilaian Anda terhadap keramahan, kesopanan, dan sikap humanis petugas saat melayani Anda?',
+    tagLabel: 'Humanis',
+  },
+  {
+    id: 'transparansi',
+    number: '3',
+    title: 'Kejelasan Informasi & Transparansi',
+    question: 'Seberapa jelas petunjuk, penanganan awal, atau informasi yang diberikan oleh petugas/sistem terkait laporan Anda?',
+    tagLabel: 'Transparansi',
+  },
+  {
+    id: 'policeCare',
+    number: '4',
+    title: 'Rasa Aman & Kehadiran Polri (Police Care)',
+    question: 'Apakah kehadiran dan tindakan petugas di lapangan memberikan rasa aman dan bantuan yang Anda butuhkan?',
+    tagLabel: 'Police Care',
+  },
+  {
+    id: 'overall',
+    number: '5',
+    title: 'Kepuasan Pelayanan Secara Keseluruhan (Overall Satisfaction)',
+    question: 'Secara keseluruhan, seberapa puas Anda terhadap kualitas pelayanan kepolisian melalui sistem SIMOPMAS 110 ini?',
+    tagLabel: 'Overall',
+  },
+];
+
+export const RATING_LABELS: Record<number, string> = {
+  1: 'Sangat Kecewa',
+  2: 'Kurang Puas',
+  3: 'Cukup',
+  4: 'Puas',
+  5: 'Sangat Puas',
+};
+
 interface CitizenLiveRadarTrackerProps {
   nomorTiket: string;
   initialData?: any;
@@ -86,9 +132,16 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
 
 export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBack, token }: CitizenLiveRadarTrackerProps) {
   // ── State ──────────────────────────────────────────────────────────────────
-  const [complaint, setComplaint] = useState<any>(initialData || null);
-  const [loading, setLoading] = useState(!initialData);
+  const hasToken = Boolean(token && token.trim());
+  const [complaint, setComplaint] = useState<any>(hasToken ? (initialData || null) : null);
+  const [loading, setLoading] = useState(hasToken ? !initialData : false);
   const [ticketNotFound, setTicketNotFound] = useState(false);
+  const [unauthorized, setUnauthorized] = useState(!hasToken);
+  const [unauthorizedMessage, setUnauthorizedMessage] = useState(
+    !hasToken
+      ? 'Akses ditolak: Tautan pelacakan wajib menyertakan token verifikasi keamanan resmi.'
+      : ''
+  );
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [copiedTicket, setCopiedTicket] = useState(false);
 
@@ -116,13 +169,26 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
   const [sendingChat, setSendingChat] = useState(false);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Rating (Fase Selesai)
-  const [starRating, setStarRating] = useState(5);
-  const [hoverStar, setHoverStar] = useState(0);
-  const [selectedTags, setSelectedTags] = useState<string[]>(['Respon Cepat', 'Personil Ramah']);
+  // Rating 5 Poin (Fase Selesai)
+  const [fiveRatings, setFiveRatings] = useState<Record<string, number>>({
+    responseTime: 5,
+    humanis: 5,
+    transparansi: 5,
+    policeCare: 5,
+    overall: 5,
+  });
   const [reviewText, setReviewText] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
+  const cleanTiket = useMemo(() => (nomorTiket || '').replace(/^#/, ''), [nomorTiket]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && cleanTiket) {
+      if (localStorage.getItem(`simopmas_rating_${cleanTiket}`) === 'true') {
+        setRatingDone(true);
+      }
+    }
+  }, [cleanTiket]);
 
   // ── Derived Status ─────────────────────────────────────────────────────────
   const isCompleted = useMemo(() => {
@@ -133,9 +199,6 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
 
   const isAccepted = useMemo(() => {
     if (!complaint || isCompleted) return false;
-    // An incident is only considered "Accepted" by an officer if:
-    // 1. There is an accepted dispatch with an officer assigned, OR
-    // 2. An officer is directly assigned to the complaint
     const dispatches: any[] = complaint.dispatches || [];
     const hasAcceptedDispatch = dispatches.some(
       (d: any) => Boolean((d.acceptedAt || d.accepted_at) && (d.officer || d.officer_id || d.officerId))
@@ -143,17 +206,24 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     const hasAssignedOfficer = Boolean(
       complaint.assignedOfficer || complaint.assigned_officer_id || complaint.assignedOfficerId
     );
-    return hasAcceptedDispatch || hasAssignedOfficer;
+    const tahap = Number(complaint.tahap || 0);
+    const status = (complaint.status || '').toUpperCase();
+    return hasAcceptedDispatch || hasAssignedOfficer || tahap >= 2 || status === 'DIPROSES' || status === 'MENUNGGU_PENGESAHAN';
   }, [complaint, isCompleted]);
 
   const isArrived = useMemo(() => {
     if (!complaint || isCompleted || !isAccepted) return false;
-    return (complaint.tahap && complaint.tahap >= 4)
-      || !!(complaint.dispatches?.some((d: any) => d.arrivedAt || d.arrived_at || d.dispatch_status === 'ARRIVED'));
+    const tahap = Number(complaint.tahap || 0);
+    const dispatches: any[] = complaint.dispatches || [];
+    const hasArrivedDispatch = dispatches.some(
+      (d: any) => Boolean(d.arrivedAt || d.arrived_at || d.dispatchStatus === 'ARRIVED' || d.dispatch_status === 'ARRIVED')
+    );
+    return tahap >= 4 || hasArrivedDispatch || Boolean(complaint.waktuTiba || complaint.responTibaTkpAt);
   }, [complaint, isCompleted, isAccepted]);
 
   const isMeluncur = useMemo(() => {
     if (!complaint || isCompleted || !isAccepted || isArrived) return false;
+    const tahap = Number(complaint.tahap || 0);
     const dispatches: any[] = complaint.dispatches || [];
     const hasDepartedDispatch = dispatches.some(
       (d: any) =>
@@ -164,9 +234,9 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       complaint.waktuMeluncur ||
       complaint.waktu_meluncur ||
       complaint.responMeluncurAt ||
-      (complaint.tahap && complaint.tahap === 3 && (complaint.timelines?.some((t: any) => t.actionKey === 'OFFICER_DEPARTED') || complaint.complaintLogs?.some((l: any) => l.action?.includes('Meluncur') || l.action === 'OFFICER_DEPARTED')))
+      tahap === 3
     );
-    return hasDepartedDispatch || hasDepartedComplaint;
+    return tahap === 3 || hasDepartedDispatch || hasDepartedComplaint;
   }, [complaint, isCompleted, isAccepted, isArrived]);
 
   // Live clock for Gambar 2 sync & elapsed scan timer
@@ -219,11 +289,66 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
   useEffect(() => {
     if (!nomorTiket) return;
 
+    const trimmedToken = (token || '').trim();
+    if (!trimmedToken) {
+      setUnauthorized(true);
+      setUnauthorizedMessage('Akses ditolak: Tautan pelacakan wajib menyertakan token verifikasi keamanan resmi.');
+      setComplaint(null);
+      setLoading(false);
+      return;
+    }
+
+    setUnauthorized(false);
+    setTicketNotFound(false);
+    setLoading(true);
+
     let es: EventSource | null = null;
     let isCancelled = false;
+    const tokenQuery = `&token=${encodeURIComponent(trimmedToken)}`;
 
+    // 1. Pre-fetch validasi token & status HTTP 403 Forbidden
+    fetch(`/api/tracking?tiket=${encodeURIComponent(nomorTiket)}${tokenQuery}`)
+      .then(async (res) => {
+        if (isCancelled) return;
+        if (res.status === 403) {
+          const json = await res.json().catch(() => ({}));
+          setUnauthorized(true);
+          setUnauthorizedMessage(json.error || 'Akses ditolak: Token verifikasi pelacakan tidak valid atau tidak terdaftar.');
+          setComplaint(null);
+          setLoading(false);
+          if (es) {
+            es.close();
+            es = null;
+          }
+          return;
+        }
+        if (res.status === 404) {
+          setTicketNotFound(true);
+          setComplaint(null);
+          setLoading(false);
+          if (es) {
+            es.close();
+            es = null;
+          }
+          return;
+        }
+        const json = await res.json().catch(() => null);
+        if (json?.data?.complaint) {
+          setComplaint(json.data.complaint);
+          setUnauthorized(false);
+          setTicketNotFound(false);
+          if (json.data.chatMessages) {
+            setChatMessages(json.data.chatMessages);
+          }
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) setLoading(false);
+      });
+
+    // 2. Real-time SSE Stream
     try {
-      const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
       es = new EventSource(`/api/tracking/stream?tiket=${encodeURIComponent(nomorTiket)}${tokenQuery}`);
 
       es.addEventListener('data', (event: MessageEvent) => {
@@ -233,12 +358,24 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
           if (payload.complaint) {
             setComplaint(payload.complaint);
             setTicketNotFound(false);
+            setUnauthorized(false);
             setLoading(false);
           }
           if (payload.chatMessages) {
             setChatMessages(payload.chatMessages);
           }
         } catch (_) { }
+      });
+
+      es.addEventListener('unauthorized', (event: MessageEvent) => {
+        if (isCancelled) return;
+        try {
+          const payload = JSON.parse(event.data);
+          setUnauthorizedMessage(payload.error || 'Akses ditolak: Token verifikasi tidak terdaftar.');
+        } catch (_) {}
+        setUnauthorized(true);
+        setComplaint(null);
+        setLoading(false);
       });
 
       es.addEventListener('not_found', () => {
@@ -249,33 +386,60 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       });
 
       es.onerror = () => {
+        if (isCancelled) return;
         setLoading(false);
       };
     } catch (_) {
-      const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : '';
-      fetch(`/api/tracking?tiket=${encodeURIComponent(nomorTiket)}${tokenQuery}`)
-        .then((res) => res.json())
-        .then((json) => {
-          if (json?.data?.complaint) setComplaint(json.data.complaint);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
+      setLoading(false);
     }
+
+    // 3. Fallback background polling (menjamin sinkronisasi jika koneksi SSE terputus/stalled)
+    const pollInterval = setInterval(async () => {
+      if (isCancelled) return;
+      try {
+        const res = await fetch(`/api/tracking?tiket=${encodeURIComponent(nomorTiket)}${tokenQuery}`);
+        if (res.ok) {
+          const json = await res.json().catch(() => null);
+          if (json?.data?.complaint) {
+            setComplaint((prev: any) => {
+              if (!prev) return json.data.complaint;
+              const prevSig = `${prev.status}_${prev.tahap}_${prev.dispatches?.[0]?.dispatch_status}_${prev.dispatches?.[0]?.departed_at}_${prev.dispatches?.[0]?.arrived_at}_${prev.citizenRating}_${prev.citizenReview}`;
+              const nextC = json.data.complaint;
+              const nextSig = `${nextC.status}_${nextC.tahap}_${nextC.dispatches?.[0]?.dispatch_status}_${nextC.dispatches?.[0]?.departed_at}_${nextC.dispatches?.[0]?.arrived_at}_${nextC.citizenRating}_${nextC.citizenReview}`;
+              if (prevSig !== nextSig) {
+                return nextC;
+              }
+              return prev;
+            });
+            if (json.data.chatMessages) {
+              setChatMessages((prev) => {
+                if (prev.length !== json.data.chatMessages.length) {
+                  return json.data.chatMessages;
+                }
+                return prev;
+              });
+            }
+          }
+        }
+      } catch (_) {}
+    }, 3000);
 
     return () => {
       isCancelled = true;
+      clearInterval(pollInterval);
       if (es) {
         es.close();
         es = null;
       }
     };
-  }, [nomorTiket]);
+  }, [nomorTiket, token]);
 
   const assignedOfficer = useMemo(() => {
     if (!complaint) return null;
     if (complaint.assignedOfficer) return complaint.assignedOfficer;
     const dispatches: any[] = complaint.dispatches || [];
-    const d = dispatches.find((x: any) => (x.acceptedAt || x.accepted_at) && x.officer);
+    const d = dispatches.find((x: any) => (x.acceptedAt || x.accepted_at) && x.officer)
+      || dispatches.find((x: any) => x.officer);
     if (!d?.officer) return null;
     const o = d.officer;
     return {
@@ -460,8 +624,36 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     if (!nomorTiket || submittingRating) return;
     setSubmittingRating(true);
     try {
-      const res = await submitRatingAction({ nomorTiket, rating: starRating, review: reviewText.trim() || undefined, tags: selectedTags.join(', ') || undefined });
-      if (res?.success) setRatingDone(true);
+      const rValues = [
+        fiveRatings.responseTime || 5,
+        fiveRatings.humanis || 5,
+        fiveRatings.transparansi || 5,
+        fiveRatings.policeCare || 5,
+        fiveRatings.overall || 5,
+      ];
+      const avgScore = Math.max(1, Math.min(5, Math.round(rValues.reduce((a, b) => a + b, 0) / rValues.length)));
+      const tagsFormatted = RATING_CRITERIA.map(
+        (c) => `${c.tagLabel}: ${fiveRatings[c.id] || 5}★`
+      ).join(', ');
+
+      const res = await submitRatingAction({
+        nomorTiket,
+        rating: avgScore,
+        review: reviewText.trim() || undefined,
+        tags: tagsFormatted || undefined,
+      });
+      if (res?.success) {
+        setRatingDone(true);
+        if (typeof window !== 'undefined' && cleanTiket) {
+          localStorage.setItem(`simopmas_rating_${cleanTiket}`, 'true');
+        }
+        setComplaint((prev: any) => prev ? {
+          ...prev,
+          citizenRating: avgScore,
+          citizenTags: tagsFormatted,
+          citizenReview: reviewText.trim(),
+        } : prev);
+      }
     } catch (_) { }
     finally { setSubmittingRating(false); }
   };
@@ -472,8 +664,6 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
     setCopiedTicket(true);
     setTimeout(() => setCopiedTicket(false), 2000);
   };
-
-  const ratingLabels = ['', 'Sangat Kecewa', 'Kurang Puas', 'Cukup', 'Puas', 'Sangat Puas'];
 
   // ──────────────────────────────────────────────────────────────────────────
   // RENDER
@@ -512,8 +702,99 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
         </div>
       )}
 
+      {/* ───────────────── AKSES DITOLAK: TOKEN WAJIB / TIDAK TERDAFTAR ───────────────── */}
+      {!loading && (unauthorized || (!complaint && !ticketNotFound)) && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#090A0F] p-6 text-center animate-in fade-in duration-300">
+          <div
+            style={{
+              width: '84px',
+              height: '84px',
+              borderRadius: '24px',
+              background: 'linear-gradient(135deg, rgba(239,68,68,0.18) 0%, rgba(185,28,28,0.06) 100%)',
+              border: '2px solid rgba(239,68,68,0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: '20px',
+              boxShadow: '0 0 36px rgba(239,68,68,0.25)',
+            }}
+          >
+            <span style={{ fontSize: '42px' }}>🔒</span>
+          </div>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 14px',
+              borderRadius: '999px',
+              background: 'rgba(239,68,68,0.12)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              color: '#F87171',
+              fontSize: '11px',
+              fontWeight: 800,
+              letterSpacing: '0.8px',
+              textTransform: 'uppercase',
+              marginBottom: '12px',
+            }}
+          >
+            Akses Ditolak · 403 Forbidden
+          </div>
+
+          <h2 className="text-xl font-black text-white mb-2 tracking-tight text-center">
+            Tautan yang anda masukkan tidak sah!
+          </h2>
+
+          <p className="text-sm text-slate-300 max-w-sm leading-relaxed mb-4">
+            Akses pemantauan radar taktis dan data laporan <strong className="text-amber-400 font-mono">{nomorTiket}</strong> ditolak karena tautan tidak menyertakan token keamanan resmi atau token tidak terdaftar.
+          </p>
+
+          {/* Security explanation banner */}
+          <div
+            style={{
+              maxWidth: '400px',
+              background: 'rgba(18,22,33,0.85)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '14px',
+              padding: '14px 16px',
+              marginBottom: '24px',
+              textAlign: 'left',
+              fontSize: '11.5px',
+              color: '#94A3B8',
+              lineHeight: 1.6,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#ECC473', fontWeight: 800, marginBottom: '6px' }}>
+              <span>🛡️</span>
+              <span>Protokol Keamanan SIMOPMAS 110</span>
+            </div>
+            Demi melindungi kerahasiaan data pelapor dan keamanan operasi personel patroli lapangan, seluruh URL pelacakan wajib menggunakan tautan sah resmi ber-token yang dikirimkan via WhatsApp resmi atau tanda bukti lapor Anda.
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', maxWidth: '340px' }}>
+            <button
+              type="button"
+              onClick={onBack || (() => (window.location.href = '/tracking'))}
+              className="w-full bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-sm px-6 py-3.5 rounded-xl shadow-lg active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Search size={16} />
+              <span>Kembali ke Pencarian Laporan</span>
+            </button>
+
+            <a
+              href="tel:110"
+              className="w-full bg-slate-900/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300 font-bold text-xs px-6 py-3 rounded-xl active:scale-95 transition-all text-center flex items-center justify-center gap-2"
+            >
+              <Phone size={14} className="text-red-400" />
+              <span>Bantuan Darurat SPKT 110</span>
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* ───────────────── TIKET TIDAK DITEMUKAN ───────────────── */}
-      {!loading && ticketNotFound && !complaint && (
+      {!loading && !unauthorized && ticketNotFound && !complaint && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#090A0F] p-6 text-center animate-in fade-in duration-300">
           <div className="text-5xl mb-4">🔍</div>
           <h2 className="text-lg font-black text-white mb-2">Tiket Tidak Ditemukan</h2>
@@ -522,7 +803,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
           </p>
           <button
             type="button"
-            onClick={onBack || (() => window.location.href = '/tracking')}
+            onClick={onBack || (() => (window.location.href = '/tracking'))}
             className="bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black text-sm px-6 py-3 rounded-xl shadow-lg active:scale-95 transition-all cursor-pointer"
           >
             Cari Nomor Tiket Lain
@@ -531,24 +812,19 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
       )}
 
       {/* ───────────────── MAIN VIEW ───────────────── */}
-      {!loading && complaint && (
+      {!loading && !unauthorized && complaint && (
         isCompleted ? (
           <>
             <CompletedIndependentView
               complaint={complaint}
               officer={assignedOfficer}
               nomorTiket={nomorTiket}
-              starRating={starRating}
-              hoverStar={hoverStar}
-              selectedTags={selectedTags}
+              fiveRatings={fiveRatings}
               reviewText={reviewText}
               submitting={submittingRating}
               done={ratingDone}
-              ratingLabels={ratingLabels}
-              onStarSet={setStarRating}
-              onStarHover={setHoverStar}
-              onTagToggle={(t: string) =>
-                setSelectedTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]))
+              onRatingChange={(id: string, val: number) =>
+                setFiveRatings((prev) => ({ ...prev, [id]: val }))
               }
               onReviewChange={setReviewText}
               onSubmit={handleSubmitRating}
@@ -1764,16 +2040,11 @@ function CompletedIndependentView({
   complaint,
   officer,
   nomorTiket,
-  starRating,
-  hoverStar,
-  selectedTags,
+  fiveRatings,
   reviewText,
   submitting,
   done,
-  ratingLabels,
-  onStarSet,
-  onStarHover,
-  onTagToggle,
+  onRatingChange,
   onReviewChange,
   onSubmit,
   onBack,
@@ -1783,6 +2054,7 @@ function CompletedIndependentView({
   onOpenChat,
   mapComplaint,
 }: any) {
+  const [hoverRatings, setHoverRatings] = useState<Record<string, number>>({});
   const [showMapPreview, setShowMapPreview] = useState(false);
 
   const cleanTiket = (nomorTiket || complaint?.nomorTiket || '').replace(/^#/, '');
@@ -1920,81 +2192,89 @@ function CompletedIndependentView({
 
         {/* Citizen Rating & Review Form Card */}
         <div className="rounded-2xl p-4 sm:p-6 bg-gradient-to-br from-[#121621] to-[#0A0D14] border border-amber-500/35 shadow-xl space-y-4">
-          {done || complaint?.citizenRating ? (
+          {done || complaint?.citizenRating || complaint?.citizenReview || (typeof window !== 'undefined' && cleanTiket && localStorage.getItem(`simopmas_rating_${cleanTiket}`) === 'true') ? (
             <div className="text-center py-4 space-y-2">
-              <div className="text-4xl mb-1">⭐</div>
+              <div className="w-12 h-12 mx-auto rounded-full bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-2xl shadow-inner mb-2">
+                ⭐
+              </div>
               <h3 className="text-base font-black text-amber-300">Terima Kasih Atas Penilaian Anda!</h3>
               <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
                 Ulasan dan penilaian Anda telah berhasil dicatat. Evaluasi masyarakat sangat berarti untuk menjaga mutu pelayanan Presisi SIMOPMAS 110.
               </p>
             </div>
           ) : (
-            <form onSubmit={onSubmit} className="space-y-4 text-center">
-              <div>
-                <h3 className="text-sm font-black text-white uppercase tracking-wide mb-1">
-                  Nilai Pelayanan Petugas
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div className="text-center">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[11px] font-bold text-amber-300 uppercase tracking-wider mb-2">
+                  <Shield size={12} className="text-amber-400" />
+                  <span>Survei Kepuasan Masyarakat (IKM 110)</span>
+                </div>
+                <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-wide">
+                  Penilaian Kinerja Pelayanan Petugas
                 </h3>
-                <p className="text-xs text-slate-400">
-                  Bagaimana respons, kecepatan, dan profesionalisme petugas kami?
+                <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 leading-relaxed">
+                  Bantu kami menjaga mutu pelayanan Presisi Polri dengan memberikan rating bintang pada 5 indikator pelayanan di bawah ini:
                 </p>
               </div>
 
-              {/* Interactive Stars */}
-              <div>
-                <div className="flex justify-center gap-2 sm:gap-3 py-1">
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => onStarSet(n)}
-                      onMouseEnter={() => onStarHover(n)}
-                      onMouseLeave={() => onStarHover(0)}
-                      className="bg-transparent border-none cursor-pointer text-3xl sm:text-4xl transition-transform hover:scale-125 focus:outline-none"
-                      style={{
-                        filter: (hoverStar || starRating) >= n ? 'drop-shadow(0 0 10px rgba(245,158,11,0.65))' : 'none',
-                      }}
+              {/* 5 Rating Criteria Cards */}
+              <div className="space-y-3 pt-1">
+                {RATING_CRITERIA.map((crit) => {
+                  const currentScore = hoverRatings[crit.id] ?? fiveRatings[crit.id] ?? 5;
+                  return (
+                    <div
+                      key={crit.id}
+                      className="rounded-xl p-3.5 sm:p-4 bg-gradient-to-r from-[#0C101A] to-[#121624] border border-amber-500/20 hover:border-amber-500/35 transition-all text-left shadow-sm"
                     >
-                      {(hoverStar || starRating) >= n ? '⭐' : '☆'}
-                    </button>
-                  ))}
-                </div>
-                <div className="text-xs font-bold text-amber-300 mt-1">
-                  {ratingLabels[hoverStar || starRating]}
-                </div>
+                      {/* Top: Indicator Number + Title */}
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-md bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-black flex items-center justify-center flex-shrink-0 mt-0.5">
+                          {crit.number}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <h4 className="text-xs sm:text-sm font-bold text-white leading-tight">
+                            {crit.title}
+                          </h4>
+                          <p className="text-[11px] sm:text-xs text-slate-300/85 mt-1 leading-relaxed">
+                            {crit.question}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Interactive 5 Stars Row */}
+                      <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5">
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          {[1, 2, 3, 4, 5].map((star) => {
+                            const isFilled = currentScore >= star;
+                            return (
+                              <button
+                                key={star}
+                                type="button"
+                                onClick={() => onRatingChange(crit.id, star)}
+                                onMouseEnter={() => setHoverRatings((prev: any) => ({ ...prev, [crit.id]: star }))}
+                                onMouseLeave={() => setHoverRatings((prev: any) => ({ ...prev, [crit.id]: undefined }))}
+                                className="bg-transparent border-none cursor-pointer text-2xl sm:text-3xl transition-transform hover:scale-125 active:scale-95 focus:outline-none p-0.5 select-none"
+                                style={{
+                                  filter: isFilled ? 'drop-shadow(0 0 8px rgba(245,158,11,0.65))' : 'none',
+                                }}
+                                aria-label={`${star} Bintang untuk ${crit.title}`}
+                              >
+                                {isFilled ? '⭐' : '☆'}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="text-[11px] sm:text-xs font-bold text-amber-300">
+                          {RATING_LABELS[currentScore] || 'Sangat Puas'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              {/* Feedback Tags */}
+              {/* Textarea Catatan / Apresiasi */}
               <div className="text-left pt-1">
-                <div className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider">
-                  Apa yang Paling Memuaskan?
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    'Respon Cepat',
-                    'Personil Ramah',
-                    'Tiba Tepat Waktu',
-                    'Penanganan Profesional',
-                    'Solutif & Terpercaya',
-                    'Komunikasi Baik',
-                  ].map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => onTagToggle(t)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${selectedTags.includes(t)
-                          ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-sm'
-                          : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
-                        }`}
-                    >
-                      {selectedTags.includes(t) ? '✓ ' : ''}
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Textarea */}
-              <div className="text-left">
                 <label className="text-[10px] text-slate-400 font-bold mb-1.5 block uppercase tracking-wider">
                   Catatan atau Apresiasi (Opsional)
                 </label>
@@ -2002,7 +2282,7 @@ function CompletedIndependentView({
                   rows={2}
                   value={reviewText}
                   onChange={(e) => onReviewChange(e.target.value)}
-                  placeholder="Apresiasi atau catatan untuk personel (opsional)..."
+                  placeholder="Tuliskan catatan, saran, atau apresiasi untuk personel (opsional)..."
                   className="w-full bg-black/40 border border-amber-500/25 rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none resize-none focus:border-amber-400 transition-colors"
                 />
               </div>
@@ -2011,7 +2291,7 @@ function CompletedIndependentView({
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 px-4 rounded-xl font-black text-xs sm:text-sm text-slate-950 flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-xl font-black text-xs sm:text-sm text-slate-950 flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all cursor-pointer"
                 style={{
                   background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
                   opacity: submitting ? 0.7 : 1,

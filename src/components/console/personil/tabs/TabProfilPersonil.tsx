@@ -27,8 +27,8 @@ import {
   Navigation,
   Radio,
   ShieldCheck,
-  Eye,
   Phone,
+  Star,
 } from 'lucide-react';
 import KpiGaugeChart from '@/components/KpiGaugeChart';
 import { getOfficerInitials, hasOfficerAcceptedTask, formatPhoneNumber, getCleanCallNumber } from '../types';
@@ -39,6 +39,10 @@ import {
   updateUserProfileAndAvatarAction,
   updateUserPasswordAction,
 } from '@/app/actions/auth.actions';
+import {
+  getOfficerPerformanceRankingsAction,
+  type OfficerPerformanceRankItem,
+} from '@/app/actions/complaint.actions';
 
 interface TabProfilPersonilProps {
   officer: OfficerProfile;
@@ -131,9 +135,10 @@ export default function TabProfilPersonil({
 
   // Statistik Logbook & KPI
   const totalLogs = logbooks.length;
-  const approvedLogs = logbooks.filter(
-    (l) => (l.statusValidasi || '').toUpperCase() === 'DISETUJUI'
-  ).length;
+  const approvedLogs = logbooks.filter((l) => {
+    const st = (l.statusValidasi || l.status_validasi || l.validation_status || '').toUpperCase();
+    return st === 'DISETUJUI' || st === 'VALID';
+  }).length;
 
   const handleLogoutClick = () => {
     setActiveModal('logout');
@@ -370,6 +375,255 @@ export default function TabProfilPersonil({
   const countDiproses = useMemo(() => myComplaints.filter((c) => isStatusDiproses(c.status)).length, [myComplaints]);
   const countSelesai = useMemo(() => myComplaints.filter((c) => isStatusSelesai(c.status)).length, [myComplaints]);
 
+  // ========================================================
+  // KALKULASI DINAMIS DARI DATA RIIL (SLA, IKM, LOGBOOK & RANKING)
+  // ========================================================
+  const [rankingsData, setRankingsData] = useState<{
+    productivityRanking: OfficerPerformanceRankItem[];
+    satisfactionRanking: OfficerPerformanceRankItem[];
+    totalOfficers: number;
+  } | null>(null);
+  const [isLoadingRankings, setIsLoadingRankings] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchRankings() {
+      setIsLoadingRankings(true);
+      try {
+        const res = await getOfficerPerformanceRankingsAction();
+        if (res?.success && res.data && isMounted) {
+          setRankingsData(res.data);
+        }
+      } catch (e) {
+        console.error('Gagal mengambil peringkat personil:', e);
+      } finally {
+        if (isMounted) setIsLoadingRankings(false);
+      }
+    }
+
+    if (activeModal === 'kpi' && !rankingsData) {
+      fetchRankings();
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [activeModal, rankingsData]);
+
+  // Tanggal awal cutoff berdasarkan tab waktu:
+  // Harian = 00:00:00 WIB hari ini, Mingguan = 7 hari terakhir, Bulanan = 30 hari terakhir
+  const periodStartDate = useMemo(() => {
+    const d = new Date();
+    if (kpiPeriod === 'harian') {
+      d.setHours(0, 0, 0, 0);
+    } else if (kpiPeriod === 'mingguan') {
+      d.setDate(d.getDate() - 7);
+      d.setHours(0, 0, 0, 0);
+    } else {
+      d.setDate(d.getDate() - 30);
+      d.setHours(0, 0, 0, 0);
+    }
+    return d;
+  }, [kpiPeriod]);
+
+  // Filter tiket personil pada rentang periode yang aktif
+  const periodComplaints = useMemo(() => {
+    const cutoff = periodStartDate.getTime();
+    return myComplaints.filter((c: any) => {
+      const rawDate = c.createdAt || c.created_at || c.disposisiAt || c.waktuMeluncur || c.updatedAt;
+      if (!rawDate) return true;
+      const t = new Date(rawDate).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+  }, [myComplaints, periodStartDate]);
+
+  // Filter logbook personil pada rentang periode yang aktif
+  const periodLogbooks = useMemo(() => {
+    const cutoff = periodStartDate.getTime();
+    return (logbooks || []).filter((l: any) => {
+      const rawDate = l.created_at || l.createdAt || l.tanggal || l.claimed_at;
+      if (!rawDate) return true;
+      const t = new Date(rawDate).getTime();
+      return !isNaN(t) && t >= cutoff;
+    });
+  }, [logbooks, periodStartDate]);
+
+  // Kalkulasi Metrik Kinerja Dinamis dari Data Riil
+  const dynamicStats = useMemo(() => {
+    // 1. SLA & Response Time (Menit)
+    const responseTimes: number[] = [];
+    let fastCount = 0; // < 5 menit
+    let onTimeCount = 0; // 5 - 10 menit
+    let delayedCount = 0; // > 10 menit
+
+    periodComplaints.forEach((c: any) => {
+      let rMinutes: number | null = null;
+      if (typeof c.responseTimeMinutes === 'number' && c.responseTimeMinutes > 0) {
+        rMinutes = c.responseTimeMinutes;
+      } else {
+        const arr = c.responTibaTkpAt || c.waktuTibaTkp;
+        const disp = c.disposisiAt || c.waktuMeluncur || c.createdAt || c.created_at;
+        if (arr && disp) {
+          const diffMs = new Date(arr).getTime() - new Date(disp).getTime();
+          if (diffMs > 0) {
+            rMinutes = Math.max(1, Math.round(diffMs / 60000));
+          }
+        }
+      }
+
+      if (rMinutes !== null && !isNaN(rMinutes) && rMinutes > 0) {
+        responseTimes.push(rMinutes);
+        if (rMinutes < 5) fastCount++;
+        else if (rMinutes <= 10) onTimeCount++;
+        else delayedCount++;
+      }
+    });
+
+    const totalResponseCalculated = responseTimes.length;
+    const avgResponseMinutes =
+      totalResponseCalculated > 0
+        ? Math.round((responseTimes.reduce((a, b) => a + b, 0) / totalResponseCalculated) * 10) / 10
+        : null;
+
+    const slaCompliantCount = fastCount + onTimeCount;
+    const slaCompliancePercent =
+      totalResponseCalculated > 0
+        ? Math.round((slaCompliantCount / totalResponseCalculated) * 100)
+        : 100;
+
+    // 2. IKM (Citizen Review / Rating Warga Bintang 1 - 5)
+    const ratings: number[] = [];
+    periodComplaints.forEach((c: any) => {
+      const r = c.citizenRating ?? c.citizen_review_rel?.star_rating ?? c.citizenReviewRel?.star_rating;
+      if (typeof r === 'number' && r >= 1 && r <= 5) {
+        ratings.push(r);
+      }
+    });
+
+    const totalReviews = ratings.length;
+    const avgRating =
+      totalReviews > 0
+        ? Math.round((ratings.reduce((a, b) => a + b, 0) / totalReviews) * 10) / 10
+        : null;
+    const ikmPercent = avgRating ? Math.round((avgRating / 5) * 100) : 100;
+
+    // 3. Kasus Tuntas di TKP
+    const totalTasks = periodComplaints.length;
+    const completedTasks = periodComplaints.filter((c: any) => (c.status || '').toUpperCase() === 'SELESAI').length;
+    const inProgressTasks = periodComplaints.filter((c: any) => {
+      const s = (c.status || '').toUpperCase();
+      return s === 'DIPROSES' || s === 'MENUNGGU' || s === 'MENUNGGU_PENGESAHAN';
+    }).length;
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 100;
+
+    // 4. Validasi Pawas
+    const totalLogsCount = periodLogbooks.length;
+    const approvedLogsCount = periodLogbooks.filter((l: any) => {
+      const st = (l.statusValidasi || l.status_validasi || l.validation_status || '').toUpperCase();
+      return st === 'DISETUJUI' || st === 'VALID';
+    }).length;
+    const validationRate = totalLogsCount > 0 ? Math.round((approvedLogsCount / totalLogsCount) * 100) : 100;
+
+    // 5. Skor Komposit KPI (0 - 100%)
+    // Bobot: 40% Respon SLA, 30% IKM Pelapor, 20% Rasio Tuntas Kasus, 10% Validasi Pawas
+    const slaScore = totalResponseCalculated > 0 ? slaCompliancePercent : 95;
+    const ikmScore = avgRating ? ikmPercent : 95;
+    const compScore = totalTasks > 0 ? completionRate : 95;
+    const valScore = totalLogsCount > 0 ? validationRate : 100;
+
+    const rawKpi = 0.4 * slaScore + 0.3 * ikmScore + 0.2 * compScore + 0.1 * valScore;
+    const compositeKpi = Math.min(100, Math.max(0, Math.round(rawKpi)));
+
+    // Predikat Otomatis Berdasarkan Skor Komposit
+    let predikatTitle = 'PREDIKAT: SANGAT BAIK (A)';
+    let predikatSubtext = 'Performa teladan, konsisten tiba di bawah target 10 menit & kepuasan pelapor tinggi.';
+    let predikatGrade = 'A';
+    let predikatColor = 'text-amber-300';
+    let predikatBadgeBg = 'bg-amber-400/15 border-amber-400/30 text-amber-300';
+
+    if (compositeKpi >= 90) {
+      predikatTitle = 'PREDIKAT: SANGAT BAIK (A)';
+      predikatSubtext = 'Performa teladan, konsisten tiba di bawah target 10 menit & kepuasan pelapor tinggi.';
+      predikatGrade = 'A';
+      predikatColor = 'text-amber-300';
+      predikatBadgeBg = 'bg-amber-400/15 border-amber-400/30 text-amber-300';
+    } else if (compositeKpi >= 80) {
+      predikatTitle = 'PREDIKAT: BAIK (B)';
+      predikatSubtext = 'Kinerja operasional dan respon lapangan stabil sesuai SOP kepolisian Presisi.';
+      predikatGrade = 'B';
+      predikatColor = 'text-blue-400';
+      predikatBadgeBg = 'bg-blue-400/15 border-blue-400/30 text-blue-400';
+    } else if (compositeKpi >= 70) {
+      predikatTitle = 'PREDIKAT: CUKUP (C)';
+      predikatSubtext = 'Capaian memenuhi standar minimal tugas, tingkatkan akselerasi menuju TKP.';
+      predikatGrade = 'C';
+      predikatColor = 'text-yellow-400';
+      predikatBadgeBg = 'bg-yellow-400/15 border-yellow-400/30 text-yellow-400';
+    } else {
+      predikatTitle = 'PREDIKAT: PERLU PEMBINAAN (D)';
+      predikatSubtext = 'Waktu respon atau kelengkapan administrasi tugas memerlukan atensi khusus Pawas.';
+      predikatGrade = 'D';
+      predikatColor = 'text-rose-400';
+      predikatBadgeBg = 'bg-rose-400/15 border-rose-400/30 text-rose-400';
+    }
+
+    return {
+      totalTasks,
+      completedTasks,
+      inProgressTasks,
+      completionRate,
+      avgResponseMinutes,
+      totalResponseCalculated,
+      slaCompliancePercent,
+      fastCount,
+      onTimeCount,
+      delayedCount,
+      avgRating,
+      totalReviews,
+      ikmPercent,
+      totalLogsCount,
+      approvedLogsCount,
+      validationRate,
+      compositeKpi,
+      predikatTitle,
+      predikatSubtext,
+      predikatGrade,
+      predikatColor,
+      predikatBadgeBg,
+    };
+  }, [periodComplaints, periodLogbooks]);
+
+  // Peringkat Personil Riil dalam Satuan & Seluruh Personel
+  const officerRanking = useMemo(() => {
+    if (!rankingsData) {
+      return {
+        prodRank: 1,
+        satRank: 1,
+        totalOfficers: 1,
+        unitName: officer.satuan || 'Satuan Samapta Presisi',
+        isTopTier: true,
+      };
+    }
+
+    const prodIdx = rankingsData.productivityRanking.findIndex(
+      (r) => String(r.officerId) === String(officer.id) || r.nrp === officer.nrp
+    );
+    const satIdx = rankingsData.satisfactionRanking.findIndex(
+      (r) => String(r.officerId) === String(officer.id) || r.nrp === officer.nrp
+    );
+
+    const total = rankingsData.totalOfficers || rankingsData.productivityRanking.length || 1;
+    const prodRank = prodIdx >= 0 ? prodIdx + 1 : 1;
+    const satRank = satIdx >= 0 ? satIdx + 1 : 1;
+
+    return {
+      prodRank,
+      satRank,
+      totalOfficers: total,
+      unitName: officer.satuan || 'Satuan Samapta Presisi',
+      isTopTier: prodRank <= Math.max(3, Math.ceil(total * 0.3)),
+    };
+  }, [rankingsData, officer.id, officer.nrp, officer.satuan]);
+
   // Filter complaints for Riwayat Log Lengkap
   const filteredComplaints = useMemo(() => {
     return myComplaints.filter((c) => {
@@ -505,10 +759,10 @@ export default function TabProfilPersonil({
               Respon SLA
             </span>
             <div className="text-xl sm:text-2xl font-black font-mono text-emerald-400 leading-none my-1">
-              {localOfficer.kpi || officer.kpi || 96}%
+              {dynamicStats.slaCompliancePercent}%
             </div>
             <span className="text-[9px] text-emerald-400/80 font-medium leading-none">
-              Presisi
+              {dynamicStats.avgResponseMinutes !== null ? `${dynamicStats.avgResponseMinutes}m Rata-rata` : 'Presisi'}
             </span>
           </div>
 
@@ -1239,11 +1493,20 @@ export default function TabProfilPersonil({
 
             {/* Modal Body */}
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-              {/* Period Selector */}
+              {/* Period Selector Tabs */}
               <div className="flex items-center justify-between pb-3 border-b border-white/10 flex-wrap gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-400">
-                  Periode Penilaian
-                </span>
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-400 block">
+                    Periode Penilaian
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    {kpiPeriod === 'harian'
+                      ? 'Hari ini sejak 00:00 WIB'
+                      : kpiPeriod === 'mingguan'
+                      ? '7 hari terakhir'
+                      : '30 hari terakhir'}
+                  </span>
+                </div>
                 <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10">
                   {(['harian', 'mingguan', 'bulanan'] as const).map((period) => (
                     <button
@@ -1265,71 +1528,201 @@ export default function TabProfilPersonil({
               {/* KPI Gauge Chart & SOP Score */}
               <div className="flex flex-col items-center justify-center p-5 rounded-2xl bg-white/[0.03] border border-white/10">
                 <KpiGaugeChart
-                  score={localOfficer.kpi || 96}
-                  label={`${localOfficer.kpi || 96}%`}
-                  subtext="Capaian Standar SOP & Respon SLA"
+                  score={dynamicStats.compositeKpi}
+                  label={`${dynamicStats.compositeKpi}%`}
+                  subtext="Capaian Standar SOP & Respon SLA Riil"
                 />
-                <div className="text-center mt-3">
-                  <span className="text-xs sm:text-sm font-black text-amber-300 tracking-wide">
-                    PREDIKAT: SANGAT BAIK (A)
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Konsisten meluncur ke TKP di bawah target waktu 10 menit
+                <div className="text-center mt-3 space-y-1">
+                  <div className="inline-block px-3 py-1 rounded-full border text-xs sm:text-sm font-black tracking-wide"
+                    style={{
+                      background: 'rgba(236, 196, 115, 0.1)',
+                      borderColor: 'rgba(236, 196, 115, 0.3)',
+                    }}
+                  >
+                    <span className={dynamicStats.predikatColor}>{dynamicStats.predikatTitle}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 max-w-sm mx-auto leading-relaxed">
+                    {dynamicStats.predikatSubtext}
                   </p>
                 </div>
               </div>
 
-              {/* Performance Numbers Grid */}
+              {/* Kartu Peringkat & Reputasi Personil */}
+              <div
+                className="p-4 rounded-2xl relative overflow-hidden border space-y-3"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(236, 196, 115, 0.08) 0%, rgba(15, 18, 26, 0.8) 100%)',
+                  borderColor: 'rgba(236, 196, 115, 0.3)',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 16px rgba(236, 196, 115, 0.05)',
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Award className="text-amber-400" size={18} />
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-300">
+                      Peringkat Personil &amp; Reputasi Dinas
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300">
+                    {officerRanking.unitName}
+                  </span>
+                </div>
+
+                {isLoadingRankings ? (
+                  <div className="py-4 flex items-center justify-center gap-2 text-xs text-amber-300/70 animate-pulse">
+                    <Clock size={14} className="animate-spin" />
+                    <span>Menghitung peringkat seluruh personel piket riil...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        🏆 Produktivitas &amp; Respon
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">
+                          #{officerRanking.prodRank}
+                        </span>
+                        <span className="text-xs text-slate-400 font-semibold">
+                          dari {officerRanking.totalOfficers} Personel
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-emerald-400 font-medium">
+                        {officerRanking.isTopTier ? '🔥 Peringkat Unggulan Satuan' : 'Siaga Presisi Lapangan'}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                        ⭐ Kepuasan Warga (IKM)
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
+                          #{officerRanking.satRank}
+                        </span>
+                        <span className="text-xs text-slate-400 font-semibold">
+                          dari {officerRanking.totalOfficers} Personel
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-medium">
+                        {dynamicStats.totalReviews > 0
+                          ? `${dynamicStats.avgRating} ★ (${dynamicStats.totalReviews} Ulasan)`
+                          : 'Belum ada ulasan'}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Performance Numbers Grid - 100% Real Data */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase">
-                    ⚡ Rata-Rata Waktu Respon
+                {/* 1. Rata-Rata Waktu Respon & Kepatuhan SLA */}
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      ⚡ Waktu Respon Tiba
+                    </span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20">
+                      Target &lt; 10m
+                    </span>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-amber-300">
-                    &lt; 8.4 Menit
+                    {dynamicStats.avgResponseMinutes !== null ? `${dynamicStats.avgResponseMinutes} Menit` : '-'}
                   </div>
-                  <div className="text-[10px] text-emerald-400 font-medium">Target SOP: &lt; 10 Menit</div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] text-emerald-400 font-medium flex items-center justify-between">
+                      <span>Kepatuhan SLA:</span>
+                      <span className="font-bold">{dynamicStats.slaCompliancePercent}%</span>
+                    </div>
+                    {dynamicStats.totalResponseCalculated > 0 && (
+                      <div className="flex items-center gap-1 text-[9px] text-slate-400 pt-0.5 flex-wrap">
+                        <span className="text-emerald-400">&lt;5m: {dynamicStats.fastCount}</span>
+                        <span>•</span>
+                        <span className="text-amber-300">5-10m: {dynamicStats.onTimeCount}</span>
+                        {dynamicStats.delayedCount > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="text-rose-400">&gt;10m: {dynamicStats.delayedCount}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase">
-                    🎯 Indeks Kepuasan Warga
+                {/* 2. Indeks Kepuasan Warga */}
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      🎯 Kepuasan Warga (IKM)
+                    </span>
+                    {dynamicStats.avgRating !== null && (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-400/10 text-emerald-400 border border-emerald-400/20">
+                        {dynamicStats.ikmPercent}%
+                      </span>
+                    )}
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-emerald-400">
-                    4.9 / 5.0
+                    {dynamicStats.avgRating !== null ? `${dynamicStats.avgRating.toFixed(1)} / 5.0` : 'Belum Ada'}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-medium">Berdasarkan ulasan pelapor</div>
+                  <div className="text-[10px] text-slate-400 font-medium leading-tight">
+                    {dynamicStats.totalReviews > 0
+                      ? `Berdasarkan ${dynamicStats.totalReviews} ulasan pelapor`
+                      : 'Belum ada ulasan warga di periode ini'}
+                  </div>
                 </div>
 
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase">
-                    🛡️ Tugas Tuntas di TKP
+                {/* 3. Tugas Tuntas di TKP */}
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      🛡️ Tugas Tuntas di TKP
+                    </span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-slate-300 border border-white/10">
+                      {dynamicStats.completionRate}%
+                    </span>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-white">
-                    {myComplaints.filter((c) => c.status === 'SELESAI').length} Kasus
+                    {dynamicStats.completedTasks} Kasus
                   </div>
-                  <div className="text-[10px] text-slate-400 font-medium">Terselesaikan secara tuntas</div>
+                  <div className="text-[10px] text-slate-400 font-medium leading-tight">
+                    {dynamicStats.inProgressTasks > 0
+                      ? `${dynamicStats.inProgressTasks} kasus sedang penanganan`
+                      : `Dari ${dynamicStats.totalTasks} total tugas periode ini`}
+                  </div>
                 </div>
 
-                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
-                  <div className="text-[10px] font-bold text-slate-400 uppercase">
-                    ✅ Tingkat Validasi Pawas
+                {/* 4. Tingkat Validasi Pawas */}
+                <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      ✅ Validasi Pawas
+                    </span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-400/10 text-blue-400 border border-blue-400/20">
+                      Dual-GPS
+                    </span>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-blue-400">
-                    {totalLogs > 0 ? `${Math.round((approvedLogs / totalLogs) * 100)}%` : '100%'}
+                    {dynamicStats.validationRate}%
                   </div>
-                  <div className="text-[10px] text-slate-400 font-medium">{approvedLogs} dari {totalLogs} log disetujui</div>
+                  <div className="text-[10px] text-slate-400 font-medium leading-tight">
+                    {dynamicStats.totalLogsCount > 0
+                      ? `${dynamicStats.approvedLogsCount} dari ${dynamicStats.totalLogsCount} log disetujui`
+                      : 'Belum ada entri logbook periode ini'}
+                  </div>
                 </div>
               </div>
 
               {/* Print / Export Report Button */}
               <button
                 type="button"
-                onClick={() => alert('Mengekspor berkas akuntabilitas kinerja petugas ke format PDF...')}
+                onClick={() => {
+                  window.print();
+                }}
                 className="w-full py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 text-slate-200 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
               >
                 <Printer size={16} />
-                <span>Cetak / Ekspor Laporan Akuntabilitas Tugas (PDF)</span>
+                <span>Cetak / Ekspor Laporan Akuntabilitas Tugas ({kpiPeriod.toUpperCase()})</span>
               </button>
             </div>
 
@@ -1563,6 +1956,20 @@ export default function TabProfilPersonil({
                           <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusMeta.badgeClass}`}>
                             {statusMeta.label}
                           </span>
+                          {(() => {
+                            const selRating =
+                              sel.citizenRating ??
+                              sel.citizen_rating ??
+                              sel.citizen_review_rel?.star_rating ??
+                              sel.citizenReviewRel?.star_rating;
+                            if (!selRating) return null;
+                            return (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30">
+                                <Star size={9} className="fill-amber-400 text-amber-400" />
+                                <span>IKM {selRating}★</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                         <div className="text-[11px] text-slate-400 truncate">
                           {sel.jenisKejadian}
@@ -1639,6 +2046,7 @@ export default function TabProfilPersonil({
                           <span>{sel.tkpAlamatTeks || 'TKP Patroli Wilayah'}</span>
                         </div>
                       </div>
+
 
                       {/* Identitas Pelapor */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-white/5">
@@ -2158,6 +2566,106 @@ export default function TabProfilPersonil({
                         </div>
                       </div>
                     </div>
+
+                    {/* EVALUASI & ULASAN WARGA (IKM) */}
+                    {(() => {
+                      const selRating =
+                        sel.citizenRating ??
+                        sel.citizen_rating ??
+                        sel.citizen_review_rel?.star_rating ??
+                        sel.citizenReviewRel?.star_rating;
+                      const selReview = (
+                        sel.citizenReview ||
+                        sel.citizen_review ||
+                        sel.citizen_review_rel?.review_text ||
+                        sel.citizenReviewRel?.review_text ||
+                        ''
+                      ).trim();
+                      const selTags =
+                        sel.citizenTags ||
+                        sel.citizen_review_rel?.feedback_tags ||
+                        sel.citizenReviewRel?.feedback_tags;
+
+                      if (!selRating && !selReview) return null;
+
+                      return (
+                        <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/[0.08] via-amber-500/[0.03] to-transparent border border-amber-500/25 space-y-3 shadow-lg">
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center border border-amber-400/30">
+                                <Star size={16} className="fill-amber-400 text-amber-400" />
+                              </div>
+                              <div>
+                                <h4 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
+                                  <span>Evaluasi &amp; Ulasan Warga (IKM)</span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                                    ✓ Terverifikasi 110
+                                  </span>
+                                </h4>
+                                <p className="text-[10px] text-slate-400">
+                                  Indeks Kepuasan Masyarakat atas pelayanan petugas di lapangan
+                                </p>
+                              </div>
+                            </div>
+
+                            {selRating ? (
+                              <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-amber-400/15 border border-amber-400/30">
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map((s) => (
+                                    <Star
+                                      key={s}
+                                      size={12}
+                                      className={
+                                        s <= Math.round(selRating)
+                                          ? 'fill-amber-400 text-amber-400'
+                                          : 'fill-white/10 text-slate-600'
+                                      }
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-xs font-black text-amber-300 font-mono ml-1">
+                                  {Number(selRating).toFixed(1)}
+                                </span>
+                                <span className="text-[10px] font-bold text-amber-200/90 ml-0.5">
+                                  ({selRating >= 5 ? 'Sangat Puas' : selRating >= 4 ? 'Puas' : selRating >= 3 ? 'Cukup' : 'Kurang'})
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {/* Feedback Tags */}
+                          {selTags && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {(Array.isArray(selTags) ? selTags : String(selTags).split(',')).map((t: string, i: number) => {
+                                const cleanTag = t.trim().replace(/^[\["']+|[\]"']+$/g, '');
+                                if (!cleanTag) return null;
+                                return (
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/5 border border-white/10 text-slate-300"
+                                  >
+                                    ✨ {cleanTag}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Testimoni Pelapor */}
+                          {selReview ? (
+                            <div className="p-3.5 rounded-xl bg-black/40 border border-amber-400/20 text-slate-200 text-xs space-y-1.5">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                                <span>💬</span>
+                                <span>Catatan &amp; Testimoni Pelapor:</span>
+                              </div>
+                              <p className="italic text-slate-100 font-serif leading-relaxed text-xs sm:text-[13px]">
+                                &quot;{selReview}&quot;
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* DETAIL FOOTER */}
@@ -2312,6 +2820,35 @@ export default function TabProfilPersonil({
                             >
                               {c.status}
                             </span>
+
+                            {/* IKM Star & Review Indicator (Compact) */}
+                            {(() => {
+                              const rating =
+                                c.citizenRating ??
+                                c.citizen_rating ??
+                                c.citizen_review_rel?.star_rating ??
+                                c.citizenReviewRel?.star_rating;
+                              const reviewText = (
+                                c.citizenReview ||
+                                c.citizen_review ||
+                                c.citizen_review_rel?.review_text ||
+                                c.citizenReviewRel?.review_text ||
+                                ''
+                              ).trim();
+
+                              if (!rating && !reviewText) return null;
+
+                              return (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-400/15 text-amber-300 border border-amber-400/30 shadow-sm"
+                                  title={reviewText ? `IKM ${rating}★: "${reviewText}"` : `IKM ${rating}★`}
+                                >
+                                  <Star size={9} className="fill-amber-400 text-amber-400" />
+                                  <span>{rating ? `${rating}.0` : 'IKM'}</span>
+                                  {reviewText && <span className="text-[10px] ml-0.5">💬</span>}
+                                </span>
+                              );
+                            })()}
                           </div>
                           <div className="text-xs font-bold text-white truncate">
                             {c.jenisKejadian}

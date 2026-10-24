@@ -25,6 +25,7 @@ import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import {
   getPoliceOfficesAction,
   logoutAction,
+  updateDeviceTelemetryAction,
 } from '@/app/actions/auth.actions';
 import { getPatrolFleetUnitsAction, submitOfficerPresensiAction } from '@/app/actions/fleet.actions';
 import {
@@ -419,14 +420,54 @@ function PersonilContent({
       });
     }
 
-    // Geolocation watching
+    // Geolocation watching (Realtime telemetri dinamis untuk patroli lapangan nyata)
+    let watchId: number | null = null;
+    let lastTelemetryTime = 0;
+
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      // 1. Dapatkan posisi awal seketika
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          setCurrentGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCurrentGps({ lat, lng });
+          updateDeviceTelemetryAction({
+            nrp: officer.nrp,
+            lat,
+            lng,
+          }).catch(() => {});
         },
         () => {},
-        { enableHighAccuracy: true, timeout: 30000 }
+        { enableHighAccuracy: true, timeout: 15000 }
+      );
+
+      // 2. Pantau pergerakan dinamis secara kontinu saat personil berkendara di lapangan
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setCurrentGps((prev) => {
+            if (Math.abs(prev.lat - lat) < 0.00001 && Math.abs(prev.lng - lng) < 0.00001) {
+              return prev;
+            }
+            return { lat, lng };
+          });
+
+          // Kirim heartbeat GPS ke server setiap 8 detik agar Command Center (Pawas) & Warga melihat mobil bergerak riil
+          const now = Date.now();
+          if (now - lastTelemetryTime > 8000) {
+            lastTelemetryTime = now;
+            updateDeviceTelemetryAction({
+              nrp: officer.nrp,
+              lat,
+              lng,
+            }).catch(() => {});
+          }
+        },
+        (err) => {
+          console.warn('Geolocation continuous tracking notice:', err);
+        },
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 }
       );
     }
 
@@ -449,6 +490,9 @@ function PersonilContent({
     }, 5000);
 
     return () => {
+      if (watchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
       clearInterval(pollInterval);
       document.removeEventListener('visibilitychange', handleWakeOrFocus);
       window.removeEventListener('focus', handleWakeOrFocus);

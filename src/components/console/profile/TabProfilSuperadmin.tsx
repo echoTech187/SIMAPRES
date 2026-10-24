@@ -917,6 +917,44 @@ export default function TabProfilSuperadmin({
                   {c.createdAt ? new Date(c.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
                 </span>
               </div>
+              {(() => {
+                const rating =
+                  c.citizenRating ??
+                  c.citizen_rating ??
+                  c.citizen_review_rel?.star_rating ??
+                  c.citizenReviewRel?.star_rating;
+                const reviewText = (
+                  c.citizenReview ||
+                  c.citizen_review ||
+                  c.citizen_review_rel?.review_text ||
+                  c.citizenReviewRel?.review_text ||
+                  ''
+                ).trim();
+
+                if (!rating && !reviewText) return null;
+
+                return (
+                  <div style={{ marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {rating ? (
+                      <div>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: 800, background: '#FEF3C7', color: '#B45309', border: '1px solid #FDE68A', padding: '2px 6px', borderRadius: '4px' }}>
+                          <span>⭐</span>
+                          <span>IKM {rating}★</span>
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#92400E' }}>
+                            ({rating >= 5 ? 'Sangat Puas' : rating >= 4 ? 'Puas' : rating >= 3 ? 'Cukup' : 'Kurang'})
+                          </span>
+                        </span>
+                      </div>
+                    ) : null}
+
+                    {reviewText ? (
+                      <div style={{ fontSize: '11px', color: '#475569', fontStyle: 'italic', background: '#F1F5F9', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '4px 8px' }}>
+                        💬 &quot;{reviewText}&quot;
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </div>
           ))
         )}

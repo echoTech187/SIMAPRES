@@ -714,8 +714,24 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             sessionUser = await getSession();
           } catch (_) {}
 
-          const actorName = sessionUser?.fullName;
-          const actorRole = sessionUser?.role;
+          let actorName = sessionUser?.fullName;
+          let actorRole = sessionUser?.role;
+
+          if (!actorName && data.assignedOfficerId) {
+            const off = await tx.policeOfficer.findUnique({
+              where: { id: data.assignedOfficerId },
+              include: { user: true },
+            });
+            if (off) {
+              actorName = `${off.rank_pangkat || ''} ${off.user?.full_name || 'Personel'}`.trim();
+              actorRole = off.user?.role || 'PERSONIL';
+            }
+          }
+
+          if (!actorName) {
+            actorName = isPawasAction ? 'Perwira Pengawas (Pawas)' : 'Personel Lapangan';
+            actorRole = isPawasAction ? 'PAWAS' : 'PERSONIL';
+          }
           const finalLat = latestTimeline.gpsLat ?? data.tkpLat ?? null;
           const finalLng = latestTimeline.gpsLng ?? data.tkpLng ?? null;
 

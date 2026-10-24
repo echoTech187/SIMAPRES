@@ -62,6 +62,7 @@ export interface CitizenTrackingData {
     waktu: string;
     sudahDinilai: boolean;
   } | null;
+  trackingToken?: string;
 }
 
 // Zero-hardcode: Seluruh data tiket dan kategori dilayani langsung dari database MySQL
@@ -585,6 +586,7 @@ export default function PortalWargaPage() {
       fotoPengaduan: fotoBukti || '',
       ratingKepuasan: null,
       disposisi: undefined,
+      trackingToken: trackingToken || undefined,
     };
 
     showFriendlyToast(
@@ -737,6 +739,7 @@ export default function PortalWargaPage() {
                 sudahDinilai: true,
               }
             : null,
+          trackingToken: dbItem.trackingToken || undefined,
         };
       }
     } catch (err) {
@@ -1785,7 +1788,7 @@ export default function PortalWargaPage() {
                     </div>
                   </div>
                   <a
-                    href={`/tracking?tiket=${encodeURIComponent(currentActiveLog.nomorTiket)}`}
+                    href={`/tracking?tiket=${encodeURIComponent(currentActiveLog.nomorTiket)}${currentActiveLog.trackingToken ? `&token=${encodeURIComponent(currentActiveLog.trackingToken)}` : ''}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{

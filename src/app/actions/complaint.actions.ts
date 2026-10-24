@@ -404,7 +404,10 @@ export async function getComplaintByTiketAction(nomorTiket: string) {
     const repo = UseCaseFactory.getComplaintRepository();
     const result = await repo.findByNomorTiket(nomorTiket);
     if (!result) return { success: false, error: 'Nomor tiket tidak ditemukan.' };
-    return { success: true, data: serializeBigInt(result.toJSON()) };
+    const { generateTrackingToken } = await import('@/lib/tracking-token');
+    const trackingToken = generateTrackingToken(result.nomorTiket);
+    const data = serializeBigInt(result.toJSON());
+    return { success: true, data: { ...data, trackingToken } };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data pengaduan.' };
   }
@@ -414,7 +417,19 @@ export async function getComplaintsByPhoneAction(phone: string) {
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const results = await repo.findByPelaporHp(phone);
-    return { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
+    const { generateTrackingToken } = await import('@/lib/tracking-token');
+    return {
+      success: true,
+      data: serializeBigInt(
+        results.map((r) => {
+          const json = r.toJSON();
+          return {
+            ...json,
+            trackingToken: generateTrackingToken(r.nomorTiket),
+          };
+        })
+      ),
+    };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil data pengaduan.' };
   }

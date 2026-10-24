@@ -16,7 +16,7 @@ export interface TrackingDataResult {
 }
 
 // Micro-cache bersama untuk REST /api/tracking dan SSE stream: banyak penonton tiket yang sama = 1 query per TTL
-const TRACKING_CACHE_TTL_MS = 2000;
+const TRACKING_CACHE_TTL_MS = 1000;
 
 export function getTrackingData(
   tiket: string,
@@ -77,8 +77,8 @@ async function loadTrackingData(
   const first = rows[0];
   const compId = first.id;
 
-  // 2. Chat (tabel complaint_chats), fallback chat di audit log, dan catatan penyelesaian diambil paralel
-  const [rawChats, legacyChatLogs, finishLogs] = await Promise.all([
+  // 2. Chat, fallback audit log, catatan penyelesaian, dan ulasan warga (citizen_reviews) diambil paralel
+  const [rawChats, legacyChatLogs, finishLogs, citizenReviewRows] = await Promise.all([
     prisma
       .$queryRawUnsafe<any[]>(
         `SELECT id, sender_role, sender_name, officer_nrp, message_text, created_at
@@ -102,6 +102,12 @@ async function loadTrackingData(
         AND notes != ''
         AND (action IN ('COMPLAINT_COMPLETED', 'REPORT_SUBMITTED', 'SELESAI') OR action LIKE '%Selesai%' OR action LIKE '%BAP%')
       ORDER BY id DESC
+      LIMIT 1
+    `.catch(() => [] as any[]),
+    prisma.$queryRaw<any[]>`
+      SELECT star_rating, feedback_tags, review_text
+      FROM citizen_reviews
+      WHERE complaint_id = ${compId}
       LIMIT 1
     `.catch(() => [] as any[]),
   ]);
@@ -151,6 +157,12 @@ async function loadTrackingData(
   // 2b. Catatan Penyelesaian oleh Personil (jika tiket telah berstatus selesai)
   const catatanSelesai: string | null =
     finishLogs && finishLogs.length > 0 && finishLogs[0].notes ? finishLogs[0].notes : null;
+
+  // 2c. Ulasan & Penilaian Kepuasan Warga
+  const reviewRow = citizenReviewRows && citizenReviewRows.length > 0 ? citizenReviewRows[0] : null;
+  const citizenRating = reviewRow ? Number(reviewRow.star_rating) : null;
+  const citizenTags = reviewRow?.feedback_tags || null;
+  const citizenReview = reviewRow?.review_text || null;
 
   // 3. Assemble Dispatches
   const dispatchesMap = new Map<string, any>();
@@ -208,6 +220,58 @@ async function loadTrackingData(
 
   const dispatches = Array.from(dispatchesMap.values());
 
+  // Prioritaskan dispatch yang memiliki officer dan status penanganan paling maju
+  const sortedDispatches = [...dispatches].sort((a, b) => {
+    const score = (d: any) => {
+      let s = 0;
+      if (d.officer) s += 10;
+      if (d.acceptedAt || d.accepted_at) s += 20;
+      if (d.departedAt || d.departed_at) s += 30;
+      if (d.arrivedAt || d.arrived_at) s += 40;
+      if (d.completedAt || d.completed_at) s += 50;
+      return s;
+    };
+    return score(b) - score(a);
+  });
+
+  const primaryDispatch = sortedDispatches[0] || null;
+  const primaryOfficer = primaryDispatch?.officer
+    ? {
+        id: primaryDispatch.officer.id,
+        namaLengkap:
+          primaryDispatch.officer.user?.full_name ||
+          primaryDispatch.officer.user?.nama_lengkap ||
+          'Petugas Lapangan',
+        rankPangkat:
+          primaryDispatch.officer.rank_pangkat ||
+          primaryDispatch.officer.rankPangkat,
+        jabatan: primaryDispatch.officer.jabatan,
+        assignedPatrolVehicle:
+          primaryDispatch.officer.assigned_patrol_vehicle ||
+          primaryDispatch.officer.assignedPatrolVehicle,
+        currentGpsLat:
+          primaryDispatch.officer.current_gps_lat ||
+          primaryDispatch.officer.currentGpsLat,
+        currentGpsLng:
+          primaryDispatch.officer.current_gps_lng ||
+          primaryDispatch.officer.currentGpsLng,
+        phoneNumber: primaryDispatch.officer.user?.phone_number,
+        callPhoneNumber:
+          primaryDispatch.officer.user?.raw_phone_number ||
+          primaryDispatch.officer.user?.phone_number ||
+          '110',
+        avatarUrl: primaryDispatch.officer.avatar_url,
+        unitName:
+          primaryDispatch.unit?.unit_name ||
+          primaryDispatch.unit?.unitName ||
+          'Satuan Samapta Presisi',
+      }
+    : null;
+
+  const rawMeluncur = primaryDispatch?.departedAt || primaryDispatch?.departed_at || null;
+  const rawTiba = primaryDispatch?.arrivedAt || primaryDispatch?.arrived_at || null;
+  const rawSelesai = primaryDispatch?.completedAt || primaryDispatch?.completed_at || null;
+
   // 4. Format Serialized Complaint
   const serialized = serializeBigInt({
     id: String(first.id),
@@ -226,8 +290,16 @@ async function loadTrackingData(
     tkpLng: first.tkp_lng ? Number(first.tkp_lng) : null,
     waktuLaporan: first.created_at,
     createdAt: first.created_at,
+    assignedOfficer: primaryOfficer,
+    assignedOfficerId: primaryOfficer ? primaryOfficer.id : null,
+    waktuMeluncur: rawMeluncur ? new Date(rawMeluncur).toISOString() : null,
+    waktuTiba: rawTiba ? new Date(rawTiba).toISOString() : null,
+    selesaiAt: rawSelesai ? new Date(rawSelesai).toISOString() : null,
     catatanSelesai,
-    dispatches,
+    citizenRating,
+    citizenTags,
+    citizenReview,
+    dispatches: sortedDispatches,
     timelines: [],
     complaintLogs: [],
   });

@@ -56,6 +56,8 @@ interface SimapresGoogleMapProps {
   centerLng?: number;
   onUnitClick?: (unit: any) => void;
   targetComplaint?: any | null;
+  customRoutePath?: { lat: number; lng: number }[] | null;
+  followMyUnit?: boolean;
   controlsPosition?: 'top-right' | 'bottom-right' | 'bottom-left';
   controlsRightOffset?: string | number;
   controlsBottomOffset?: string | number;
@@ -189,6 +191,8 @@ export default function SimapresGoogleMap({
   centerLng,
   onUnitClick,
   targetComplaint = null,
+  customRoutePath = undefined,
+  followMyUnit = false,
   controlsPosition = 'bottom-right',
   controlsRightOffset,
   controlsBottomOffset,
@@ -199,10 +203,12 @@ export default function SimapresGoogleMap({
   const markersRef = useRef<any[]>([]);
   const patrolPolylinesRef = useRef<any[]>([]);
   const myUnitMarkerRef = useRef<any>(null);
+  const tkpMarkerRef = useRef<any>(null);
   const directionsRendererRef = useRef<any>(null);
   const lastFittedComplaintIdRef = useRef<string | null>(null);
   const lastRouteFetchedCoordsRef = useRef<{ oLat: number; oLng: number; dLat: number; dLng: number } | null>(null);
   const isFetchingRouteRef = useRef<boolean>(false);
+  const hasInitiallyZoomedRef = useRef<boolean>(false);
 
   const handleUnitClick = (unit: any) => {
     if (onSelectUnit) onSelectUnit(unit);
@@ -346,14 +352,24 @@ export default function SimapresGoogleMap({
 
         // Auto-dismiss development notice dialog jika ada (sama persis dengan prototype personil.js baris 49-57)
         const dismissTimer = setInterval(() => {
-          document.querySelectorAll('.dismissButton').forEach((b: any) => b.click());
-          document.querySelectorAll('.gm-err-container, .gm-err-content').forEach((el: any) => {
-            const dialog = el.closest('[role="dialog"]') || el.parentElement;
-            if (dialog) dialog.style.display = 'none';
+          document.querySelectorAll('.dismissButton').forEach((b: any) => {
+            try { b.click(); } catch (_) {}
           });
-        }, 350);
+          document.querySelectorAll('[role="dialog"]').forEach((dialog: any) => {
+            const text = (dialog as HTMLElement).innerText || '';
+            if (
+              text.includes('tidak dapat memuat Google Maps') ||
+              text.includes('pemilik situs ini') ||
+              text.includes('For development purposes only')
+            ) {
+              (dialog as HTMLElement).style.display = 'none';
+              (dialog as HTMLElement).style.visibility = 'hidden';
+              (dialog as HTMLElement).style.pointerEvents = 'none';
+            }
+          });
+        }, 250);
 
-        const clearTimer = setTimeout(() => clearInterval(dismissTimer), 100);
+        const clearTimer = setTimeout(() => clearInterval(dismissTimer), 6000);
 
         // Render markers
         renderMarkers(map, maps);
@@ -380,6 +396,10 @@ export default function SimapresGoogleMap({
         myUnitMarkerRef.current.setMap(null);
         myUnitMarkerRef.current = null;
       }
+      if (tkpMarkerRef.current) {
+        tkpMarkerRef.current.setMap(null);
+        tkpMarkerRef.current = null;
+      }
       if (directionsRendererRef.current) {
         try { directionsRendererRef.current.setMap(null); } catch (_) {}
         directionsRendererRef.current = null;
@@ -398,27 +418,53 @@ export default function SimapresGoogleMap({
     }
   }, [showTraffic]);
 
-  // Sync Markers when filters or data change
-  const renderMarkers = (map: any, maps: any) => {
-    // Clear old markers & polylines (kecuali marker unit sendiri yang di-update posisinya secara smooth)
-    markersRef.current.forEach((m) => m.setMap(null));
-    markersRef.current = [];
-    patrolPolylinesRef.current.forEach((p) => {
-      try { p.setMap(null); } catch (_) {}
-    });
-    patrolPolylinesRef.current = [];
+  // Sync custom / simulated route polyline (menghapus garis rute di belakang kendaraan secara real-time)
+  useEffect(() => {
+    // Jika tidak ada customRoutePath (idle/normal), biarkan rute standar OSRM yang aktif
+    if (!customRoutePath || !Array.isArray(customRoutePath)) return;
+    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    const maps = (window as any).google.maps;
 
-    // 1. My Unit (Smooth update posisi tanpa kedip/recreate marker)
+    if (customRoutePath.length >= 2) {
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setPath(customRoutePath);
+        directionsRendererRef.current.setMap(mapInstanceRef.current);
+      } else {
+        const poly = new maps.Polyline({
+          path: customRoutePath,
+          strokeColor: '#ECC473',
+          strokeOpacity: 0.95,
+          strokeWeight: 6,
+          map: mapInstanceRef.current,
+        });
+        directionsRendererRef.current = poly;
+      }
+    } else {
+      if (directionsRendererRef.current) {
+        try {
+          directionsRendererRef.current.setMap(null);
+        } catch (_) {}
+        directionsRendererRef.current = null;
+      }
+    }
+  }, [customRoutePath]);
+
+  // 1. ISOLATED REALTIME POSITION SYNC UNTUK UNIT SENDIRI (Zero Canvas Flicker)
+  // Memperbarui posisi marker unit personil secara native GPU transform tanpa pernah merusak/me-recreate marker lain
+  useEffect(() => {
+    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    const maps = (window as any).google.maps;
     const myPos = myUnit?.pos || (myUnit?.lat && myUnit?.lng ? { lat: Number(myUnit.lat), lng: Number(myUnit.lng) } : null);
+
     if (myUnit && myPos && myPos.lat && myPos.lng && Number(myPos.lat) !== 0) {
       if (myUnitMarkerRef.current) {
         myUnitMarkerRef.current.setPosition(myPos);
-        myUnitMarkerRef.current.setMap(map);
+        myUnitMarkerRef.current.setMap(mapInstanceRef.current);
       } else {
         const myIcon = makeHaloBadgeIcon(myUnit.iconEmoji || '👮', '#0284C7', '#38BDF8');
         const marker = new maps.Marker({
           position: myPos,
-          map,
+          map: mapInstanceRef.current,
           icon: myIcon,
           title: myUnit.title || myUnit.petugas || 'Posisi Saya',
           zIndex: 1000,
@@ -430,9 +476,180 @@ export default function SimapresGoogleMap({
       }
     } else if (myUnitMarkerRef.current) {
       myUnitMarkerRef.current.setMap(null);
+      myUnitMarkerRef.current = null;
+    }
+  }, [myUnit?.pos?.lat, myUnit?.pos?.lng, myUnit?.key, myUnit?.iconEmoji, myUnit?.title]);
+
+  // 2. ISOLATED REALTIME TKP MARKER SYNC (Persistent, Zero Canvas Flicker)
+  // Menjaga marker TKP tetap stabil di peta tanpa pernah di-destroy/di-recreate saat personil bergerak
+  useEffect(() => {
+    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    const maps = (window as any).google.maps;
+
+    const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
+    const cLng = targetComplaint?.tkpLng ?? targetComplaint?.lng ?? targetComplaint?.tkp_lng;
+
+    if (targetComplaint && cLat && cLng) {
+      const tkpPos = { lat: Number(cLat), lng: Number(cLng) };
+      const tkpTitle = `TKP: ${targetComplaint.nomorTiket || ''} • ${targetComplaint.jenisKejadian || 'Kejadian Lapangan'}`;
+      if (tkpMarkerRef.current) {
+        tkpMarkerRef.current.setPosition(tkpPos);
+        tkpMarkerRef.current.setTitle(tkpTitle);
+        tkpMarkerRef.current.setMap(mapInstanceRef.current);
+      } else {
+        const tkpIcon = makeHaloBadgeIcon('🚨', '#DC2626', '#FEF08A');
+        const marker = new maps.Marker({
+          position: tkpPos,
+          map: mapInstanceRef.current,
+          icon: tkpIcon,
+          title: tkpTitle,
+          zIndex: 1100,
+        });
+
+        const tkpUnitData: MapUnitData = {
+          key: `tkp_${targetComplaint.id || 'current'}`,
+          pos: tkpPos,
+          iconEmoji: '🚨',
+          title: `TKP: ${targetComplaint.jenisKejadian || 'Darurat 110'}`,
+          petugas: `Nomor Tiket: ${targetComplaint.nomorTiket || '-'}`,
+          sub: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
+          status: targetComplaint.status || 'DIPROSES',
+          statusColor: '#DC2626',
+          tugas: 'Target Penanganan Personel',
+          telemetri: `Koordinat: ${tkpPos.lat.toFixed(5)}, ${tkpPos.lng.toFixed(5)}`,
+        };
+
+        marker.addListener('click', () => {
+          handleUnitClick(tkpUnitData);
+        });
+        tkpMarkerRef.current = marker;
+      }
+    } else if (tkpMarkerRef.current) {
+      tkpMarkerRef.current.setMap(null);
+      tkpMarkerRef.current = null;
+    }
+  }, [
+    targetComplaint?.id,
+    targetComplaint?.nomorTiket,
+    targetComplaint?.status,
+    targetComplaint?.tkpLat ?? targetComplaint?.lat,
+    targetComplaint?.tkpLng ?? targetComplaint?.lng,
+  ]);
+
+  // 3. FIT BOUNDS INITIAL OVERVIEW (Only runs once when complaint arrives and !followMyUnit)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !(window as any).google?.maps || !targetComplaint) return;
+    if (followMyUnit) return; // Jangan override viewport jika sedang followMyUnit
+
+    const maps = (window as any).google.maps;
+    const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
+    const cLng = targetComplaint?.tkpLng ?? targetComplaint?.lng ?? targetComplaint?.tkp_lng;
+    const originLat = myUnit?.pos?.lat ?? (myUnit as any)?.lat;
+    const originLng = myUnit?.pos?.lng ?? (myUnit as any)?.lng;
+
+    if (cLat && cLng && originLat && originLng && Number(originLat) !== 0) {
+      const complaintKey = `${targetComplaint.id || targetComplaint.nomorTiket || 'current'}`;
+      if (lastFittedComplaintIdRef.current !== complaintKey) {
+        lastFittedComplaintIdRef.current = complaintKey;
+        try {
+          const bounds = new maps.LatLngBounds();
+          bounds.extend({ lat: Number(originLat), lng: Number(originLng) });
+          bounds.extend({ lat: Number(cLat), lng: Number(cLng) });
+          mapInstanceRef.current.fitBounds(bounds, { top: 70, bottom: 80, left: 40, right: 40 });
+        } catch (_) {}
+      }
+    }
+  }, [targetComplaint?.id, targetComplaint?.nomorTiket, followMyUnit]);
+
+  // 4. OSRM ROAD ROUTING (Only runs when not simulating and complaint arrives)
+  useEffect(() => {
+    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    if (!targetComplaint) {
+      if (directionsRendererRef.current && !customRoutePath) {
+        try { directionsRendererRef.current.setMap(null); } catch (_) {}
+        directionsRendererRef.current = null;
+      }
+      return;
     }
 
-    // 2. Police Offices / Mako (Dinamis Murni dari Database Tabel auth_units)
+    // Jika customRoutePath aktif (sedang simulasi jalan raya), biarkan effect customRoutePath yang mengontrol
+    if (customRoutePath && Array.isArray(customRoutePath)) return;
+
+    const maps = (window as any).google.maps;
+    const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
+    const cLng = targetComplaint?.tkpLng ?? targetComplaint?.lng ?? targetComplaint?.tkp_lng;
+    const originLat = myUnit?.pos?.lat ?? (myUnit as any)?.lat;
+    const originLng = myUnit?.pos?.lng ?? (myUnit as any)?.lng;
+
+    if (!cLat || !cLng || !originLat || !originLng || Number(originLat) === 0) return;
+
+    const oPos = { lat: Number(originLat), lng: Number(originLng) };
+    const dPos = { lat: Number(cLat), lng: Number(cLng) };
+
+    const lastRoute = lastRouteFetchedCoordsRef.current;
+    const needsFetch =
+      !directionsRendererRef.current ||
+      !lastRoute ||
+      Math.abs(lastRoute.oLat - oPos.lat) > 0.0005 ||
+      Math.abs(lastRoute.oLng - oPos.lng) > 0.0005 ||
+      Math.abs(lastRoute.dLat - dPos.lat) > 0.0005 ||
+      Math.abs(lastRoute.dLng - dPos.lng) > 0.0005;
+
+    if (needsFetch && !isFetchingRouteRef.current) {
+      isFetchingRouteRef.current = true;
+      lastRouteFetchedCoordsRef.current = {
+        oLat: oPos.lat,
+        oLng: oPos.lng,
+        dLat: dPos.lat,
+        dLng: dPos.lng,
+      };
+
+      getRealRoadPath(oPos.lat, oPos.lng, dPos.lat, dPos.lng)
+        .then((path) => {
+          if (path && path.length > 0 && mapInstanceRef.current) {
+            if (directionsRendererRef.current) {
+              try {
+                if (typeof directionsRendererRef.current.setMap === 'function') {
+                  directionsRendererRef.current.setMap(null);
+                }
+              } catch (_) {}
+            }
+            const poly = new maps.Polyline({
+              path,
+              strokeColor: '#ECC473',
+              strokeOpacity: 0.95,
+              strokeWeight: 6,
+              map: mapInstanceRef.current,
+            });
+            directionsRendererRef.current = poly;
+          }
+        })
+        .catch((err) => {
+          console.warn('Road routing notice:', err);
+        })
+        .finally(() => {
+          isFetchingRouteRef.current = false;
+        });
+    }
+  }, [
+    targetComplaint?.id,
+    targetComplaint?.tkpLat ?? targetComplaint?.lat,
+    targetComplaint?.tkpLng ?? targetComplaint?.lng,
+    Boolean(customRoutePath),
+  ]);
+
+  // Sync Static Markers (Kantor Polisi, Armada Patroli, Hotspots)
+  // HANYA dipanggil saat filter/data statis berubah, TIDAK PERNAH ter-trigger saat personil bergerak
+  const renderMarkers = (map: any, maps: any) => {
+    // Clear old static markers & polylines
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+    patrolPolylinesRef.current.forEach((p) => {
+      try { p.setMap(null); } catch (_) {}
+    });
+    patrolPolylinesRef.current = [];
+
+    // 1. Police Offices / Mako (Dinamis Murni dari Database Tabel auth_units)
     (policeOffices || []).forEach((office) => {
       const officePos = { lat: Number(office.lat), lng: Number(office.lng) };
       if (!officePos.lat || !officePos.lng) return;
@@ -465,7 +682,7 @@ export default function SimapresGoogleMap({
       markersRef.current.push(makoMarker);
     });
 
-    // 3. Operational Fleet Units & On-Duty Picket Personnel
+    // 2. Operational Fleet Units & On-Duty Picket Personnel
     if (showOtherOfficers) {
       (fleetUnits || []).forEach((unit) => {
         if (myUnit) {
@@ -542,7 +759,6 @@ export default function SimapresGoogleMap({
         // Render tactical patrol route polyline (Mengikuti rute jalan raya resmi OSRM)
         if ((showPatrolRoutes || isFocused) && unit.routePoints && unit.routePoints.length >= 2) {
           if (unit.routePoints.length === 2) {
-            // Rute 2 titik (Unit ke TKP) - gunakan OSRM jalan raya asli bukan garis lurus!
             getRealRoadPath(
               unit.routePoints[0].lat,
               unit.routePoints[0].lng,
@@ -561,7 +777,6 @@ export default function SimapresGoogleMap({
               }
             });
           } else {
-            // Rute patroli multi-waypoint
             const poly = new maps.Polyline({
               path: unit.routePoints,
               strokeColor: strokeColor,
@@ -575,7 +790,7 @@ export default function SimapresGoogleMap({
       });
     }
 
-    // 4. Hotspots / Titik Rawan (Dinamis Murni dari Database Tabel geo_hotspot_locations)
+    // 3. Hotspots / Titik Rawan (Dinamis Murni dari Database Tabel geo_hotspot_locations)
     if (activeFilter === 'all' || activeFilter === 'hotspot') {
       (hotspots || []).forEach((h: any) => {
         const hotspotPos = h.pos || { lat: Number(h.lat), lng: Number(h.lng) };
@@ -603,121 +818,12 @@ export default function SimapresGoogleMap({
           telemetri: `Koordinat: ${hotspotPos.lat.toFixed(4)}, ${hotspotPos.lng.toFixed(4)}`,
         };
 
-      marker.addListener('click', () => {
-        handleUnitClick(hotspotUnitData);
+        marker.addListener('click', () => {
+          handleUnitClick(hotspotUnitData);
+        });
+
+        markersRef.current.push(marker);
       });
-
-      markersRef.current.push(marker);
-    });
-  }
-
-  // 5. Target Pengaduan / Lokasi TKP Darurat & Garis Rute Tercepat (Navigasi Lapangan)
-  if (directionsRendererRef.current) {
-    try {
-      directionsRendererRef.current.setMap(null);
-    } catch (_) {}
-    directionsRendererRef.current = null;
-  }
-
-  const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
-  const cLng = targetComplaint?.tkpLng ?? targetComplaint?.lng ?? targetComplaint?.tkp_lng;
-  if (targetComplaint && cLat && cLng) {
-    const tkpPos = { lat: Number(cLat), lng: Number(cLng) };
-    const tkpIcon = makeHaloBadgeIcon('🚨', '#DC2626', '#FEF08A');
-    const tkpMarker = new maps.Marker({
-      position: tkpPos,
-      map,
-      icon: tkpIcon,
-      title: `TKP: ${targetComplaint.nomorTiket || ''} • ${targetComplaint.jenisKejadian || 'Kejadian Lapangan'}`,
-      zIndex: 1100,
-    });
-
-    const tkpUnitData: MapUnitData = {
-      key: `tkp_${targetComplaint.id || 'current'}`,
-      pos: tkpPos,
-      iconEmoji: '🚨',
-      title: `TKP: ${targetComplaint.jenisKejadian || 'Darurat 110'}`,
-      petugas: `Nomor Tiket: ${targetComplaint.nomorTiket || '-'}`,
-      sub: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
-      status: targetComplaint.status || 'DIPROSES',
-      statusColor: '#DC2626',
-      tugas: 'Target Penanganan Personel',
-      telemetri: `Koordinat: ${tkpPos.lat.toFixed(5)}, ${tkpPos.lng.toFixed(5)}`,
-    };
-
-    tkpMarker.addListener('click', () => {
-      handleUnitClick(tkpUnitData);
-    });
-    markersRef.current.push(tkpMarker);
-
-      // Gambar rute Directions dan sesuaikan viewport peta otomatis
-      const originLat = myUnit?.pos?.lat ?? (myUnit as any)?.lat;
-      const originLng = myUnit?.pos?.lng ?? (myUnit as any)?.lng;
-
-      if (originLat && originLng && Number(originLat) !== 0) {
-        const originPos = { lat: Number(originLat), lng: Number(originLng) };
-
-        // Fit Bounds HANYA SEKALI saat target TKP pertama kali aktif agar peta tidak melompat terus
-        const complaintKey = `${targetComplaint.id || targetComplaint.nomorTiket || 'current'}`;
-        if (lastFittedComplaintIdRef.current !== complaintKey) {
-          lastFittedComplaintIdRef.current = complaintKey;
-          try {
-            const bounds = new maps.LatLngBounds();
-            bounds.extend(originPos);
-            bounds.extend(tkpPos);
-            map.fitBounds(bounds, { top: 70, bottom: 80, left: 40, right: 40 });
-          } catch (_) {}
-        }
-
-        // Ambil rute jalan raya sesungguhnya (OSRM Navigation) hanya jika belum ada atau bergeser > 50m
-        const lastRoute = lastRouteFetchedCoordsRef.current;
-        const needsFetch =
-          !directionsRendererRef.current ||
-          !lastRoute ||
-          Math.abs(lastRoute.oLat - originPos.lat) > 0.0005 ||
-          Math.abs(lastRoute.oLng - originPos.lng) > 0.0005 ||
-          Math.abs(lastRoute.dLat - tkpPos.lat) > 0.0005 ||
-          Math.abs(lastRoute.dLng - tkpPos.lng) > 0.0005;
-
-        if (needsFetch && !isFetchingRouteRef.current) {
-          isFetchingRouteRef.current = true;
-          lastRouteFetchedCoordsRef.current = {
-            oLat: originPos.lat,
-            oLng: originPos.lng,
-            dLat: tkpPos.lat,
-            dLng: tkpPos.lng,
-          };
-
-          getRealRoadPath(originPos.lat, originPos.lng, tkpPos.lat, tkpPos.lng)
-            .then((path) => {
-              if (path && path.length > 0 && mapInstanceRef.current) {
-                if (directionsRendererRef.current) {
-                  try {
-                    if (typeof directionsRendererRef.current.setMap === 'function') {
-                      directionsRendererRef.current.setMap(null);
-                    }
-                  } catch (_) {}
-                }
-                const poly = new maps.Polyline({
-                  path,
-                  strokeColor: '#ECC473',
-                  strokeOpacity: 0.95,
-                  strokeWeight: 6,
-                  map: mapInstanceRef.current,
-                });
-                directionsRendererRef.current = poly;
-              }
-            })
-            .catch((err) => {
-              console.warn('Road routing notice:', err);
-            })
-            .finally(() => {
-              isFetchingRouteRef.current = false;
-            });
-        }
-      } else {
-        map.panTo(tkpPos);
-      }
     }
   };
 
@@ -731,17 +837,9 @@ export default function SimapresGoogleMap({
     showOtherOfficers,
     showPatrolRoutes,
     focusedUnitKey,
-    hotspots?.length,
-    policeOffices?.length,
-    fleetUnits?.length,
-    myUnit?.key,
-    myUnit?.pos?.lat,
-    myUnit?.pos?.lng,
-    targetComplaint?.id,
-    targetComplaint?.nomorTiket,
-    targetComplaint?.status,
-    targetComplaint?.tkpLat ?? targetComplaint?.lat,
-    targetComplaint?.tkpLng ?? targetComplaint?.lng,
+    hotspots,
+    policeOffices,
+    fleetUnits,
   ]);
 
   // Center & zoom to focused unit or TKP when selected
@@ -770,6 +868,26 @@ export default function SimapresGoogleMap({
       mapInstanceRef.current.panTo({ lat: Number(centerLat), lng: Number(centerLng) });
     }
   }, [centerLat, centerLng]);
+
+  // Auto-follow kamera ke posisi personil secara terus-menerus (Camera Navigation Follow Mode)
+  useEffect(() => {
+    if (!followMyUnit || !mapInstanceRef.current) {
+      hasInitiallyZoomedRef.current = false;
+      return;
+    }
+    const lat = myUnit?.pos?.lat;
+    const lng = myUnit?.pos?.lng;
+    if (lat && lng && Number(lat) !== 0) {
+      const pos = { lat: Number(lat), lng: Number(lng) };
+      if (!hasInitiallyZoomedRef.current) {
+        hasInitiallyZoomedRef.current = true;
+        mapInstanceRef.current.setZoom(16);
+        mapInstanceRef.current.panTo(pos);
+      } else {
+        mapInstanceRef.current.panTo(pos);
+      }
+    }
+  }, [followMyUnit, myUnit?.pos?.lat, myUnit?.pos?.lng]);
 
 // Center to my unit / GPS
 const handleCenterGps = () => {
