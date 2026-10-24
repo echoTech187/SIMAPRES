@@ -256,7 +256,7 @@ export default function PortalWargaPage() {
               if (full) setLokasi(full);
             }
           }
-        } catch (_) {}
+        } catch (_) { }
       },
       (err) => {
         setIsLocating(false);
@@ -371,7 +371,7 @@ export default function PortalWargaPage() {
           setLng(Number(pos.coords.longitude.toFixed(6)));
           setHasValidGps(true);
         },
-        () => {},
+        () => { },
         { enableHighAccuracy: true, timeout: 8000 }
       );
     }
@@ -586,9 +586,8 @@ export default function PortalWargaPage() {
             {/* Tombol Aksi */}
             <div className="thank-you-actions-row">
               <Link
-                href={`/tracking?tiket=${encodeURIComponent(createdTicket.nomorTiket)}${
-                  createdTicket.trackingToken ? `&token=${encodeURIComponent(createdTicket.trackingToken)}` : ''
-                }`}
+                href={`/tracking?tiket=${encodeURIComponent(createdTicket.nomorTiket)}${createdTicket.trackingToken ? `&token=${encodeURIComponent(createdTicket.trackingToken)}` : ''
+                  }`}
                 className="btn-thank-you-tracking"
               >
                 <Radio size={18} className="btn-tracking-icon flex-shrink-0" />
@@ -666,8 +665,10 @@ export default function PortalWargaPage() {
                 <div className="form-section-block">
                   <div className="section-badge-header">
                     <div className="section-num-tag">1</div>
-                    <div className="section-title">Identitas Pelapor</div>
-                    <div className="section-subtitle">Privasi identitas Anda terlindungi sistem</div>
+                    <div>
+                      <div className="section-title">Identitas Pelapor</div>
+                      <div className="section-subtitle">Privasi identitas Anda terlindungi sistem</div>
+                    </div>
                   </div>
 
                   <div className="form-grid-2">
@@ -705,8 +706,10 @@ export default function PortalWargaPage() {
                 <div className="form-section-block">
                   <div className="section-badge-header">
                     <div className="section-num-tag">2</div>
-                    <div className="section-title">Spesifikasi Jenis Kasus</div>
-                    <div className="section-subtitle">Pilih peristiwa atau gangguan yang Anda laporkan</div>
+                    <div>
+                      <div className="section-title">Spesifikasi Jenis Kasus</div>
+                      <div className="section-subtitle">Pilih peristiwa atau gangguan yang Anda laporkan</div>
+                    </div>
                   </div>
 
                   <div className="form-field-group">
@@ -745,8 +748,10 @@ export default function PortalWargaPage() {
                 <div className="form-section-block">
                   <div className="section-badge-header">
                     <div className="section-num-tag">3</div>
-                    <div className="section-title">Lokasi Kejadian (TKP)</div>
-                    <div className="section-subtitle">Tentukan patokan rute untuk mobil patroli</div>
+                    <div>
+                      <div className="section-title">Lokasi Kejadian (TKP)</div>
+                      <div className="section-subtitle">Tentukan patokan rute untuk mobil patroli</div>
+                    </div>
                   </div>
 
                   <div className="form-field-group" style={{ position: 'relative' }}>
@@ -848,8 +853,10 @@ export default function PortalWargaPage() {
                 <div className="form-section-block">
                   <div className="section-badge-header">
                     <div className="section-num-tag">4</div>
-                    <div className="section-title">Uraian &amp; Lampiran Bukti</div>
-                    <div className="section-subtitle">Foto mempermudah identifikasi patroli</div>
+                    <div>
+                      <div className="section-title">Uraian &amp; Lampiran Bukti</div>
+                      <div className="section-subtitle">Foto mempermudah identifikasi patroli</div>
+                    </div>
                   </div>
 
                   <div className="form-field-group" style={{ marginBottom: '16px' }}>
@@ -907,7 +914,7 @@ export default function PortalWargaPage() {
                   className="btn-submit-complaint"
                 >
                   <Send size={18} />
-                  <span>{isSubmitting ? 'MENGIRIM KE COMMAND CENTER...' : 'KIRIM PENGADUAN KE COMMAND CENTER 110'}</span>
+                  <span>{isSubmitting ? 'MENGIRIM...' : 'KIRIM PENGADUAN'}</span>
                 </button>
               </form>
             </div>
