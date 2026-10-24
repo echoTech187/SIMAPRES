@@ -598,7 +598,11 @@ const EMPTY_ARRAY: any[] = [];
         mode="fullscreen"
         height="100%"
         targetComplaint={isMissionActive ? activeComplaint : null}
-        customRoutePath={isSimulating || simulatedGps ? simulationRemainingRoute : undefined}
+        customRoutePath={
+          (isSimulating || simulatedGps) && simulationRemainingRoute && simulationRemainingRoute.length >= 2
+            ? simulationRemainingRoute
+            : undefined
+        }
         followMyUnit={Boolean(isSimulating || complaintStage === 'meluncur')}
         myUnit={memoizedMyUnit}
         hotspots={activeHotspots}

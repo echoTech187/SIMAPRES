@@ -137,7 +137,7 @@ export function loadGoogleMaps(): Promise<any> {
 // In-memory cache for road geometry to prevent repeated network requests
 const roadGeometryCache = new Map<string, { lat: number; lng: number }[]>();
 
-// Helper to fetch real road-following coordinates via OSRM GeoJSON
+// Helper to fetch real road-following coordinates via OSRM GeoJSON with timeout
 export async function getRealRoadPath(
   startLat: number,
   startLng: number,
@@ -151,8 +151,11 @@ export async function getRealRoadPath(
   }
 
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
     const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
     if (!res.ok) return null;
     const data = await res.json();
     if (data.routes && data.routes.length > 0 && data.routes[0].geometry?.coordinates) {
@@ -164,10 +167,69 @@ export async function getRealRoadPath(
       return path;
     }
   } catch (err) {
-    console.warn('Road routing error:', err);
+    console.warn('Road routing notice (OSRM):', err);
   }
   return null;
 }
+
+// Fallback Tier 2: Google Maps DirectionsService
+export function getGoogleDirectionsPath(
+  maps: any,
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+): Promise<{ lat: number; lng: number }[] | null> {
+  return new Promise((resolve) => {
+    if (!maps || typeof maps.DirectionsService !== 'function') {
+      return resolve(null);
+    }
+    try {
+      const service = new maps.DirectionsService();
+      service.route(
+        {
+          origin,
+          destination,
+          travelMode: maps.TravelMode.DRIVING,
+        },
+        (result: any, status: any) => {
+          if (status === 'OK' && result?.routes?.[0]?.overview_path) {
+            const path = result.routes[0].overview_path.map((p: any) => ({
+              lat: typeof p.lat === 'function' ? p.lat() : Number(p.lat),
+              lng: typeof p.lng === 'function' ? p.lng() : Number(p.lng),
+            }));
+            resolve(path);
+          } else {
+            resolve(null);
+          }
+        }
+      );
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+// Fallback Tier 3: Tactical smooth curve generator (Garis taktis yang selalu tersedia tanpa internet/API)
+export function generateTacticalPath(
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number
+): { lat: number; lng: number }[] {
+  const points: { lat: number; lng: number }[] = [];
+  const SAMPLES = 40;
+  const perpLat = -(endLng - startLng);
+  const perpLng = (endLat - startLat);
+  for (let i = 0; i <= SAMPLES; i++) {
+    const t = i / SAMPLES;
+    const curve = Math.sin(t * Math.PI) * 0.035;
+    points.push({
+      lat: startLat + (endLat - startLat) * t + perpLat * curve,
+      lng: startLng + (endLng - startLng) * t + perpLng * curve,
+    });
+  }
+  return points;
+}
+
 
 export default function SimapresGoogleMap({
   mode = 'beranda',
@@ -199,6 +261,7 @@ export default function SimapresGoogleMap({
 }: SimapresGoogleMapProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<any>(null);
+  const [mapReady, setMapReady] = useState<boolean>(false);
   const trafficLayerRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const patrolPolylinesRef = useRef<any[]>([]);
@@ -329,6 +392,7 @@ export default function SimapresGoogleMap({
       try {
         const map = new maps.Map(mapContainerRef.current, mapOptions);
         mapInstanceRef.current = map;
+        setMapReady(true);
 
         // Trigger resize agar tile peta langsung ter-render tanpa blank abu-abu
         setTimeout(() => {
@@ -385,6 +449,7 @@ export default function SimapresGoogleMap({
 
     return () => {
       isSubscribed = false;
+      setMapReady(false);
       // Clean up markers and polylines
       markersRef.current.forEach((m) => m.setMap(null));
       markersRef.current = [];
@@ -404,6 +469,7 @@ export default function SimapresGoogleMap({
         try { directionsRendererRef.current.setMap(null); } catch (_) {}
         directionsRendererRef.current = null;
       }
+      mapInstanceRef.current = null;
     };
   }, [mode]);
 
@@ -420,39 +486,44 @@ export default function SimapresGoogleMap({
 
   // Sync custom / simulated route polyline (menghapus garis rute di belakang kendaraan secara real-time)
   useEffect(() => {
-    // Jika tidak ada customRoutePath (idle/normal), biarkan rute standar OSRM yang aktif
-    if (!customRoutePath || !Array.isArray(customRoutePath)) return;
-    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    // Jika tidak ada customRoutePath (idle/normal), biarkan rute standar yang aktif
+    if (!customRoutePath || !Array.isArray(customRoutePath) || customRoutePath.length < 2) return;
+    if (!mapReady || !mapInstanceRef.current || !(window as any).google?.maps) return;
     const maps = (window as any).google.maps;
 
-    if (customRoutePath.length >= 2) {
-      if (directionsRendererRef.current) {
-        directionsRendererRef.current.setPath(customRoutePath);
-        directionsRendererRef.current.setMap(mapInstanceRef.current);
-      } else {
-        const poly = new maps.Polyline({
-          path: customRoutePath,
-          strokeColor: '#ECC473',
-          strokeOpacity: 0.95,
-          strokeWeight: 6,
-          map: mapInstanceRef.current,
-        });
-        directionsRendererRef.current = poly;
-      }
+    const arrowIcons = maps.SymbolPath?.FORWARD_CLOSED_ARROW ? [{
+      icon: {
+        path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        scale: 2.4,
+        strokeColor: '#78350F',
+        fillColor: '#F59E0B',
+        fillOpacity: 1,
+      },
+      offset: '40px',
+      repeat: '120px',
+    }] : undefined;
+
+    if (directionsRendererRef.current) {
+      directionsRendererRef.current.setPath(customRoutePath);
+      directionsRendererRef.current.setMap(mapInstanceRef.current);
     } else {
-      if (directionsRendererRef.current) {
-        try {
-          directionsRendererRef.current.setMap(null);
-        } catch (_) {}
-        directionsRendererRef.current = null;
-      }
+      const poly = new maps.Polyline({
+        path: customRoutePath,
+        strokeColor: '#ECC473',
+        strokeOpacity: 0.95,
+        strokeWeight: 6,
+        zIndex: 500,
+        icons: arrowIcons,
+        map: mapInstanceRef.current,
+      });
+      directionsRendererRef.current = poly;
     }
-  }, [customRoutePath]);
+  }, [mapReady, customRoutePath]);
 
   // 1. ISOLATED REALTIME POSITION SYNC UNTUK UNIT SENDIRI (Zero Canvas Flicker)
   // Memperbarui posisi marker unit personil secara native GPU transform tanpa pernah merusak/me-recreate marker lain
   useEffect(() => {
-    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    if (!mapReady || !mapInstanceRef.current || !(window as any).google?.maps) return;
     const maps = (window as any).google.maps;
     const myPos = myUnit?.pos || (myUnit?.lat && myUnit?.lng ? { lat: Number(myUnit.lat), lng: Number(myUnit.lng) } : null);
 
@@ -478,12 +549,12 @@ export default function SimapresGoogleMap({
       myUnitMarkerRef.current.setMap(null);
       myUnitMarkerRef.current = null;
     }
-  }, [myUnit?.pos?.lat, myUnit?.pos?.lng, myUnit?.key, myUnit?.iconEmoji, myUnit?.title]);
+  }, [mapReady, myUnit?.pos?.lat, myUnit?.pos?.lng, myUnit?.key, myUnit?.iconEmoji, myUnit?.title]);
 
   // 2. ISOLATED REALTIME TKP MARKER SYNC (Persistent, Zero Canvas Flicker)
   // Menjaga marker TKP tetap stabil di peta tanpa pernah di-destroy/di-recreate saat personil bergerak
   useEffect(() => {
-    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    if (!mapReady || !mapInstanceRef.current || !(window as any).google?.maps) return;
     const maps = (window as any).google.maps;
 
     const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
@@ -529,6 +600,7 @@ export default function SimapresGoogleMap({
       tkpMarkerRef.current = null;
     }
   }, [
+    mapReady,
     targetComplaint?.id,
     targetComplaint?.nomorTiket,
     targetComplaint?.status,
@@ -538,7 +610,7 @@ export default function SimapresGoogleMap({
 
   // 3. FIT BOUNDS INITIAL OVERVIEW (Only runs once when complaint arrives and !followMyUnit)
   useEffect(() => {
-    if (!mapInstanceRef.current || !(window as any).google?.maps || !targetComplaint) return;
+    if (!mapReady || !mapInstanceRef.current || !(window as any).google?.maps || !targetComplaint) return;
     if (followMyUnit) return; // Jangan override viewport jika sedang followMyUnit
 
     const maps = (window as any).google.maps;
@@ -559,11 +631,11 @@ export default function SimapresGoogleMap({
         } catch (_) {}
       }
     }
-  }, [targetComplaint?.id, targetComplaint?.nomorTiket, followMyUnit]);
+  }, [mapReady, targetComplaint?.id, targetComplaint?.nomorTiket, followMyUnit]);
 
-  // 4. OSRM ROAD ROUTING (Only runs when not simulating and complaint arrives)
+  // 4. MULTI-TIER RESILIENT ROAD ROUTING (OSRM -> Google Directions -> Tactical Direct Curve)
   useEffect(() => {
-    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    if (!mapReady || !mapInstanceRef.current || !(window as any).google?.maps) return;
     if (!targetComplaint) {
       if (directionsRendererRef.current && !customRoutePath) {
         try { directionsRendererRef.current.setMap(null); } catch (_) {}
@@ -573,7 +645,7 @@ export default function SimapresGoogleMap({
     }
 
     // Jika customRoutePath aktif (sedang simulasi jalan raya), biarkan effect customRoutePath yang mengontrol
-    if (customRoutePath && Array.isArray(customRoutePath)) return;
+    if (customRoutePath && Array.isArray(customRoutePath) && customRoutePath.length >= 2) return;
 
     const maps = (window as any).google.maps;
     const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
@@ -604,37 +676,62 @@ export default function SimapresGoogleMap({
         dLng: dPos.lng,
       };
 
-      getRealRoadPath(oPos.lat, oPos.lng, dPos.lat, dPos.lng)
-        .then((path) => {
-          if (path && path.length > 0 && mapInstanceRef.current) {
-            if (directionsRendererRef.current) {
-              try {
-                if (typeof directionsRendererRef.current.setMap === 'function') {
-                  directionsRendererRef.current.setMap(null);
-                }
-              } catch (_) {}
-            }
-            const poly = new maps.Polyline({
-              path,
-              strokeColor: '#ECC473',
-              strokeOpacity: 0.95,
-              strokeWeight: 6,
-              map: mapInstanceRef.current,
-            });
-            directionsRendererRef.current = poly;
-          }
-        })
-        .catch((err) => {
-          console.warn('Road routing notice:', err);
-        })
-        .finally(() => {
-          isFetchingRouteRef.current = false;
+      const arrowIcons = maps.SymbolPath?.FORWARD_CLOSED_ARROW ? [{
+        icon: {
+          path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          scale: 2.4,
+          strokeColor: '#78350F',
+          fillColor: '#F59E0B',
+          fillOpacity: 1,
+        },
+        offset: '40px',
+        repeat: '120px',
+      }] : undefined;
+
+      // Tier 3: Render instant tactical route curve langsung tanpa menunggu request jaringan
+      // Ini menjamin garis kuning SELALU TAMPIL seketika di layar personil
+      const initialTactical = generateTacticalPath(oPos.lat, oPos.lng, dPos.lat, dPos.lng);
+
+      if (!directionsRendererRef.current) {
+        directionsRendererRef.current = new maps.Polyline({
+          path: initialTactical,
+          strokeColor: '#ECC473',
+          strokeOpacity: 0.95,
+          strokeWeight: 6,
+          zIndex: 500,
+          icons: arrowIcons,
+          map: mapInstanceRef.current,
         });
+      } else {
+        directionsRendererRef.current.setMap(mapInstanceRef.current);
+      }
+
+      // Fetch rute jalan raya resmi (Tier 1: OSRM, Tier 2: Google Directions)
+      (async () => {
+        try {
+          let roadPath = await getRealRoadPath(oPos.lat, oPos.lng, dPos.lat, dPos.lng);
+          if (!roadPath || roadPath.length < 2) {
+            roadPath = await getGoogleDirectionsPath(maps, oPos, dPos);
+          }
+
+          if (roadPath && roadPath.length >= 2 && mapInstanceRef.current && directionsRendererRef.current) {
+            directionsRendererRef.current.setPath(roadPath);
+          }
+        } catch (err) {
+          console.warn('Road routing notice:', err);
+        } finally {
+          isFetchingRouteRef.current = false;
+        }
+      })();
     }
   }, [
+    mapReady,
     targetComplaint?.id,
+    targetComplaint?.nomorTiket,
     targetComplaint?.tkpLat ?? targetComplaint?.lat,
     targetComplaint?.tkpLng ?? targetComplaint?.lng,
+    myUnit?.pos?.lat ?? (myUnit as any)?.lat,
+    myUnit?.pos?.lng ?? (myUnit as any)?.lng,
     Boolean(customRoutePath),
   ]);
 

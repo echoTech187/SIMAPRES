@@ -2,7 +2,8 @@
 
 // SIMAPRES 110 - Master Data CRUD Server Actions
 import { prisma } from '@/infrastructure/db/prisma.client';
-import { revalidatePath } from 'next/cache';
+// revalidatePath sengaja di-skip di sini agar mutasi master data tidak memicu reload halaman penuh di browser konsol
+const revalidatePath = (_path: string) => {};
 import { getSession } from '@/lib/session';
 import { logUserActivity } from '@/lib/activity-logger';
 

@@ -2,7 +2,7 @@
 
 // SIMAPRES 110 - Device Server Actions
 import { prisma } from '@/infrastructure/db/prisma.client';
-import { revalidatePath } from 'next/cache';
+
 import { cacheInvalidate } from '@/lib/app-cache';
 
 // Helper serialize BigInt
@@ -152,8 +152,6 @@ export async function pairDeviceSessionAction(input: {
     }
 
     cacheInvalidate('active_officers_units');
-    revalidatePath('/console', 'layout');
-    revalidatePath('/registrasi-unit');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };

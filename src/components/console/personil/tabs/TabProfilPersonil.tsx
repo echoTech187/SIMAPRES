@@ -1563,9 +1563,6 @@ export default function TabProfilPersonil({
                       Peringkat Personil &amp; Reputasi Dinas
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400/10 border border-amber-400/20 text-amber-300">
-                    {officerRanking.unitName}
-                  </span>
                 </div>
 
                 {isLoadingRankings ? (
@@ -1622,9 +1619,6 @@ export default function TabProfilPersonil({
                     <span className="text-[10px] font-bold text-slate-400 uppercase">
                       ⚡ Waktu Respon Tiba
                     </span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-400/10 text-amber-300 border border-amber-400/20">
-                      Target &lt; 10m
-                    </span>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-amber-300">
                     {dynamicStats.avgResponseMinutes !== null ? `${dynamicStats.avgResponseMinutes} Menit` : '-'}
@@ -1678,9 +1672,6 @@ export default function TabProfilPersonil({
                     <span className="text-[10px] font-bold text-slate-400 uppercase">
                       🛡️ Tugas Tuntas di TKP
                     </span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-slate-300 border border-white/10">
-                      {dynamicStats.completionRate}%
-                    </span>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-white">
                     {dynamicStats.completedTasks} Kasus
@@ -1697,9 +1688,6 @@ export default function TabProfilPersonil({
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold text-slate-400 uppercase">
                       ✅ Validasi Pawas
-                    </span>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-400/10 text-blue-400 border border-blue-400/20">
-                      Dual-GPS
                     </span>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-blue-400">

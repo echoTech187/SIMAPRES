@@ -1,378 +1,184 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import './warga.css';
-import Select2CategoryDropdown, { IncidentSubcategoryOption } from '@/components/Select2CategoryDropdown';
-import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
+import {
+  Shield,
+  Phone,
+  AlertTriangle,
+  MapPin,
+  Navigation,
+  Camera,
+  CheckCircle2,
+  Copy,
+  ExternalLink,
+  Radio,
+  Siren,
+  Clock,
+  Send,
+  X,
+  Sparkles,
+} from 'lucide-react';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
-  loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
+  loading: () => (
+    <div
+      style={{
+        height: '240px',
+        background: '#0E1626',
+        borderRadius: '12px',
+        border: '1px solid rgba(236, 196, 115, 0.2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#ECC473',
+        fontSize: '13px',
+      }}
+    >
+      Memuat Peta Navigasi Presisi...
+    </div>
+  ),
 });
 
 import {
   createComplaintAction,
-  getComplaintByTiketAction,
-  getComplaintsByPhoneAction,
-  submitRatingAction,
   getMasterFilterOptionsAction,
 } from '@/app/actions/complaint.actions';
 
-export interface CitizenTrackingData {
-  id: number;
-  nomorTiket: string;
-  title: string;
-  jenisInsiden: string;
-  kategoriInsiden: string;
-  kategoriBadge: string;
-  nama: string;
-  nrp: string;
-  status: string;
-  statusText: string;
-  tahap: number;
-  waktu: string;
-  waktuMeluncur?: string;
-  waktuTiba?: string;
-  waktuSelesai?: string;
-  sektor: string;
-  lokasiKejadian: string;
-  sumberLaporan: string;
-  deskripsi: string;
-  deskripsiTindakan?: string;
-  catatanSelesai?: string;
-  koordinatGps: string;
-  fotoPengaduan: string;
-  fotoPersiapan?: string;
-  fotoTindakan?: string;
-  fotoSelesai?: string;
-  disposisi?: {
-    satuan?: string;
-    komandan?: string;
-    estimasiJarak?: string;
-    estimasiEta?: string;
-    avatarUrl?: string;
-  };
-  acceptedPersonels?: Array<{ nama: string; pangkat?: string; nrp?: string }>;
-  ratingKepuasan?: {
-    skor: number;
-    tags: string[];
-    ulasan: string;
-    waktu: string;
-    sudahDinilai: boolean;
-  } | null;
-  trackingToken?: string;
+interface SubcategoryItem {
+  id: number | string;
+  category_key: string;
+  nama_kasus: string;
+  default_urgensi?: string;
+  category_id?: number | string;
+  category_rel?: { id: number | string; key: string; label: string };
 }
 
-// Zero-hardcode: Seluruh data tiket dan kategori dilayani langsung dari database MySQL
-
+const FALLBACK_SUBCATEGORIES: SubcategoryItem[] = [
+  { id: 90001, category_key: 'LAKALANTAS', nama_kasus: 'Kecelakaan Lalu Lintas dengan Korban', default_urgensi: 'DARURAT' },
+  { id: 90003, category_key: 'LAKALANTAS', nama_kasus: 'Kecelakaan Lalu Lintas Kerugian Materiil', default_urgensi: 'SEDANG' },
+  { id: 90005, category_key: 'LAKALANTAS', nama_kasus: 'Penindakan Balap Liar / Knalpot Brong', default_urgensi: 'DARURAT' },
+  { id: 90010, category_key: 'KRIMINALITAS', nama_kasus: 'Pencurian dengan Kekerasan / Begal (Curas)', default_urgensi: 'DARURAT' },
+  { id: 90011, category_key: 'KRIMINALITAS', nama_kasus: 'Pencurian Kendaraan Bermotor (Curanmor)', default_urgensi: 'DARURAT' },
+  { id: 90012, category_key: 'KRIMINALITAS', nama_kasus: 'Penganiayaan / Pengeroyokan', default_urgensi: 'DARURAT' },
+  { id: 90013, category_key: 'KRIMINALITAS', nama_kasus: 'Pencurian / Pembobolan Rumah', default_urgensi: 'SEDANG' },
+  { id: 90014, category_key: 'KRIMINALITAS', nama_kasus: 'Penipuan / Penggelapan', default_urgensi: 'SEDANG' },
+  { id: 90020, category_key: 'KAMTIBMAS', nama_kasus: 'Tawuran Antar Kelompok / Warga', default_urgensi: 'DARURAT' },
+  { id: 90021, category_key: 'KAMTIBMAS', nama_kasus: 'Gangguan Ketertiban Umum / Keributan Warga', default_urgensi: 'SEDANG' },
+  { id: 90022, category_key: 'KAMTIBMAS', nama_kasus: 'Pesta Miras & Gangguan Keamanan Lingkungan', default_urgensi: 'SEDANG' },
+  { id: 90023, category_key: 'KAMTIBMAS', nama_kasus: 'Pungutan Liar / Tindak Premanisme', default_urgensi: 'SEDANG' },
+  { id: 90030, category_key: 'NARKOBA', nama_kasus: 'Penyalahgunaan / Transaksi Narkotika', default_urgensi: 'DARURAT' },
+  { id: 90040, category_key: 'BENCANA', nama_kasus: 'Bencana Kebakaran Pemukiman / Lahan', default_urgensi: 'DARURAT' },
+  { id: 90041, category_key: 'BENCANA', nama_kasus: 'Bencana Banjir / Pohon Tumbang Menutup Jalan', default_urgensi: 'SEDANG' },
+  { id: 90050, category_key: 'PELAYANAN', nama_kasus: 'Permohonan Pengawalan & Pengamanan Kegiatan Warga', default_urgensi: 'NORMAL' },
+  { id: 90051, category_key: 'PELAYANAN', nama_kasus: 'Laporan Orang / Barang Hilang', default_urgensi: 'NORMAL' },
+];
 
 export default function PortalWargaPage() {
-  const [activeTab, setActiveTab] = useState<'lapor' | 'lacak'>('lapor');
-
-  // Form State
+  // Master Data Collections from MySQL
   const [categoryOptions, setCategoryOptions] = useState<
     Array<{ id: number; key: string; label: string; icon?: string | null }>
   >([]);
-  const [subcategories, setSubcategories] = useState<IncidentSubcategoryOption[]>([]);
-  const [subcategoryId, setSubcategoryId] = useState<number | null>(null);
-  const [kategori, setKategori] = useState('');
+  const [subcategories, setSubcategories] = useState<SubcategoryItem[]>([]);
+
+  // Form State
   const [nama, setNama] = useState('');
   const [telp, setTelp] = useState('');
+  const [selectedCategoryKey, setSelectedCategoryKey] = useState<string>('KAMTIBMAS');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<number | string | null>(null);
+  const [urgensi, setUrgensi] = useState<'DARURAT' | 'SEDANG' | 'NORMAL'>('SEDANG');
   const [lokasi, setLokasi] = useState('');
-  const [lat, setLat] = useState<number>(0);
-  const [lng, setLng] = useState<number>(0);
-  const [gpsCoords, setGpsCoords] = useState('');
+  const [lat, setLat] = useState<number>(-7.026803);
+  const [lng, setLng] = useState<number>(109.592982);
+  const [hasValidGps, setHasValidGps] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [uraian, setUraian] = useState('');
+  const [fotoBukti, setFotoBukti] = useState<string | null>(null);
+
+  // Address Autocomplete Suggestions
   const [locationSuggestions, setLocationSuggestions] = useState<
     Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
   >([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [uraian, setUraian] = useState('');
-  const [fotoBukti, setFotoBukti] = useState<string | null>(null);
 
-  // Tracking State
-  const [ticketInput, setTicketInput] = useState('');
-  const [currentActiveLog, setCurrentActiveLog] = useState<CitizenTrackingData | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-
-  // Survey Rating State
-  const [ratingScore, setRatingScore] = useState<number>(5);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [ulasanText, setUlasanText] = useState('');
-  const [isEditingRating, setIsEditingRating] = useState(false);
-
-  // Lightbox Modal State
-  const [lightboxData, setLightboxData] = useState<{
-    open: boolean;
-    title: string;
-    img: string;
-    desc: string;
-  }>({
-    open: false,
-    title: '',
-    img: '',
-    desc: '',
-  });
-
-  // Alert Modal State
-  const [alertData, setAlertData] = useState<{
-    open: boolean;
-    title: string;
-    message: string;
-    icon: string;
-  }>({
-    open: false,
-    title: '',
-    message: '',
-    icon: 'ℹ️',
-  });
-
-  // Form Validation & Submitting State
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // Form Submission & Status
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Friendly Toast Notification State
-  const [toastNotification, setToastNotification] = useState<{
-    visible: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title: string;
-    message: string;
-  }>({ visible: false, type: 'info', title: '', message: '' });
-  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const showFriendlyToast = (
-    type: 'success' | 'error' | 'warning' | 'info',
-    title: string,
-    message: string
-  ) => {
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-    setToastNotification({ visible: true, type, title, message });
-    toastTimeoutRef.current = setTimeout(() => {
-      setToastNotification((prev) => ({ ...prev, visible: false }));
-    }, 4500);
-  };
-
-  // Success Confirmation Modal State (dengan fitur Salin Nomor Tiket)
-  const [successModal, setSuccessModal] = useState<{
-    open: boolean;
+  // Success Confirmation State (Halaman Ucapan Terima Kasih)
+  const [createdTicket, setCreatedTicket] = useState<{
     nomorTiket: string;
     trackingToken?: string;
-    kategori: string;
-    pelapor: string;
-    lokasi: string;
-    waktu: string;
-    newLog: CitizenTrackingData | null;
-  }>({
-    open: false,
-    nomorTiket: '',
-    trackingToken: '',
-    kategori: '',
-    pelapor: '',
-    lokasi: '',
-    waktu: '',
-    newLog: null,
-  });
+    createdAt?: string;
+    pelaporNama?: string;
+    pelaporHp?: string;
+    jenisKejadian?: string;
+    tkpAlamat?: string;
+  } | null>(null);
   const [copiedTicket, setCopiedTicket] = useState(false);
 
-  const handleCopyTicket = (ticketNum: string) => {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(ticketNum);
-      setCopiedTicket(true);
-      showFriendlyToast('success', 'Nomor Tiket Tersalin', `Tiket ${ticketNum} berhasil disalin ke papan klip.`);
-      setTimeout(() => setCopiedTicket(false), 2500);
-    }
-  };
+  // SOS Modal State
+  const [showSosModal, setShowSosModal] = useState(false);
+  const [sosCountdown, setSosCountdown] = useState(5);
+  const [isSosSending, setIsSosSending] = useState(false);
+  const sosTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Validasi Formulir Warga Secara Menyeluruh & Ramah
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-
-    // 1. Kategori Kasus
-    if (!subcategoryId && !kategori.trim()) {
-      errors.kategori = 'Silakan pilih kategori kasus laporan.';
-    }
-
-    // 2. Nama Lengkap Pelapor
-    const namaTrim = nama.trim();
-    if (!namaTrim) {
-      errors.nama = 'Nama lengkap pelapor wajib diisi.';
-    } else if (namaTrim.length < 3) {
-      errors.nama = 'Nama pelapor minimal 3 karakter.';
-    }
-
-    // 3. Nomor Telepon / WA
-    const telpTrim = telp.trim();
-    const cleanTelp = telpTrim.replace(/[\s\-]/g, '');
-    const phoneRegex = /^(\+62|62|08)[0-9]{8,13}$/;
-    if (!telpTrim) {
-      errors.telp = 'Nomor WhatsApp / HP wajib diisi.';
-    } else if (!phoneRegex.test(cleanTelp)) {
-      errors.telp = 'Format nomor HP tidak valid. Gunakan format 08xx atau +62xx (9–14 digit) agar petugas dapat menghubungi Anda.';
-    }
-
-    // 4. Lokasi Kejadian (TKP)
-    const lokasiTrim = lokasi.trim();
-    if (!lokasiTrim) {
-      errors.lokasi = 'Alamat atau patokan lokasi kejadian (TKP) wajib diisi.';
-    } else if (lokasiTrim.length < 5) {
-      errors.lokasi = 'Mohon masukkan alamat lokasi lebih jelas (minimal 5 karakter).';
-    }
-
-    // 5. Uraian Keterangan
-    const uraianTrim = uraian.trim();
-    if (!uraianTrim) {
-      errors.uraian = 'Keterangan ringkas kejadian wajib diisi.';
-    } else if (uraianTrim.length < 10) {
-      errors.uraian = 'Uraian keterangan minimal 10 karakter agar petugas memahami situasi lapangan.';
-    }
-
-    return errors;
-  };
-
-  // Load database master categories and recent active tickets
+  // 1. Fetch Dynamic Master Data from Database on Mount
   useEffect(() => {
-    ambilLokasiSaatIni();
-
-    async function loadDbMasters() {
-      try {
-        const filterRes = await getMasterFilterOptionsAction();
-
-        if (filterRes.success) {
-          if (filterRes.data?.categories) {
-            setCategoryOptions(filterRes.data.categories);
-          }
-          if (filterRes.data?.subcategories) {
-            setSubcategories(filterRes.data.subcategories);
-            if (filterRes.data.subcategories.length > 0) {
-              setSubcategoryId(filterRes.data.subcategories[0].id);
-              setKategori(filterRes.data.subcategories[0].nama_kasus);
-            }
-          }
+    let isMounted = true;
+    getMasterFilterOptionsAction().then((res) => {
+      if (!isMounted) return;
+      if (res?.success && res.data) {
+        if (Array.isArray(res.data.categories) && res.data.categories.length > 0) {
+          setCategoryOptions(res.data.categories);
         }
-      } catch (err) {
-        console.error('Error loading master data:', err);
+        if (Array.isArray(res.data.subcategories) && res.data.subcategories.length > 0) {
+          setSubcategories(res.data.subcategories);
+        }
       }
-    }
-
-    loadDbMasters();
+    });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Reverse Geocoding: Mengubah koordinat GPS (lat, lng) menjadi alamat riil (jalan, kelurahan, kecamatan, kota)
-  const resolveAddressFromCoords = async (targetLat: number, targetLng: number): Promise<string> => {
-    let resolved = '';
+  // 2. Daftar Subkategori Gabungan (Prioritaskan Database, dengan Fallback Lengkap)
+  const subcategoryList = useMemo(() => {
+    return subcategories.length > 0 ? subcategories : FALLBACK_SUBCATEGORIES;
+  }, [subcategories]);
 
-    // 1. Coba Google Maps Geocoder jika library Google Maps tersedia
-    if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
-      try {
-        const geocoder = new (window as any).google.maps.Geocoder();
-        await new Promise<void>((res) => {
-          geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
-            if (status === 'OK' && results && results[0]) {
-              resolved = results[0].formatted_address;
-            }
-            res();
-          });
-        });
-      } catch (_) {}
-    }
-
-    // 2. Fallback Photon Komoot reverse geocoding
-    if (!resolved) {
-      try {
-        const res = await fetch(`https://photon.komoot.io/reverse?lat=${targetLat}&lon=${targetLng}`);
-        if (res.ok) {
-          const data = await res.json();
-          const feat = data?.features?.[0]?.properties;
-          if (feat) {
-            const parts = [
-              feat.name,
-              feat.housenumber ? `No. ${feat.housenumber}` : '',
-              feat.street,
-              feat.district,
-              feat.city || feat.county,
-              feat.state,
-            ].filter(Boolean);
-            const uniqueParts = Array.from(new Set(parts));
-            if (uniqueParts.length > 0) {
-              resolved = uniqueParts.join(', ');
-            }
-          }
-        }
-      } catch (_) {}
-    }
-
-    // 3. Fallback OpenStreetMap Nominatim reverse geocoding
-    if (!resolved) {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${targetLat}&lon=${targetLng}&zoom=18&addressdetails=1`,
-          { headers: { 'Accept-Language': 'id' } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.display_name) {
-            resolved = data.display_name;
-          }
-        }
-      } catch (_) {}
-    }
-
-    return resolved;
+  const categoryLabelMap: Record<string, string> = {
+    KAMTIBMAS: 'Kamtibmas & Ketertiban',
+    KRIMINALITAS: 'Tindak Pidana & Kriminalitas',
+    LAKALANTAS: 'Lalu Lintas & Laka Lantas',
+    BENCANA: 'Bencana Alam & Kebakaran',
+    PELAYANAN: 'Pelayanan Publik Polri',
+    NARKOBA: 'Narkotika & Zat Berbahaya',
   };
 
-  const ambilLokasiSaatIni = (showFeedback = false) => {
-    if (typeof window !== 'undefined' && navigator.geolocation) {
-      setIsSearchingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          const latVal = Number(pos.coords.latitude.toFixed(6));
-          const lngVal = Number(pos.coords.longitude.toFixed(6));
-          setLat(latVal);
-          setLng(lngVal);
-          setGpsCoords(`${latVal}, ${lngVal}`);
-
-          try {
-            const realAddress = await resolveAddressFromCoords(latVal, lngVal);
-            if (realAddress) {
-              setLokasi(realAddress);
-              if (showFeedback) {
-                showFriendlyToast('success', 'Lokasi GPS Terkunci', `Alamat terdeteksi: ${realAddress}`);
-              }
-            } else if (!lokasi) {
-              setLokasi(`Jl. Sekitar (${latVal.toFixed(4)}, ${lngVal.toFixed(4)})`);
-            }
-          } catch (_) {
-            if (!lokasi) {
-              setLokasi(`Jl. Sekitar (${latVal.toFixed(4)}, ${lngVal.toFixed(4)})`);
-            }
-          } finally {
-            setIsSearchingLocation(false);
-          }
-        },
-        () => {
-          setIsSearchingLocation(false);
-          if (showFeedback) {
-            showFriendlyToast(
-              'warning',
-              'Izin Lokasi Belum Aktif',
-              'Mohon aktifkan izin GPS di peramban Anda atau ketik nama jalan/lokasi secara manual.'
-            );
-          }
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
+  const groupedSubcategories = useMemo(() => {
+    const map: Record<string, typeof subcategoryList> = {};
+    for (const sub of subcategoryList) {
+      const catKey = (sub.category_key || 'KAMTIBMAS').toUpperCase();
+      const label = categoryLabelMap[catKey] || catKey;
+      if (!map[label]) map[label] = [];
+      map[label].push(sub);
     }
-  };
+    return map;
+  }, [subcategoryList]);
 
+  // 3. Handle Autocomplete Address Search (Photon Komoot API)
   const handleLocationSearch = (query: string) => {
     setLokasi(query);
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
 
-    if (!query || query.trim().length < 2) {
+    if (!query || query.trim().length < 3) {
       setLocationSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -382,18 +188,15 @@ export default function PortalWargaPage() {
     searchTimeoutRef.current = setTimeout(async () => {
       try {
         const encoded = encodeURIComponent(query.trim());
-        const coordQuery = lat && lng ? `&lat=${lat}&lon=${lng}` : '';
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}${coordQuery}&limit=6`);
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&limit=5`);
         if (res.ok) {
           const data = await res.json();
           const items = (data?.features || []).map((feat: any) => {
             const p = feat.properties || {};
             const coords = feat.geometry?.coordinates || [0, 0];
             const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city || 'DKI Jakarta'].filter(
-              (part) => part && part !== title
-            );
-            const sub = subParts.join(', ') || 'Wilayah DKI Jakarta & Sekitarnya';
+            const subParts = [p.street, p.district, p.city].filter((part) => part && part !== title);
+            const sub = subParts.join(', ');
             const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
             const full = Array.from(new Set(fullParts)).join(', ') || title;
             return {
@@ -408,2179 +211,786 @@ export default function PortalWargaPage() {
           setShowSuggestions(items.length > 0);
         }
       } catch (err) {
-        console.warn('Location search error:', err);
+        console.warn('Geocoding query error:', err);
       } finally {
         setIsSearchingLocation(false);
       }
-    }, 280);
+    }, 300);
   };
 
   const handleSelectSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
     setLokasi(item.fullAddress);
     setLat(item.lat);
     setLng(item.lng);
-    setGpsCoords(`${item.lat}, ${item.lng}`);
+    setHasValidGps(true);
     setShowSuggestions(false);
   };
 
-  const showAlert = (message: string, title = 'Pemberitahuan', icon = 'ℹ️') => {
-    setAlertData({ open: true, title, message, icon });
-  };
-
-  const handleKirimSOS = async () => {
-    const cleanTelp = telp.trim();
-    if (!cleanTelp) {
-      showAlert(
-        'Harap lengkapi nomor kontak / WhatsApp pada formulir agar petugas piket 110 dapat segera menghubungi Anda saat sinyal bahaya diterima.',
-        'Nomor Kontak Diperlukan',
-        '⚠️'
-      );
-      const telpInput = document.getElementById('pelapor-telp');
-      if (telpInput) telpInput.focus();
+  // 4. GPS Auto-Detection (High Accuracy)
+  const handleDetectGPS = () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      alert('Perangkat Anda tidak mendukung fitur geolokasi GPS.');
       return;
     }
 
-    const cleanNama = nama.trim() || 'Warga (Panggilan Darurat SOS)';
-    const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const curLat = Number(pos.coords.latitude.toFixed(6));
+        const curLng = Number(pos.coords.longitude.toFixed(6));
+        setLat(curLat);
+        setLng(curLng);
+        setHasValidGps(true);
+        setIsLocating(false);
 
-    const [latStr, lngStr] = gpsCoords ? gpsCoords.split(',').map((s) => s.trim()) : ['', ''];
-    const finalLat = parseFloat(latStr) || lat || 0;
-    const finalLng = parseFloat(lngStr) || lng || 0;
-    const alamatTeks = lokasi.trim() || `Kawasan Presisi (Live Satelit GPS: ${gpsCoords || `${finalLat}, ${finalLng}`})`;
-
-    try {
-      const dbRes = await createComplaintAction({
-        pelaporNama: cleanNama,
-        pelaporHp: cleanTelp,
-        jenisKejadian: 'Peringatan Darurat SOS 110',
-        kategoriKey: 'KAMTIBMAS',
-        platformKey: 'sos',
-        urgensi: 'DARURAT',
-        tkpAlamatTeks: alamatTeks,
-        tkpLat: finalLat,
-        tkpLng: finalLng,
-        ringkasanKeterangan: 'Aktivasi Tombol Darurat SOS Presisi: Warga membutuhkan bantuan polisi segera di lokasi.',
-      });
-      if (dbRes.success && dbRes.data?.nomorTiket) {
-        noTiket = dbRes.data.nomorTiket;
-      }
-    } catch (e) {
-      console.warn('Backend sync warning:', e);
-    }
-
-    const newLog: CitizenTrackingData = {
-      id: Date.now(),
-      nomorTiket: noTiket,
-      title: '🚨 Peringatan SOS: Sinyal Bahaya Darurat Warga Terkunci GPS',
-      jenisInsiden: 'Peringatan Darurat SOS 110',
-      kategoriInsiden: 'Kamtibmas',
-      kategoriBadge: '💥 Darurat SOS',
-      nama: 'Warga Pelapor (Tombol SOS Darurat)',
-      nrp: '-',
-      status: 'diproses',
-      statusText: 'Sedang Diproses',
-      tahap: 2,
-      waktu: waktu,
-      sektor: '-',
-      lokasiKejadian: `Kawasan Presisi (Live Satelit GPS: ${gpsCoords})`,
-      sumberLaporan: '🚨 Tombol Darurat SOS Presisi (Live GPS)',
-      deskripsi: 'Aktivasi Tombol Darurat SOS Presisi: Warga membutuhkan bantuan polisi segera di lokasi. Koordinat satelit GPS telah terkunci real-time.',
-      koordinatGps: gpsCoords,
-      fotoPengaduan: '',
-      ratingKepuasan: null,
-      disposisi: undefined,
-    };
-
-    showAlert(
-      `🚨 Sinyal SOS Darurat Terkirim ke Command Center 110!\n\n` +
-        `• Nomor Tiket Resmi: ${noTiket}\n` +
-        `• Titik GPS Anda (${gpsCoords}) telah masuk ke sistem monitoring Pawas.\n` +
-        `• Tetap tenang dan berada di lokasi aman. Armada patroli terdekat sedang dimonitor untuk penugasan.`,
-      'SOS TERKIRIM',
-      '🚨'
+        // Reverse Geocode
+        try {
+          const revRes = await fetch(
+            `https://photon.komoot.io/reverse?lat=${curLat}&lon=${curLng}`
+          );
+          if (revRes.ok) {
+            const revData = await revRes.json();
+            const feat = revData?.features?.[0]?.properties;
+            if (feat) {
+              const full = [feat.name, feat.street, feat.district, feat.city].filter(Boolean).join(', ');
+              if (full) setLokasi(full);
+            }
+          }
+        } catch (_) {}
+      },
+      (err) => {
+        setIsLocating(false);
+        console.warn('GPS location error:', err);
+        alert('Gagal mendeteksi koordinat GPS otomatis. Pastikan izin lokasi (GPS) pada peramban Anda telah diizinkan.');
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
-
-    setTimeout(() => {
-      setActiveTab('lacak');
-      setTicketInput(noTiket);
-      setCurrentActiveLog(newLog);
-    }, 600);
   };
 
-  const handleKirimLaporanManual = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      showFriendlyToast(
-        'warning',
-        'Formulir Belum Lengkap',
-        Object.values(errors)[0]
-      );
-      const errEl = document.getElementById('form-error-summary') || document.getElementById('form-lapor-warga');
-      if (errEl) errEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // 5. Handle Photo Attachment (Base64)
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Ukuran foto terlalu besar. Maksimal 5 MB.');
       return;
     }
 
-    setFormErrors({});
-    setIsSubmitting(true);
-    const namaVal = nama.trim();
-    const telpVal = telp.trim();
-    const lokasiVal = lokasi.trim();
-    const uraianVal = uraian.trim();
-    const waktu = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    let noTiket = `LP-110-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-    let trackingToken = '';
-
-    const finalLat = lat || 0;
-    const finalLng = lng || 0;
-
-    try {
-      const dbRes = await createComplaintAction({
-        pelaporNama: namaVal,
-        pelaporHp: telpVal,
-        jenisKejadian: kategori,
-        subcategoryId: subcategoryId,
-        platformKey: 'warga',
-        urgensi: 'NORMAL',
-        tkpAlamatTeks: lokasiVal,
-        tkpLat: finalLat,
-        tkpLng: finalLng,
-        ringkasanKeterangan: uraianVal,
-        fotoBuktiUrl: fotoBukti || undefined,
-      });
-      if (dbRes.success && dbRes.data?.nomorTiket) {
-        noTiket = dbRes.data.nomorTiket;
-        trackingToken = (dbRes.data as any).trackingToken || '';
-      } else {
-        showFriendlyToast('error', 'Gagal Mengirim Pengaduan', dbRes.error || 'Terjadi kendala pada pangkalan data.');
-        return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFotoBukti(reader.result);
       }
-    } catch (e: any) {
-      console.warn('Backend sync warning:', e);
-      showFriendlyToast('error', 'Kendala Jaringan', e.message || 'Tidak dapat terhubung ke server.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // 6. Handle Submit Complaint (Standard Flow)
+  const handleSubmitComplaint = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+
+    // Validasi
+    if (!nama.trim() || nama.trim().length < 3) {
+      setErrorMessage('Nama lengkap pelapor wajib diisi (minimal 3 karakter).');
       return;
+    }
+    const cleanDigitsPhone = telp.replace(/\D/g, '');
+    if (!cleanDigitsPhone || cleanDigitsPhone.length < 9) {
+      setErrorMessage('Nomor kontak WhatsApp / HP pelapor wajib diisi minimal 9–14 digit.');
+      return;
+    }
+    if (!selectedSubcategoryId) {
+      setErrorMessage('Silakan pilih spesifikasi jenis kasus / kejadian yang dilaporkan.');
+      return;
+    }
+    if (!lokasi.trim() || lokasi.trim().length < 5) {
+      setErrorMessage('Alamat lokasi kejadian (TKP) atau patokan wajib diisi jelas.');
+      return;
+    }
+    if (!uraian.trim() || uraian.trim().length < 10) {
+      setErrorMessage('Uraian keterangan kejadian wajib diisi (minimal 10 karakter).');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const selectedSubcat = subcategoryList.find((s) => String(s.id) === String(selectedSubcategoryId));
+      const subcatName = selectedSubcat?.nama_kasus || '';
+      const finalCategoryKey = selectedSubcat?.category_key || selectedCategoryKey || 'KAMTIBMAS';
+      const finalUrgensi = (selectedSubcat?.default_urgensi as any) || urgensi || 'SEDANG';
+      const finalJenis = subcatName || finalCategoryKey;
+
+      const res = await createComplaintAction({
+        pelaporNama: nama.trim(),
+        pelaporHp: telp.trim(),
+        jenisKejadian: finalJenis,
+        urgensi: finalUrgensi,
+        tkpAlamatTeks: lokasi.trim(),
+        tkpLat: lat,
+        tkpLng: lng,
+        ringkasanKeterangan: uraian.trim(),
+        kategoriKey: finalCategoryKey,
+        subcategoryId: selectedSubcategoryId,
+        platformKey: 'warga',
+        fotoBuktiUrl: fotoBukti,
+      });
+
+      if (res.success && res.data) {
+        setCreatedTicket({
+          nomorTiket: res.data.nomorTiket,
+          trackingToken: (res.data as any).trackingToken || '',
+          createdAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+          pelaporNama: nama.trim(),
+          pelaporHp: telp.trim(),
+          jenisKejadian: finalJenis,
+          tkpAlamat: lokasi.trim(),
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setErrorMessage(res.error || 'Terjadi kendala saat mengirim pengaduan ke Command Center.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Gagal mengirim pengaduan. Periksa koneksi internet Anda.');
     } finally {
       setIsSubmitting(false);
     }
+  };
 
-    const newLog: CitizenTrackingData = {
-      id: Date.now(),
-      nomorTiket: noTiket,
-      title: kategori,
-      jenisInsiden: kategori,
-      kategoriInsiden: kategori,
-      kategoriBadge: '📱 Portal Warga',
-      nama: namaVal,
-      nrp: '-',
-      status: 'diproses',
-      statusText: 'Sedang Diproses',
-      tahap: 1,
-      waktu: waktu,
-      sektor: '-',
-      lokasiKejadian: lokasiVal,
-      sumberLaporan: '📱 Portal SIMOPMAS 110',
-      deskripsi: uraianVal,
-      koordinatGps: gpsCoords,
-      fotoPengaduan: fotoBukti || '',
-      ratingKepuasan: null,
-      disposisi: undefined,
-      trackingToken: trackingToken || undefined,
-    };
+  // 7. Handle 1-Tap SOS Emergency
+  const handleOpenSos = () => {
+    setShowSosModal(true);
+    setSosCountdown(5);
 
-    showFriendlyToast(
-      'success',
-      'Laporan Berhasil Diterima',
-      `Tiket resmi: ${noTiket}. Tim Command Center SPKT 110 telah menerima laporan Anda.`
-    );
+    // Dapatkan GPS langsung
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setLat(Number(pos.coords.latitude.toFixed(6)));
+          setLng(Number(pos.coords.longitude.toFixed(6)));
+          setHasValidGps(true);
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
 
-    // Buka Modal Sukses Lapor dengan tombol Salin Nomor Tiket
-    setSuccessModal({
-      open: true,
-      nomorTiket: noTiket,
-      trackingToken,
-      kategori: kategori,
-      pelapor: namaVal,
-      lokasi: lokasiVal,
-      waktu: waktu,
-      newLog: newLog,
-    });
+    if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+    sosTimerRef.current = setInterval(() => {
+      setSosCountdown((prev) => {
+        if (prev <= 1) {
+          if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+          handleExecuteSos();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
+  const handleCancelSos = () => {
+    if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+    setShowSosModal(false);
+  };
+
+  const handleExecuteSos = async () => {
+    if (sosTimerRef.current) clearInterval(sosTimerRef.current);
+    setIsSosSending(true);
+
+    const sosNama = nama.trim() || 'Warga (Panggilan Darurat SOS)';
+    const sosTelp = telp.trim() || '110';
+    const sosAlamat = lokasi.trim() || 'Panggilan Darurat GPS Otomatis Warga 110';
+
+    try {
+      const res = await createComplaintAction({
+        pelaporNama: sosNama,
+        pelaporHp: sosTelp,
+        jenisKejadian: 'KEDARURATAN & BAHAYA JIWA (SOS)',
+        urgensi: 'DARURAT',
+        tkpAlamatTeks: sosAlamat,
+        tkpLat: lat,
+        tkpLng: lng,
+        ringkasanKeterangan: 'Panggilan Kedaruratan Darurat SOS 1-Tap dari Portal Warga 110. Butuh kehadiran polisi segera di lokasi koordinat.',
+        platformKey: 'sos',
+      });
+
+      setShowSosModal(false);
+      if (res.success && res.data) {
+        setCreatedTicket({
+          nomorTiket: res.data.nomorTiket,
+          trackingToken: (res.data as any).trackingToken || '',
+          createdAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
+          pelaporNama: sosNama,
+          pelaporHp: sosTelp,
+          jenisKejadian: 'KEDARURATAN & BAHAYA JIWA (SOS)',
+          tkpAlamat: sosAlamat,
+        });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch (_) {
+      setShowSosModal(false);
+      alert('Panggilan SOS telah dikirimkan ke Command Center.');
+    } finally {
+      setIsSosSending(false);
+    }
+  };
+
+  // Reset form ke pelaporan baru
+  const handleResetToNewReport = () => {
+    setCreatedTicket(null);
     setNama('');
     setTelp('');
+    setSelectedSubcategoryId(null);
+    setSelectedCategoryKey('KAMTIBMAS');
+    setUrgensi('SEDANG');
     setLokasi('');
+    setLat(-7.026803);
+    setLng(109.592982);
+    setHasValidGps(false);
+    setShowMapPicker(false);
     setUraian('');
     setFotoBukti(null);
+    setErrorMessage(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleLacakLaporan = async (overrideTiket?: string) => {
-    const q = (overrideTiket || ticketInput || '').trim();
-    if (!q) {
-      showAlert('Mohon masukkan Nomor Tiket terlebih dahulu!');
-      return;
-    }
-
-    setIsSearching(true);
-    let found: CitizenTrackingData | undefined = undefined;
-
-    // 1. Prioritaskan Lookup Database MySQL Resmi Langsung
-    try {
-      const res = await getComplaintByTiketAction(q);
-      if (res.success && res.data) {
-        const dbItem = res.data as any;
-        const isDone = dbItem.status === 'SELESAI';
-
-        // Dispatches & Petugas Lapangan
-        const dispatchesList = dbItem.dispatches || [];
-        const primaryDispatch = dispatchesList.find((d: any) => d.is_primary_unit) || dispatchesList[0] || null;
-
-        // Nama Satuan murni dari relasi database
-        const satuanNama =
-          primaryDispatch?.unit?.unit_name;
-
-        // Komandan / Petugas Utama
-        const komandanNama =
-          primaryDispatch?.officer?.user?.full_name;
-
-        const pangkatPetugas =
-          primaryDispatch?.officer?.rank_pangkat;
-
-        const nrpPetugas =
-          primaryDispatch?.officer?.nrp;
-
-        const komandanLengkap = pangkatPetugas && komandanNama !== '-'
-          ? `${pangkatPetugas} ${komandanNama}`
-          : komandanNama;
-
-        // Daftar semua personel yang terdisposisi
-        const acceptedPersonels = dispatchesList.map((d: any) => ({
-          nama: d.officer?.user?.full_name,
-          pangkat: d.officer?.rank_pangkat,
-          nrp: d.officer?.nrp,
-        }));
-
-        // Waktu-waktu riil tahapan (WIB / Asia/Jakarta)
-        const waktuDibuat = dbItem.createdAt
-          ? new Date(dbItem.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-          : '-';
-
-        const waktuMeluncur = dbItem.waktuMeluncur || (primaryDispatch?.departed_at
-          ? new Date(primaryDispatch.departed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-          : null);
-
-        const waktuTiba = dbItem.waktuTiba || (primaryDispatch?.arrived_at
-          ? new Date(primaryDispatch.arrived_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-          : null);
-
-        const waktuSelesai = dbItem.waktuSelesai || (primaryDispatch?.completed_at
-          ? new Date(primaryDispatch.completed_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB'
-          : null);
-
-        // Catatan tindakan & berita acara penyelesaian dengan standardized audit log keys
-        const deskripsiTindakan =
-          dbItem.catatanTindakan ||
-          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => (l.action === 'REPORT_SUBMITTED' || l.action === 'DOKUMENTASI_TKP_FLAGGED') && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
-          '-';
-
-        const catatanSelesai =
-          dbItem.catatanSelesai ||
-          (dbItem.complaintLogs || []).slice().reverse().find((l: any) => l.action === 'COMPLAINT_COMPLETED' && l.notes)?.notes?.replace(/^Catatan:\s*/i, '') ||
-          '-';
-
-        const fotoPengaduan = dbItem.fotoBuktiUrl;
-
-
-        const koordinatGps = dbItem.koordinatGps || (dbItem.tkpLat && dbItem.tkpLng ? `${dbItem.tkpLat}, ${dbItem.tkpLng}` : '-');
-
-        found = {
-          id: Number(dbItem.id || Date.now()),
-          nomorTiket: dbItem.nomorTiket,
-          title: dbItem.jenisKejadian || 'Laporan Warga',
-          jenisInsiden: dbItem.jenisKejadian || '-',
-          kategoriInsiden: dbItem.subcategory?.name || dbItem.jenisKejadian || '-',
-          kategoriBadge: dbItem.channel || 'SIMOPMAS 110',
-          nama: komandanLengkap,
-          nrp: nrpPetugas,
-          status: isDone ? 'selesai' : 'diproses',
-          statusText: isDone ? 'Kasus Selesai' : 'Sedang Diproses',
-          tahap: isDone
-            ? 5
-            : (dbItem.tahap && Number(dbItem.tahap) >= 1)
-            ? Number(dbItem.tahap)
-            : dbItem.status === 'MENUNGGU'
-            ? 1
-            : 3,
-          waktu: waktuDibuat,
-          waktuMeluncur: waktuMeluncur || undefined,
-          waktuTiba: waktuTiba || undefined,
-          waktuSelesai: waktuSelesai || undefined,
-          sektor: dbItem.wilayah?.nama || dbItem.subcategory?.unit_rel?.unit_name || '-',
-          lokasiKejadian: dbItem.tkpAlamatTeks || '-',
-          sumberLaporan: dbItem.channel || 'Portal SIMOPMAS 110',
-          deskripsi: dbItem.ringkasanKeterangan || '-',
-          deskripsiTindakan: deskripsiTindakan,
-          catatanSelesai: catatanSelesai,
-          koordinatGps: koordinatGps,
-          fotoPengaduan: fotoPengaduan,
-          disposisi: {
-            satuan: satuanNama,
-            komandan: komandanLengkap,
-            estimasiJarak: primaryDispatch?.estimated_distance || '-',
-            estimasiEta: primaryDispatch?.estimated_eta || '-',
-          },
-          acceptedPersonels: acceptedPersonels,
-          ratingKepuasan: dbItem.citizenRating
-            ? {
-                skor: dbItem.citizenRating,
-                tags: dbItem.citizenTags ? dbItem.citizenTags.split(', ') : [],
-                ulasan: dbItem.citizenReview || '',
-                waktu: dbItem.updatedAt ? new Date(dbItem.updatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB' : '-',
-                sudahDinilai: true,
-              }
-            : null,
-          trackingToken: dbItem.trackingToken || undefined,
-        };
-      }
-    } catch (err) {
-      console.warn('DB lookup error:', err);
-    }
-
-    if (!found) {
-      setIsSearching(false);
-      showAlert(
-        `❌ Nomor Tiket "${q}" tidak ditemukan di database SIMOPMAS 110.\n\n` +
-          `Pastikan nomor tiket Anda sesuai dengan tanda bukti lapor atau klik salah satu tiket aktif di bawah.`,
-        'Tiket Tidak Ditemukan',
-        '⚠️'
-      );
-      return;
-    }
-
-    setTimeout(() => {
-      setIsSearching(false);
-      setCurrentActiveLog(found!);
-      setIsEditingRating(false);
-    }, 300);
-  };
-
-  const handleToggleTag = (tag: string) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter((t) => t !== tag));
-    } else {
-      setSelectedTags([...selectedTags, tag]);
-    }
-  };
-
-  const handleSubmitSurvey = async () => {
-    if (!currentActiveLog) return;
-    const waktuSekarang = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    const finalReview = ulasanText.trim();
-
-    try {
-      await submitRatingAction({
-        nomorTiket: currentActiveLog.nomorTiket,
-        rating: ratingScore,
-        review: finalReview,
-        tags: selectedTags.join(', '),
-      });
-    } catch (err) {
-      console.warn('Backend rating sync warning:', err);
-    }
-
-    setCurrentActiveLog({
-      ...currentActiveLog,
-      ratingKepuasan: {
-        skor: ratingScore,
-        tags: selectedTags.length ? selectedTags : ['⚡ Respon Sangat Cepat', '👮 Petugas Ramah & Humanis'],
-        ulasan: finalReview,
-        waktu: `Hari ini, ${waktuSekarang}`,
-        sudahDinilai: true,
-      },
-    });
-
-    setIsEditingRating(false);
-    showAlert(
-      `⭐ Terima Kasih atas Penilaian Anda!\n\n` +
-        `• Skor: ${ratingScore}/5 Bintang (${getScoreTitle(ratingScore)})\n` +
-        `• Tag: ${selectedTags.join(', ')}\n\n` +
-        `Ulasan Anda telah masuk ke dashboard pimpinan untuk pemantauan kualitas pelayanan kepolisian terpadu.`,
-      'PENILAIAN DITERIMA',
-      '⭐'
-    );
-  };
-
-  const getScoreTitle = (score: number) => {
-    switch (score) {
-      case 5:
-        return 'Luar Biasa & Sangat Memuaskan';
-      case 4:
-        return 'Sangat Baik & Cepat';
-      case 3:
-        return 'Cukup Memuaskan';
-      case 2:
-        return 'Kurang Memuaskan';
-      case 1:
-        return 'Sangat Kecewa';
-      default:
-        return 'Memuaskan';
-    }
-  };
-
-  const openPhotoModal = (type: string) => {
-    if (type === 'pengaduan') {
-      const img = currentActiveLog?.fotoPengaduan;
-      if (!img) {
-        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi foto bukti pengaduan yang dilampirkan.');
-        return;
-      }
-      setLightboxData({
-        open: true,
-        title: 'Foto Bukti Pengaduan Awal',
-        img,
-        desc: 'Dokumentasi kejadian yang diunggah saat laporan pertama kali dibuat.',
-      });
-    } else if (type === 'persiapan') {
-      const img = currentActiveLog?.fotoPersiapan;
-      if (!img) {
-        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi persiapan keberangkatan armada patroli.');
-        return;
-      }
-      setLightboxData({
-        open: true,
-        title: 'Bukti Keberangkatan & GPS Personel',
-        img,
-        desc: 'Dokumentasi personel meluncur dengan kesiapan ranmor patroli dan GPS aktif.',
-      });
-    } else if (type === 'selesai') {
-      const img = currentActiveLog?.fotoSelesai || currentActiveLog?.fotoTindakan;
-      if (!img) {
-        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi penyelesaian kasus / situasi kondusif yang dilampirkan.');
-        return;
-      }
-      setLightboxData({
-        open: true,
-        title: 'Bukti Penyelesaian Kasus & Situasi Kondusif',
-        img,
-        desc: 'Dokumentasi kesepakatan damai / situasi kondusif di TKP yang telah disahkan oleh Pawas.',
-      });
-    } else {
-      const img = currentActiveLog?.fotoTindakan || currentActiveLog?.fotoSelesai;
-      if (!img) {
-        showFriendlyToast('info', 'Foto Belum Tersedia', 'Belum ada dokumentasi penanganan di TKP yang diunggah oleh petugas.');
-        return;
-      }
-      setLightboxData({
-        open: true,
-        title: 'Dokumentasi Penanganan di TKP',
-        img,
-        desc: 'Dokumentasi tindakan mediasi, olah TKP, dan penanganan oleh petugas di lokasi.',
-      });
+  // Copy Ticket Helper
+  const handleCopyTicket = (ticketNum: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(ticketNum);
+      setCopiedTicket(true);
+      setTimeout(() => setCopiedTicket(false), 3000);
     }
   };
 
   return (
-    <>
-      {/* Header */}
-      <header className="header">
-        <Link href="/warga" className="header-brand">
-          <div className="brand-logo">
-            <div className="brand-logo-inner"></div>
+    <div className="warga-container-wrapper">
+      {/* Ambient Cyber Canvas */}
+      <div className="warga-ambient-canvas" />
+
+      {/* Topbar Header Presisi */}
+      <header className="warga-topbar">
+        <Link href="/warga" className="warga-topbar-brand">
+          <div className="warga-brand-badge">
+            <Shield size={22} color="#ECC473" strokeWidth={2.4} />
           </div>
-          <div className="header-titles">
-            <h1>
-              Layanan Terpadu 110 <span className="header-badge-live">● LIVE</span>
-            </h1>
-            <p>Layanan Cepat &amp; Pelacakan Presisi Polri</p>
+          <div>
+            <div className="warga-brand-title">SIMOPMAS 110 • POLRI</div>
+            <div className="warga-brand-sub">Portal Layanan Pengaduan Resmi Masyarakat</div>
           </div>
         </Link>
-        <div className="header-actions">
-          <Link href="/" className="header-link-btn">
-            <span>🛡️</span> Area Petugas
-          </Link>
-        </div>
       </header>
 
-      <main className="container">
-        {/* Segmented Navigation (Tab Switcher) */}
-        <nav className="tabs-nav" aria-label="Navigasi Portal Warga">
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'lapor' ? 'active' : ''}`}
-            onClick={() => setActiveTab('lapor')}
-          >
-            <span>🚨</span> Buat Laporan / SOS
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${activeTab === 'lacak' ? 'active' : ''}`}
-            onClick={() => setActiveTab('lacak')}
-          >
-            <span>🔍</span> Lacak Tiket &amp; Status
-          </button>
-        </nav>
+      {/* Main Container */}
+      <main className="warga-main-content">
+        {createdTicket ? (
+          /* Halaman Ucapan Terima Kasih (Thank You View) */
+          <div className="warga-thank-you-view">
+            {/* Gold Crest Icon */}
+            <div className="thank-you-gold-crest">
+              <CheckCircle2 size={42} color="#ECC473" strokeWidth={2.4} />
+            </div>
 
-        {/* ========================================================
-             TAB 1: BUAT LAPORAN / SOS DARURAT
-             ======================================================== */}
-        {activeTab === 'lapor' && (
-          <div className="tab-content active" id="tab-pane-lapor">
-            {/* Tombol Panik SOS */}
-            <section className="sos-hero" aria-labelledby="sos-title">
-              <div
-                className="sos-button"
-                onClick={handleKirimSOS}
-                title="Tekan untuk mengirimkan sinyal bahaya cepat"
-              >
-                SOS
-              </div>
-              <div className="sos-title" id="sos-title">
-                Tombol Darurat SOS Presisi
-              </div>
-              <div className="sos-subtitle">
-                Tekan tombol di atas untuk situasi darurat mengancam keselamatan. Titik koordinat satelit GPS Anda akan
-                otomatis dikirimkan ke Command Center 110.
-              </div>
-            </section>
+            {/* Status Pill */}
+            <div className="thank-you-status-pill">
+              <Clock size={13} />
+              <span>STATUS TIKET: MENUNGGU VERIFIKASI OPERATOR SPKT &amp; PAWAS 110</span>
+            </div>
 
-            {/* Formulir Lapor Pengaduan Warga */}
-            <section className="card" aria-labelledby="form-lapor-title">
-              <h2 id="form-lapor-title">
-                <span>Formulir Laporan Pengaduan</span>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    color: '#0284C7',
-                    background: '#F0F9FF',
-                    border: '1px solid #BAE6FD',
-                    padding: '3px 8px',
-                    borderRadius: '12px',
-                  }}
-                >
-                  📱 Portal Online
-                </span>
-              </h2>
-              <p className="desc">
-                Laporkan kejadian gangguan keamanan, kecelakaan, atau kebutuhan bantuan kepolisian dengan data lengkap
-                agar segera ditindaklanjuti.
-              </p>
+            {/* Headline Ucapan Terima Kasih */}
+            <h1 className="thank-you-title">
+              Terima Kasih, Pengaduan Anda Berhasil Terkirim!
+            </h1>
 
-              <form id="form-lapor-warga" onSubmit={handleKirimLaporanManual} noValidate>
-                {/* Error Summary Box Ramah Pengguna */}
-                {Object.keys(formErrors).length > 0 && (
-                  <div
-                    id="form-error-summary"
-                    style={{
-                      background: '#FEF2F2',
-                      border: '1.5px solid #FECACA',
-                      borderRadius: '12px',
-                      padding: '14px 16px',
-                      marginBottom: '18px',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '12px',
-                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.08)',
-                    }}
-                  >
-                    <span style={{ fontSize: '20px', lineHeight: 1 }}>⚠️</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#991B1B', marginBottom: '4px' }}>
-                        Mohon Lengkapi {Object.keys(formErrors).length} Informasi yang Diperlukan:
-                      </div>
-                      <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12px', color: '#B91C1C', lineHeight: 1.6 }}>
-                        {Object.values(formErrors).map((msg, i) => (
-                          <li key={i}>{msg}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
+            <p className="thank-you-subtitle">
+              Kepolisian Resor Kota menyampaikan apresiasi atas partisipasi aktif Anda dalam menjaga keamanan lingkungan.
+              Laporan pengaduan Anda telah terdaftar resmi di sistem Command Center 110 Presisi dan sedang dalam antrean verifikasi petugas.
+            </p>
 
-                {/* Kategori Laporan (Select2 Style Searchable) */}
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <label className="form-label" htmlFor="lapor-kategori">
-                    Kategori Laporan <span className="req">*</span>
-                  </label>
-                  <Select2CategoryDropdown
-                    subcategories={subcategories}
-                    selectedId={subcategoryId}
-                    onSelect={(item) => {
-                      if (item) {
-                        setSubcategoryId(item.id);
-                        setKategori(item.nama_kasus);
-                        if (formErrors.kategori) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.kategori;
-                            return next;
-                          });
-                        }
-                      } else {
-                        setSubcategoryId(null);
-                        setKategori('');
-                      }
-                    }}
-                    placeholder="-- Cari / Pilih Kategori Kasus Laporan --"
-                    required
-                    style={{
-                      border: formErrors.kategori ? '1.5px solid #EF4444' : undefined,
-                      background: formErrors.kategori ? '#FEF2F2' : undefined,
-                    }}
-                  />
-                  {formErrors.kategori && (
-                    <div style={{ marginTop: '5px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                      <span>⚠️</span> {formErrors.kategori}
-                    </div>
-                  )}
+            {/* Ringkasan Tiket Resmi */}
+            <div className="thank-you-ticket-card">
+              <div className="ticket-card-header">
+                <div>
+                  <div className="ticket-label">NOMOR TIKET RESMI PENGADUAN</div>
+                  <div className="ticket-value">{createdTicket.nomorTiket}</div>
                 </div>
-
-                {/* Nama Pelapor & No HP */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '14px' }}>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" htmlFor="lapor-nama">
-                      Nama Lengkap Pelapor <span className="req">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="lapor-nama"
-                      className="form-control"
-                      placeholder="Masukkan nama lengkap Anda"
-                      value={nama}
-                      onChange={(e) => {
-                        setNama(e.target.value);
-                        if (formErrors.nama) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.nama;
-                            return next;
-                          });
-                        }
-                      }}
-                      style={{
-                        border: formErrors.nama ? '1.5px solid #EF4444' : undefined,
-                        background: formErrors.nama ? '#FEF2F2' : undefined,
-                      }}
-                      required
-                    />
-                    {formErrors.nama && (
-                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                        <span>⚠️</span> {formErrors.nama}
-                      </div>
-                    )}
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <label className="form-label" htmlFor="lapor-telp">
-                      Nomor WhatsApp / HP <span className="req">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      id="lapor-telp"
-                      className="form-control"
-                      placeholder="Contoh: 081234567890"
-                      value={telp}
-                      onChange={(e) => {
-                        setTelp(e.target.value);
-                        if (formErrors.telp) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.telp;
-                            return next;
-                          });
-                        }
-                      }}
-                      style={{
-                        border: formErrors.telp ? '1.5px solid #EF4444' : undefined,
-                        background: formErrors.telp ? '#FEF2F2' : undefined,
-                      }}
-                      required
-                    />
-                    {formErrors.telp && (
-                      <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                        <span>⚠️</span> {formErrors.telp}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Lokasi Kejadian (TKP) dengan Google-style Search & Peta Interaktif */}
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label className="form-label" htmlFor="lapor-lokasi" style={{ marginBottom: 0 }}>
-                      Lokasi Kejadian (TKP) <span className="req">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      id="btn-toggle-warga-map"
-                      onClick={() => setShowMapPicker(!showMapPicker)}
-                      style={{
-                        background: showMapPicker ? '#EFF6FF' : '#F8FAFC',
-                        border: showMapPicker ? '1.5px solid #2563EB' : '1px solid #CBD5E1',
-                        color: showMapPicker ? '#1D4ED8' : '#334155',
-                        padding: '3px 9px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span>🗺️</span> {showMapPicker ? 'Tutup Peta' : 'Pilih Titik di Peta'}
-                    </button>
-                  </div>
-
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      id="lapor-lokasi"
-                      className="form-control"
-                      placeholder="Ketik alamat TKP atau cari nama tempat..."
-                      value={lokasi}
-                      onChange={(e) => {
-                        handleLocationSearch(e.target.value);
-                        if (formErrors.lokasi) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.lokasi;
-                            return next;
-                          });
-                        }
-                      }}
-                      onFocus={() => {
-                        if (locationSuggestions.length > 0) setShowSuggestions(true);
-                      }}
-                      required
-                      style={{
-                        paddingRight: '60px',
-                        border: formErrors.lokasi ? '1.5px solid #EF4444' : undefined,
-                        background: formErrors.lokasi ? '#FEF2F2' : undefined,
-                      }}
-                    />
-                    {isSearchingLocation && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          right: '34px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          fontSize: '11px',
-                          color: '#3B82F6',
-                        }}
-                      >
-                        🔄
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="input-icon-btn"
-                      onClick={() => ambilLokasiSaatIni(true)}
-                      title="Dapatkan Lokasi GPS Saat Ini"
-                      style={{
-                        position: 'absolute',
-                        right: '6px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '16px',
-                      }}
-                    >
-                      📍
-                    </button>
-
-                    {/* Suggestions Dropdown */}
-                    {showSuggestions && locationSuggestions.length > 0 && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 'calc(100% + 4px)',
-                          left: 0,
-                          right: 0,
-                          background: '#FFFFFF',
-                          borderRadius: '8px',
-                          border: '1px solid #CBD5E1',
-                          boxShadow: '0 12px 28px -4px rgba(0, 0, 0, 0.25)',
-                          zIndex: 9999,
-                          maxHeight: '260px',
-                          overflowY: 'auto',
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: '6px 10px',
-                            background: '#F8FAFC',
-                            borderBottom: '1px solid #E2E8F0',
-                            fontSize: '10.5px',
-                            fontWeight: 700,
-                            color: '#64748B',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <span>📍 HASIL PENCARIAN TEMPAT &amp; ALAMAT</span>
-                          <span
-                            style={{ cursor: 'pointer', color: '#94A3B8' }}
-                            onClick={() => setShowSuggestions(false)}
-                          >
-                            ✕ Tutup
-                          </span>
-                        </div>
-                        {locationSuggestions.map((item, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => {
-                              handleSelectSuggestion(item);
-                              if (formErrors.lokasi) {
-                                setFormErrors((prev) => {
-                                  const next = { ...prev };
-                                  delete next.lokasi;
-                                  return next;
-                                });
-                              }
-                            }}
-                            style={{
-                              padding: '9px 12px',
-                              cursor: 'pointer',
-                              borderBottom: idx < locationSuggestions.length - 1 ? '1px solid #F1F5F9' : 'none',
-                              display: 'flex',
-                              alignItems: 'flex-start',
-                              gap: '10px',
-                              transition: 'background 0.15s ease',
-                            }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
-                          >
-                            <span style={{ fontSize: '16px', lineHeight: 1.2 }}>📍</span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div
-                                style={{
-                                  fontSize: '12.5px',
-                                  fontWeight: 700,
-                                  color: '#1E293B',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {item.label}
-                              </div>
-                              <div
-                                style={{
-                                  fontSize: '11px',
-                                  color: '#64748B',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                              >
-                                {item.subLabel}
-                              </div>
-                            </div>
-                            <span
-                              style={{
-                                fontSize: '10px',
-                                color: '#2563EB',
-                                background: '#DBEAFE',
-                                padding: '1px 5px',
-                                borderRadius: '4px',
-                                fontFamily: 'monospace',
-                                fontWeight: 600,
-                                alignSelf: 'center',
-                              }}
-                            >
-                              PILIH
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {formErrors.lokasi && (
-                    <div style={{ marginTop: '5px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                      <span>⚠️</span> {formErrors.lokasi}
-                    </div>
-                  )}
-
-                  {/* Koordinat GPS TKP disimpan di state secara background (warga/operator tidak perlu melihat koordinatnya, tetap terkirim saat submit) */}
-                  <input type="hidden" name="tkpLat" value={lat || ''} />
-                  <input type="hidden" name="tkpLng" value={lng || ''} />
-
-                  {/* Interactive Map Picker (Opsi Pilih Titik di Peta Langsung) */}
-                  {showMapPicker && (
-                    <div
-                      style={{
-                        marginTop: '10px',
-                        marginBottom: '10px',
-                        border: '1.5px solid #93C5FD',
-                        borderRadius: '10px',
-                        overflow: 'hidden',
-                        background: '#F8FAFC',
-                        padding: '10px',
-                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.08)',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '8px',
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 800,
-                            color: '#1E40AF',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                          }}
-                        >
-                          📍 Klik peta atau geser pin merah untuk mengunci titik TKP
-                        </span>
-                        <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 600 }}>
-                          Google Maps Live
-                        </span>
-                      </div>
-                      <MiniMapPicker
-                        lat={lat}
-                        lng={lng}
-                        height="220px"
-                        onChange={(newLat, newLng) => {
-                          setLat(newLat);
-                          setLng(newLng);
-                          setGpsCoords(`${newLat.toFixed(4)}, ${newLng.toFixed(4)}`);
-                        }}
-                        onAddressChange={(alamat) => {
-                          setLokasi(alamat);
-                          if (formErrors.lokasi) {
-                            setFormErrors((prev) => {
-                              const next = { ...prev };
-                              delete next.lokasi;
-                              return next;
-                            });
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Keterangan Kejadian */}
-                <div className="form-group" style={{ marginBottom: '14px' }}>
-                  <label className="form-label" htmlFor="lapor-uraian">
-                    Keterangan / Uraian Singkat Kejadian <span className="req">*</span>
-                  </label>
-                  <textarea
-                    id="lapor-uraian"
-                    className="form-control"
-                    placeholder="Jelaskan secara ringkas apa yang terjadi, situasi di lapangan, korban, atau bantuan yang dibutuhkan..."
-                    value={uraian}
-                    onChange={(e) => {
-                      setUraian(e.target.value);
-                      if (formErrors.uraian) {
-                        setFormErrors((prev) => {
-                          const next = { ...prev };
-                          delete next.uraian;
-                          return next;
-                        });
-                      }
-                    }}
-                    style={{
-                      border: formErrors.uraian ? '1.5px solid #EF4444' : undefined,
-                      background: formErrors.uraian ? '#FEF2F2' : undefined,
-                      minHeight: '90px',
-                    }}
-                    required
-                  ></textarea>
-                  {formErrors.uraian ? (
-                    <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                      <span>⚠️</span> {formErrors.uraian}
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                      Minimal 10 karakter. Uraian yang jelas mempercepat penugasan regu kepolisian.
-                    </div>
-                  )}
-                </div>
-
-                {/* Lampiran Foto */}
-                <div className="form-group" style={{ marginBottom: '18px' }}>
-                  <label className="form-label" htmlFor="lapor-foto">
-                    Lampiran Foto Lokasi / Bukti (Opsional)
-                  </label>
-                  <input
-                    type="file"
-                    id="lapor-foto"
-                    className="form-control"
-                    accept="image/*"
-                    style={{ padding: '9px 12px', fontSize: '12.5px' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => setFotoBukti(reader.result as string);
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                    Format JPG/PNG maks 5MB. Foto membantu petugas mempersiapkan taktis lapangan.
-                  </div>
-                </div>
-
-                {/* Tombol Kirim */}
                 <button
-                  type="submit"
-                  className="btn-submit-lapor"
-                  id="btn-kirim-laporan"
-                  disabled={isSubmitting}
+                  type="button"
+                  onClick={() => handleCopyTicket(createdTicket.nomorTiket)}
+                  className="btn-copy-ticket"
+                >
+                  <Copy size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                  {copiedTicket ? 'Tersalin!' : 'Salin Tiket'}
+                </button>
+              </div>
+
+              <div className="ticket-meta-grid" style={{ marginTop: '16px' }}>
+                <div className="ticket-meta-item">
+                  <span className="meta-label">Nama Pelapor</span>
+                  <span className="meta-val">{createdTicket.pelaporNama || nama || '-'}</span>
+                </div>
+                <div className="ticket-meta-item">
+                  <span className="meta-label">Nomor WhatsApp Pelapor</span>
+                  <span className="meta-val">{createdTicket.pelaporHp || telp || '-'}</span>
+                </div>
+                <div className="ticket-meta-item">
+                  <span className="meta-label">Spesifikasi Kasus</span>
+                  <span className="meta-val">{createdTicket.jenisKejadian || '-'}</span>
+                </div>
+                <div className="ticket-meta-item">
+                  <span className="meta-label">Waktu Pengaduan</span>
+                  <span className="meta-val">{createdTicket.createdAt || 'Baru Saja'}</span>
+                </div>
+                <div className="ticket-meta-item col-span-full">
+                  <span className="meta-label">Lokasi Kejadian (TKP)</span>
+                  <span className="meta-val">{createdTicket.tkpAlamat || lokasi || '-'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Instruksi 1: Menunggu Proses Selanjutnya (Pawas & Operator SPKT) */}
+            <div className="thank-you-instruction-card sop-card">
+              <div className="instruction-icon-wrap amber">
+                <Shield size={24} color="#ECC473" />
+              </div>
+              <div className="instruction-content">
+                <div className="instruction-title" style={{ color: '#ECC473' }}>
+                  Proses Selanjutnya: Verifikasi Operator SPKT &amp; Pawas
+                </div>
+                <p className="instruction-text">
+                  Mohon menunggu proses selanjutnya. Laporan Anda sedang ditinjau dan divalidasi oleh Operator SPKT serta <strong>Perwira Pengawas (Pawas) Command Center 110</strong>. Setelah disetujui, perintah tugas akan langsung didisposisikan ke unit mobil patroli lapangan terdekat menuju TKP.
+                </p>
+              </div>
+            </div>
+
+            {/* Instruksi 2: Selalu Cek WhatsApp Untuk Memantau Tiket */}
+            <div className="thank-you-instruction-card whatsapp-card">
+              <div className="instruction-icon-wrap emerald">
+                <Phone size={24} color="#34D399" />
+              </div>
+              <div className="instruction-content">
+                <div className="instruction-title" style={{ color: '#34D399' }}>
+                  Penting: Selalu Cek WhatsApp Anda untuk Memantau Tiket!
+                </div>
+                <p className="instruction-text">
+                  Notifikasi perkembangan penanganan, konfirmasi petugas, serta <strong>tautan Live Radar Pelacakan</strong> armada patroli dikirimkan secara berkala ke nomor WhatsApp <strong>{createdTicket.pelaporHp || telp}</strong>.
+                </p>
+                <div className="whatsapp-reminder-badge">
+                  <span>💬</span>
+                  <span>Mohon selalu pantau pesan WhatsApp Anda agar dapat segera mengetahui status disposisi dan berkoordinasi dengan petugas.</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol Aksi */}
+            <div className="thank-you-actions-row">
+              <Link
+                href={`/tracking?tiket=${encodeURIComponent(createdTicket.nomorTiket)}${
+                  createdTicket.trackingToken ? `&token=${encodeURIComponent(createdTicket.trackingToken)}` : ''
+                }`}
+                className="btn-thank-you-tracking"
+              >
+                <Radio size={18} className="btn-tracking-icon flex-shrink-0" />
+                <span className="btn-tracking-text">Buka Live Radar Pelacakan</span>
+                <ExternalLink size={16} className="btn-tracking-arrow flex-shrink-0" />
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleResetToNewReport}
+                className="btn-thank-you-new-report"
+              >
+                + Buat Pengaduan Lain
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Hero Section */}
+            <div className="warga-hero-section">
+              <div className="warga-hero-pill">
+                <Sparkles size={12} color="#ECC473" />
+                <span>Layanan Kepolisian Terpadu 110 Presisi</span>
+              </div>
+              <h1 className="warga-hero-title">
+                Pusat Bantuan &amp; Pengaduan <span className="text-amber-400">Presisi</span>
+              </h1>
+              <p className="warga-hero-desc">
+                Sampaikan pengaduan gangguan kamtibmas, kriminalitas, dan kedaruratan secara cepat.
+                Laporan Anda diverifikasi langsung oleh Command Center dan diterjunkan ke armada patroli terdekat.
+              </p>
+            </div>
+
+            {/* Emergency SOS Banner (Panic Button) */}
+            <div className="sos-banner-card">
+              <div className="sos-banner-left">
+                <div className="sos-beacon">🚨</div>
+                <div>
+                  <div className="sos-title">Kedaruratan Mengancam Jiwa?</div>
+                  <div className="sos-desc">
+                    Gunakan Tombol Darurat SOS untuk menyiarkan sinyal marabahaya instan dengan koordinat GPS Anda.
+                  </div>
+                </div>
+              </div>
+              <button type="button" onClick={handleOpenSos} className="btn-trigger-sos">
+                <Siren size={15} style={{ display: 'inline', marginRight: '6px' }} />
+                PANGGILAN DARURAT SOS
+              </button>
+            </div>
+
+            {/* Formulir Pengaduan Utama (Obsidian & Tactical Gold) */}
+            <div className="warga-form-card">
+              {errorMessage && (
+                <div
                   style={{
-                    opacity: isSubmitting ? 0.75 : 1,
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                    background: 'rgba(239, 68, 68, 0.14)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: '10px',
+                    padding: '12px 16px',
+                    color: '#FCA5A5',
+                    fontSize: '13px',
+                    marginBottom: '20px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
                     gap: '8px',
                   }}
                 >
-                  {isSubmitting ? (
-                    <>
-                      <span>🔄</span>
-                      <span>Sedang Mengirim Laporan...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🚀</span>
-                      <span>Kirim Laporan Pengaduan</span>
-                    </>
-                  )}
-                </button>
-              </form>
-            </section>
-          </div>
-        )}
+                  <AlertTriangle size={16} />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
 
-        {/* ========================================================
-             TAB 2: LACAK TIKET & SURVEI KEPUASAN
-             ======================================================== */}
-        {activeTab === 'lacak' && (
-          <div className="tab-content active" id="tab-pane-lacak">
-            {/* Input Pencarian Tiket */}
-            <section className="card" id="search-card" aria-labelledby="search-card-title">
-              <h2 id="search-card-title">Lacak Status Penanganan Laporan</h2>
-              <p className="desc">
-                Masukkan Nomor Tiket 110 resmi yang Anda terima untuk memantau pergerakan personel kepolisian secara
-                real-time dari diterimanya laporan hingga penutupan kasus.
-              </p>
+              <form onSubmit={handleSubmitComplaint}>
+                {/* Bagian 1: Data Diri Pelapor */}
+                <div className="form-section-block">
+                  <div className="section-badge-header">
+                    <div className="section-num-tag">1</div>
+                    <div className="section-title">Identitas Pelapor</div>
+                    <div className="section-subtitle">Privasi identitas Anda terlindungi sistem</div>
+                  </div>
 
-              <div className="input-group-search">
-                <input
-                  type="text"
-                  id="ticket-input"
-                  placeholder="Masukkan Nomor Tiket 110 Anda (Contoh: LP-110-202610-0001)"
-                  value={ticketInput}
-                  onChange={(e) => setTicketInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleLacakLaporan()}
-                />
-              </div>
+                  <div className="form-grid-2">
+                    <div className="form-field-group">
+                      <label className="form-label">
+                        Nama Lengkap <span className="label-required">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Contoh: Budi Santoso"
+                        value={nama}
+                        onChange={(e) => setNama(e.target.value)}
+                        className="warga-input"
+                      />
+                    </div>
 
-              <button
-                type="button"
-                className="btn-search"
-                disabled={isSearching}
-                onClick={() => handleLacakLaporan()}
-              >
-                {isSearching ? (
-                  <span>⏳ Memproses Data Real-Time...</span>
-                ) : (
-                  <>
-                    <span>🔍</span> Lacak Laporan Sekarang
-                  </>
-                )}
-              </button>
-            </section>
+                    <div className="form-field-group">
+                      <label className="form-label">
+                        Nomor WhatsApp / HP Aktif <span className="label-required">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="Contoh: 081234567890"
+                        value={telp}
+                        onChange={(e) => setTelp(e.target.value)}
+                        className="warga-input"
+                      />
+                    </div>
+                  </div>
+                </div>
 
-            {/* Panduan & Informasi Layanan (Ditampilkan saat belum ada tiket dicari) */}
-            {!currentActiveLog && (
-              <div id="tracking-empty-guide">
-                {/* Card 1: 5 Tahapan Alur Penanganan Presisi */}
-                <div className="card" style={{ padding: '20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                    <h3
-                      style={{
-                        fontSize: '15px',
-                        fontWeight: 800,
-                        color: 'var(--primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
+                {/* Bagian 2: Spesifikasi Jenis Kasus (Kategori & Urgensi Otomatis) */}
+                <div className="form-section-block">
+                  <div className="section-badge-header">
+                    <div className="section-num-tag">2</div>
+                    <div className="section-title">Spesifikasi Jenis Kasus</div>
+                    <div className="section-subtitle">Pilih peristiwa atau gangguan yang Anda laporkan</div>
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="form-label">
+                      Jenis Kasus / Peristiwa <span className="label-required">*</span>
+                    </label>
+                    <select
+                      required
+                      value={selectedSubcategoryId || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedSubcategoryId(val || null);
+                        const found = subcategoryList.find((s) => String(s.id) === String(val));
+                        if (found) {
+                          if (found.category_key) setSelectedCategoryKey(found.category_key);
+                          if (found.default_urgensi) setUrgensi(found.default_urgensi as any);
+                        }
                       }}
+                      className="warga-select"
                     >
-                      <span>🛡️</span> Alur Transparansi Penanganan Laporan 110
-                    </h3>
-                    <span
-                      style={{
-                        fontSize: '10.5px',
-                        fontWeight: 800,
-                        background: '#EFF6FF',
-                        color: '#1D4ED8',
-                        border: '1px solid #BFDBFE',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                      }}
-                    >
-                      5 TAHAPAN RESMI
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '16px' }}>
-                    Setiap pengaduan masyarakat yang terdaftar diproses secara akuntabel dan terpantau langsung melalui
-                    sistem monitoring Command Center:
-                  </p>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
-                      gap: '10px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 8px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: '#EFF6FF',
-                          color: '#1D4ED8',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 8px',
-                        }}
-                      >
-                        1
-                      </div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text)', marginBottom: '2px' }}>
-                        Verifikasi SPKT
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Pemeriksaan data &amp; keabsahan</div>
-                    </div>
-
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 8px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: '#FEF3C7',
-                          color: '#B45309',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 8px',
-                        }}
-                      >
-                        2
-                      </div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text)', marginBottom: '2px' }}>
-                        Disposisi Pawas
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Penugasan unit regu patroli</div>
-                    </div>
-
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 8px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: '#DBEAFE',
-                          color: '#1E40AF',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 8px',
-                        }}
-                      >
-                        3
-                      </div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text)', marginBottom: '2px' }}>
-                        Meluncur TKP
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Pergerakan armada via GPS</div>
-                    </div>
-
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 8px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: '#FEE2E2',
-                          color: '#DC2626',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 8px',
-                        }}
-                      >
-                        4
-                      </div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text)', marginBottom: '2px' }}>
-                        Tindakan TKP
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Pengamanan &amp; BAP resmi</div>
-                    </div>
-
-                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 8px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: '#DCFCE7',
-                          color: '#15803D',
-                          fontWeight: 800,
-                          fontSize: '13px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          margin: '0 auto 8px',
-                        }}
-                      >
-                        5
-                      </div>
-                      <div style={{ fontSize: '11.5px', fontWeight: 800, color: 'var(--text)', marginBottom: '2px' }}>
-                        Selesai &amp; Evaluasi
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Pengesahan &amp; rating warga</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card 2: Informasi Bantuan & Call Center 110 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                  <div className="card" style={{ padding: '16px', marginBottom: 0, background: '#F0FDF4', borderColor: '#BBF7D0' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '18px' }}>⏱️</span>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#15803D' }}>
-                        Standar Respon Cepat (SLA)
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#166534', lineHeight: 1.5 }}>
-                      Armada Samapta dan Raimas Presisi ditargetkan tiba di lokasi kejadian dalam waktu{' '}
-                      <strong>10 menit</strong> sejak perintah disposisi diterbitkan.
-                    </div>
-                  </div>
-
-                  <div className="card" style={{ padding: '16px', marginBottom: 0, background: '#EFF6FF', borderColor: '#BFDBFE' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '18px' }}>📞</span>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#1D4ED8' }}>
-                        Panggilan Darurat 110
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: '#1E40AF', lineHeight: 1.5 }}>
-                      Layanan bebas pulsa siaga 24 jam untuk kondisi kritis yang membutuhkan tindakan kepolisian segera di
-                      seluruh wilayah DKI Jakarta.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Banner Panduan Mendapatkan Tiket */}
-                <div
-                  style={{
-                    background: '#FFFBEB',
-                    border: '1.5px dashed #FDE68A',
-                    borderRadius: '14px',
-                    padding: '14px 18px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px',
-                  }}
-                >
-                  <span style={{ fontSize: '22px' }}>💡</span>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#B45309', marginBottom: '2px' }}>
-                      Belum Memiliki Nomor Tiket?
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#92400E', lineHeight: 1.45 }}>
-                      Anda dapat membuat laporan baru atau mengaktifkan suar darurat melalui tab{' '}
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('lapor')}
-                        style={{
-                          fontWeight: 800,
-                          color: '#B45309',
-                          textDecoration: 'underline',
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        🚨 Buat Laporan / SOS
-                      </button>
-                      . Nomor tiket resmi akan diterbitkan secara instan.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Tracking Result Container */}
-            {currentActiveLog && (
-              <section className="card" id="tracking-result" style={{ display: 'block' }}>
-                <h2 id="tracking-result-title">
-                  <span>Hasil Pelacakan Laporan</span>
-                  <span
-                    id="badge-header-status"
-                    className={`status-badge ${
-                      currentActiveLog.status === 'selesai' || currentActiveLog.tahap >= 5 ? 'selesai' : 'diproses'
-                    }`}
-                  >
-                    {currentActiveLog.status === 'selesai' || currentActiveLog.tahap >= 5
-                      ? '✓ Selesai Ditangani'
-                      : `⚡ Tahap ${currentActiveLog.tahap} • Diproses`}
-                  </span>
-                </h2>
-
-                {/* Banner Link ke Radar Pelacakan Live */}
-                <div
-                  style={{
-                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                    border: '1.5px solid #F59E0B',
-                    borderRadius: '14px',
-                    padding: '14px 18px',
-                    marginBottom: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '24px' }}>📡</span>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#FCD34D' }}>
-                        Radar Pelacakan Taktis Live 110
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#94A3B8' }}>
-                        Pantau posisi pergerakan armada patroli dan estimasi tiba via radar satelit
-                      </div>
-                    </div>
-                  </div>
-                  <a
-                    href={`/tracking?tiket=${encodeURIComponent(currentActiveLog.nomorTiket)}${currentActiveLog.trackingToken ? `&token=${encodeURIComponent(currentActiveLog.trackingToken)}` : ''}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                      color: '#000000',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: 800,
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                    }}
-                  >
-                    <span>Buka Radar Live ➔</span>
-                  </a>
-                </div>
-
-                {/* Ticket Metadata Header */}
-                <div className="ticket-header" id="ticket-header-content">
-                  <div className="ticket-row">
-                    <span className="ticket-label">Nomor Tiket Resmi</span>
-                    <span className="ticket-value" id="th-nomor" style={{ color: 'var(--primary)', fontSize: '13.5px' }}>
-                      {currentActiveLog.nomorTiket}
-                    </span>
-                  </div>
-                  <div className="ticket-row">
-                    <span className="ticket-label">Jenis Insiden</span>
-                    <span className="ticket-value" id="th-jenis">
-                      {currentActiveLog.jenisInsiden || currentActiveLog.title}
-                    </span>
-                  </div>
-                  <div className="ticket-row">
-                    <span className="ticket-label">Waktu Dilaporkan</span>
-                    <span className="ticket-value" id="th-waktu">
-                      Hari ini, {currentActiveLog.waktu}
-                    </span>
-                  </div>
-                  <div className="ticket-row">
-                    <span className="ticket-label">Lokasi Kejadian</span>
-                    <span className="ticket-value" id="th-lokasi">
-                      {currentActiveLog.lokasiKejadian}
-                    </span>
-                  </div>
-                  <div className="ticket-row">
-                    <span className="ticket-label">Personel Ditugaskan</span>
-                    <span className="ticket-value" id="th-petugas">
-                      <strong>{currentActiveLog.disposisi?.satuan || '-'}</strong>
-                      {currentActiveLog.disposisi?.komandan && currentActiveLog.disposisi.komandan !== '-' ? (
-                        <> ({currentActiveLog.disposisi.komandan})</>
-                      ) : currentActiveLog.nama && currentActiveLog.nama !== '-' ? (
-                        <> ({currentActiveLog.nama})</>
-                      ) : ''}
-                    </span>
-                  </div>
-                </div>
-
-                {/* 5-Step Vertical Timeline */}
-                <div className="timeline" id="timeline-container">
-                  {/* Step 1: Diterima SPKT */}
-                  <div className="step completed" id="step-1-el">
-                    <div className="step-icon"></div>
-                    <div className="step-content">
-                      <div className="step-title">1. Laporan Diterima &amp; Diverifikasi SPKT 110</div>
-                      <div className="step-desc" id="step-1-desc">
-                        Laporan Anda telah divalidasi oleh petugas piket dan diteruskan ke sistem disposisi pimpinan.
-                      </div>
-                      <div className="step-time" id="step-1-time">
-                        {currentActiveLog.waktu}
-                      </div>
-                      <div>
-                        <button
-                          type="button"
-                          className="btn-photo-link"
-                          id="btn-foto-1"
-                          onClick={() => openPhotoModal('pengaduan')}
-                        >
-                          <span>📷</span> Lihat Bukti Pengaduan ➔
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Step 2: Disposisi */}
-                  <div className={`step ${currentActiveLog.tahap >= 2 ? 'completed' : 'inactive'}`} id="step-2-el">
-                    <div className="step-icon"></div>
-                    <div className="step-content">
-                      <div className="step-title">2. Disposisi Satuan Patroli Lapangan</div>
-                      <div className="step-desc" id="step-2-desc">
-                        Tugas penanganan telah diserahkan kepada{' '}
-                        <strong>{currentActiveLog.disposisi?.satuan || 'Satuan Patroli Lapangan'}</strong>
-                        {currentActiveLog.disposisi?.komandan && currentActiveLog.disposisi.komandan !== '-' && (
-                          <> dipimpin oleh <strong>{currentActiveLog.disposisi.komandan}</strong></>
-                        )}
-                        .
-                      </div>
-                      <div className="step-time" id="step-2-time">
-                        {currentActiveLog.waktu}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Step 3: Menuju Lokasi */}
-                  <div
-                    className={`step ${
-                      currentActiveLog.tahap === 3
-                        ? 'active'
-                        : currentActiveLog.tahap > 3
-                        ? 'completed'
-                        : 'inactive'
-                    }`}
-                    id="step-3-el"
-                  >
-                    <div className="step-icon"></div>
-                    <div className="step-content">
-                      <div className="step-title">3. Personel Meluncur Menuju Lokasi (En Route)</div>
-                      <div className="step-desc" id="step-3-desc">
-                        Personel bergerak menuju lokasi dengan kelengkapan alutsista dinas.
-                      </div>
-                      <div className="step-time" id="step-3-time">
-                        {currentActiveLog.waktuMeluncur || currentActiveLog.waktu}
-                      </div>
-                      <div id="step-3-chip-wrap" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', margin: '8px 0', alignItems: 'center' }}>
-                        <span className="info-chip-box" id="step-3-gps-chip">
-                          📍 GPS: {currentActiveLog.koordinatGps}
-                        </span>
-                        {currentActiveLog.disposisi?.estimasiJarak && currentActiveLog.disposisi.estimasiJarak !== '-' && (
-                          <span className="info-chip-box" style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
-                            📏 Jarak: {currentActiveLog.disposisi.estimasiJarak}
-                          </span>
-                        )}
-                        {currentActiveLog.disposisi?.estimasiEta && currentActiveLog.disposisi.estimasiEta !== '-' && (
-                          <span className="info-chip-box" style={{ background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}>
-                            ⏱️ ETA: {currentActiveLog.disposisi.estimasiEta}
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          className="btn-photo-link"
-                          id="btn-foto-persiapan"
-                          onClick={() => openPhotoModal('persiapan')}
-                        >
-                          <span>📸</span> Bukti Keberangkatan &amp; GPS ➔
-                        </button>
-                      </div>
-
-                      {/* Live Map with Police Avatar */}
-                      <div className="tracking-map" id="step-3-map" style={{ display: 'block' }}>
-                        <div
-                          style={{
-                            width: '100%',
-                            height: '180px',
-                            background: 'radial-gradient(circle at center, #1E3A8A 0%, #0F172A 100%)',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            position: 'relative',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <div style={{ fontSize: '32px', marginBottom: '6px' }}>🛰️</div>
-                          <div style={{ fontSize: '13px', fontWeight: 800 }}>Radar GPS Satelit Presisi Terkunci</div>
-                          <div style={{ fontSize: '11px', color: '#93C5FD', marginTop: '2px' }}>
-                            {currentActiveLog.disposisi?.satuan || 'Satuan Tugas Lapangan'} • Meluncur ke Titik Aduan
-                          </div>
-                        </div>
-                        <div className="map-overlay">
-                          <NameInitialAvatar
-                            name={currentActiveLog.disposisi?.komandan || currentActiveLog.nama || 'Petugas Patroli'}
-                            avatarUrl={currentActiveLog.disposisi?.avatarUrl}
-                            size={36}
-                            variant="blue"
-                          />
-                          <div className="police-info">
-                            <h4 id="map-police-name">
-                              {currentActiveLog.disposisi?.komandan || currentActiveLog.nama || 'Petugas Patroli'}
-                            </h4>
-                            <p id="map-police-eta">
-                              ⚡ Status: {currentActiveLog.tahap >= 5 ? 'Tuntas di Lokasi' : 'Menuju Lokasi (Dalam Penanganan)'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Step 4: Penanganan di Lokasi */}
-                  <div
-                    className={`step ${
-                      currentActiveLog.tahap === 4
-                        ? 'active'
-                        : currentActiveLog.tahap >= 5
-                        ? 'completed'
-                        : 'inactive'
-                    }`}
-                    id="step-4-el"
-                  >
-                    <div className="step-icon"></div>
-                    <div className="step-content">
-                      <div className="step-title">4. Penanganan Kepolisian di TKP</div>
-                      <div className="step-desc" id="step-4-desc">
-                        Personel telah tiba di lokasi dan mengambil tindakan pengamanan serta mediasi terpadu.
-                      </div>
-                      <div className="step-time" id="step-4-time">
-                        {currentActiveLog.waktuTiba || '-'}
-                      </div>
-                      <div className="quote-box" id="step-4-quote">
-                        <strong>Berita Acara Tindakan:</strong>
-                        <br />
-                        <span id="step-4-quote-text">
-                          {currentActiveLog.deskripsiTindakan && currentActiveLog.deskripsiTindakan !== '-' ? currentActiveLog.deskripsiTindakan : 'Personel telah tiba di lokasi dan melaksanakan penanganan.'}
-                        </span>
-                      </div>
-                      <div style={{ marginTop: '6px' }}>
-                        <button
-                          type="button"
-                          className="btn-photo-link"
-                          id="btn-foto-tindakan"
-                          onClick={() => openPhotoModal('tindakan')}
-                        >
-                          <span>📸</span> Dokumentasi Penanganan TKP ➔
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Step 5: Selesai */}
-                  <div className={`step ${currentActiveLog.tahap >= 5 ? 'completed' : 'inactive'}`} id="step-5-el">
-                    <div className="step-icon"></div>
-                    <div className="step-content">
-                      <div className="step-title">5. Kasus Selesai &amp; Berita Acara Disahkan</div>
-                      <div className="step-desc" id="step-5-desc">
-                        {currentActiveLog.catatanSelesai && currentActiveLog.catatanSelesai !== '-' ? currentActiveLog.catatanSelesai : 'Kasus telah tuntas diselesaikan oleh petugas dan Berita Acara Penanganan telah disahkan oleh Perwira Pengawas (Pawas).'}
-                      </div>
-                      <div className="step-time" id="step-5-time">
-                        {currentActiveLog.waktuSelesai || '-'}
-                      </div>
-                      {currentActiveLog.fotoSelesai && (
-                        <div style={{ marginTop: '8px' }}>
-                          <button
-                            type="button"
-                            className="btn-photo-link"
-                            id="btn-foto-selesai"
-                            onClick={() => openPhotoModal('selesai')}
-                          >
-                            <span>📸</span> Bukti Penyelesaian &amp; Situasi Kondusif ➔
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* SURVEI & RATING KEPUASAN MASYARAKAT */}
-                <div id="rating-section-container">
-                  {currentActiveLog.tahap < 5 && currentActiveLog.status !== 'selesai' ? (
-                    <div className="pending-survey-banner">
-                      <span>⏳</span> <strong>Survei Kepuasan Warga Belum Tersedia</strong>
-                      <br />
-                      Formulir evaluasi kepuasan akan terbuka secara otomatis segera setelah personel kepolisian
-                      menyelesaikan seluruh tindakan di lapangan (Tahap 5). Saat ini proses berada di{' '}
-                      <strong>Tahap {currentActiveLog.tahap}/5</strong>.
-                    </div>
-                  ) : currentActiveLog.ratingKepuasan?.sudahDinilai && !isEditingRating ? (
-                    <div className="survey-card" style={{ borderColor: '#A7F3D0', background: '#F0FDF4' }}>
-                      <div className="confirmed-box">
-                        <div className="confirmed-icon">✓</div>
-                        <h4>Terima Kasih! Penilaian Anda Telah Diterima</h4>
-                        <p className="c-sub">
-                          Apresiasi dan masukan Anda telah terkirim langsung ke Command Center 110 &amp; Pimpinan Pengawas
-                          Polri.
-                        </p>
-
-                        <div className="confirmed-stars">
-                          {'★'.repeat(currentActiveLog.ratingKepuasan.skor) +
-                            '☆'.repeat(5 - currentActiveLog.ratingKepuasan.skor)}
-                        </div>
-                        <div style={{ fontSize: '13px', fontWeight: 800, color: '#065F46', marginBottom: '12px' }}>
-                          Skor: {currentActiveLog.ratingKepuasan.skor}/5 •{' '}
-                          {getScoreTitle(currentActiveLog.ratingKepuasan.skor)}
-                        </div>
-
-                        {currentActiveLog.ratingKepuasan.tags?.length > 0 && (
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              justifyContent: 'center',
-                              gap: '4px',
-                              marginBottom: '14px',
-                            }}
-                          >
-                            {currentActiveLog.ratingKepuasan.tags.map((t) => (
-                              <span key={t} className="quick-pill done" style={{ fontSize: '11px', margin: '2px' }}>
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        <div className="confirmed-review-quote">"{currentActiveLog.ratingKepuasan.ulasan}"</div>
-
-                        <div className="confirmed-meta">
-                          🕒 Dinilai pada: {currentActiveLog.ratingKepuasan.waktu} • Status: Terverifikasi Presisi
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn-reedit-rating"
-                          onClick={() => setIsEditingRating(true)}
-                        >
-                          ✏️ Ubah / Perbarui Penilaian Anda
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="survey-card">
-                      <span className="survey-badge">⭐ SURVEI KEPUASAN MASYARAKAT (LAYANAN 110)</span>
-                      <h3>Bagaimana Pelayanan Petugas Kami?</h3>
-                      <p className="survey-intro">
-                        Kasus Anda telah dinyatakan selesai ditangani. Bantu kami meningkatkan transparansi dan mutu
-                        pelayanan Polri dengan memberikan ulasan objektif terhadap respons serta tindakan personel di
-                        lapangan.
-                      </p>
-
-                      <div className="star-rating-box">
-                        <div className="stars-row" id="stars-row">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              className={`star-btn ${s <= ratingScore ? 'active' : ''}`}
-                              onClick={() => setRatingScore(s)}
-                            >
-                              ★
-                            </button>
+                      <option value="">-- Pilih Spesifikasi Jenis Kasus / Kejadian --</option>
+                      {Object.entries(groupedSubcategories).map(([groupLabel, items]) => (
+                        <optgroup key={groupLabel} label={groupLabel}>
+                          {items.map((sub) => (
+                            <option key={sub.id} value={sub.id}>
+                              {sub.nama_kasus}
+                            </option>
                           ))}
-                        </div>
-                        <div className="star-score-label" id="star-score-text">
-                          {'⭐'.repeat(ratingScore)} {ratingScore}/5 - {getScoreTitle(ratingScore)}
-                        </div>
-                      </div>
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-                      <label className="tags-label">Pilih Aspek Pelayanan yang Paling Menonjol:</label>
-                      <div className="tags-container" id="tags-selector">
-                        {[
-                          '⚡ Respon Sangat Cepat',
-                          '👮 Petugas Ramah & Humanis',
-                          '🛡️ Wilayah Kembali Aman',
-                          '✓ Masalah Tuntas 100%',
-                          '📢 Komunikasi Jelas & Sopan',
-                          '⏱️ Tiba Tepat Waktu',
-                        ].map((t) => (
-                          <span
-                            key={t}
-                            className={`tag-chip ${selectedTags.includes(t) ? 'active' : ''}`}
-                            onClick={() => handleToggleTag(t)}
+                {/* Bagian 3: Lokasi Tempat Kejadian Perkara (TKP) */}
+                <div className="form-section-block">
+                  <div className="section-badge-header">
+                    <div className="section-num-tag">3</div>
+                    <div className="section-title">Lokasi Kejadian (TKP)</div>
+                    <div className="section-subtitle">Tentukan patokan rute untuk mobil patroli</div>
+                  </div>
+
+                  <div className="form-field-group" style={{ position: 'relative' }}>
+                    <label className="form-label">
+                      Alamat Lengkap / Patokan TKP <span className="label-required">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ketik nama jalan, RT/RW, atau patokan gedung..."
+                      value={lokasi}
+                      onChange={(e) => handleLocationSearch(e.target.value)}
+                      onFocus={() => {
+                        if (locationSuggestions.length > 0) setShowSuggestions(true);
+                      }}
+                      className="warga-input"
+                    />
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && locationSuggestions.length > 0 && (
+                      <div className="location-suggestions-box">
+                        {locationSuggestions.map((sugg, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => handleSelectSuggestion(sugg)}
+                            className="location-suggestion-item"
                           >
-                            {t}
-                          </span>
+                            <div className="sugg-title">📍 {sugg.label}</div>
+                            <div className="sugg-desc">{sugg.fullAddress}</div>
+                          </div>
                         ))}
                       </div>
+                    )}
+                  </div>
 
-                      <label className="tags-label" htmlFor="survey-ulasan">
-                        Pesan Apresiasi atau Saran untuk Personel di Lokasi:
-                      </label>
-                      <textarea
-                        id="survey-ulasan"
-                        className="survey-textarea"
-                        placeholder="Contoh: Petugas Bripka Ahmad sangat cepat datang ke lokasi dan membantu menyelesaikan musyawarah dengan damai. Terima kasih Presisi!"
-                        value={ulasanText}
-                        onChange={(e) => setUlasanText(e.target.value)}
-                      ></textarea>
+                  {/* Action Buttons: GPS Detect & Map Toggle */}
+                  <div className="location-btn-row">
+                    <button
+                      type="button"
+                      onClick={handleDetectGPS}
+                      disabled={isLocating}
+                      className={`btn-location-action ${hasValidGps ? 'active' : ''}`}
+                    >
+                      <Navigation size={14} className={isLocating ? 'animate-spin' : ''} />
+                      <span>{isLocating ? 'Mencari Satelit GPS...' : 'Deteksi GPS Saya'}</span>
+                    </button>
 
-                      <button type="button" className="btn-submit-rating" onClick={handleSubmitSurvey}>
-                        <span>⭐</span> Kirim Penilaian &amp; Ulasan Kepuasan
-                      </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMapPicker(!showMapPicker)}
+                      className={`btn-location-action ${showMapPicker ? 'active' : ''}`}
+                    >
+                      <MapPin size={14} />
+                      <span>{showMapPicker ? 'Tutup Peta' : 'Pilih Titik di Peta'}</span>
+                    </button>
+                  </div>
 
+                  {/* Status GPS Terdeteksi (Tanpa badge koordinat mentah / Gambar 2) */}
+                  {hasValidGps && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px' }}>
+                      <span style={{ fontSize: '11.5px', color: '#34D399', fontWeight: 600 }}>
+                        ✓ Titik Koordinat GPS Berhasil Terverifikasi
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Embedded Interactive Map Picker */}
+                  {showMapPicker && (
+                    <div style={{ marginTop: '14px', borderRadius: '12px', overflow: 'hidden' }}>
+                      <MiniMapPicker
+                        lat={lat}
+                        lng={lng}
+                        onChange={(nLat, nLng) => {
+                          setLat(Number(nLat.toFixed(6)));
+                          setLng(Number(nLng.toFixed(6)));
+                          setHasValidGps(true);
+                        }}
+                        onAddressChange={(newAddr) => {
+                          if (newAddr && !lokasi) setLokasi(newAddr);
+                        }}
+                        height="240px"
+                      />
                       <div
                         style={{
-                          textAlign: 'center',
-                          marginTop: '10px',
+                          background: 'rgba(14, 22, 38, 0.95)',
+                          padding: '8px 12px',
                           fontSize: '11px',
-                          color: 'var(--text-muted)',
+                          color: '#94A3B8',
+                          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                         }}
                       >
-                        🔒 Data evaluasi Anda terenkripsi dan langsung diteruskan ke Sistem Pengawasan Presisi SPKT.
+                        💡 Geser peta atau ketuk untuk memindahkan pin tepat di titik kejadian perkara.
                       </div>
                     </div>
                   )}
                 </div>
-              </section>
-            )}
-          </div>
+
+                {/* Bagian 4: Deskripsi & Bukti Foto */}
+                <div className="form-section-block">
+                  <div className="section-badge-header">
+                    <div className="section-num-tag">4</div>
+                    <div className="section-title">Uraian &amp; Lampiran Bukti</div>
+                    <div className="section-subtitle">Foto mempermudah identifikasi patroli</div>
+                  </div>
+
+                  <div className="form-field-group" style={{ marginBottom: '16px' }}>
+                    <label className="form-label">
+                      Uraian Keterangan Kejadian <span className="label-required">*</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Jelaskan secara singkat apa yang terjadi, ciri-ciri pelaku/korban, atau situasi terkini di TKP..."
+                      value={uraian}
+                      onChange={(e) => setUraian(e.target.value)}
+                      className="warga-textarea"
+                    />
+                  </div>
+
+                  <div className="form-field-group">
+                    <label className="form-label">Lampiran Foto Bukti (Opsional)</label>
+                    {fotoBukti ? (
+                      <div className="photo-preview-wrapper">
+                        <img src={fotoBukti} alt="Bukti Kejadian" />
+                        <button
+                          type="button"
+                          onClick={() => setFotoBukti(null)}
+                          className="btn-remove-photo"
+                        >
+                          <X size={12} style={{ display: 'inline' }} /> Hapus Foto
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="photo-dropzone">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={handlePhotoUpload}
+                          style={{ display: 'none' }}
+                        />
+                        <Camera size={26} color="#ECC473" style={{ margin: '0 auto 8px auto' }} />
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#F8FAFC' }}>
+                          Ambil Foto atau Unggah dari Galeri
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                          Maksimal 5 MB (JPG, PNG, WEBP)
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submit CTA */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="btn-submit-complaint"
+                >
+                  <Send size={18} />
+                  <span>{isSubmitting ? 'MENGIRIM KE COMMAND CENTER...' : 'KIRIM PENGADUAN KE COMMAND CENTER 110'}</span>
+                </button>
+              </form>
+            </div>
+          </>
         )}
       </main>
 
-      {/* Photo Lightbox Modal */}
-      {lightboxData.open && (
-        <div className="modal-lightbox active" id="photo-modal" onClick={() => setLightboxData({ ...lightboxData, open: false })}>
-          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <div className="lightbox-header">
-              <h4 id="modal-title">{lightboxData.title}</h4>
-              <button
-                type="button"
-                className="lightbox-close"
-                onClick={() => setLightboxData({ ...lightboxData, open: false })}
-              >
-                &times;
-              </button>
-            </div>
-            <div className="lightbox-img-wrap">
-              <img id="modal-img" src={lightboxData.img} alt="Bukti Foto" />
-              <div className="lightbox-watermark" id="modal-watermark">
-                SIMOPMAS 110 • WATERMARK RESMI POLRI
-              </div>
-            </div>
-            <div className="lightbox-footer" id="modal-desc">
-              {lightboxData.desc}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Alert Modal Warga */}
-      {alertData.open && (
-        <div
-          id="modal-alert-warga"
-          style={{
-            display: 'flex',
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(6px)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setAlertData({ ...alertData, open: false })}
-        >
+      {/* Emergency SOS Countdown Modal */}
+      {showSosModal && (
+        <div className="modal-overlay-futuristic">
           <div
+            className="modal-content-futuristic"
             style={{
-              background: 'white',
-              width: '100%',
-              maxWidth: '440px',
-              borderRadius: '18px',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
-              overflow: 'hidden',
-              border: '1px solid #CBD5E1',
-              display: 'flex',
-              flexDirection: 'column',
-              textAlign: 'center',
+              borderColor: '#EF4444',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 50px rgba(239, 68, 68, 0.4)',
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div
-              id="alert-warga-header"
+              className="modal-gold-crest"
               style={{
-                background: 'linear-gradient(135deg, #1E3A8A 0%, #172554 100%)',
-                color: 'white',
-                padding: '22px 20px 18px 20px',
+                borderColor: '#EF4444',
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: '#EF4444',
               }}
             >
-              <div
-                style={{
-                  width: '52px',
-                  height: '52px',
-                  background: 'rgba(255,255,255,0.2)',
-                  borderRadius: '50%',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '26px',
-                  marginBottom: '8px',
-                }}
-              >
-                <span id="alert-warga-icon">{alertData.icon}</span>
-              </div>
-              <div id="alert-warga-title" style={{ fontSize: '16px', fontWeight: 800, textTransform: 'uppercase' }}>
-                {alertData.title}
-              </div>
-              <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>
-                Portal Pelayanan Masyarakat SIMOPMAS 110
-              </div>
+              🚨
             </div>
+
+            <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#F87171', marginBottom: '8px' }}>
+              SIAGA DARURAT SOS 110
+            </h2>
+
+            <p style={{ fontSize: '13.5px', color: '#CBD5E1', lineHeight: 1.6, marginBottom: '20px' }}>
+              Sistem akan memancarkan sinyal darurat beserta koordinat lokasi Anda ke Command Center dalam waktu:
+            </p>
+
             <div
               style={{
-                padding: '18px 20px',
-                fontSize: '13px',
-                color: '#334155',
-                lineHeight: 1.55,
-                whiteSpace: 'pre-line',
+                fontSize: '48px',
+                fontWeight: 900,
+                color: '#F87171',
+                fontFamily: 'monospace',
+                margin: '10px 0 24px 0',
               }}
-              id="alert-warga-body"
             >
-              {alertData.message}
+              00:0{sosCountdown}
             </div>
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC' }}>
-              <button
-                type="button"
-                onClick={() => setAlertData({ ...alertData, open: false })}
-                style={{
-                  width: '100%',
-                  padding: '10px 16px',
-                  background: '#1E3A8A',
-                  color: 'white',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  border: 'none',
-                  borderRadius: '10px',
-                  cursor: 'pointer',
-                }}
-              >
-                Mengerti &amp; Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Floating Friendly Toast Notifications */}
-      {toastNotification.visible && (
-        <div className="warga-toast-container" id="warga-toast-box">
-          <div className={`warga-toast-card warga-toast-${toastNotification.type}`}>
-            <span style={{ fontSize: '22px', flexShrink: 0 }}>
-              {toastNotification.type === 'success' ? '✅' : toastNotification.type === 'warning' ? '⚠️' : toastNotification.type === 'error' ? '❌' : 'ℹ️'}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 800, color: '#0F172A', marginBottom: '2px' }}>
-                {toastNotification.title}
-              </div>
-              <div style={{ fontSize: '11.5px', color: '#475569', lineHeight: 1.45 }}>
-                {toastNotification.message}
-              </div>
-            </div>
             <button
               type="button"
-              onClick={() => setToastNotification((prev) => ({ ...prev, visible: false }))}
-              style={{
-                background: 'none',
-                border: 'none',
-                fontSize: '16px',
-                color: '#94A3B8',
-                cursor: 'pointer',
-                padding: '2px',
-                lineHeight: 1,
-                alignSelf: 'flex-start',
-              }}
-              title="Tutup Notifikasi"
+              onClick={handleExecuteSos}
+              disabled={isSosSending}
+              className="btn-trigger-sos"
+              style={{ width: '100%', padding: '14px', fontSize: '14px', marginBottom: '10px' }}
             >
-              ✕
+              {isSosSending ? 'MEMANCARKAN SINYAL...' : 'KIRIM SINYAL SOS SEKARANG'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCancelSos}
+              className="btn-secondary-close"
+            >
+              Batalkan Panggilan
             </button>
           </div>
         </div>
       )}
 
-      {/* Modal Sukses Lapor Warga (User-Friendly dengan Tombol Salin Tiket & Lacak) */}
-      {successModal.open && (
-        <div
-          id="modal-sukses-warga"
-          style={{
-            display: 'flex',
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999999,
-            background: 'rgba(15,23,42,0.8)',
-            backdropFilter: 'blur(6px)',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-          }}
-          onClick={() => setSuccessModal((prev) => ({ ...prev, open: false }))}
-        >
-          <div
-            className="animate-pop-in"
-            style={{
-              background: 'white',
-              width: '100%',
-              maxWidth: '480px',
-              borderRadius: '20px',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.45)',
-              overflow: 'hidden',
-              border: '1px solid #E2E8F0',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header Modal */}
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)',
-                color: 'white',
-                padding: '24px 20px 20px 20px',
-                textAlign: 'center',
-                position: 'relative',
-              }}
-            >
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  background: 'rgba(255,255,255,0.2)',
-                  borderRadius: '50%',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '28px',
-                  marginBottom: '10px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                }}
-              >
-                ✅
-              </div>
-              <div style={{ fontSize: '17px', fontWeight: 800 }}>
-                Laporan Berhasil Diterima SPKT 110
-              </div>
-              <div style={{ fontSize: '11.5px', opacity: 0.9, marginTop: '3px' }}>
-                Sistem Monitoring &amp; Akuntabilitas Pengaduan Presisi
-              </div>
-            </div>
-
-            {/* Body Modal */}
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ textAlign: 'center', fontSize: '12.5px', color: '#475569', lineHeight: 1.5 }}>
-                Terima kasih atas laporan Anda. Laporan pengaduan telah tercatat di sistem Command Center dan sedang dalam proses verifikasi &amp; penugasan regu kepolisian.
-              </div>
-
-              {/* Nomor Tiket Card dengan Salin Nomor Tiket */}
-              <div
-                style={{
-                  background: '#F0F9FF',
-                  border: '1.5px solid #BAE6FD',
-                  borderRadius: '12px',
-                  padding: '14px',
-                  textAlign: 'center',
-                }}
-              >
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#0369A1', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                  Nomor Tiket Resmi Anda
-                </div>
-                <div style={{ fontSize: '20px', fontWeight: 900, fontFamily: 'monospace', color: '#0C4A6E', letterSpacing: '0.5px', marginBottom: '8px' }}>
-                  {successModal.nomorTiket}
-                </div>
-                <button
-                  type="button"
-                  id="btn-copy-ticket"
-                  onClick={() => handleCopyTicket(successModal.nomorTiket)}
-                  style={{
-                    padding: '7px 16px',
-                    background: copiedTicket ? '#10B981' : '#0284C7',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <span>{copiedTicket ? '✓' : '📋'}</span>
-                  <span>{copiedTicket ? 'Nomor Tiket Tersalin!' : 'Salin Nomor Tiket'}</span>
-                </button>
-              </div>
-
-              {/* Rincian Singkat Laporan */}
-              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', fontSize: '11.5px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>Pelapor:</span>
-                  <span style={{ fontWeight: 700, color: '#1E293B' }}>{successModal.pelapor}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>Kategori Kasus:</span>
-                  <span style={{ fontWeight: 700, color: '#1E293B' }}>{successModal.kategori}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#64748B' }}>Lokasi TKP:</span>
-                  <span style={{ fontWeight: 700, color: '#1E293B', maxWidth: '240px', textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {successModal.lokasi}
-                  </span>
-                </div>
-              </div>
-
-              {/* Indikator Notifikasi WhatsApp */}
-              <div
-                style={{
-                  background: '#F0FDF4',
-                  border: '1px solid #BBF7D0',
-                  borderRadius: '10px',
-                  padding: '9px 12px',
-                  fontSize: '11.5px',
-                  color: '#166534',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
-              >
-                <span style={{ fontSize: '15px' }}>💬</span>
-                <span>
-                  Tautan radar pelacakan resmi juga dikirimkan secara otomatis ke nomor <strong>WhatsApp</strong> Anda.
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                <button
-                  type="button"
-                  onClick={() => setSuccessModal((prev) => ({ ...prev, open: false }))}
-                  style={{
-                    flex: 1,
-                    padding: '11px',
-                    background: '#F1F5F9',
-                    color: '#475569',
-                    border: '1px solid #CBD5E1',
-                    borderRadius: '10px',
-                    fontSize: '12.5px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Tutup
-                </button>
-                <button
-                  type="button"
-                  id="btn-modal-lacak-sekarang"
-                  onClick={() => {
-                    const ticketNum = successModal.nomorTiket;
-                    const log = successModal.newLog;
-                    setSuccessModal((prev) => ({ ...prev, open: false }));
-                    setActiveTab('lacak');
-                    setTicketInput(ticketNum);
-                    if (log) setCurrentActiveLog(log);
-                  }}
-                  style={{
-                    flex: 1.6,
-                    padding: '11px',
-                    background: 'linear-gradient(135deg, #153E75 0%, #1D4ED8 100%)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '10px',
-                    fontSize: '12.5px',
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(29, 78, 216, 0.25)',
-                  }}
-                >
-                  🔍 Lacak di Portal Warga
-                </button>
-              </div>
-
-              {/* Dedicated Button ke Halaman Radar Taktis Baru */}
-              <a
-                href={`/tracking?tiket=${encodeURIComponent(successModal.nomorTiket)}${successModal.trackingToken ? `&token=${encodeURIComponent(successModal.trackingToken)}` : ''}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '11px',
-                  background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                  color: '#FCD34D',
-                  border: '1.5px solid rgba(236, 196, 115, 0.5)',
-                  borderRadius: '10px',
-                  fontSize: '12.5px',
-                  fontWeight: 800,
-                  textDecoration: 'none',
-                  boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-                  marginTop: '8px',
-                }}
-              >
-                <span>📡 Buka Radar Pelacakan Live (GPS Taktis) ➔</span>
-              </a>
-            </div>
+      {/* Footer Hak Cipta & Informasi Kontak */}
+      <footer className="warga-footer">
+        <div style={{ maxWidth: '860px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div>
+            <strong>SIMOPMAS 110 • POLRI</strong> — Sistem Operasional Pelayanan Masyarakat Terpadu
+          </div>
+          <div>
+            Panggilan Kedaruratan Bebas Pulsa: <strong>110</strong> • Siaga 24 Jam Non-Stop
+          </div>
+          <div style={{ fontSize: '11px', color: '#475569', marginTop: '6px' }}>
+            © 2026 Kepolisian Negara Republik Indonesia. Seluruh hak cipta dilindungi undang-undang.
           </div>
         </div>
-      )}
-
-      <footer className="footer">
-        &copy; 2026 Kepolisian Negara Republik Indonesia.
-        <br />
-        Sistem Monitoring Polisi Bersama Masyarakat (SIMOPMAS 110) • Layanan 110 Terpadu Masyarakat.
       </footer>
-    </>
+    </div>
   );
 }

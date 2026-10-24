@@ -1,7 +1,7 @@
 'use server';
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
-import { revalidatePath } from 'next/cache';
+
 
 function serializeBigInt<T>(obj: T): T {
   return JSON.parse(
@@ -41,7 +41,6 @@ export async function createLogbookAction(input: {
       jamSelesai: input.jamSelesai || nowTime,
     });
     officerLogbooksCache.clear();
-    revalidatePath('/console', 'layout');
     return { success: true, data: serializeBigInt(created.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menyimpan logbook.' };

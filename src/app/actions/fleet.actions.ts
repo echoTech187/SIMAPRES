@@ -1,7 +1,7 @@
 'use server';
 
 import { prisma } from '@/infrastructure/db/prisma.client';
-import { revalidatePath } from 'next/cache';
+
 
 // Helper serialize BigInt
 function serializeBigInt<T>(obj: T): T {
@@ -322,7 +322,6 @@ export async function updatePatrolFleetTelemetryAction(input: {
     });
 
     patrolFleetCache = null;
-    revalidatePath('/console', 'layout');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -397,9 +396,6 @@ export async function submitOfficerPresensiAction(input: {
     });
 
     patrolFleetCache = null;
-    try {
-      revalidatePath('/console/pawas', 'page');
-    } catch (_) {}
 
     return {
       success: true,

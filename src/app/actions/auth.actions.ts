@@ -3,7 +3,8 @@
 // SIMAPRES 110 - Auth Server Actions
 import { prisma } from '@/infrastructure/db/prisma.client';
 import bcrypt from 'bcryptjs';
-import { revalidatePath } from 'next/cache';
+// revalidatePath sengaja di-skip di sini agar mutasi akun & unit tidak memicu reload halaman penuh di browser konsol
+const revalidatePath = (_path: string) => {};
 import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
 
 function serializeBigInt<T>(obj: T): T {

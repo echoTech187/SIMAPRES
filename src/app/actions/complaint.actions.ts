@@ -18,9 +18,10 @@ export async function invalidateComplaintCaches() {
 function safeRevalidatePath(path?: string) {
   invalidateComplaintCaches();
   try {
-    revalidatePath('/console', 'layout');
+    // revalidatePath('/console', 'layout') sengaja ditiadakan agar Next.js tidak me-reset DOM konsol
+    // dan tidak memicu unmount form/modal yang sedang dikerjakan personel/pawas di konsol.
     revalidatePath('/warga');
-    if (path && path !== '/console' && path !== '/warga') {
+    if (path && !path.startsWith('/console') && path !== '/warga') {
       revalidatePath(path);
     }
   } catch (_e) {
@@ -321,8 +322,7 @@ export async function assignComplaintAction(input: {
       pawasUserId: BigInt(input.pawasUserId),
       arahanPawas: input.arahanPawas,
     });
-    revalidatePath('/command-center');
-    revalidatePath('/personil');
+    // Revalidasi konsol di-skip agar tidak me-reset modal sukses disposisi
     return { success: true, data: serializeBigInt(result.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mendisposisikan pengaduan.' };

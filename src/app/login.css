@@ -68,6 +68,7 @@
 /* Metallic Warm Gold Gradient Text */
 .gold-gradient-text {
   background: linear-gradient(135deg, #FFFBEB 0%, #ECC473 45%, #D4A346 80%, #F59E0B 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
