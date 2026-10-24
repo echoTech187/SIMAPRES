@@ -1436,12 +1436,25 @@
   width: 100%;
 }
 
+.cad-antrean-column {
+  width: 100%;
+  min-width: 0;
+}
+
 @media (max-width: 1024px) {
   .beranda-grid-responsive,
   .split-layout-responsive,
-  .kinerja-cards-grid,
+  .kinerja-cards-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   .cad-operator-grid {
     grid-template-columns: 1fr !important;
+  }
+
+  /* Antrean Menunggu Disposisi hanya tampil di layar desktop */
+  .cad-antrean-column {
+    display: none !important;
   }
 }
 

@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
 import { createComplaintAndBroadcastAction, sendWhatsAppNotificationAction } from '@/app/actions/complaint.actions';
 import { PawasTab } from '../types';
+import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
@@ -35,6 +36,8 @@ export interface TabOperatorCadPawasProps {
   loadData: () => Promise<void>;
   session?: any;
   antreanPawas: any[];
+  bukaModalTolak?: (item: any) => void;
+  setTolakComplaint?: (item: any) => void;
 }
 
 export default function TabOperatorCadPawas({
@@ -60,6 +63,8 @@ export default function TabOperatorCadPawas({
   loadData,
   session,
   antreanPawas,
+  bukaModalTolak,
+  setTolakComplaint,
 }: TabOperatorCadPawasProps) {
   const [broadcastModalData, setBroadcastModalData] = useState<any | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -937,8 +942,8 @@ export default function TabOperatorCadPawas({
 
         </div>
 
-        {/* Kolom Kanan: Antrean Laporan & Disposisi Live */}
-        <div style={{ width: '100%', minWidth: 0 }}>
+        {/* Kolom Kanan: Antrean Laporan & Disposisi Live (Hanya Tampil di Desktop) */}
+        <div className="cad-antrean-column" style={{ width: '100%', minWidth: 0 }}>
           <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
               <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>📋 Antrean Menunggu Disposisi</span>
@@ -977,17 +982,69 @@ export default function TabOperatorCadPawas({
                       {item.jenisKejadian}
                     </div>
                     <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '8px' }}>
-                      📍 {item.tkpAlamatTeks}
+                      📍 {isGenericOrCoordinateAddress(item.tkpAlamatTeks) ? resolveSektorWilayah(item.tkpAlamatTeks, item) : item.tkpAlamatTeks}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        bukaModalDisposisi(item);
-                      }}
-                      style={{ width: '100%', padding: '7px', background: '#153E75', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '11.5px', cursor: 'pointer' }}
-                    >
-                      ⚡ Disposisi Unit Sekarang ➔
-                    </button>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
+                      <button
+                        type="button"
+                        id="btn-buka-modal-disposisi"
+                        onClick={() => {
+                          bukaModalDisposisi(item);
+                        }}
+                        style={{
+                          flex: 1,
+                          height: '42px',
+                          padding: '0 14px',
+                          background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                          color: 'white',
+                          fontSize: '12.5px',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          boxShadow: '0 2px 8px rgba(21,62,117,0.25)',
+                          cursor: 'pointer',
+                          margin: 0,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        Teruskan Tugas ➔
+                      </button>
+                      <button
+                        type="button"
+                        id="btn-tolak-dossier"
+                        onClick={() => {
+                          if (bukaModalTolak) {
+                            bukaModalTolak(item);
+                          } else {
+                            setTolakComplaint?.(item);
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          height: '42px',
+                          padding: '0 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #FCA5A5',
+                          background: '#FEF2F2',
+                          color: '#DC2626',
+                          fontWeight: 800,
+                          fontSize: '12.5px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          margin: 0,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span>✕</span> Tolak / Revisi
+                      </button>
+                    </div>
                   </div>
                 ))
               )}
@@ -1180,7 +1237,7 @@ export default function TabOperatorCadPawas({
                             await navigator.clipboard.writeText(trackingUrl);
                             setIsCopied(true);
                             setTimeout(() => setIsCopied(false), 2500);
-                          } catch (_) {}
+                          } catch (_) { }
                         }}
                         style={{
                           padding: '10px 16px',

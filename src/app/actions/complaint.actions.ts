@@ -4,6 +4,7 @@ import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entity';
 import { revalidatePath } from 'next/cache';
 import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
+import { reverseGeocodeCoords, isGenericOrCoordinateAddress } from '@/lib/reverse-geocode';
 
 export async function invalidateComplaintCaches() {
   cacheInvalidate('antrean_pawas');
@@ -127,13 +128,23 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
       return { success: false, error: 'Uraian ringkasan kejadian wajib diisi!' };
     }
 
+    let finalAlamat = cleanAlamat;
+    if (isGenericOrCoordinateAddress(finalAlamat) && input.tkpLat && input.tkpLng) {
+      try {
+        const resolved = await reverseGeocodeCoords(Number(input.tkpLat), Number(input.tkpLng));
+        if (resolved && !isGenericOrCoordinateAddress(resolved)) {
+          finalAlamat = resolved;
+        }
+      } catch (_) {}
+    }
+
     const useCase = UseCaseFactory.getCreateComplaintUseCase();
     const result = await useCase.execute({
       pelaporNama: cleanNama,
       pelaporHp: cleanHp,
       jenisKejadian: cleanJenis,
       urgensi: input.urgensi as UrgensiLevel,
-      tkpAlamatTeks: cleanAlamat,
+      tkpAlamatTeks: finalAlamat,
       tkpLat: Number(input.tkpLat),
       tkpLng: Number(input.tkpLng),
       ringkasanKeterangan: cleanRingkasan,
@@ -546,11 +557,43 @@ export async function updateComplaintStatusAction(input: {
     if (input.status.toUpperCase() === 'SELESAI') {
       complaint.selesaikanKasus(input.catatan);
     }
+    if (input.status.toUpperCase() === 'DITOLAK') {
+      (complaint as any).props.status = 'DITOLAK';
+      (complaint as any).props.alasanTolak = input.catatan || 'Laporan ditolak oleh Pawas';
+
+      const { prisma } = await import('@/infrastructure/db/prisma.client');
+      let sessionUser: any = null;
+      try {
+        const { getSession } = await import('@/lib/session');
+        sessionUser = await getSession();
+      } catch (_) {}
+      const actorName = sessionUser?.fullName || 'Pawas 110';
+      const actorRole = sessionUser?.role || 'PAWAS';
+
+      await prisma.complaint.update({
+        where: { id: BigInt(input.complaintId) },
+        data: {
+          status: 'DITOLAK',
+          status_id: 5,
+          alasan_tolak: input.catatan || 'Laporan ditolak oleh Pawas',
+        },
+      });
+
+      await prisma.complaintAuditLog.create({
+        data: {
+          complaint_id: BigInt(input.complaintId),
+          actor_name: actorName,
+          actor_role: actorRole,
+          action: 'REJECT_REPORT',
+          notes: `Laporan Ditolak: ${input.catatan || '-'}`,
+        },
+      });
+    }
     if (input.pawasUserId) {
       (complaint as any).props.pawasValidasiId = BigInt(input.pawasUserId);
     }
     const updated = await repo.update(complaint);
-    safeRevalidatePath();
+    safeRevalidatePath('/console');
     return { success: true, data: serializeBigInt(updated.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memperbarui status pengaduan.' };

@@ -7,6 +7,7 @@ import { formatIncidentDateTime, formatTimeWib, formatDateTimeWib } from '@/lib/
 import TrackingMapModal from '@/components/console/common/TrackingMapModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
 import { formatPhoneNumber } from '@/lib/format-phone';
+import { reverseGeocodeCoords, isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
 
 export interface TabValidasiDossierProps {
   activeComplaint: any;
@@ -18,6 +19,7 @@ export interface TabValidasiDossierProps {
   handleAjukanRevisi: (c: any) => void;
   handleSahkanPenutupanKasus?: (c: any) => void;
   setTolakComplaint: (c: any) => void;
+  bukaModalTolak?: (c: any) => void;
   setLightboxImg: (data: any) => void;
   setShowLightboxModal: (show: boolean) => void;
   fleetUnits: any[];
@@ -33,8 +35,8 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
   resolveComplaintStatus,
   bukaModalDisposisi,
   handleAjukanRevisi,
-  handleSahkanPenutupanKasus,
   setTolakComplaint,
+  bukaModalTolak,
   setLightboxImg,
   setShowLightboxModal,
   fleetUnits,
@@ -44,6 +46,41 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
   if (!activeComplaint) return null;
 
   const [showTrackingMapModal, setShowTrackingMapModal] = React.useState(false);
+
+  // Reverse geocoded address for SOS / coordinate-only reports
+  const [displayAddress, setDisplayAddress] = React.useState<string>(() => {
+    const raw = activeComplaint?.tkpAlamatTeks;
+    if (raw && !isGenericOrCoordinateAddress(raw)) {
+      return raw;
+    }
+    return 'Memuat alamat lokasi TKP...';
+  });
+
+  React.useEffect(() => {
+    const raw = activeComplaint?.tkpAlamatTeks;
+    if (raw && !isGenericOrCoordinateAddress(raw)) {
+      setDisplayAddress(raw);
+      return;
+    }
+
+    const lat = Number(activeComplaint?.tkpLat);
+    const lng = Number(activeComplaint?.tkpLng);
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      setDisplayAddress(raw || 'Wilayah Hukum Polres Pekalongan');
+      return;
+    }
+
+    let isMounted = true;
+    reverseGeocodeCoords(lat, lng).then((resolved) => {
+      if (isMounted && resolved) {
+        setDisplayAddress(resolved);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeComplaint?.id, activeComplaint?.tkpAlamatTeks, activeComplaint?.tkpLat, activeComplaint?.tkpLng]);
 
   const isRejected = isComplaintRejected(activeComplaint);
   const activeStatMeta = resolveComplaintStatus(activeComplaint.status, isRejected);
@@ -297,7 +334,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                   setLightboxImg({
                     url: activeComplaint.fotoTkpUrl,
                     title: `Bukti Kasus ${activeComplaint.nomorTiket}`,
-                    meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
+                    meta: `TKP: ${displayAddress}`,
                     desc: activeComplaint.ringkasanKeterangan,
                   });
                   setShowLightboxModal(true);
@@ -322,7 +359,9 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
             </div>
             <div>
               <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Sektor / Wilayah:</div>
-              <span style={{ color: '#1E293B', fontWeight: 700 }}>{activeComplaint.tkpAlamatTeks}</span>
+              <span style={{ color: '#1E293B', fontWeight: 700 }}>
+                {resolveSektorWilayah(displayAddress, activeComplaint)}
+              </span>
             </div>
             <div>
               <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Identitas Pelapor:</div>
@@ -331,9 +370,15 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
               </div>
             </div>
             <div>
-              <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Kontak &amp; Koordinat:</div>
-              <div style={{ color: '#1E293B', fontWeight: 700 }}>
-                📞 {formatPhoneNumber(activeComplaint.pelaporHp) || activeComplaint.pelaporHp || '-'} • 🛰️ {activeComplaint.tkpLat?.toFixed(4)}, {activeComplaint.tkpLng?.toFixed(4)}
+              <div style={{ color: '#64748B', fontSize: '11px', fontWeight: 600 }}>Kontak &amp; Alamat:</div>
+              <div style={{ color: '#1E293B', fontWeight: 700, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📞 {formatPhoneNumber(activeComplaint.pelaporHp) || activeComplaint.pelaporHp || '-'}</span>
+                </div>
+                <div style={{ color: '#334155', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: '5px', fontSize: '11.5px', marginTop: '1px' }}>
+                  <span style={{ flexShrink: 0, marginTop: '1px' }}>📍</span>
+                  <span style={{ wordBreak: 'break-word', lineHeight: 1.4 }}>{displayAddress}</span>
+                </div>
               </div>
             </div>
             <div>
@@ -389,20 +434,20 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
               </button>
             </div>
           ) : (
-            <div style={{ marginTop: '14px', display: 'flex', gap: '8px' }}>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
               <button
                 type="button"
                 id="btn-buka-modal-disposisi"
-                className="btn-blue"
                 onClick={() => {
                   bukaModalDisposisi(activeComplaint);
                 }}
                 style={{
-                  flex: 1.4,
-                  padding: '12px 14px',
+                  flex: 1,
+                  height: '42px',
+                  padding: '0 14px',
                   background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
                   color: 'white',
-                  fontSize: '13px',
+                  fontSize: '12.5px',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
@@ -410,33 +455,42 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                   gap: '6px',
                   borderRadius: '8px',
                   border: 'none',
-                  boxShadow: '0 3px 10px rgba(21,62,117,0.3)',
+                  boxShadow: '0 2px 8px rgba(21,62,117,0.25)',
                   cursor: 'pointer',
+                  margin: 0,
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <span>⚡</span> Disposisi Tugas ➔
+                Teruskan Tugas ➔
               </button>
               <button
                 type="button"
-                className="btn-rej"
+                id="btn-tolak-dossier"
                 onClick={() => {
-                  setTolakComplaint(activeComplaint);
-                  switchTab('view-tolak');
+                  if (bukaModalTolak) {
+                    bukaModalTolak(activeComplaint);
+                  } else {
+                    setTolakComplaint(activeComplaint);
+                    switchTab('view-tolak');
+                  }
                 }}
                 style={{
-                  flex: 0.8,
-                  padding: '12px 10px',
+                  flex: 1,
+                  height: '42px',
+                  padding: '0 14px',
                   borderRadius: '8px',
                   border: '1px solid #FCA5A5',
                   background: '#FEF2F2',
                   color: '#DC2626',
-                  fontWeight: 700,
-                  fontSize: '12px',
+                  fontWeight: 800,
+                  fontSize: '12.5px',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '4px',
+                  gap: '6px',
+                  margin: 0,
+                  transition: 'all 0.15s ease',
                 }}
               >
                 <span>✕</span> Tolak / Revisi
@@ -490,7 +544,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
             </div>
             <div style={{ fontSize: '12px', color: '#334155', marginBottom: '8px' }}>
               <span style={{ color: '#64748B', fontWeight: 600 }}>Lokasi TKP:</span>{' '}
-              <span style={{ color: '#475569' }}>{activeComplaint.tkpAlamatTeks}</span>
+              <span style={{ color: '#475569' }}>{displayAddress}</span>
             </div>
 
             {/* Foto Bukti Laporan Warga / Compact Pill jika tidak ada */}
@@ -501,7 +555,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                   setLightboxImg({
                     url: activeComplaint.fotoTkpUrl,
                     title: `Bukti Kasus #${activeComplaint.nomorTiket?.replace(/^#+/, '')}`,
-                    meta: `TKP: ${activeComplaint.tkpAlamatTeks}`,
+                    meta: `TKP: ${displayAddress}`,
                     desc: activeComplaint.ringkasanKeterangan,
                   });
                   setShowLightboxModal(true);

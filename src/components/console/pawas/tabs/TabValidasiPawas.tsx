@@ -17,6 +17,7 @@ import {
 import { PawasTab } from '../types';
 import { TabValidasiDossier } from './TabValidasiDossier';
 import { formatPhoneNumber } from '@/lib/format-phone';
+import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
 
 export interface TabValidasiPawasProps {
   userProfile: any;
@@ -57,6 +58,7 @@ export interface TabValidasiPawasProps {
   handleAjukanRevisi: (c: any) => void;
   handleSahkanPenutupanKasus?: (c: any) => void;
   setTolakComplaint: (c: any) => void;
+  bukaModalTolak?: (c: any) => void;
   setLightboxImg: (data: any) => void;
   setShowLightboxModal: (show: boolean) => void;
   fleetUnits: any[];
@@ -105,6 +107,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
   handleAjukanRevisi,
   handleSahkanPenutupanKasus,
   setTolakComplaint,
+  bukaModalTolak,
   setLightboxImg,
   setShowLightboxModal,
   fleetUnits,
@@ -538,7 +541,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                         <AlertTriangle size={10} /> SOS PANIC
                       </span>
                     );
-                    kontakMeta = `${formattedHp} • GPS: ${log.tkpLat ? log.tkpLat.toFixed(4) : '-' }, ${log.tkpLng ? log.tkpLng.toFixed(4) : '-'}`;
+                    kontakMeta = `${formattedHp} • Darurat SOS (110)`;
                   } else if (platform === 'layanan110') {
                     avatarBorder = '#93C5FD';
                     avatarIcon = <Headphones size={10} color="#FFFFFF" />;
@@ -711,7 +714,11 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                       {/* Metadata Lokasi, Kontak & Tiket */}
                       <div style={{ fontSize: '10.5px', color: '#64748B', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', padding: '6px 8px', marginBottom: '6px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontWeight: 600, color: '#334155' }}>{log.tkpAlamatTeks}</span>
+                          <span style={{ fontWeight: 600, color: '#334155' }}>
+                            {isGenericOrCoordinateAddress(log.tkpAlamatTeks)
+                              ? resolveSektorWilayah(log.tkpAlamatTeks, log)
+                              : log.tkpAlamatTeks}
+                          </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', flexWrap: 'wrap' }}>
                           <span style={{ color: '#475569' }}>{kontakMeta}</span>
@@ -807,6 +814,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                     handleAjukanRevisi={handleAjukanRevisi}
                     handleSahkanPenutupanKasus={handleSahkanPenutupanKasus}
                     setTolakComplaint={setTolakComplaint}
+                    bukaModalTolak={bukaModalTolak}
                     setLightboxImg={setLightboxImg}
                     setShowLightboxModal={setShowLightboxModal}
                     fleetUnits={fleetUnits}
@@ -1319,6 +1327,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                 handleAjukanRevisi={handleAjukanRevisi}
                 handleSahkanPenutupanKasus={handleSahkanPenutupanKasus}
                 setTolakComplaint={setTolakComplaint}
+                bukaModalTolak={bukaModalTolak}
                 setLightboxImg={setLightboxImg}
                 setShowLightboxModal={setShowLightboxModal}
                 fleetUnits={fleetUnits}

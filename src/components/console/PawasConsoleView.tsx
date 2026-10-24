@@ -50,6 +50,7 @@ import ModalTimePicker from './pawas/modals/ModalTimePicker';
 import ModalPresensiPulang from './pawas/modals/ModalPresensiPulang';
 import ModalKeamananPawas from './pawas/modals/ModalKeamananPawas';
 import ModalLightbox from './pawas/modals/ModalLightbox';
+import ModalTolakPengaduan from './pawas/modals/ModalTolakPengaduan';
 
 function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
@@ -455,8 +456,9 @@ function CommandCenterContent({
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  // Penolakan Form State (Screen 8)
+  // Penolakan Form State (Screen 8 & Modal)
   const [tolakComplaint, setTolakComplaint] = useState<any | null>(null);
+  const [showTolakModal, setShowTolakModal] = useState<boolean>(false);
   const [tolakKategori, setTolakKategori] = useState('');
   const [tolakAlasan, setTolakAlasan] = useState('');
 
@@ -1269,6 +1271,55 @@ function CommandCenterContent({
     }
   };
 
+  const bukaModalTolak = (complaint: any) => {
+    setTolakComplaint(complaint);
+    setShowTolakModal(true);
+  };
+
+  const handleConfirmRejectModal = async (reason: string, notes: string) => {
+    if (!tolakComplaint) return;
+    setLoading(true);
+    try {
+      const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
+      const fullNote = notes ? `${reason}. Catatan: ${notes}` : reason;
+
+      const res = await updateComplaintStatusAction({
+        complaintId: tolakComplaint.id.toString(),
+        status: 'DITOLAK',
+        catatan: fullNote,
+        pawasUserId: activePawasId,
+      });
+
+      if (res.success) {
+        showFriendlyToast(
+          'success',
+          'Pengaduan Berhasil Ditolak',
+          `Tiket ${tolakComplaint.nomorTiket || tolakComplaint.nomor_tiket} telah ditolak dan masuk ke tab Ditolak.`
+        );
+        const rejectedComplaint = {
+          ...tolakComplaint,
+          status: 'DITOLAK',
+          status_id: 5,
+          tahap: 1,
+          alasanTolak: fullNote,
+          alasan_tolak: fullNote,
+        };
+        setShowTolakModal(false);
+        setTolakComplaint(null);
+        await loadData();
+        setValFilterStatus('ditolak');
+        setSelectedValComplaint(rejectedComplaint);
+        switchTab('view-validasi');
+      } else {
+        showFriendlyToast('error', 'Gagal Menolak Pengaduan', res.error || 'Terjadi kendala sistem.');
+      }
+    } catch (e: any) {
+      showFriendlyToast('error', 'Gagal Menolak Pengaduan', e.message || 'Gagal mengirim penolakan.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmitPenolakan = async () => {
     if (!tolakComplaint) return;
     setLoading(true);
@@ -1751,6 +1802,7 @@ function CommandCenterContent({
             handleAjukanRevisi={handleAjukanRevisi}
             handleSahkanPenutupanKasus={handleSahkanPenutupanKasus}
             setTolakComplaint={setTolakComplaint}
+            bukaModalTolak={bukaModalTolak}
             setLightboxImg={setLightboxImg}
             setShowLightboxModal={setShowLightboxModal}
             fleetUnits={fleetUnits}
@@ -1826,6 +1878,8 @@ function CommandCenterContent({
             setLoading={setLoading}
             showFriendlyToast={showFriendlyToast}
             bukaModalDisposisi={bukaModalDisposisi}
+            bukaModalTolak={bukaModalTolak}
+            setTolakComplaint={setTolakComplaint}
             loadData={loadData}
             session={session}
             antreanPawas={antreanPawas}
@@ -2034,6 +2088,14 @@ function CommandCenterContent({
         isOpen={showLightboxModal}
         onClose={() => setShowLightboxModal(false)}
         lightboxImg={lightboxImg}
+      />
+
+      <ModalTolakPengaduan
+        isOpen={showTolakModal}
+        onClose={() => setShowTolakModal(false)}
+        complaint={tolakComplaint}
+        onConfirmReject={handleConfirmRejectModal}
+        loading={loading}
       />
 
     </div>

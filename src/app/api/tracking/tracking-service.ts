@@ -238,6 +238,7 @@ async function loadTrackingData(
   const primaryOfficer = primaryDispatch?.officer
     ? {
         id: primaryDispatch.officer.id,
+        nrp: primaryDispatch.officer.nrp || null,
         namaLengkap:
           primaryDispatch.officer.user?.full_name ||
           primaryDispatch.officer.user?.nama_lengkap ||

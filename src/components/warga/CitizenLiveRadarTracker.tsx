@@ -372,7 +372,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
         try {
           const payload = JSON.parse(event.data);
           setUnauthorizedMessage(payload.error || 'Akses ditolak: Token verifikasi tidak terdaftar.');
-        } catch (_) {}
+        } catch (_) { }
         setUnauthorized(true);
         setComplaint(null);
         setLoading(false);
@@ -421,7 +421,7 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
             }
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }, 3000);
 
     return () => {
@@ -436,24 +436,28 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
 
   const assignedOfficer = useMemo(() => {
     if (!complaint) return null;
-    if (complaint.assignedOfficer) return complaint.assignedOfficer;
     const dispatches: any[] = complaint.dispatches || [];
     const d = dispatches.find((x: any) => (x.acceptedAt || x.accepted_at) && x.officer)
       || dispatches.find((x: any) => x.officer);
-    if (!d?.officer) return null;
-    const o = d.officer;
+    const rawOfficer = complaint.assignedOfficer || d?.officer;
+    if (!rawOfficer) return null;
+
+    const resolvedNrp = rawOfficer.nrp || d?.officer?.nrp || rawOfficer.user?.identifier || null;
+
     return {
-      id: o.id,
-      namaLengkap: o.user?.full_name || o.user?.nama_lengkap || 'Petugas Lapangan',
-      rankPangkat: o.rank_pangkat || o.rankPangkat,
-      jabatan: o.jabatan,
-      assignedPatrolVehicle: o.assigned_patrol_vehicle || o.assignedPatrolVehicle,
-      currentGpsLat: o.current_gps_lat || o.currentGpsLat,
-      currentGpsLng: o.current_gps_lng || o.currentGpsLng,
-      phoneNumber: o.user?.phone_number,
-      callPhoneNumber: o.user?.raw_phone_number || o.user?.phone_number || '110',
-      avatarUrl: o.avatar_url,
-      unitName: d.unit?.unit_name || d.unit?.unitName || 'Satuan Samapta Presisi',
+      ...rawOfficer,
+      id: rawOfficer.id,
+      nrp: resolvedNrp,
+      namaLengkap: rawOfficer.namaLengkap || rawOfficer.user?.full_name || rawOfficer.user?.nama_lengkap || 'Petugas Lapangan',
+      rankPangkat: rawOfficer.rankPangkat || rawOfficer.rank_pangkat,
+      jabatan: rawOfficer.jabatan,
+      assignedPatrolVehicle: rawOfficer.assignedPatrolVehicle || rawOfficer.assigned_patrol_vehicle,
+      currentGpsLat: rawOfficer.currentGpsLat || rawOfficer.current_gps_lat,
+      currentGpsLng: rawOfficer.currentGpsLng || rawOfficer.current_gps_lng,
+      phoneNumber: rawOfficer.phoneNumber || rawOfficer.user?.phone_number,
+      callPhoneNumber: rawOfficer.callPhoneNumber || rawOfficer.user?.raw_phone_number || rawOfficer.user?.phone_number || '110',
+      avatarUrl: rawOfficer.avatarUrl || rawOfficer.avatar_url,
+      unitName: rawOfficer.unitName || d?.unit?.unit_name || d?.unit?.unitName || 'Satuan Samapta Presisi',
     };
   }, [complaint]);
 
@@ -945,10 +949,10 @@ export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBac
                       ? 'rgba(16,185,129,0.18)'
                       : 'rgba(245,158,11,0.18)',
                   border: `1px solid ${isArrived
-                      ? 'rgba(59,130,246,0.45)'
-                      : isMeluncur
-                        ? 'rgba(16,185,129,0.45)'
-                        : 'rgba(245,158,11,0.45)'
+                    ? 'rgba(59,130,246,0.45)'
+                    : isMeluncur
+                      ? 'rgba(16,185,129,0.45)'
+                      : 'rgba(245,158,11,0.45)'
                     }`,
                   color: isArrived ? '#60A5FA' : isMeluncur ? '#34D399' : '#FBBF24',
                 }}
@@ -2146,9 +2150,6 @@ function CompletedIndependentView({
                 Keterangan Penanganan oleh Petugas:
               </span>
             </div>
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-              Resmi Dituntaskan
-            </span>
           </div>
           <div className="text-xs sm:text-sm text-slate-100 leading-relaxed font-medium bg-black/45 rounded-xl p-3 sm:p-3.5 border-l-4 border-amber-400 whitespace-pre-wrap break-words shadow-inner">
             "{catatanFinal}"
@@ -2160,7 +2161,6 @@ function CompletedIndependentView({
           <div className="rounded-2xl p-4 bg-[#121621] border border-white/10 shadow-lg space-y-3">
             <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center justify-between">
               <span>Personil Penanganan Lapangan</span>
-              <span className="text-emerald-400 font-bold">● Tugas Selesai</span>
             </div>
             <div className="flex items-center gap-3.5">
               <NameInitialAvatar
@@ -2170,20 +2170,16 @@ function CompletedIndependentView({
                 variant="gold"
               />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className="bg-amber-500/20 text-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
-                    {officer.rankPangkat || 'POLRI'}
-                  </span>
-                  {officer.nrp && (
-                    <span className="text-[10px] text-slate-400 font-mono">NRP: {officer.nrp}</span>
-                  )}
-                </div>
                 <div className="text-sm sm:text-base font-extrabold text-white truncate">
-                  {officer.namaLengkap}
+                  {officer.nrp && (
+                    <span className="text-xs font-extrabold text-amber-300">{officer.nrp} ● </span>
+                  )}
+                  <span className="text-xs text-slate-400 truncate mt-0.5">
+                    {officer.namaLengkap}
+                  </span>
                 </div>
                 <div className="text-xs text-slate-400 truncate mt-0.5">
-                  🛡️ {officer.unitName || 'Satuan Patroli 110'}
-                  {officer.assignedPatrolVehicle && ` · 🚘 ${officer.assignedPatrolVehicle}`}
+                  {officer.unitName}
                 </div>
               </div>
             </div>
@@ -2543,8 +2539,8 @@ function ChatBottomDrawer({
                   </div>
                   <div
                     className={`p-2.5 rounded-2xl text-xs break-words shadow-sm ${isMe
-                        ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold rounded-tr-sm'
-                        : 'bg-[#1A1F2C] text-slate-100 border border-amber-500/20 rounded-tl-sm font-medium'
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-bold rounded-tr-sm'
+                      : 'bg-[#1A1F2C] text-slate-100 border border-amber-500/20 rounded-tl-sm font-medium'
                       }`}
                   >
                     {msg.text}
