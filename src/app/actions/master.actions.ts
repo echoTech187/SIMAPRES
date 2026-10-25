@@ -599,6 +599,9 @@ export async function createPoliceStationMasterAction(data: {
   office_lat: number;
   office_lng: number;
   geofence_radius_meters: number;
+  phone_piket?: string;
+  phone_kapolsek?: string;
+  is_active?: boolean;
 }) {
   try {
     const cleanCode = data.station_code?.trim().toUpperCase();
@@ -640,6 +643,9 @@ export async function createPoliceStationMasterAction(data: {
         office_lat: Number(data.office_lat),
         office_lng: Number(data.office_lng),
         geofence_radius_meters: Number(data.geofence_radius_meters),
+        phone_piket: data.phone_piket?.trim() || null,
+        phone_kapolsek: data.phone_kapolsek?.trim() || null,
+        is_active: data.is_active ?? true,
       },
     });
 
@@ -661,6 +667,9 @@ export async function updatePoliceStationMasterAction(
     office_lat: number;
     office_lng: number;
     geofence_radius_meters: number;
+    phone_piket?: string;
+    phone_kapolsek?: string;
+    is_active?: boolean;
   }
 ) {
   try {
@@ -709,6 +718,9 @@ export async function updatePoliceStationMasterAction(
         office_lat: Number(data.office_lat),
         office_lng: Number(data.office_lng),
         geofence_radius_meters: Number(data.geofence_radius_meters),
+        phone_piket: data.phone_piket?.trim() || null,
+        phone_kapolsek: data.phone_kapolsek?.trim() || null,
+        ...(data.is_active !== undefined ? { is_active: Boolean(data.is_active) } : {}),
       },
     });
 

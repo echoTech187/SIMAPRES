@@ -419,12 +419,16 @@ model PoliceStation {
   office_lat             Decimal             @db.Decimal(10, 8)        // Station Headquarters GPS
   office_lng             Decimal             @db.Decimal(11, 8)        // Station Headquarters GPS
   geofence_radius_meters Int                 @default(500)
+  phone_piket            String?             @db.VarChar(30)           // Nomor WhatsApp / Telepon Meja Piket SPKT Polsek
+  phone_kapolsek         String?             @db.VarChar(30)           // Nomor Kontak Pimpinan / Kapolsek
+  is_active              Boolean             @default(true)
 
   users                  User[]
   officers               PoliceOfficer[]
   vehicles               PatrolVehicle[]
   complaints             Complaint[]
   hotspots               HotspotLocation[]
+  dispatches             ComplaintDispatch[]
 
   created_at             DateTime            @default(now())
   updated_at             DateTime            @updatedAt
@@ -688,10 +692,18 @@ model ComplaintDispatch {
   estimated_distance    String?               @db.VarChar(30)
   estimated_eta         String?               @db.VarChar(30)
 
+  station_id            Int?
+  station               PoliceStation?        @relation(fields: [station_id], references: [id], onDelete: SetNull)
+  wa_officer_status     String?               @default("NONE") @db.VarChar(30) // "NONE", "SENT", "FAILED"
+  wa_polsek_status      String?               @default("NONE") @db.VarChar(30) // "NONE", "SENT", "FAILED"
+  escalation_deadline_at DateTime?
+  is_escalated          Boolean               @default(false)
+
   @@index([complaint_id], map: "idx_dispatches_complaint")
   @@index([unit_id], map: "idx_dispatches_unit")
   @@index([officer_id], map: "idx_dispatches_officer")
   @@index([dispatch_status_id], map: "idx_dispatches_status_id")
+  @@index([station_id], map: "idx_dispatches_station_id")
   @@map("complaint_dispatches")
 }
 

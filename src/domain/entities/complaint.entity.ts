@@ -84,6 +84,8 @@ export interface ComplaintProps {
   platformId?: number | null;
   platformKey?: string | null;
   platformRel?: any | null;
+  stationId?: number | null;
+  station?: any | null;
   timelines?: TimelineStep[];
   dispatches?: any[];
   complaintLogs?: any[];

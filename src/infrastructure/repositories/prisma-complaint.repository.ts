@@ -5,10 +5,11 @@ import { prisma } from '../db/prisma.client';
 
 const COMPLAINT_INCLUDE = {
   complaint_logs: { orderBy: { created_at: 'asc' } },
-  dispatches: { include: { unit: true, officer: { include: { user: true } } } },
+  dispatches: { include: { unit: true, station: true, officer: { include: { user: true } } } },
   evidences: { orderBy: { uploaded_at: 'asc' } },
   citizen_review_rel: true,
   operator: true,
+  station: true,
   category_rel: true,
   subcategory_rel: { include: { unit_rel: true, category_rel: true } },
   source_rel: true,
@@ -159,6 +160,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         complaintLogs: record.complaint_logs || [],
         evidences: record.evidences || [],
         citizenReviewRel: citizenReview || null,
+        stationId: record.station_id,
+        station: record.station || null,
         resolutionLocationId: record.resolution_location_id,
         resolutionLocationKey: record.resolution_location_key,
         resolutionLocationName: record.resolution_location_name,

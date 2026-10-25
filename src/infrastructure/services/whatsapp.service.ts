@@ -10,6 +10,38 @@ export interface WhatsAppNotificationPayload {
   appUrl?: string;
 }
 
+export interface OfficerAlertPayload {
+  nomorTiket: string;
+  officerNama: string;
+  officerHp: string;
+  jenisKejadian: string;
+  urgensi: string; // 'DARURAT' | 'SEDANG' | 'NORMAL'
+  tkpAlamatTeks: string;
+  tkpLat: number;
+  tkpLng: number;
+  pelaporNama?: string;
+  pelaporHp?: string;
+  ringkasan?: string;
+  deadlineMinutes?: number;
+  appUrl?: string;
+}
+
+export interface PolsekNoticePayload {
+  nomorTiket: string;
+  polsekName: string;
+  polsekHp: string;
+  jenisKejadian: string;
+  urgensi: string;
+  tkpAlamatTeks: string;
+  tkpLat: number;
+  tkpLng: number;
+  pelaporNama?: string;
+  pelaporHp?: string;
+  ringkasan?: string;
+  deadlineMinutes?: number;
+  appUrl?: string;
+}
+
 export interface WhatsAppSendResult {
   success: boolean;
   messageId?: string;
@@ -47,54 +79,24 @@ export class WhatsAppService {
     const apiToken = process.env.FLOWKIRIM_API_TOKEN || process.env.WHATSAPP_API_TOKEN || '';
     const deviceId = process.env.FLOWKIRIM_DEVICE_ID || '';
     const sessionId = process.env.FLOWKIRIM_SESSION_ID || '';
-    const polresName = process.env.NEXT_PUBLIC_POLRES_NAME || 'Polsek Pekalongan';
+    const polresName = process.env.NEXT_PUBLIC_POLRES_NAME || 'Polres Pekalongan';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
 
     return { apiBase, apiToken, deviceId, sessionId, polresName, appUrl };
   }
 
   /**
-   * Menyusun pesan WhatsApp resmi format SIMOPMAS 110
+   * Mengirim pesan teks umum via FlowKirim API
    */
-  public static buildTicketMessage(payload: WhatsAppNotificationPayload): string {
-    const { polresName, appUrl: defaultAppUrl } = this.getApiConfig();
-    const appUrl = (payload.appUrl || defaultAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
-    const cleanTiket = (payload.nomorTiket || '').replace(/^#+/, '').trim();
-    const trackingToken = generateTrackingToken(cleanTiket);
-    const trackingUrl = `${appUrl}/tracking?tiket=${encodeURIComponent(cleanTiket)}&token=${encodeURIComponent(trackingToken)}`;
-
-    const nama = payload.pelaporNama && payload.pelaporNama !== '-' ? payload.pelaporNama : 'Bapak/Ibu Warga';
-    const kategori = payload.jenisKejadian || 'Layanan Pengaduan Kepolisian';
-    const alamat = payload.tkpAlamatTeks || '-';
-
-    return (
-      `*SENTRA PELAYANAN KEPOLISIAN TERPADU (SPKT) 110*\n` +
-      `*${(polresName).toUpperCase()}*\n\n` +
-      `Halo *${nama}*,\n\n` +
-      `Laporan pengaduan Anda telah kami terima secara resmi di Layanan Polisi 110 dengan data:\n` +
-      `📋 *Nomor Tiket:* ${cleanTiket}\n` +
-      `🚨 *Kategori Kejadian:* ${kategori}\n` +
-      `📍 *Lokasi TKP:* ${alamat}\n\n` +
-      `Laporan Anda telah disiarkan ke seluruh armada patroli dan personel piket terdekat untuk penanganan cepat di lapangan.\n\n` +
-      `Anda dapat memantau pergerakan personel serta radar taktis penanganan secara langsung melalui tautan resmi berikut:\n` +
-      `🔗 ${trackingUrl}\n\n` +
-      `_Harap simpan pesan ini sebagai bukti registrasi laporan pengaduan resmi Anda di Layanan Polisi 110._\n` +
-      `_Terima kasih atas kerja sama Anda dalam menjaga kamtibmas._`
-    );
-  }
-
-  /**
-   * Mengirim notifikasi WhatsApp ke pelapor via FlowKirim REST API
-   */
-  public static async sendTicketNotification(payload: WhatsAppNotificationPayload): Promise<WhatsAppSendResult> {
+  private static async sendRawMessage(recipientPhone: string, messageText: string): Promise<WhatsAppSendResult> {
     const { apiBase, apiToken, deviceId, sessionId } = this.getApiConfig();
-    const cleanPhone = formatIndonesianPhoneNumber(payload.pelaporHp);
+    const cleanPhone = formatIndonesianPhoneNumber(recipientPhone);
 
     if (!cleanPhone || cleanPhone.length < 8) {
       return {
         success: false,
         statusText: 'Nomor telepon tidak valid',
-        error: `Nomor telepon pelapor "${payload.pelaporHp}" tidak valid.`,
+        error: `Nomor telepon "${recipientPhone}" tidak valid.`,
         recipientPhone: cleanPhone,
       };
     }
@@ -146,7 +148,6 @@ export class WhatsAppService {
       };
     }
 
-    const messageText = payload.customMessage || this.buildTicketMessage(payload);
     const toJid = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@s.whatsapp.net`;
 
     try {
@@ -192,5 +193,125 @@ export class WhatsAppService {
         recipientPhone: cleanPhone,
       };
     }
+  }
+
+  /**
+   * Menyusun pesan WhatsApp konfirmasi registrasi tiket ke Pelapor (Warga)
+   */
+  public static buildTicketMessage(payload: WhatsAppNotificationPayload): string {
+    const { polresName, appUrl: defaultAppUrl } = this.getApiConfig();
+    const appUrl = (payload.appUrl || defaultAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
+    const cleanTiket = (payload.nomorTiket || '').replace(/^#+/, '').trim();
+    const trackingToken = generateTrackingToken(cleanTiket);
+    const trackingUrl = `${appUrl}/tracking?tiket=${encodeURIComponent(cleanTiket)}&token=${encodeURIComponent(trackingToken)}`;
+
+    const nama = payload.pelaporNama && payload.pelaporNama !== '-' ? payload.pelaporNama : 'Bapak/Ibu Warga';
+    const kategori = payload.jenisKejadian || 'Layanan Pengaduan Kepolisian';
+    const alamat = payload.tkpAlamatTeks || '-';
+
+    return (
+      `*SENTRA PELAYANAN KEPOLISIAN TERPADU (SPKT) 110*\n` +
+      `*${polresName.toUpperCase()}*\n\n` +
+      `Halo *${nama}*,\n\n` +
+      `Laporan pengaduan Anda telah kami terima secara resmi di Layanan Polisi 110 dengan data:\n` +
+      `📋 *Nomor Tiket:* ${cleanTiket}\n` +
+      `🚨 *Kategori Kejadian:* ${kategori}\n` +
+      `📍 *Lokasi TKP:* ${alamat}\n\n` +
+      `Laporan Anda telah disiarkan ke seluruh armada patroli dan personel piket terdekat untuk penanganan cepat di lapangan.\n\n` +
+      `Anda dapat memantau pergerakan personel serta radar taktis penanganan secara langsung melalui tautan resmi berikut:\n` +
+      `🔗 ${trackingUrl}\n\n` +
+      `_Harap simpan pesan ini sebagai bukti registrasi laporan pengaduan resmi Anda di Layanan Polisi 110._\n` +
+      `_Terima kasih atas kerja sama Anda dalam menjaga kamtibmas._`
+    );
+  }
+
+  /**
+   * Mengirim notifikasi WhatsApp ke pelapor via FlowKirim REST API
+   */
+  public static async sendTicketNotification(payload: WhatsAppNotificationPayload): Promise<WhatsAppSendResult> {
+    const messageText = payload.customMessage || this.buildTicketMessage(payload);
+    return this.sendRawMessage(payload.pelaporHp, messageText);
+  }
+
+  /**
+   * Menyusun pesan WhatsApp taktis darurat ke Personel Lapangan (2.B Kebutuhan 2)
+   */
+  public static buildOfficerAlertMessage(payload: OfficerAlertPayload): string {
+    const { polresName, appUrl: defaultAppUrl } = this.getApiConfig();
+    const appUrl = (payload.appUrl || defaultAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
+    const cleanTiket = (payload.nomorTiket || '').replace(/^#+/, '').trim();
+    const deadline = payload.deadlineMinutes || 3;
+    const gmapsUrl = `https://maps.google.com/?q=${payload.tkpLat},${payload.tkpLng}`;
+    const acceptUrl = `${appUrl}/tugas/konfirmasi?tiket=${encodeURIComponent(cleanTiket)}&role=OFFICER`;
+
+    const urgensiIcon = payload.urgensi === 'DARURAT' ? '🔴 DARURAT' : '🟡 SEDANG';
+    const pelaporInfo = payload.pelaporNama ? `${payload.pelaporNama} (${payload.pelaporHp || '-'})` : '-';
+
+    return (
+      `🚨 *[DISPOSISI TAKTIS 110 - PERINTAH TUGAS SEGERA]* 🚨\n` +
+      `*${polresName.toUpperCase()}*\n\n` +
+      `Yth. *${payload.officerNama}*,\n\n` +
+      `Anda menerima perintah tugas respon cepat dari Pawas Mako 110:\n\n` +
+      `📋 *Nomor Tiket:* ${cleanTiket}\n` +
+      `⚡ *Urgensi:* ${urgensiIcon} (Target Respon: ${deadline} Menit)\n` +
+      `🚨 *Kasus:* ${payload.jenisKejadian}\n` +
+      `📍 *Lokasi TKP:* ${payload.tkpAlamatTeks}\n` +
+      `👤 *Pelapor:* ${pelaporInfo}\n` +
+      `📝 *Ringkasan:* ${payload.ringkasan || '-'}\n\n` +
+      `🗺️ *Navigasi Google Maps Langsung ke TKP:*\n` +
+      `${gmapsUrl}\n\n` +
+      `👉 *Klik Konfirmasi Terima Tugas (One-Tap):*\n` +
+      `${acceptUrl}\n\n` +
+      `_Harap segera konfirmasi penerimaan tugas. Sirine eskalasi Mako akan berbunyi jika tidak direspon dalam ${deadline} menit._`
+    );
+  }
+
+  /**
+   * Mengirim notifikasi WhatsApp taktis ke Personel Lapangan
+   */
+  public static async sendOfficerAlert(payload: OfficerAlertPayload): Promise<WhatsAppSendResult> {
+    const messageText = this.buildOfficerAlertMessage(payload);
+    return this.sendRawMessage(payload.officerHp, messageText);
+  }
+
+  /**
+   * Menyusun pesan WhatsApp notifikasi kewilayahan ke Piket SPKT Polsek (2.C Kebutuhan 1)
+   */
+  public static buildPolsekNoticeMessage(payload: PolsekNoticePayload): string {
+    const { polresName, appUrl: defaultAppUrl } = this.getApiConfig();
+    const appUrl = (payload.appUrl || defaultAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
+    const cleanTiket = (payload.nomorTiket || '').replace(/^#+/, '').trim();
+    const deadline = payload.deadlineMinutes || 3;
+    const gmapsUrl = `https://maps.google.com/?q=${payload.tkpLat},${payload.tkpLng}`;
+    const acceptUrl = `${appUrl}/tugas/konfirmasi?tiket=${encodeURIComponent(cleanTiket)}&role=POLSEK`;
+
+    const urgensiIcon = payload.urgensi === 'DARURAT' ? '🔴 DARURAT' : '🟡 SEDANG';
+    const pelaporInfo = payload.pelaporNama ? `${payload.pelaporNama} (${payload.pelaporHp || '-'})` : '-';
+
+    return (
+      `📢 *[DISPOSISI WILAYAH - SPKT MAKO 110]* 📢\n` +
+      `*${polresName.toUpperCase()}*\n\n` +
+      `Kepada: *Yth. Ka SPKT / Petugas Piket ${payload.polsekName}*\n\n` +
+      `Telah masuk laporan pengaduan masyarakat di wilayah hukum Polsek Anda:\n\n` +
+      `📋 *Nomor Tiket:* ${cleanTiket}\n` +
+      `⚡ *Tingkat Urgensi:* ${urgensiIcon}\n` +
+      `🚨 *Kasus / Kejadian:* ${payload.jenisKejadian}\n` +
+      `📍 *Alamat TKP:* ${payload.tkpAlamatTeks}\n` +
+      `👤 *Pelapor:* ${pelaporInfo}\n` +
+      `📝 *Ringkasan:* ${payload.ringkasan || '-'}\n\n` +
+      `🗺️ *Rute Navigasi Lokasi TKP:*\n` +
+      `${gmapsUrl}\n\n` +
+      `👉 *Konfirmasi Penerimaan Tugas / Monitor Piket:*\n` +
+      `${acceptUrl}\n\n` +
+      `_Pawas Mako memantau respon penanganan dalam ${deadline} menit. Mohon segera siagakan regu patroli terdekat menuju lokasi TKP._`
+    );
+  }
+
+  /**
+   * Mengirim notifikasi WhatsApp ke Piket SPKT Polsek
+   */
+  public static async sendPolsekNotice(payload: PolsekNoticePayload): Promise<WhatsAppSendResult> {
+    const messageText = this.buildPolsekNoticeMessage(payload);
+    return this.sendRawMessage(payload.polsekHp, messageText);
   }
 }

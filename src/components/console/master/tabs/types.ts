@@ -62,6 +62,8 @@ export const DEFAULT_FORM_DATA = {
   office_lat: 0,
   office_lng: 0,
   geofence_radius_meters: 0,
+  phone_piket: '',
+  phone_kapolsek: '',
   // Armada Operasional
   nomor_lambung: '',
   nama_armada: '',

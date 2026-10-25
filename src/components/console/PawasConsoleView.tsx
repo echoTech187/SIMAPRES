@@ -54,6 +54,7 @@ import ModalPresensiPulang from './pawas/modals/ModalPresensiPulang';
 import ModalKeamananPawas from './pawas/modals/ModalKeamananPawas';
 import ModalLightbox from './pawas/modals/ModalLightbox';
 import ModalTolakPengaduan from './pawas/modals/ModalTolakPengaduan';
+import EscalationAlarmBanner from './pawas/components/EscalationAlarmBanner';
 
 function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
@@ -1700,6 +1701,14 @@ function CommandCenterContent({
 
       {/* ── MAIN CONTENT ── */}
       <main className={`pawas-content-area ${activeTab === 'view-peta' ? 'pawas-peta-active' : 'registrasi-container'}`} style={activeTab === 'view-peta' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}>
+        <EscalationAlarmBanner
+          complaints={allRecentComplaints}
+          onOpenDisposisi={(comp) => {
+            setSelectedDisposisiItem(comp);
+            setShowDisposisiModal(true);
+          }}
+        />
+
         {activeTab === 'view-beranda' && (
           <TabBerandaPawas
             userProfile={userProfile}

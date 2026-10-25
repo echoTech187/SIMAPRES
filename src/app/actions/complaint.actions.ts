@@ -202,7 +202,15 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
  * Buat Pengaduan & Langsung Siarkan (Broadcast Terbuka) ke Seluruh Armada Siaga 110
  * Menghilangkan disposisi manual; sistem langsung menyiarkan serentak ke semua personil yang sedang bertugas.
  */
-export async function createComplaintAndBroadcastAction(input: CreateComplaintActionInput) {
+/**
+ * Buat Pengaduan & Langsung Siarkan (Broadcast Terbuka) ke Seluruh Armada Siaga 110
+ * Dilengkapi dengan Filter Berbasis Wilayah (Geo-Targeting Polsek) & Filter Urgensi (Escalation Timer)
+ */
+export async function createComplaintAndBroadcastAction(input: CreateComplaintActionInput): Promise<{
+  success: boolean;
+  error?: string;
+  data?: any;
+}> {
   const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
@@ -210,12 +218,12 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
 
   const createRes = await createComplaintAction(input);
   if (!createRes.success || !createRes.data) {
-    return createRes;
+    return { success: false, error: createRes.error };
   }
 
   const complaintData = createRes.data;
   if (!complaintData.id) {
-    return createRes;
+    return { success: false, error: 'ID tiket tidak terbentuk.' };
   }
   const complaintIdBig = BigInt(complaintData.id);
 
@@ -226,41 +234,83 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
     const operationalUnits = await prisma.masterOperationalUnit.findMany({
       where: { is_active: true },
     });
-
     const satuans = operationalUnits.length > 0 ? operationalUnits : [{ id: 1, default_orders: 'Laksanakan respon cepat ke TKP' }];
 
+    // 2. Filter Berbasis Wilayah (Geo-Targeting): Resolusi Polsek Sektor Wilayah TKP
+    const allStationsRaw: any[] = await (prisma as any).policeStation.findMany();
+    const allStations = allStationsRaw.filter((st) => st.is_active !== false);
+
+    const { resolveSektorWilayah } = await import('@/lib/reverse-geocode');
+    const resolvedSektor = resolveSektorWilayah(input.tkpAlamatTeks);
+    const resolvedLower = resolvedSektor.toLowerCase();
+
+    let targetStation: any = allStations.find((st: any) => {
+      const sName = (st.station_name || '').toLowerCase();
+      return resolvedLower.includes(sName) || (input.tkpAlamatTeks && input.tkpAlamatTeks.toLowerCase().includes(sName));
+    });
+
+    // Fallback ke Haversine jarak terdekat jika koordinat valid
+    if (!targetStation && input.tkpLat && input.tkpLng && allStations.length > 0) {
+      const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+      let minDistance = Infinity;
+      for (const st of allStations) {
+        const d = HaversineService.calculateDistanceKm(
+          Number(input.tkpLat),
+          Number(input.tkpLng),
+          Number(st.office_lat),
+          Number(st.office_lng)
+        );
+        if (d < minDistance) {
+          minDistance = d;
+          targetStation = st;
+        }
+      }
+    }
+
+    // 3. Filter Tingkat Urgensi: Hitung Batas Waktu Eskalasi (Safety Net Timer)
+    const urgensi = (input.urgensi || 'SEDANG').toUpperCase();
+    const isDarurat = urgensi === 'DARURAT';
+    const isSedang = urgensi === 'SEDANG';
+    const deadlineMinutes = isDarurat ? 3 : isSedang ? 5 : null;
+    const escalationDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
+
     await prisma.$transaction(async (tx) => {
-      // 2. Ubah status pengaduan menjadi DIPROSES (Tahap 2: Disiarkan ke seluruh armada)
+      // Ubah status pengaduan menjadi DIPROSES (Tahap 2) & tautkan station_id jika ditemukan
       await tx.complaint.update({
         where: { id: complaintIdBig },
         data: {
           status: 'DIPROSES',
           status_id: 2,
           tahap: 2,
+          ...(targetStation ? { station_id: targetStation.id } : {}),
         },
       });
 
-      // 3. Buat rekaman broadcast dispatch untuk setiap satuan operasional (Kuota: 1 = First-come, first-served)
+      // Buat rekaman broadcast dispatch untuk setiap satuan operasional
       for (let i = 0; i < satuans.length; i++) {
         const s = satuans[i];
-        await tx.complaintDispatch.create({
+        await (tx as any).complaintDispatch.create({
           data: {
             complaint_id: complaintIdBig,
             unit_id: s.id,
             officer_id: null,
+            station_id: targetStation ? targetStation.id : null,
             is_primary_unit: i === 0,
             personnel_quota: 1, // Siapa cepat dia dapat (1 personil mengunci tiket)
-            tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks}`,
+            tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks} (${targetStation ? targetStation.station_name : resolvedSektor})`,
             dispatch_status_id: 1,
             dispatch_status: 'DISPATCHED',
             dispatched_at: new Date(),
-          },
+            escalation_deadline_at: escalationDeadline,
+          } as any,
         });
       }
 
-      // 4. Catat Audit Log
+      // Catat Audit Log Lengkap dengan Catatan Wilayah & Timer
       const actorName = auth.user.fullName || 'Operator CAD 110';
       const actorRole = auth.user.role || 'PAWAS';
+      const stationInfo = targetStation ? `Wilayah: ${targetStation.station_name}` : `Sektor: ${resolvedSektor}`;
+      const urgensiInfo = `Urgensi: ${urgensi}${deadlineMinutes ? ` (Timer Eskalasi: ${deadlineMinutes} Menit)` : ''}`;
 
       await tx.complaintAuditLog.create({
         data: {
@@ -268,13 +318,112 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
           actor_name: actorName,
           actor_role: actorRole,
           action: 'BROADCAST_DISPATCH',
-          notes: `Siaran Serentak (Open Broadcast 110): Laporan diterima dan langsung disiarkan serentak ke seluruh armada/personil siaga tanpa sekat satuan. Petugas: ${actorName}. Mode: Siapa cepat dia dapat.`,
+          notes: `Siaran Serentak (Open Broadcast 110): Disiarkan ke armada siaga. ${stationInfo}. ${urgensiInfo}. Petugas: ${actorName}. Mode: Siapa cepat dia dapat.`,
         },
       });
     }, {
       maxWait: 10000,
       timeout: 20000,
     });
+
+    // 4. Background Secondary Dispatcher (WhatsApp Notifier Taktis - Non-blocking)
+    (async () => {
+      try {
+        const { WhatsAppService } = await import('@/infrastructure/services/whatsapp.service');
+        const cleanJenis = input.jenisKejadian || input.kategoriLaporan || 'Layanan Darurat 110';
+        const ringkasan = input.ringkasanKeterangan || input.deskripsiKejadian || '-';
+
+        // A. Notifikasi ke Piket Polsek (2.C Kebutuhan 1): Berlaku untuk DARURAT & SEDANG
+        if ((isDarurat || isSedang) && targetStation?.phone_piket) {
+          WhatsAppService.sendPolsekNotice({
+            nomorTiket: complaintData.nomorTiket || `#${complaintIdBig}`,
+            polsekName: targetStation.station_name,
+            polsekHp: targetStation.phone_piket,
+            jenisKejadian: cleanJenis,
+            urgensi,
+            tkpAlamatTeks: input.tkpAlamatTeks,
+            tkpLat: Number(input.tkpLat),
+            tkpLng: Number(input.tkpLng),
+            pelaporNama: input.pelaporNama || input.namaPelapor,
+            pelaporHp: input.pelaporHp || input.noHpPelapor,
+            ringkasan,
+            deadlineMinutes: deadlineMinutes || 3,
+          }).then(async (res) => {
+            if (res.success) {
+              await (prisma as any).complaintDispatch.updateMany({
+                where: { complaint_id: complaintIdBig },
+                data: { wa_polsek_status: 'SENT' } as any,
+              }).catch(() => {});
+            }
+          }).catch((err) => console.warn('[Auto-WA Polsek Error]:', err));
+        }
+
+        // B. Notifikasi ke Personel Lapangan Terdekat (2.B Kebutuhan 2): Hanya untuk DARURAT
+        if (isDarurat) {
+          const activeOfficers = await prisma.policeOfficer.findMany({
+            where: {
+              duty_status: 'DINAS_PATROLI',
+              user: { phone_number: { not: '' } },
+            },
+            include: { user: true },
+          });
+
+          const candidates = activeOfficers.length > 0 ? activeOfficers : await prisma.policeOfficer.findMany({
+            where: { user: { phone_number: { not: '' } } },
+            include: { user: true },
+            take: 3,
+          });
+
+          if (candidates.length > 0) {
+            let nearestOfficer = candidates[0];
+            if (input.tkpLat && input.tkpLng) {
+              const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+              let minOffDist = Infinity;
+              for (const off of candidates) {
+                if (off.current_gps_lat && off.current_gps_lng) {
+                  const d = HaversineService.calculateDistanceKm(
+                    Number(input.tkpLat),
+                    Number(input.tkpLng),
+                    Number(off.current_gps_lat),
+                    Number(off.current_gps_lng)
+                  );
+                  if (d < minOffDist) {
+                    minOffDist = d;
+                    nearestOfficer = off;
+                  }
+                }
+              }
+            }
+
+            if (nearestOfficer?.user?.phone_number) {
+              WhatsAppService.sendOfficerAlert({
+                nomorTiket: complaintData.nomorTiket || `#${complaintIdBig}`,
+                officerNama: `${nearestOfficer.rank_pangkat} ${nearestOfficer.user.full_name}`,
+                officerHp: nearestOfficer.user.phone_number,
+                jenisKejadian: cleanJenis,
+                urgensi,
+                tkpAlamatTeks: input.tkpAlamatTeks,
+                tkpLat: Number(input.tkpLat),
+                tkpLng: Number(input.tkpLng),
+                pelaporNama: input.pelaporNama || input.namaPelapor,
+                pelaporHp: input.pelaporHp || input.noHpPelapor,
+                ringkasan,
+                deadlineMinutes: deadlineMinutes || 3,
+              }).then(async (res) => {
+                if (res.success) {
+                  await (prisma as any).complaintDispatch.updateMany({
+                    where: { complaint_id: complaintIdBig },
+                    data: { wa_officer_status: 'SENT' } as any,
+                  }).catch(() => {});
+                }
+              }).catch((err) => console.warn('[Auto-WA Officer Error]:', err));
+            }
+          }
+        }
+      } catch (waErr) {
+        console.warn('[Auto-WA Secondary Dispatcher Error]:', waErr);
+      }
+    })();
 
     safeRevalidatePath('/console');
     return {
@@ -283,11 +432,117 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
         ...complaintData,
         status: 'DIPROSES',
         tahap: 2,
+        stationName: targetStation?.station_name || resolvedSektor,
+        escalationDeadlineAt: escalationDeadline ? escalationDeadline.toISOString() : null,
       },
     };
   } catch (err: any) {
     console.error('Error in auto broadcast dispatch:', err);
     return { success: true, data: complaintData };
+  }
+}
+
+/**
+ * One-Tap Quick Accept Disposisi melalui WhatsApp Link (Personel Lapangan / Piket Polsek)
+ */
+export async function quickAcceptComplaintDispatchAction(input: {
+  nomorTiket: string;
+  role: 'OFFICER' | 'POLSEK';
+  recipientName?: string;
+  notes?: string;
+}) {
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const cleanTiket = (input.nomorTiket || '').replace(/^#+/, '').trim();
+    const complaint = await prisma.complaint.findUnique({
+      where: { nomor_tiket: cleanTiket },
+      include: {
+        station: true,
+        dispatches: {
+          include: {
+            officer: { include: { user: true } },
+            unit: true,
+          },
+        },
+      },
+    });
+
+    if (!complaint) {
+      return { success: false, error: 'Tiket pengaduan tidak ditemukan.' };
+    }
+
+    const now = new Date();
+    // Cek apakah sudah pernah diterima oleh petugas mana pun
+    const alreadyAccepted = complaint.dispatches.find((d: any) => d.accepted_at !== null);
+    if (alreadyAccepted) {
+      const accepter = alreadyAccepted.officer?.user?.full_name || 'Petugas Siaga';
+      return {
+        success: true,
+        alreadyAccepted: true,
+        message: `Tiket ini telah diterima oleh ${accepter} pada ${new Date(alreadyAccepted.accepted_at!).toLocaleTimeString('id-ID')} WIB.`,
+      };
+    }
+
+    const primaryDispatch = complaint.dispatches.find((d: any) => d.is_primary_unit) || complaint.dispatches[0];
+    if (!primaryDispatch) {
+      return { success: false, error: 'Disposisi tiket tidak ditemukan.' };
+    }
+
+    const actorLabel = input.recipientName?.trim() || (input.role === 'POLSEK' ? `Piket ${complaint.station?.station_name || 'Polsek'}` : 'Personel Patroli 110');
+
+    await prisma.$transaction(async (tx) => {
+      // Tandai dispatch sebagai diterima dan langsung berangkat meluncur
+      await tx.complaintDispatch.update({
+        where: { id: primaryDispatch.id },
+        data: {
+          accepted_at: now,
+          dispatch_status: 'DEPARTED',
+          dispatch_status_id: 2,
+          tactical_orders: (primaryDispatch.tactical_orders || '') + ` | Diterima via Quick-Accept WA oleh ${actorLabel}`,
+        },
+      });
+
+      // Bersihkan entri dispatch belum terisi lainnya (mode broadcast kuota 1)
+      await tx.complaintDispatch.deleteMany({
+        where: {
+          complaint_id: complaint.id,
+          id: { not: primaryDispatch.id },
+          accepted_at: null,
+        },
+      });
+
+      // Update status complaint menjadi DIPROSES (Tahap 2: Menuju TKP)
+      await tx.complaint.update({
+        where: { id: complaint.id },
+        data: {
+          status: 'DIPROSES',
+          status_id: 2,
+          tahap: 2,
+        },
+      });
+
+      // Catat Audit Log
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaint.id,
+          actor_name: actorLabel,
+          actor_role: input.role === 'POLSEK' ? 'POLSEK' : 'PERSONIL',
+          action: 'QUICK_ACCEPT_WA',
+          notes: `Tugas diterima cepat melalui One-Tap Link WhatsApp oleh ${actorLabel}. Status beralih ke MELUNCUR (DEPARTED). Timer eskalasi Mako dihentikan.`,
+        },
+      });
+    });
+
+    safeRevalidatePath('/console');
+    safeRevalidatePath('/tracking');
+
+    return {
+      success: true,
+      message: `Konfirmasi berhasil! Tugas telah diterima oleh ${actorLabel} dan status tim sedang bergerak menuju TKP.`,
+    };
+  } catch (err: any) {
+    console.error('Error in quickAcceptComplaintDispatchAction:', err);
+    return { success: false, error: err.message || 'Gagal memproses konfirmasi tiket.' };
   }
 }
 

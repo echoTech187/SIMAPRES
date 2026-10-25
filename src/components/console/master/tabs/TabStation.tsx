@@ -53,13 +53,15 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
     office_lat: item.office_lat != null ? Number(item.office_lat) : 0,
     office_lng: item.office_lng != null ? Number(item.office_lng) : 0,
     geofence_radius_meters: item.geofence_radius_meters != null ? Number(item.geofence_radius_meters) : 0,
+    phone_piket: item.phone_piket ?? '',
+    phone_kapolsek: item.phone_kapolsek ?? '',
   });
 
   return (
     <MasterTabShell
       config={{
         title: 'Master Kantor Polisi & Posko (Mako)',
-        desc: 'Pangkalan data Markas Komando (Polda, Polres, Polsek, Pospol) lengkap dengan koordinat GPS dan radius geofence.',
+        desc: 'Pangkalan data Markas Komando (Polda, Polres, Polsek, Pospol) lengkap dengan koordinat GPS, radius geofence, dan nomor WhatsApp piket untuk disposisi otomatis.',
         addBtn: 'Tambah Kantor Polisi',
         icon: '🏢',
       }}
@@ -75,8 +77,8 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
       getEditFormData={getEditFormData}
       getDeleteLabel={(item) => item.station_name || item.station_code}
       showActiveFilter={false}
-      extraSearchFields={(item) => [item.station_code, item.station_name, item.station_level, item.address]}
-      modalWidth="680px"
+      extraSearchFields={(item) => [item.station_code, item.station_name, item.station_level, item.address, item.phone_piket, item.phone_kapolsek]}
+      modalWidth="720px"
       tableColumns={[
         { header: 'KODE / KEY', render: (item) => <code className="master-code-badge">{item.station_code}</code> },
         { header: 'NAMA / LABEL', render: (item) => <span className="master-text-primary">{item.station_name}</span> },
@@ -84,6 +86,22 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
           <div>
             <span className="master-tag-blue" style={{ marginRight: '6px' }}>{item.station_level}</span>
             <span className="master-text-muted">{item.address}</span>
+          </div>
+        )},
+        { header: 'KONTAK & WA PIKET', render: (item) => (
+          <div>
+            {item.phone_piket ? (
+              <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600 }}>
+                📱 WA Piket: {item.phone_piket}
+              </div>
+            ) : (
+              <span className="master-text-muted" style={{ fontSize: '11px' }}>Belum ada No. WA Piket</span>
+            )}
+            {item.phone_kapolsek && (
+              <div style={{ fontSize: '11px', color: '#64748b' }}>
+                📞 Pimpinan: {item.phone_kapolsek}
+              </div>
+            )}
           </div>
         )},
         { header: 'KOORDINAT & GEOFENCE', render: (item) => (
@@ -150,6 +168,34 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
                   value={formData.geofence_radius_meters || ''}
                   onChange={(e) => setFormData({ ...formData, geofence_radius_meters: parseInt(e.target.value) || 0 })}
                 />
+              </div>
+            </div>
+            <div className="master-form-grid-2">
+              <div>
+                <label className="master-form-label">No. WhatsApp Piket SPKT (Disposisi Otomatis)</label>
+                <input
+                  type="text"
+                  className="master-form-input"
+                  placeholder="Contoh: 08123456789 atau 0285-xxxx"
+                  value={formData.phone_piket || ''}
+                  onChange={(e) => setFormData({ ...formData, phone_piket: e.target.value })}
+                />
+                <span className="master-form-help" style={{ fontSize: '10.5px', color: '#64748b' }}>
+                  Target pengiriman WA otomatis saat ada tiket Darurat/Sedang di wilayah Polsek ini.
+                </span>
+              </div>
+              <div>
+                <label className="master-form-label">No. Kontak Pimpinan / Kapolsek</label>
+                <input
+                  type="text"
+                  className="master-form-input"
+                  placeholder="Contoh: 08129876543"
+                  value={formData.phone_kapolsek || ''}
+                  onChange={(e) => setFormData({ ...formData, phone_kapolsek: e.target.value })}
+                />
+                <span className="master-form-help" style={{ fontSize: '10.5px', color: '#64748b' }}>
+                  Kontak darurat pimpinan jika alarm eskalasi Mako berbunyi.
+                </span>
               </div>
             </div>
           <AddressLocationPicker
