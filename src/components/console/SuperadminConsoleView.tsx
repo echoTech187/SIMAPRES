@@ -429,12 +429,12 @@ export default function SuperadminConsoleView({
       return { className: 'badge-role role-pawas', icon: '👑', label: 'PAWAS' };
     }
     if (r === 'OPERATOR_110' || r.includes('OPERATOR')) {
-      return { className: 'badge-role role-operator', icon: '🎧', label: 'OPERATOR 110' };
+      return { className: 'badge-role role-operator', icon: '🎧', label: 'OPERATOR SPKT' };
     }
     if (r === 'SUPERADMIN') {
       return { className: 'badge-role role-superadmin', icon: '⚡', label: 'SUPERADMIN' };
     }
-    return { className: 'badge-role role-personil', icon: '👮', label: 'PERSONIL' };
+    return { className: 'badge-role role-personil', icon: '👮', label: 'ANGGOTA' };
   };
 
   const getSatuanBadgeClass = (uid: string) => {

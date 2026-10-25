@@ -62,8 +62,8 @@ async function seed() {
   const roles = [
     { key: 'SUPERADMIN', label: 'Super Administrator', description: 'Akses penuh administrasi master data, registrasi unit, manajemen hak akses & audit sistem.', display_order: 1 },
     { key: 'PAWAS', label: 'Perwira Pengawas (Pawas)', description: 'Pusat kendali komando, monitoring live map radar 110, disposisi taktis dan validasi laporan BAP.', display_order: 2 },
-    { key: 'PERSONIL', label: 'Petugas Lapangan', description: 'Penerimaan tugas lapangan, e-logbook kedinasan, update status TKP, dan telemetri GPS aktif.', display_order: 3 },
-    { key: 'OPERATOR_110', label: 'Operator Sentra Layanan 110 (CAD)', description: 'Penerimaan panggilan telepon darurat 110, input pengaduan masyarakat, dan verifikasi awal kejadian.', display_order: 4 },
+    { key: 'OPERATOR', label: 'Operator SPKT', description: 'Pelayanan Pengaduan 110, CAD Dispatch & Layanan Warga', display_order: 3 },
+    { key: 'PERSONIL', label: 'Anggota', description: 'Penerimaan tugas lapangan, e-logbook kedinasan, update status TKP, dan telemetri GPS aktif.', display_order: 4 },
   ];
   for (const r of roles) {
     await prisma.masterRole.upsert({
