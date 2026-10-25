@@ -36,7 +36,6 @@ export default function TabTacticalMapPawas({
 }: TabTacticalMapPawasProps) {
   const [showTraffic, setShowTraffic] = useState(false);
   const [focusedUnitKey, setFocusedUnitKey] = useState<string | null>(null);
-  const [mapUnitDetail, setMapUnitDetail] = useState<any | null>(null);
   const [isPicketSidebarOpen, setIsPicketSidebarOpen] = useState(false);
   const [picketFilterCategory, setPicketFilterCategory] = useState<'ALL' | 'PATROLI' | 'SIAGA' | 'DARURAT'>('ALL');
   const [picketSearch, setPicketSearch] = useState('');
@@ -117,14 +116,12 @@ export default function TabTacticalMapPawas({
               setShowIncidentNav(true);
             }
             setFocusedUnitKey(unit.key);
-            setMapUnitDetail(unit);
           }}
           onSelectUnit={(unit: any) => {
             if (unit.key?.startsWith('tkp_')) {
               setShowIncidentNav(true);
             }
             setFocusedUnitKey(unit.key);
-            setMapUnitDetail(unit);
           }}
         />
       </div>
@@ -501,7 +498,6 @@ export default function TabTacticalMapPawas({
                   id={`card-piket-${unit.key}`}
                   onClick={() => {
                     setFocusedUnitKey(unit.key);
-                    setMapUnitDetail(unit);
                     if (isMobileScreen) {
                       setIsPicketSidebarOpen(false);
                     }
@@ -583,6 +579,21 @@ export default function TabTacticalMapPawas({
                     </div>
                   </div>
 
+                  {/* Status Rute Google Directions jika Tanggap Darurat */}
+                  {unit.status === 'DARURAT' && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', fontSize: '10px', color: '#FEE2E2', background: 'rgba(239,68,68,0.22)', border: '1px solid rgba(239,68,68,0.45)', padding: '5px 8px', borderRadius: '6px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 800 }}>
+                        <span style={{ fontSize: '11px' }}>🚨</span>
+                        <span>Rute Navigasi Google Directions</span>
+                      </span>
+                      {unit.etaText && (
+                        <span style={{ color: '#FEF08A', fontWeight: 800, fontSize: '9.5px' }}>
+                          {unit.etaText}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Card Bottom: Telemetry + Action */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px' }}>
                     <span style={{ fontSize: '10px', color: '#94A3B8', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -610,156 +621,7 @@ export default function TabTacticalMapPawas({
         </div>
       </div>
 
-      {/* Floating Unit Detail Modal Fullscreen / Mobile Sheet */}
-      {mapUnitDetail && (
-        <div
-          id="modal-map-unit-detail-fs"
-          style={{
-            position: 'absolute',
-            top: isMobileScreen ? 'auto' : '86px',
-            bottom: isMobileScreen ? '12px' : 'auto',
-            left: isMobileScreen ? '12px' : '16px',
-            right: isMobileScreen ? '12px' : 'auto',
-            zIndex: 9999,
-            background: 'rgba(15, 23, 42, 0.96)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            borderRadius: '14px',
-            boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
-            border: '1px solid rgba(56, 189, 248, 0.35)',
-            padding: isMobileScreen ? '12px 14px' : '16px 18px',
-            width: isMobileScreen ? 'auto' : '360px',
-            maxWidth: isMobileScreen ? 'calc(100% - 24px)' : 'calc(100% - 32px)',
-            maxHeight: isMobileScreen ? '60vh' : 'none',
-            overflowY: isMobileScreen ? 'auto' : 'visible',
-            color: '#FFFFFF',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '7px' }}>
-              <Shield size={16} color="#38BDF8" />
-              <span>{mapUnitDetail.satuan || mapUnitDetail.title || mapUnitDetail.unitName}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setMapUnitDetail(null)}
-              style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '2px' }}
-            >
-              <X size={16} />
-            </button>
-          </div>
 
-          <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', lineHeight: 1.3 }}>
-            {mapUnitDetail.petugas || mapUnitDetail.namaLengkap || mapUnitDetail.title || mapUnitDetail.nama}
-          </div>
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>
-            {mapUnitDetail.sub || mapUnitDetail.kendaraan || 'Personel Operasional Presisi'}
-          </div>
-
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '10px 0 8px 0' }} />
-
-          {/* Status Badge & QR Status */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Status Kedinasan:</span>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 800,
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  background: mapUnitDetail.statusColor ? `${mapUnitDetail.statusColor}25` : 'rgba(16,185,129,0.2)',
-                  color: mapUnitDetail.statusColor || '#10B981',
-                  border: `1px solid ${mapUnitDetail.statusColor || '#10B981'}`,
-                }}
-              >
-                {mapUnitDetail.statusLabel || mapUnitDetail.status || 'SIAGA'}
-              </span>
-              {mapUnitDetail.hasScannedQr ? (
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#34D399', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', padding: '2px 6px', borderRadius: '4px' }}>
-                  ✓ QR Valid
-                </span>
-              ) : (
-                <span style={{ fontSize: '10px', fontWeight: 800, color: '#FBBF24', background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.3)', padding: '2px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                  <AlertTriangle size={11} color="#FBBF24" />
-                  <span>Belum Scan QR</span>
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Sedang Di Mana */}
-          <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.3)', padding: '7px 9px', borderRadius: '6px', marginBottom: '6px' }}>
-            <div style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <MapPin size={12} color="#F59E0B" />
-              <span>SEDANG DI MANA:</span>
-            </div>
-            <div style={{ color: '#E2E8F0', marginTop: '2px', fontWeight: 600 }}>
-              {mapUnitDetail.lokasiTeks || mapUnitDetail.sub || 'Sektor Presisi Kewilayahan'}
-            </div>
-          </div>
-
-          {/* Sedang Melakukan Apa */}
-          <div style={{ fontSize: '12px', background: 'rgba(0,0,0,0.3)', padding: '7px 9px', borderRadius: '6px', marginBottom: '8px' }}>
-            <div style={{ fontSize: '10px', color: '#34D399', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Crosshair size={12} color="#34D399" />
-              <span>SEDANG MELAKUKAN APA:</span>
-            </div>
-            <div style={{ color: '#E2E8F0', marginTop: '2px', fontWeight: 600 }}>
-              {mapUnitDetail.aktivitas || mapUnitDetail.tugas || 'Patroli Keamanan & Ketertiban'}
-            </div>
-          </div>
-
-          {/* Live Telemetry */}
-          <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Zap size={11} color="#38BDF8" />
-            <span>{mapUnitDetail.telemetri || 'GPS Aktif'}</span>
-          </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setFocusedUnitKey(mapUnitDetail.key);
-                showFriendlyToast('info', 'Fokus Unit', `Kamera peta dipusatkan ke posisi ${mapUnitDetail.namaLengkap || mapUnitDetail.title}`);
-              }}
-              style={{
-                flex: 1,
-                background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '7px 10px',
-                fontSize: '11.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              🎯 Pusatkan Peta
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                showFriendlyToast('success', 'Panggilan Radio HT', `Menghubungi frekuensi HT SIMOPMAS 110 personel ${mapUnitDetail.namaLengkap || mapUnitDetail.title}...`);
-              }}
-              style={{
-                flex: 1,
-                background: 'rgba(255,255,255,0.08)',
-                color: '#38BDF8',
-                border: '1px solid rgba(56,189,248,0.3)',
-                borderRadius: '6px',
-                padding: '7px 10px',
-                fontSize: '11.5px',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              📻 Hubungi HT
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Floating Panel Rute & Navigasi Respon Cepat (Hanya tampil jika Pawas memilih untuk memantau TKP) */}
       {showIncidentNav && highPriorityIncident && (

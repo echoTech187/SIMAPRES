@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/infrastructure/db/prisma.client';
+import { requireRole } from '@/lib/session';
 
 
 // Helper serialize BigInt
@@ -340,6 +341,11 @@ export async function submitOfficerPresensiAction(input: {
   lat?: number;
   lng?: number;
 }) {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const whereClause: any = {};
     if (input.nrp) {

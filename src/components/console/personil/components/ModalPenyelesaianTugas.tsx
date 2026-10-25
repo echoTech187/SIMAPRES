@@ -11,6 +11,7 @@ import {
   User,
 } from 'lucide-react';
 import { fieldStepAction } from '@/app/actions/complaint.actions';
+import LiveCameraWatermarkCapture from '@/components/LiveCameraWatermarkCapture';
 import type { ComplaintData, OfficerProfile } from '../types';
 
 interface ModalPenyelesaianTugasProps {
@@ -31,6 +32,8 @@ export default function ModalPenyelesaianTugas({
   onSuccess,
 }: ModalPenyelesaianTugasProps) {
   const [keterangan, setKeterangan] = useState('');
+  const [capturedPhoto, setCapturedPhoto] = useState<string | null>(null);
+  const [photoMetadata, setPhotoMetadata] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -70,8 +73,24 @@ export default function ModalPenyelesaianTugas({
         step: 'COMPLETED',
         officerId: officer.id,
         catatan: cleanText,
-        lat: currentGps?.lat,
-        lng: currentGps?.lng,
+        fotoBuktiUrl: capturedPhoto || undefined,
+        evidencesList: capturedPhoto
+          ? [
+              {
+                file_url: capturedPhoto,
+                caption: cleanText,
+                incident_phase: 'SELESAI',
+                watermark_text: photoMetadata?.address || 'Terverifikasi GPS Kamera Presisi',
+                metadata: photoMetadata,
+              },
+            ]
+          : undefined,
+        isDiscrepancy: photoMetadata?.isDiscrepancy,
+        deviationMeters: photoMetadata?.distanceMeters,
+        warningMessage: photoMetadata?.warningMessage,
+        photoAddress: photoMetadata?.address,
+        lat: photoMetadata?.lat ?? currentGps?.lat,
+        lng: photoMetadata?.lng ?? currentGps?.lng,
       });
 
       if (res?.success) {
@@ -88,9 +107,13 @@ export default function ModalPenyelesaianTugas({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+    <div
+      id="modal-bap-lapangan"
+      data-testid="modal-bap-lapangan"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+    >
       <div
-        className="relative w-full max-w-xl mx-auto rounded-3xl overflow-hidden p-5 sm:p-6 text-slate-100 shadow-2xl border"
+        className="relative w-full max-w-xl mx-auto max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-6 text-slate-100 shadow-2xl border"
         style={{
           background: 'linear-gradient(180deg, #151922 0%, #0C0E14 100%)',
           borderColor: 'rgba(236, 196, 115, 0.35)',
@@ -156,8 +179,35 @@ export default function ModalPenyelesaianTugas({
           </div>
         </div>
 
-        {/* Form Input Keterangan Manual */}
+        {/* Form Input Keterangan Manual & Kamera Bukti */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Dokumentasi Foto Live Camera Ber-Watermark Otomatis (Fase 5) */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+              <span>📷 Dokumentasi Bukti Lapangan (Live Camera)</span>
+            </label>
+            <div className="rounded-2xl overflow-hidden border border-amber-500/25 bg-[#080A0F]/80 p-2 sm:p-3">
+              <LiveCameraWatermarkCapture
+                personilNama={officer.fullName || 'Petugas Patroli'}
+                personilPangkat={officer.pangkat || 'Bripka'}
+                personilNrp={officer.nrp || '-'}
+                alamatTkp={complaint.tkpAlamatTeks || 'TKP Kejadian'}
+                tkpLat={Number(complaint.tkpLatitude || complaint.tkpLat || complaint.lat || 0)}
+                tkpLng={Number(complaint.tkpLongitude || complaint.tkpLng || complaint.lng || 0)}
+                tkpAlamat={complaint.tkpAlamatTeks || '-'}
+                gpsLat={currentGps?.lat}
+                gpsLng={currentGps?.lng}
+                isSimulationMode={true}
+                label="Dokumentasi Visual di TKP (Live Stream)"
+                onPhotoCaptured={(dataUrl, meta) => {
+                  setCapturedPhoto(dataUrl);
+                  setPhotoMetadata(meta);
+                  if (errorMsg) setErrorMsg(null);
+                }}
+              />
+            </div>
+          </div>
+
           <div>
             <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
               <FileText size={14} className="text-amber-400 flex-shrink-0" />
@@ -168,6 +218,8 @@ export default function ModalPenyelesaianTugas({
             </p>
 
             <textarea
+              id="input-uraian-bap"
+              data-testid="input-uraian-bap"
               rows={4}
               value={keterangan}
               onChange={(e) => {
@@ -231,6 +283,8 @@ export default function ModalPenyelesaianTugas({
             </button>
 
             <button
+              id="btn-selesai-bap"
+              data-testid="btn-selesai-bap"
               type="submit"
               disabled={isSubmitting || keterangan.trim().length < 5}
               className="px-5 py-2.5 rounded-xl font-black text-xs text-slate-900 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"

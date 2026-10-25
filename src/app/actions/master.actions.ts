@@ -69,7 +69,7 @@ function parsePositiveBigIntId(
 // ==============================================================================
 export async function getMasterCountersAction() {
   try {
-    const [ranks, units, roles, stations, categories, subcategories, hotspots, hotspotCategories, vehicles, dutyStatuses, resolutionLocations, resolutionDocuments] =
+    const [ranks, units, roles, stations, categories, subcategories, hotspots, hotspotCategories, vehicles, dutyStatuses, resolutionLocations, resolutionDocuments, knowledgeFaqs] =
       await Promise.all([
         prisma.masterRank.count(),
         prisma.masterOperationalUnit.count(),
@@ -83,6 +83,7 @@ export async function getMasterCountersAction() {
         prisma.masterDutyStatus.count(),
         prisma.masterResolutionLocationType.count(),
         prisma.masterResolutionDocumentType.count(),
+        prisma.masterKnowledgeFaq.count(),
       ]);
 
     return {
@@ -100,6 +101,7 @@ export async function getMasterCountersAction() {
         dutyStatuses,
         resolutionLocations,
         resolutionDocuments,
+        knowledgeFaqs,
       },
     };
   } catch (error: any) {

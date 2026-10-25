@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { getDistanceFromLatLonInMeters, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile, DispatchStepAction } from '../types';
-import { getRealRoadPath } from '@/components/SimapresGoogleMap';
+import { getBestRoadRoute, getRealRoadPath } from '@/components/SimapresGoogleMap';
 import { updateDeviceTelemetryAction } from '@/app/actions/auth.actions';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
@@ -416,16 +416,18 @@ const EMPTY_ARRAY: any[] = [];
       const destLat = tkpCoords.lat;
       const destLng = tkpCoords.lng;
 
-      // 1. Dapatkan rute jalan raya resmi (OSRM) dengan fallback timeout 3.5 detik
+      // 1. Dapatkan rute jalan raya resmi (Prioritas 1: Google Directions, Tier 2: OSRM, Tier 3: Tactical)
       let roadPoints: { lat: number; lng: number }[] | null = null;
       try {
+        const maps = (window as any).google?.maps;
         const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3500));
-        roadPoints = await Promise.race([
-          getRealRoadPath(startLat, startLng, destLat, destLng),
-          timeoutPromise,
-        ]);
+        const routePromise = getBestRoadRoute(maps, { lat: startLat, lng: startLng }, { lat: destLat, lng: destLng });
+        const bestRoute = await Promise.race([routePromise, timeoutPromise]);
+        if (bestRoute && bestRoute.path && bestRoute.path.length >= 2) {
+          roadPoints = bestRoute.path;
+        }
       } catch (e) {
-        console.warn('OSRM fetch notice, using fallback curve:', e);
+        console.warn('Road route fetch notice, using fallback curve:', e);
       }
 
       // 2. Siapkan array fullPath koordinat
@@ -930,6 +932,8 @@ const EMPTY_ARRAY: any[] = [];
                 )}
 
                 <button
+                  id="btn-drawer-chat"
+                  data-testid="btn-drawer-chat"
                   type="button"
                   onClick={() => onOpenChat(activeComplaint)}
                   className="px-3.5 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-amber-200 bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 transition-all flex-shrink-0"
@@ -941,6 +945,20 @@ const EMPTY_ARRAY: any[] = [];
 
                 {/* Main Action Button */}
                 <button
+                  id={
+                    complaintStage === 'persiapan'
+                      ? 'btn-meluncur-tkp'
+                      : complaintStage === 'meluncur'
+                      ? 'btn-tiba-tkp'
+                      : 'btn-buka-modal-bap'
+                  }
+                  data-testid={
+                    complaintStage === 'persiapan'
+                      ? 'btn-meluncur-tkp'
+                      : complaintStage === 'meluncur'
+                      ? 'btn-tiba-tkp'
+                      : 'btn-buka-modal-bap'
+                  }
                   type="button"
                   disabled={
                     isUpdatingStep ||
@@ -1035,6 +1053,8 @@ const EMPTY_ARRAY: any[] = [];
 
                   {/* Tombol Simulasi Perjalanan Sesuai Permintaan */}
                   <button
+                    id="btn-simulasi-meluncur"
+                    data-testid="btn-simulasi-meluncur"
                     type="button"
                     onClick={handleToggleSimulation}
                     disabled={isLoadingRoute}

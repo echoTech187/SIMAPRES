@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Home, Map, Headphones, Plus, PlusCircle, ShieldAlert, BarChart3, User, Shield } from 'lucide-react';
+import { Home, Map, Headphones, Plus, PlusCircle, ShieldAlert, BarChart3, User, Shield, BookOpen } from 'lucide-react';
 import {
   getPendingComplaintsAction,
   disposisiMultiSatuanAction,
   getAllRecentComplaintsAction,
   getIkmStatsAction,
   updateComplaintStatusAction,
+  sahkanKasusPawasAction,
   getMasterFilterOptionsAction,
   getOfficerPerformanceRankingsAction,
   type OfficerPerformanceRankItem,
@@ -28,6 +29,7 @@ import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import { createLogbookAction } from '@/app/actions/logbook.actions';
 import { toast } from '@/components/ui/Toast';
 import '@/app/registrasi-unit/registrasi-unit.css';
+import { searchIndonesianLocations, type LocationSuggestionItem } from '@/lib/indonesian-location-search';
 
 import { PawasTab, PresensiStatusType } from './pawas/types';
 import TabProfilPawas from './profile/TabProfilPawas';
@@ -38,6 +40,7 @@ import { TabValidasiPawas } from './pawas/tabs/TabValidasiPawas';
 import TabKinerjaPawas from './pawas/tabs/TabKinerjaPawas';
 import TabOperatorCadPawas from './pawas/tabs/TabOperatorCadPawas';
 import TabTolakLogPawas from './pawas/tabs/TabTolakLogPawas';
+import TabBukuPintarSop from './pawas/tabs/TabBukuPintarSop';
 
 import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
@@ -132,6 +135,10 @@ function parsePawasTab(tabOrSection?: string | null, roleParam?: string | null):
       return 'view-log';
     case 'tolak':
       return 'view-tolak';
+    case 'panduan':
+    case 'faq':
+    case 'sop':
+      return 'view-panduan';
     case 'beranda':
     default:
       return roleParam === 'operator' ? 'view-operator' : 'view-beranda';
@@ -154,6 +161,8 @@ function pawasTabToSlug(tabId: string): string {
       return 'buat-pengaduan';
     case 'view-tolak':
       return 'tolak';
+    case 'view-panduan':
+      return 'panduan';
     case 'view-beranda':
     default:
       return '';
@@ -338,10 +347,8 @@ function CommandCenterContent({
     return errors;
   };
 
-  // Location suggestions for Operator CAD
-  const [cadLocationSuggestions, setCadLocationSuggestions] = useState<
-    Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
-  >([]);
+  // Location suggestions for Operator CAD (Multi-Tier Indonesian & Police Station Search)
+  const [cadLocationSuggestions, setCadLocationSuggestions] = useState<LocationSuggestionItem[]>([]);
   const [isSearchingCadLocation, setIsSearchingCadLocation] = useState(false);
   const [showCadSuggestions, setShowCadSuggestions] = useState(false);
   const searchTimeoutRef = useRef<any>(null);
@@ -359,35 +366,19 @@ function CommandCenterContent({
     setIsSearchingCadLocation(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const encoded = encodeURIComponent(query.trim());
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&limit=6`);
-        if (res.ok) {
-          const data = await res.json();
-          const items = (data?.features || []).map((feat: any) => {
-            const p = feat.properties || {};
-            const coords = feat.geometry?.coordinates || [0, 0];
-            const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city].filter((part) => part && part !== title);
-            const sub = subParts.join(', ');
-            const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
-            const full = Array.from(new Set(fullParts)).join(', ') || title;
-            return {
-              label: title,
-              subLabel: sub,
-              fullAddress: full,
-              lat: Number(coords[1].toFixed(6)),
-              lng: Number(coords[0].toFixed(6)),
-            };
-          });
-          setCadLocationSuggestions(items);
-          setShowCadSuggestions(items.length > 0);
-        }
+        const items = await searchIndonesianLocations(query, {
+          lat: simCaller.lat || undefined,
+          lng: simCaller.lng || undefined,
+          limit: 1000,
+        });
+        setCadLocationSuggestions(items);
+        setShowCadSuggestions(items.length > 0);
       } catch (err) {
         console.warn('Location search error:', err);
       } finally {
         setIsSearchingCadLocation(false);
       }
-    }, 280);
+    }, 200);
   };
 
   const handleSelectCadSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
@@ -1392,11 +1383,12 @@ function CommandCenterContent({
     setLoading(true);
     try {
       const activePawasId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
-      const res = await updateComplaintStatusAction({
+      const activePawasNama = session?.fullName || userProfile?.nama || 'Pawas 110';
+      const res = await sahkanKasusPawasAction({
         complaintId: complaint.id.toString(),
-        status: 'SELESAI',
-        catatan: 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri SIMOPMAS 110. Tiket resmi ditutup oleh Pawas.',
+        pawasNama: activePawasNama,
         pawasUserId: activePawasId,
+        catatanPengesahan: 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri SIMOPMAS 110. Tiket resmi ditutup oleh Pawas.',
       });
       if (res.success) {
         showFriendlyToast('success', 'Kasus Resmi Disahkan & Ditutup', `Tiket ${complaint.nomorTiket || complaint.id} resmi disahkan & berstatus SELESAI.`);
@@ -1684,6 +1676,24 @@ function CommandCenterContent({
               <span>Kinerja</span>
             </button>
 
+            {/* TAB: BUKU PINTAR SOP & LAYANAN */}
+            <button
+              type="button"
+              id="nav-panduan"
+              onClick={() => switchTab('view-panduan')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-panduan' ? '#153E75' : '#F8FAFC',
+                color: activeTab === 'view-panduan' ? 'white' : '#475569',
+                border: activeTab === 'view-panduan' ? '1px solid #153E75' : '1px solid #E2E8F0',
+              }}
+            >
+              <BookOpen size={15} strokeWidth={2.2} />
+              <span>Buku Pintar SOP</span>
+            </button>
+
           </div>
         </div>
       )}
@@ -1897,6 +1907,16 @@ function CommandCenterContent({
             setTolakAlasan={setTolakAlasan}
             handleSubmitPenolakan={handleSubmitPenolakan}
             loading={loading}
+          />
+        )}
+
+        {activeTab === 'view-panduan' && (
+          <TabBukuPintarSop
+            switchTab={switchTab}
+            userProfile={userProfile}
+            showFriendlyToast={showFriendlyToast}
+            initialCallerPhone={simCaller?.telepon || ''}
+            initialCallerName={simCaller?.nama || ''}
           />
         )}
       </main>

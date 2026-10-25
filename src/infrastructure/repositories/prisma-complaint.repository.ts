@@ -774,6 +774,43 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               },
             });
           }
+
+          // 3.2 Simpan foto bukti watermark personel ke tabel terstruktur complaint_evidences (Atomik dalam Transaksi)
+          if (latestTimeline.fotoBuktiUrl) {
+            let savedPhotoUrl = latestTimeline.fotoBuktiUrl;
+            if (savedPhotoUrl.startsWith('data:image/')) {
+              try {
+                const fs = await import('fs');
+                const path = await import('path');
+                const matches = savedPhotoUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
+                if (matches) {
+                  const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+                  const buffer = Buffer.from(matches[2], 'base64');
+                  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+                  if (!fs.existsSync(uploadDir)) {
+                    fs.mkdirSync(uploadDir, { recursive: true });
+                  }
+                  const fileName = `personel_${complaintId}_${Date.now()}.${ext}`;
+                  fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+                  savedPhotoUrl = `/uploads/${fileName}`;
+                }
+              } catch (imgErr) {
+                console.warn('Gagal menyimpan file foto personil ke disk:', imgErr);
+              }
+            }
+
+            await tx.complaintEvidence.create({
+              data: {
+                complaint_id: complaintId,
+                incident_phase: (auditAction || 'TIBA_TKP').slice(0, 50),
+                file_url: savedPhotoUrl.slice(0, 255),
+                caption: (latestTimeline.catatan || latestTimeline.tahapTitle || 'Foto Dokumentasi Personil Lapangan').slice(0, 255),
+                watermark_text: (latestTimeline.photoAddress || 'Watermark SIMAPRES 110').slice(0, 255),
+                exif_lat: finalLat,
+                exif_lng: finalLng,
+              },
+            });
+          }
         }
       }
 

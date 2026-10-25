@@ -4,9 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
-import { createComplaintAndBroadcastAction, sendWhatsAppNotificationAction } from '@/app/actions/complaint.actions';
+import {
+  createComplaintAndBroadcastAction,
+  sendWhatsAppNotificationAction,
+  transferComplaintCrossJurisdictionAction,
+} from '@/app/actions/complaint.actions';
 import { PawasTab } from '../types';
 import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
+import { evaluateJurisdictionBoundary } from '@/lib/jurisdiction-boundary';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
@@ -71,6 +76,39 @@ export default function TabOperatorCadPawas({
   const [showMapPickerCad, setShowMapPickerCad] = useState(false);
   const [isSendingWa, setIsSendingWa] = useState(false);
   const [waSendResult, setWaSendResult] = useState<{ success?: boolean; text?: string } | null>(null);
+  const [transferModalItem, setTransferModalItem] = useState<{ item: any; boundary: any } | null>(null);
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const handleExecuteTransfer = async () => {
+    if (!transferModalItem) return;
+    setIsTransferring(true);
+    try {
+      const { item, boundary } = transferModalItem;
+      const target = boundary.targetStation || { id: 210001, stationName: 'Polresta Batang' };
+      const res = await transferComplaintCrossJurisdictionAction({
+        complaintId: String(item.id),
+        targetStationId: target.id,
+        targetStationName: target.stationName,
+        transferReason: boundary.reason,
+        actorName: userProfile?.fullName || session?.fullName || 'Operator CAD 110',
+      });
+      if (res.success) {
+        showFriendlyToast(
+          'success',
+          'Disposisi Lintas Wilayah Berhasil',
+          `Tiket ${item.nomorTiket} telah dialihkan ke ${target.stationName}. Status pelacakan warga otomatis terkoordinasi.`
+        );
+        setTransferModalItem(null);
+        await loadData();
+      } else {
+        showFriendlyToast('error', 'Gagal Mengalihkan Laporan', res.error || 'Terjadi kendala saat mengalihkan laporan.');
+      }
+    } catch (err: any) {
+      showFriendlyToast('error', 'Kendala Sistem', err.message || 'Sistem tidak dapat memproses saat ini.');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
 
   // Lock body scroll and trigger map canvas resize when fullscreen map opens
   useEffect(() => {
@@ -107,9 +145,33 @@ export default function TabOperatorCadPawas({
             Perekaman Laporan Masyarakat Masuk &amp; Penugasan Unit Patroli
           </div>
         </div>
-        <span style={{ fontSize: '11.5px', fontWeight: 800, background: '#EFF6FF', color: '#1D4ED8', padding: '5px 12px', borderRadius: '8px', border: '1px solid #BFDBFE' }}>
-          👑 Akses Penuh: Input Laporan &amp; Disposisi Unit
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            id="cad-btn-buku-sop"
+            onClick={() => switchTab('view-panduan')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              background: '#F0FDF4',
+              color: '#15803D',
+              border: '1.5px solid #86EFAC',
+              fontSize: '12px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(22, 163, 74, 0.12)',
+            }}
+          >
+            <span>📖</span>
+            <span>Buku Pintar SOP &amp; Layanan (FAQ 110)</span>
+          </button>
+          <span style={{ fontSize: '11.5px', fontWeight: 800, background: '#EFF6FF', color: '#1D4ED8', padding: '5px 12px', borderRadius: '8px', border: '1px solid #BFDBFE' }}>
+            👑 Akses Penuh: Input Laporan &amp; Disposisi Unit
+          </span>
+        </div>
       </div>
 
       <div className="cad-operator-grid">
@@ -121,6 +183,45 @@ export default function TabOperatorCadPawas({
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
               <span style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>📝 Formulir Penerimaan Laporan</span>
               <span style={{ fontSize: '11px', color: '#64748B' }}>Petugas: <strong>{userProfile?.fullName || userProfile?.nama}</strong></span>
+            </div>
+
+            {/* Banner Pintasan Panduan SOP & Layanan */}
+            <div
+              style={{
+                background: '#F0F9FF',
+                border: '1px solid #BAE6FD',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                marginBottom: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+                fontSize: '11.5px',
+                color: '#0369A1',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>💡</span>
+                <span>Warga hanya menanyakan info SIM, STNK, SKCK, atau Cyber? Tidak perlu input tiket aduan.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => switchTab('view-panduan')}
+                style={{
+                  background: '#0284C7',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Buka Buku Pintar SOP →
+              </button>
             </div>
 
             {/* Ringkasan Kesalahan Validasi CAD (jika ada) */}
@@ -500,10 +601,22 @@ export default function TabOperatorCadPawas({
                         onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
                         onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
                       >
-                        <span style={{ fontSize: '16px', lineHeight: 1.2 }}>📍</span>
+                        <span style={{ fontSize: '16px', lineHeight: 1.2 }}>
+                          {item.isPoliceStation ? '👮' : '📍'}
+                        </span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.label}
+                          <div style={{ fontSize: '12.5px', fontWeight: 700, color: item.isPoliceStation ? '#1D4ED8' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{item.label}</span>
+                            {item.isPoliceStation && (
+                              <span style={{ fontSize: '9px', fontWeight: 800, background: '#EFF6FF', color: '#1D4ED8', padding: '1px 5px', borderRadius: '4px', border: '1px solid #BFDBFE' }}>
+                                POLRI
+                              </span>
+                            )}
+                            {item.distanceText && (
+                              <span style={{ fontSize: '10px', fontWeight: 700, color: '#059669', background: '#ECFDF5', padding: '1px 5px', borderRadius: '4px', border: '1px solid #A7F3D0', fontFamily: 'monospace' }}>
+                                {item.distanceText}
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {item.subLabel}
@@ -670,10 +783,22 @@ export default function TabOperatorCadPawas({
                             onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                           >
-                            <span style={{ fontSize: '14px' }}>📍</span>
+                            <span style={{ fontSize: '14px' }}>
+                              {item.isPoliceStation ? '👮' : '📍'}
+                            </span>
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '12px', fontWeight: 600, color: '#F8FAFC', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {item.label}
+                              <div style={{ fontSize: '12px', fontWeight: 600, color: item.isPoliceStation ? '#60A5FA' : '#F8FAFC', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{item.label}</span>
+                                {item.isPoliceStation && (
+                                  <span style={{ fontSize: '9px', fontWeight: 800, background: '#1E3A8A', color: '#93C5FD', padding: '1px 5px', borderRadius: '4px', border: '1px solid #3B82F6' }}>
+                                    POLRI
+                                  </span>
+                                )}
+                                {item.distanceText && (
+                                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#34D399', background: 'rgba(52, 211, 153, 0.15)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(52, 211, 153, 0.3)', fontFamily: 'monospace' }}>
+                                    {item.distanceText}
+                                  </span>
+                                )}
                               </div>
                               <div style={{ fontSize: '10.5px', color: '#94A3B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                 {item.subLabel}
@@ -852,6 +977,43 @@ export default function TabOperatorCadPawas({
               )}
             </div>
 
+            {/* Boundary Warning on CAD Input Form */}
+            {(() => {
+              const formBoundary = evaluateJurisdictionBoundary({
+                tkpLat: simCaller.lat,
+                tkpLng: simCaller.lng,
+                tkpAlamat: simCaller.alamat,
+              });
+              if (!formBoundary.isOutsideJurisdiction) return null;
+              return (
+                <div
+                  style={{
+                    marginBottom: '12px',
+                    padding: '10px 14px',
+                    background: '#FEF3C7',
+                    border: '1.5px solid #F59E0B',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#92400E',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 2px 8px rgba(245,158,11,0.15)',
+                  }}
+                >
+                  <span style={{ fontSize: '18px' }}>⚠️</span>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>Indikasi Batas Wilayah (E-Routing Boundary):</div>
+                    <div>
+                      Titik TKP terindikasi berada di yurisdiksi{' '}
+                      <strong>{formBoundary.targetStation?.stationName || formBoundary.detectedRegionName}</strong>.
+                      Laporan tetap dapat disimpan ke antrean atau diteruskan ke Mako tetangga pasca-registrasi.
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
@@ -984,6 +1146,61 @@ export default function TabOperatorCadPawas({
                     <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '8px' }}>
                       📍 {isGenericOrCoordinateAddress(item.tkpAlamatTeks) ? resolveSektorWilayah(item.tkpAlamatTeks, item) : item.tkpAlamatTeks}
                     </div>
+
+                    {/* Boundary Alert & Quick-Transfer Button */}
+                    {(() => {
+                      const boundary = evaluateJurisdictionBoundary({
+                        tkpLat: item.tkpLat || item.tkp_lat,
+                        tkpLng: item.tkpLng || item.tkp_lng,
+                        tkpAlamat: item.tkpAlamatTeks,
+                      });
+
+                      if (!boundary.isOutsideJurisdiction) return null;
+
+                      const targetName = boundary.targetStation?.stationName || 'Polresta Batang';
+                      return (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            marginBottom: '6px',
+                            padding: '8px 10px',
+                            background: '#FFFBEB',
+                            border: '1.5px solid #F59E0B',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#B45309', fontSize: '11px', fontWeight: 800, marginBottom: '6px' }}>
+                            <span>⚠️</span>
+                            <span>Batas Wilayah: TKP di {boundary.detectedRegionName}</span>
+                          </div>
+                          <button
+                            type="button"
+                            id={`btn-transfer-lintas-${item.id}`}
+                            disabled={loading || isTransferring}
+                            onClick={() => setTransferModalItem({ item, boundary })}
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                              color: '#0F172A',
+                              fontWeight: 900,
+                              fontSize: '11px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 6px rgba(217,119,6,0.3)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>🔄 Disposisi Lintas Wilayah (Transfer ke {targetName})</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
                     <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
                       <button
                         type="button"
@@ -1384,6 +1601,207 @@ export default function TabOperatorCadPawas({
                 }}
               >
                 Tutup &amp; Kembali ke Konsol CAD
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL KONFIRMASI DISPOSISI LINTAS WILAYAH (INTER-POLRES) */}
+      {transferModalItem && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(11, 15, 25, 0.88)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isTransferring) setTransferModalItem(null);
+          }}
+        >
+          <div
+            style={{
+              background: '#0F172A',
+              border: '1.5px solid rgba(245, 158, 11, 0.45)',
+              borderRadius: '20px',
+              maxWidth: '540px',
+              width: '100%',
+              boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.85), 0 0 30px rgba(245, 158, 11, 0.15)',
+              overflow: 'hidden',
+              color: '#F8FAFC',
+              fontFamily: 'inherit',
+            }}
+          >
+            {/* Modal Header */}
+            <div
+              style={{
+                padding: '18px 24px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#0F172A',
+                    fontSize: '18px',
+                    fontWeight: 900,
+                  }}
+                >
+                  🔄
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF' }}>
+                    Disposisi Lintas Wilayah (E-Routing Boundary)
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#FCD34D' }}>
+                    Pengalihan Otoritas Penanganan ke Mako Tetangga
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isTransferring}
+                onClick={() => setTransferModalItem(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94A3B8',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Informasi Tiket */}
+                <div
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '12px',
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      NOMOR TIKET
+                    </span>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#FCD34D', fontSize: '13px' }}>
+                      {transferModalItem.item.nomorTiket}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF', marginBottom: '2px' }}>
+                    {transferModalItem.item.jenisKejadian}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#CBD5E1' }}>
+                    📍 {transferModalItem.item.tkpAlamatTeks}
+                  </div>
+                </div>
+
+                {/* Target Destination Card */}
+                <div
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.3)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                  }}
+                >
+                  <div style={{ fontSize: '10.5px', color: '#FCD34D', fontWeight: 800, textTransform: 'uppercase', marginBottom: '4px' }}>
+                    MAKO TUJUAN PENGALIHAN
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#FFFFFF', marginBottom: '4px' }}>
+                    {transferModalItem.boundary.targetStation?.stationName || 'Polresta Batang'}
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#E2E8F0', marginBottom: '8px' }}>
+                    🏢 {transferModalItem.boundary.targetStation?.address || 'Kabupaten Batang'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#FDE68A', background: 'rgba(0,0,0,0.3)', padding: '6px 10px', borderRadius: '6px' }}>
+                    ℹ️ {transferModalItem.boundary.reason}
+                  </div>
+                </div>
+
+                {/* Single Source of Truth Notice */}
+                <div style={{ fontSize: '11px', color: '#94A3B8', lineHeight: 1.5, background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  💡 <strong>Info Transparansi:</strong> Status pelacakan di ponsel warga pelapor otomatis terkoordinasi secara langsung pada tautan tracking resmi. Tidak ada notifikasi WhatsApp tambahan yang mengganggu warga.
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div
+              style={{
+                padding: '14px 24px 20px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                gap: '10px',
+              }}
+            >
+              <button
+                type="button"
+                disabled={isTransferring}
+                onClick={() => setTransferModalItem(null)}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#CBD5E1',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '12.5px',
+                  cursor: isTransferring ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                id="btn-konfirmasi-transfer-lintas"
+                disabled={isTransferring}
+                onClick={handleExecuteTransfer}
+                style={{
+                  flex: 2,
+                  padding: '11px 16px',
+                  background: isTransferring ? '#94A3B8' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                  color: '#0F172A',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 900,
+                  fontSize: '12.5px',
+                  cursor: isTransferring ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+                }}
+              >
+                {isTransferring ? '⏳ Mengalihkan ke Mako Tujuan...' : `⚡ Alihkan ke ${transferModalItem.boundary.targetStation?.stationName || 'Mako Tujuan'}`}
               </button>
             </div>
           </div>

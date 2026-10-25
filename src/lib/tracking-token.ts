@@ -8,7 +8,7 @@ import crypto from 'crypto';
 const TRACKING_SECRET =
   process.env.SESSION_SECRET ||
   process.env.NEXTAUTH_SECRET ||
-  'simapres-tracking-secure-token-salt-2026';
+  'simopmas-presisi-110-secret-key-salt-2026';
 
 export function generateTrackingToken(ticketNo: string): string {
   const clean = ticketNo.replace(/^#+/, '').trim();

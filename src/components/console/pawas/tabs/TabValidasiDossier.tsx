@@ -35,6 +35,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
   resolveComplaintStatus,
   bukaModalDisposisi,
   handleAjukanRevisi,
+  handleSahkanPenutupanKasus,
   setTolakComplaint,
   bukaModalTolak,
   setLightboxImg,
@@ -437,7 +438,8 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
             <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
               <button
                 type="button"
-                id="btn-buka-modal-disposisi"
+                id="btn-buka-disposisi"
+                data-testid="btn-buka-disposisi"
                 onClick={() => {
                   bukaModalDisposisi(activeComplaint);
                 }}
@@ -1556,6 +1558,8 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                 {/* Tombol Kerahkan Unit Cadangan / Back-Up */}
                 <button
                   type="button"
+                  id="btn-backup-disposisi"
+                  data-testid="btn-backup-disposisi"
                   onClick={() => {
                     bukaModalDisposisi(activeComplaint);
                   }}
@@ -1578,6 +1582,35 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                   <span>🚔</span> Kerahkan Unit Cadangan / Back-Up Tambahan
                 </button>
               </>
+            )}
+
+            {/* Tombol Otorisasi & Pengesahan Kasus (SELESAI) oleh Pawas */}
+            {(activeStatMeta.key === 'MENUNGGU_PENGESAHAN' || activeComplaint.status === 'MENUNGGU_PENGESAHAN' || (Boolean(activeComplaint.catatanSelesai) && activeComplaint.status !== 'SELESAI')) && handleSahkanPenutupanKasus && (
+              <button
+                type="button"
+                id="btn-sahkan-kasus"
+                data-testid="btn-sahkan-kasus"
+                onClick={() => handleSahkanPenutupanKasus(activeComplaint)}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>⚖️</span> Sahkan Laporan &amp; Tutup Kasus (SELESAI) ➔
+              </button>
             )}
 
             {/* Penilaian Warga (Hanya muncul jika warga telah memberikan ulasan) */}

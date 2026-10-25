@@ -17,10 +17,10 @@ export interface SessionPayload {
   lastActiveAt: number; // Unix ms
 }
 
-export const SESSION_COOKIE_NAME = 'simapres_session';
-export const SESSION_MAX_AGE_SECONDS = 3600; // 1 hour (3600 seconds)
+export const SESSION_COOKIE_NAME = 'simopmas_session';
+export const SESSION_MAX_AGE_SECONDS = 3600 * 8; // 8 hours
 
-const SECRET_KEY = process.env.SESSION_SECRET || 'simapres-presisi-110-secret-key-salt-2026';
+const SECRET_KEY = process.env.SESSION_SECRET || 'simopmas-presisi-110-secret-key-salt-2026';
 
 // Helper Web Crypto HMAC (key di-import sekali per proses, bukan per request)
 let cryptoKeyPromise: Promise<CryptoKey> | null = null;

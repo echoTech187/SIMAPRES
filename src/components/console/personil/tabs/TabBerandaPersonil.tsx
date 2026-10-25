@@ -101,6 +101,8 @@ export default function TabBerandaPersonil({
 
             <div className="flex items-center gap-2.5 flex-shrink-0">
               <button
+                id="btn-hero-terima-tugas"
+                data-testid="btn-hero-terima-tugas"
                 type="button"
                 onClick={() => onOpenAcceptModal(pendingAcceptTask)}
                 className="w-full sm:w-auto px-6 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 shadow-lg"

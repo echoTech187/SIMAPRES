@@ -30,6 +30,7 @@ import TabSubkategori from './tabs/TabSubkategori';
 import TabDuty from './tabs/TabDuty';
 import TabLokasiPenyelesaian from './tabs/TabLokasiPenyelesaian';
 import TabDokumenPenyelesaian from './tabs/TabDokumenPenyelesaian';
+import TabKnowledgeFaq from './tabs/TabKnowledgeFaq';
 
 // Shared Types
 import type { MasterLookups } from './tabs/types';
@@ -46,7 +47,8 @@ export type MasterTabType =
   | 'subkategori'
   | 'duty'
   | 'lokasi_penyelesaian'
-  | 'dokumen_penyelesaian';
+  | 'dokumen_penyelesaian'
+  | 'knowledge_faq';
 
 interface MasterDataManagerProps {
   activeTab: MasterTabType;
@@ -107,6 +109,7 @@ export default function MasterDataManager({
     case 'duty':             return <TabDuty {...tabProps} />;
     case 'lokasi_penyelesaian':   return <TabLokasiPenyelesaian {...tabProps} />;
     case 'dokumen_penyelesaian':  return <TabDokumenPenyelesaian {...tabProps} />;
+    case 'knowledge_faq':         return <TabKnowledgeFaq {...tabProps} />;
     default:
       return (
         <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>

@@ -14,7 +14,8 @@ export type MasterTabType =
   | 'subkategori'
   | 'duty'
   | 'lokasi_penyelesaian'
-  | 'dokumen_penyelesaian';
+  | 'dokumen_penyelesaian'
+  | 'knowledge_faq';
 
 /** Lookup bundles yang dimuat sekali untuk semua tab */
 export interface MasterLookups {

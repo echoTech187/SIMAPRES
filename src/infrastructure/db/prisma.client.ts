@@ -17,7 +17,7 @@ function getPrismaClient(): PrismaClient {
 }
 
 // Lazy Proxy: prevents new PrismaClient() from executing at module import time during build
-export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+export const prisma: PrismaClient & Record<string, any> = new Proxy({} as any, {
   get(_target, prop: string | symbol) {
     const client = getPrismaClient();
     const val = (client as any)[prop];

@@ -3,6 +3,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
+import {
+  searchIndonesianLocations,
+  type LocationSuggestionItem,
+} from '@/lib/indonesian-location-search';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
@@ -63,19 +67,22 @@ export default function AddressLocationPicker({
   // Main input search states
   const [isSearching, setIsSearching] = useState(false);
   const [isLocatingGps, setIsLocatingGps] = useState(false);
-  const [suggestions, setSuggestions] = useState<
-    Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
-  >([]);
+  const [suggestions, setSuggestions] = useState<LocationSuggestionItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Fullscreen map header search states
   const [modalSearchQuery, setModalSearchQuery] = useState('');
-  const [modalSuggestions, setModalSuggestions] = useState<
-    Array<{ label: string; subLabel: string; fullAddress: string; lat: number; lng: number }>
-  >([]);
+  const [modalSuggestions, setModalSuggestions] = useState<LocationSuggestionItem[]>([]);
   const [isModalSearching, setIsModalSearching] = useState(false);
   const [showModalSuggestions, setShowModalSuggestions] = useState(false);
   const [isModalLocatingGps, setIsModalLocatingGps] = useState(false);
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(true);
+
+  // Active Map Center for Proximity & Nearby Searches (Tangerang, Pekalongan, etc.)
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({
+    lat: lat && lat !== 0 ? lat : -7.035505,
+    lng: lng && lng !== 0 ? lng : 109.576103,
+  });
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const modalSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,6 +91,17 @@ export default function AddressLocationPicker({
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const curLat = Number(pos.coords.latitude.toFixed(6));
+          const curLng = Number(pos.coords.longitude.toFixed(6));
+          setMapCenter({ lat: curLat, lng: curLng });
+        },
+        () => {},
+        { timeout: 6000, maximumAge: 60000 }
+      );
+    }
   }, []);
 
   // Sync temp values whenever props change and modal is not open
@@ -124,51 +142,9 @@ export default function AddressLocationPicker({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const resolveAddressFromCoords = async (targetLat: number, targetLng: number): Promise<string> => {
-    let resolved = '';
-    // 1. Photon Komoot Reverse Geocode
-    try {
-      const res = await fetch(`https://photon.komoot.io/reverse?lat=${targetLat}&lon=${targetLng}`);
-      if (res.ok) {
-        const data = await res.json();
-        const feat = data?.features?.[0]?.properties;
-        if (feat) {
-          const parts = [
-            feat.name,
-            feat.housenumber ? `No. ${feat.housenumber}` : '',
-            feat.street,
-            feat.district,
-            feat.city || feat.county,
-            feat.state,
-          ].filter(Boolean);
-          const uniqueParts = Array.from(new Set(parts));
-          if (uniqueParts.length > 0) {
-            resolved = uniqueParts.join(', ');
-          }
-        }
-      }
-    } catch (_) {}
 
-    // 2. OpenStreetMap Nominatim Fallback
-    if (!resolved) {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${targetLat}&lon=${targetLng}&zoom=18&addressdetails=1`,
-          { headers: { 'Accept-Language': 'id' } }
-        );
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.display_name) {
-            resolved = data.display_name;
-          }
-        }
-      } catch (_) {}
-    }
 
-    return resolved;
-  };
-
-  // Main input search handler
+  // Main input search handler (Using Multi-Tier Indonesian & Police Station Search Engine)
   const handleSearch = (query: string) => {
     onChangeAddress(query);
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
@@ -182,42 +158,24 @@ export default function AddressLocationPicker({
     setIsSearching(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const encoded = encodeURIComponent(query.trim());
-        const coordParam = lat && lng ? `&lat=${lat}&lon=${lng}` : '';
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}${coordParam}&limit=6`);
-        if (res.ok) {
-          const data = await res.json();
-          const items = (data?.features || []).map((feat: any) => {
-            const p = feat.properties || {};
-            const coords = feat.geometry?.coordinates || [0, 0];
-            const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city || p.county, p.state].filter(
-              (part) => part && part !== title
-            );
-            const sub = subParts.join(', ') || 'Lokasi Terdaftar';
-            const fullParts = [p.name, p.street, p.district, p.city || p.county].filter(Boolean);
-            const full = Array.from(new Set(fullParts)).join(', ') || title;
-            return {
-              label: title,
-              subLabel: sub,
-              fullAddress: full,
-              lat: Number(coords[1].toFixed(6)),
-              lng: Number(coords[0].toFixed(6)),
-            };
-          });
-          setSuggestions(items);
-          setShowSuggestions(items.length > 0);
-        }
+        const items = await searchIndonesianLocations(query, {
+          lat: lat || mapCenter.lat,
+          lng: lng || mapCenter.lng,
+          mapCenter,
+          limit: 1000,
+        });
+        setSuggestions(items);
+        setShowSuggestions(items.length > 0);
       } catch (err) {
         console.warn('Address search error:', err);
       } finally {
         setIsSearching(false);
       }
-    }, 280);
+    }, 200);
   };
 
-  const handleSelectSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
-    onChangeAddress(item.fullAddress);
+  const handleSelectSuggestion = (item: { fullAddress?: string; lat: number; lng: number; label?: string }) => {
+    onChangeAddress(item.fullAddress || item.label || '');
     onChangeCoords(item.lat, item.lng);
     setShowSuggestions(false);
   };
@@ -230,10 +188,6 @@ export default function AddressLocationPicker({
           const curLat = Number(pos.coords.latitude.toFixed(6));
           const curLng = Number(pos.coords.longitude.toFixed(6));
           onChangeCoords(curLat, curLng);
-          try {
-            const addr = await resolveAddressFromCoords(curLat, curLng);
-            if (addr) onChangeAddress(addr);
-          } catch (_) {}
           setIsLocatingGps(false);
         },
         () => {
@@ -253,7 +207,11 @@ export default function AddressLocationPicker({
     setModalSearchQuery(value || '');
     setModalSuggestions([]);
     setShowModalSuggestions(false);
+    setIsSidePanelOpen(true);
     setIsFullscreenMapOpen(true);
+    if (value && value.trim().length >= 2) {
+      handleModalSearch(value.trim());
+    }
   };
 
   // Confirm and apply location from Fullscreen Map Modal
@@ -267,7 +225,7 @@ export default function AddressLocationPicker({
     setIsFullscreenMapOpen(false);
   };
 
-  // Fullscreen Modal Search Handler
+  // Fullscreen Modal Search Handler (Using Multi-Tier Indonesian & Police Station Search Engine)
   const handleModalSearch = (query: string) => {
     setModalSearchQuery(query);
     if (modalSearchTimeoutRef.current) clearTimeout(modalSearchTimeoutRef.current);
@@ -281,46 +239,29 @@ export default function AddressLocationPicker({
     setIsModalSearching(true);
     modalSearchTimeoutRef.current = setTimeout(async () => {
       try {
-        const encoded = encodeURIComponent(query.trim());
-        const coordParam = tempLat && tempLng ? `&lat=${tempLat}&lon=${tempLng}` : '';
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}${coordParam}&limit=6`);
-        if (res.ok) {
-          const data = await res.json();
-          const items = (data?.features || []).map((feat: any) => {
-            const p = feat.properties || {};
-            const coords = feat.geometry?.coordinates || [0, 0];
-            const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city || p.county, p.state].filter(
-              (part) => part && part !== title
-            );
-            const sub = subParts.join(', ') || 'Lokasi Terdaftar';
-            const fullParts = [p.name, p.street, p.district, p.city || p.county].filter(Boolean);
-            const full = Array.from(new Set(fullParts)).join(', ') || title;
-            return {
-              label: title,
-              subLabel: sub,
-              fullAddress: full,
-              lat: Number(coords[1].toFixed(6)),
-              lng: Number(coords[0].toFixed(6)),
-            };
-          });
-          setModalSuggestions(items);
-          setShowModalSuggestions(items.length > 0);
-        }
+        const items = await searchIndonesianLocations(query, {
+          lat: tempLat || mapCenter.lat,
+          lng: tempLng || mapCenter.lng,
+          mapCenter,
+          limit: 1000,
+        });
+        setModalSuggestions(items);
+        setShowModalSuggestions(items.length > 0);
       } catch (err) {
         console.warn('Modal search error:', err);
       } finally {
         setIsModalSearching(false);
       }
-    }, 280);
+    }, 200);
   };
 
-  const handleSelectModalSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
+  const handleSelectModalSuggestion = (item: { fullAddress?: string; lat: number; lng: number; label?: string }) => {
     setTempLat(item.lat);
     setTempLng(item.lng);
-    setTempAddress(item.fullAddress);
-    setModalSearchQuery(item.fullAddress);
+    setTempAddress(item.fullAddress || item.label || '');
+    setModalSearchQuery(item.fullAddress || item.label || '');
     setShowModalSuggestions(false);
+    setMapCenter({ lat: item.lat, lng: item.lng });
   };
 
   const handleModalGetGps = () => {
@@ -332,13 +273,6 @@ export default function AddressLocationPicker({
           const curLng = Number(pos.coords.longitude.toFixed(6));
           setTempLat(curLat);
           setTempLng(curLng);
-          try {
-            const addr = await resolveAddressFromCoords(curLat, curLng);
-            if (addr) {
-              setTempAddress(addr);
-              setModalSearchQuery(addr);
-            }
-          } catch (_) {}
           setIsModalLocatingGps(false);
         },
         () => {
@@ -500,19 +434,55 @@ export default function AddressLocationPicker({
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#EFF6FF')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
               >
-                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>📍</span>
+                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>
+                  {item.isPoliceStation ? '👮' : '📍'}
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
                       fontSize: '12.5px',
                       fontWeight: 700,
-                      color: '#1E293B',
+                      color: item.isPoliceStation ? '#1D4ED8' : '#1E293B',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
                     }}
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.isPoliceStation && (
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontWeight: 800,
+                          background: '#EFF6FF',
+                          color: '#1D4ED8',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          border: '1px solid #BFDBFE',
+                        }}
+                      >
+                        POLRI
+                      </span>
+                    )}
+                    {item.distanceText && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#059669',
+                          background: '#ECFDF5',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          border: '1px solid #A7F3D0',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {item.distanceText}
+                      </span>
+                    )}
                   </div>
                   <div
                     style={{
@@ -805,19 +775,55 @@ export default function AddressLocationPicker({
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#334155')}
                       onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <span style={{ fontSize: '14px' }}>📍</span>
+                      <span style={{ fontSize: '14px' }}>
+                        {item.isPoliceStation ? '👮' : '📍'}
+                      </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
                           style={{
                             fontSize: '12.5px',
                             fontWeight: 600,
-                            color: '#F8FAFC',
+                            color: item.isPoliceStation ? '#60A5FA' : '#F8FAFC',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
                           }}
                         >
-                          {item.label}
+                          <span>{item.label}</span>
+                          {item.isPoliceStation && (
+                            <span
+                              style={{
+                                fontSize: '9px',
+                                fontWeight: 800,
+                                background: '#1E3A8A',
+                                color: '#93C5FD',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                border: '1px solid #3B82F6',
+                              }}
+                            >
+                              POLRI
+                            </span>
+                          )}
+                          {item.distanceText && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                color: '#34D399',
+                                background: 'rgba(52, 211, 153, 0.15)',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(52, 211, 153, 0.3)',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              {item.distanceText}
+                            </span>
+                          )}
                         </div>
                         <div
                           style={{
@@ -899,14 +905,187 @@ export default function AddressLocationPicker({
             </div>
           </div>
 
-          {/* MAP CANVAS (FULLSCREEN 100% HEIGHT) */}
-          <div style={{ flex: 1, position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+          {/* MAIN BODY: GOOGLE MAPS SIDEBAR + MAP CANVAS */}
+          <div style={{ flex: 1, display: 'flex', position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+            {/* GOOGLE MAPS-STYLE RESULTS SIDEBAR */}
+            {isSidePanelOpen && modalSuggestions.length > 0 && (
+              <div
+                style={{
+                  width: '360px',
+                  maxWidth: '90vw',
+                  height: '100%',
+                  background: '#1E293B',
+                  borderRight: '1px solid #334155',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  zIndex: 25,
+                  boxShadow: '4px 0 20px rgba(0,0,0,0.35)',
+                  flexShrink: 0,
+                }}
+              >
+                {/* Sidebar Header */}
+                <div
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid #334155',
+                    background: '#0F172A',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '15px' }}>🛡️</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#F8FAFC' }}>
+                        Daftar Lokasi Terpilih
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                        {modalSuggestions.length} hasil · Klik untuk kunci titik
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsSidePanelOpen(false)}
+                    title="Sembunyikan Panel"
+                    style={{
+                      background: '#334155',
+                      border: 'none',
+                      color: '#CBD5E1',
+                      borderRadius: '6px',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ◀ Sembunyikan
+                  </button>
+                </div>
+
+                {/* Sidebar Scrollable Card List */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
+                  {modalSuggestions.map((item, idx) => {
+                    const isSelected =
+                      tempLat && tempLng && Math.abs(item.lat - tempLat) < 0.0002 && Math.abs(item.lng - tempLng) < 0.0002;
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => handleSelectModalSuggestion(item)}
+                        style={{
+                          padding: '12px',
+                          marginBottom: '8px',
+                          background: isSelected ? 'rgba(37, 99, 235, 0.22)' : '#0F172A',
+                          border: isSelected ? '1.5px solid #3B82F6' : '1px solid #334155',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                          boxShadow: isSelected ? '0 0 12px rgba(59, 130, 246, 0.25)' : 'none',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.borderColor = '#60A5FA';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.borderColor = '#334155';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: item.isPoliceStation ? '#60A5FA' : '#F8FAFC', lineHeight: 1.25 }}>
+                            {item.label}
+                          </span>
+                          {item.distanceText && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 800,
+                                color: '#34D399',
+                                background: 'rgba(52, 211, 153, 0.15)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(52, 211, 153, 0.3)',
+                                fontFamily: 'monospace',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {item.distanceText}
+                            </span>
+                          )}
+                        </div>
+
+                        <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '8px', lineHeight: 1.35 }}>
+                          {item.fullAddress || item.subLabel}
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span
+                            style={{
+                              fontSize: '9px',
+                              fontWeight: 800,
+                              color: item.isPoliceStation ? '#93C5FD' : '#FED7AA',
+                              background: item.isPoliceStation ? '#1E3A8A' : '#7C2D12',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            {item.isPoliceStation ? (item.stationType || 'POLRI') : 'LOKASI'}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: isSelected ? '#10B981' : '#38BDF8',
+                              background: isSelected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                              padding: '3px 8px',
+                              borderRadius: '5px',
+                            }}
+                          >
+                            {isSelected ? '✓ Terpilih' : 'Pilih Lokasi'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Expand Sidebar Button if Collapsed */}
+            {!isSidePanelOpen && modalSuggestions.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsSidePanelOpen(true)}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '12px',
+                  zIndex: 22,
+                  background: '#1E293B',
+                  color: '#F8FAFC',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  padding: '7px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                }}
+              >
+                <span>▶</span>
+                <span>Lihat Hasil ({modalSuggestions.length})</span>
+              </button>
+            )}
+
             {/* Floating guidance pill */}
             <div
               style={{
                 position: 'absolute',
                 top: '12px',
-                left: '50%',
+                left: isSidePanelOpen && modalSuggestions.length > 0 ? 'calc(50% + 180px)' : '50%',
                 transform: 'translateX(-50%)',
                 background: 'rgba(15, 23, 42, 0.88)',
                 color: '#F8FAFC',
@@ -922,25 +1101,25 @@ export default function AddressLocationPicker({
                 alignItems: 'center',
                 gap: '6px',
                 whiteSpace: 'nowrap',
+                transition: 'left 0.2s ease',
               }}
             >
-              <span>💡</span> Klik peta atau geser pin merah untuk mengunci titik lokasi yang akurat
+              <span>💡</span> Klik pin merah di peta atau geser pin untuk mengunci titik koordinat
             </div>
 
             <MiniMapPicker
               lat={tempLat}
               lng={tempLng}
               height="100%"
-              fallbackCenter={{ lat: -7.026803, lng: 109.592982 }}
+              fallbackCenter={mapCenter}
+              onCenterChange={(c) => setMapCenter(c)}
+              searchResultMarkers={modalSuggestions}
+              onSelectSearchResultMarker={handleSelectModalSuggestion}
               onChange={(newLat, newLng) => {
                 setTempLat(newLat);
                 setTempLng(newLng);
-                resolveAddressFromCoords(newLat, newLng).then((addr) => {
-                  if (addr) {
-                    setTempAddress(addr);
-                    setModalSearchQuery(addr);
-                  }
-                });
+                setMapCenter({ lat: newLat, lng: newLng });
+               
               }}
               onAddressChange={(alamat) => {
                 if (alamat) {

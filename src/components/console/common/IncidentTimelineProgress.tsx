@@ -728,33 +728,7 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
         </div>
       </div>
 
-      {/* ACTION SLOT / WIZARD BUTTON */}
-      {onOpenWizard && !actionSlot && complaint.status !== 'SELESAI' && (
-        <button
-          type="button"
-          className="btn-blue"
-          style={{
-            margin: '16px 0 0 0',
-            width: '100%',
-            padding: '12px',
-            background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
-            color: 'white',
-            fontSize: '13px',
-            fontWeight: 800,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            border: 'none',
-            borderRadius: '8px',
-            boxShadow: '0 3px 10px rgba(21,62,117,0.3)',
-            cursor: 'pointer',
-          }}
-          onClick={() => onOpenWizard(complaint)}
-        >
-          <span>🚀</span> Lanjutkan Penanganan Kasus (Buka Wizard) ➔
-        </button>
-      )}
+
 
       {actionSlot && <div style={{ marginTop: '14px' }}>{actionSlot}</div>}
 

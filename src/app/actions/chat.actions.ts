@@ -3,6 +3,7 @@
 import { prisma } from '@/infrastructure/db/prisma.client';
 import type { ChatMessageItem } from '@/types/chat.types';
 import { cacheInvalidate } from '@/lib/app-cache';
+import { requireRole } from '@/lib/session';
 
 // In-memory fallback / quick cache for ultra-responsive low-latency chat
 const chatCache = new Map<string, ChatMessageItem[]>();
@@ -210,6 +211,13 @@ export async function sendTicketChatMessageAction(input: {
   officerNrp?: string;
 }): Promise<{ success: boolean; data?: ChatMessageItem; error?: string }> {
   try {
+    if (input.senderRole === 'PERSONIL') {
+      const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+      if (!auth.authorized) {
+        return { success: false, error: auth.error };
+      }
+    }
+
     const cleanText = input.text?.trim();
     if (!cleanText) {
       return { success: false, error: 'Pesan tidak boleh kosong.' };

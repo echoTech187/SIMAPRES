@@ -92,6 +92,109 @@
   color: #1D4ED8 !important;
 }
 
+/* ======================================================== */
+/* GOOGLE MAPS NATIVE INFOWINDOW TACTICAL GLASSMORPHISM     */
+/* Anchored directly above clicked marker icon with pointer */
+/* ======================================================== */
+/* InfoWindow Card Container */
+.gm-style .gm-style-iw-c {
+  background-color: rgba(15, 23, 42, 0.98) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+  padding: 0 !important;
+  max-width: 380px !important;
+  overflow: visible !important;
+}
+
+.gm-style .gm-style-iw-d {
+  overflow: hidden !important;
+  padding: 0 !important;
+  max-height: none !important;
+}
+
+/* InfoWindow Arrow pointing directly to marker icon */
+.gm-style .gm-style-iw-tc::after {
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-right: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+  border-bottom: 1.5px solid rgba(56, 189, 248, 0.45) !important;
+}
+
+/* InfoWindow Close Button Header Container */
+.gm-style .gm-style-iw-chr {
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* InfoWindow Close Button 'X' Circular Button */
+.gm-style .gm-ui-hover-effect,
+.gm-style button.gm-ui-hover-effect {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.28) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+  cursor: pointer !important;
+  z-index: 100 !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  filter: none !important;
+}
+
+.gm-style .gm-ui-hover-effect:hover,
+.gm-style button.gm-ui-hover-effect:hover {
+  background: rgba(239, 68, 68, 0.75) !important;
+  border-color: rgba(239, 68, 68, 0.95) !important;
+  transform: scale(1.08) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Hide Google's default misaligned internal elements (spans/imgs with default margins) */
+.gm-style .gm-ui-hover-effect > *,
+.gm-style button.gm-ui-hover-effect > * {
+  display: none !important;
+}
+
+/* Render clean, sharp, perfectly centered white '✕' glyph */
+.gm-style .gm-ui-hover-effect::after,
+.gm-style button.gm-ui-hover-effect::after {
+  content: '✕' !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  color: #FFFFFF !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+}
+
 :root {
   --primary: #153E75;
       /* Deep Police Blue */
@@ -441,37 +544,8 @@
       border-radius: 8px;
     }
 
-    /* Styling Google Maps InfoWindow Tepat Diatas Marker (Sesuai Gambar 2) */
     .gm-err-container {
       display: none !important;
-    }
-
-    .gm-style .gm-style-iw-c {
-      border-radius: 12px !important;
-      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.15) !important;
-      border: 1px solid #CBD5E1 !important;
-      padding: 14px 16px !important;
-      max-width: 340px !important;
-    }
-
-    .gm-style .gm-style-iw-chr {
-      position: absolute;
-      right: 0;
-      top: 0;
-    }
-
-    .gm-style .gm-style-iw-d {
-      overflow: hidden !important;
-      max-height: none !important;
-    }
-
-    .gm-style .gm-style-iw-tc::after {
-      background: #FFFFFF !important;
-    }
-
-    .gm-ui-hover-effect {
-      top: 6px !important;
-      right: 6px !important;
     }
 
     .map-legend-mini {
@@ -2434,6 +2508,9 @@
   animation: shimmerWave 1.6s ease-in-out infinite;
   border-radius: 6px;
 }
+
+
+
 
 
 

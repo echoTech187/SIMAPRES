@@ -105,6 +105,7 @@ export default function ModalDisposisiPawas({
   return (
     <div
       id="modal-disposisi-pawas"
+      data-testid="modal-disposisi-pawas"
       className="pawas-modal-overlay"
       style={{
         position: 'fixed',
@@ -464,7 +465,8 @@ export default function ModalDisposisiPawas({
           </button>
           <button
             type="button"
-            id="btn-terbitkan-disposisi"
+            id="btn-konfirmasi-disposisi"
+            data-testid="btn-konfirmasi-disposisi"
             onClick={handleConfirmDisposisi}
             disabled={loading || selectedSatuanKeys.length === 0}
             style={{

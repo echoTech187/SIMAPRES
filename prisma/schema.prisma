@@ -353,6 +353,50 @@ model MasterResolutionDocumentType {
   @@map("master_resolution_document_types")
 }
 
+// 1.17 Master Digital Knowledge Base / Dynamic FAQ Operator 110 & SOP Layanan
+model MasterKnowledgeFaq {
+  id                  Int       @id @default(autoincrement())
+  slug                String    @unique @db.VarChar(100) // "sim-perpanjang", "sim-baru", etc.
+  kategori            String    @db.VarChar(50)          // "LANTAS_SIM", "SAMSAT_STNK_BPKB", etc.
+  kategori_label      String    @db.VarChar(100)         // "Lalu Lintas & SIM"
+  icon                String    @default("📖") @db.VarChar(20)
+  judul               String    @db.VarChar(200)
+  subjudul            String    @db.VarChar(255)
+  tags                String    @db.Text                 // JSON array of strings
+  persyaratan         String    @db.Text                 // JSON array of strings
+  prosedur            String    @db.Text                 // JSON array of strings
+  biaya_pnbp          String    @db.VarChar(255)
+  lokasi_pelayanan    String    @db.Text
+  jam_operasional     String    @db.VarChar(200)
+  waktu_penyelesaian  String    @db.VarChar(100)
+  script_operator     String    @db.Text
+  kontak_penting      String?   @db.VarChar(255)
+  is_active           Boolean   @default(true)
+  display_order       Int       @default(1)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+
+  @@index([kategori], map: "idx_faq_kategori")
+  @@index([is_active], map: "idx_faq_active")
+  @@map("master_knowledge_faqs")
+}
+
+// 1.18 Master Kategori Buku Pintar SOP & Dynamic FAQ Layanan
+model MasterKnowledgeFaqCategory {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(50)  // "LANTAS_SIM", "SAMSAT_STNK_BPKB", etc.
+  label         String   @db.VarChar(100)         // "Lalu Lintas & SIM"
+  icon          String   @default("📖") @db.VarChar(20) // "🚗", "📑", "🪪", etc.
+  description   String?  @db.VarChar(255)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@index([is_active], map: "idx_faq_cat_active")
+  @@map("master_knowledge_faq_categories")
+}
+
 // ==============================================================================
 // 2. POLICE STATIONS & REGIONAL JURISDICTIONS (MAKO)
 // Table: police_stations

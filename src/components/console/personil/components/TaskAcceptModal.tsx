@@ -103,7 +103,11 @@ export default function TaskAcceptModal({
       };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      id="modal-konfirmasi-terima-tugas"
+      data-testid="modal-konfirmasi-terima-tugas"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+    >
       {/* Dark backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
@@ -283,6 +287,8 @@ export default function TaskAcceptModal({
             Abaikan / Nanti
           </button>
           <button
+            id="btn-terima-tugas"
+            data-testid="btn-terima-tugas"
             type="button"
             disabled={isAccepting || quota.isQuotaFull}
             onClick={() => onAccept(task)}

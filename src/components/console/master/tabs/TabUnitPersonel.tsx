@@ -175,7 +175,10 @@ export default function TabUnitPersonel({
   const filteredUnits = units.filter((u) => {
     const matchSatuan = filterSatuan === 'all' || u.unitId?.toLowerCase() === filterSatuan.toLowerCase();
     const matchRole = filterRole === 'all' || (u.role || 'PERSONIL').toUpperCase() === filterRole.toUpperCase();
-    const matchMako = filterMako === 'all' || String(u.stationId) === String(filterMako) || u.stationCode?.toLowerCase() === filterMako.toLowerCase();
+    const matchMako =
+      filterMako === 'all' ||
+      String(u.stationId) === String(filterMako) ||
+      (u.stationCode && String(u.stationCode).toLowerCase() === String(filterMako).toLowerCase());
     return matchSatuan && matchRole && matchMako;
   });
 

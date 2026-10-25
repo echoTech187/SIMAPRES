@@ -172,12 +172,44 @@ export async function getRealRoadPath(
   return null;
 }
 
-// Fallback Tier 2: Google Maps DirectionsService
-export function getGoogleDirectionsPath(
+// Definisi detail rute jalan resmi (Google Directions / Fallback)
+export interface DetailedRoadRoute {
+  path: { lat: number; lng: number }[];
+  distanceText?: string;
+  durationText?: string;
+  distanceValue?: number;
+  durationValue?: number;
+  summary?: string;
+}
+
+const detailedRouteCache = new Map<string, { route: DetailedRoadRoute; timestamp: number }>();
+
+// Prioritas Utama: Google Maps DirectionsService (Akurasi Jalan Raya Nyata & Belokan Google Maps)
+export function getGoogleDirectionsRoute(
   maps: any,
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number }
-): Promise<{ lat: number; lng: number }[] | null> {
+): Promise<DetailedRoadRoute | null> {
+  if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
+    return Promise.resolve(null);
+  }
+
+  const oLat = Number(origin.lat);
+  const oLng = Number(origin.lng);
+  const dLat = Number(destination.lat);
+  const dLng = Number(destination.lng);
+
+  if (isNaN(oLat) || isNaN(oLng) || isNaN(dLat) || isNaN(dLng)) {
+    return Promise.resolve(null);
+  }
+
+  const cacheKey = `${oLat.toFixed(4)},${oLng.toFixed(4)}->${dLat.toFixed(4)},${dLng.toFixed(4)}`;
+  const cached = detailedRouteCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && now - cached.timestamp < 120000) {
+    return Promise.resolve(cached.route);
+  }
+
   return new Promise((resolve) => {
     if (!maps || typeof maps.DirectionsService !== 'function') {
       return resolve(null);
@@ -186,8 +218,8 @@ export function getGoogleDirectionsPath(
       const service = new maps.DirectionsService();
       service.route(
         {
-          origin,
-          destination,
+          origin: { lat: oLat, lng: oLng },
+          destination: { lat: dLat, lng: dLng },
           travelMode: maps.TravelMode.DRIVING,
         },
         (result: any, status: any) => {
@@ -196,7 +228,17 @@ export function getGoogleDirectionsPath(
               lat: typeof p.lat === 'function' ? p.lat() : Number(p.lat),
               lng: typeof p.lng === 'function' ? p.lng() : Number(p.lng),
             }));
-            resolve(path);
+            const leg = result.routes[0].legs?.[0];
+            const route: DetailedRoadRoute = {
+              path,
+              distanceText: leg?.distance?.text,
+              durationText: leg?.duration?.text,
+              distanceValue: leg?.distance?.value,
+              durationValue: leg?.duration?.value,
+              summary: result.routes[0].summary,
+            };
+            detailedRouteCache.set(cacheKey, { route, timestamp: now });
+            resolve(route);
           } else {
             resolve(null);
           }
@@ -206,6 +248,55 @@ export function getGoogleDirectionsPath(
       resolve(null);
     }
   });
+}
+
+// Fallback: Google Maps DirectionsService Path saja (Backwards Compatible)
+export async function getGoogleDirectionsPath(
+  maps: any,
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+): Promise<{ lat: number; lng: number }[] | null> {
+  const route = await getGoogleDirectionsRoute(maps, origin, destination);
+  return route?.path || null;
+}
+
+// Master Route Resolver: Prioritas 1 Google Directions -> Prioritas 2 OSRM -> Prioritas 3 Tactical Curve
+export async function getBestRoadRoute(
+  maps: any,
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number }
+): Promise<DetailedRoadRoute> {
+  if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
+    return { path: [] };
+  }
+
+  const oLat = Number(origin.lat);
+  const oLng = Number(origin.lng);
+  const dLat = Number(destination.lat);
+  const dLng = Number(destination.lng);
+
+  // Tier 1: Google Maps DirectionsService (Prioritas Utama untuk Rute Jalan Raya Nyata)
+  if (maps) {
+    try {
+      const googleRes = await getGoogleDirectionsRoute(maps, { lat: oLat, lng: oLng }, { lat: dLat, lng: dLng });
+      if (googleRes && googleRes.path && googleRes.path.length >= 2) {
+        return googleRes;
+      }
+    } catch (_) {}
+  }
+
+  // Tier 2: OSRM Road Geometry jika Google Directions belum merespons
+  try {
+    const osrmPath = await getRealRoadPath(oLat, oLng, dLat, dLng);
+    if (osrmPath && osrmPath.length >= 2) {
+      return { path: osrmPath };
+    }
+  } catch (_) {}
+
+  // Tier 3: Tactical Path Curve sebagai fallback darurat agar tidak pernah blank
+  return {
+    path: generateTacticalPath(oLat, oLng, dLat, dLng),
+  };
 }
 
 // Fallback Tier 3: Tactical smooth curve generator (Garis taktis yang selalu tersedia tanpa internet/API)
@@ -273,6 +364,8 @@ export default function SimapresGoogleMap({
   const isFetchingRouteRef = useRef<boolean>(false);
   const hasInitiallyZoomedRef = useRef<boolean>(false);
 
+  const infoWindowRef = useRef<any>(null);
+
   const handleUnitClick = (unit: any) => {
     if (onSelectUnit) onSelectUnit(unit);
     if (onUnitClick) onUnitClick(unit);
@@ -289,6 +382,142 @@ export default function SimapresGoogleMap({
         default: return c;
       }
     });
+  };
+
+  const openMarkerDetailWindow = (marker: any, data: {
+    title: string;
+    subTitle?: string;
+    petugas?: string;
+    badgeText?: string;
+    badgeColor?: string;
+    address?: string;
+    activity?: string;
+    status?: string;
+    lat: number;
+    lng: number;
+    icon?: string;
+  }) => {
+    if (!mapInstanceRef.current || !(window as any).google?.maps) return;
+    const maps = (window as any).google.maps;
+
+    if (!infoWindowRef.current) {
+      infoWindowRef.current = new maps.InfoWindow({
+        disableAutoPan: false,
+      });
+    }
+
+    const container = document.createElement('div');
+    container.style.cssText = `
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 320px;
+      max-width: 82vw;
+      background: rgba(15, 23, 42, 0.98);
+      color: #FFFFFF;
+      border-radius: 14px;
+      padding: 14px 16px;
+      box-sizing: border-box;
+    `;
+
+    const qrBadgeHtml = data.badgeText?.includes('RAWAN') || data.status === 'TITIK RAWAN'
+      ? `<span style="font-size: 10px; font-weight: 800; color: #F87171; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); padding: 2px 7px; border-radius: 5px;">⚠️ Zona Rawan</span>`
+      : `<span style="font-size: 10px; font-weight: 800; color: #34D399; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); padding: 2px 7px; border-radius: 5px;">✓ Terverifikasi</span>`;
+
+    const showPetugas = data.petugas && data.petugas !== data.title && data.petugas !== '-';
+
+    container.innerHTML = `
+      <!-- Header -->
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 6px; padding-right: 28px;">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+          <span style="font-size: 18px; flex-shrink: 0;">${data.icon || '🛡️'}</span>
+          <div style="min-width: 0;">
+            <div style="font-size: 13.5px; font-weight: 900; color: #38BDF8; line-height: 1.25; word-break: break-word;">
+              ${escapeXml(data.title)}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${showPetugas ? `
+        <div style="font-size: 13px; font-weight: 800; color: #FFFFFF; line-height: 1.3; padding-right: 28px;">
+          ${escapeXml(data.petugas!)}
+        </div>
+      ` : ''}
+      <div style="font-size: 11px; color: #94A3B8; margin-top: 2px; line-height: 1.35; padding-right: 28px;">
+        ${escapeXml(data.subTitle || data.address || 'Wilayah Hukum Polres Pekalongan')}
+      </div>
+
+      <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 8px 0;"></div>
+
+      <!-- Status Kedinasan -->
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span style="font-size: 11px; color: #94A3B8; font-weight: 600;">Status Kedinasan:</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="font-size: 10px; font-weight: 800; padding: 2.5px 8px; border-radius: 5px; background: ${data.badgeColor ? data.badgeColor + '25' : 'rgba(16,185,129,0.2)'}; color: ${data.badgeColor || '#34D399'}; border: 1px solid ${data.badgeColor || '#10B981'};">
+            ${escapeXml(data.badgeText || data.status || 'MAKO AKTIF')}
+          </span>
+          ${qrBadgeHtml}
+        </div>
+      </div>
+
+      <!-- Sedang Di Mana -->
+      <div style="font-size: 11.5px; background: rgba(0,0,0,0.35); padding: 7px 9px; border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="font-size: 9.5px; color: #F59E0B; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+          <span>📍</span>
+          <span>SEDANG DI MANA:</span>
+        </div>
+        <div style="color: #E2E8F0; font-weight: 600; line-height: 1.35;">
+          ${escapeXml(data.address || 'Kabupaten Pekalongan, Jawa Tengah')}
+        </div>
+      </div>
+
+      <!-- Sedang Melakukan Apa -->
+      <div style="font-size: 11.5px; background: rgba(0,0,0,0.35); padding: 7px 9px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="font-size: 9.5px; color: #34D399; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+          <span>🎯</span>
+          <span>SEDANG MELAKUKAN APA:</span>
+        </div>
+        <div style="color: #E2E8F0; font-weight: 600;">
+          ${escapeXml(data.activity || 'Pusat Komando & Pengendalian Operasi')}
+        </div>
+      </div>
+
+      <!-- Koordinat -->
+      <div style="font-size: 10px; color: #94A3B8; margin-bottom: 10px; font-family: monospace;">
+        🌐 Koordinat: ${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display: flex; gap: 6px;">
+        <button type="button" id="btn-pan-marker" style="flex: 1; text-align: center; background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%); color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; border: none; cursor: pointer;">
+          🎯 Pusatkan Peta
+        </button>
+        <button type="button" id="btn-ht-marker" style="flex: 1; text-align: center; background: rgba(255,255,255,0.08); color: #38BDF8; border: 1px solid rgba(56,189,248,0.3); font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; cursor: pointer;">
+          📻 Hubungi HT
+        </button>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}" target="_blank" rel="noopener noreferrer" style="text-align: center; background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.35); font-size: 11px; font-weight: 800; padding: 7px 10px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" title="Navigasi Google Maps">
+          🗺️
+        </a>
+      </div>
+    `;
+
+    const btnPan = container.querySelector('#btn-pan-marker');
+    if (btnPan) {
+      btnPan.addEventListener('click', () => {
+        mapInstanceRef.current?.panTo({ lat: data.lat, lng: data.lng });
+        mapInstanceRef.current?.setZoom(16);
+      });
+    }
+
+    const btnHt = container.querySelector('#btn-ht-marker');
+    if (btnHt) {
+      btnHt.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('personil:call-ht', { detail: data }));
+        alert(`Menghubungi frekuensi HT SIMOPMAS 110: ${data.petugas || data.title}...`);
+      });
+    }
+
+    infoWindowRef.current.setContent(container);
+    infoWindowRef.current.open(mapInstanceRef.current, marker);
   };
 
   // SVG Halo Badge Icon Generator matching Prototype/js/personil.js lines 98-111
@@ -393,6 +622,11 @@ export default function SimapresGoogleMap({
         const map = new maps.Map(mapContainerRef.current, mapOptions);
         mapInstanceRef.current = map;
         setMapReady(true);
+
+        // Tutup InfoWindow saat klik di area peta kosong
+        map.addListener('click', () => {
+          infoWindowRef.current?.close();
+        });
 
         // Trigger resize agar tile peta langsung ter-render tanpa blank abu-abu
         setTimeout(() => {
@@ -542,6 +776,19 @@ export default function SimapresGoogleMap({
         });
         marker.addListener('click', () => {
           handleUnitClick(myUnit);
+          openMarkerDetailWindow(marker, {
+            title: myUnit.title || myUnit.petugas || 'Posisi Saya',
+            subTitle: `NRP: ${myUnit.nrp || '-'} • Posisi Saya`,
+            petugas: `${myUnit.pangkat || ''} ${myUnit.petugas || myUnit.title || ''}`.trim(),
+            badgeText: 'ONLINE (GPS)',
+            badgeColor: '#0284C7',
+            address: myUnit.lokasiTeks || 'Posisi GPS Real-time Petugas',
+            activity: myUnit.tugas || 'Patroli Siaga Lapangan',
+            status: 'SIAGA',
+            lat: myPos.lat,
+            lng: myPos.lng,
+            icon: myUnit.iconEmoji || '👮',
+          });
         });
         myUnitMarkerRef.current = marker;
       }
@@ -592,6 +839,19 @@ export default function SimapresGoogleMap({
 
         marker.addListener('click', () => {
           handleUnitClick(tkpUnitData);
+          openMarkerDetailWindow(marker, {
+            title: `Tiket ${targetComplaint.nomorTiket || ''}`,
+            subTitle: targetComplaint.jenisKejadian || 'Darurat 110',
+            petugas: `Pelapor: ${targetComplaint.pelaporNama || 'Warga'}`,
+            badgeText: targetComplaint.status || 'DIPROSES',
+            badgeColor: '#DC2626',
+            address: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
+            activity: 'Target Penanganan Personel Presisi',
+            status: 'TKP LAPORAN',
+            lat: tkpPos.lat,
+            lng: tkpPos.lng,
+            icon: '🚨',
+          });
         });
         tkpMarkerRef.current = marker;
       }
@@ -706,16 +966,12 @@ export default function SimapresGoogleMap({
         directionsRendererRef.current.setMap(mapInstanceRef.current);
       }
 
-      // Fetch rute jalan raya resmi (Tier 1: OSRM, Tier 2: Google Directions)
+      // Fetch rute jalan raya resmi (Prioritas 1: Google Directions, Tier 2: OSRM, Tier 3: Tactical)
       (async () => {
         try {
-          let roadPath = await getRealRoadPath(oPos.lat, oPos.lng, dPos.lat, dPos.lng);
-          if (!roadPath || roadPath.length < 2) {
-            roadPath = await getGoogleDirectionsPath(maps, oPos, dPos);
-          }
-
-          if (roadPath && roadPath.length >= 2 && mapInstanceRef.current && directionsRendererRef.current) {
-            directionsRendererRef.current.setPath(roadPath);
+          const roadRoute = await getBestRoadRoute(maps, oPos, dPos);
+          if (roadRoute && roadRoute.path && roadRoute.path.length >= 2 && mapInstanceRef.current && directionsRendererRef.current) {
+            directionsRendererRef.current.setPath(roadRoute.path);
           }
         } catch (err) {
           console.warn('Road routing notice:', err);
@@ -775,6 +1031,19 @@ export default function SimapresGoogleMap({
 
       makoMarker.addListener('click', () => {
         handleUnitClick(officeUnitData);
+        openMarkerDetailWindow(makoMarker, {
+          title: office.name,
+          subTitle: office.address || 'Kantor Polisi & Mako Sektor',
+          petugas: office.petugas && office.petugas !== '-' ? `Personel: ${office.petugas}` : office.name,
+          badgeText: office.type || 'MAKO AKTIF',
+          badgeColor: '#1E3A8A',
+          address: office.address,
+          activity: office.tugas || 'Pusat Komando & Pengendalian Operasi',
+          status: office.status || 'MAKO AKTIF',
+          lat: officePos.lat,
+          lng: officePos.lng,
+          icon: '🏢',
+        });
       });
       markersRef.current.push(makoMarker);
     });
@@ -830,6 +1099,9 @@ export default function SimapresGoogleMap({
         const subSector = unit.lokasiTeks || unit.sub || '';
         const shortSub = `${statusBadgeStr} • ${subSector}`;
 
+        const pos = unit.pos || (unit.lat && unit.lng ? { lat: Number(unit.lat), lng: Number(unit.lng) } : null);
+        if (!pos || !pos.lat || !pos.lng) return;
+
         const icon = makeTacticalUnitIcon(
           unit.iconEmoji || '👮',
           strokeColor,
@@ -840,7 +1112,7 @@ export default function SimapresGoogleMap({
         );
 
         const marker = new maps.Marker({
-          position: unit.pos,
+          position: pos,
           map,
           icon,
           title: `${unit.title} - ${unit.status}`,
@@ -849,39 +1121,63 @@ export default function SimapresGoogleMap({
 
         marker.addListener('click', () => {
           handleUnitClick(unit);
+          openMarkerDetailWindow(marker, {
+            title: shortName || 'Petugas Patroli',
+            subTitle: `${unit.satuan || 'Satuan Operasional'} • NRP: ${unit.nrp || '-'}`,
+            petugas: unit.namaLengkap || unit.title || unit.petugas,
+            badgeText: unit.statusLabel || unit.status || 'PATROLI',
+            badgeColor: strokeColor,
+            address: unit.lokasiTeks || unit.sub || 'Area Patroli Wilayah',
+            activity: unit.tugas || unit.aktivitas || 'Patroli Keamanan & Ketertiban',
+            status: unit.status || 'AKTIF',
+            lat: pos.lat,
+            lng: pos.lng,
+            icon: unit.iconEmoji || '👮',
+          });
         });
 
         markersRef.current.push(marker);
 
-        // Render tactical patrol route polyline (Mengikuti rute jalan raya resmi OSRM)
-        if ((showPatrolRoutes || isFocused) && unit.routePoints && unit.routePoints.length >= 2) {
+        // Render tactical patrol route polyline (Prioritas 1: Google Directions, Tier 2: OSRM, Tier 3: Tactical)
+        if ((showPatrolRoutes || isFocused || unit.status === 'DARURAT') && unit.routePoints && unit.routePoints.length >= 2) {
+          const originPos = unit.routePoints[0];
+          const destPos = unit.routePoints[1];
+          const isEmergency = unit.status === 'DARURAT';
+
+          const arrowIcons = maps.SymbolPath?.FORWARD_CLOSED_ARROW ? [{
+            icon: {
+              path: maps.SymbolPath.FORWARD_CLOSED_ARROW,
+              scale: isFocused ? 2.6 : 2.0,
+              strokeColor: isEmergency ? '#7F1D1D' : '#065F46',
+              fillColor: isEmergency ? '#FBBF24' : strokeColor,
+              fillOpacity: 1,
+            },
+            offset: '40px',
+            repeat: '100px',
+          }] : undefined;
+
+          // Render instant curve (mencegah garis lurus memotong bangunan sebelum rute directions siap)
+          const initialPath = unit.routePoints.length === 2
+            ? generateTacticalPath(originPos.lat, originPos.lng, destPos.lat, destPos.lng)
+            : unit.routePoints;
+
+          const poly = new maps.Polyline({
+            path: initialPath,
+            strokeColor: isEmergency ? '#EF4444' : strokeColor,
+            strokeOpacity: isFocused ? 0.95 : 0.8,
+            strokeWeight: isFocused ? 5.5 : 4,
+            icons: arrowIcons,
+            zIndex: isFocused ? 950 : 700,
+            map: mapInstanceRef.current || map,
+          });
+          patrolPolylinesRef.current.push(poly);
+
           if (unit.routePoints.length === 2) {
-            getRealRoadPath(
-              unit.routePoints[0].lat,
-              unit.routePoints[0].lng,
-              unit.routePoints[1].lat,
-              unit.routePoints[1].lng
-            ).then((roadPath) => {
-              if (roadPath && roadPath.length > 0 && mapInstanceRef.current) {
-                const poly = new maps.Polyline({
-                  path: roadPath,
-                  strokeColor: strokeColor,
-                  strokeOpacity: isFocused ? 0.95 : 0.75,
-                  strokeWeight: isFocused ? 5 : 4,
-                  map: mapInstanceRef.current,
-                });
-                patrolPolylinesRef.current.push(poly);
+            getBestRoadRoute(maps, originPos, destPos).then((roadRoute) => {
+              if (roadRoute && roadRoute.path && roadRoute.path.length >= 2 && (mapInstanceRef.current || map)) {
+                poly.setPath(roadRoute.path);
               }
             });
-          } else {
-            const poly = new maps.Polyline({
-              path: unit.routePoints,
-              strokeColor: strokeColor,
-              strokeOpacity: isFocused ? 0.95 : 0.55,
-              strokeWeight: isFocused ? 5 : 3.5,
-              map,
-            });
-            patrolPolylinesRef.current.push(poly);
           }
         }
       });
@@ -917,6 +1213,19 @@ export default function SimapresGoogleMap({
 
         marker.addListener('click', () => {
           handleUnitClick(hotspotUnitData);
+          openMarkerDetailWindow(marker, {
+            title: h.title || 'Titik Rawan Kriminalitas',
+            subTitle: h.category || h.kategori || 'Area Pantauan Prioritas',
+            petugas: h.wilayahPolsek || 'Wilayah Hukum Polres Pekalongan',
+            badgeText: h.statusBahaya || 'RAWAN',
+            badgeColor: '#DC2626',
+            address: h.address || h.lokasi || 'Jalan Raya Wilayah Pekalongan',
+            activity: h.jadwalDisplay || 'Patroli Intensif Presisi',
+            status: 'TITIK RAWAN',
+            lat: hotspotPos.lat,
+            lng: hotspotPos.lng,
+            icon: '⚠️',
+          });
         });
 
         markersRef.current.push(marker);

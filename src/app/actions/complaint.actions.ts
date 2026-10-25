@@ -5,6 +5,7 @@ import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entit
 import { revalidatePath } from 'next/cache';
 import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
 import { reverseGeocodeCoords, isGenericOrCoordinateAddress } from '@/lib/reverse-geocode';
+import { requireRole } from '@/lib/session';
 
 export async function invalidateComplaintCaches() {
   cacheInvalidate('antrean_pawas');
@@ -202,6 +203,11 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
  * Menghilangkan disposisi manual; sistem langsung menyiarkan serentak ke semua personil yang sedang bertugas.
  */
 export async function createComplaintAndBroadcastAction(input: CreateComplaintActionInput) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   const createRes = await createComplaintAction(input);
   if (!createRes.success || !createRes.data) {
     return createRes;
@@ -223,51 +229,51 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
 
     const satuans = operationalUnits.length > 0 ? operationalUnits : [{ id: 1, default_orders: 'Laksanakan respon cepat ke TKP' }];
 
-    // 2. Ubah status pengaduan menjadi DIPROSES (Tahap 2: Disiarkan ke seluruh armada)
-    await prisma.complaint.update({
-      where: { id: complaintIdBig },
-      data: {
-        status: 'DIPROSES',
-        status_id: 2,
-        tahap: 2,
-      },
-    });
-
-    // 3. Buat rekaman broadcast dispatch untuk setiap satuan operasional (Kuota: 1 = First-come, first-served)
-    for (let i = 0; i < satuans.length; i++) {
-      const s = satuans[i];
-      await prisma.complaintDispatch.create({
+    await prisma.$transaction(async (tx) => {
+      // 2. Ubah status pengaduan menjadi DIPROSES (Tahap 2: Disiarkan ke seluruh armada)
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
         data: {
-          complaint_id: complaintIdBig,
-          unit_id: s.id,
-          officer_id: null,
-          is_primary_unit: i === 0,
-          personnel_quota: 1, // Siapa cepat dia dapat (1 personil mengunci tiket)
-          tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks}`,
-          dispatch_status_id: 1,
-          dispatch_status: 'DISPATCHED',
-          dispatched_at: new Date(),
+          status: 'DIPROSES',
+          status_id: 2,
+          tahap: 2,
         },
       });
-    }
 
-    // 4. Catat Audit Log
-    let sessionUser: any = null;
-      try {
-        const { getSession } = await import('@/lib/session');
-        sessionUser = await getSession();
-      } catch (_) {}
-    const actorName = sessionUser?.fullName;
-    const actorRole = sessionUser?.role;
+      // 3. Buat rekaman broadcast dispatch untuk setiap satuan operasional (Kuota: 1 = First-come, first-served)
+      for (let i = 0; i < satuans.length; i++) {
+        const s = satuans[i];
+        await tx.complaintDispatch.create({
+          data: {
+            complaint_id: complaintIdBig,
+            unit_id: s.id,
+            officer_id: null,
+            is_primary_unit: i === 0,
+            personnel_quota: 1, // Siapa cepat dia dapat (1 personil mengunci tiket)
+            tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks}`,
+            dispatch_status_id: 1,
+            dispatch_status: 'DISPATCHED',
+            dispatched_at: new Date(),
+          },
+        });
+      }
 
-    await prisma.complaintAuditLog.create({
-      data: {
-        complaint_id: complaintIdBig,
-        actor_name: actorName,
-        actor_role: actorRole,
-        action: 'BROADCAST_DISPATCH',
-        notes: `Siaran Serentak (Open Broadcast 110): Laporan diterima dan langsung disiarkan serentak ke seluruh armada/personil siaga tanpa sekat satuan. Petugas: ${actorName}. Mode: Siapa cepat dia dapat.`,
-      },
+      // 4. Catat Audit Log
+      const actorName = auth.user.fullName || 'Operator CAD 110';
+      const actorRole = auth.user.role || 'PAWAS';
+
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action: 'BROADCAST_DISPATCH',
+          notes: `Siaran Serentak (Open Broadcast 110): Laporan diterima dan langsung disiarkan serentak ke seluruh armada/personil siaga tanpa sekat satuan. Petugas: ${actorName}. Mode: Siapa cepat dia dapat.`,
+        },
+      });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     safeRevalidatePath('/console');
@@ -291,6 +297,11 @@ export async function dispatchComplaintAction(input: {
   pawasUserId: string;
   arahanPawas?: string;
 }) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const useCase = UseCaseFactory.getDispatchComplaintUseCase();
     const result = await useCase.execute({
@@ -313,6 +324,11 @@ export async function assignComplaintAction(input: {
   pawasUserId?: string;
   arahanPawas?: string;
 }) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     let officerId = input.assignedOfficerId;
     if (!officerId && input.officerNrp) {
@@ -365,6 +381,11 @@ export async function fieldStepAction(input: {
   resolutionDocumentKey?: string | null;
   resolutionDocumentName?: string | null;
 }) {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const useCase = UseCaseFactory.getFieldStepActionUseCase();
     const result = await useCase.execute({
@@ -549,6 +570,11 @@ export async function updateComplaintStatusAction(input: {
   catatan?: string;
   pawasUserId?: string;
 }) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const repo = UseCaseFactory.getComplaintRepository();
     const complaint = await repo.findById(BigInt(input.complaintId));
@@ -562,31 +588,28 @@ export async function updateComplaintStatusAction(input: {
       (complaint as any).props.alasanTolak = input.catatan || 'Laporan ditolak oleh Pawas';
 
       const { prisma } = await import('@/infrastructure/db/prisma.client');
-      let sessionUser: any = null;
-      try {
-        const { getSession } = await import('@/lib/session');
-        sessionUser = await getSession();
-      } catch (_) {}
-      const actorName = sessionUser?.fullName || 'Pawas 110';
-      const actorRole = sessionUser?.role || 'PAWAS';
+      const actorName = auth.user.fullName;
+      const actorRole = auth.user.role;
 
-      await prisma.complaint.update({
-        where: { id: BigInt(input.complaintId) },
-        data: {
-          status: 'DITOLAK',
-          status_id: 5,
-          alasan_tolak: input.catatan || 'Laporan ditolak oleh Pawas',
-        },
-      });
+      await prisma.$transaction(async (tx) => {
+        await tx.complaint.update({
+          where: { id: BigInt(input.complaintId) },
+          data: {
+            status: 'DITOLAK',
+            status_id: 5,
+            alasan_tolak: input.catatan || 'Laporan ditolak oleh Pawas',
+          },
+        });
 
-      await prisma.complaintAuditLog.create({
-        data: {
-          complaint_id: BigInt(input.complaintId),
-          actor_name: actorName,
-          actor_role: actorRole,
-          action: 'REJECT_REPORT',
-          notes: `Laporan Ditolak: ${input.catatan || '-'}`,
-        },
+        await tx.complaintAuditLog.create({
+          data: {
+            complaint_id: BigInt(input.complaintId),
+            actor_name: actorName,
+            actor_role: actorRole,
+            action: 'REJECT_REPORT',
+            notes: `Laporan Ditolak: ${input.catatan || '-'}`,
+          },
+        });
       });
     }
     if (input.pawasUserId) {
@@ -695,6 +718,11 @@ export async function disposisiMultiSatuanAction(input: {
   estimatedDistance?: string | null;
   estimatedEta?: string | null;
 }) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
     const complaintIdBig = BigInt(input.complaintId);
@@ -719,91 +747,188 @@ export async function disposisiMultiSatuanAction(input: {
     const tkpLat = complaint?.tkp_lat ? Number(complaint.tkp_lat) : null;
     const tkpLng = complaint?.tkp_lng ? Number(complaint.tkp_lng) : null;
 
-    // Update Complaint Status
-    await prisma.complaint.update({
-      where: { id: complaintIdBig },
-      data: {
-        status: 'DIPROSES',
-        status_id: 2,
-        tahap: 2,
-      },
-    });
-
-    // Buat Dispatch Records
-    for (let i = 0; i < satuans.length; i++) {
-      const s = satuans[i];
-      let distStr: string | null = input.estimatedDistance || null;
-      let etaStr: string | null = input.estimatedEta || null;
-
-      if (!distStr && tkpLat && tkpLng) {
-        // Cari personil aktif terdekat di satuan ini yang memiliki live GPS
-        const nearestOfficer = await prisma.policeOfficer.findFirst({
-          where: {
-            unit_id: s.id,
-            current_gps_lat: { not: null },
-            current_gps_lng: { not: null },
-          },
-          select: {
-            current_gps_lat: true,
-            current_gps_lng: true,
-          },
-        });
-
-        if (nearestOfficer?.current_gps_lat && nearestOfficer?.current_gps_lng) {
-          const { HaversineService } = await import('@/infrastructure/services/haversine.service');
-          const distKm = HaversineService.calculateDistanceKm(
-            tkpLat,
-            tkpLng,
-            Number(nearestOfficer.current_gps_lat),
-            Number(nearestOfficer.current_gps_lng)
-          );
-          distStr = `${distKm} km`;
-          const etaMin = Math.max(2, Math.round((distKm / 30) * 60));
-          etaStr = `± ${etaMin} Menit`;
-        }
-      }
-
-      // Saat Pawas menerbitkan disposisi ke satuan, officer_id HARUS null karena belum ada personel yang menerima tugas.
-      // Tabel complaint_dispatches untuk personel baru terisi satu-satu saat personel mengklik 'Terima Tugas'.
-      await prisma.complaintDispatch.create({
+    await prisma.$transaction(async (tx) => {
+      // 1. Update Complaint Status
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
         data: {
-          complaint_id: complaintIdBig,
-          unit_id: s.id,
-          officer_id: null,
-          is_primary_unit: i === 0,
-          personnel_quota: input.kuotaPersonel ?? 4,
-          tactical_orders: input.arahanTaktis?.trim() || s.default_orders,
-          dispatch_status_id: 1,
-          dispatch_status: 'DISPATCHED',
-          dispatched_at: new Date(),
-          estimated_distance: distStr,
-          estimated_eta: etaStr,
+          status: 'DIPROSES',
+          status_id: 2,
+          tahap: 2,
         },
       });
-    }
 
-    // Catat Audit Log Append-Only
-    let sessionUser: any = null;
-      try {
-        const { getSession } = await import('@/lib/session');
-        sessionUser = await getSession();
-      } catch (_) {}
-    const actorName = sessionUser?.fullName;
-    const actorRole = sessionUser?.role;
+      // 2. Buat Dispatch Records
+      for (let i = 0; i < satuans.length; i++) {
+        const s = satuans[i];
+        let distStr: string | null = input.estimatedDistance || null;
+        let etaStr: string | null = input.estimatedEta || null;
 
-    await prisma.complaintAuditLog.create({
-      data: {
-        complaint_id: complaintIdBig,
-        actor_name: actorName,
-        actor_role: actorRole,
-        action: 'DISPATCH_ISSUED',
-        notes: `Disposisi Multi-Satuan Diterbitkan: Disiarkan ke: ${satuanNames} • Kuota: ${input.kuotaPersonel} Personel. Arahan: "${input.arahanTaktis}"`,
-      },
+        if (!distStr && tkpLat && tkpLng) {
+          // Cari personil aktif terdekat di satuan ini yang memiliki live GPS
+          const nearestOfficer = await tx.policeOfficer.findFirst({
+            where: {
+              unit_id: s.id,
+              current_gps_lat: { not: null },
+              current_gps_lng: { not: null },
+            },
+            select: {
+              current_gps_lat: true,
+              current_gps_lng: true,
+            },
+          });
+
+          if (nearestOfficer?.current_gps_lat && nearestOfficer?.current_gps_lng) {
+            const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+            const distKm = HaversineService.calculateDistanceKm(
+              tkpLat,
+              tkpLng,
+              Number(nearestOfficer.current_gps_lat),
+              Number(nearestOfficer.current_gps_lng)
+            );
+            distStr = `${distKm} km`;
+            const etaMin = Math.max(2, Math.round((distKm / 30) * 60));
+            etaStr = `± ${etaMin} Menit`;
+          }
+        }
+
+        // Saat Pawas menerbitkan disposisi ke satuan, officer_id HARUS null karena belum ada personel yang menerima tugas.
+        // Tabel complaint_dispatches untuk personel baru terisi satu-satu saat personel mengklik 'Terima Tugas'.
+        await tx.complaintDispatch.create({
+          data: {
+            complaint_id: complaintIdBig,
+            unit_id: s.id,
+            officer_id: null,
+            is_primary_unit: i === 0,
+            personnel_quota: input.kuotaPersonel ?? 4,
+            tactical_orders: input.arahanTaktis?.trim() || s.default_orders,
+            dispatch_status_id: 1,
+            dispatch_status: 'DISPATCHED',
+            dispatched_at: new Date(),
+            estimated_distance: distStr,
+            estimated_eta: etaStr,
+          },
+        });
+      }
+
+      // 3. Catat Audit Log Append-Only
+      const actorName = auth.user.fullName || input.pawasNama || 'Pawas 110';
+      const actorRole = auth.user.role || 'PAWAS';
+
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action: 'DISPATCH_ISSUED',
+          notes: `Disposisi Multi-Satuan Diterbitkan: Disiarkan ke: ${satuanNames} • Kuota: ${input.kuotaPersonel} Personel. Arahan: "${input.arahanTaktis}"`,
+        },
+      });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
+
     safeRevalidatePath('/console');
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menerbitkan disposisi.' };
+  }
+}
+
+/**
+ * Disposisi Lintas Wilayah / E-Routing Boundary Override
+ * Mengalihkan penanganan pengaduan antar-Polres/Polsek yurisdiksi tetangga secara atomik
+ */
+export async function transferComplaintCrossJurisdictionAction(input: {
+  complaintId: string;
+  targetStationId: number;
+  targetStationName: string;
+  transferReason?: string;
+  notes?: string;
+  actorName?: string;
+}) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const complaintIdBig = BigInt(input.complaintId);
+
+    const comp = await prisma.complaint.findUnique({
+      where: { id: complaintIdBig },
+      include: { station: true },
+    });
+
+    if (!comp) {
+      return { success: false, error: 'Laporan pengaduan tidak ditemukan.' };
+    }
+
+    const targetStation = await prisma.policeStation.findUnique({
+      where: { id: Number(input.targetStationId) },
+    });
+
+    if (!targetStation) {
+      return { success: false, error: 'Mako / Polres tujuan tidak valid atau tidak ditemukan dalam sistem.' };
+    }
+
+    const previousStationName = comp.station?.station_name || 'Polres Pekalongan';
+    const auditNotes =
+      input.notes ||
+      `Pengalihan Yurisdiksi Batas Wilayah: Laporan dialihkan dari ${previousStationName} ke ${targetStation.station_name}. Alasan: ${input.transferReason || 'Deteksi koordinat TKP berada di luar wilayah hukum mako asal.'}`;
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Update status & station_id complaint
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
+        data: {
+          station_id: targetStation.id,
+          status: 'DISPOSISI_LINTAS_WILAYAH',
+          status_id: 2, // Kode status pemrosesan aktif
+          tahap: 2,
+        },
+      });
+
+      // 2. Audit Trail Resmi
+      const actorName = input.actorName || auth.user?.fullName || 'Operator/Pawas CAD';
+      const actorRole = auth.user?.role || 'PAWAS';
+
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          action: 'DISPOSISI_LINTAS_WILAYAH',
+          actor_name: actorName,
+          actor_role: actorRole,
+          notes: auditNotes,
+          action_lat: comp.tkp_lat,
+          action_lng: comp.tkp_lng,
+        },
+      });
+    });
+
+    // Invalidate micro-cache pelacakan agar tampilan warga langsung refresh seketika
+    try {
+      const { cacheInvalidate } = await import('@/lib/app-cache');
+      const cleanTiket = (comp.nomor_tiket || '').replace(/^#+/, '').trim();
+      if (cleanTiket) {
+        cacheInvalidate(`tracking_${cleanTiket}`);
+      }
+    } catch (_) {}
+
+    safeRevalidatePath('/console');
+    return {
+      success: true,
+      data: {
+        nomorTiket: comp.nomor_tiket,
+        targetStationId: targetStation.id,
+        targetStationName: targetStation.station_name,
+        transferredAt: new Date().toISOString(),
+      },
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal melakukan disposisi lintas wilayah.' };
   }
 }
 
@@ -818,7 +943,19 @@ export async function acceptOfficerDispatchAction(input: {
   catatan?: string;
   lat?: number;
   lng?: number;
-}) {
+}): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  alreadyAccepted?: boolean;
+  quota?: number;
+  currentCount?: number;
+}> {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
     const complaintIdBig = BigInt(input.complaintId);
@@ -843,182 +980,184 @@ export async function acceptOfficerDispatchAction(input: {
     const officerRank = officer.rank_pangkat;
     const officerUnitId = officer.unit_id;
 
-    // 2. Ambil seluruh record dispatch untuk tiket pengaduan ini
-    const allDispatches = await prisma.complaintDispatch.findMany({
-      where: { complaint_id: complaintIdBig },
-      include: { unit: true, officer: { include: { user: true } } },
-    });
-
-    // Temukan dispatch yang ditujukan untuk unit satuan personil (atau fallback ke primary)
-    let baseDispatch = allDispatches.find(
-      (d) => officerUnitId && d.unit_id === officerUnitId
-    );
-    if (!baseDispatch && allDispatches.length > 0) {
-      baseDispatch = allDispatches.find((d) => d.is_primary_unit) || allDispatches[0];
-    }
-
-    if (!baseDispatch) {
-      return { success: false, error: 'Disposisi penugasan tidak ditemukan pada tiket ini.' };
-    }
-
-    const targetUnitId = baseDispatch.unit_id;
-    const quota = baseDispatch.personnel_quota || 4;
-
-    // 3. Cek apakah personil ini sudah pernah menerima tugas ini sebelumnya
-    const alreadyAccepted = allDispatches.some(
-      (d) =>
-        d.accepted_at !== null &&
-        (d.officer_id === officer.id ||
-          d.officer?.nrp === input.officerNrp ||
-          d.officer?.user?.identifier === input.officerNrp)
-    );
-
-    if (alreadyAccepted) {
-      return {
-        success: true,
-        message: 'Anda telah menerima tugas ini sebelumnya.',
-        alreadyAccepted: true,
-        quota,
-      };
-    }
-
-    // 4. Cek pembatasan kuota personil (Mode Siaran Terbuka: Siapa cepat dia dapat)
-    const anyAcceptedAcrossComplaint = allDispatches.find(
-      (d) => d.accepted_at !== null && d.officer_id !== null
-    );
-
-    if (quota === 1 && anyAcceptedAcrossComplaint) {
-      const takerName = anyAcceptedAcrossComplaint.officer?.user?.full_name || anyAcceptedAcrossComplaint.officer?.nrp || 'Personel Lain';
-      return {
-        success: false,
-        error: `Tiket ini telah diambil oleh ${takerName}. Anda tidak dapat mengambil tiket yang sama.`,
-      };
-    }
-
-    const acceptedInUnit = allDispatches.filter(
-      (d) =>
-        d.unit_id === targetUnitId &&
-        d.accepted_at !== null &&
-        d.officer_id !== null
-    );
-
-    if (acceptedInUnit.length >= quota) {
-      return {
-        success: false,
-        error: `Kuota personel untuk penugasan ini sudah terpenuhi (${acceptedInUnit.length}/${quota} personel). Tiket telah ditangani oleh personel lain.`,
-      };
-    }
-
-    // 5. Catat penerimaan tugas oleh personel ini
-    let unacceptedDispatch = allDispatches.find(
-      (d) => d.unit_id === targetUnitId && d.accepted_at === null
-    );
-    if (!unacceptedDispatch) {
-      unacceptedDispatch = allDispatches.find((d) => d.accepted_at === null);
-    }
-
-    let officerDist = baseDispatch.estimated_distance;
-    let officerEta = baseDispatch.estimated_eta;
-
-    try {
-      const compLocation = await prisma.complaint.findUnique({
-        where: { id: complaintIdBig },
-        select: { tkp_lat: true, tkp_lng: true },
+    // 2. Transaksi atomik untuk klaim penugasan tiket dan verifikasi kuota
+    const result = await prisma.$transaction(async (tx) => {
+      // Ambil seluruh record dispatch untuk tiket pengaduan ini (di dalam transaksi)
+      const allDispatches = await tx.complaintDispatch.findMany({
+        where: { complaint_id: complaintIdBig },
+        include: { unit: true, officer: { include: { user: true } } },
       });
-      if (compLocation?.tkp_lat && compLocation?.tkp_lng && officer.current_gps_lat && officer.current_gps_lng) {
-        const { HaversineService } = await import('@/infrastructure/services/haversine.service');
-        const dKm = HaversineService.calculateDistanceKm(
-          Number(compLocation.tkp_lat),
-          Number(compLocation.tkp_lng),
-          Number(officer.current_gps_lat),
-          Number(officer.current_gps_lng)
-        );
-        officerDist = `${dKm} km`;
-        officerEta = `± ${Math.max(2, Math.round((dKm / 30) * 60))} Menit`;
+
+      // Temukan dispatch yang ditujukan untuk unit satuan personil (atau fallback ke primary)
+      let baseDispatch = allDispatches.find(
+        (d) => officerUnitId && d.unit_id === officerUnitId
+      );
+      if (!baseDispatch && allDispatches.length > 0) {
+        baseDispatch = allDispatches.find((d) => d.is_primary_unit) || allDispatches[0];
       }
-    } catch (_) {}
 
-    if (unacceptedDispatch) {
-      // Gunakan baris dispatch yang belum di-claim
-      await prisma.complaintDispatch.update({
-        where: { id: unacceptedDispatch.id },
-        data: {
-          dispatch_status: 'DISPATCHED',
-          dispatch_status_id: 1,
-          accepted_at: now,
-          officer_id: officer.id,
-          ...(officerDist ? { estimated_distance: officerDist } : {}),
-          ...(officerEta ? { estimated_eta: officerEta } : {}),
-        },
-      });
-    } else {
-      // Buat entri dispatch baru untuk anggota regu ke-2, ke-3, dst. sampai kuota penuh
-      await prisma.complaintDispatch.create({
-        data: {
-          complaint_id: complaintIdBig,
-          unit_id: targetUnitId,
-          officer_id: officer.id,
-          is_primary_unit: false,
-          personnel_quota: quota,
-          tactical_orders: baseDispatch.tactical_orders,
-          dispatch_status_id: 1,
-          dispatch_status: 'DISPATCHED',
-          dispatched_at: baseDispatch.dispatched_at,
-          accepted_at: now,
-          estimated_distance: officerDist,
-          estimated_eta: officerEta,
-        },
-      });
-    }
+      if (!baseDispatch) {
+        throw new Error('Disposisi penugasan tidak ditemukan pada tiket ini.');
+      }
 
-    // Jika mode broadcast kuota 1 (siapa cepat dia dapat): bersihkan entri dispatch satuan lain yang belum terisi
-    if (quota === 1 && unacceptedDispatch) {
+      const targetUnitId = baseDispatch.unit_id;
+      const quota = baseDispatch.personnel_quota || 4;
+
+      // 3. Cek apakah personil ini sudah pernah menerima tugas ini sebelumnya
+      const alreadyAccepted = allDispatches.some(
+        (d) =>
+          d.accepted_at !== null &&
+          (d.officer_id === officer.id ||
+            d.officer?.nrp === input.officerNrp ||
+            d.officer?.user?.identifier === input.officerNrp)
+      );
+
+      if (alreadyAccepted) {
+        return {
+          success: true,
+          message: 'Anda telah menerima tugas ini sebelumnya.',
+          alreadyAccepted: true,
+          quota,
+        };
+      }
+
+      // 4. Cek pembatasan kuota personil (Mode Siaran Terbuka: Siapa cepat dia dapat)
+      const anyAcceptedAcrossComplaint = allDispatches.find(
+        (d) => d.accepted_at !== null && d.officer_id !== null
+      );
+
+      if (quota === 1 && anyAcceptedAcrossComplaint) {
+        const takerName = anyAcceptedAcrossComplaint.officer?.user?.full_name || anyAcceptedAcrossComplaint.officer?.nrp || 'Personel Lain';
+        throw new Error(`Tiket ini telah diambil oleh ${takerName}. Anda tidak dapat mengambil tiket yang sama.`);
+      }
+
+      const acceptedInUnit = allDispatches.filter(
+        (d) =>
+          d.unit_id === targetUnitId &&
+          d.accepted_at !== null &&
+          d.officer_id !== null
+      );
+
+      if (acceptedInUnit.length >= quota) {
+        throw new Error(`Kuota personel untuk penugasan ini sudah terpenuhi (${acceptedInUnit.length}/${quota} personel). Tiket telah ditangani oleh personel lain.`);
+      }
+
+      // 5. Catat penerimaan tugas oleh personel ini
+      let unacceptedDispatch = allDispatches.find(
+        (d) => d.unit_id === targetUnitId && d.accepted_at === null
+      );
+      if (!unacceptedDispatch) {
+        unacceptedDispatch = allDispatches.find((d) => d.accepted_at === null);
+      }
+
+      let officerDist = baseDispatch.estimated_distance;
+      let officerEta = baseDispatch.estimated_eta;
+
       try {
-        await prisma.complaintDispatch.deleteMany({
-          where: {
-            complaint_id: complaintIdBig,
-            accepted_at: null,
-            id: { not: unacceptedDispatch.id },
+        const compLocation = await tx.complaint.findUnique({
+          where: { id: complaintIdBig },
+          select: { tkp_lat: true, tkp_lng: true },
+        });
+        if (compLocation?.tkp_lat && compLocation?.tkp_lng && officer.current_gps_lat && officer.current_gps_lng) {
+          const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+          const dKm = HaversineService.calculateDistanceKm(
+            Number(compLocation.tkp_lat),
+            Number(compLocation.tkp_lng),
+            Number(officer.current_gps_lat),
+            Number(officer.current_gps_lng)
+          );
+          officerDist = `${dKm} km`;
+          officerEta = `± ${Math.max(2, Math.round((dKm / 30) * 60))} Menit`;
+        }
+      } catch (_) {}
+
+      if (unacceptedDispatch) {
+        // Gunakan baris dispatch yang belum di-claim
+        await tx.complaintDispatch.update({
+          where: { id: unacceptedDispatch.id },
+          data: {
+            dispatch_status: 'DISPATCHED',
+            dispatch_status_id: 1,
+            accepted_at: now,
+            officer_id: officer.id,
+            ...(officerDist ? { estimated_distance: officerDist } : {}),
+            ...(officerEta ? { estimated_eta: officerEta } : {}),
           },
         });
-      } catch (_) {}
-    }
+      } else {
+        // Buat entri dispatch baru untuk anggota regu ke-2, ke-3, dst. sampai kuota penuh
+        await tx.complaintDispatch.create({
+          data: {
+            complaint_id: complaintIdBig,
+            unit_id: targetUnitId,
+            officer_id: officer.id,
+            is_primary_unit: false,
+            personnel_quota: quota,
+            tactical_orders: baseDispatch.tactical_orders,
+            dispatch_status_id: 1,
+            dispatch_status: 'DISPATCHED',
+            dispatched_at: baseDispatch.dispatched_at,
+            accepted_at: now,
+            estimated_distance: officerDist,
+            estimated_eta: officerEta,
+          },
+        });
+      }
 
-    // 6. Update status complaint menjadi 'DIPROSES' (id: 2) dan tahap = 2 (Persiapan Personil)
-    await prisma.complaint.update({
-      where: { id: complaintIdBig },
-      data: {
-        status: 'DIPROSES',
-        status_id: 2,
-        tahap: 2,
-      },
-    });
+      // Jika mode broadcast kuota 1 (siapa cepat dia dapat): bersihkan entri dispatch satuan lain yang belum terisi
+      if (quota === 1 && unacceptedDispatch) {
+        try {
+          await tx.complaintDispatch.deleteMany({
+            where: {
+              complaint_id: complaintIdBig,
+              accepted_at: null,
+              id: { not: unacceptedDispatch.id },
+            },
+          });
+        } catch (_) {}
+      }
 
-    const currentMemberCount = acceptedInUnit.length + 1;
+      // 6. Update status complaint menjadi 'DIPROSES' (id: 2) dan tahap = 2 (Persiapan Personil)
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
+        data: {
+          status: 'DIPROSES',
+          status_id: 2,
+          tahap: 2,
+        },
+      });
 
-    const actionLat = input.lat ?? (officer.current_gps_lat ? Number(officer.current_gps_lat) : null);
-    const actionLng = input.lng ?? (officer.current_gps_lng ? Number(officer.current_gps_lng) : null);
+      const currentMemberCount = acceptedInUnit.length + 1;
 
-    // 7. Catat Audit Log Append-Only
-    await prisma.complaintAuditLog.create({
-      data: {
-        complaint_id: complaintIdBig,
-        actor_name: `${officerRank} ${officerName}`.trim(),
-        actor_role: 'PERSONIL',
-        action: 'DISPATCH_ACCEPTED',
-        notes: `Disposisi Tugas Diterima Personil: Perintah disposisi taktis Pawas telah dikonfirmasi dan diterima oleh ${officerRank} ${officerName} (NRP: ${officer.nrp}) [Personel ${currentMemberCount}/${quota}]. Personel bersiap meluncur ke TKP.`,
-        action_lat: actionLat,
-        action_lng: actionLng,
-      },
+      const actionLat = input.lat ?? (officer.current_gps_lat ? Number(officer.current_gps_lat) : null);
+      const actionLng = input.lng ?? (officer.current_gps_lng ? Number(officer.current_gps_lng) : null);
+
+      // 7. Catat Audit Log Append-Only
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: `${officerRank} ${officerName}`.trim(),
+          actor_role: 'PERSONIL',
+          action: 'DISPATCH_ACCEPTED',
+          notes: `Disposisi Tugas Diterima Personil: Perintah disposisi taktis Pawas telah dikonfirmasi dan diterima oleh ${officerRank} ${officerName} (NRP: ${officer.nrp}) [Personel ${currentMemberCount}/${quota}]. Personel bersiap meluncur ke TKP.`,
+          action_lat: actionLat,
+          action_lng: actionLng,
+        },
+      });
+
+      return {
+        success: true,
+        currentCount: currentMemberCount,
+        quota,
+      };
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     safeRevalidatePath();
 
-    return {
-      success: true,
-      currentCount: currentMemberCount,
-      quota,
-    };
+    return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menerima tugas.' };
   }
@@ -1033,58 +1172,58 @@ export async function sahkanKasusPawasAction(input: {
   pawasUserId?: string;
   catatanPengesahan?: string;
 }) {
+  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
     const complaintIdBig = BigInt(input.complaintId);
 
-    await prisma.complaint.update({
-      where: { id: complaintIdBig },
-      data: {
-        status: 'SELESAI',
-        status_id: 4,
-        tahap: 5,
-      },
-    });
+    await prisma.$transaction(async (tx) => {
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
+        data: {
+          status: 'SELESAI',
+          status_id: 4,
+          tahap: 5,
+        },
+      });
 
-    // Update status dispatch
-    await prisma.complaintDispatch.updateMany({
-      where: { complaint_id: complaintIdBig },
-      data: {
-        dispatch_status: 'COMPLETED',
-        dispatch_status_id: 5,
-        completed_at: new Date(),
-      },
-    });
-    const officer = input.pawasUserId
-      ? await prisma.policeOfficer.findFirst({
-          where: { user_id: BigInt(input.pawasUserId) },
-          include: { user: true },
-        })
-      : null;
-    // Catat Audit Log
-    let sessionUser: any = null;
-      try {
-        const { getSession } = await import('@/lib/session');
-        sessionUser = await getSession();
-      } catch (_) {}
-    const actorName = sessionUser?.fullName;
-    const actorRole = sessionUser?.role;
+      // Update status dispatch
+      await tx.complaintDispatch.updateMany({
+        where: { complaint_id: complaintIdBig },
+        data: {
+          dispatch_status: 'COMPLETED',
+          dispatch_status_id: 5,
+          completed_at: new Date(),
+        },
+      });
 
-    const compLocation = await prisma.complaint.findUnique({
-      where: { id: complaintIdBig },
-      select: { tkp_lat: true, tkp_lng: true },
-    });
+      // Catat Audit Log
+      const actorName = auth.user.fullName || input.pawasNama || 'Pawas 110';
+      const actorRole = auth.user.role || 'PAWAS';
 
-    await prisma.complaintAuditLog.create({
-      data: {
-        complaint_id: complaintIdBig,
-        actor_name: actorName,
-        actor_role: actorRole,
-        action: 'COMPLAINT_COMPLETED',
-        notes: input.catatanPengesahan || 'Pengesahan BAP dan penyelesaian kasus disahkan Pawas.',
-        action_lat: compLocation?.tkp_lat ?? null,
-        action_lng: compLocation?.tkp_lng ?? null,
-      },
+      const compLocation = await tx.complaint.findUnique({
+        where: { id: complaintIdBig },
+        select: { tkp_lat: true, tkp_lng: true },
+      });
+
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action: 'COMPLAINT_COMPLETED',
+          notes: input.catatanPengesahan || 'Pengesahan BAP dan penyelesaian kasus disahkan Pawas.',
+          action_lat: compLocation?.tkp_lat ?? null,
+          action_lng: compLocation?.tkp_lng ?? null,
+        },
+      });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     safeRevalidatePath();
@@ -1105,6 +1244,11 @@ export async function scanArmadaQrAction(input: {
   aksi: 'CHECK_IN' | 'CHECK_OUT';
   catatanKondisi?: string;
 }) {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
@@ -1126,92 +1270,100 @@ export async function scanArmadaQrAction(input: {
     }
 
     if (input.aksi === 'CHECK_IN') {
-      // Perbarui sesi pemakaian
-      await prisma.patrolVehicle.update({
-        where: { id: vehicle.id },
-        data: {
-          driver_officer_id: officer.id,
-          driver_officer_nrp: officer.nrp,
-          current_lat: input.scanLat,
-          current_lng: input.scanLng,
-          status_operasional: 'PATROLI',
-          status_color: '#10B981',
-          last_heartbeat_at: new Date(),
-        },
+      const res = await prisma.$transaction(async (tx) => {
+        // Perbarui sesi pemakaian
+        await tx.patrolVehicle.update({
+          where: { id: vehicle.id },
+          data: {
+            driver_officer_id: officer.id,
+            driver_officer_nrp: officer.nrp,
+            current_lat: input.scanLat,
+            current_lng: input.scanLng,
+            status_operasional: 'PATROLI',
+            status_color: '#10B981',
+            last_heartbeat_at: new Date(),
+          },
+        });
+
+        // Update armada yang ditugaskan ke personil
+        await tx.policeOfficer.update({
+          where: { id: officer.id },
+          data: {
+            assigned_patrol_vehicle: vehicle.nomor_lambung,
+            duty_status: 'DINAS_PATROLI',
+            current_gps_lat: input.scanLat,
+            current_gps_lng: input.scanLng,
+            last_gps_heartbeat_at: new Date(),
+          },
+        });
+
+        // Catat log sesi pemakaian
+        await tx.vehicleUsageLog.create({
+          data: {
+            vehicle_id: vehicle.id,
+            officer_id: officer.id,
+            check_in_lat: input.scanLat,
+            check_in_lng: input.scanLng,
+            status_sesi: 'ACTIVE',
+            catatan_kondisi: input.catatanKondisi || '',
+          },
+        });
+
+        return {
+          success: true,
+          message: `✓ Berhasil Check-in! Anda resmi mengawaki armada ${vehicle.nama_armada} (${vehicle.nomor_lambung}).`,
+          data: { vehicle, officer: { nrp: officer.nrp, nama: officer.user.full_name } },
+        };
       });
 
-      // Update armada yang ditugaskan ke personil
-      await prisma.policeOfficer.update({
-        where: { id: officer.id },
-        data: {
-          assigned_patrol_vehicle: vehicle.nomor_lambung,
-          duty_status: 'DINAS_PATROLI',
-          current_gps_lat: input.scanLat,
-          current_gps_lng: input.scanLng,
-          last_gps_heartbeat_at: new Date(),
-        },
-      });
-
-      // Catat log sesi pemakaian
-      await prisma.vehicleUsageLog.create({
-        data: {
-          vehicle_id: vehicle.id,
-          officer_id: officer.id,
-          check_in_lat: input.scanLat,
-          check_in_lng: input.scanLng,
-          status_sesi: 'ACTIVE',
-          catatan_kondisi: input.catatanKondisi || '',
-        },
-      });
-
-      return {
-        success: true,
-        message: `✓ Berhasil Check-in! Anda resmi mengawaki armada ${vehicle.nama_armada} (${vehicle.nomor_lambung}).`,
-        data: { vehicle, officer: { nrp: officer.nrp, nama: officer.user.full_name } },
-      };
+      return res;
     } else {
       // CHECK_OUT
-      await prisma.patrolVehicle.update({
-        where: { id: vehicle.id },
-        data: {
-          driver_officer_id: null,
-          driver_officer_nrp: null,
-          current_lat: input.scanLat,
-          current_lng: input.scanLng,
-          status_operasional: 'SIAGA',
-          status_color: '#2563EB',
-          last_heartbeat_at: new Date(),
-        },
+      const res = await prisma.$transaction(async (tx) => {
+        await tx.patrolVehicle.update({
+          where: { id: vehicle.id },
+          data: {
+            driver_officer_id: null,
+            driver_officer_nrp: null,
+            current_lat: input.scanLat,
+            current_lng: input.scanLng,
+            status_operasional: 'SIAGA',
+            status_color: '#2563EB',
+            last_heartbeat_at: new Date(),
+          },
+        });
+
+        await tx.policeOfficer.update({
+          where: { id: officer.id },
+          data: {
+            assigned_patrol_vehicle: null,
+            duty_status: 'LEPAS_DINAS',
+          },
+        });
+
+        // Tutup sesi pemakaian aktif
+        await tx.vehicleUsageLog.updateMany({
+          where: {
+            vehicle_id: vehicle.id,
+            officer_id: officer.id,
+            status_sesi: 'ACTIVE',
+          },
+          data: {
+            check_out_at: new Date(),
+            check_out_lat: input.scanLat,
+            check_out_lng: input.scanLng,
+            status_sesi: 'COMPLETED',
+            catatan_kondisi: input.catatanKondisi,
+          },
+        });
+
+        return {
+          success: true,
+          message: `✓ Berhasil Check-out! Armada ${vehicle.nomor_lambung} telah dilepas dan siap untuk piket selanjutnya.`,
+        };
       });
 
-      await prisma.policeOfficer.update({
-        where: { id: officer.id },
-        data: {
-          assigned_patrol_vehicle: null,
-          duty_status: 'LEPAS_DINAS',
-        },
-      });
-
-      // Tutup sesi pemakaian aktif
-      await prisma.vehicleUsageLog.updateMany({
-        where: {
-          vehicle_id: vehicle.id,
-          officer_id: officer.id,
-          status_sesi: 'ACTIVE',
-        },
-        data: {
-          check_out_at: new Date(),
-          check_out_lat: input.scanLat,
-          check_out_lng: input.scanLng,
-          status_sesi: 'COMPLETED',
-          catatan_kondisi: input.catatanKondisi,
-        },
-      });
-
-      return {
-        success: true,
-        message: `✓ Berhasil Check-out! Armada ${vehicle.nomor_lambung} telah dilepas dan siap untuk piket selanjutnya.`,
-      };
+      return res;
     }
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal memproses pemindaian armada.' };

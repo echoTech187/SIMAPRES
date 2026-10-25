@@ -21,6 +21,10 @@ import {
   X,
   Sparkles,
 } from 'lucide-react';
+import {
+  searchIndonesianLocations,
+  type LocationSuggestionItem,
+} from '@/lib/indonesian-location-search';
 
 const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
@@ -57,25 +61,7 @@ interface SubcategoryItem {
   category_rel?: { id: number | string; key: string; label: string };
 }
 
-const FALLBACK_SUBCATEGORIES: SubcategoryItem[] = [
-  { id: 90001, category_key: 'LAKALANTAS', nama_kasus: 'Kecelakaan Lalu Lintas dengan Korban', default_urgensi: 'DARURAT' },
-  { id: 90003, category_key: 'LAKALANTAS', nama_kasus: 'Kecelakaan Lalu Lintas Kerugian Materiil', default_urgensi: 'SEDANG' },
-  { id: 90005, category_key: 'LAKALANTAS', nama_kasus: 'Penindakan Balap Liar / Knalpot Brong', default_urgensi: 'DARURAT' },
-  { id: 90010, category_key: 'KRIMINALITAS', nama_kasus: 'Pencurian dengan Kekerasan / Begal (Curas)', default_urgensi: 'DARURAT' },
-  { id: 90011, category_key: 'KRIMINALITAS', nama_kasus: 'Pencurian Kendaraan Bermotor (Curanmor)', default_urgensi: 'DARURAT' },
-  { id: 90012, category_key: 'KRIMINALITAS', nama_kasus: 'Penganiayaan / Pengeroyokan', default_urgensi: 'DARURAT' },
-  { id: 90013, category_key: 'KRIMINALITAS', nama_kasus: 'Pencurian / Pembobolan Rumah', default_urgensi: 'SEDANG' },
-  { id: 90014, category_key: 'KRIMINALITAS', nama_kasus: 'Penipuan / Penggelapan', default_urgensi: 'SEDANG' },
-  { id: 90020, category_key: 'KAMTIBMAS', nama_kasus: 'Tawuran Antar Kelompok / Warga', default_urgensi: 'DARURAT' },
-  { id: 90021, category_key: 'KAMTIBMAS', nama_kasus: 'Gangguan Ketertiban Umum / Keributan Warga', default_urgensi: 'SEDANG' },
-  { id: 90022, category_key: 'KAMTIBMAS', nama_kasus: 'Pesta Miras & Gangguan Keamanan Lingkungan', default_urgensi: 'SEDANG' },
-  { id: 90023, category_key: 'KAMTIBMAS', nama_kasus: 'Pungutan Liar / Tindak Premanisme', default_urgensi: 'SEDANG' },
-  { id: 90030, category_key: 'NARKOBA', nama_kasus: 'Penyalahgunaan / Transaksi Narkotika', default_urgensi: 'DARURAT' },
-  { id: 90040, category_key: 'BENCANA', nama_kasus: 'Bencana Kebakaran Pemukiman / Lahan', default_urgensi: 'DARURAT' },
-  { id: 90041, category_key: 'BENCANA', nama_kasus: 'Bencana Banjir / Pohon Tumbang Menutup Jalan', default_urgensi: 'SEDANG' },
-  { id: 90050, category_key: 'PELAYANAN', nama_kasus: 'Permohonan Pengawalan & Pengamanan Kegiatan Warga', default_urgensi: 'NORMAL' },
-  { id: 90051, category_key: 'PELAYANAN', nama_kasus: 'Laporan Orang / Barang Hilang', default_urgensi: 'NORMAL' },
-];
+
 
 export default function PortalWargaPage() {
   // Master Data Collections from MySQL
@@ -150,7 +136,7 @@ export default function PortalWargaPage() {
 
   // 2. Daftar Subkategori Gabungan (Prioritaskan Database, dengan Fallback Lengkap)
   const subcategoryList = useMemo(() => {
-    return subcategories.length > 0 ? subcategories : FALLBACK_SUBCATEGORIES;
+    return subcategories.length > 0 ? subcategories : [];
   }, [subcategories]);
 
   const categoryLabelMap: Record<string, string> = {
@@ -187,35 +173,19 @@ export default function PortalWargaPage() {
     setIsSearchingLocation(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const encoded = encodeURIComponent(query.trim());
-        const res = await fetch(`https://photon.komoot.io/api/?q=${encoded}&limit=5`);
-        if (res.ok) {
-          const data = await res.json();
-          const items = (data?.features || []).map((feat: any) => {
-            const p = feat.properties || {};
-            const coords = feat.geometry?.coordinates || [0, 0];
-            const title = p.name || p.street || query;
-            const subParts = [p.street, p.district, p.city].filter((part) => part && part !== title);
-            const sub = subParts.join(', ');
-            const fullParts = [p.name, p.street, p.district, p.city].filter(Boolean);
-            const full = Array.from(new Set(fullParts)).join(', ') || title;
-            return {
-              label: title,
-              subLabel: sub,
-              fullAddress: full,
-              lat: Number(coords[1].toFixed(6)),
-              lng: Number(coords[0].toFixed(6)),
-            };
-          });
-          setLocationSuggestions(items);
-          setShowSuggestions(items.length > 0);
-        }
+        const items = await searchIndonesianLocations(query, {
+          lat: lat || undefined,
+          lng: lng || undefined,
+          limit: 1000,
+        });
+        setLocationSuggestions(items);
+        setShowSuggestions(items.length > 0);
       } catch (err) {
         console.warn('Geocoding query error:', err);
       } finally {
         setIsSearchingLocation(false);
       }
-    }, 300);
+    }, 200);
   };
 
   const handleSelectSuggestion = (item: { fullAddress: string; lat: number; lng: number }) => {
@@ -242,21 +212,6 @@ export default function PortalWargaPage() {
         setLng(curLng);
         setHasValidGps(true);
         setIsLocating(false);
-
-        // Reverse Geocode
-        try {
-          const revRes = await fetch(
-            `https://photon.komoot.io/reverse?lat=${curLat}&lon=${curLng}`
-          );
-          if (revRes.ok) {
-            const revData = await revRes.json();
-            const feat = revData?.features?.[0]?.properties;
-            if (feat) {
-              const full = [feat.name, feat.street, feat.district, feat.city].filter(Boolean).join(', ');
-              if (full) setLokasi(full);
-            }
-          }
-        } catch (_) { }
       },
       (err) => {
         setIsLocating(false);
@@ -660,7 +615,7 @@ export default function PortalWargaPage() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmitComplaint}>
+              <form id="form-aduan-warga" data-testid="form-aduan-warga" onSubmit={handleSubmitComplaint}>
                 {/* Bagian 1: Data Diri Pelapor */}
                 <div className="form-section-block">
                   <div className="section-badge-header">
@@ -677,6 +632,8 @@ export default function PortalWargaPage() {
                         Nama Lengkap <span className="label-required">*</span>
                       </label>
                       <input
+                        id="input-nama-pelapor"
+                        data-testid="input-nama-pelapor"
                         type="text"
                         required
                         placeholder="Contoh: Budi Santoso"
@@ -691,6 +648,8 @@ export default function PortalWargaPage() {
                         Nomor WhatsApp / HP Aktif <span className="label-required">*</span>
                       </label>
                       <input
+                        id="input-telp-pelapor"
+                        data-testid="input-telp-pelapor"
                         type="tel"
                         required
                         placeholder="Contoh: 081234567890"
@@ -717,6 +676,8 @@ export default function PortalWargaPage() {
                       Jenis Kasus / Peristiwa <span className="label-required">*</span>
                     </label>
                     <select
+                      id="select-kategori-kasus"
+                      data-testid="select-kategori-kasus"
                       required
                       value={selectedSubcategoryId || ''}
                       onChange={(e) => {
@@ -759,6 +720,8 @@ export default function PortalWargaPage() {
                       Alamat Lengkap / Patokan TKP <span className="label-required">*</span>
                     </label>
                     <input
+                      id="input-alamat-tkp"
+                      data-testid="input-alamat-tkp"
                       type="text"
                       required
                       placeholder="Ketik nama jalan, RT/RW, atau patokan gedung..."
@@ -864,6 +827,8 @@ export default function PortalWargaPage() {
                       Uraian Keterangan Kejadian <span className="label-required">*</span>
                     </label>
                     <textarea
+                      id="input-uraian-kejadian"
+                      data-testid="input-uraian-kejadian"
                       required
                       rows={3}
                       placeholder="Jelaskan secara singkat apa yang terjadi, ciri-ciri pelaku/korban, atau situasi terkini di TKP..."
@@ -909,6 +874,8 @@ export default function PortalWargaPage() {
 
                 {/* Submit CTA */}
                 <button
+                  id="btn-submit-aduan"
+                  data-testid="btn-submit-aduan"
                   type="submit"
                   disabled={isSubmitting}
                   className="btn-submit-complaint"

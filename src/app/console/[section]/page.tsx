@@ -23,6 +23,8 @@ const sectionTitleMap: Record<string, string> = {
   operator: 'Operator CAD 110',
   wizard: 'Wizard Penanganan Kasus',
   tolak: 'Penolakan Laporan',
+  panduan: 'Buku Pintar SOP & Panduan Layanan',
+  faq: 'Buku Pintar SOP & Panduan Layanan',
   // Master Data Tabs Superadmin
   unit: 'Pendaftaran & Satuan Unit',
   pangkat: 'Master Pangkat Kepolisian',
@@ -37,6 +39,8 @@ const sectionTitleMap: Record<string, string> = {
   duty: 'Master Status Kedinasan',
   lokasi_penyelesaian: 'Master Lokasi Penyelesaian Perkara',
   dokumen_penyelesaian: 'Master Jenis Dokumen & Bukti Penyelesaian',
+  knowledge_faq: 'Master Buku Pintar SOP & Layanan Warga',
+  master_faq: 'Master Buku Pintar SOP & Layanan Warga',
 };
 
 export async function generateMetadata({ params }: { params?: { section?: string } }) {

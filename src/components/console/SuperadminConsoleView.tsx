@@ -36,26 +36,30 @@ function parseSuperadminTab(section?: string): SuperadminTab {
   if (clean === 'profil' || clean === 'profile' || clean === 'view-profil') {
     return 'profil';
   }
-  if (
-    [
-      'pangkat',
-      'satuan',
-      'role',
-      'station',
-      'armada',
-      'hotspot',
-      'hotspot_cat',
-      'kategori',
-      'subkategori',
-      'duty',
-      'lokasi_penyelesaian',
-      'dokumen_penyelesaian',
-    ].includes(clean)
-  ) {
-    return clean as MasterTabType;
+    if (
+      [
+        'pangkat',
+        'satuan',
+        'role',
+        'station',
+        'armada',
+        'hotspot',
+        'hotspot_cat',
+        'kategori',
+        'subkategori',
+        'duty',
+        'lokasi_penyelesaian',
+        'dokumen_penyelesaian',
+        'knowledge_faq',
+      ].includes(clean)
+    ) {
+      return clean as MasterTabType;
+    }
+    if (['faq', 'panduan', 'master_faq', 'buku_pintar', 'sop'].includes(clean)) {
+      return 'knowledge_faq';
+    }
+    return 'unit';
   }
-  return 'unit';
-}
 
 export default function SuperadminConsoleView({
   session,
@@ -104,6 +108,7 @@ export default function SuperadminConsoleView({
     dutyStatuses: 0,
     resolutionLocations: 0,
     resolutionDocuments: 0,
+    knowledgeFaqs: 12,
   });
 
   // Switch Tab & Sync URL Bar
@@ -470,6 +475,7 @@ export default function SuperadminConsoleView({
             margin: '0 auto',
             display: 'flex',
             alignItems: 'center',
+            gap: '8px',
             overflowX: 'auto',
             scrollbarWidth: 'none',
           }}
@@ -786,6 +792,42 @@ export default function SuperadminConsoleView({
               }}
             >
               {counters.subcategories || 44}
+            </span>
+          </button>
+
+          {/* TAB: MASTER BUKU PINTAR SOP & FAQ LAYANAN */}
+          <button
+            type="button"
+            id="superadmin-tab-faq"
+            onClick={() => switchTab('knowledge_faq')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'knowledge_faq' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'knowledge_faq' ? 'white' : '#475569',
+              border: activeTab === 'knowledge_faq' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>📖 Buku Pintar SOP</span>
+            <span
+              style={{
+                background: activeTab === 'knowledge_faq' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'knowledge_faq' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              {(counters as any).knowledgeFaqs || 12}
             </span>
           </button>
 

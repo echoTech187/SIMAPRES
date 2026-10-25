@@ -814,6 +814,7 @@ export default function LiveCameraWatermarkCapture({
             <button
               type="button"
               id="btn-buka-kamera-live"
+              data-testid="btn-buka-kamera-live"
               onClick={() => startCamera()}
               disabled={isProcessing}
               style={{
@@ -866,6 +867,8 @@ export default function LiveCameraWatermarkCapture({
 
           {/* KOTAK VIEWFINDER KAMERA (HANYA BERISI VIDEO & WATERMARK OVERLAY) */}
           <div
+            id="kamera-live-watermark"
+            data-testid="kamera-live-watermark"
             style={{
               position: 'relative',
               borderRadius: '8px',
@@ -1044,7 +1047,8 @@ export default function LiveCameraWatermarkCapture({
             </button>
             <button
               type="button"
-              id="btn-bidik-foto"
+              id="btn-capture-foto"
+              data-testid="btn-capture-foto"
               onClick={takeSnapshot}
               style={{
                 padding: '11px 26px',
@@ -1167,6 +1171,7 @@ export default function LiveCameraWatermarkCapture({
             <button
               type="button"
               id="btn-ambil-ulang-foto"
+              data-testid="btn-ambil-ulang-foto"
               onClick={handleRetake}
               style={{
                 padding: '8px 16px',

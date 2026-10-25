@@ -55,13 +55,15 @@ async function loadTrackingData(
     SELECT 
       c.id, c.nomor_tiket, c.status, c.tahap, c.urgensi, c.pelapor_nama, c.pelapor_hp,
       c.jenis_kejadian, c.ringkasan_keterangan, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng,
-      c.created_at, c.updated_at,
+      c.station_id, c.created_at, c.updated_at,
+      st.station_name, st.station_code, st.address AS station_address,
       d.id AS dispatch_id, d.dispatch_status, d.accepted_at, d.departed_at, d.arrived_at, d.completed_at,
       o.id AS officer_id, o.nrp, o.rank_pangkat, o.jabatan, o.assigned_patrol_vehicle,
       o.current_gps_lat, o.current_gps_lng, o.avatar_url,
       u.full_name, u.phone_number,
       un.id AS unit_id, un.unit_name, un.short_name
     FROM complaints c
+    LEFT JOIN police_stations st ON st.id = c.station_id
     LEFT JOIN complaint_dispatches d ON d.complaint_id = c.id
     LEFT JOIN police_officers o ON o.id = d.officer_id
     LEFT JOIN users u ON u.id = o.user_id
@@ -77,8 +79,8 @@ async function loadTrackingData(
   const first = rows[0];
   const compId = first.id;
 
-  // 2. Chat, fallback audit log, catatan penyelesaian, dan ulasan warga (citizen_reviews) diambil paralel
-  const [rawChats, legacyChatLogs, finishLogs, citizenReviewRows] = await Promise.all([
+  // 2. Chat, fallback audit log, catatan penyelesaian, ulasan warga, dan log disposisi lintas wilayah diambil paralel
+  const [rawChats, legacyChatLogs, finishLogs, citizenReviewRows, transferLogs] = await Promise.all([
     prisma
       .$queryRawUnsafe<any[]>(
         `SELECT id, sender_role, sender_name, officer_nrp, message_text, created_at
@@ -108,6 +110,13 @@ async function loadTrackingData(
       SELECT star_rating, feedback_tags, review_text
       FROM citizen_reviews
       WHERE complaint_id = ${compId}
+      LIMIT 1
+    `.catch(() => [] as any[]),
+    prisma.$queryRaw<any[]>`
+      SELECT id, notes, actor_name, created_at
+      FROM complaint_audit_logs
+      WHERE complaint_id = ${compId} AND action = 'DISPOSISI_LINTAS_WILAYAH'
+      ORDER BY id DESC
       LIMIT 1
     `.catch(() => [] as any[]),
   ]);
@@ -273,7 +282,32 @@ async function loadTrackingData(
   const rawTiba = primaryDispatch?.arrivedAt || primaryDispatch?.arrived_at || null;
   const rawSelesai = primaryDispatch?.completedAt || primaryDispatch?.completed_at || null;
 
-  // 4. Format Serialized Complaint
+  // 4. Deteksi Disposisi Lintas Wilayah / Boundary Transfer
+  const transferLog = transferLogs && transferLogs.length > 0 ? transferLogs[0] : null;
+  const isCrossJurisdiction = first.status === 'DISPOSISI_LINTAS_WILAYAH' || Boolean(transferLog);
+  const crossJurisdiction = isCrossJurisdiction
+    ? {
+        isCrossJurisdiction: true,
+        targetStationId: first.station_id ? Number(first.station_id) : 210001,
+        targetStationName: first.station_name || 'Polresta Batang',
+        targetStationCode: first.station_code || 'POLRESTA_BATANG',
+        targetStationAddress: first.station_address || 'Jl. Gajah Mada No.200, Batang',
+        targetStationHotline:
+          first.station_code === 'POLRESTA_BATANG'
+            ? '0285-391110'
+            : first.station_code === 'POLRES_PEKALONGAN_KOTA'
+            ? '0285-422110'
+            : '110',
+        notes:
+          transferLog?.notes ||
+          'Laporan Anda telah dialihkan ke yurisdiksi kepolisian terdekat demi respons taktis dan percepatan penanganan lapangan.',
+        transferredAt: transferLog?.created_at
+          ? new Date(transferLog.created_at).toISOString()
+          : new Date(first.updated_at || first.created_at).toISOString(),
+      }
+    : null;
+
+  // 5. Format Serialized Complaint
   const serialized = serializeBigInt({
     id: String(first.id),
     nomorTiket: first.nomor_tiket,
@@ -289,6 +323,11 @@ async function loadTrackingData(
     tkpAlamatTeks: first.tkp_alamat_teks,
     tkpLat: first.tkp_lat ? Number(first.tkp_lat) : null,
     tkpLng: first.tkp_lng ? Number(first.tkp_lng) : null,
+    stationId: first.station_id ? Number(first.station_id) : null,
+    stationName: first.station_name || null,
+    stationCode: first.station_code || null,
+    crossJurisdiction,
+    isCrossJurisdiction,
     waktuLaporan: first.created_at,
     createdAt: first.created_at,
     assignedOfficer: primaryOfficer,

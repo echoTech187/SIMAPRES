@@ -2,14 +2,31 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { loadGoogleMaps } from './SimapresGoogleMap';
+import { resolveIndonesianAddress, LocationSuggestionItem } from '@/lib/indonesian-location-search';
+
+export interface SearchResultMarkerItem {
+  id?: string | number;
+  lat: number;
+  lng: number;
+  label: string;
+  subLabel?: string;
+  fullAddress?: string;
+  isPoliceStation?: boolean;
+  stationType?: string;
+  distanceKm?: number;
+  distanceText?: string;
+}
 
 interface MiniMapPickerProps {
   lat: number;
   lng: number;
   onChange: (lat: number, lng: number) => void;
   onAddressChange?: (address: string) => void;
+  onCenterChange?: (center: { lat: number; lng: number }) => void;
   height?: string;
   fallbackCenter?: { lat: number; lng: number };
+  searchResultMarkers?: SearchResultMarkerItem[];
+  onSelectSearchResultMarker?: (marker: SearchResultMarkerItem) => void;
 }
 
 // Default coordinates for Mako Polres Pekalongan / Area Operasional Presisi
@@ -33,60 +50,28 @@ export default function MiniMapPicker({
   lng,
   onChange,
   onAddressChange,
+  onCenterChange,
   height = '220px',
   fallbackCenter,
+  searchResultMarkers,
+  onSelectSearchResultMarker,
 }: MiniMapPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const mapsRef = useRef<any>(null);
+  const searchMarkersRef = useRef<any[]>([]);
+  const infoWindowRef = useRef<any>(null);
 
   const geocodeLatLng = useCallback(
     async (targetLat: number, targetLng: number, mapsInstance?: any) => {
       if (!onAddressChange || !isValidMapCoord(targetLat, targetLng)) return;
-      let resolved = false;
-      const maps = mapsInstance || mapsRef.current;
-
-      // 1. Coba Google Geocoder jika API aktif
-      if (maps?.Geocoder) {
-        try {
-          const geocoder = new maps.Geocoder();
-          await new Promise<void>((res) => {
-            geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
-              if (status === 'OK' && results && results[0]) {
-                onAddressChange(results[0].formatted_address);
-                resolved = true;
-              }
-              res();
-            });
-          });
-        } catch (_) {}
-      }
-
-      // 2. Fallback otomatis ke reverse geocoder berkecepatan tinggi jika tanpa Google Key
-      if (!resolved) {
-        try {
-          const res = await fetch(`https://photon.komoot.io/reverse?lat=${targetLat}&lon=${targetLng}`);
-          if (res.ok) {
-            const data = await res.json();
-            const feat = data?.features?.[0]?.properties;
-            if (feat) {
-              const parts = [
-                feat.name,
-                feat.street,
-                feat.district,
-                feat.city,
-                feat.state,
-              ].filter(Boolean);
-              const uniqueParts = Array.from(new Set(parts));
-              const formatted = uniqueParts.join(', ');
-              if (formatted) {
-                onAddressChange(formatted);
-              }
-            }
-          }
-        } catch (_) {}
-      }
+      try {
+        const addr = await resolveIndonesianAddress(targetLat, targetLng);
+        if (addr) {
+          onAddressChange(addr);
+        }
+      } catch (_) {}
     },
     [onAddressChange]
   );
@@ -101,6 +86,7 @@ export default function MiniMapPicker({
     loadGoogleMaps().then((maps) => {
       if (!isSubscribed || !maps || !containerRef.current) return;
       mapsRef.current = maps;
+      infoWindowRef.current = new maps.InfoWindow();
 
       const hasCoords = isValidMapCoord(lat, lng);
       const initialCenter = hasCoords
@@ -153,6 +139,7 @@ export default function MiniMapPicker({
             draggable: true,
             animation: maps.Animation.DROP,
             title: 'Geser pin atau klik peta untuk menentukan titik koordinat',
+            zIndex: 999,
           });
           marker.addListener('dragend', (e: any) => {
             const draggedPos = e.latLng;
@@ -213,6 +200,20 @@ export default function MiniMapPicker({
         geocodeLatLng(newLat, newLng, maps);
       });
 
+      // Event map viewport idle (report current center for proximity search)
+      map.addListener('idle', () => {
+        if (onCenterChange) {
+          const c = map.getCenter();
+          if (c) {
+            const cLat = Number(c.lat().toFixed(6));
+            const cLng = Number(c.lng().toFixed(6));
+            if (isValidMapCoord(cLat, cLng)) {
+              onCenterChange({ lat: cLat, lng: cLng });
+            }
+          }
+        }
+      });
+
       return () => {
         if (dismissInterval) clearInterval(dismissInterval);
         clearTimeout(dismissStopTimeout);
@@ -232,6 +233,8 @@ export default function MiniMapPicker({
       if (markerRef.current) {
         markerRef.current.setMap(null);
       }
+      searchMarkersRef.current.forEach((m) => m.setMap(null));
+      searchMarkersRef.current = [];
     };
   }, []);
 
@@ -251,6 +254,7 @@ export default function MiniMapPicker({
             draggable: true,
             animation: maps.Animation.DROP,
             title: 'Geser pin atau klik peta untuk menentukan titik koordinat',
+            zIndex: 999,
           });
           marker.addListener('dragend', (e: any) => {
             const draggedPos = e.latLng;
@@ -272,6 +276,114 @@ export default function MiniMapPicker({
     }
   }, [lat, lng, onChange, geocodeLatLng]);
 
+  // Google Maps-Style: Render Multiple Search Result Pins on the Map
+  useEffect(() => {
+    if (!mapRef.current || !mapsRef.current) return;
+    const maps = mapsRef.current;
+    const map = mapRef.current;
+
+    // Clear old search markers
+    searchMarkersRef.current.forEach((m) => m.setMap(null));
+    searchMarkersRef.current = [];
+
+    if (!searchResultMarkers || searchResultMarkers.length === 0) return;
+
+    searchResultMarkers.forEach((item, idx) => {
+      if (!isValidMapCoord(item.lat, item.lng)) return;
+
+      // Custom SVG Marker Icon like Google Maps red pin with police shield badge
+      const isPolice = item.isPoliceStation;
+      const svgIcon = isPolice
+        ? {
+            url:
+              'data:image/svg+xml;utf-8,' +
+              encodeURIComponent(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="44" viewBox="0 0 36 44">
+                  <defs>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feDropShadow dx="0" dy="3" stdDeviation="2" flood-color="#000000" flood-opacity="0.35"/>
+                    </filter>
+                  </defs>
+                  <path d="M18 1C8.6 1 1 8.6 1 18c0 12.8 17 25 17 25s17-12.2 17-25C35 8.6 27.4 1 18 1z" fill="#DC2626" stroke="#FFFFFF" stroke-width="2" filter="url(#shadow)"/>
+                  <circle cx="18" cy="17" r="10.5" fill="#FFFFFF"/>
+                  <path d="M18 9.5l5.5 2.5v4.5c0 4-2.8 6.8-5.5 8-2.7-1.2-5.5-4-5.5-8V12l5.5-2.5z" fill="#1D4ED8"/>
+                  <path d="M18 12.5l2.8 1.3v2.2c0 2-1.4 3.4-2.8 4-1.4-.6-2.8-2-2.8-4v-2.2l2.8-1.3z" fill="#FBBF24"/>
+                </svg>
+              `),
+            scaledSize: new maps.Size(32, 40),
+            anchor: new maps.Point(16, 40),
+          }
+        : {
+            url:
+              'data:image/svg+xml;utf-8,' +
+              encodeURIComponent(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="38" viewBox="0 0 30 38">
+                  <path d="M15 1C7.3 1 1 7.3 1 15c0 10.5 14 22 14 22s14-11.5 14-22C29 7.3 22.7 1 15 1z" fill="#EA580C" stroke="#FFFFFF" stroke-width="2"/>
+                  <circle cx="15" cy="14" r="5" fill="#FFFFFF"/>
+                </svg>
+              `),
+            scaledSize: new maps.Size(26, 34),
+            anchor: new maps.Point(13, 34),
+          };
+
+      const marker = new maps.Marker({
+        position: { lat: item.lat, lng: item.lng },
+        map,
+        icon: svgIcon,
+        title: item.label,
+        zIndex: 500 + idx,
+      });
+
+      marker.addListener('click', () => {
+        if (infoWindowRef.current) {
+          const btnId = `pick-pin-btn-${idx}`;
+          const content = `
+            <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 4px; min-width: 200px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                <span style="background: ${isPolice ? '#1D4ED8' : '#EA580C'}; color: #FFFFFF; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px;">
+                  ${isPolice ? 'KANTOR POLISI' : 'LOKASI'}
+                </span>
+                ${item.distanceText ? `<span style="background: #ECFDF5; color: #047857; font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; border: 1px solid #A7F3D0;">${item.distanceText}</span>` : ''}
+              </div>
+              <div style="font-weight: 800; font-size: 13px; color: #0F172A; line-height: 1.3;">${item.label}</div>
+              <div style="font-size: 11px; color: #64748B; margin: 4px 0 8px; line-height: 1.3;">${item.fullAddress || item.subLabel || ''}</div>
+              <button id="${btnId}" style="background: #2563EB; color: #FFFFFF; border: none; border-radius: 6px; padding: 6px 12px; font-size: 11px; font-weight: 700; cursor: pointer; width: 100%; box-shadow: 0 2px 4px rgba(37,99,235,0.3);">
+                ✓ Pilih & Kunci Titik Ini
+              </button>
+            </div>
+          `;
+          infoWindowRef.current.setContent(content);
+          infoWindowRef.current.open(map, marker);
+
+          // Hook button inside InfoWindow
+          setTimeout(() => {
+            const btn = document.getElementById(btnId);
+            if (btn) {
+              btn.onclick = () => {
+                infoWindowRef.current.close();
+                if (onSelectSearchResultMarker) {
+                  onSelectSearchResultMarker(item);
+                } else {
+                  onChange(item.lat, item.lng);
+                  if (onAddressChange && item.fullAddress) {
+                    onAddressChange(item.fullAddress);
+                  }
+                }
+              };
+            }
+          }, 100);
+        }
+
+        // Also trigger select when pin itself is clicked
+        if (onSelectSearchResultMarker) {
+          onSelectSearchResultMarker(item);
+        }
+      });
+
+      searchMarkersRef.current.push(marker);
+    });
+  }, [searchResultMarkers, onChange, onAddressChange, onSelectSearchResultMarker]);
+
   const handleCenterGps = () => {
     if (typeof window !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
@@ -291,6 +403,7 @@ export default function MiniMapPicker({
                 draggable: true,
                 animation: mapsRef.current.Animation.DROP,
                 title: 'Geser pin atau klik peta untuk menentukan titik koordinat',
+                zIndex: 999,
               });
               marker.addListener('dragend', (e: any) => {
                 const draggedPos = e.latLng;
