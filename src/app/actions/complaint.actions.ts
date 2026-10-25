@@ -211,7 +211,7 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
   error?: string;
   data?: any;
 }> {
-  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
@@ -339,8 +339,8 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
       }
 
       // Catat Audit Log Lengkap dengan Catatan Wilayah & Timer
-      const actorName = auth.user.fullName || 'Operator CAD 110';
-      const actorRole = auth.user.role || 'PAWAS';
+      const actorName = auth.user.fullName ? auth.user.fullName : 'Operator CAD 110';
+      const actorRole = auth.user.role ? auth.user.role : 'OPERATOR';
       const stationInfo = targetStation ? `Wilayah: ${targetStation.station_name}` : `Sektor: ${resolvedSektor}`;
       const urgensiInfo = `Urgensi: ${urgensi}${deadlineMinutes ? ` (Timer Eskalasi: ${deadlineMinutes} Menit)` : ''}`;
 
@@ -615,7 +615,7 @@ export async function dispatchComplaintAction(input: {
   pawasUserId: string;
   arahanPawas?: string;
 }) {
-  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
@@ -642,7 +642,7 @@ export async function assignComplaintAction(input: {
   pawasUserId?: string;
   arahanPawas?: string;
 }) {
-  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
@@ -888,7 +888,7 @@ export async function updateComplaintStatusAction(input: {
   catatan?: string;
   pawasUserId?: string;
 }) {
-  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
@@ -1036,7 +1036,7 @@ export async function disposisiMultiSatuanAction(input: {
   estimatedDistance?: string | null;
   estimatedEta?: string | null;
 }) {
-  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
@@ -1130,8 +1130,8 @@ export async function disposisiMultiSatuanAction(input: {
       }
 
       // 3. Catat Audit Log Append-Only
-      const actorName = auth.user.fullName || input.pawasNama || 'Pawas 110';
-      const actorRole = auth.user.role || 'PAWAS';
+      const actorName = auth.user.fullName ? auth.user.fullName : (input.pawasNama ? input.pawasNama : 'Petugas 110');
+      const actorRole = auth.user.role ? auth.user.role : 'OPERATOR';
 
       await tx.complaintAuditLog.create({
         data: {
@@ -1166,7 +1166,7 @@ export async function transferComplaintCrossJurisdictionAction(input: {
   notes?: string;
   actorName?: string;
 }) {
-  const auth = await requireRole(['PAWAS', 'SUPERADMIN']);
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
@@ -1210,8 +1210,8 @@ export async function transferComplaintCrossJurisdictionAction(input: {
       });
 
       // 2. Audit Trail Resmi
-      const actorName = input.actorName || auth.user?.fullName || 'Operator/Pawas CAD';
-      const actorRole = auth.user?.role || 'PAWAS';
+      const actorName = input.actorName ? input.actorName : (auth.user?.fullName ? auth.user.fullName : 'Operator/Pawas CAD');
+      const actorRole = auth.user?.role ? auth.user.role : 'OPERATOR';
 
       await tx.complaintAuditLog.create({
         data: {
@@ -1520,8 +1520,8 @@ export async function sahkanKasusPawasAction(input: {
       });
 
       // Catat Audit Log
-      const actorName = auth.user.fullName || input.pawasNama || 'Pawas 110';
-      const actorRole = auth.user.role || 'PAWAS';
+      const actorName = auth.user.fullName ? auth.user.fullName : (input.pawasNama ? input.pawasNama : 'Pawas 110');
+      const actorRole = auth.user.role ? auth.user.role : 'PAWAS';
 
       const compLocation = await tx.complaint.findUnique({
         where: { id: complaintIdBig },

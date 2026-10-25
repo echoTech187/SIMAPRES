@@ -234,7 +234,7 @@ export async function getRegisteredUnitsAction() {
         off.duty_status === 'DINAS_PATROLI' ||
         off.duty_status === 'PIKET_SPKT' ||
         off.duty_status === 'SIAGA';
-      const userRole = off.user?.role || 'PERSONIL';
+      const userRole = off.user?.role ? off.user.role : 'PERSONIL';
       const rawFullName = off.user?.full_name || off.nrp;
       const unitCode = off.unit?.key || (off.unit_id ? off.unit_id.toString() : '');
       const unitTitle = off.unit?.unit_name || off.jabatan || '';
@@ -288,7 +288,11 @@ export async function registerNewUnitAction(input: {
   liveLng?: number;
 }) {
   try {
-    const assignedRole = input.role || 'PERSONIL';
+    const assignedRole = input.role ? input.role.trim().toUpperCase() : 'PERSONIL';
+    const masterRoleRecord = await prisma.masterRole.findFirst({
+      where: { key: assignedRole },
+    }).catch(() => null);
+    const assignedRoleId = masterRoleRecord ? masterRoleRecord.id : null;
     let parsedStationId = input.stationId ? Number(input.stationId) : null;
     if (!parsedStationId) {
       const defaultSt = await prisma.policeStation.findFirst({
@@ -367,6 +371,7 @@ export async function registerNewUnitAction(input: {
           identifier: input.nrp.trim(),
           full_name: input.nama.trim(),
           role: assignedRole,
+          role_id: assignedRoleId,
           station_id: parsedStationId,
         };
         if (hashedPassword) {
@@ -385,6 +390,7 @@ export async function registerNewUnitAction(input: {
             full_name: input.nama.trim(),
             phone_number: '',
             role: assignedRole,
+            role_id: assignedRoleId,
             station_id: parsedStationId,
           },
         });
@@ -480,6 +486,7 @@ export async function registerNewUnitAction(input: {
       update: {
         full_name: input.nama.trim(),
         role: assignedRole,
+        role_id: assignedRoleId,
         password_hash: passHash,
         station_id: parsedStationId,
       },
@@ -488,7 +495,8 @@ export async function registerNewUnitAction(input: {
         password_hash: passHash,
         full_name: input.nama.trim(),
         phone_number: '',
-        role: assignedRole || '',
+        role: assignedRole,
+        role_id: assignedRoleId,
         station_id: parsedStationId,
       },
     });
@@ -733,7 +741,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
 
     if (!user && !officerProfile) return { success: false, error: 'Data personel tidak ditemukan.' };
 
-    const roleStr = user?.role?.toLowerCase() || 'personil';
+    const roleStr = user?.role ? user.role.toLowerCase() : 'personil';
 
     const kpiScore = officerProfile?.kpi_score
       ? Number(officerProfile.kpi_score)

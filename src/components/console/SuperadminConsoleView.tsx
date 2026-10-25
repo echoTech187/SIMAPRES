@@ -417,28 +417,22 @@ export default function SuperadminConsoleView({
       u.stationName?.toLowerCase().includes(q) ||
       u.deviceID?.toLowerCase().includes(q);
 
-    const matchSatuan = filterSatuan === 'all' || u.unitId?.toLowerCase() === filterSatuan.toLowerCase();
-    const matchRole = filterRole === 'all' || (u.role || 'PERSONIL').toUpperCase() === filterRole.toUpperCase();
-    const matchMako = filterMako === 'all' || String(u.stationId) === String(filterMako) || u.stationCode?.toLowerCase() === filterMako.toLowerCase();
+    const matchSatuan = filterSatuan === 'all' ? true : (u.unitId ? u.unitId.toLowerCase() === filterSatuan.toLowerCase() : false);
+    const matchRole = filterRole === 'all' ? true : (u.role ? u.role.toUpperCase() === filterRole.toUpperCase() : false);
+    const matchMako = filterMako === 'all' ? true : String(u.stationId) === String(filterMako) ? true : (u.stationCode ? u.stationCode.toLowerCase() === filterMako.toLowerCase() : false);
     return matchSearch && matchSatuan && matchRole && matchMako;
   });
 
   const getRoleBadgeInfo = (roleStr?: string) => {
-    const r = (roleStr || 'PERSONIL').toUpperCase();
+    const r = roleStr ? roleStr.toUpperCase() : 'PERSONIL';
     const masterRole = masterItems.find(
-      (m) => m.tipe === 'role' && m.code?.toUpperCase() === r
+      (m) => m.tipe === 'role' && m.code === r
     );
-    const label = masterRole?.label || roleStr || 'Anggota';
+    const label = masterRole ? masterRole.label : (roleStr ? roleStr : 'Anggota');
 
-    if (r === 'PAWAS') {
-      return { className: 'badge-role role-pawas', icon: '👑', label };
-    }
-    if (r === 'OPERATOR_110' || r.includes('OPERATOR')) {
-      return { className: 'badge-role role-operator', icon: '🎧', label };
-    }
-    if (r === 'SUPERADMIN') {
-      return { className: 'badge-role role-superadmin', icon: '⚡', label };
-    }
+    if (r === 'SUPERADMIN') return { className: 'badge-role role-superadmin', icon: '⚡', label };
+    if (r === 'PAWAS') return { className: 'badge-role role-pawas', icon: '👑', label };
+    if (r === 'OPERATOR') return { className: 'badge-role role-operator', icon: '🎧', label };
     return { className: 'badge-role role-personil', icon: '👮', label };
   };
 

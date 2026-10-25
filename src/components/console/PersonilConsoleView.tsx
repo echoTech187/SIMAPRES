@@ -304,7 +304,7 @@ function PersonilContent({
         // PENTING: Hanya akun dengan role PERSONIL dan menggunakan HP lapangan terdaftar (hasil scan QR)
         // yang berhak menerima modal notifikasi panggilan tugas darurat & berbunyi sirine.
         // Role PAWAS, SUPERADMIN, atau perangkat Laptop dinonaktifkan sepenuhnya dari popup ini.
-        const isUserPersonilRole = (session?.role || 'PERSONIL').toUpperCase() === 'PERSONIL';
+        const isUserPersonilRole = session?.role ? session.role.toUpperCase() === 'PERSONIL' : false;
 
         if (pending && isOfficerOnDuty && isPairedDeviceRef.current && isUserPersonilRole) {
           setPendingAcceptTask(pending);

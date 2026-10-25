@@ -72,21 +72,15 @@ export default function TabUnitPersonel({
   }, [initialMasterItems]);
 
   const getRoleBadgeInfo = (roleStr?: string) => {
-    const r = (roleStr || 'PERSONIL').toUpperCase();
+    const r = roleStr ? roleStr.toUpperCase() : 'PERSONIL';
     const masterRole = masterItems.find(
-      (m) => m.tipe === 'role' && m.code?.toUpperCase() === r
+      (m) => m.tipe === 'role' && m.code === r
     );
-    const label = masterRole?.label || roleStr || 'Anggota';
+    const label = masterRole ? masterRole.label : (roleStr ? roleStr : 'Anggota');
 
-    if (r === 'PAWAS') {
-      return { className: 'badge-role role-pawas', icon: '👑', label };
-    }
-    if (r === 'OPERATOR_110' || r.includes('OPERATOR')) {
-      return { className: 'badge-role role-operator', icon: '🎧', label };
-    }
-    if (r === 'SUPERADMIN') {
-      return { className: 'badge-role role-superadmin', icon: '⚡', label };
-    }
+    if (r === 'SUPERADMIN') return { className: 'badge-role role-superadmin', icon: '⚡', label };
+    if (r === 'PAWAS') return { className: 'badge-role role-pawas', icon: '👑', label };
+    if (r === 'OPERATOR') return { className: 'badge-role role-operator', icon: '🎧', label };
     return { className: 'badge-role role-personil', icon: '👮', label };
   };
 
@@ -108,13 +102,13 @@ export default function TabUnitPersonel({
     const res = await registerNewUnitAction({
       nrp: formData.nrp.trim(),
       nama: formData.nama.trim(),
-      pangkat: formData.pangkat || '',
-      role: formData.role || 'PERSONIL',
-      unitId: formData.unitId || '',
-      satuanNama: formData.satuanNama || '',
-      kelompokRegu: formData.kelompokRegu || '',
+      pangkat: formData.pangkat ? formData.pangkat : '',
+      role: formData.role ? formData.role : '',
+      unitId: formData.unitId ? formData.unitId : '',
+      satuanNama: formData.satuanNama ? formData.satuanNama : '',
+      kelompokRegu: formData.kelompokRegu ? formData.kelompokRegu : '',
       stationId: formData.stationId ? Number(formData.stationId) : null,
-      deviceID: formData.deviceId?.trim() || undefined,
+      deviceID: formData.deviceId?.trim() ? formData.deviceId.trim() : undefined,
       liveLat: 0,
       liveLng: 0,
     });
@@ -128,17 +122,17 @@ export default function TabUnitPersonel({
   const handleUpdate = async (id: number | string, formData: any) => {
     const res = await registerNewUnitAction({
       editId: String(id),
-      oldNrp: formData.oldNrp || formData.nrp,
+      oldNrp: formData.oldNrp ? formData.oldNrp : formData.nrp,
       nrp: formData.nrp.trim(),
       nama: formData.nama.trim(),
-      pangkat: formData.pangkat || '',
-      role: formData.role || 'PERSONIL',
-      unitId: formData.unitId || '',
-      satuanNama: formData.satuanNama || '',
-      kelompokRegu: formData.kelompokRegu || '',
+      pangkat: formData.pangkat ? formData.pangkat : '',
+      role: formData.role ? formData.role : '',
+      unitId: formData.unitId ? formData.unitId : '',
+      satuanNama: formData.satuanNama ? formData.satuanNama : '',
+      kelompokRegu: formData.kelompokRegu ? formData.kelompokRegu : '',
       stationId: formData.stationId ? Number(formData.stationId) : null,
       password: formData.password?.trim() ? formData.password.trim() : undefined,
-      deviceID: formData.deviceId || undefined,
+      deviceID: formData.deviceId ? formData.deviceId : undefined,
       liveLat: 0,
       liveLng: 0,
     });
@@ -151,7 +145,7 @@ export default function TabUnitPersonel({
 
   const handleDelete = async (id: number | string) => {
     const target = units.find((u) => u.id === id || String(u.id) === String(id) || u.nrp === id);
-    const targetId = target?.id || target?.nrp || id;
+    const targetId = target?.id ? target.id : (target?.nrp ? target.nrp : id);
     const res = await deleteRegisteredUnitAction(targetId);
     if (res?.success) {
       await loadData();
@@ -167,23 +161,25 @@ export default function TabUnitPersonel({
     nrp: u.nrp ?? '',
     nama: u.nama ?? '',
     pangkat: u.pangkat ?? '',
-    role: u.role ?? 'PERSONIL',
+    role: u.role ?? '',
     unitId: u.unitId ?? '',
     satuanNama: u.satuanNama ?? '',
     kelompokRegu: u.kelompokRegu ?? '',
     stationId: u.stationId ? String(u.stationId) : '',
     password: '',
-    deviceId: u.deviceID || '',
+    deviceId: u.deviceID ? u.deviceID : '',
   });
 
   // Filter berdasarkan Satuan, Mako, Role
   const filteredUnits = units.filter((u) => {
-    const matchSatuan = filterSatuan === 'all' || u.unitId?.toLowerCase() === filterSatuan.toLowerCase();
-    const matchRole = filterRole === 'all' || (u.role || 'PERSONIL').toUpperCase() === filterRole.toUpperCase();
+    const matchSatuan = filterSatuan === 'all' ? true : (u.unitId ? u.unitId.toLowerCase() === filterSatuan.toLowerCase() : false);
+    const matchRole = filterRole === 'all' ? true : (u.role ? u.role.toUpperCase() === filterRole.toUpperCase() : false);
     const matchMako =
-      filterMako === 'all' ||
-      String(u.stationId) === String(filterMako) ||
-      (u.stationCode && String(u.stationCode).toLowerCase() === String(filterMako).toLowerCase());
+      filterMako === 'all'
+        ? true
+        : String(u.stationId) === String(filterMako)
+        ? true
+        : (u.stationCode ? String(u.stationCode).toLowerCase() === String(filterMako).toLowerCase() : false);
     return matchSatuan && matchRole && matchMako;
   });
 
@@ -259,12 +255,12 @@ export default function TabUnitPersonel({
                   .filter((m) => m.tipe === 'role')
                   .map((m) => {
                     const icon =
-                      m.code === 'PAWAS'
-                        ? '👑'
-                        : m.code === 'OPERATOR_110' || m.code?.includes('OPERATOR')
-                        ? '🎧'
-                        : m.code === 'SUPERADMIN'
+                      m.code === 'SUPERADMIN'
                         ? '⚡'
+                        : m.code === 'PAWAS'
+                        ? '👑'
+                        : m.code === 'OPERATOR'
+                        ? '🎧'
                         : '👮';
                     return {
                       value: m.code,
@@ -446,12 +442,12 @@ export default function TabUnitPersonel({
                     .filter((m) => m.tipe === 'role')
                     .map((m) => {
                       const icon =
-                        m.code === 'PAWAS'
-                          ? '👑'
-                          : m.code === 'OPERATOR_110' || m.code?.includes('OPERATOR')
-                          ? '🎧'
-                          : m.code === 'SUPERADMIN'
+                        m.code === 'SUPERADMIN'
                           ? '⚡'
+                          : m.code === 'PAWAS'
+                          ? '👑'
+                          : m.code === 'OPERATOR'
+                          ? '🎧'
                           : '👮';
                       return {
                         value: m.code,

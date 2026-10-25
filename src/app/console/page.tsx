@@ -10,6 +10,8 @@ import SuperadminConsoleView from '@/components/console/SuperadminConsoleView';
 import PawasConsoleView from '@/components/console/PawasConsoleView';
 import PersonilConsoleView from '@/components/console/PersonilConsoleView';
 
+import OperatorConsoleView from '@/components/console/OperatorConsoleView';
+
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -45,12 +47,13 @@ export default async function ConsolePage({
     redirect('/?alert=unauthenticated&from=/console');
   }
 
-  const section = searchParams?.page || searchParams?.tab || 'beranda';
+  const section = searchParams?.page ? searchParams.page : (searchParams?.tab ? searchParams.tab : (session.role === 'OPERATOR' ? 'operator' : 'beranda'));
 
   // 2. Pre-fetch targeted data secara paralel langsung di Server (RSC) per-role
   let initialMasterData: any = null;
   let initialSuperadminData: any = null;
   let initialPawasData: any = null;
+  let initialOperatorData: any = null;
   let initialComplaints: any[] = [];
   let initialOfficer: any = null;
   let initialPoliceOffices: any[] = [];
@@ -75,12 +78,18 @@ export default async function ConsolePage({
       initialPawasData = pawasRes.data;
       initialMasterData = pawasRes.data.filterData;
     }
+  } else if (session.role === 'OPERATOR') {
+    const opRes = await getPawasUnifiedDataAction();
+    if (opRes.success && opRes.data) {
+      initialOperatorData = opRes.data;
+      initialMasterData = opRes.data.filterData;
+    }
   } else {
     const masterRes = await getMasterFilterOptionsAction();
     initialMasterData = masterRes.success ? masterRes.data : null;
 
     if (session.role === 'PERSONIL') {
-      const targetNrp = searchParams?.nrp || session.identifier;
+      const targetNrp = searchParams?.nrp ? searchParams.nrp : session.identifier;
       const [cRes, pRes, poRes, fleetRes, hotRes] = await Promise.all([
         getOfficerComplaintsAction(targetNrp),
         getOfficerProfileByNrpAction(targetNrp),
@@ -124,6 +133,14 @@ export default async function ConsolePage({
           initialSection={section}
           initialMasterData={initialMasterData}
           initialPawasData={initialPawasData}
+        />
+      )}
+      {session.role === 'OPERATOR' && (
+        <OperatorConsoleView
+          session={session}
+          initialSection={section}
+          initialMasterData={initialMasterData}
+          initialOperatorData={initialOperatorData}
         />
       )}
       {session.role === 'PERSONIL' && (

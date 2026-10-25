@@ -49,10 +49,7 @@ export default function HeaderProfileBadge({
   className,
 }: HeaderProfileBadgeProps) {
   // Superadmin tidak menampilkan lonceng, role lain menampilkannya secara default
-  const isSuperadmin =
-    role?.toLowerCase() === 'superadmin' ||
-    role?.toLowerCase() === 'super_admin' ||
-    role?.toLowerCase() === 'administrator';
+  const isSuperadmin = role ? role.toUpperCase() === 'SUPERADMIN' : false;
 
   const shouldShowBell = showBell !== undefined ? showBell : !isSuperadmin;
 

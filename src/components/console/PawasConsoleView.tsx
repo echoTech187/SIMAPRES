@@ -112,8 +112,8 @@ function getSopRecommendationByIncident(item: any, dbSubcategories: any[] = []) 
   };
 }
 
-function parsePawasTab(tabOrSection?: string | null, roleParam?: string | null): PawasTab {
-  const t = (tabOrSection || '').toLowerCase().trim();
+function parsePawasTab(tabOrSection?: string | null): PawasTab {
+  const t = tabOrSection ? tabOrSection.toLowerCase().trim() : '';
   switch (t) {
     case 'peta':
     case 'map':
@@ -128,8 +128,6 @@ function parsePawasTab(tabOrSection?: string | null, roleParam?: string | null):
       return 'view-laporan';
     case 'profil':
       return 'view-profil';
-    case 'operator':
-      return 'view-operator';
     case 'buat-pengaduan':
     case 'buat-log':
     case 'log':
@@ -142,7 +140,7 @@ function parsePawasTab(tabOrSection?: string | null, roleParam?: string | null):
       return 'view-panduan';
     case 'beranda':
     default:
-      return roleParam === 'operator' ? 'view-operator' : 'view-beranda';
+      return 'view-beranda';
   }
 }
 
@@ -183,8 +181,7 @@ function CommandCenterContent({
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const roleParam = searchParams.get('role');
-  const nrpParam = searchParams.get('nrp') || session?.identifier;
+  const nrpParam = searchParams.get('nrp') ? searchParams.get('nrp') : session?.identifier;
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -192,10 +189,10 @@ function CommandCenterContent({
       const parts = window.location.pathname.split('/').filter(Boolean);
       const last = parts[parts.length - 1];
       if (parts[0] === 'console' && parts.length > 1) {
-        return parsePawasTab(last, roleParam);
+        return parsePawasTab(last);
       }
     }
-    return parsePawasTab(initialSection, roleParam);
+    return parsePawasTab(initialSection);
   });
 
   // User Profile
@@ -203,15 +200,15 @@ function CommandCenterContent({
     if (session) {
       return {
         ...session,
-        fullName: session.fullName ,
-        identifier: session.identifier,
-        nrp: session.identifier,
-        pangkat: session.rankPangkat ,
-        satuanNama: session.satuanNama,
-        unit: session.satuanNama,
-        role: session.role,
-        roleBadge: session.roleBadge,
-        avatar: session.avatar || session.avatar_url || null,
+        fullName: session.fullName ? session.fullName : '',
+        identifier: session.identifier ? session.identifier : '',
+        nrp: session.identifier ? session.identifier : '',
+        pangkat: session.rankPangkat ? session.rankPangkat : '',
+        satuanNama: session.satuanNama ? session.satuanNama : '',
+        unit: session.satuanNama ? session.satuanNama : '',
+        role: session.role ? session.role : 'PAWAS',
+        roleBadge: 'PAWAS',
+        avatar: session.avatar ? session.avatar : (session.avatar_url ? session.avatar_url : null),
       };
     }
     return {
@@ -221,8 +218,8 @@ function CommandCenterContent({
       pangkat: '',
       satuanNama: '',
       unit: '',
-      role: '',
-      roleBadge: '',
+      role: 'PAWAS',
+      roleBadge: 'PAWAS',
       avatar: null,
     };
   });
@@ -591,9 +588,9 @@ function CommandCenterContent({
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search) {
       const qParams = new URLSearchParams(window.location.search);
-      const tabQ = qParams.get('tab') || qParams.get('page');
+      const tabQ = qParams.get('tab') ? qParams.get('tab') : qParams.get('page');
       if (tabQ) {
-        const matchedTab = parsePawasTab(tabQ, roleParam);
+        const matchedTab = parsePawasTab(tabQ);
         setActiveTab(matchedTab);
         const slug = pawasTabToSlug(matchedTab);
         window.history.replaceState(null, '', slug ? `/console/${slug}` : '/console');
@@ -627,41 +624,36 @@ function CommandCenterContent({
       if (stored) sessionUser = JSON.parse(stored);
     } catch {}
 
-    const effectiveRole = roleParam || sessionUser?.role || session?.role || '';
-    const effectiveNrp = nrpParam || sessionUser?.nrp || session?.identifier || '';
+    const effectiveNrp = nrpParam ? nrpParam : (sessionUser?.nrp ? sessionUser.nrp : (session?.identifier ? session.identifier : ''));
 
     if (sessionUser && sessionUser.fullName) {
-      const isOp = effectiveRole === 'operator' || sessionUser.role === 'operator';
       setUserProfile((prev: any) => ({
         ...prev,
         ...sessionUser,
-        fullName: sessionUser.fullName || sessionUser.nama || prev.fullName,
-        identifier: sessionUser.nrp || sessionUser.identifier || prev.identifier,
-        nrp: sessionUser.nrp || sessionUser.identifier || prev.nrp,
-        pangkat: sessionUser.pangkat || prev.pangkat,
-        role: sessionUser.role || prev.role,
-        roleBadge: isOp ? 'OPERATOR' : sessionUser.role,
-        title: isOp ? 'Operator SPKT 110' : sessionUser.role,
-        avatar: sessionUser.avatar || prev.avatar,
+        fullName: sessionUser.fullName ? sessionUser.fullName : (sessionUser.nama ? sessionUser.nama : prev.fullName),
+        identifier: sessionUser.nrp ? sessionUser.nrp : (sessionUser.identifier ? sessionUser.identifier : prev.identifier),
+        nrp: sessionUser.nrp ? sessionUser.nrp : (sessionUser.identifier ? sessionUser.identifier : prev.nrp),
+        pangkat: sessionUser.pangkat ? sessionUser.pangkat : prev.pangkat,
+        role: 'PAWAS',
+        roleBadge: 'PAWAS',
+        title: 'Perwira Pengawas (Pawas)',
+        avatar: sessionUser.avatar ? sessionUser.avatar : prev.avatar,
       }));
-      if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
     } else if (effectiveNrp && !session?.fullName) {
       getOfficerProfileByNrpAction(effectiveNrp).then((res) => {
         if (res?.success && res?.data) {
-          const isOp = effectiveRole === 'operator' || res.data.role === 'operator';
           setUserProfile((prev: any) => ({
             ...prev,
-            fullName: res.data.nama || res.data.namaLengkap || prev.fullName,
-            nrp: res.data.nrp || prev.nrp,
-            identifier: res.data.nrp || prev.identifier,
-            pangkat: res.data.pangkat || res.data.rankPangkat || prev.pangkat,
-            unit: res.data.satuanNama || prev.unit,
-            role: res.data.role || prev.role,
-            roleBadge: isOp ? 'OPERATOR' : res.data.role,
-            title: isOp ? 'Operator SPKT 110' : res.data.role,
-            avatar: res.data.avatarUrl || prev.avatar,
+            fullName: res.data.nama ? res.data.nama : (res.data.namaLengkap ? res.data.namaLengkap : prev.fullName),
+            nrp: res.data.nrp ? res.data.nrp : prev.nrp,
+            identifier: res.data.nrp ? res.data.nrp : prev.identifier,
+            pangkat: res.data.pangkat ? res.data.pangkat : (res.data.rankPangkat ? res.data.rankPangkat : prev.pangkat),
+            unit: res.data.satuanNama ? res.data.satuanNama : prev.unit,
+            role: 'PAWAS',
+            roleBadge: 'PAWAS',
+            title: 'Perwira Pengawas (Pawas)',
+            avatar: res.data.avatarUrl ? res.data.avatarUrl : prev.avatar,
           }));
-          if (isOp && initialSection === 'beranda') setActiveTab('view-operator');
         }
       });
     }
@@ -669,7 +661,7 @@ function CommandCenterContent({
     if (!dataLoadedRef.current) {
       loadData();
     }
-  }, [roleParam, nrpParam]);
+  }, [nrpParam]);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -677,7 +669,7 @@ function CommandCenterContent({
         const parts = window.location.pathname.split('/').filter(Boolean);
         const last = parts[parts.length - 1];
         if (parts[0] === 'console' && parts.length > 1) {
-          setActiveTab(parsePawasTab(last, roleParam));
+          setActiveTab(parsePawasTab(last));
         } else {
           setActiveTab('view-beranda');
         }
@@ -685,7 +677,7 @@ function CommandCenterContent({
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [roleParam]);
+  }, []);
 
   useEffect(() => {
     if (activeTab !== 'view-peta') return;
@@ -1534,7 +1526,7 @@ function CommandCenterContent({
           <HeaderProfileBadge
             name={userProfile.fullName || 'AKBP Bambang Wijaya, S.I.K., M.Si.'}
             identifier={userProfile.identifier || userProfile.nrp || '78091122'}
-            role={userProfile.roleBadge || 'PAWAS'}
+            role={userProfile.roleBadge ? userProfile.roleBadge : 'PAWAS'}
             avatar={userProfile.avatar || null}
             isActive={activeTab === 'view-profil'}
             hasNotification={menungguCount > 0}
@@ -1605,59 +1597,37 @@ function CommandCenterContent({
               <span>Peta Taktis</span>
             </button>
 
-            {/* TAB 3: ROLE-AWARE (Komando / Operator 110 / Buat Log) */}
-            {roleParam === 'operator' ? (
-              <button
-                type="button"
-                id="nav-operator"
-                onClick={() => switchTab('view-operator')}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px',
-                  padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
-                  background: activeTab === 'view-operator' ? '#153E75' : '#F8FAFC',
-                  color: activeTab === 'view-operator' ? 'white' : '#475569',
-                  border: activeTab === 'view-operator' ? '1px solid #153E75' : '1px solid #E2E8F0',
-                }}
-              >
-                <Headphones size={15} strokeWidth={2.2} />
-                <span>Operator 110</span>
-              </button>
-            ) : roleParam === 'personel' ? (
-              <button
-                type="button"
-                id="nav-log"
-                onClick={() => switchTab('view-log')}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px',
-                  padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
-                  background: activeTab === 'view-log' ? '#153E75' : '#F8FAFC',
-                  color: activeTab === 'view-log' ? 'white' : '#475569',
-                  border: activeTab === 'view-log' ? '1px solid #153E75' : '1px solid #E2E8F0',
-                }}
-              >
-                <PlusCircle size={15} strokeWidth={2.2} />
-                <span>Buat Log</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                id="nav-validasi"
-                onClick={() => switchTab('view-validasi')}
-                style={{
-                  display: 'inline-flex', alignItems: 'center', gap: '8px',
-                  padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
-                  cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
-                  background: activeTab === 'view-validasi' ? '#153E75' : '#F8FAFC',
-                  color: activeTab === 'view-validasi' ? 'white' : '#475569',
-                  border: activeTab === 'view-validasi' ? '1px solid #153E75' : '1px solid #E2E8F0',
-                }}
-              >
-                <ShieldAlert size={15} strokeWidth={2.2} />
-                <span>Komando Pawas</span>
-              </button>
-            )}
+            {/* TAB: KOMANDO & VALIDASI PAWAS */}
+            <button
+              type="button"
+              id="nav-validasi"
+              onClick={() => switchTab('view-validasi')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-validasi' ? '#153E75' : '#F8FAFC',
+                color: activeTab === 'view-validasi' ? 'white' : '#475569',
+                border: activeTab === 'view-validasi' ? '1px solid #153E75' : '1px solid #E2E8F0',
+              }}
+            >
+              <ShieldAlert size={15} strokeWidth={2.2} />
+              <span>Komando Pawas</span>
+              {pengesahanCount > 0 && (
+                <span
+                  style={{
+                    background: activeTab === 'view-validasi' ? '#EF4444' : '#DC2626',
+                    color: 'white',
+                    fontSize: '10.5px',
+                    fontWeight: 800,
+                    padding: '1px 6px',
+                    borderRadius: '10px',
+                  }}
+                >
+                  {pengesahanCount}
+                </span>
+              )}
+            </button>
 
             {/* TAB: KINERJA */}
             <button
@@ -1956,41 +1926,17 @@ function CommandCenterContent({
           <span className="nav-label">Peta</span>
         </div>
 
-        {/* TAB: ROLE-AWARE (Komando Pawas / Operator 110 / Buat Log) - Elevated Center Action Button */}
-        {roleParam === 'operator' ? (
-          <div
-            id="pawas-bottom-nav-operator"
-            className={`nav-item nav-item-center ${activeTab === 'view-operator' ? 'active' : ''}`}
-            onClick={() => switchTab('view-operator')}
-            title="Operator 110"
-          >
-            <div className="nav-center-btn">
-              <Headphones size={22} color="#FFFFFF" strokeWidth={2.4} />
-            </div>
+        {/* TAB: KOMANDO PAWAS - Elevated Center Action Button */}
+        <div
+          id="pawas-bottom-nav-komando"
+          className={`nav-item nav-item-center ${activeTab === 'view-validasi' ? 'active' : ''}`}
+          onClick={() => switchTab('view-validasi')}
+          title="Komando Pawas"
+        >
+          <div className="nav-center-btn">
+            <ShieldAlert size={23} color="#FFFFFF" strokeWidth={2.4} />
           </div>
-        ) : roleParam === 'personel' ? (
-          <div
-            id="pawas-bottom-nav-log"
-            className={`nav-item nav-item-center ${activeTab === 'view-log' ? 'active' : ''}`}
-            onClick={() => switchTab('view-log')}
-            title="Buat Log"
-          >
-            <div className="nav-center-btn">
-              <Plus size={24} color="#FFFFFF" strokeWidth={2.8} />
-            </div>
-          </div>
-        ) : (
-          <div
-            id="pawas-bottom-nav-komando"
-            className={`nav-item nav-item-center ${activeTab === 'view-validasi' ? 'active' : ''}`}
-            onClick={() => switchTab('view-validasi')}
-            title="Komando Pawas"
-          >
-            <div className="nav-center-btn">
-              <ShieldAlert size={23} color="#FFFFFF" strokeWidth={2.4} />
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* TAB: KINERJA */}
         <div

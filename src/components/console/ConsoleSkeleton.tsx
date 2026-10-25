@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function ConsoleSkeleton({ role = 'PAWAS' }: { role?: 'SUPERADMIN' | 'PAWAS' | 'PERSONIL' | string }) {
+export function ConsoleSkeleton({ role = 'PAWAS' }: { role?: 'SUPERADMIN' | 'PAWAS' | 'OPERATOR' | 'PERSONIL' | string }) {
   return (
     <div
       style={{

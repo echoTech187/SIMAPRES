@@ -1,6 +1,6 @@
 // SIMAPRES 110 - Cryptographic Session Token (Edge & Node Compatible, No next/headers dependency)
 
-export type UserRole = 'SUPERADMIN' | 'PAWAS' | 'PERSONIL';
+export type UserRole = 'SUPERADMIN' | 'PAWAS' | 'OPERATOR' | 'PERSONIL';
 
 export interface SessionPayload {
   userId: string;

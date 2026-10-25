@@ -9,6 +9,7 @@ import { ConsoleSkeleton } from '@/components/console/ConsoleSkeleton';
 import SuperadminConsoleView from '@/components/console/SuperadminConsoleView';
 import PawasConsoleView from '@/components/console/PawasConsoleView';
 import PersonilConsoleView from '@/components/console/PersonilConsoleView';
+import OperatorConsoleView from '@/components/console/OperatorConsoleView';
 
 const sectionTitleMap: Record<string, string> = {
   beranda: 'Beranda Operasional',
@@ -47,8 +48,8 @@ const sectionTitleMap: Record<string, string> = {
 };
 
 export async function generateMetadata({ params }: { params?: { section?: string } }) {
-  const section = params?.section?.toLowerCase() || 'beranda';
-  const title = sectionTitleMap[section] || 'Konsol Operasional';
+  const section = params?.section ? params.section.toLowerCase() : 'beranda';
+  const title = sectionTitleMap[section] ? sectionTitleMap[section] : 'Konsol Operasional';
   return {
     title: `${title} - SIMOPMAS 110`,
     description: `Pusat Operasional SIMOPMAS 110: ${title}`,
@@ -77,12 +78,12 @@ export default async function ConsoleSectionPage({
   // 1. Verifikasi Autentikasi Server-Side
   const session = await getSession();
 
-  const currentSection = params?.section || 'beranda';
+  const currentSection = params?.section ? params.section : 'beranda';
   if (!session) {
     redirect(`/?alert=unauthenticated&from=/console/${encodeURIComponent(currentSection)}`);
   }
 
-  const section = params?.section?.toLowerCase() || searchParams?.page || searchParams?.tab || 'beranda';
+  const section = params?.section?.toLowerCase() ? params.section.toLowerCase() : (searchParams?.page ? searchParams.page : (searchParams?.tab ? searchParams.tab : 'beranda'));
   if (section === 'fuel_claim_status') {
     redirect('/console/audit_bbm');
   }
@@ -91,6 +92,7 @@ export default async function ConsoleSectionPage({
   let initialMasterData: any = null;
   let initialSuperadminData: any = null;
   let initialPawasData: any = null;
+  let initialOperatorData: any = null;
   let initialComplaints: any[] = [];
   let initialOfficer: any = null;
   let initialPoliceOffices: any[] = [];
@@ -114,12 +116,18 @@ export default async function ConsoleSectionPage({
       initialPawasData = pawasRes.data;
       initialMasterData = pawasRes.data.filterData;
     }
+  } else if (session.role === 'OPERATOR') {
+    const opRes = await getPawasUnifiedDataAction();
+    if (opRes.success && opRes.data) {
+      initialOperatorData = opRes.data;
+      initialMasterData = opRes.data.filterData;
+    }
   } else {
     const masterRes = await getMasterFilterOptionsAction();
     initialMasterData = masterRes.success ? masterRes.data : null;
 
     if (session.role === 'PERSONIL') {
-      const targetNrp = searchParams?.nrp || session.identifier;
+      const targetNrp = searchParams?.nrp ? searchParams.nrp : session.identifier;
       const [cRes, pRes, poRes, fleetRes, hotRes] = await Promise.all([
         getOfficerComplaintsAction(targetNrp),
         getOfficerProfileByNrpAction(targetNrp),
@@ -163,6 +171,14 @@ export default async function ConsoleSectionPage({
           initialSection={section}
           initialMasterData={initialMasterData}
           initialPawasData={initialPawasData}
+        />
+      )}
+      {session.role === 'OPERATOR' && (
+        <OperatorConsoleView
+          session={session}
+          initialSection={section}
+          initialMasterData={initialMasterData}
+          initialOperatorData={initialOperatorData}
         />
       )}
       {session.role === 'PERSONIL' && (

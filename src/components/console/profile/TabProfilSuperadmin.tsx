@@ -1064,16 +1064,26 @@ export default function TabProfilSuperadmin({
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '10.5px', fontWeight: 700, color: '#93C5FD', textTransform: 'uppercase' }}>
-                  {currentUser?.pangkat || '-'}
+                  {currentUser?.pangkat ? currentUser.pangkat : '-'}
                 </div>
                 <h3 style={{ fontSize: '16px', color: '#FFFFFF', fontWeight: 800, margin: '2px 0 3px', lineHeight: 1.25 }}>
-                  {currentUser?.fullName || currentUser?.nama || '-'}
+                  {currentUser?.fullName ? currentUser.fullName : (currentUser?.nama ? currentUser.nama : '-')}
                 </h3>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#FDE68A', fontFamily: 'monospace' }}>
-                  NRP: {currentUser?.identifier || currentUser?.nrp || '-'}
+                  NRP: {currentUser?.identifier ? currentUser.identifier : (currentUser?.nrp ? currentUser.nrp : '-')}
                 </div>
                 <div style={{ fontSize: '10.5px', color: '#E2E8F0', marginTop: '3px' }}>
-                  {currentUser?.jabatan || roleTitle || (currentUser?.role === 'PAWAS' || roleBadge === 'PAWAS' ? 'Perwira Pengawas (PAWAS) • Posko Pengendalian' : 'Pusat Komando & Pengendalian Operasional (Superadmin Pusat)')}
+                  {currentUser?.jabatan
+                    ? currentUser.jabatan
+                    : (roleTitle
+                    ? roleTitle
+                    : (currentUser?.role === 'PAWAS' || roleBadge === 'PAWAS'
+                    ? 'Perwira Pengawas (PAWAS) • Posko Pengendalian'
+                    : (currentUser?.role === 'OPERATOR' || roleBadge === 'OPERATOR'
+                    ? 'Operator SPKT • Pelayanan 110 & CAD'
+                    : (currentUser?.role === 'PERSONIL' || roleBadge === 'PERSONIL'
+                    ? 'Anggota Patroli Lapangan'
+                    : 'Pusat Komando & Pengendalian Operasional (Superadmin Pusat)'))))}
                 </div>
               </div>
             </div>

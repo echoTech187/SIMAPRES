@@ -85,7 +85,7 @@ export async function requireRole(
   if (!session) {
     // Fallback khusus untuk automated headless scripts di environment non-production jika disetel bypass
     if (process.env.NODE_ENV !== 'production' && process.env.SIMAPRES_BYPASS_AUTH === 'true') {
-      const mockRole = (process.env.SIMAPRES_MOCK_ROLE as UserRole) || 'SUPERADMIN';
+      const mockRole = process.env.SIMAPRES_MOCK_ROLE ? (process.env.SIMAPRES_MOCK_ROLE as UserRole) : 'SUPERADMIN';
       return {
         authorized: true,
         user: {
