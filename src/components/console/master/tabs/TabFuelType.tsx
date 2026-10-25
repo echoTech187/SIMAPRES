@@ -51,7 +51,6 @@ export default function TabFuelType({ lookups, showToast, onRefreshDropdowns }: 
     key: item.key ?? '',
     label: item.label ?? '',
     default_price_per_liter: Number(item.default_price_per_liter || 6800.0),
-    icon_emoji: item.icon_emoji ?? '⛽',
     display_order: item.display_order ?? 1,
     is_active: item.is_active !== undefined ? item.is_active : true,
   });
@@ -80,7 +79,6 @@ export default function TabFuelType({ lookups, showToast, onRefreshDropdowns }: 
           header: 'JENIS BBM',
           render: (item) => (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '18px' }}>{item.icon_emoji || '⛽'}</span>
               <div>
                 <div style={{ fontWeight: 800, color: '#1E293B', fontSize: '13px' }}>{item.label}</div>
                 <code style={{ fontSize: '10.5px', color: '#64748B' }}>{item.key}</code>
@@ -164,26 +162,6 @@ export default function TabFuelType({ lookups, showToast, onRefreshDropdowns }: 
                 placeholder="6800"
                 value={formData.default_price_per_liter || ''}
                 onChange={(e) => setFormData({ ...formData, default_price_per_liter: Number(e.target.value) })}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid #CBD5E1',
-                  fontSize: '13px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
-                Icon Emoji
-              </label>
-              <input
-                type="text"
-                placeholder="⛽"
-                value={formData.icon_emoji || '⛽'}
-                onChange={(e) => setFormData({ ...formData, icon_emoji: e.target.value })}
                 style={{
                   width: '100%',
                   padding: '9px 12px',

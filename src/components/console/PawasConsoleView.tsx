@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Home, Map, ShieldAlert, BarChart3, User, Shield, BookOpen } from 'lucide-react';
+import { Home, Map, ShieldAlert, BarChart3, User, Shield, BookOpen, ClipboardList } from 'lucide-react';
 import {
   disposisiMultiSatuanAction,
   updateComplaintStatusAction,
@@ -33,6 +33,7 @@ import TabKinerjaPawas from './pawas/tabs/TabKinerjaPawas';
 import TabOperatorCadPawas from './pawas/tabs/TabOperatorCadPawas';
 import TabTolakLogPawas from './pawas/tabs/TabTolakLogPawas';
 import TabBukuPintarSop from './pawas/tabs/TabBukuPintarSop';
+import TabPiketPawas from './piket/TabPiketPawas';
 
 import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
@@ -130,6 +131,10 @@ function parsePawasTab(tabOrSection?: string | null): PawasTab {
     case 'faq':
     case 'sop':
       return 'view-panduan';
+    case 'piket':
+    case 'jadwal-piket':
+    case 'piket-jaga':
+      return 'view-piket';
     case 'beranda':
     default:
       return 'view-beranda';
@@ -154,6 +159,8 @@ function pawasTabToSlug(tabId: string): string {
       return 'tolak';
     case 'view-panduan':
       return 'panduan';
+    case 'view-piket':
+      return 'piket';
     case 'view-beranda':
     default:
       return '';
@@ -540,7 +547,6 @@ function CommandCenterContent({
         lng: unitLng,
         jarakBase,
         etaBase,
-        icon: mu.icon_emoji,
         tupoksi: mu.duties,
         arahanDefault: mu.default_orders,
       };
@@ -806,19 +812,13 @@ function CommandCenterContent({
       if (found) {
         return {
           key: found.key,
-          label: found.label,
-          badge_bg: found.badge_bg,
-          badge_color: found.badge_color,
-          icon_emoji: found.icon_emoji,
+          label: found.label
         };
       }
     }
     return {
       key: u,
       label: u,
-      badge_bg: '',
-      badge_color: '',
-      icon_emoji: '',
     };
   };
 
@@ -1648,6 +1648,24 @@ function CommandCenterContent({
               <span>Buku Pintar SOP</span>
             </button>
 
+            {/* TAB: JADWAL PIKET & JAGA MAKO */}
+            <button
+              type="button"
+              id="nav-piket"
+              onClick={() => switchTab('view-piket')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-piket' ? '#153E75' : '#F8FAFC',
+                color: activeTab === 'view-piket' ? 'white' : '#475569',
+                border: activeTab === 'view-piket' ? '1px solid #153E75' : '1px solid #E2E8F0',
+              }}
+            >
+              <ClipboardList size={15} strokeWidth={2.2} />
+              <span>Jadwal Piket</span>
+            </button>
+
 
 
           </div>
@@ -1883,6 +1901,14 @@ function CommandCenterContent({
             showFriendlyToast={showFriendlyToast}
             initialCallerPhone={simCaller?.telepon || ''}
             initialCallerName={simCaller?.nama || ''}
+          />
+        )}
+
+        {activeTab === 'view-piket' && (
+          <TabPiketPawas
+            session={session}
+            showToast={(msg: string) => showFriendlyToast('success', 'Piket Jaga', msg)}
+            defaultStationId={userProfile?.station_id}
           />
         )}
       </main>

@@ -1743,7 +1743,7 @@ export async function getOfficerPerformanceRankingsAction() {
     const officers = await prisma.policeOfficer.findMany({
       include: {
         user: { select: { id: true, full_name: true, is_active: true } },
-        unit: { select: { unit_name: true, short_name: true, icon_emoji: true } },
+        unit: { select: { unit_name: true, short_name: true } },
         dispatches: {
           select: {
             dispatch_status: true,

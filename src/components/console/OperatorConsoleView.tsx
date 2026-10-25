@@ -471,7 +471,6 @@ function OperatorConsoleContent({
         lng: unitLng,
         jarakBase: null,
         etaBase: null,
-        icon: mu.icon_emoji ? mu.icon_emoji : '🚔',
         tupoksi: mu.duties,
         arahanDefault: mu.default_orders,
       };

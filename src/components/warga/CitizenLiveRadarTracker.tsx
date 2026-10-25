@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import {
   Phone,
   MessageSquare,
@@ -12,18 +11,15 @@ import {
   CheckCircle2,
   AlertTriangle,
   Send,
-  Star,
   Copy,
   Check,
   Shield,
-  ArrowLeft,
   RefreshCw,
   ThumbsUp,
   X,
   ChevronDown,
   ChevronUp,
   Radio,
-  Car,
   FileText,
   Search,
   Zap,
@@ -113,11 +109,12 @@ export const RATING_LABELS: Record<number, string> = {
   5: 'Sangat Puas',
 };
 
-interface CitizenLiveRadarTrackerProps {
+export interface CitizenLiveRadarTrackerProps {
   nomorTiket: string;
   initialData?: any;
   onBack?: () => void;
   token?: string;
+  onSwitchToOperatorReview?: () => void;
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -130,7 +127,13 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
   return Number((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1));
 }
 
-export default function CitizenLiveRadarTracker({ nomorTiket, initialData, onBack, token }: CitizenLiveRadarTrackerProps) {
+export default function CitizenLiveRadarTracker({
+  nomorTiket,
+  initialData,
+  onBack,
+  token,
+  onSwitchToOperatorReview,
+}: CitizenLiveRadarTrackerProps) {
   // ── State ──────────────────────────────────────────────────────────────────
   const hasToken = Boolean(token && token.trim());
   const [complaint, setComplaint] = useState<any>(hasToken ? (initialData || null) : null);

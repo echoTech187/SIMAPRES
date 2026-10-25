@@ -447,7 +447,7 @@ export default function TabOperatorCadPawas({
                           transition: 'all 0.15s ease',
                         }}
                       >
-                        {lvl.icon_emoji ? `${lvl.icon_emoji} ` : ''}{lvl.label}
+                        {lvl.label}
                       </button>
                     );
                   })

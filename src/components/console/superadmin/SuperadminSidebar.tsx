@@ -158,6 +158,14 @@ export default function SuperadminSidebar({
           badgeColor: 'slate',
           description: 'Daftar unit Samapta, Reskrim, Lantas, dll.',
         },
+        {
+          key: 'piket',
+          label: 'Jadwal & Roster Piket',
+          icon: '📋',
+          badge: 'SOP',
+          badgeColor: 'blue',
+          description: 'Penjadwalan 3 Regu Jaga & Sprin Mako Polsek/Polres',
+        },
       ],
     },
   ];

@@ -46,7 +46,6 @@ export default function TabSatuan({ lookups, showToast, onRefreshDropdowns }: Ma
     key: item.key ?? '',
     unit_name: item.unit_name ?? '',
     short_name: item.short_name ?? '',
-    icon_emoji: item.icon_emoji ?? '',
     duties: item.duties ?? '',
     default_orders: item.default_orders ?? '',
     display_order: item.display_order ?? 1,
@@ -74,7 +73,7 @@ export default function TabSatuan({ lookups, showToast, onRefreshDropdowns }: Ma
       getDeleteLabel={(item) => item.unit_name || item.key}
       extraSearchFields={(item) => [item.unit_name, item.short_name, item.duties]}
       tableColumns={[
-        { header: 'NAMA / LABEL', render: (item) => <span style={{ fontWeight: 700, color: '#1E293B' }}>{item.icon_emoji ? `${item.icon_emoji} ` : ''}{item.unit_name}</span> },
+        { header: 'NAMA / LABEL', render: (item) => <span style={{ fontWeight: 700, color: '#1E293B' }}>{item.unit_name}</span> },
         { header: 'SINGKATAN & TUPOKSI', render: (item) => (
           <div>
             <div style={{ fontWeight: 700, color: '#153E75', marginBottom: '2px' }}>{item.short_name}</div>

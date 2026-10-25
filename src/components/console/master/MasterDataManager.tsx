@@ -34,6 +34,7 @@ import TabKnowledgeFaq from './tabs/TabKnowledgeFaq';
 import TabFuelType from './tabs/TabFuelType';
 import TabFuelClaimStatus from './tabs/TabFuelClaimStatus';
 import TabAuditBbm from './tabs/TabAuditBbm';
+import TabPiketPawas from '../piket/TabPiketPawas';
 
 // Shared Types
 import type { MasterLookups, MasterTabType } from './tabs/types';
@@ -103,6 +104,7 @@ export default function MasterDataManager({
     case 'fuel_type':             return <TabFuelType {...tabProps} />;
     case 'fuel_claim_status':     return <TabFuelClaimStatus {...tabProps} />;
     case 'audit_bbm':             return <TabAuditBbm {...tabProps} />;
+    case 'piket':                 return <TabPiketPawas showToast={showToast} />;
     default:
       return (
         <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>

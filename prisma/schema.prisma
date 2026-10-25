@@ -53,7 +53,6 @@ model MasterOperationalUnit {
   key             String                  @unique @db.VarChar(50) // "reskrim", "intel", "lantas", "binmas", "sabhara"
   unit_name       String                  @db.VarChar(120)        // "Satuan Samapta Presisi"
   short_name      String                  @db.VarChar(50)         // "Sat Samapta"
-  icon_emoji      String                  @default("🚔") @db.VarChar(10)
   duties          String                  @db.Text
   default_orders  String                  @db.Text
   is_active       Boolean                 @default(true)
@@ -73,8 +72,6 @@ model MasterDutyStatus {
   id              Int             @id @default(autoincrement())
   key             String          @unique @db.VarChar(50) // "DINAS_PATROLI", "PIKET_SPKT", "CADANGAN", "LEPAS_DINAS", "CUTI", "BKO", "SAKIT", "IZIN"
   label           String          @db.VarChar(100)
-  badge_color     String          @default("#10B981") @db.VarChar(20)
-  badge_bg        String          @default("#ECFDF5") @db.VarChar(20)
   is_active       Boolean         @default(true)
   display_order   Int             @default(1)
   created_at      DateTime        @default(now())
@@ -89,10 +86,6 @@ model MasterIncidentCategory {
   id              Int             @id @default(autoincrement())
   key             String          @unique @db.VarChar(50) // "TAWURAN", "CURANMOR", "BEGAL", "NARKOBA", etc.
   label           String          @db.VarChar(100)
-  icon            String          @db.VarChar(10)
-  badge_bg        String          @db.VarChar(20)
-  badge_color     String          @db.VarChar(20)
-  badge_border    String          @db.VarChar(20)
   display_order   Int             @default(1)
   is_active       Boolean         @default(true)
   created_at      DateTime        @default(now())
@@ -154,9 +147,6 @@ model MasterComplaintStatus {
   key             String          @unique @db.VarChar(50) // "MENUNGGU", "DIPROSES", "MENUNGGU_PENGESAHAN", "SELESAI", "DITOLAK"
   label           String          @db.VarChar(100)
   keterangan      String?         @db.VarChar(255)
-  badge_color     String          @default("#2563EB") @db.VarChar(20)
-  badge_bg        String          @default("#EFF6FF") @db.VarChar(20)
-  badge_border    String          @default("#BFDBFE") @db.VarChar(20)
   display_order   Int             @default(1)
   is_active       Boolean         @default(true)
   created_at      DateTime        @default(now())
@@ -171,9 +161,6 @@ model MasterUrgencyLevel {
   id              Int             @id @default(autoincrement())
   key             String          @unique @db.VarChar(50) // "DARURAT", "SEDANG", "NORMAL"
   label           String          @db.VarChar(100)
-  icon_emoji      String          @default("⚠️") @db.VarChar(10)
-  badge_color     String          @default("#EF4444") @db.VarChar(20)
-  badge_bg        String          @default("#FEF2F2") @db.VarChar(20)
   display_order   Int             @default(1)
   is_active       Boolean         @default(true)
   created_at      DateTime        @default(now())
@@ -207,8 +194,6 @@ model MasterValidationStatus {
   id              Int                @id @default(autoincrement())
   key             String             @unique @db.VarChar(50) // "BELUM_DIVALIDASI", "VALID", "FLAGGED_AUDIT", "DITOLAK"
   label           String             @db.VarChar(100)
-  badge_color     String             @default("#64748B") @db.VarChar(20)
-  badge_bg        String             @default("#F1F5F9") @db.VarChar(20)
   is_active       Boolean            @default(true)
   created_at      DateTime           @default(now())
 
@@ -222,7 +207,6 @@ model MasterHotspotCategory {
   id              Int                  @id @default(autoincrement())
   key             String               @unique @db.VarChar(50) // "TAWURAN", "BALAP_LIAR", "TIGA_C", "NARKOBA", "KEMACETAN"
   label           String               @db.VarChar(100)
-  icon_emoji      String               @default("🔴") @db.VarChar(10)
   display_order   Int                  @default(1)
   is_active       Boolean              @default(true)
 
@@ -236,9 +220,6 @@ model MasterHotspotDangerLevel {
   id              Int                  @id @default(autoincrement())
   key             String               @unique @db.VarChar(50) // "PENGAWASAN_PRIORITAS", "SIAGA_BLUE_LIGHT", "DARURAT_110", "PEMANTAUAN_RUTIN"
   label           String               @db.VarChar(100)
-  badge_color     String               @default("#DC2626") @db.VarChar(20)
-  badge_bg        String               @default("#FEF2F2") @db.VarChar(20)
-  icon_emoji      String               @default("🔴") @db.VarChar(10)
   display_order   Int                  @default(1)
   is_active       Boolean              @default(true)
   created_at      DateTime             @default(now())
@@ -278,9 +259,6 @@ model MasterDispatchStatus {
   key             String              @unique @db.VarChar(50) // "DISPATCHED", "DEPARTED", "ARRIVED", "REPORT_SUBMITTED", "COMPLETED"
   label           String              @db.VarChar(100)
   keterangan      String?             @db.VarChar(255)
-  badge_color     String              @default("#2563EB") @db.VarChar(20)
-  badge_bg        String              @default("#EFF6FF") @db.VarChar(20)
-  badge_border    String              @default("#BFDBFE") @db.VarChar(20)
   display_order   Int                 @default(1)
   is_active       Boolean             @default(true)
   created_at      DateTime            @default(now())
@@ -295,7 +273,6 @@ model MasterVehicleType {
   id            Int      @id @default(autoincrement())
   key           String   @unique @db.VarChar(50)
   label         String   @db.VarChar(150)
-  icon_emoji    String?  @default("🚗") @db.VarChar(10)
   display_order Int      @default(1)
   is_active     Boolean  @default(true)
   created_at    DateTime @default(now())
@@ -322,10 +299,7 @@ model MasterResolutionLocationType {
   key                 String       @unique @db.VarChar(50) // "TKP", "RUMAH_SAKIT", "KANTOR_POLISI", "KANTOR_KELURAHAN", "LAINNYA"
   label               String       @db.VarChar(100)
   keterangan          String?      @db.VarChar(255)
-  icon_emoji          String       @default("📍") @db.VarChar(10)
   requires_strict_tkp Boolean      @default(false)
-  badge_color         String       @default("#10B981") @db.VarChar(20)
-  badge_bg            String       @default("#ECFDF5") @db.VarChar(20)
   display_order       Int          @default(1)
   is_active           Boolean      @default(true)
   created_at          DateTime     @default(now())
@@ -341,9 +315,6 @@ model MasterResolutionDocumentType {
   key           String       @unique @db.VarChar(50) // "BAP_DAMAI", "REKAM_MEDIS", "SERAH_TERIMA_BB", "DOKUMENTASI_KONDUSIF", "BERITA_ACARA_PENUTUPAN", "DOKUMEN_LAINNYA"
   label         String       @db.VarChar(120)
   keterangan    String?      @db.VarChar(255)
-  icon_emoji    String       @default("📄") @db.VarChar(10)
-  badge_color   String       @default("#2563EB") @db.VarChar(20)
-  badge_bg      String       @default("#EFF6FF") @db.VarChar(20)
   display_order Int          @default(1)
   is_active     Boolean      @default(true)
   created_at    DateTime     @default(now())
@@ -403,7 +374,6 @@ model MasterFuelType {
   key                     String          @unique @db.VarChar(50) // "SOLAR_DIPA", "PERTALITE", "PERTAMAX", "DEXLITE"
   label                   String          @db.VarChar(100)        // "Solar / Biosolar (Alokasi DIPA)", "Pertalite Dinas", etc.
   default_price_per_liter Decimal         @default(6800.00) @db.Decimal(10, 2)
-  icon_emoji              String          @default("⛽") @db.VarChar(10)
   display_order           Int             @default(1)
   is_active               Boolean         @default(true)
   created_at              DateTime        @default(now())
@@ -419,8 +389,6 @@ model MasterFuelClaimStatus {
   id            Int                 @id @default(autoincrement())
   key           String              @unique @db.VarChar(50) // "UNCLAIMED", "DRAFT_POLSEK", "DIAJUKAN_BAGLOG", "DISETUJUI_BAGLOG", "DICAIRKAN", "DITOLAK"
   label         String              @db.VarChar(100)
-  badge_color   String              @default("#64748B") @db.VarChar(20)
-  badge_bg      String              @default("#F1F5F9") @db.VarChar(20)
   keterangan    String?             @db.VarChar(255)
   display_order Int                 @default(1)
   is_active     Boolean             @default(true)
@@ -494,6 +462,7 @@ model PoliceStation {
   complaints             Complaint[]
   hotspots               HotspotLocation[]
   dispatches             ComplaintDispatch[]
+  piket_schedules        PiketSchedule[]
 
   created_at             DateTime            @default(now())
   updated_at             DateTime            @updatedAt
@@ -572,6 +541,10 @@ model PoliceOfficer {
   dispatches              ComplaintDispatch[]
   vehicle_sessions        VehicleUsageLog[]
   created_hotspots        HotspotLocation[]       @relation("HotspotCreator")
+  assigned_piket_members  PiketScheduleMember[]
+  pawas_piket_schedules   PiketSchedule[]         @relation("PiketPawas")
+  padal_piket_schedules   PiketSchedule[]         @relation("PiketPadal")
+  ka_spkt_piket_schedules PiketSchedule[]         @relation("PiketKaSpkt")
   
   created_at              DateTime                @default(now())
   updated_at              DateTime                @updatedAt
@@ -596,7 +569,6 @@ model PatrolVehicle {
   jenis_kendaraan    String                 @default("RODA_4") @db.VarChar(30) // "RODA_4", "RODA_2", "MINIBUS"
   plat_nomor_polisi  String?                @db.VarChar(30)          // "1001-VII"
   qr_token           String                 @unique @db.VarChar(64)  // Secret cryptographic token on physical vehicle sticker
-  icon_emoji         String                 @default("🚔") @db.VarChar(10)
   
   station_id         Int?
   station            PoliceStation?         @relation(fields: [station_id], references: [id], onDelete: SetNull)
@@ -939,8 +911,6 @@ model HotspotLocation {
   danger_level_rel      MasterHotspotDangerLevel? @relation(fields: [danger_level_id], references: [id], onDelete: SetNull)
   danger_level          String                    @db.VarChar(50)
   
-  icon_emoji            String                    @default("🔴") @db.VarChar(10)
-  
   lat                   Decimal                   @db.Decimal(10, 8)
   lng                   Decimal                   @db.Decimal(11, 8)
   
@@ -993,12 +963,10 @@ model PatrolFleetUnit {
   unit_key     String   @unique @db.VarChar(50)
   nrp          String?  @db.VarChar(20)
   category     String   @db.VarChar(30)
-  icon_emoji   String   @default("🚔") @db.VarChar(10)
   title        String   @db.VarChar(100)
   petugas      String   @db.VarChar(150)
   sub          String   @db.VarChar(150)
   status       String   @db.VarChar(100)
-  status_color String   @default("#10B981") @db.VarChar(20)
   tugas        String   @db.VarChar(255)
   telemetri    String   @db.VarChar(255)
   lat          Decimal  @db.Decimal(10, 8)
@@ -1029,5 +997,98 @@ model UserLogActivity {
   @@index([activity_type], map: "idx_user_log_type")
   @@index([created_at], map: "idx_user_log_created")
   @@map("user_log_activities")
+}
+
+// ==============================================================================
+// 10. POLRI STANDARD OPERATING PROCEDURE (SOP) PIKET & JAGA MAKO
+// Tables: piket_schedules (Sprin & Roster Piket), piket_schedule_members (Plotting Anggota Piket)
+// ==============================================================================
+
+model PiketSchedule {
+  id                    Int                     @id @default(autoincrement())
+  station_id            Int
+  station               PoliceStation           @relation(fields: [station_id], references: [id], onDelete: Cascade)
+  
+  sprint_number         String                  @db.VarChar(100) // "Sprin/124/X/HUK.6.6./2026/Polsek"
+  sprint_date           DateTime                @default(now())
+  
+  schedule_date         DateTime                @db.Date        // Tanggal Dinas Piket
+  regu                  String                  @db.VarChar(50) // "Regu A", "Regu B", "Regu C"
+  shift_type            String                  @default("1X24_JAM") @db.VarChar(50) // "1X24_JAM" (08.00-08.00), "SHIFT_PAGI" (08.00-20.00), "SHIFT_MALAM" (20.00-08.00)
+  start_time            DateTime
+  end_time              DateTime
+  
+  // Pimpinan Piket Utama
+  pawas_id              BigInt?
+  pawas                 PoliceOfficer?          @relation("PiketPawas", fields: [pawas_id], references: [id], onDelete: SetNull)
+  padal_id              BigInt?
+  padal                 PoliceOfficer?          @relation("PiketPadal", fields: [padal_id], references: [id], onDelete: SetNull)
+  ka_spkt_id            BigInt?
+  ka_spkt               PoliceOfficer?          @relation("PiketKaSpkt", fields: [ka_spkt_id], references: [id], onDelete: SetNull)
+  
+  status                String                  @default("TERJADWAL") @db.VarChar(50) // "TERJADWAL", "BERJALAN", "SERAH_TERIMA", "SELESAI", "DIBATALKAN"
+  
+  // SOP Serah Terima Jaga & Mutasi
+  serah_terima_at       DateTime?
+  catatan_arahan_pawas  String?                 @db.Text
+  kejadian_menonjol     String?                 @db.Text
+  
+  // Pengecekan Ruang Tahanan (SOP Polri)
+  tahanan_laki          Int                     @default(0)
+  tahanan_wanita        Int                     @default(0)
+  tahanan_anak          Int                     @default(0)
+  tahanan_titipan       Int                     @default(0)
+  kondisi_tahanan       String?                 @db.VarChar(255) // "Lengkap, Sehat, Gembok & Sel Terkunci Aman"
+  
+  // Pengecekan Barang Inventaris Dinas (SOP Polri)
+  senpi_inventaris      String?                 @db.Text // "10 Pucuk Revolver Taurus, 2 Pucuk V2 Sabhara, Lengkap & Terawat"
+  amunisi_inventaris    String?                 @db.Text // "60 Butir Peluru Tajam, 20 Butir Peluru Karet"
+  ranmor_inventaris     String?                 @db.Text // "1 Unit R4 Samapta (BBM Full), 2 Unit R2 Trail Presisi"
+  rompi_borgol_ht       String?                 @db.Text // "4 Rompi Level III-A, 8 Borgol, 6 Unit HT Motorola Siaga"
+  
+  members               PiketScheduleMember[]
+  
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+
+  @@index([station_id], map: "idx_piket_station")
+  @@index([schedule_date], map: "idx_piket_date")
+  @@index([regu], map: "idx_piket_regu")
+  @@index([status], map: "idx_piket_status")
+  @@map("piket_schedules")
+}
+
+model PiketScheduleMember {
+  id                    Int                     @id @default(autoincrement())
+  schedule_id           Int
+  schedule              PiketSchedule           @relation(fields: [schedule_id], references: [id], onDelete: Cascade)
+  
+  officer_id            BigInt
+  officer               PoliceOfficer           @relation(fields: [officer_id], references: [id], onDelete: Cascade)
+  
+  // Peran Piket Fungsi Sesuai SOP Polri
+  role_piket            String                  @db.VarChar(50) 
+  // "PAWAS", "PADAL", "KA_SPKT", "ANGGOTA_SPKT", "PIKET_SABHARA", "PIKET_LANTAS", "PIKET_RESKRIM", "PIKET_INTELKAM", "PIKET_BINMAS", "PIKET_PROVOS", "PIKET_TAHTI", "PIKET_OPERATOR_CAD"
+  
+  pos_penugasan         String?                 @db.VarChar(120) // "Sentra Penjagaan Mako", "Ruang Pelayanan SPKT", "Pos Lantas Simpang 4", "Patroli R4 Samapta Unit 01", "Ruang Tahanan", "Unit Reskrim Ruang Sidik"
+  kendaraan_dinas       String?                 @db.VarChar(100) // "Mobil Patroli Samapta 1001-VII"
+  senpi_dinas           String?                 @db.VarChar(100) // "Revolver Taurus No. 182763"
+  
+  // Status Presensi Piket
+  status_kehadiran      String                  @default("BELUM_HADIR") @db.VarChar(50) 
+  // "HADIR_DINAS", "BELUM_HADIR", "LEPAS_PIKET", "CADANGAN_SIAGA", "IZIN", "SAKIT", "TERLAMBAT"
+  
+  jam_masuk             DateTime?
+  jam_pulang            DateTime?
+  keterangan            String?                 @db.VarChar(255)
+  
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+
+  @@index([schedule_id], map: "idx_piket_member_schedule")
+  @@index([officer_id], map: "idx_piket_member_officer")
+  @@index([role_piket], map: "idx_piket_member_role")
+  @@index([status_kehadiran], map: "idx_piket_member_status")
+  @@map("piket_schedule_members")
 }
 

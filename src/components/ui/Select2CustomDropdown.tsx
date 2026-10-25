@@ -262,9 +262,9 @@ export default function Select2CustomDropdown({
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, overflow: 'hidden' }}>
               <span
                 style={{
-                  fontSize: '13px',
+                  fontSize: triggerStyle?.fontSize || '12.5px',
                   fontWeight: 600,
-                  color: '#0F172A',
+                  color: triggerStyle?.color || '#0F172A',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -291,7 +291,7 @@ export default function Select2CustomDropdown({
           ) : (
             <span
               style={{
-                fontSize: '13px',
+                fontSize: triggerStyle?.fontSize || '12.5px',
                 color: '#94A3B8',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',

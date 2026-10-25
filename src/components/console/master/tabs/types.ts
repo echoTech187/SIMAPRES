@@ -18,7 +18,8 @@ export type MasterTabType =
   | 'knowledge_faq'
   | 'fuel_type'
   | 'fuel_claim_status'
-  | 'audit_bbm';
+  | 'audit_bbm'
+  | 'piket';
 
 /** Lookup bundles yang dimuat sekali untuk semua tab */
 export interface MasterLookups {
@@ -52,7 +53,6 @@ export const DEFAULT_FORM_DATA = {
   // Satuan
   unit_name: '',
   short_name: '',
-  icon_emoji: '',
   duties: '',
   default_orders: '',
   // Role

@@ -40,19 +40,57 @@ export default function TabSubkategori({ lookups, showToast, onRefreshDropdowns 
       alert('Nama Kasus dan Kategori Induk wajib diisi!');
       return false;
     }
+
+    // Auto resolve category_key
+    let categoryKey = formData.category_key;
+    if (!categoryKey && formData.category_id) {
+      const foundCat = categoriesList.find((c: any) => Number(c.id) === Number(formData.category_id));
+      categoryKey = foundCat?.key || '';
+    }
+
+    // Auto resolve unit_id & unit_key (fallback ke default SPKT/unit pertama jika kosong)
+    let unitId = Number(formData.unit_id);
+    let unitKey = formData.unit_key;
+    if (!unitId && unitsList.length > 0) {
+      const spkt = unitsList.find((u: any) => u.key?.toLowerCase() === 'spkt') || unitsList[0];
+      unitId = Number(spkt.id);
+      unitKey = spkt.key;
+    } else if (unitId && !unitKey) {
+      const foundUnit = unitsList.find((u: any) => Number(u.id) === unitId);
+      unitKey = foundUnit?.key || '';
+    }
+
     return await createMasterIncidentSubcategoryAction({
       ...formData,
       category_id: Number(formData.category_id),
-      unit_id: formData.unit_id ? Number(formData.unit_id) : null,
+      category_key: categoryKey,
+      unit_id: unitId,
+      unit_key: unitKey,
+      default_urgensi: formData.default_urgensi || 'NORMAL',
     });
   };
 
-  const handleUpdate = async (id: number | string, formData: any) =>
-    await updateMasterIncidentSubcategoryAction(Number(id), {
+  const handleUpdate = async (id: number | string, formData: any) => {
+    let categoryKey = formData.category_key;
+    if (formData.category_id) {
+      const foundCat = categoriesList.find((c: any) => Number(c.id) === Number(formData.category_id));
+      if (foundCat?.key) categoryKey = foundCat.key;
+    }
+
+    let unitKey = formData.unit_key;
+    if (formData.unit_id) {
+      const foundUnit = unitsList.find((u: any) => Number(u.id) === Number(formData.unit_id));
+      if (foundUnit?.key) unitKey = foundUnit.key;
+    }
+
+    return await updateMasterIncidentSubcategoryAction(Number(id), {
       ...formData,
       category_id: Number(formData.category_id),
-      unit_id: formData.unit_id ? Number(formData.unit_id) : null,
+      category_key: categoryKey,
+      unit_id: formData.unit_id ? Number(formData.unit_id) : undefined,
+      unit_key: unitKey,
     });
+  };
 
   const handleDelete = async (id: number | string) =>
     await deleteMasterIncidentSubcategoryAction(Number(id));
@@ -140,7 +178,15 @@ export default function TabSubkategori({ lookups, showToast, onRefreshDropdowns 
               <Select2CustomDropdown
                 required
                 value={formData.category_id || ''}
-                onChange={(val) => setFormData({ ...formData, category_id: Number(val) })}
+                onChange={(val) => {
+                  const catId = Number(val);
+                  const matchedCat = categoriesList.find((c: any) => Number(c.id) === catId);
+                  setFormData({
+                    ...formData,
+                    category_id: catId,
+                    category_key: matchedCat?.key || '',
+                  });
+                }}
                 options={categoriesList.map((c: any) => ({ value: c.id, label: c.label }))}
                 placeholder="-- Pilih Kategori Induk --"
                 title="Pilih Kategori Induk"
@@ -151,13 +197,22 @@ export default function TabSubkategori({ lookups, showToast, onRefreshDropdowns 
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Satuan Operasional Penangan</label>
               <Select2CustomDropdown
                 value={formData.unit_id || ''}
-                onChange={(val) => setFormData({ ...formData, unit_id: Number(val) || 0 })}
+                onChange={(val) => {
+                  const uId = Number(val) || 0;
+                  const matchedUnit = unitsList.find((u: any) => Number(u.id) === uId);
+                  setFormData({
+                    ...formData,
+                    unit_id: uId,
+                    unit_key: matchedUnit?.key || '',
+                  });
+                }}
                 options={[
                   { value: '', label: '-- Semua Satuan --' },
                   ...unitsList.map((u: any) => ({ value: u.id, label: u.unit_name })),
                 ]}
                 placeholder="-- Semua Satuan --"
                 title="Pilih Satuan Operasional"
+                searchable={true}
               />
             </div>
           </div>

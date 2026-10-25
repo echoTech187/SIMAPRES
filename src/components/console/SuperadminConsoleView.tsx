@@ -53,9 +53,13 @@ function parseSuperadminTab(section?: string): SuperadminTab {
         'dokumen_penyelesaian',
         'knowledge_faq',
         'fuel_type',
+        'piket',
       ].includes(clean)
     ) {
       return clean as MasterTabType;
+    }
+    if (['piket', 'jadwal_piket', 'roster_piket', 'jadwal-piket', 'sprin'].includes(clean)) {
+      return 'piket';
     }
     if (['faq', 'panduan', 'master_faq', 'buku_pintar', 'sop'].includes(clean)) {
       return 'knowledge_faq';

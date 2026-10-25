@@ -7,17 +7,17 @@ async function main() {
 
   // 1. Master Fuel Types
   const fuelTypes = [
-    { key: 'SOLAR_DIPA', label: 'Solar / Biosolar (Alokasi DIPA Polri)', default_price_per_liter: 6800.0, icon_emoji: '⛽', display_order: 1 },
-    { key: 'PERTALITE', label: 'Pertalite Dinas', default_price_per_liter: 10000.0, icon_emoji: '⛽', display_order: 2 },
-    { key: 'PERTAMAX', label: 'Pertamax 92', default_price_per_liter: 12950.0, icon_emoji: '⛽', display_order: 3 },
-    { key: 'DEXLITE', label: 'Dexlite Non-Subsidi', default_price_per_liter: 13500.0, icon_emoji: '⛽', display_order: 4 },
-    { key: 'PERTAMINA_DEX', label: 'Pertamina Dex Super', default_price_per_liter: 14150.0, icon_emoji: '⛽', display_order: 5 },
+    { key: 'SOLAR_DIPA', label: 'Solar / Biosolar (Alokasi DIPA Polri)', default_price_per_liter: 6800.0, display_order: 1 },
+    { key: 'PERTALITE', label: 'Pertalite Dinas', default_price_per_liter: 10000.0, display_order: 2 },
+    { key: 'PERTAMAX', label: 'Pertamax 92', default_price_per_liter: 12950.0, display_order: 3 },
+    { key: 'DEXLITE', label: 'Dexlite Non-Subsidi', default_price_per_liter: 13500.0, display_order: 4 },
+    { key: 'PERTAMINA_DEX', label: 'Pertamina Dex Super', default_price_per_liter: 14150.0, display_order: 5 },
   ];
 
   for (const ft of fuelTypes) {
     await (prisma as any).masterFuelType.upsert({
       where: { key: ft.key },
-      update: { label: ft.label, default_price_per_liter: ft.default_price_per_liter, icon_emoji: ft.icon_emoji, display_order: ft.display_order },
+      update: { label: ft.label, default_price_per_liter: ft.default_price_per_liter, display_order: ft.display_order },
       create: ft,
     });
   }
@@ -25,18 +25,18 @@ async function main() {
 
   // 2. Master Fuel Claim Statuses
   const claimStatuses = [
-    { key: 'UNCLAIMED', label: 'Terekam GPS (Belum Diajukan)', badge_color: '#64748B', badge_bg: '#F1F5F9', keterangan: 'Jarak riil misi telah dihitung sistem otomatis dan tersimpan di database.', display_order: 1 },
-    { key: 'DRAFT_POLSEK', label: 'Draf Pengajuan Polsek', badge_color: '#D97706', badge_bg: '#FEF3C7', keterangan: 'Sedang dikompilasi oleh Bamin SPKT Polsek.', display_order: 2 },
-    { key: 'DIAJUKAN_BAGLOG', label: 'Diajukan ke Bag Log', badge_color: '#2563EB', badge_bg: '#EFF6FF', keterangan: 'Telah dikirim digital ke Bagian Logistik Polres untuk verifikasi GPS.', display_order: 3 },
-    { key: 'DISETUJUI_BAGLOG', label: 'Disetujui Bag Log', badge_color: '#10B981', badge_bg: '#ECFDF5', keterangan: 'Jarak dan kuota liter terverifikasi sah. Siap pencairan anggaran.', display_order: 4 },
-    { key: 'DICAIRKAN', label: 'Dana / Kupon BBM Diterima', badge_color: '#059669', badge_bg: '#D1FAE5', keterangan: 'Dana reimbursement atau voucher BBM telah diterima Polsek.', display_order: 5 },
-    { key: 'DITOLAK', label: 'Ditolak / Perlu Revisi', badge_color: '#DC2626', badge_bg: '#FEF2F2', keterangan: 'Data rute atau bukti tindakan dinilai tidak sesuai oleh Bag Log.', display_order: 6 },
+    { key: 'UNCLAIMED', label: 'Terekam GPS (Belum Diajukan)', keterangan: 'Jarak riil misi telah dihitung sistem otomatis dan tersimpan di database.', display_order: 1 },
+    { key: 'DRAFT_POLSEK', label: 'Draf Pengajuan Polsek', keterangan: 'Sedang dikompilasi oleh Bamin SPKT Polsek.', display_order: 2 },
+    { key: 'DIAJUKAN_BAGLOG', label: 'Diajukan ke Bag Log', keterangan: 'Telah dikirim digital ke Bagian Logistik Polres untuk verifikasi GPS.', display_order: 3 },
+    { key: 'DISETUJUI_BAGLOG', label: 'Disetujui Bag Log', keterangan: 'Jarak dan kuota liter terverifikasi sah. Siap pencairan anggaran.', display_order: 4 },
+    { key: 'DICAIRKAN', label: 'Dana / Kupon BBM Diterima', keterangan: 'Dana reimbursement atau voucher BBM telah diterima Polsek.', display_order: 5 },
+    { key: 'DITOLAK', label: 'Ditolak / Perlu Revisi', keterangan: 'Data rute atau bukti tindakan dinilai tidak sesuai oleh Bag Log.', display_order: 6 },
   ];
 
   for (const cs of claimStatuses) {
     await (prisma as any).masterFuelClaimStatus.upsert({
       where: { key: cs.key },
-      update: { label: cs.label, badge_color: cs.badge_color, badge_bg: cs.badge_bg, keterangan: cs.keterangan, display_order: cs.display_order },
+      update: { label: cs.label, keterangan: cs.keterangan, display_order: cs.display_order },
       create: cs,
     });
   }

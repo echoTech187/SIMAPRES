@@ -104,7 +104,8 @@ export class WhatsAppService {
     // Jika API token belum dikonfigurasi di file .env
     if (!apiToken) {
       console.warn(
-        `[WhatsAppService] FLOWKIRIM_API_TOKEN belum diset di .env. Notifikasi ke ${cleanPhone} disimulasikan (berhasil lokal).`
+        '[WhatsAppService] FLOWKIRIM_API_TOKEN belum diset di .env. Notifikasi ke %s disimulasikan (berhasil lokal).',
+        cleanPhone
       );
       return {
         success: true,
@@ -169,7 +170,7 @@ export class WhatsAppService {
 
       if (!response.ok || responseData?.success === false) {
         const errorDetail = responseData?.message || responseData?.error || response.statusText;
-        console.error(`[WhatsAppService] Gagal mengirim pesan ke ${cleanPhone}:`, errorDetail);
+        console.error('[WhatsAppService] Gagal mengirim pesan ke %s:', cleanPhone, errorDetail);
         return {
           success: false,
           statusText: `Gagal (${response.status})`,
@@ -185,7 +186,7 @@ export class WhatsAppService {
         recipientPhone: cleanPhone,
       };
     } catch (err: any) {
-      console.error(`[WhatsAppService] Exception saat menghubungi API gateway:`, err);
+      console.error('[WhatsAppService] Exception saat menghubungi API gateway:', err);
       return {
         success: false,
         statusText: 'Koneksi ke Gateway Gagal',

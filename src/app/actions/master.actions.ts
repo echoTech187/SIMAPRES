@@ -153,13 +153,13 @@ export async function getAllMasterLookupsBundleAction() {
         orderBy: { display_order: 'asc' },
       }),
       prisma.$queryRawUnsafe(`
-        SELECT id, \`key\`, label, icon_emoji, display_order 
+        SELECT id, \`key\`, label, display_order 
         FROM master_vehicle_types 
         WHERE is_active = 1 
         ORDER BY display_order ASC
       `).catch(() => []),
       prisma.$queryRawUnsafe(`
-        SELECT id, \`key\`, label, badge_color, display_order 
+        SELECT id, \`key\`, label, display_order 
         FROM master_vehicle_statuses 
         WHERE is_active = 1 
         ORDER BY display_order ASC
@@ -343,7 +343,6 @@ export async function createMasterOperationalUnitAction(data: {
   key: string;
   unit_name: string;
   short_name: string;
-  icon_emoji?: string;
   duties: string;
   default_orders: string;
   display_order: number;
@@ -367,7 +366,6 @@ export async function createMasterOperationalUnitAction(data: {
         key: cleanKey,
         unit_name: cleanName,
         short_name: cleanShort,
-        icon_emoji: data.icon_emoji?.trim(),
         duties: effectiveDuties,
         default_orders: effectiveOrders,
         display_order: Number(data.display_order) || 1,
@@ -389,7 +387,6 @@ export async function updateMasterOperationalUnitAction(
     key: string;
     unit_name: string;
     short_name: string;
-    icon_emoji?: string;
     duties: string;
     default_orders: string;
     display_order?: number;
@@ -417,7 +414,6 @@ export async function updateMasterOperationalUnitAction(
         key: cleanKey,
         unit_name: cleanName,
         short_name: cleanShort,
-        icon_emoji: data.icon_emoji?.trim(),
         ...(data.duties?.trim() ? { duties: data.duties.trim() } : {}),
         ...(data.default_orders?.trim() ? { default_orders: data.default_orders.trim() } : {}),
         display_order: data.display_order !== undefined ? Number(data.display_order) : undefined,
@@ -796,48 +792,24 @@ export async function getMasterIncidentCategoriesAction(params?: { isActive?: bo
 export async function createMasterIncidentCategoryAction(data: {
   key: string;
   label: string;
-  icon?: string;
-  badge_bg?: string;
-  badge_color?: string;
-  badge_border?: string;
   display_order: number;
   is_active: boolean;
 }) {
   try {
     const cleanKey = data.key?.trim().toUpperCase();
     const cleanLabel = data.label?.trim();
-    const cleanIcon = data.icon?.trim();
-    const cleanBadgeBg = data.badge_bg?.trim();
-    const cleanBadgeColor = data.badge_color?.trim();
-    const cleanBadgeBorder = data.badge_border?.trim();
 
     if (!cleanKey || !cleanLabel) {
       return { success: false, error: 'Kode Kategori dan Label wajib diisi!' };
-    }
-    if (!cleanIcon) {
-      return { success: false, error: 'Icon emoji kategori wajib diisi!' };
-    }
-    if (!cleanBadgeBg) {
-      return { success: false, error: 'Warna latar badge (badge_bg) wajib diisi!' };
-    }
-    if (!cleanBadgeColor) {
-      return { success: false, error: 'Warna teks badge (badge_color) wajib diisi!' };
-    }
-    if (!cleanBadgeBorder) {
-      return { success: false, error: 'Warna border badge (badge_border) wajib diisi!' };
     }
     if (data.display_order === undefined || isNaN(Number(data.display_order))) {
       return { success: false, error: 'Urutan tampilan wajib diisi angka valid!' };
     }
 
-    const created = await prisma.masterIncidentCategory.create({
+    const created = await (prisma as any).masterIncidentCategory.create({
       data: {
         key: cleanKey,
         label: cleanLabel,
-        icon: cleanIcon,
-        badge_bg: cleanBadgeBg,
-        badge_color: cleanBadgeColor,
-        badge_border: cleanBadgeBorder,
         display_order: Number(data.display_order),
         is_active: Boolean(data.is_active),
       },
@@ -856,10 +828,6 @@ export async function updateMasterIncidentCategoryAction(
   data: {
     key: string;
     label: string;
-    icon?: string;
-    badge_bg?: string;
-    badge_color?: string;
-    badge_border?: string;
     display_order?: number;
     is_active?: boolean;
   }
@@ -880,38 +848,6 @@ export async function updateMasterIncidentCategoryAction(
       key: cleanKey,
       label: cleanLabel,
     };
-
-    if (data.icon !== undefined) {
-      const cleanIcon = data.icon.trim();
-      if (!cleanIcon) {
-        return { success: false, error: 'Icon emoji kategori tidak boleh kosong!' };
-      }
-      updatePayload.icon = cleanIcon;
-    }
-
-    if (data.badge_bg !== undefined) {
-      const cleanBg = data.badge_bg.trim();
-      if (!cleanBg) {
-        return { success: false, error: 'Warna latar badge (badge_bg) tidak boleh kosong!' };
-      }
-      updatePayload.badge_bg = cleanBg;
-    }
-
-    if (data.badge_color !== undefined) {
-      const cleanColor = data.badge_color.trim();
-      if (!cleanColor) {
-        return { success: false, error: 'Warna teks badge (badge_color) tidak boleh kosong!' };
-      }
-      updatePayload.badge_color = cleanColor;
-    }
-
-    if (data.badge_border !== undefined) {
-      const cleanBorder = data.badge_border.trim();
-      if (!cleanBorder) {
-        return { success: false, error: 'Warna border badge (badge_border) tidak boleh kosong!' };
-      }
-      updatePayload.badge_border = cleanBorder;
-    }
 
     if (data.display_order !== undefined) {
       if (isNaN(Number(data.display_order))) {
@@ -994,10 +930,10 @@ export async function getMasterIncidentSubcategoriesAction(params?: {
       orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }],
       include: {
         category_rel: {
-          select: { id: true, key: true, label: true, icon: true, badge_bg: true, badge_color: true },
+          select: { id: true, key: true, label: true },
         },
         unit_rel: {
-          select: { id: true, key: true, short_name: true, unit_name: true, icon_emoji: true },
+          select: { id: true, key: true, short_name: true, unit_name: true },
         },
       },
     });
@@ -1010,14 +946,14 @@ export async function getMasterIncidentSubcategoriesAction(params?: {
 
 export async function createMasterIncidentSubcategoryAction(data: {
   category_id: number | string;
-  category_key: string;
-  unit_id: number | string;
-  unit_key: string;
+  category_key?: string;
+  unit_id?: number | string | null;
+  unit_key?: string;
   nama_kasus: string;
-  default_urgensi: string;
+  default_urgensi?: string;
   deskripsi_sop?: string;
-  display_order: number;
-  is_active: boolean;
+  display_order?: number;
+  is_active?: boolean;
 }) {
   try {
     const cleanKasus = data.nama_kasus?.trim();
@@ -1026,29 +962,61 @@ export async function createMasterIncidentSubcategoryAction(data: {
     }
     const catCheck = parsePositiveIntId(data.category_id, 'Kategori insiden induk');
     if (!catCheck.valid) return { success: false, error: catCheck.error };
-    if (!data.category_key?.trim()) {
-      return { success: false, error: 'Kode kategori insiden induk wajib diisi!' };
+
+    let categoryKey = data.category_key?.trim();
+    if (!categoryKey) {
+      const cat = await prisma.masterIncidentCategory.findUnique({
+        where: { id: catCheck.value },
+        select: { key: true },
+      });
+      if (cat?.key) {
+        categoryKey = cat.key;
+      } else {
+        return { success: false, error: 'Kode kategori insiden induk wajib diisi!' };
+      }
     }
-    const unitCheck = parsePositiveIntId(data.unit_id, 'Satuan unit penanggung jawab SOP');
+
+    let unitId = data.unit_id ? Number(data.unit_id) : 0;
+    let unitKey = data.unit_key?.trim();
+    if (!unitId || isNaN(unitId)) {
+      const defaultUnit = await prisma.masterOperationalUnit.findFirst({
+        where: { is_active: true },
+        select: { id: true, key: true },
+      });
+      if (defaultUnit) {
+        unitId = defaultUnit.id;
+        unitKey = defaultUnit.key;
+      }
+    }
+
+    const unitCheck = parsePositiveIntId(unitId, 'Satuan unit penanggung jawab SOP');
     if (!unitCheck.valid) return { success: false, error: unitCheck.error };
-    if (!data.unit_key?.trim()) {
-      return { success: false, error: 'Kode satuan unit penanggung jawab wajib diisi!' };
+
+    if (!unitKey) {
+      const unit = await prisma.masterOperationalUnit.findUnique({
+        where: { id: unitCheck.value },
+        select: { key: true },
+      });
+      if (unit?.key) {
+        unitKey = unit.key;
+      } else {
+        return { success: false, error: 'Kode satuan unit penanggung jawab wajib diisi!' };
+      }
     }
-    if (!data.default_urgensi?.trim()) {
-      return { success: false, error: 'Tingkat urgensi default SOP wajib dipilih!' };
-    }
+
+    const defaultUrgensi = data.default_urgensi?.trim() || 'NORMAL';
 
     const created = await prisma.masterIncidentSubcategory.create({
       data: {
         category_id: catCheck.value,
-        category_key: data.category_key.trim().toUpperCase(),
+        category_key: categoryKey.toUpperCase(),
         unit_id: unitCheck.value,
-        unit_key: data.unit_key.trim().toLowerCase(),
+        unit_key: unitKey.toLowerCase(),
         nama_kasus: cleanKasus,
-        default_urgensi: data.default_urgensi.trim(),
+        default_urgensi: defaultUrgensi,
         deskripsi_sop: data.deskripsi_sop?.trim(),
         display_order: Number(data.display_order) || 1,
-        is_active: Boolean(data.is_active),
+        is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
       },
     });
 
@@ -1086,8 +1054,17 @@ export async function updateMasterIncidentSubcategoryAction(
       const catCheck = parsePositiveIntId(data.category_id, 'ID Kategori Induk');
       if (!catCheck.valid) return { success: false, error: catCheck.error };
       updatePayload.category_id = catCheck.value;
+      if (!data.category_key?.trim()) {
+        const cat = await prisma.masterIncidentCategory.findUnique({
+          where: { id: catCheck.value },
+          select: { key: true },
+        });
+        if (cat?.key) {
+          updatePayload.category_key = cat.key.toUpperCase();
+        }
+      }
     }
-    if (data.category_key !== undefined) {
+    if (data.category_key !== undefined && !updatePayload.category_key) {
       const cleanCatKey = data.category_key?.trim().toUpperCase();
       if (!cleanCatKey) return { success: false, error: 'Kode Kategori tidak boleh kosong!' };
       updatePayload.category_key = cleanCatKey;
@@ -1096,8 +1073,17 @@ export async function updateMasterIncidentSubcategoryAction(
       const unitCheck = parsePositiveIntId(data.unit_id, 'ID Satuan Unit');
       if (!unitCheck.valid) return { success: false, error: unitCheck.error };
       updatePayload.unit_id = unitCheck.value;
+      if (!data.unit_key?.trim()) {
+        const unit = await prisma.masterOperationalUnit.findUnique({
+          where: { id: unitCheck.value },
+          select: { key: true },
+        });
+        if (unit?.key) {
+          updatePayload.unit_key = unit.key.toLowerCase();
+        }
+      }
     }
-    if (data.unit_key !== undefined) {
+    if (data.unit_key !== undefined && !updatePayload.unit_key) {
       const cleanUnitKey = data.unit_key?.trim().toLowerCase();
       if (!cleanUnitKey) return { success: false, error: 'Kode Satuan tidak boleh kosong!' };
       updatePayload.unit_key = cleanUnitKey;
@@ -1197,7 +1183,6 @@ export async function getMasterHotspotCategoriesAction(params?: { isActive?: boo
 export async function createMasterHotspotCategoryAction(data: {
   key: string;
   label: string;
-  icon_emoji?: string;
   display_order: number;
   is_active: boolean;
 }) {
@@ -1212,7 +1197,6 @@ export async function createMasterHotspotCategoryAction(data: {
       data: {
         key: cleanKey,
         label: cleanLabel,
-        icon_emoji: data.icon_emoji?.trim(),
         display_order: Number(data.display_order) || 1,
         is_active: Boolean(data.is_active),
       },
@@ -1231,7 +1215,6 @@ export async function updateMasterHotspotCategoryAction(
   data: {
     key: string;
     label: string;
-    icon_emoji?: string;
     display_order?: number;
     is_active?: boolean;
   }
@@ -1253,7 +1236,6 @@ export async function updateMasterHotspotCategoryAction(
       data: {
         key: cleanKey,
         label: cleanLabel,
-        icon_emoji: data.icon_emoji?.trim(),
         display_order: data.display_order !== undefined ? Number(data.display_order) : undefined,
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : undefined,
       },
@@ -1327,8 +1309,6 @@ export async function getMasterDutyStatusesAction(params?: { isActive?: boolean;
 export async function createMasterDutyStatusAction(data: {
   key: string;
   label: string;
-  badge_color?: string;
-  badge_bg?: string;
   display_order: number;
   is_active: boolean;
 }) {
@@ -1343,8 +1323,6 @@ export async function createMasterDutyStatusAction(data: {
       data: {
         key: cleanKey,
         label: cleanLabel,
-        badge_color: data.badge_color?.trim(),
-        badge_bg: data.badge_bg?.trim(),
         display_order: Number(data.display_order) || 1,
         is_active: Boolean(data.is_active),
       },
@@ -1363,8 +1341,6 @@ export async function updateMasterDutyStatusAction(
   data: {
     key: string;
     label: string;
-    badge_color?: string;
-    badge_bg?: string;
     display_order?: number;
     is_active?: boolean;
   }
@@ -1386,8 +1362,6 @@ export async function updateMasterDutyStatusAction(
       data: {
         key: cleanKey,
         label: cleanLabel,
-        badge_color: data.badge_color?.trim(),
-        badge_bg: data.badge_bg?.trim(),
         display_order: data.display_order !== undefined ? Number(data.display_order) : undefined,
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : undefined,
       },
@@ -1464,7 +1438,6 @@ export async function createMasterHotspotAction(data: {
   police_sector: string;
   category: string;
   danger_level: string;
-  icon_emoji?: string;
   lat: number;
   lng: number;
   active_start?: string;
@@ -1517,7 +1490,6 @@ export async function createMasterHotspotAction(data: {
         police_sector: data.police_sector.trim(),
         category: data.category.trim(),
         danger_level: data.danger_level.trim(),
-        icon_emoji: data.icon_emoji?.trim(),
         lat: Number(data.lat),
         lng: Number(data.lng),
         active_start: data.active_start?.trim(),
@@ -1543,7 +1515,6 @@ export async function updateMasterHotspotAction(
     police_sector: string;
     category: string;
     danger_level: string;
-    icon_emoji?: string;
     lat: number;
     lng: number;
     active_start?: string;
@@ -1602,7 +1573,6 @@ export async function updateMasterHotspotAction(
         police_sector: data.police_sector.trim(),
         category: data.category.trim(),
         danger_level: data.danger_level.trim(),
-        icon_emoji: data.icon_emoji?.trim(),
         lat: Number(data.lat),
         lng: Number(data.lng),
         active_start: data.active_start?.trim(),
@@ -1644,7 +1614,7 @@ export async function deleteMasterHotspotAction(id: number | string | bigint) {
 export async function getMasterVehicleTypesAction() {
   try {
     const rows: any = await prisma.$queryRawUnsafe(`
-      SELECT id, \`key\`, label, icon_emoji, display_order 
+      SELECT id, \`key\`, label, display_order 
       FROM master_vehicle_types 
       WHERE is_active = 1 
       ORDER BY display_order ASC
@@ -1658,7 +1628,7 @@ export async function getMasterVehicleTypesAction() {
 export async function getMasterVehicleStatusesAction() {
   try {
     const rows: any = await prisma.$queryRawUnsafe(`
-      SELECT id, \`key\`, label, badge_color, display_order 
+      SELECT id, \`key\`, label, display_order 
       FROM master_vehicle_statuses 
       WHERE is_active = 1 
       ORDER BY display_order ASC
@@ -1708,7 +1678,6 @@ export async function createMasterVehicleAction(data: {
   nama_armada: string;
   jenis_kendaraan: string;
   plat_nomor_polisi?: string;
-  icon_emoji?: string;
   status_operasional?: string;
   driver_officer_nrp?: string;
   current_lat?: number;
@@ -1732,16 +1701,7 @@ export async function createMasterVehicleAction(data: {
 
     const qrToken = `QR-VEH-${lambung.replace(/[^A-Z0-9]/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-    const statusColors: Record<string, string> = {
-      SIAGA: '#10B981',
-      PATROLI: '#3B82F6',
-      MENUJU_TKP: '#EF4444',
-      PEMELIHARAAN: '#6B7280',
-    };
     const statusOp = data.status_operasional.trim().toUpperCase();
-    if (!statusColors[statusOp]) {
-      return { success: false, error: 'Status kesiapsiagaan armada tidak valid!' };
-    }
 
     const created = await prisma.patrolVehicle.create({
       data: {
@@ -1750,9 +1710,7 @@ export async function createMasterVehicleAction(data: {
         jenis_kendaraan: data.jenis_kendaraan.trim(),
         plat_nomor_polisi: data.plat_nomor_polisi.trim().toUpperCase(),
         qr_token: qrToken,
-        icon_emoji: data.icon_emoji?.trim(),
         status_operasional: statusOp,
-        status_color: statusColors[statusOp],
         driver_officer_nrp: data.driver_officer_nrp?.trim(),
         current_lat: data.current_lat != null && !isNaN(Number(data.current_lat)) ? Number(data.current_lat) : null,
         current_lng: data.current_lng != null && !isNaN(Number(data.current_lng)) ? Number(data.current_lng) : null,
@@ -1774,7 +1732,6 @@ export async function updateMasterVehicleAction(
     nama_armada: string;
     jenis_kendaraan: string;
     plat_nomor_polisi?: string;
-    icon_emoji?: string;
     status_operasional?: string;
     driver_officer_nrp?: string;
     current_lat?: number;
@@ -1820,7 +1777,6 @@ export async function updateMasterVehicleAction(
         nama_armada: nama,
         jenis_kendaraan: data.jenis_kendaraan.trim(),
         plat_nomor_polisi: data.plat_nomor_polisi.trim().toUpperCase(),
-        icon_emoji: data.icon_emoji?.trim(),
         status_operasional: statusOp,
         status_color: statusColors[statusOp],
         driver_officer_nrp: data.driver_officer_nrp?.trim(),
@@ -1890,10 +1846,7 @@ export async function createMasterResolutionLocationAction(data: {
   key: string;
   label: string;
   keterangan?: string;
-  icon_emoji?: string;
   requires_strict_tkp?: boolean;
-  badge_color?: string;
-  badge_bg?: string;
   display_order?: number;
   is_active?: boolean;
 }) {
@@ -1916,10 +1869,7 @@ export async function createMasterResolutionLocationAction(data: {
         key,
         label,
         keterangan: data.keterangan?.trim() || null,
-        icon_emoji: data.icon_emoji?.trim() || '📍',
         requires_strict_tkp: Boolean(data.requires_strict_tkp),
-        badge_color: data.badge_color?.trim() || '#10B981',
-        badge_bg: data.badge_bg?.trim() || '#ECFDF5',
         display_order: Number(data.display_order) || 1,
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
       },
@@ -1939,10 +1889,7 @@ export async function updateMasterResolutionLocationAction(
     key?: string;
     label?: string;
     keterangan?: string;
-    icon_emoji?: string;
     requires_strict_tkp?: boolean;
-    badge_color?: string;
-    badge_bg?: string;
     display_order?: number;
     is_active?: boolean;
   }
@@ -1955,10 +1902,7 @@ export async function updateMasterResolutionLocationAction(
     if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase();
     if (data.label !== undefined) updateData.label = data.label.trim();
     if (data.keterangan !== undefined) updateData.keterangan = data.keterangan.trim() || null;
-    if (data.icon_emoji !== undefined) updateData.icon_emoji = data.icon_emoji.trim() || '📍';
     if (data.requires_strict_tkp !== undefined) updateData.requires_strict_tkp = Boolean(data.requires_strict_tkp);
-    if (data.badge_color !== undefined) updateData.badge_color = data.badge_color.trim();
-    if (data.badge_bg !== undefined) updateData.badge_bg = data.badge_bg.trim();
     if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
     if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
 
@@ -2027,9 +1971,6 @@ export async function createMasterResolutionDocumentAction(data: {
   key: string;
   label: string;
   keterangan?: string;
-  icon_emoji?: string;
-  badge_color?: string;
-  badge_bg?: string;
   display_order?: number;
   is_active?: boolean;
 }) {
@@ -2052,9 +1993,6 @@ export async function createMasterResolutionDocumentAction(data: {
         key,
         label,
         keterangan: data.keterangan?.trim() || null,
-        icon_emoji: data.icon_emoji?.trim() || '📄',
-        badge_color: data.badge_color?.trim() || '#2563EB',
-        badge_bg: data.badge_bg?.trim() || '#EFF6FF',
         display_order: Number(data.display_order) || 1,
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
       },
@@ -2074,9 +2012,6 @@ export async function updateMasterResolutionDocumentAction(
     key?: string;
     label?: string;
     keterangan?: string;
-    icon_emoji?: string;
-    badge_color?: string;
-    badge_bg?: string;
     display_order?: number;
     is_active?: boolean;
   }
@@ -2089,9 +2024,6 @@ export async function updateMasterResolutionDocumentAction(
     if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase();
     if (data.label !== undefined) updateData.label = data.label.trim();
     if (data.keterangan !== undefined) updateData.keterangan = data.keterangan.trim() || null;
-    if (data.icon_emoji !== undefined) updateData.icon_emoji = data.icon_emoji.trim() || '📄';
-    if (data.badge_color !== undefined) updateData.badge_color = data.badge_color.trim();
-    if (data.badge_bg !== undefined) updateData.badge_bg = data.badge_bg.trim();
     if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
     if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
 
@@ -2144,7 +2076,6 @@ export async function createMasterFuelTypeAction(data: {
   key: string;
   label: string;
   default_price_per_liter?: number;
-  icon_emoji?: string;
   display_order?: number;
   is_active?: boolean;
 }) {
@@ -2158,7 +2089,6 @@ export async function createMasterFuelTypeAction(data: {
         key: cleanKey,
         label: data.label.trim(),
         default_price_per_liter: Number(data.default_price_per_liter || 6800.0),
-        icon_emoji: data.icon_emoji?.trim() || '⛽',
         display_order: Number(data.display_order || 1),
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
       },
@@ -2178,7 +2108,6 @@ export async function updateMasterFuelTypeAction(
     key?: string;
     label?: string;
     default_price_per_liter?: number;
-    icon_emoji?: string;
     display_order?: number;
     is_active?: boolean;
   }
@@ -2191,7 +2120,6 @@ export async function updateMasterFuelTypeAction(
     if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase().replace(/\s+/g, '_');
     if (data.label !== undefined) updateData.label = data.label.trim();
     if (data.default_price_per_liter !== undefined) updateData.default_price_per_liter = Number(data.default_price_per_liter);
-    if (data.icon_emoji !== undefined) updateData.icon_emoji = data.icon_emoji.trim() || '⛽';
     if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
     if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
 
@@ -2243,8 +2171,6 @@ export async function getMasterFuelClaimStatusesAction() {
 export async function createMasterFuelClaimStatusAction(data: {
   key: string;
   label: string;
-  badge_color?: string;
-  badge_bg?: string;
   keterangan?: string;
   display_order?: number;
   is_active?: boolean;
@@ -2258,8 +2184,6 @@ export async function createMasterFuelClaimStatusAction(data: {
       data: {
         key: cleanKey,
         label: data.label.trim(),
-        badge_color: data.badge_color?.trim() || '#64748B',
-        badge_bg: data.badge_bg?.trim() || '#F1F5F9',
         keterangan: data.keterangan?.trim() || null,
         display_order: Number(data.display_order || 1),
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
@@ -2279,8 +2203,6 @@ export async function updateMasterFuelClaimStatusAction(
   data: {
     key?: string;
     label?: string;
-    badge_color?: string;
-    badge_bg?: string;
     keterangan?: string;
     display_order?: number;
     is_active?: boolean;
@@ -2293,8 +2215,6 @@ export async function updateMasterFuelClaimStatusAction(
     const updateData: any = {};
     if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase().replace(/\s+/g, '_');
     if (data.label !== undefined) updateData.label = data.label.trim();
-    if (data.badge_color !== undefined) updateData.badge_color = data.badge_color.trim();
-    if (data.badge_bg !== undefined) updateData.badge_bg = data.badge_bg.trim();
     if (data.keterangan !== undefined) updateData.keterangan = data.keterangan.trim() || null;
     if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
     if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);

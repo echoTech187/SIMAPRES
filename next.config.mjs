@@ -3,7 +3,9 @@ const nextConfig = {
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
   reactStrictMode: true,
   images: {
-    domains: ['localhost', 'maps.googleapis.com'],
+    unoptimized: true,
+    dangerouslyAllowSVG: false,
+    domains: ['localhost','https://simapres-nu.vercel.app', 'maps.googleapis.com'],
   },
   experimental: {
     serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],

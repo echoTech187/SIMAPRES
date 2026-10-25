@@ -304,6 +304,47 @@ export default function TabBerandaPersonil({
             </div>
           </div>
 
+          {/* Jadwal Piket Jaga Personil (SOP Polri) */}
+          <div
+            className="rounded-3xl p-4 sm:p-5"
+            style={{
+              background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(15, 23, 42, 0.9) 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              boxShadow: '0 8px 25px rgba(0, 0, 0, 0.5)',
+            }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Shield size={14} />
+                <span>Jadwal Piket Jaga Saya (SOP Polri)</span>
+              </span>
+              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
+                1x24 JAM
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Regu Piket :</span>
+                <span className="font-bold text-white bg-slate-800/80 px-2 py-0.5 rounded">Regu A (Satu)</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Jam Dinas :</span>
+                <span className="font-bold text-white">08.00 s/d 08.00 WIB (+1)</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Peran Penugasan :</span>
+                <span className="font-bold text-emerald-400">Piket Patroli Perintis Presisi</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">Status Presensi :</span>
+                <span className="font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                  ✓ HADIR DINAS SIAGA
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Shift Performance Summary Link */}
           <div
             onClick={() => onTabChange('profil')}

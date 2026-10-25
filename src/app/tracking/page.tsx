@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import CitizenLiveRadarTracker from '@/components/warga/CitizenLiveRadarTracker';
+import CitizenOperatorReviewView from '@/components/warga/CitizenOperatorReviewView';
 import { Shield, Search, Phone, Radio } from 'lucide-react';
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -31,11 +32,15 @@ function TrackingContent() {
 
   const ticketFromUrl = searchParams.get('tiket') || searchParams.get('lacak') || '';
   const tokenFromUrl = searchParams.get('token') || searchParams.get('auth') || '';
+  const viewFromUrl = searchParams.get('view') || '';
 
   const [ticketInput, setTicketInput] = useState(ticketFromUrl);
   const [tokenInput, setTokenInput] = useState(tokenFromUrl);
   const [activeTicket, setActiveTicket] = useState(ticketFromUrl);
   const [activeToken, setActiveToken] = useState(tokenFromUrl);
+  const [activeView, setActiveView] = useState<'radar' | 'operator'>(
+    viewFromUrl === 'operator' ? 'operator' : 'radar'
+  );
 
   useEffect(() => {
     setTicketInput(ticketFromUrl);
@@ -46,6 +51,12 @@ function TrackingContent() {
     setTokenInput(tokenFromUrl);
     setActiveToken(tokenFromUrl);
   }, [tokenFromUrl]);
+
+  useEffect(() => {
+    if (viewFromUrl === 'operator') {
+      setActiveView('operator');
+    }
+  }, [viewFromUrl]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,15 +86,29 @@ function TrackingContent() {
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_CSS }} />
 
       {activeTicket ? (
-        <CitizenLiveRadarTracker
-          nomorTiket={activeTicket}
-          token={activeToken}
-          onBack={() => {
-            setActiveTicket('');
-            setActiveToken('');
-            router.push('/tracking');
-          }}
-        />
+        activeView === 'operator' ? (
+          <CitizenOperatorReviewView
+            nomorTiket={activeTicket}
+            token={activeToken}
+            onBack={() => {
+              setActiveTicket('');
+              setActiveToken('');
+              router.push('/tracking');
+            }}
+            onSwitchToRadar={() => setActiveView('radar')}
+          />
+        ) : (
+          <CitizenLiveRadarTracker
+            nomorTiket={activeTicket}
+            token={activeToken}
+            onBack={() => {
+              setActiveTicket('');
+              setActiveToken('');
+              router.push('/tracking');
+            }}
+            onSwitchToOperatorReview={() => setActiveView('operator')}
+          />
+        )
       ) : (
         <>
           {/* ─────────────── HEADER ─────────────── */}

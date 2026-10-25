@@ -9,7 +9,7 @@ interface PersonilHeaderProps {
   officer: OfficerProfile;
   taktisStatus?: string;
   onTaktisStatusChange?: (status: string) => void;
-  dutyStatuses?: Array<{ key: string; label: string; icon_emoji?: string }>;
+  dutyStatuses?: Array<{ key: string; label: string; }>;
   onOpenProfile?: () => void;
   activeTab?: PersonilTab;
   onTabChange?: (tab: PersonilTab) => void;
