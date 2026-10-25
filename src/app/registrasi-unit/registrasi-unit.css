@@ -26,6 +26,38 @@
   overflow-x: hidden;
 }
 
+/* Superadmin App-Shell 2-Column Full-Height Layout */
+.superadmin-body-shell {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.superadmin-layout-wrapper {
+  display: flex !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  height: calc(100vh - 70px) !important;
+  width: 100% !important;
+  overflow: hidden !important;
+  align-items: stretch !important;
+  background: #F8FAFC;
+}
+
+#simopmas-superadmin-sidebar {
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #FFFFFF !important;
+  border-right: 1px solid #E2E8F0 !important;
+  overflow: hidden !important;
+}
+
 /* Topbar Header Presisi */
 .topbar {
   background: linear-gradient(135deg, #0D264A 0%, #153E75 100%);

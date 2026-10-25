@@ -230,15 +230,16 @@ export default function SuperadminSidebar({
         transition: 'all 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
         background: '#FFFFFF',
         borderRight: '1px solid #E2E8F0',
-        minHeight: 'calc(100vh - 70px)',
-        height: 'calc(100vh - 70px)',
-        position: 'sticky',
-        top: '70px',
+        height: '100%',
+        minHeight: '100%',
+        maxHeight: '100%',
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '2px 0 10px rgba(15, 23, 42, 0.03)',
-        zIndex: 50,
+        zIndex: 40,
         userSelect: 'none',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
     >
       {/* Top Sidebar Header & Collapse Toggle */}
@@ -250,6 +251,7 @@ export default function SuperadminSidebar({
           justifyContent: isCollapsed ? 'center' : 'space-between',
           borderBottom: '1px solid #F1F5F9',
           background: '#FAFAFC',
+          flexShrink: 0,
         }}
       >
         {!isCollapsed && (
@@ -538,6 +540,8 @@ export default function SuperadminSidebar({
       {/* Bottom Footer Info */}
       <div
         style={{
+          marginTop: 'auto',
+          flexShrink: 0,
           padding: isCollapsed ? '12px 6px' : '12px 16px',
           borderTop: '1px solid #F1F5F9',
           background: '#FAFAFC',

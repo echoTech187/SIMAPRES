@@ -453,9 +453,18 @@ export default function SuperadminConsoleView({
   }
 
   return (
-    <div className="registrasi-body">
+    <div
+      className="registrasi-body superadmin-body-shell"
+      style={{
+        height: '100vh',
+        maxHeight: '100vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       {/* Topbar Header Presisi (Konsep E Tribrata Log) */}
-      <header className="topbar">
+      <header className="topbar" style={{ flexShrink: 0 }}>
         <Link href="/" className="topbar-brand">
           <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Shield size={22} color="#38BDF8" strokeWidth={2.4} />
@@ -484,9 +493,12 @@ export default function SuperadminConsoleView({
         className="superadmin-layout-wrapper"
         style={{
           display: 'flex',
-          minHeight: 'calc(100vh - 70px)',
+          flex: 1,
+          minHeight: 0,
+          height: 'calc(100vh - 70px)',
           background: '#F8FAFC',
           width: '100%',
+          overflow: 'hidden',
           alignItems: 'stretch',
         }}
       >
@@ -510,6 +522,8 @@ export default function SuperadminConsoleView({
           style={{
             flex: 1,
             minWidth: 0,
+            height: '100%',
+            overflowY: 'auto',
             margin: 0,
             maxWidth: 'none',
             padding: '24px 32px',
