@@ -87,10 +87,20 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
             color: #000000 !important;
             font-family: 'Times New Roman', Times, serif !important;
           }
-          /* Sembunyikan elemen web portal (sidebar, topbar, tombol aksi, filter bar) */
+          /* Sembunyikan elemen web portal (sidebar, topbar, bottom nav, tabs, tombol aksi, filter bar) */
+          header,
           header.topbar,
+          .topbar,
+          .top-bar,
+          nav,
+          .bottom-nav,
+          .pawas-bottom-nav,
+          .personil-bottom-nav,
+          .tabs-master-wrapper,
+          .pawas-desktop-tabs,
           #simopmas-superadmin-sidebar,
           .superadmin-layout-wrapper > aside,
+          .escalation-alarm-banner,
           .no-print,
           .web-header-card,
           .web-filter-bar,
@@ -578,24 +588,7 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
         <div style={{ textAlign: 'center', minWidth: '240px' }}>
           <div>Mengetahui &amp; Memverifikasi Lapangan,</div>
           <div style={{ fontWeight: 'bold', marginTop: '3px' }}>PERWIRA PENGAWAS (PAWAS)</div>
-          <div
-            style={{
-              height: '55px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#153E75',
-              fontSize: '9pt',
-              fontWeight: 'bold',
-              border: '1px dashed #64748B',
-              margin: '8px auto',
-              width: '190px',
-              borderRadius: '4px',
-              background: '#F8FAFC',
-            }}
-          >
-            [ TERVALIDASI TIKET 110 ]
-          </div>
+          <div style={{ height: '65px' }} />
           <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>AKP Eko Susanto, S.I.K.</div>
           <div style={{ fontSize: '9pt' }}>PAWAS PIKET SIAGA 110</div>
         </div>
@@ -603,24 +596,7 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
         <div style={{ textAlign: 'center', minWidth: '240px' }}>
           <div>Kajen, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
           <div style={{ fontWeight: 'bold', marginTop: '3px' }}>PENGELOLA LOGISTIK &amp; ANGGARAN</div>
-          <div
-            style={{
-              height: '55px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#059669',
-              fontSize: '9pt',
-              fontWeight: 'bold',
-              border: '1px dashed #64748B',
-              margin: '8px auto',
-              width: '190px',
-              borderRadius: '4px',
-              background: '#F8FAFC',
-            }}
-          >
-            [ AUDIT BBM DIPA POLRI ]
-          </div>
+          <div style={{ height: '65px' }} />
           <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>Aiptu Herman Sulistyo</div>
           <div style={{ fontSize: '9pt' }}>KASUBBAG LOG / SI-KEU POLRES</div>
         </div>

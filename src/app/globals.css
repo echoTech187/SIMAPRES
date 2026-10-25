@@ -1600,7 +1600,15 @@
       /* Sembunyikan seluruh UI tablet app, navigasi, dan dialog overlay */
       .app-container,
       .top-bar,
+      .topbar,
+      header.topbar,
       .bottom-nav,
+      .pawas-bottom-nav,
+      .personil-bottom-nav,
+      .tabs-master-wrapper,
+      .pawas-desktop-tabs,
+      nav.bottom-nav,
+      nav,
       .view,
       .view-container,
       .modal-toolbar-print,
@@ -2037,7 +2045,7 @@
     /* ========================================================
        FUTURISTIC DRIBBBLE-STYLE FLOATING DOCK (WHITE THEME)
        ======================================================== */
-    @media (min-width: 1025px) {
+    @media screen and (min-width: 1025px) {
       .pawas-desktop-tabs {
         display: block !important;
       }
@@ -2046,7 +2054,7 @@
       }
     }
 
-    @media (max-width: 1024px) {
+    @media screen and (max-width: 1024px) {
       .pawas-desktop-tabs {
         display: none !important;
       }
