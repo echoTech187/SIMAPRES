@@ -52,11 +52,13 @@ function parseSuperadminTab(section?: string): SuperadminTab {
         'dokumen_penyelesaian',
         'knowledge_faq',
         'fuel_type',
-        'fuel_claim_status',
         'audit_bbm',
       ].includes(clean)
     ) {
       return clean as MasterTabType;
+    }
+    if (['claim_status', 'fuel_claim_status', 'status_klaim'].includes(clean)) {
+      return 'audit_bbm';
     }
     if (['faq', 'panduan', 'master_faq', 'buku_pintar', 'sop'].includes(clean)) {
       return 'knowledge_faq';
@@ -912,13 +914,13 @@ export default function SuperadminConsoleView({
             </span>
           </button>
 
-          {/* TAB 14: MASTER STATUS ALUR KLAIM BBM */}
+          {/* TAB 14: MASTER STATUS ALUR KLAIM BBM (DISEMBUNYIKAN) */}
           <button
             type="button"
             id="superadmin-tab-fuel-claim-status"
             onClick={() => switchTab('fuel_claim_status')}
             style={{
-              display: 'inline-flex',
+              display: 'none', // Disembunyikan sesuai arahan (bukan dihapus)
               alignItems: 'center',
               gap: '8px',
               padding: '8px 16px',

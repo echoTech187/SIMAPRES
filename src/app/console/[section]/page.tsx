@@ -83,6 +83,9 @@ export default async function ConsoleSectionPage({
   }
 
   const section = params?.section?.toLowerCase() || searchParams?.page || searchParams?.tab || 'beranda';
+  if (section === 'fuel_claim_status') {
+    redirect('/console/audit_bbm');
+  }
 
   // 2. Pre-fetch targeted data secara paralel langsung di Server (RSC) per-role
   let initialMasterData: any = null;
