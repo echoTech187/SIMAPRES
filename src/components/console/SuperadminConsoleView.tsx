@@ -425,16 +425,21 @@ export default function SuperadminConsoleView({
 
   const getRoleBadgeInfo = (roleStr?: string) => {
     const r = (roleStr || 'PERSONIL').toUpperCase();
+    const masterRole = masterItems.find(
+      (m) => m.tipe === 'role' && m.code?.toUpperCase() === r
+    );
+    const label = masterRole?.label || roleStr || 'Anggota';
+
     if (r === 'PAWAS') {
-      return { className: 'badge-role role-pawas', icon: '👑', label: 'PAWAS' };
+      return { className: 'badge-role role-pawas', icon: '👑', label };
     }
     if (r === 'OPERATOR_110' || r.includes('OPERATOR')) {
-      return { className: 'badge-role role-operator', icon: '🎧', label: 'OPERATOR SPKT' };
+      return { className: 'badge-role role-operator', icon: '🎧', label };
     }
     if (r === 'SUPERADMIN') {
-      return { className: 'badge-role role-superadmin', icon: '⚡', label: 'SUPERADMIN' };
+      return { className: 'badge-role role-superadmin', icon: '⚡', label };
     }
-    return { className: 'badge-role role-personil', icon: '👮', label: 'ANGGOTA' };
+    return { className: 'badge-role role-personil', icon: '👮', label };
   };
 
   const getSatuanBadgeClass = (uid: string) => {
