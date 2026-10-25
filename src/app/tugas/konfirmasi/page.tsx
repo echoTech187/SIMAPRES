@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getComplaintByTiketAction, quickAcceptComplaintDispatchAction } from '@/app/actions/complaint.actions';
 
-export default function KonfirmasiTugasPage() {
+function KonfirmasiTugasContent() {
   const searchParams = useSearchParams();
   const tiketParam = searchParams.get('tiket') || '';
   const roleParam = (searchParams.get('role') || 'OFFICER').toUpperCase() as 'OFFICER' | 'POLSEK';
@@ -406,5 +406,32 @@ export default function KonfirmasiTugasPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function KonfirmasiTugasPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#0B1120',
+            color: '#94A3B8',
+            fontFamily: 'sans-serif',
+          }}
+        >
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '28px', marginBottom: '8px' }}>⚡</div>
+            <p style={{ fontSize: '14px', fontWeight: 600 }}>Memuat Konfirmasi Penugasan 110...</p>
+          </div>
+        </div>
+      }
+    >
+      <KonfirmasiTugasContent />
+    </Suspense>
   );
 }
