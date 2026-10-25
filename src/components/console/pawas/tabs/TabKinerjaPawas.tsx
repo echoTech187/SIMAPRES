@@ -17,6 +17,7 @@ export interface TabKinerjaPawasProps {
   satisfactionPercent: string;
   officerRankings: any;
   stationRankings?: any;
+  operatorRankings?: any;
 }
 
 const getLocalTodayDateString = () => {
@@ -42,10 +43,11 @@ export default function TabKinerjaPawas({
   satisfactionPercent: initialSatisfactionPercent,
   officerRankings,
   stationRankings,
+  operatorRankings,
 }: TabKinerjaPawasProps) {
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [kinerjaDate, setKinerjaDate] = useState(() => getLocalTodayDateString());
-  const [leaderboardTier, setLeaderboardTier] = useState<'satuan' | 'personel'>('satuan');
+  const [leaderboardTier, setLeaderboardTier] = useState<'satuan' | 'personel' | 'operator'>('satuan');
   const [rankingCategoryTab, setRankingCategoryTab] = useState<'produktivitas' | 'kepuasan'>('produktivitas');
 
   // Helper untuk mengekstrak objek tanggal valid dari aduan
@@ -393,6 +395,76 @@ export default function TabKinerjaPawas({
     });
   }, [officerRankings, rankingCategoryTab, filteredComplaints]);
 
+  // FILTERED TIER 3 LEADERBOARD (OPERATOR SPKT 110) SESUAI PERIODE
+  const filteredOperatorList = useMemo(() => {
+    const rawOperatorList = rankingCategoryTab === 'produktivitas'
+      ? (operatorRankings?.productivityRanking ? operatorRankings.productivityRanking : (operatorRankings?.overallRanking ? operatorRankings.overallRanking : []))
+      : (operatorRankings?.satisfactionRanking ? operatorRankings.satisfactionRanking : (operatorRankings?.overallRanking ? operatorRankings.overallRanking : []));
+
+    if (rawOperatorList.length === 0) return [];
+
+    return rawOperatorList.map((item: any) => {
+      // Saring tiket yang diinput oleh operator ini pada periode terpilih
+      const opComplaints = filteredComplaints.filter((c: any) =>
+        String(c.operatorId) === String(item.operatorId) ||
+        String(c.operator_id) === String(item.operatorId) ||
+        (c.operator && String(c.operator.id) === String(item.operatorId))
+      );
+
+      const totalTiketInput = opComplaints.length;
+      const totalDisposisi = opComplaints.filter((c: any) => c.status !== 'MENUNGGU').length;
+      const totalSelesai = opComplaints.filter((c: any) => c.status === 'SELESAI').length;
+
+      const stars = opComplaints
+        .map((c: any) => c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : null))
+        .filter(Boolean);
+      const avgRating = stars.length > 0 ? Math.round((stars.reduce((a: number, b: any) => a + Number(b), 0) / stars.length) * 10) / 10 : (item.avgRating ? item.avgRating : 0);
+
+      const sopCompliant = opComplaints.filter((c: any) => c.subcategoryId || c.subcategory_id).length;
+      const sopComplianceRate = totalTiketInput > 0 ? Math.round((sopCompliant / totalTiketInput) * 100) : (item.sopComplianceRate ? item.sopComplianceRate : 100);
+
+      const avgIntakeMinutes = item.avgIntakeMinutes ? item.avgIntakeMinutes : 2.1;
+
+      // Hitung Skor Komposit Kinerja Operator (100 Poin)
+      const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
+      const volumeScore = Math.min(35, totalTiketInput * 7);
+      const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
+      const compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+
+      let predikat = 'Operator Siaga Standar';
+      let predikatColor = '#D97706';
+      if (compositeScore >= 90) {
+        predikat = 'Operator Teladan 110';
+        predikatColor = '#059669';
+      } else if (compositeScore >= 80) {
+        predikat = 'Pelayanan Prima';
+        predikatColor = '#2563EB';
+      } else if (compositeScore < 70) {
+        predikat = 'Perlu Evaluasi SOP';
+        predikatColor = '#DC2626';
+      }
+
+      return {
+        ...item,
+        totalTiketInput,
+        totalDisposisi,
+        totalSelesai,
+        avgIntakeMinutes,
+        sopComplianceRate,
+        avgRating,
+        totalReviews: stars.length,
+        compositeScore,
+        predikat,
+        predikatColor,
+      };
+    }).sort((a: any, b: any) => {
+      if (rankingCategoryTab === 'produktivitas') {
+        return b.totalTiketInput - a.totalTiketInput;
+      }
+      return b.avgRating - a.avgRating;
+    });
+  }, [operatorRankings, rankingCategoryTab, filteredComplaints]);
+
   return (
     <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
       {/* Header Halaman Kinerja */}
@@ -665,6 +737,28 @@ export default function TabKinerjaPawas({
             >
               <span>👮</span>
               <span>Tier 2: Personel Presisi (Individu)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLeaderboardTier('operator')}
+              style={{
+                padding: '7px 14px',
+                fontSize: '11.5px',
+                fontWeight: 800,
+                border: 'none',
+                borderRadius: '7px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                background: leaderboardTier === 'operator' ? '#153E75' : 'transparent',
+                color: leaderboardTier === 'operator' ? 'white' : '#64748B',
+                boxShadow: leaderboardTier === 'operator' ? '0 2px 6px rgba(21,62,117,0.25)' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>🎧</span>
+              <span>Tier 3: Operator SPKT 110 (Sentra Layanan)</span>
             </button>
           </div>
         </div>
@@ -1149,6 +1243,244 @@ export default function TabKinerjaPawas({
                                 }}
                               >
                                 {item.predikat ? item.predikat : 'TELADAN'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* TIER 3 CONTENT: EVALUASI & PERINGKAT OPERATOR SPKT 110 */}
+        {leaderboardTier === 'operator' && (
+          <div>
+            {/* Header Tier 3 & Sub-Tab Switcher */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '14px' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>
+                  Evaluasi Akuntabilitas Operator Sentra Layanan 110 ({periodSummaryLabel})
+                </div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                  Instrumen Evaluasi Petugas Call Taker &amp; CAD Operator: Kecepatan Input Tiket, Kepatuhan Standar SOP, dan Indeks Kepuasan Pelayanan (IKM Warga).
+                </div>
+              </div>
+
+              {/* Sub-Tab: Produktivitas CAD vs Kepuasan Warga */}
+              <div style={{ display: 'flex', background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '3px', borderRadius: '8px', gap: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => setRankingCategoryTab('produktivitas')}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    background: rankingCategoryTab === 'produktivitas' ? '#153E75' : 'transparent',
+                    color: rankingCategoryTab === 'produktivitas' ? 'white' : '#64748B',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  ⚡ Produktivitas CAD (Tiket Terbanyak)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRankingCategoryTab('kepuasan')}
+                  style={{
+                    padding: '5px 12px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    background: rankingCategoryTab === 'kepuasan' ? '#153E75' : 'transparent',
+                    color: rankingCategoryTab === 'kepuasan' ? 'white' : '#64748B',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  ⭐ Kepuasan Pelayanan (Rating Warga)
+                </button>
+              </div>
+            </div>
+
+            {/* Content Tier 3 */}
+            {(() => {
+              if (filteredOperatorList.length === 0) {
+                return (
+                  <div style={{ padding: '30px 10px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
+                    <div style={{ fontSize: '24px', marginBottom: '6px' }}>🎧</div>
+                    <div style={{ fontWeight: 700 }}>Belum Ada Data Penugasan Operator Pada {periodSummaryLabel}</div>
+                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>
+                      Pilih rentang waktu lain atau gunakan tanggal aktif untuk memantau evaluasi operator SPKT 110.
+                    </div>
+                  </div>
+                );
+              }
+
+              const top3Operators = filteredOperatorList.slice(0, 3);
+
+              return (
+                <div>
+                  {/* Podium 3 Besar Operator 110 */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                    {top3Operators.map((item: any, idx: number) => {
+                      const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+                      const medalLabel = idx === 0 ? 'JUARA 1 - OPERATOR TELADAN' : idx === 1 ? 'JUARA 2 - SANGAT PRIMA' : 'JUARA 3 - OPERATOR SIAGA';
+                      const borderColor = idx === 0 ? '#F59E0B' : idx === 1 ? '#94A3B8' : '#D97706';
+                      const bgGradient = idx === 0
+                        ? 'linear-gradient(135deg, #FEF3C7 0%, #FFFFFF 100%)'
+                        : idx === 1
+                        ? 'linear-gradient(135deg, #F1F5F9 0%, #FFFFFF 100%)'
+                        : 'linear-gradient(135deg, #FFEDD5 0%, #FFFFFF 100%)';
+
+                      return (
+                        <div
+                          key={item.operatorId || idx}
+                          style={{
+                            border: `2px solid ${borderColor}`,
+                            borderRadius: '12px',
+                            background: bgGradient,
+                            padding: '14px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.04)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                          }}
+                        >
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 900, color: borderColor, letterSpacing: '0.5px' }}>
+                                {medal} {medalLabel}
+                              </span>
+                              <span style={{ fontSize: '10px', background: item.predikatColor, color: 'white', padding: '2px 7px', borderRadius: '4px', fontWeight: 800 }}>
+                                {item.predikat}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>🎧</span>
+                              <span>{item.namaLengkap}</span>
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                              NRP: <strong>{item.identifier}</strong> • {item.stationName}
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', textAlign: 'center' }}>
+                            <div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket CAD</div>
+                              <div style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>
+                                {item.totalTiketInput} Laporan
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>Entri CAD</div>
+                              <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669' }}>
+                                ± {item.avgIntakeMinutes} m
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>Rating Warga</div>
+                              <div style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
+                                ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Banner Instrumen Evaluasi Operator */}
+                  <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', fontSize: '11.5px', color: '#475569' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '16px' }}>ℹ️</span>
+                      <div>
+                        <strong>Instrumen Akuntabilitas Operator 110:</strong> Mengukur kecepatan entri tiket CAD (&le; 2 menit), rasio kepatuhan SOP kejadian, dan indeks kepuasan pelayanan warga pelapor.
+                      </div>
+                    </div>
+                    <span style={{ background: '#153E75', color: 'white', padding: '3px 9px', borderRadius: '6px', fontWeight: 700, fontSize: '10.5px' }}>
+                      Total Operator: {filteredOperatorList.length} Petugas
+                    </span>
+                  </div>
+
+                  {/* Tabel Peringkat Lengkap Operator 110 */}
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0', color: '#475569', fontWeight: 800 }}>
+                          <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Rank</th>
+                          <th style={{ padding: '8px 10px' }}>Identitas Petugas Operator</th>
+                          <th style={{ padding: '8px 10px' }}>Satuan / Penugasan</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket CAD Input</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kecepatan CAD</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kepatuhan SOP</th>
+                          <th style={{ padding: '8px 10px' }}>Kepuasan Warga (IKM)</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Skor Anev</th>
+                          <th style={{ padding: '8px 10px' }}>Predikat</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredOperatorList.map((item: any, idx: number) => (
+                          <tr key={item.operatorId || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800 }}>
+                              {idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`}
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <div style={{ fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <span>🎧</span>
+                                <span>{item.namaLengkap}</span>
+                              </div>
+                              <div style={{ fontSize: '10.5px', color: '#64748B' }}>
+                                NRP: <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{item.identifier}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 10px', color: '#475569' }}>
+                              <div>{item.pangkat}</div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>{item.stationName}</div>
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800, color: '#153E75' }}>
+                              {item.totalTiketInput} Tiket
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#059669' }}>
+                              ± {item.avgIntakeMinutes} m
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: item.sopComplianceRate >= 90 ? '#059669' : '#D97706' }}>
+                                {item.sopComplianceRate}%
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'} / 5.0
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>
+                                {item.totalReviews > 0 ? `${item.totalReviews} ulasan warga` : 'Belum ada ulasan'}
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 900, color: '#153E75', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
+                                {item.compositeScore}
+                              </span>
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <span
+                                style={{
+                                  background: item.predikatColor ? item.predikatColor : '#10B981',
+                                  color: 'white',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '10px',
+                                  fontWeight: 700,
+                                  display: 'inline-block',
+                                }}
+                              >
+                                {item.predikat}
                               </span>
                             </td>
                           </tr>

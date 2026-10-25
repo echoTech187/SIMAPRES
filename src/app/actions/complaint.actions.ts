@@ -2083,6 +2083,205 @@ export async function getStationPerformanceRankingsAction() {
   }
 }
 
+export interface OperatorPerformanceRankItem {
+  operatorId: string;
+  identifier: string; // NRP
+  namaLengkap: string;
+  pangkat: string;
+  role: string;
+  stationName: string;
+  avatarUrl?: string | null;
+  totalTiketInput: number;
+  totalDisposisi: number;
+  totalSelesai: number;
+  avgIntakeMinutes: number;
+  sopComplianceRate: number;
+  avgRating: number;
+  totalReviews: number;
+  compositeScore: number;
+  rankScore: number;
+  rank: number;
+  predikat: string;
+  predikatColor: string;
+  recentReviewText?: string | null;
+}
+
+/**
+ * Mengambil data ranking performa seluruh Operator SPKT 110 (Tier 3 Leaderboard):
+ * - Volume Tiket CAD Diinput
+ * - Kecepatan Entri CAD (Intake Time)
+ * - Kepatuhan Input SOP & Standar Layanan
+ * - Indeks Kepuasan Pelayanan 110 (Rating Bintang Warga)
+ * - Skor Komposit Anev Operator (Bobot 100 Poin)
+ */
+export async function getOperatorPerformanceRankingsAction() {
+  const cached = cacheGet<any>('operator_performance_rankings');
+  if (cached) {
+    return { success: true, data: cached };
+  }
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+
+    const [operators, allComplaints] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: 'OPERATOR' },
+        include: {
+          station: { select: { station_name: true } },
+        },
+        orderBy: { id: 'asc' },
+      }),
+      prisma.complaint.findMany({
+        select: {
+          id: true,
+          operator_id: true,
+          status: true,
+          created_at: true,
+          category_id: true,
+          subcategory_id: true,
+          ringkasan_keterangan: true,
+          citizen_review_rel: {
+            select: {
+              star_rating: true,
+              review_text: true,
+            },
+          },
+          dispatches: {
+            select: {
+              dispatched_at: true,
+            },
+            take: 1,
+            orderBy: { id: 'asc' },
+          },
+        },
+      }),
+    ]);
+
+    const items: OperatorPerformanceRankItem[] = operators.map((op) => {
+      const opId = op.id;
+      const opComplaints = allComplaints.filter((c) => c.operator_id === opId);
+      const totalTiketInput = opComplaints.length;
+
+      let totalDisposisi = 0;
+      let totalSelesai = 0;
+      let totalIntakeMinutes = 0;
+      let intakeCount = 0;
+      let compliantSopCount = 0;
+      let totalStars = 0;
+      let reviewCount = 0;
+      let recentReviewText: string | null = null;
+
+      for (const c of opComplaints) {
+        if (c.status !== 'MENUNGGU') {
+          totalDisposisi++;
+        }
+        if (c.status === 'SELESAI') {
+          totalSelesai++;
+        }
+
+        const hasSubcat = c.subcategory_id !== null;
+        const hasText = (c.ringkasan_keterangan ? c.ringkasan_keterangan.trim().length : 0) >= 10;
+        if (hasSubcat && hasText) {
+          compliantSopCount++;
+        }
+
+        if (c.created_at && c.dispatches && c.dispatches.length > 0 && c.dispatches[0].dispatched_at) {
+          const createTime = new Date(c.created_at).getTime();
+          const dispTime = new Date(c.dispatches[0].dispatched_at).getTime();
+          if (dispTime >= createTime) {
+            const diffMin = Math.round((dispTime - createTime) / 60000);
+            totalIntakeMinutes += Math.max(1, Math.min(10, diffMin));
+            intakeCount++;
+          }
+        }
+
+        if (c.citizen_review_rel?.star_rating) {
+          totalStars += c.citizen_review_rel.star_rating;
+          reviewCount++;
+          if (!recentReviewText && c.citizen_review_rel.review_text) {
+            recentReviewText = c.citizen_review_rel.review_text;
+          }
+        }
+      }
+
+      const sopComplianceRate = totalTiketInput > 0 ? Math.round((compliantSopCount / totalTiketInput) * 100) : 100;
+      const avgIntakeMinutes = intakeCount > 0 ? Math.round((totalIntakeMinutes / intakeCount) * 10) / 10 : 2.1;
+      const avgRating = reviewCount > 0 ? Math.round((totalStars / reviewCount) * 10) / 10 : 0;
+
+      const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
+      const volumeScore = Math.min(35, totalTiketInput * 7);
+      const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
+      const compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+
+      let predikat = 'Operator Siaga Standar';
+      let predikatColor = '#D97706';
+
+      if (compositeScore >= 90) {
+        predikat = 'Operator Teladan 110';
+        predikatColor = '#059669';
+      } else if (compositeScore >= 80) {
+        predikat = 'Pelayanan Prima';
+        predikatColor = '#2563EB';
+      } else if (compositeScore < 70) {
+        predikat = 'Perlu Evaluasi SOP';
+        predikatColor = '#DC2626';
+      }
+
+      const nameParts = op.full_name.split(' ');
+      const pangkatCandidate = nameParts.length > 1 ? nameParts[0] : 'Bripka';
+      const pangkat = ['Aiptu', 'Aipda', 'Bripka', 'Brigadir', 'Briptu', 'Bripda', 'Ipda'].includes(pangkatCandidate)
+        ? pangkatCandidate
+        : 'Operator SPKT';
+
+      return {
+        operatorId: op.id.toString(),
+        identifier: op.identifier,
+        namaLengkap: op.full_name,
+        pangkat,
+        role: op.role,
+        stationName: op.station?.station_name ? op.station.station_name : 'SPKT Mako Polres Pekalongan',
+        avatarUrl: op.avatar_url,
+        totalTiketInput,
+        totalDisposisi,
+        totalSelesai,
+        avgIntakeMinutes,
+        sopComplianceRate,
+        avgRating,
+        totalReviews: reviewCount,
+        compositeScore,
+        rankScore: compositeScore,
+        rank: 1,
+        predikat,
+        predikatColor,
+        recentReviewText,
+      };
+    });
+
+    const overallRanking = [...items].sort((a, b) => b.compositeScore - a.compositeScore).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const productivityRanking = [...items].sort((a, b) => b.totalTiketInput - a.totalTiketInput).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const satisfactionRanking = [...items].sort((a, b) => b.avgRating - a.avgRating).map((item, idx) => ({ ...item, rank: idx + 1 }));
+
+    const payload = {
+      overallRanking,
+      productivityRanking,
+      satisfactionRanking,
+      totalOperators: items.length,
+    };
+
+    cacheSet('operator_performance_rankings', payload, 60000);
+
+    return {
+      success: true,
+      data: payload,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message ? error.message : 'Gagal memuat ranking performa Operator.',
+    };
+  }
+}
+
 export async function generateTrackingTokenAction(ticketNo: string) {
   try {
     const { generateTrackingToken } = await import('@/lib/tracking-token');

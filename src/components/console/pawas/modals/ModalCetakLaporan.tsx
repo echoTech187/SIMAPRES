@@ -11,6 +11,7 @@ interface ModalCetakLaporanProps {
   totalLaporan: number;
   userProfile: any;
   stationRankings?: any;
+  operatorRankings?: any;
 }
 
 export default function ModalCetakLaporan({
@@ -22,10 +23,12 @@ export default function ModalCetakLaporan({
   totalLaporan,
   userProfile,
   stationRankings,
+  operatorRankings,
 }: ModalCetakLaporanProps) {
   if (!isOpen) return null;
 
   const stationList = stationRankings?.overallRanking ? stationRankings.overallRanking : [];
+  const operatorList = operatorRankings?.overallRanking ? operatorRankings.overallRanking : [];
 
   return (
     <div
@@ -196,6 +199,62 @@ export default function ModalCetakLaporan({
               </table>
               <div style={{ fontSize: '8.5pt', fontStyle: 'italic', marginTop: '6px' }}>
                 Catatan Pawas: Disusun sebagai rujukan berkala Anev Pimpinan (Kapolres) untuk pembinaan operasional kewilayahan dan reward bagi Polsek jajaran dengan integritas respon terbaik.
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <strong>VI. REKAPITULASI AKUNTABILITAS PETUGAS OPERATOR SENTRA LAYANAN 110 &amp; CAD:</strong>
+            <div style={{ paddingLeft: '18px', marginTop: '6px' }}>
+              <div style={{ fontSize: '10pt', marginBottom: '8px', textAlign: 'justify' }}>
+                Hasil audit digital kecepatan intake berkas CAD 110, kepatuhan SOP rekomendasi satuan fungsi, dan indeks kepuasan pelayanan perorangan operator piket:
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt', border: '1px solid #000' }}>
+                <thead>
+                  <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #000' }}>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', width: '30px' }}>No</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'left' }}>Nama Operator / NRP</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Total Tiket CAD</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Kecepatan Intake</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Kepatuhan SOP</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Kepuasan Warga</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Predikat Mutu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {operatorList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontStyle: 'italic' }}>
+                        Data evaluasi kinerja operator 110 sedang dihimpun oleh sistem
+                      </td>
+                    </tr>
+                  ) : (
+                    operatorList.map((op: any, idx: number) => (
+                      <tr key={op.operatorId}>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{idx + 1}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px' }}>
+                          <strong>{op.operatorName}</strong> ({op.operatorNrp ? `NRP: ${op.operatorNrp}` : 'Operator 110'})
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{op.totalTiketInput}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
+                          {op.avgIntakeMinutes > 0 ? `± ${op.avgIntakeMinutes.toFixed(1)} m` : '< 1 m'}
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
+                          {op.sopComplianceRate}%
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
+                          {op.avgRating > 0 ? `${op.avgRating.toFixed(1)} / 5.0` : '-'}
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {op.predicateBadge ? op.predicateBadge : 'Standar'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              <div style={{ fontSize: '8.5pt', fontStyle: 'italic', marginTop: '6px' }}>
+                Catatan Pawas: Disusun berdasarkan rekapitulasi data CAD 110 terpadu untuk apresiasi berkala petugas piket dan peningkatan mutu etika penerimaan pengaduan.
               </div>
             </div>
           </div>

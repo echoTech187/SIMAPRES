@@ -7,6 +7,7 @@ import {
   getIkmStatsAction,
   getOfficerPerformanceRankingsAction,
   getStationPerformanceRankingsAction,
+  getOperatorPerformanceRankingsAction,
 } from './complaint.actions';
 import { getRegisteredUnitsAction, getPoliceOfficesAction } from './auth.actions';
 import { getPatrolFleetUnitsAction } from './fleet.actions';
@@ -50,6 +51,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       ikmRes,
       rankRes,
       stationRankRes,
+      operatorRankRes,
       recentLogbooksRaw,
     ] = await Promise.all([
       getMasterFilterOptionsAction(),
@@ -62,6 +64,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       getIkmStatsAction(),
       getOfficerPerformanceRankingsAction(),
       getStationPerformanceRankingsAction(),
+      getOperatorPerformanceRankingsAction(),
       prisma.officerLogbook.findMany({
         take: 8,
         orderBy: { created_at: 'desc' },
@@ -97,6 +100,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       ikmStats: ikmRes.success && ikmRes.data ? ikmRes.data : null,
       officerRankings: rankRes.success && rankRes.data ? rankRes.data : null,
       stationRankings: stationRankRes.success && stationRankRes.data ? stationRankRes.data : null,
+      operatorRankings: operatorRankRes.success && operatorRankRes.data ? operatorRankRes.data : null,
       recentLogbooks: serializeBigInt(recentLogbooksRaw ? recentLogbooksRaw : []),
     };
 

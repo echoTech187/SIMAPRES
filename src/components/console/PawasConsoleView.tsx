@@ -260,6 +260,14 @@ function CommandCenterContent({
     totalStations: number;
   } | null>(() => initialPawasData?.stationRankings ? initialPawasData.stationRankings : null);
 
+  // Operator Performance Ranking State (Tier 3: Evaluasi Operator SPKT 110)
+  const [operatorRankings, setOperatorRankings] = useState<{
+    overallRanking: any[];
+    productivityRanking: any[];
+    satisfactionRanking: any[];
+    totalOperators: number;
+  } | null>(() => initialPawasData?.operatorRankings ? initialPawasData.operatorRankings : null);
+
   // Toast Notification
   const showFriendlyToast = useCallback((
     type: 'success' | 'warning' | 'error' | 'info',
@@ -571,6 +579,7 @@ function CommandCenterContent({
         if (d.ikmStats) setIkmStats(d.ikmStats);
         if (d.officerRankings) setOfficerRankings(d.officerRankings);
         if (d.stationRankings) setStationRankings(d.stationRankings);
+        if (d.operatorRankings) setOperatorRankings(d.operatorRankings);
         if (Array.isArray(d.recentLogbooks)) setRecentActivities(d.recentLogbooks);
 
         dataLoadedRef.current = true;
@@ -1792,6 +1801,7 @@ function CommandCenterContent({
             satisfactionPercent={satisfactionPercent}
             officerRankings={officerRankings}
             stationRankings={stationRankings}
+            operatorRankings={operatorRankings}
           />
         )}
 
@@ -2000,6 +2010,7 @@ function CommandCenterContent({
         totalLaporan={totalLaporan}
         userProfile={userProfile}
         stationRankings={stationRankings}
+        operatorRankings={operatorRankings}
       />
 
       <ModalHotspotPawas

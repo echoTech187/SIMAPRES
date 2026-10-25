@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Headphones, Map, BookOpen, User, Shield } from 'lucide-react';
+import { Headphones, Map, BookOpen, User, Shield, Award } from 'lucide-react';
 import {
   getPendingComplaintsAction,
   disposisiMultiSatuanAction,
@@ -30,6 +30,7 @@ import TabTacticalMapPawas from './pawas/tabs/TabTacticalMapPawas';
 import TabOperatorCadPawas from './pawas/tabs/TabOperatorCadPawas';
 import TabTolakLogPawas from './pawas/tabs/TabTolakLogPawas';
 import TabBukuPintarSop from './pawas/tabs/TabBukuPintarSop';
+import TabKinerjaOperator from './pawas/tabs/TabKinerjaOperator';
 
 import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
@@ -100,6 +101,10 @@ function parseOperatorTab(section: string): PawasTab {
     case 'panduan':
     case 'faq':
       return 'view-panduan';
+    case 'kinerja':
+    case 'laporan':
+    case 'peringkat':
+      return 'view-laporan';
     case 'profil':
       return 'view-profil';
     case 'tolak':
@@ -116,6 +121,8 @@ function operatorTabToSlug(tabId: PawasTab): string {
       return 'peta';
     case 'view-panduan':
       return 'panduan';
+    case 'view-laporan':
+      return 'kinerja';
     case 'view-profil':
       return 'profil';
     case 'view-tolak':
@@ -187,6 +194,7 @@ function OperatorConsoleContent({
   const [policeOffices, setPoliceOffices] = useState<any[]>(() => initialOperatorData?.policeOffices || []);
   const [fleetUnits, setFleetUnits] = useState<any[]>(() => initialOperatorData?.fleetUnits || []);
   const [hotspots, setHotspots] = useState<any[]>(() => initialOperatorData?.hotspots || []);
+  const [operatorRankings, setOperatorRankings] = useState<any>(() => initialOperatorData?.operatorRankings || initialMasterData?.operatorRankings || null);
   const [loading, setLoading] = useState(false);
   const [isServerDataLoaded, setIsServerDataLoaded] = useState(() => !!initialOperatorData);
 
@@ -296,6 +304,7 @@ function OperatorConsoleContent({
         if (Array.isArray(d.fleetUnits)) setFleetUnits(d.fleetUnits);
         if (Array.isArray(d.policeOffices)) setPoliceOffices(d.policeOffices);
         if (Array.isArray(d.hotspots)) setHotspots(d.hotspots);
+        if (d.operatorRankings) setOperatorRankings(d.operatorRankings);
       }
     } catch (e) {
       console.warn('Error loading operator data:', e);
@@ -598,6 +607,24 @@ function OperatorConsoleContent({
               <BookOpen size={15} strokeWidth={2.2} />
               <span>Buku Pintar SOP &amp; Layanan</span>
             </button>
+
+            {/* TAB: EVALUASI & PERINGKAT KINERJA 110 */}
+            <button
+              type="button"
+              id="nav-kinerja-operator"
+              onClick={() => switchTab('view-laporan')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: '8px',
+                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
+                background: activeTab === 'view-laporan' ? '#0284C7' : '#F8FAFC',
+                color: activeTab === 'view-laporan' ? 'white' : '#475569',
+                border: activeTab === 'view-laporan' ? '1px solid #0284C7' : '1px solid #E2E8F0',
+              }}
+            >
+              <Award size={15} strokeWidth={2.2} />
+              <span>Kinerja &amp; Peringkat 110</span>
+            </button>
           </div>
         </div>
       )}
@@ -653,6 +680,15 @@ function OperatorConsoleContent({
             showFriendlyToast={showFriendlyToast}
             initialCallerPhone={simCaller?.noTelp ? simCaller.noTelp : ''}
             initialCallerName={simCaller?.nama ? simCaller.nama : ''}
+          />
+        )}
+
+        {activeTab === 'view-laporan' && (
+          <TabKinerjaOperator
+            userProfile={userProfile}
+            allRecentComplaints={allRecentComplaints}
+            operatorRankings={operatorRankings}
+            switchTab={switchTab}
           />
         )}
 
@@ -730,6 +766,17 @@ function OperatorConsoleContent({
             <BookOpen size={20} strokeWidth={activeTab === 'view-panduan' ? 2.4 : 1.8} />
           </span>
           <span className="nav-label">Buku SOP</span>
+        </div>
+
+        <div
+          id="op-bottom-nav-kinerja"
+          className={`nav-item ${activeTab === 'view-laporan' ? 'active' : ''}`}
+          onClick={() => switchTab('view-laporan')}
+        >
+          <span className="nav-icon">
+            <Award size={20} strokeWidth={activeTab === 'view-laporan' ? 2.4 : 1.8} />
+          </span>
+          <span className="nav-label">Kinerja</span>
         </div>
 
         <div
