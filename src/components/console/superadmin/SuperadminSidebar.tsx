@@ -59,14 +59,6 @@ export default function SuperadminSidebar({
       icon: '⛽',
       items: [
         {
-          key: 'audit_bbm',
-          label: 'Audit BBM Logistik',
-          icon: '⛽',
-          badge: 'GPS',
-          badgeColor: 'sky',
-          description: 'Audit kilometer riil & SPJ BBM patroli',
-        },
-        {
           key: 'fuel_type',
           label: 'Master BBM DIPA',
           icon: '🛢️',

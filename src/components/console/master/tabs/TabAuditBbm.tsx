@@ -4,7 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { getFuelAuditReportAction, getPoliceStationsMasterAction } from '@/app/actions/master.actions';
 import { MasterTabProps } from './types';
 
-export default function TabAuditBbm({ lookups, showToast }: MasterTabProps) {
+export interface TabAuditBbmProps {
+  lookups?: any;
+  showToast?: (msg: string) => void;
+  userProfile?: any;
+}
+
+export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile }: TabAuditBbmProps) {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [stationsList, setStationsList] = useState<any[]>([]);
@@ -17,14 +23,21 @@ export default function TabAuditBbm({ lookups, showToast }: MasterTabProps) {
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
   ];
 
-  // Ambil daftar Mako / Polsek untuk filter dinamis
+  // Ambil daftar Mako / Polsek untuk filter dinamis & sinkronkan Mako profil pengguna
   useEffect(() => {
     getPoliceStationsMasterAction().then((res) => {
       if (res?.success && res.data) {
         setStationsList(res.data);
+        if (userProfile?.stationId || userProfile?.station_id) {
+          const targetStationId = Number(userProfile.stationId || userProfile.station_id);
+          const matchedStation = res.data.find((s: any) => s.id === targetStationId);
+          if (matchedStation) {
+            setSelectedStationId(String(matchedStation.id));
+          }
+        }
       }
     }).catch(() => {});
-  }, []);
+  }, [userProfile]);
 
   const loadReport = async () => {
     setLoading(true);

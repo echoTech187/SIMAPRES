@@ -53,21 +53,14 @@ function parseSuperadminTab(section?: string): SuperadminTab {
         'dokumen_penyelesaian',
         'knowledge_faq',
         'fuel_type',
-        'audit_bbm',
       ].includes(clean)
     ) {
       return clean as MasterTabType;
     }
-    if (['claim_status', 'fuel_claim_status', 'status_klaim'].includes(clean)) {
-      return 'audit_bbm';
-    }
     if (['faq', 'panduan', 'master_faq', 'buku_pintar', 'sop'].includes(clean)) {
       return 'knowledge_faq';
     }
-    if (['bbm', 'audit_bbm', 'klaim_bbm', 'logistik'].includes(clean)) {
-      return 'audit_bbm';
-    }
-    if (['fuel', 'fuel_type', 'master_bbm'].includes(clean)) {
+    if (['fuel', 'fuel_type', 'master_bbm', 'bbm', 'audit_bbm', 'klaim_bbm', 'logistik', 'claim_status', 'fuel_claim_status', 'status_klaim'].includes(clean)) {
       return 'fuel_type';
     }
     return 'unit';
