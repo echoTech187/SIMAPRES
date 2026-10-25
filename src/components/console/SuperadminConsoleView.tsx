@@ -21,6 +21,7 @@ import MasterDataManager, { MasterTabType } from './master/MasterDataManager';
 import MasterTabShell from './master/tabs/MasterTabShell';
 import TabUnitPersonel from './master/tabs/TabUnitPersonel';
 import TabProfilSuperadmin from './profile/TabProfilSuperadmin';
+import SuperadminSidebar from './superadmin/SuperadminSidebar';
 import { ConsoleSkeleton } from './ConsoleSkeleton';
 import HeaderProfileBadge, { getInitials } from './HeaderProfileBadge';
 import { toast } from '@/components/ui/Toast';
@@ -104,6 +105,17 @@ export default function SuperadminConsoleView({
       }
     }
     return parseSuperadminTab(initialSection);
+  });
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('simapres_sidebar_collapsed') === 'true';
+      } catch (e) {
+        return false;
+      }
+    }
+    return false;
   });
 
   const [counters, setCounters] = useState(initialSuperadminData?.counters || {
@@ -467,594 +479,72 @@ export default function SuperadminConsoleView({
         </div>
       </header>
 
-      {/* TABS MASTER DATA SIMOPMAS 110 */}
-      {activeTab !== 'profil' && (
-        <div
-          className="tabs-master-wrapper"
-          style={{
-          background: 'white',
-          borderBottom: '1px solid #E2E8F0',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-          position: 'sticky',
-          zIndex: 90,
+      {/* 2-Column Command Center Layout: Left Collapsible Categorized Sidebar + Main Content */}
+      <div
+        className="superadmin-layout-wrapper"
+        style={{
+          display: 'flex',
+          minHeight: 'calc(100vh - 70px)',
+          background: '#F8FAFC',
+          width: '100%',
+          alignItems: 'stretch',
         }}
       >
-        <div
-          className="tabs-master-scroller"
+        <SuperadminSidebar
+          activeTab={activeTab}
+          onTabChange={switchTab}
+          counters={counters}
+          unitsCount={units.length}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => {
+            const next = !isSidebarCollapsed;
+            setIsSidebarCollapsed(next);
+            try {
+              localStorage.setItem('simapres_sidebar_collapsed', String(next));
+            } catch (e) {}
+          }}
+        />
+
+        <main
+          className="registrasi-container"
           style={{
-            maxWidth: '1440px',
-            margin: '0 auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
+            flex: 1,
+            minWidth: 0,
+            margin: 0,
+            maxWidth: 'none',
+            padding: '24px 32px',
+            boxSizing: 'border-box',
           }}
         >
-          {/* TAB 1: UNIT & PERSONEL */}
-          <button
-            type="button"
-            onClick={() => switchTab('unit')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'unit' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'unit' ? 'white' : '#475569',
-              border: activeTab === 'unit' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>👮 Satuan &amp; Personel</span>
-            <span
-              style={{
-                background: activeTab === 'unit' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'unit' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
+          {activeTab === 'unit' ? (
+            <TabUnitPersonel
+              initialUnits={units}
+              initialMasterItems={masterItems}
+              showToast={showNotification}
+              onRefreshDropdowns={loadData}
+              onOpenQrModal={(nrpVal, unitIdVal) => {
+                openQrModal(nrpVal, unitIdVal);
               }}
-            >
-              {units.length}
-            </span>
-          </button>
-
-          {/* TAB 2: MASTER PANGKAT (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            onClick={() => switchTab('pangkat')}
-            style={{
-              display: 'none', // Disembunyikan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'pangkat' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'pangkat' ? 'white' : '#475569',
-              border: activeTab === 'pangkat' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🎖️ Master Pangkat</span>
-            <span
-              style={{
-                background: activeTab === 'pangkat' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'pangkat' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.ranks}
-            </span>
-          </button>
-
-          {/* TAB 3: MASTER SATUAN */}
-          <button
-            type="button"
-            onClick={() => switchTab('satuan')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'satuan' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'satuan' ? 'white' : '#475569',
-              border: activeTab === 'satuan' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🚔 Satuan Operasional</span>
-            <span
-              style={{
-                background: activeTab === 'satuan' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'satuan' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.units}
-            </span>
-          </button>
-
-          {/* TAB 4: MASTER ROLE (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            onClick={() => switchTab('role')}
-            style={{
-              display: 'none', // Disembunyikan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'role' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'role' ? 'white' : '#475569',
-              border: activeTab === 'role' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🛡️ Peran &amp; Hak Akses</span>
-            <span
-              style={{
-                background: activeTab === 'role' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'role' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.roles}
-            </span>
-          </button>
-
-          {/* TAB 5: KANTOR POLISI */}
-          <button
-            type="button"
-            onClick={() => switchTab('station')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'station' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'station' ? 'white' : '#475569',
-              border: activeTab === 'station' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🏢 Kantor Polisi (Mako)</span>
-            <span
-              style={{
-                background: activeTab === 'station' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'station' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.stations}
-            </span>
-          </button>
-
-          {/* TAB 6: MASTER ARMADA OPERASIONAL (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            onClick={() => switchTab('armada')}
-            style={{
-              display: 'none', // Disembunyikan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'armada' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'armada' ? 'white' : '#475569',
-              border: activeTab === 'armada' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🚓 Armada Operasional</span>
-            <span
-              style={{
-                background: activeTab === 'armada' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'armada' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.vehicles}
-            </span>
-          </button>
-
-          {/* TAB 7: MASTER TITIK RAWAN GIS (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            onClick={() => switchTab('hotspot')}
-            style={{
-              display: 'inline-flex', // Disembunyikan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'hotspot' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'hotspot' ? 'white' : '#475569',
-              border: activeTab === 'hotspot' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>📍 Titik Rawan (GIS)</span>
-            <span
-              style={{
-                background: activeTab === 'hotspot' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'hotspot' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.hotspots}
-            </span>
-          </button>
-
-          {/* TAB 8: MASTER KATEGORI INSIDEN */}
-          <button
-            type="button"
-            onClick={() => switchTab('kategori')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'kategori' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'kategori' ? 'white' : '#475569',
-              border: activeTab === 'kategori' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🚨 Kategori Insiden</span>
-            <span
-              style={{
-                background: activeTab === 'kategori' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'kategori' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.categories}
-            </span>
-          </button>
-
-          {/* TAB 9: MASTER SUBKATEGORI INSIDEN */}
-          <button
-            type="button"
-            onClick={() => switchTab('subkategori')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'subkategori' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'subkategori' ? 'white' : '#475569',
-              border: activeTab === 'subkategori' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>📑 Subkategori Insiden</span>
-            <span
-              style={{
-                background: activeTab === 'subkategori' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'subkategori' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {counters.subcategories || 44}
-            </span>
-          </button>
-
-          {/* TAB: MASTER BUKU PINTAR SOP & FAQ LAYANAN */}
-          <button
-            type="button"
-            id="superadmin-tab-faq"
-            onClick={() => switchTab('knowledge_faq')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'knowledge_faq' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'knowledge_faq' ? 'white' : '#475569',
-              border: activeTab === 'knowledge_faq' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>📖 Buku Pintar SOP</span>
-            <span
-              style={{
-                background: activeTab === 'knowledge_faq' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'knowledge_faq' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {(counters as any).knowledgeFaqs || 12}
-            </span>
-          </button>
-
-          {/* TAB 12: AUDIT KLAIM BBM LOGISTIK POLRI (POIN 3.B) */}
-          <button
-            type="button"
-            id="superadmin-tab-audit-bbm"
-            onClick={() => switchTab('audit_bbm')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'audit_bbm' ? '#0284C7' : '#F8FAFC',
-              color: activeTab === 'audit_bbm' ? 'white' : '#475569',
-              border: activeTab === 'audit_bbm' ? '1px solid #0284C7' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>⛽ Audit BBM Logistik</span>
-            <span
-              style={{
-                background: activeTab === 'audit_bbm' ? 'rgba(255,255,255,0.2)' : '#E0F2FE',
-                color: activeTab === 'audit_bbm' ? 'white' : '#0369A1',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              GPS
-            </span>
-          </button>
-
-          {/* TAB 13: MASTER JENIS BAHAN BAKAR (ANTI-HARDCODE) */}
-          <button
-            type="button"
-            id="superadmin-tab-fuel-type"
-            onClick={() => switchTab('fuel_type')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'fuel_type' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'fuel_type' ? 'white' : '#475569',
-              border: activeTab === 'fuel_type' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>🛢️ Master BBM DIPA</span>
-            <span
-              style={{
-                background: activeTab === 'fuel_type' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'fuel_type' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              5
-            </span>
-          </button>
-
-          {/* TAB 14: MASTER STATUS ALUR KLAIM BBM (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            id="superadmin-tab-fuel-claim-status"
-            onClick={() => switchTab('fuel_claim_status')}
-            style={{
-              display: 'none', // Disembunyikan sesuai arahan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'fuel_claim_status' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'fuel_claim_status' ? 'white' : '#475569',
-              border: activeTab === 'fuel_claim_status' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>📑 Status Alur Klaim BBM</span>
-            <span
-              style={{
-                background: activeTab === 'fuel_claim_status' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'fuel_claim_status' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              6
-            </span>
-          </button>
-
-          {/* TAB 10: MASTER LOKASI PENYELESAIAN (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            onClick={() => switchTab('lokasi_penyelesaian')}
-            style={{
-              display: 'none', // Disembunyikan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'lokasi_penyelesaian' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'lokasi_penyelesaian' ? 'white' : '#475569',
-              border: activeTab === 'lokasi_penyelesaian' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>📍 Lokasi Selesai (TKP/RS/Polsek)</span>
-            <span
-              style={{
-                background: activeTab === 'lokasi_penyelesaian' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'lokasi_penyelesaian' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {(counters as any).resolutionLocations || 5}
-            </span>
-          </button>
-
-          {/* TAB 11: MASTER OBJEK & DOKUMEN BUKTI (DISEMBUNYIKAN) */}
-          <button
-            type="button"
-            onClick={() => switchTab('dokumen_penyelesaian')}
-            style={{
-              display: 'none', // Disembunyikan (bukan dihapus)
-              alignItems: 'center',
-              gap: '8px',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-              background: activeTab === 'dokumen_penyelesaian' ? '#153E75' : '#F8FAFC',
-              color: activeTab === 'dokumen_penyelesaian' ? 'white' : '#475569',
-              border: activeTab === 'dokumen_penyelesaian' ? '1px solid #153E75' : '1px solid #E2E8F0',
-            }}
-          >
-            <span>📄 Dokumen Bukti (Damai/RS/BB)</span>
-            <span
-              style={{
-                background: activeTab === 'dokumen_penyelesaian' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
-                color: activeTab === 'dokumen_penyelesaian' ? 'white' : '#475569',
-                fontSize: '11px',
-                padding: '2px 7px',
-                borderRadius: '10px',
-                fontWeight: 800,
-              }}
-            >
-              {(counters as any).resolutionDocuments || 6}
-            </span>
-          </button>
-
-          {/* Sembunyikan sesuai permintaan: Pangkat, Role, Armada, Hotspot, Lokasi Selesai, Dokumen Bukti, Kategori Rawan, Status Tugas */}
-        </div>
+            />
+          ) : activeTab === 'profil' ? (
+            <TabProfilSuperadmin
+              currentUser={currentUser}
+              setCurrentUser={setCurrentUser}
+              units={units}
+              counters={counters}
+              complaints={complaints}
+              showToast={showNotification}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <MasterDataManager
+              activeTab={activeTab as MasterTabType}
+              showToast={showNotification}
+              onRefreshDropdowns={loadData}
+            />
+          )}
+        </main>
       </div>
-      )}
-
-      {/* Main Container */}
-      <main className="registrasi-container">
-        {activeTab === 'unit' ? (
-          <TabUnitPersonel
-            initialUnits={units}
-            initialMasterItems={masterItems}
-            showToast={showNotification}
-            onRefreshDropdowns={loadData}
-            onOpenQrModal={(nrpVal, unitIdVal) => {
-              openQrModal(nrpVal, unitIdVal);
-            }}
-          />
-        ) : activeTab === 'profil' ? (
-          <TabProfilSuperadmin
-            currentUser={currentUser}
-            setCurrentUser={setCurrentUser}
-            units={units}
-            counters={counters}
-            complaints={complaints}
-            showToast={showNotification}
-            onLogout={handleLogout}
-          />
-        ) : (
-        <MasterDataManager
-          activeTab={activeTab as MasterTabType}
-          showToast={showNotification}
-          onRefreshDropdowns={loadData}
-        />
-      )}
-    </main>
 
       {/* MODAL SCAN QR CODE */}
       <ResponsiveModal
