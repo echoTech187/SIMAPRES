@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ConsoleSkeleton } from './ConsoleSkeleton';
 import PersonilHeader from './personil/PersonilHeader';
 import PersonilNav from './personil/PersonilNav';
 import TabBerandaPersonil from './personil/tabs/TabBerandaPersonil';
@@ -843,7 +842,7 @@ export default function PersonilConsoleView({
   initialHotspots?: any[];
 }) {
   return (
-    <React.Suspense fallback={<ConsoleSkeleton role="PERSONIL" />}>
+    <React.Suspense>
       <PersonilContent
         session={session}
         initialSection={initialSection}

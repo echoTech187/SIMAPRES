@@ -809,7 +809,7 @@ export default function OperatorConsoleView({
   initialOperatorData?: any;
 }) {
   return (
-    <React.Suspense fallback={<ConsoleSkeleton role="OPERATOR" />}>
+    <React.Suspense>
       <OperatorConsoleContent
         session={session}
         initialSection={initialSection}

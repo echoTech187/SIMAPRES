@@ -10,6 +10,7 @@ interface ModalCetakLaporanProps {
   ikmStats: any;
   totalLaporan: number;
   userProfile: any;
+  stationRankings?: any;
 }
 
 export default function ModalCetakLaporan({
@@ -20,8 +21,11 @@ export default function ModalCetakLaporan({
   ikmStats,
   totalLaporan,
   userProfile,
+  stationRankings,
 }: ModalCetakLaporanProps) {
   if (!isOpen) return null;
+
+  const stationList = stationRankings?.overallRanking ? stationRankings.overallRanking : [];
 
   return (
     <div
@@ -137,6 +141,62 @@ export default function ModalCetakLaporan({
             <strong>IV. REKAPITULASI PELAYANAN PANGGILAN DARURAT 110:</strong>
             <div style={{ paddingLeft: '18px' }}>
               Selama masa dinas telah diterima dan dikendalikan sebanyak <strong>{totalLaporan} Laporan Pengaduan Warga</strong> melalui Call Center 110.
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '14px' }}>
+            <strong>V. EVALUASI KINERJA TERITORIAL POLSEK JAJARAN (TIER 1 ANEV KAPOLRES):</strong>
+            <div style={{ paddingLeft: '18px', marginTop: '6px' }}>
+              <div style={{ fontSize: '10pt', marginBottom: '8px', textAlign: 'justify' }}>
+                Matriks evaluasi komparatif kecepatan waktu tanggap (Average Response Time), tingkat penyelesaian aduan, dan kepatuhan standar SLA Presisi 110 antar Polsek jajaran sebagai bahan Analisis &amp; Evaluasi (Anev) Pimpinan:
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt', border: '1px solid #000' }}>
+                <thead>
+                  <tr style={{ background: '#F1F5F9', borderBottom: '1px solid #000' }}>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', width: '30px' }}>No</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'left' }}>Kesatuan / Mako Polsek</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Total Masuk</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Selesai (%)</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Waktu Respon (ART)</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Rating IKM</th>
+                    <th style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>Kepatuhan SLA</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stationList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ border: '1px solid #000', padding: '6px', textAlign: 'center', fontStyle: 'italic' }}>
+                        Data evaluasi Polsek jajaran sedang dihimpun oleh sistem
+                      </td>
+                    </tr>
+                  ) : (
+                    stationList.map((st: any, idx: number) => (
+                      <tr key={st.stationId}>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{idx + 1}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px' }}>
+                          <strong>{st.stationName}</strong> ({st.stationLevel ? st.stationLevel : 'POLSEK'})
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>{st.totalMasuk}</td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
+                          {st.totalSelesai} ({st.completionRate}%)
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
+                          {st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes > 0 ? `± ${st.avgResponseTimeMinutes} m` : '-'}
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>
+                          {st.avgRating > 0 ? `${st.avgRating.toFixed(1)} / 5.0` : '-'}
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center', fontWeight: 'bold' }}>
+                          {st.slaStatusLabel ? st.slaStatusLabel : '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              <div style={{ fontSize: '8.5pt', fontStyle: 'italic', marginTop: '6px' }}>
+                Catatan Pawas: Disusun sebagai rujukan berkala Anev Pimpinan (Kapolres) untuk pembinaan operasional kewilayahan dan reward bagi Polsek jajaran dengan integritas respon terbaik.
+              </div>
             </div>
           </div>
 

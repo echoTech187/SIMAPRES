@@ -76,7 +76,6 @@ function parseSuperadminTab(section?: string): SuperadminTab {
 export default function SuperadminConsoleView({
   session,
   initialSection,
-  initialMasterData,
   initialSuperadminData,
 }: {
   session?: any;
@@ -260,52 +259,7 @@ export default function SuperadminConsoleView({
     window.location.href = '/?alert=logged_out';
   };
 
-  const handleUnitSelectChange = (val: string) => {
-    setUnitId(val);
-    const match = masterItems.find(
-      (m) => m.tipe === 'satuan' && (m.code === val || m.item_code === val)
-    );
-    setSatuanNama(match?.label || match?.item_name || val.toUpperCase());
-  };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!nrp.trim() || !nama.trim()) {
-      showNotification('NRP dan Nama Petugas wajib diisi!');
-      return;
-    }
-
-    setLoading(true);
-    const res = await registerNewUnitAction({
-      editId: editId || undefined,
-      oldNrp: oldNrp || undefined,
-      nrp: nrp.trim(),
-      nama: nama.trim(),
-      pangkat,
-      role,
-      unitId,
-      satuanNama,
-      kelompokRegu,
-      stationId: stationId ? Number(stationId) : null,
-      password: password.trim() ? password.trim() : undefined,
-      deviceID: deviceId,
-      liveLat,
-      liveLng,
-    });
-    setLoading(false);
-
-    if (res.success) {
-      if (editId) {
-        showNotification(`✓ Data unit ${pangkat} ${nama} (NRP: ${nrp.trim()}) [Role: ${role}] berhasil diperbarui!`);
-      } else {
-        showNotification(`✓ Unit ${pangkat} ${nama} (NRP: ${nrp.trim()}) [Role: ${role}] berhasil didaftarkan!`);
-      }
-      handleReset();
-      await loadData();
-    } else {
-      showNotification(`Gagal: ${res.error}`);
-    }
-  };
 
   const handleReset = () => {
     setEditId(null);
@@ -322,39 +276,7 @@ export default function SuperadminConsoleView({
     setDeviceId('');
   };
 
-  const handleEditUnit = (u: any) => {
-    setEditId(u.id);
-    setOldNrp(u.nrp);
-    setNrp(u.nrp);
-    setNama(u.nama);
-    setPangkat(u.pangkat || '');
-    setRole(u.role || '');
-    setUnitId(u.unitId || '');
-    setSatuanNama(u.satuanNama || '');
-    setKelompokRegu(u.kelompokRegu || '');
-    setStationId(u.stationId ? String(u.stationId) : '');
-    setDeviceId(u.deviceID || '');
-    setPassword('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
-  const handleDeleteUnit = async (u: any) => {
-    if (!window.confirm(`Apakah Anda yakin ingin menghapus unit ${u.pangkat || ''} ${u.nama} (NRP: ${u.nrp})? Tindakan ini akan menghapus akun dan akses personil tersebut.`)) {
-      return;
-    }
-    setLoading(true);
-    const res = await deleteRegisteredUnitAction(u.id || u.nrp);
-    setLoading(false);
-    if (res.success) {
-      showNotification(`✓ Unit ${u.pangkat || ''} ${u.nama} (NRP: ${u.nrp}) berhasil dihapus.`);
-      if (editId === u.id || oldNrp === u.nrp) {
-        handleReset();
-      }
-      await loadData();
-    } else {
-      showNotification(`Gagal menghapus unit: ${res.error}`);
-    }
-  };
 
   const openQrModal = async (customNrp?: string, customUnitId?: string) => {
     const activeNrp = customNrp || nrp;
@@ -405,51 +327,7 @@ export default function SuperadminConsoleView({
       .catch((err) => console.error('Gagal generate QR Code:', err));
   }, [showQrModal, qrSessionToken, nrp, unitId]);
 
-  // Filtered unit list
-  const filteredUnits = units.filter((u) => {
-    const q = searchQuery.toLowerCase();
-    const matchSearch =
-      !q ||
-      u.nama?.toLowerCase().includes(q) ||
-      u.nrp?.toLowerCase().includes(q) ||
-      (u.role && u.role.toLowerCase().includes(q)) ||
-      u.satuanNama?.toLowerCase().includes(q) ||
-      u.stationName?.toLowerCase().includes(q) ||
-      u.deviceID?.toLowerCase().includes(q);
 
-    const matchSatuan = filterSatuan === 'all' ? true : (u.unitId ? u.unitId.toLowerCase() === filterSatuan.toLowerCase() : false);
-    const matchRole = filterRole === 'all' ? true : (u.role ? u.role.toUpperCase() === filterRole.toUpperCase() : false);
-    const matchMako = filterMako === 'all' ? true : String(u.stationId) === String(filterMako) ? true : (u.stationCode ? u.stationCode.toLowerCase() === filterMako.toLowerCase() : false);
-    return matchSearch && matchSatuan && matchRole && matchMako;
-  });
-
-  const getRoleBadgeInfo = (roleStr?: string) => {
-    const r = roleStr ? roleStr.toUpperCase() : 'PERSONIL';
-    const masterRole = masterItems.find(
-      (m) => m.tipe === 'role' && m.code === r
-    );
-    const label = masterRole ? masterRole.label : (roleStr ? roleStr : 'Anggota');
-
-    if (r === 'SUPERADMIN') return { className: 'badge-role role-superadmin', icon: '⚡', label };
-    if (r === 'PAWAS') return { className: 'badge-role role-pawas', icon: '👑', label };
-    if (r === 'OPERATOR') return { className: 'badge-role role-operator', icon: '🎧', label };
-    return { className: 'badge-role role-personil', icon: '👮', label };
-  };
-
-  const getSatuanBadgeClass = (uid: string) => {
-    const low = (uid || '').toLowerCase();
-    if (low.includes('reskrim')) return 'badge-satuan satuan-reskrim';
-    if (low.includes('intel')) return 'badge-satuan satuan-intel';
-    if (low.includes('lantas')) return 'badge-satuan satuan-lantas';
-    if (low.includes('binmas')) return 'badge-satuan satuan-binmas';
-    if (low.includes('komando') || low.includes('pawas')) return 'badge-satuan satuan-komando';
-    return 'badge-satuan satuan-samapta';
-  };
-
-
-  if (initialLoading) {
-    return <ConsoleSkeleton role="SUPERADMIN" />;
-  }
 
   return (
     <div

@@ -1887,7 +1887,197 @@ export async function getOfficerPerformanceRankingsAction() {
       data: payload,
     };
   } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal memuat ranking personel.' };
+    return { success: false, error: error.message ? error.message : 'Gagal memuat ranking personel.' };
+  }
+}
+
+export interface StationPerformanceRankItem {
+  stationId: number;
+  stationCode: string;
+  stationName: string;
+  stationLevel: string;
+  phonePiket?: string | null;
+  phoneKapolsek?: string | null;
+  totalMasuk: number;
+  totalSelesai: number;
+  totalDiproses: number;
+  totalMenunggu: number;
+  totalDitolak: number;
+  completionRate: number;
+  avgResponseTimeMinutes: number | null;
+  avgRating: number;
+  totalReviews: number;
+  slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL';
+  slaStatusLabel: string;
+  slaStatusColor: string;
+  slaStatusBg: string;
+  rankScore: number;
+}
+
+/**
+ * Mengambil data ranking performa seluruh Polsek Jajaran & Mako (Tier 1 Leaderboard):
+ * - Average Response Time (Waktu Tanggap)
+ * - Completion Rate (Tingkat Penyelesaian Perkara)
+ * - Indeks Kepuasan Masyarakat (IKM)
+ * - Status Kepatuhan SLA Presisi
+ */
+export async function getStationPerformanceRankingsAction() {
+  const cached = cacheGet<any>('station_performance_rankings');
+  if (cached) {
+    return { success: true, data: cached };
+  }
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+
+    const stations = await prisma.policeStation.findMany({
+      where: { is_active: true },
+      include: {
+        complaints: {
+          select: {
+            id: true,
+            status: true,
+            created_at: true,
+            citizen_review_rel: {
+              select: {
+                star_rating: true,
+                review_text: true,
+              },
+            },
+            dispatches: {
+              select: {
+                dispatched_at: true,
+                arrived_at: true,
+                completed_at: true,
+                dispatch_status: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { id: 'asc' },
+    });
+
+    const items: StationPerformanceRankItem[] = stations.map((st) => {
+      const complaints = st.complaints ? st.complaints : [];
+      const totalMasuk = complaints.length;
+      let totalSelesai = 0;
+      let totalDiproses = 0;
+      let totalMenunggu = 0;
+      let totalDitolak = 0;
+
+      let totalResponseTimeMinutes = 0;
+      let responseCount = 0;
+      let totalStars = 0;
+      let reviewCount = 0;
+
+      for (const c of complaints) {
+        if (c.status === 'SELESAI') totalSelesai++;
+        else if (c.status === 'DITOLAK') totalDitolak++;
+        else if (c.status === 'MENUNGGU') totalMenunggu++;
+        else totalDiproses++;
+
+        if (c.citizen_review_rel?.star_rating) {
+          totalStars += c.citizen_review_rel.star_rating;
+          reviewCount++;
+        }
+
+        if (Array.isArray(c.dispatches) && c.dispatches.length > 0) {
+          for (const d of c.dispatches) {
+            const start = d.dispatched_at ? new Date(d.dispatched_at).getTime() : new Date(c.created_at).getTime();
+            const arr = d.arrived_at ? new Date(d.arrived_at).getTime() : null;
+            if (arr && arr >= start) {
+              const diffMin = Math.round((arr - start) / 60000);
+              if (diffMin >= 0) {
+                totalResponseTimeMinutes += Math.max(1, diffMin);
+                responseCount++;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      const completionRate = totalMasuk > 0 ? Math.round((totalSelesai / totalMasuk) * 100) : 0;
+      const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTimeMinutes / responseCount) : null;
+      const avgRating = reviewCount > 0 ? Math.round((totalStars / reviewCount) * 10) / 10 : 0;
+
+      let slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL' = 'NETRAL';
+      let slaStatusLabel = 'Belum Ada Penugasan';
+      let slaStatusColor = '#64748B';
+      let slaStatusBg = '#F1F5F9';
+
+      if (avgResponseTimeMinutes !== null) {
+        if (avgResponseTimeMinutes <= 15) {
+          slaStatus = 'HIJAU';
+          slaStatusLabel = 'Respon Cepat (Presisi)';
+          slaStatusColor = '#059669';
+          slaStatusBg = '#ECFDF5';
+        } else if (avgResponseTimeMinutes <= 30) {
+          slaStatus = 'KUNING';
+          slaStatusLabel = 'Waspada (Batas Toleransi)';
+          slaStatusColor = '#D97706';
+          slaStatusBg = '#FEF3C7';
+        } else {
+          slaStatus = 'MERAH';
+          slaStatusLabel = 'Melanggar SLA Tanggap';
+          slaStatusColor = '#DC2626';
+          slaStatusBg = '#FEE2E2';
+        }
+      }
+
+      const ratingPart = avgRating > 0 ? (avgRating / 5) * 35 : 0;
+      const timePart = avgResponseTimeMinutes !== null ? Math.max(0, 25 - avgResponseTimeMinutes) : 10;
+      const rankScore = Math.round((completionRate * 0.4) + ratingPart + timePart);
+
+      return {
+        stationId: st.id,
+        stationCode: st.station_code,
+        stationName: st.station_name,
+        stationLevel: st.station_level,
+        phonePiket: st.phone_piket,
+        phoneKapolsek: st.phone_kapolsek,
+        totalMasuk,
+        totalSelesai,
+        totalDiproses,
+        totalMenunggu,
+        totalDitolak,
+        completionRate,
+        avgResponseTimeMinutes,
+        avgRating,
+        totalReviews: reviewCount,
+        slaStatus,
+        slaStatusLabel,
+        slaStatusColor,
+        slaStatusBg,
+        rankScore,
+      };
+    });
+
+    const overallRanking = [...items].sort((a, b) => {
+      if (b.rankScore !== a.rankScore) return b.rankScore - a.rankScore;
+      if (b.totalSelesai !== a.totalSelesai) return b.totalSelesai - a.totalSelesai;
+      const aTime = a.avgResponseTimeMinutes !== null ? a.avgResponseTimeMinutes : 999999;
+      const bTime = b.avgResponseTimeMinutes !== null ? b.avgResponseTimeMinutes : 999999;
+      return aTime - bTime;
+    });
+
+    const payload = {
+      overallRanking,
+      totalStations: items.length,
+    };
+
+    cacheSet('station_performance_rankings', payload, 60000);
+
+    return {
+      success: true,
+      data: payload,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message ? error.message : 'Gagal memuat ranking performa Polsek.',
+    };
   }
 }
 

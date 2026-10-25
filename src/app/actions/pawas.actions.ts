@@ -6,6 +6,7 @@ import {
   getAllRecentComplaintsAction,
   getIkmStatsAction,
   getOfficerPerformanceRankingsAction,
+  getStationPerformanceRankingsAction,
 } from './complaint.actions';
 import { getRegisteredUnitsAction, getPoliceOfficesAction } from './auth.actions';
 import { getPatrolFleetUnitsAction } from './fleet.actions';
@@ -48,6 +49,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       hRes,
       ikmRes,
       rankRes,
+      stationRankRes,
       recentLogbooksRaw,
     ] = await Promise.all([
       getMasterFilterOptionsAction(),
@@ -59,6 +61,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       getHotspotsAction(),
       getIkmStatsAction(),
       getOfficerPerformanceRankingsAction(),
+      getStationPerformanceRankingsAction(),
       prisma.officerLogbook.findMany({
         take: 8,
         orderBy: { created_at: 'desc' },
@@ -93,7 +96,8 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       hotspots: hRes.success && hRes.data ? hRes.data : [],
       ikmStats: ikmRes.success && ikmRes.data ? ikmRes.data : null,
       officerRankings: rankRes.success && rankRes.data ? rankRes.data : null,
-      recentLogbooks: serializeBigInt(recentLogbooksRaw || []),
+      stationRankings: stationRankRes.success && stationRankRes.data ? stationRankRes.data : null,
+      recentLogbooks: serializeBigInt(recentLogbooksRaw ? recentLogbooksRaw : []),
     };
 
     cacheSet('pawas_unified_data', payload, 15000); // 15 detik TTL
@@ -105,7 +109,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
   } catch (err: any) {
     return {
       success: false,
-      error: err.message || 'Gagal memuat data konsol terpadu Pawas',
+      error: err.message ? err.message : 'Gagal memuat data konsol terpadu Pawas',
     };
   }
 }

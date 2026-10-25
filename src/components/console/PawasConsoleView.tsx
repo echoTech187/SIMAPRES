@@ -2,30 +2,22 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Home, Map, Headphones, Plus, PlusCircle, ShieldAlert, BarChart3, User, Shield, BookOpen } from 'lucide-react';
+import { Home, Map, ShieldAlert, BarChart3, User, Shield, BookOpen } from 'lucide-react';
 import {
-  getPendingComplaintsAction,
   disposisiMultiSatuanAction,
-  getAllRecentComplaintsAction,
-  getIkmStatsAction,
   updateComplaintStatusAction,
   sahkanKasusPawasAction,
-  getMasterFilterOptionsAction,
-  getOfficerPerformanceRankingsAction,
   type OfficerPerformanceRankItem,
+  type StationPerformanceRankItem,
 } from '@/app/actions/complaint.actions';
 import {
-  getRegisteredUnitsAction,
-  getPoliceOfficesAction,
   getOfficerProfileByNrpAction,
   getCurrentSessionAction,
   logoutAction,
 } from '@/app/actions/auth.actions';
 import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
 import { getPawasUnifiedDataAction } from '@/app/actions/pawas.actions';
-import { ConsoleSkeleton } from './ConsoleSkeleton';
 import HeaderProfileBadge from './HeaderProfileBadge';
-import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import { createLogbookAction } from '@/app/actions/logbook.actions';
 import { toast } from '@/components/ui/Toast';
 import '@/app/registrasi-unit/registrasi-unit.css';
@@ -255,12 +247,18 @@ function CommandCenterContent({
     lng: 0,
   });
 
-  // Officer Performance Ranking State
+  // Officer Performance Ranking State (Tier 2: Individu Personel)
   const [officerRankings, setOfficerRankings] = useState<{
     productivityRanking: OfficerPerformanceRankItem[];
     satisfactionRanking: OfficerPerformanceRankItem[];
     totalOfficers: number;
-  } | null>(() => initialPawasData?.officerRankings || null);
+  } | null>(() => initialPawasData?.officerRankings ? initialPawasData.officerRankings : null);
+
+  // Station Performance Ranking State (Tier 1: Evaluasi Polsek & Jajaran Mako)
+  const [stationRankings, setStationRankings] = useState<{
+    overallRanking: StationPerformanceRankItem[];
+    totalStations: number;
+  } | null>(() => initialPawasData?.stationRankings ? initialPawasData.stationRankings : null);
 
   // Toast Notification
   const showFriendlyToast = useCallback((
@@ -572,6 +570,7 @@ function CommandCenterContent({
         if (Array.isArray(d.hotspots)) setHotspots(d.hotspots);
         if (d.ikmStats) setIkmStats(d.ikmStats);
         if (d.officerRankings) setOfficerRankings(d.officerRankings);
+        if (d.stationRankings) setStationRankings(d.stationRankings);
         if (Array.isArray(d.recentLogbooks)) setRecentActivities(d.recentLogbooks);
 
         dataLoadedRef.current = true;
@@ -837,22 +836,6 @@ function CommandCenterContent({
           border: `1px solid ${dbBorder || 'transparent'}`,
         };
       }
-      const k = (key || '').toUpperCase();
-      if (k === 'KRIMINAL' || k === '3C') {
-        return { background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA' };
-      }
-      if (k === 'KAMTIBMAS') {
-        return { background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' };
-      }
-      if (k === 'LANTAS') {
-        return { background: '#FFFBEB', color: '#D97706', border: '1px solid #FDE68A' };
-      }
-      if (k === 'DARURAT' || k === 'BENCANA') {
-        return { background: '#FFF1F2', color: '#E11D48', border: '1px solid #FECDD3' };
-      }
-      if (k === 'PELAYANAN') {
-        return { background: '#F0FDF4', color: '#16A34A', border: '1px solid #BBF7D0' };
-      }
       return { background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE' };
     };
 
@@ -964,7 +947,7 @@ function CommandCenterContent({
       }
     }
 
-    const fallbackLabel = cleanNoEmoji(c?.kategoriLaporan || c?.jenisKejadian || 'Belum Dikategorikan') || 'Belum Dikategorikan';
+    const fallbackLabel = cleanNoEmoji(c?.kategoriLaporan || c?.jenisKejadian) || '';
     return {
       key: 'TIDAK_TERKATEGORI',
       kategori: fallbackLabel,
@@ -978,9 +961,6 @@ function CommandCenterContent({
     };
   };
 
-  const getComplaintKategori = (c: any): string => {
-    return getComplaintKategoriInfo(c).key;
-  };
 
   const matchesKategori = (c: any, kategori: string) => {
     if (kategori === 'all') return true;
@@ -1402,12 +1382,6 @@ function CommandCenterContent({
     }
   };
 
-  const handlePresensiMasuk = () => {
-    setPresensiStatus('SUDAH_MASUK');
-    const jam = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-    setJamMasukPiket(jam + ' (Tervalidasi)');
-    showFriendlyToast('success', 'Presensi Masuk Berhasil', `Jam: ${jam} • Area Mako Polres (Radius 50m) • Status: SIAGA PIKET AKTIF`);
-  };
 
   const handlePresensiPulang = () => {
     setShowPresensiPulangModal(true);
@@ -1817,6 +1791,7 @@ function CommandCenterContent({
             satisfactionRating={satisfactionRating}
             satisfactionPercent={satisfactionPercent}
             officerRankings={officerRankings}
+            stationRankings={stationRankings}
           />
         )}
 
@@ -2024,6 +1999,7 @@ function CommandCenterContent({
         ikmStats={ikmStats}
         totalLaporan={totalLaporan}
         userProfile={userProfile}
+        stationRankings={stationRankings}
       />
 
       <ModalHotspotPawas
@@ -2089,7 +2065,7 @@ export default function PawasConsoleView({
   initialPawasData?: any;
 }) {
   return (
-    <React.Suspense fallback={<ConsoleSkeleton role="PAWAS" />}>
+    <React.Suspense>
       <CommandCenterContent
         session={session}
         initialSection={initialSection}
