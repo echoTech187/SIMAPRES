@@ -160,21 +160,38 @@ export default function TabKinerjaOperator({
         .filter(Boolean);
       const avgRating = stars.length > 0
         ? Math.round((stars.reduce((a: number, b: any) => a + Number(b), 0) / stars.length) * 10) / 10
-        : (item.avgRating ? item.avgRating : 0);
+        : 0;
 
       const sopCompliant = opComplaints.filter((c: any) => c.subcategoryId || c.subcategory_id).length;
       const sopComplianceRate = totalTiketInput > 0
         ? Math.round((sopCompliant / totalTiketInput) * 100)
-        : (item.sopComplianceRate ? item.sopComplianceRate : 100);
+        : null;
 
-      const avgIntakeMinutes = item.avgIntakeMinutes ? item.avgIntakeMinutes : 2.1;
+      let avgIntakeMinutes: number | null = null;
+      if (totalTiketInput > 0) {
+        let totalIntake = 0;
+        let intakeCount = 0;
+        for (const c of opComplaints) {
+          const createTime = getComplaintDate(c)?.getTime();
+          const dispTime = c.dispatches && c.dispatches.length > 0 && c.dispatches[0].dispatched_at
+            ? new Date(c.dispatches[0].dispatched_at).getTime()
+            : null;
+          if (createTime && dispTime && dispTime >= createTime) {
+            const diffMin = Math.round((dispTime - createTime) / 60000);
+            totalIntake += Math.max(1, Math.min(10, diffMin));
+            intakeCount++;
+          }
+        }
+        avgIntakeMinutes = intakeCount > 0 ? Math.round((totalIntake / intakeCount) * 10) / 10 : 1.0;
+      }
 
-      let compositeScore = item.compositeScore ? item.compositeScore : 75;
-      let predikat = item.predikat ? item.predikat : 'Siaga (Belum Ada Tiket)';
-      let predikatColor = item.predikatColor ? item.predikatColor : '#64748B';
+      let compositeScore = 0;
+      let predikat = 'Siaga (Belum Ada Tiket)';
+      let predikatColor = '#64748B';
 
       if (totalTiketInput > 0) {
-        const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
+        const effIntake = avgIntakeMinutes != null ? avgIntakeMinutes : 1.0;
+        const speedScore = Math.max(10, Math.min(30, Math.round(30 - (effIntake - 1.5) * 5)));
         const volumeScore = Math.min(35, totalTiketInput * 7);
         const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
         compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
@@ -496,8 +513,8 @@ export default function TabKinerjaOperator({
 
             <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ fontSize: '11px', color: '#94A3B8' }}>Rata-rata Entri CAD</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#38BDF8', marginTop: '2px' }}>
-                ± {currentOpStats.avgIntakeMinutes} Menit
+              <div style={{ fontSize: '18px', fontWeight: 800, color: currentOpStats.totalTiketInput > 0 ? '#38BDF8' : '#94A3B8', marginTop: '2px' }}>
+                {currentOpStats.totalTiketInput > 0 && currentOpStats.avgIntakeMinutes != null ? `± ${currentOpStats.avgIntakeMinutes} Menit` : '-'}
               </div>
               <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px' }}>
                 Target Mabes Polri: &le; 3 Menit
@@ -506,8 +523,8 @@ export default function TabKinerjaOperator({
 
             <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ fontSize: '11px', color: '#94A3B8' }}>Kepatuhan Standar SOP</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: currentOpStats.sopComplianceRate >= 90 ? '#34D399' : '#FBBF24', marginTop: '2px' }}>
-                {currentOpStats.sopComplianceRate}%
+              <div style={{ fontSize: '18px', fontWeight: 800, color: currentOpStats.totalTiketInput > 0 ? (currentOpStats.sopComplianceRate >= 90 ? '#34D399' : '#FBBF24') : '#94A3B8', marginTop: '2px' }}>
+                {currentOpStats.totalTiketInput > 0 && currentOpStats.sopComplianceRate != null ? `${currentOpStats.sopComplianceRate}%` : '-'}
               </div>
               <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px' }}>
                 Kelengkapan Uraian &amp; Subkasus
@@ -516,11 +533,11 @@ export default function TabKinerjaOperator({
 
             <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '10px', padding: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div style={{ fontSize: '11px', color: '#94A3B8' }}>Kepuasan Layanan Warga</div>
-              <div style={{ fontSize: '18px', fontWeight: 800, color: '#FBBF24', marginTop: '2px' }}>
-                ⭐ {currentOpStats.avgRating > 0 ? currentOpStats.avgRating.toFixed(1) : '-'} / 5.0
+              <div style={{ fontSize: '18px', fontWeight: 800, color: currentOpStats.totalTiketInput > 0 && currentOpStats.avgRating > 0 ? '#FBBF24' : '#94A3B8', marginTop: '2px' }}>
+                {currentOpStats.totalTiketInput > 0 && currentOpStats.avgRating > 0 ? `⭐ ${currentOpStats.avgRating.toFixed(1)} / 5.0` : '- / 5.0'}
               </div>
               <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '2px' }}>
-                {currentOpStats.totalReviews > 0 ? `${currentOpStats.totalReviews} ulasan masyarakat` : 'Belum ada ulasan'}
+                {currentOpStats.totalTiketInput > 0 && currentOpStats.totalReviews > 0 ? `${currentOpStats.totalReviews} ulasan masyarakat` : 'Belum ada ulasan'}
               </div>
             </div>
           </div>
@@ -678,14 +695,14 @@ export default function TabKinerjaOperator({
                     </div>
                     <div>
                       <div style={{ fontSize: '10px', color: '#64748B' }}>Entri CAD</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#059669' }}>
-                        ± {item.avgIntakeMinutes} m
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
+                        {item.totalTiketInput > 0 && item.avgIntakeMinutes != null ? `± ${item.avgIntakeMinutes} m` : '-'}
                       </div>
                     </div>
                     <div>
                       <div style={{ fontSize: '10px', color: '#64748B' }}>Rating IKM</div>
-                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
-                        ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'}
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 && item.avgRating > 0 ? '#D97706' : '#94A3B8' }}>
+                        {item.totalTiketInput > 0 && item.avgRating > 0 ? `⭐ ${item.avgRating.toFixed(1)}` : '-'}
                       </div>
                     </div>
                   </div>
@@ -746,26 +763,43 @@ export default function TabKinerjaOperator({
                       <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800, color: '#153E75' }}>
                         {item.totalTiketInput} Tiket
                       </td>
-                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#059669' }}>
-                        ± {item.avgIntakeMinutes} m
+                      <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
+                        {item.totalTiketInput > 0 && item.avgIntakeMinutes != null ? `± ${item.avgIntakeMinutes} m` : '-'}
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: item.sopComplianceRate >= 90 ? '#059669' : '#D97706' }}>
-                          {item.sopComplianceRate}%
-                        </span>
+                        {item.totalTiketInput > 0 && item.sopComplianceRate != null ? (
+                          <span style={{ fontSize: '11px', fontWeight: 800, color: item.sopComplianceRate >= 90 ? '#059669' : '#D97706' }}>
+                            {item.sopComplianceRate}%
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94A3B8' }}>-</span>
+                        )}
                       </td>
                       <td style={{ padding: '8px 10px' }}>
-                        <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                          ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'} / 5.0
-                        </div>
-                        <div style={{ fontSize: '10px', color: '#64748B' }}>
-                          {item.totalReviews > 0 ? `${item.totalReviews} ulasan` : 'Belum ada ulasan'}
-                        </div>
+                        {item.totalTiketInput > 0 && item.avgRating > 0 ? (
+                          <>
+                            <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                              ⭐ {item.avgRating.toFixed(1)} / 5.0
+                            </div>
+                            <div style={{ fontSize: '10px', color: '#64748B' }}>
+                              {item.totalReviews > 0 ? `${item.totalReviews} ulasan` : 'Belum ada ulasan'}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{ fontWeight: 700, color: '#94A3B8' }}>- / 5.0</div>
+                            <div style={{ fontSize: '10px', color: '#94A3B8' }}>Belum ada ulasan</div>
+                          </>
+                        )}
                       </td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 900, color: '#153E75', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
-                          {item.compositeScore}
-                        </span>
+                        {item.totalTiketInput > 0 ? (
+                          <span style={{ fontSize: '12px', fontWeight: 900, color: '#153E75', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
+                            {item.compositeScore}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 700 }}>-</span>
+                        )}
                       </td>
                       <td style={{ padding: '8px 10px' }}>
                         <span
