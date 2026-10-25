@@ -19,7 +19,7 @@ export async function setSessionCookie(payload: SessionPayload) {
     safePayload.avatar = undefined;
   }
   const token = await signSession(safePayload);
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -32,7 +32,7 @@ export async function setSessionCookie(payload: SessionPayload) {
 // Server Action helper to read session cookie
 export async function getSession(): Promise<SessionPayload | null> {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
     if (!token) return null;
     return await verifySession(token);
@@ -44,7 +44,7 @@ export async function getSession(): Promise<SessionPayload | null> {
 // Server Action helper to delete session cookie
 export async function deleteSessionCookie() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.delete(SESSION_COOKIE_NAME);
   } catch {}
 }
