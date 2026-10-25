@@ -274,6 +274,30 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
     const deadlineMinutes = isDarurat ? 3 : isSedang ? 5 : null;
     const escalationDeadline = deadlineMinutes ? new Date(Date.now() + deadlineMinutes * 60 * 1000) : null;
 
+    // Ambil Master Dispatch Mode & Fuel Claim Status dari database (Anti-Hardcode)
+    const defaultDispatchMode = await (prisma as any).masterDispatchMode.findUnique({
+      where: { key: 'UNIT_PIKET_POLSEK' },
+    });
+    const defaultClaimStatus = await (prisma as any).masterFuelClaimStatus.findUnique({
+      where: { key: 'UNCLAIMED' },
+    });
+
+    // 3.B: Kalkulasi estimasi mileage & konsumsi BBM berdasarkan database master
+    let fuelAuditEst: any = null;
+    if (targetStation?.office_lat && targetStation?.office_lng && input.tkpLat && input.tkpLng) {
+      try {
+        const { FuelAuditService } = await import('@/infrastructure/services/fuel-audit.service');
+        fuelAuditEst = await FuelAuditService.calculateDispatchFuelUsage(
+          Number(targetStation.office_lat),
+          Number(targetStation.office_lng),
+          Number(input.tkpLat),
+          Number(input.tkpLng)
+        );
+      } catch (fErr) {
+        console.warn('[FuelAuditService Calc Error]:', fErr);
+      }
+    }
+
     await prisma.$transaction(async (tx) => {
       // Ubah status pengaduan menjadi DIPROSES (Tahap 2) & tautkan station_id jika ditemukan
       await tx.complaint.update({
@@ -295,6 +319,7 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
             unit_id: s.id,
             officer_id: null,
             station_id: targetStation ? targetStation.id : null,
+            dispatch_mode_id: defaultDispatchMode ? defaultDispatchMode.id : null,
             is_primary_unit: i === 0,
             personnel_quota: 1, // Siapa cepat dia dapat (1 personil mengunci tiket)
             tactical_orders: `Siaran Terbuka: Respon Cepat 110 ke ${input.tkpAlamatTeks} (${targetStation ? targetStation.station_name : resolvedSektor})`,
@@ -302,6 +327,13 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
             dispatch_status: 'DISPATCHED',
             dispatched_at: new Date(),
             escalation_deadline_at: escalationDeadline,
+            // 3.B: Mileage & Audit BBM Logistik
+            mako_start_lat: targetStation?.office_lat || null,
+            mako_start_lng: targetStation?.office_lng || null,
+            round_trip_km: fuelAuditEst?.roundTripKm || null,
+            fuel_liters_used: fuelAuditEst?.fuelLitersUsed || null,
+            fuel_cost_estimated: fuelAuditEst?.fuelCostEstimated || null,
+            fuel_claim_status_id: defaultClaimStatus ? defaultClaimStatus.id : null,
           } as any,
         });
       }
@@ -449,6 +481,8 @@ export async function quickAcceptComplaintDispatchAction(input: {
   nomorTiket: string;
   role: 'OFFICER' | 'POLSEK';
   recipientName?: string;
+  crewPartnerName?: string;
+  vehicleId?: number;
   notes?: string;
 }) {
   try {
@@ -475,7 +509,7 @@ export async function quickAcceptComplaintDispatchAction(input: {
     // Cek apakah sudah pernah diterima oleh petugas mana pun
     const alreadyAccepted = complaint.dispatches.find((d: any) => d.accepted_at !== null);
     if (alreadyAccepted) {
-      const accepter = alreadyAccepted.officer?.user?.full_name || 'Petugas Siaga';
+      const accepter = alreadyAccepted.crew_leader_name || alreadyAccepted.officer?.user?.full_name || 'Petugas Siaga';
       return {
         success: true,
         alreadyAccepted: true,
@@ -489,17 +523,46 @@ export async function quickAcceptComplaintDispatchAction(input: {
     }
 
     const actorLabel = input.recipientName?.trim() || (input.role === 'POLSEK' ? `Piket ${complaint.station?.station_name || 'Polsek'}` : 'Personel Patroli 110');
+    const partnerLabel = input.crewPartnerName?.trim() || '';
+
+    // 3.B: Rekalkulasi Audit BBM dengan Profil Kendaraan Terpilih
+    let vehicleFuelUpdate: any = {};
+    if (input.vehicleId && complaint.station?.office_lat && complaint.station?.office_lng && complaint.tkp_lat && complaint.tkp_lng) {
+      try {
+        const { FuelAuditService } = await import('@/infrastructure/services/fuel-audit.service');
+        const calc = await FuelAuditService.calculateDispatchFuelUsage(
+          Number(complaint.station.office_lat),
+          Number(complaint.station.office_lng),
+          Number(complaint.tkp_lat),
+          Number(complaint.tkp_lng),
+          input.vehicleId
+        );
+        vehicleFuelUpdate = {
+          round_trip_km: calc.roundTripKm,
+          fuel_liters_used: calc.fuelLitersUsed,
+          fuel_cost_estimated: calc.fuelCostEstimated,
+          assigned_vehicle_id: input.vehicleId,
+        };
+      } catch (fErr) {
+        console.warn('[QuickAccept Fuel Audit Calc Error]:', fErr);
+      }
+    } else if (input.vehicleId) {
+      vehicleFuelUpdate = { assigned_vehicle_id: input.vehicleId };
+    }
 
     await prisma.$transaction(async (tx) => {
       // Tandai dispatch sebagai diterima dan langsung berangkat meluncur
-      await tx.complaintDispatch.update({
+      await (tx as any).complaintDispatch.update({
         where: { id: primaryDispatch.id },
         data: {
           accepted_at: now,
           dispatch_status: 'DEPARTED',
           dispatch_status_id: 2,
-          tactical_orders: (primaryDispatch.tactical_orders || '') + ` | Diterima via Quick-Accept WA oleh ${actorLabel}`,
-        },
+          crew_leader_name: input.recipientName?.trim() || null,
+          crew_partner_name: partnerLabel || null,
+          ...vehicleFuelUpdate,
+          tactical_orders: (primaryDispatch.tactical_orders || '') + ` | Diterima via Quick-Accept WA oleh ${actorLabel}${partnerLabel ? ` bersama ${partnerLabel}` : ''}`,
+        } as any,
       });
 
       // Bersihkan entri dispatch belum terisi lainnya (mode broadcast kuota 1)
@@ -528,7 +591,7 @@ export async function quickAcceptComplaintDispatchAction(input: {
           actor_name: actorLabel,
           actor_role: input.role === 'POLSEK' ? 'POLSEK' : 'PERSONIL',
           action: 'QUICK_ACCEPT_WA',
-          notes: `Tugas diterima cepat melalui One-Tap Link WhatsApp oleh ${actorLabel}. Status beralih ke MELUNCUR (DEPARTED). Timer eskalasi Mako dihentikan.`,
+          notes: `Tugas diterima cepat melalui One-Tap Link WhatsApp oleh ${actorLabel}${partnerLabel ? ` & ${partnerLabel} (Regu Patroli)` : ''}. Status beralih ke MELUNCUR (DEPARTED). Timer eskalasi Mako dihentikan.`,
         },
       });
     });

@@ -123,6 +123,10 @@ export async function getAllMasterLookupsBundleAction() {
       hotspotCategories,
       vehicleTypes,
       vehicleStatuses,
+      fuelTypes,
+      fuelClaimStatuses,
+      crewRoles,
+      dispatchModes,
     ] = await Promise.all([
       prisma.masterStationLevel.findMany({
         where: { is_active: true },
@@ -160,6 +164,22 @@ export async function getAllMasterLookupsBundleAction() {
         WHERE is_active = 1 
         ORDER BY display_order ASC
       `).catch(() => []),
+      (prisma as any).masterFuelType.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }).catch(() => []),
+      (prisma as any).masterFuelClaimStatus.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }).catch(() => []),
+      (prisma as any).masterPatrolCrewRole.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }).catch(() => []),
+      (prisma as any).masterDispatchMode.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }).catch(() => []),
     ]);
 
     return {
@@ -173,6 +193,10 @@ export async function getAllMasterLookupsBundleAction() {
         hotspotCategories,
         vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [],
         vehicleStatuses: Array.isArray(vehicleStatuses) ? vehicleStatuses : [],
+        fuelTypes: Array.isArray(fuelTypes) ? fuelTypes : [],
+        fuelClaimStatuses: Array.isArray(fuelClaimStatuses) ? fuelClaimStatuses : [],
+        crewRoles: Array.isArray(crewRoles) ? crewRoles : [],
+        dispatchModes: Array.isArray(dispatchModes) ? dispatchModes : [],
       }),
     };
   } catch (error: any) {
@@ -2103,6 +2127,234 @@ export async function deleteMasterResolutionDocumentAction(id: number | string) 
     await auditLog('DELETE_RESOLUTION_DOCUMENT', `Menghapus master dokumen penyelesaian ID ${idCheck.value}: ${deleted.key}`);
     revalidatePath('/console');
     return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 15. MASTER JENIS BAHAN BAKAR (MASTER FUEL TYPES - ANTI-HARDCODE)
+// ==============================================================================
+export async function getMasterFuelTypesAction() {
+  try {
+    const list = await (prisma as any).masterFuelType.findMany({
+      orderBy: { display_order: 'asc' },
+      include: { _count: { select: { vehicles: true } } },
+    });
+    return { success: true, data: serializeBigInt(list) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function createMasterFuelTypeAction(data: {
+  key: string;
+  label: string;
+  default_price_per_liter?: number;
+  icon_emoji?: string;
+  display_order?: number;
+  is_active?: boolean;
+}) {
+  try {
+    if (!data.key || !data.label) {
+      return { success: false, error: 'Key dan Label Jenis Bahan Bakar wajib diisi!' };
+    }
+    const cleanKey = data.key.trim().toUpperCase().replace(/\s+/g, '_');
+    const created = await (prisma as any).masterFuelType.create({
+      data: {
+        key: cleanKey,
+        label: data.label.trim(),
+        default_price_per_liter: Number(data.default_price_per_liter || 6800.0),
+        icon_emoji: data.icon_emoji?.trim() || '⛽',
+        display_order: Number(data.display_order || 1),
+        is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
+      },
+    });
+
+    await auditLog('CREATE_FUEL_TYPE', `Menambah master BBM baru: ${created.label} (${cleanKey})`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(created) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateMasterFuelTypeAction(
+  id: number | string,
+  data: {
+    key?: string;
+    label?: string;
+    default_price_per_liter?: number;
+    icon_emoji?: string;
+    display_order?: number;
+    is_active?: boolean;
+  }
+) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Master BBM');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const updateData: any = {};
+    if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase().replace(/\s+/g, '_');
+    if (data.label !== undefined) updateData.label = data.label.trim();
+    if (data.default_price_per_liter !== undefined) updateData.default_price_per_liter = Number(data.default_price_per_liter);
+    if (data.icon_emoji !== undefined) updateData.icon_emoji = data.icon_emoji.trim() || '⛽';
+    if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
+    if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
+
+    const updated = await (prisma as any).masterFuelType.update({
+      where: { id: idCheck.value },
+      data: updateData,
+    });
+
+    await auditLog('UPDATE_FUEL_TYPE', `Memperbarui master BBM ID ${idCheck.value}: ${updated.label}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteMasterFuelTypeAction(id: number | string) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Master BBM');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const deleted = await (prisma as any).masterFuelType.delete({
+      where: { id: idCheck.value },
+    });
+
+    await auditLog('DELETE_FUEL_TYPE', `Menghapus master BBM ID ${idCheck.value}: ${deleted.label}`);
+    revalidatePath('/console');
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 16. MASTER STATUS ALUR KLAIM BBM LOGISTIK (ANTI-HARDCODE)
+// ==============================================================================
+export async function getMasterFuelClaimStatusesAction() {
+  try {
+    const list = await (prisma as any).masterFuelClaimStatus.findMany({
+      orderBy: { display_order: 'asc' },
+      include: { _count: { select: { dispatches: true } } },
+    });
+    return { success: true, data: serializeBigInt(list) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function createMasterFuelClaimStatusAction(data: {
+  key: string;
+  label: string;
+  badge_color?: string;
+  badge_bg?: string;
+  keterangan?: string;
+  display_order?: number;
+  is_active?: boolean;
+}) {
+  try {
+    if (!data.key || !data.label) {
+      return { success: false, error: 'Key dan Label Status Klaim wajib diisi!' };
+    }
+    const cleanKey = data.key.trim().toUpperCase().replace(/\s+/g, '_');
+    const created = await (prisma as any).masterFuelClaimStatus.create({
+      data: {
+        key: cleanKey,
+        label: data.label.trim(),
+        badge_color: data.badge_color?.trim() || '#64748B',
+        badge_bg: data.badge_bg?.trim() || '#F1F5F9',
+        keterangan: data.keterangan?.trim() || null,
+        display_order: Number(data.display_order || 1),
+        is_active: data.is_active !== undefined ? Boolean(data.is_active) : true,
+      },
+    });
+
+    await auditLog('CREATE_FUEL_CLAIM_STATUS', `Menambah status klaim BBM baru: ${created.label} (${cleanKey})`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(created) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function updateMasterFuelClaimStatusAction(
+  id: number | string,
+  data: {
+    key?: string;
+    label?: string;
+    badge_color?: string;
+    badge_bg?: string;
+    keterangan?: string;
+    display_order?: number;
+    is_active?: boolean;
+  }
+) {
+  try {
+    const idCheck = parsePositiveIntId(id, 'ID Status Klaim');
+    if (!idCheck.valid) return { success: false, error: idCheck.error };
+
+    const updateData: any = {};
+    if (data.key !== undefined) updateData.key = data.key.trim().toUpperCase().replace(/\s+/g, '_');
+    if (data.label !== undefined) updateData.label = data.label.trim();
+    if (data.badge_color !== undefined) updateData.badge_color = data.badge_color.trim();
+    if (data.badge_bg !== undefined) updateData.badge_bg = data.badge_bg.trim();
+    if (data.keterangan !== undefined) updateData.keterangan = data.keterangan.trim() || null;
+    if (data.display_order !== undefined) updateData.display_order = Number(data.display_order);
+    if (data.is_active !== undefined) updateData.is_active = Boolean(data.is_active);
+
+    const updated = await (prisma as any).masterFuelClaimStatus.update({
+      where: { id: idCheck.value },
+      data: updateData,
+    });
+
+    await auditLog('UPDATE_FUEL_CLAIM_STATUS', `Memperbarui status klaim BBM ID ${idCheck.value}: ${updated.label}`);
+    revalidatePath('/console');
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 17. MASTER PERAN AWAK REGU PATROLI (BUDDY SYSTEM - ANTI-HARDCODE)
+// ==============================================================================
+export async function getMasterPatrolCrewRolesAction() {
+  try {
+    const list = await (prisma as any).masterPatrolCrewRole.findMany({
+      orderBy: { display_order: 'asc' },
+    });
+    return { success: true, data: serializeBigInt(list) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 18. MASTER MODA DISPOSISI OPERASIONAL (ANTI-HARDCODE)
+// ==============================================================================
+export async function getMasterDispatchModesAction() {
+  try {
+    const list = await (prisma as any).masterDispatchMode.findMany({
+      orderBy: { display_order: 'asc' },
+    });
+    return { success: true, data: serializeBigInt(list) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ==============================================================================
+// 19. AUDIT LOGISTIK & REKAP KLAIM BBM BULANAN POLRI (BIRO LOGISTIK / BAG LOG)
+// ==============================================================================
+export async function getFuelAuditReportAction(stationId?: number | null, month?: number, year?: number) {
+  try {
+    const { FuelAuditService } = await import('@/infrastructure/services/fuel-audit.service');
+    const report = await FuelAuditService.getMonthlyFuelAuditSummary(stationId, month, year);
+    return { success: true, data: serializeBigInt(report) };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

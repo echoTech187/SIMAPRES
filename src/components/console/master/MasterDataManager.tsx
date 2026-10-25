@@ -31,24 +31,14 @@ import TabDuty from './tabs/TabDuty';
 import TabLokasiPenyelesaian from './tabs/TabLokasiPenyelesaian';
 import TabDokumenPenyelesaian from './tabs/TabDokumenPenyelesaian';
 import TabKnowledgeFaq from './tabs/TabKnowledgeFaq';
+import TabFuelType from './tabs/TabFuelType';
+import TabFuelClaimStatus from './tabs/TabFuelClaimStatus';
+import TabAuditBbm from './tabs/TabAuditBbm';
 
 // Shared Types
-import type { MasterLookups } from './tabs/types';
+import type { MasterLookups, MasterTabType } from './tabs/types';
 
-export type MasterTabType =
-  | 'pangkat'
-  | 'satuan'
-  | 'role'
-  | 'station'
-  | 'armada'
-  | 'hotspot'
-  | 'hotspot_cat'
-  | 'kategori'
-  | 'subkategori'
-  | 'duty'
-  | 'lokasi_penyelesaian'
-  | 'dokumen_penyelesaian'
-  | 'knowledge_faq';
+export type { MasterTabType };
 
 interface MasterDataManagerProps {
   activeTab: MasterTabType;
@@ -110,6 +100,9 @@ export default function MasterDataManager({
     case 'lokasi_penyelesaian':   return <TabLokasiPenyelesaian {...tabProps} />;
     case 'dokumen_penyelesaian':  return <TabDokumenPenyelesaian {...tabProps} />;
     case 'knowledge_faq':         return <TabKnowledgeFaq {...tabProps} />;
+    case 'fuel_type':             return <TabFuelType {...tabProps} />;
+    case 'fuel_claim_status':     return <TabFuelClaimStatus {...tabProps} />;
+    case 'audit_bbm':             return <TabAuditBbm {...tabProps} />;
     default:
       return (
         <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', fontSize: '14px' }}>

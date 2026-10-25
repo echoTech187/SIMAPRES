@@ -217,6 +217,37 @@ export default function KonfirmasiTugasPage() {
                 )}
               </div>
 
+              {/* 3.B: Informasi Audit BBM & Jarak Riil Otomatis */}
+              {(() => {
+                const disp = complaint?.dispatches?.[0];
+                const km = disp?.round_trip_km || disp?.roundTripKm;
+                const liters = disp?.fuel_liters_used || disp?.fuelLitersUsed;
+                if (!km) return null;
+                return (
+                  <div style={{
+                    backgroundColor: 'rgba(14, 165, 233, 0.08)',
+                    border: '1px solid #0284C7',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    marginBottom: '16px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '18px' }}>⛽</span>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.04em' }}>
+                        AUDIT BBM OPERASIONAL RESMI POLRI
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#E2E8F0', marginTop: '4px' }}>
+                      <span>Jarak Tempuh PP: <strong>{Number(km).toFixed(1)} km</strong></span>
+                      <span>Alokasi BBM: <strong style={{ color: '#34D399' }}>~{Number(liters || 0).toFixed(1)} Liter</strong></span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px', lineHeight: 1.4 }}>
+                      ✓ Jarak terverifikasi otomatis via GPS Mako ke TKP. Terekam di database untuk pengajuan klaim anggaran BBM dinas (Bag Log).
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Status Sukses Jika Sudah Diterima */}
               {alreadyAccepted ? (
                 <div style={{
@@ -235,15 +266,15 @@ export default function KonfirmasiTugasPage() {
                   </div>
                 </div>
               ) : (
-                /* Form Identitas & Tombol Terima Tugas */
+                /* Form Identitas & Tombol Terima Tugas (3.A Buddy System) */
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{ marginBottom: '14px' }}>
+                  <div style={{ marginBottom: '12px' }}>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '6px' }}>
-                      {roleParam === 'POLSEK' ? 'Nama Petugas Piket SPKT Polsek' : 'Nama Petugas / NRP'}
+                      {roleParam === 'POLSEK' ? '1. Nama Petugas / Ka Tim Patroli (Wajib)' : 'Nama Petugas / NRP (Wajib)'}
                     </label>
                     <input
                       type="text"
-                      placeholder={roleParam === 'POLSEK' ? 'Contoh: Aipda Agus (Piket SPKT)' : 'Contoh: Bripka Joko (Samapta)'}
+                      placeholder={roleParam === 'POLSEK' ? 'Contoh: Aipda Agus (Ka SPKT)' : 'Contoh: Bripka Joko (Samapta)'}
                       value={officerNameInput}
                       onChange={(e) => setOfficerNameInput(e.target.value)}
                       style={{
@@ -260,8 +291,57 @@ export default function KonfirmasiTugasPage() {
                     />
                   </div>
 
+                  <div style={{ marginBottom: '16px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#CBD5E1', marginBottom: '6px' }}>
+                      2. Nama Rekan Pendamping / Buddy System (SOP Keselamatan Polri)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Briptu Danang (Bintara Pendamping)"
+                      id="partner-name-input"
+                      style={{
+                        width: '100%',
+                        padding: '12px 14px',
+                        backgroundColor: '#0F172A',
+                        border: '1px solid #475569',
+                        borderRadius: '8px',
+                        color: '#FFFFFF',
+                        fontSize: '14px',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+                      * Sesuai instruksi pimpinan: Patroli respon cepat dianjurkan minimal 2 orang personel siaga.
+                    </div>
+                  </div>
+
                   <button
-                    onClick={handleAccept}
+                    onClick={() => {
+                      const partnerEl = document.getElementById('partner-name-input') as HTMLInputElement | null;
+                      const partnerVal = partnerEl?.value || '';
+                      if (!tiketParam) return;
+                      setSubmitting(true);
+                      quickAcceptComplaintDispatchAction({
+                        nomorTiket: tiketParam,
+                        role: roleParam,
+                        recipientName: officerNameInput.trim() || undefined,
+                        crewPartnerName: partnerVal.trim() || undefined,
+                      }).then((res) => {
+                        if (res.success) {
+                          setSuccessMsg(res.message || 'Tugas berhasil diterima!');
+                          getComplaintByTiketAction(tiketParam).then((refreshed) => {
+                            if (refreshed.success) setComplaint(refreshed.data);
+                          });
+                        } else {
+                          alert(res.error || 'Gagal menerima tugas.');
+                        }
+                      }).catch((err) => {
+                        alert(err.message || 'Terjadi kesalahan sistem.');
+                      }).finally(() => {
+                        setSubmitting(false);
+                      });
+                    }}
                     disabled={submitting}
                     style={{
                       width: '100%',

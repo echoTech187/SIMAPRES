@@ -397,6 +397,71 @@ model MasterKnowledgeFaqCategory {
   @@map("master_knowledge_faq_categories")
 }
 
+// 1.19 Master Fuel Types (Jenis Bahan Bakar Dinas Polri - Anti-Hardcode)
+model MasterFuelType {
+  id                      Int             @id @default(autoincrement())
+  key                     String          @unique @db.VarChar(50) // "SOLAR_DIPA", "PERTALITE", "PERTAMAX", "DEXLITE"
+  label                   String          @db.VarChar(100)        // "Solar / Biosolar (Alokasi DIPA)", "Pertalite Dinas", etc.
+  default_price_per_liter Decimal         @default(6800.00) @db.Decimal(10, 2)
+  icon_emoji              String          @default("⛽") @db.VarChar(10)
+  display_order           Int             @default(1)
+  is_active               Boolean         @default(true)
+  created_at              DateTime        @default(now())
+  updated_at              DateTime        @updatedAt
+
+  vehicles                PatrolVehicle[]
+
+  @@map("master_fuel_types")
+}
+
+// 1.20 Master Fuel Claim Statuses (Status Alur Klaim BBM Logistik Polri - Anti-Hardcode)
+model MasterFuelClaimStatus {
+  id            Int                 @id @default(autoincrement())
+  key           String              @unique @db.VarChar(50) // "UNCLAIMED", "DRAFT_POLSEK", "DIAJUKAN_BAGLOG", "DISETUJUI_BAGLOG", "DICAIRKAN", "DITOLAK"
+  label         String              @db.VarChar(100)
+  badge_color   String              @default("#64748B") @db.VarChar(20)
+  badge_bg      String              @default("#F1F5F9") @db.VarChar(20)
+  keterangan    String?             @db.VarChar(255)
+  display_order Int                 @default(1)
+  is_active     Boolean             @default(true)
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  dispatches    ComplaintDispatch[]
+
+  @@map("master_fuel_claim_statuses")
+}
+
+// 1.21 Master Patrol Crew Roles (Peran Awak Regu Patroli 110 Polsek - Anti-Hardcode)
+model MasterPatrolCrewRole {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(50) // "KATIM_REGU", "DRIVER_ARMADA", "BINTARA_PENINDAK", "BINTARA_PENGAMAN", "BAMIN_SIAGA"
+  label         String   @db.VarChar(100)
+  description   String?  @db.VarChar(255)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("master_patrol_crew_roles")
+}
+
+// 1.22 Master Dispatch Modes (Moda Disposisi Operasional - Anti-Hardcode)
+model MasterDispatchMode {
+  id            Int                 @id @default(autoincrement())
+  key           String              @unique @db.VarChar(50) // "UNIT_PIKET_POLSEK", "PATROLI_PRESISI_MAKO", "GABUNGAN_RAYON", "BKO_KONTINJENSI"
+  label         String              @db.VarChar(100)
+  description   String?             @db.VarChar(255)
+  display_order Int                 @default(1)
+  is_active     Boolean             @default(true)
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  dispatches    ComplaintDispatch[]
+
+  @@map("master_dispatch_modes")
+}
+
 // ==============================================================================
 // 2. POLICE STATIONS & REGIONAL JURISDICTIONS (MAKO)
 // Table: police_stations
@@ -549,13 +614,20 @@ model PatrolVehicle {
   last_heartbeat_at  DateTime?
   
   usage_logs         VehicleUsageLog[]
+  dispatches         ComplaintDispatch[]
   
+  // 3.B: Profil Konsumsi BBM Patroli (Anti-Hardcode)
+  fuel_type_id            Int?
+  fuel_type_rel           MasterFuelType?        @relation(fields: [fuel_type_id], references: [id], onDelete: SetNull)
+  fuel_ratio_km_per_liter Decimal                @default(8.0) @db.Decimal(5, 2) // Contoh: 8.0 km/liter untuk R4 Strada diesel
+
   created_at         DateTime               @default(now())
   updated_at         DateTime               @updatedAt
 
   @@index([unit_id], map: "idx_vehicles_unit")
   @@index([station_id], map: "idx_vehicles_station")
   @@index([status_operasional], map: "idx_vehicles_status")
+  @@index([fuel_type_id], map: "idx_vehicles_fuel_type")
   @@map("patrol_vehicles")
 }
 
@@ -699,11 +771,34 @@ model ComplaintDispatch {
   escalation_deadline_at DateTime?
   is_escalated          Boolean               @default(false)
 
+  // 3.A: Disposisi Unit Piket Polsek & Awak Regu Lapangan (Anti-Hardcode Buddy System)
+  dispatch_mode_id      Int?
+  dispatch_mode_rel     MasterDispatchMode?   @relation(fields: [dispatch_mode_id], references: [id], onDelete: SetNull)
+  assigned_vehicle_id   Int?
+  assigned_vehicle      PatrolVehicle?        @relation(fields: [assigned_vehicle_id], references: [id], onDelete: SetNull)
+  crew_leader_nrp       String?               @db.VarChar(50)
+  crew_leader_name      String?               @db.VarChar(120)
+  crew_partner_nrp      String?               @db.VarChar(50)
+  crew_partner_name     String?               @db.VarChar(120)
+
+  // 3.B: Mileage & Audit BBM Logistik (Anti-Hardcode)
+  mako_start_lat        Decimal?              @db.Decimal(10, 8)
+  mako_start_lng        Decimal?              @db.Decimal(11, 8)
+  round_trip_km         Decimal?              @db.Decimal(8, 2)
+  fuel_liters_used      Decimal?              @db.Decimal(6, 2)
+  fuel_cost_estimated   Decimal?              @db.Decimal(12, 2)
+  fuel_claim_status_id  Int?
+  fuel_claim_status_rel MasterFuelClaimStatus? @relation(fields: [fuel_claim_status_id], references: [id], onDelete: SetNull)
+  fuel_claim_notes      String?               @db.Text
+
   @@index([complaint_id], map: "idx_dispatches_complaint")
   @@index([unit_id], map: "idx_dispatches_unit")
   @@index([officer_id], map: "idx_dispatches_officer")
   @@index([dispatch_status_id], map: "idx_dispatches_status_id")
   @@index([station_id], map: "idx_dispatches_station_id")
+  @@index([dispatch_mode_id], map: "idx_dispatches_mode")
+  @@index([assigned_vehicle_id], map: "idx_dispatches_vehicle")
+  @@index([fuel_claim_status_id], map: "idx_dispatches_fuel_claim")
   @@map("complaint_dispatches")
 }
 

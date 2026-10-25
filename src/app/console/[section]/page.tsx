@@ -41,6 +41,9 @@ const sectionTitleMap: Record<string, string> = {
   dokumen_penyelesaian: 'Master Jenis Dokumen & Bukti Penyelesaian',
   knowledge_faq: 'Master Buku Pintar SOP & Layanan Warga',
   master_faq: 'Master Buku Pintar SOP & Layanan Warga',
+  audit_bbm: 'Audit Klaim BBM Logistik Polri',
+  fuel_type: 'Master Jenis Bahan Bakar Dinas (BBM)',
+  fuel_claim_status: 'Master Alur Status Klaim BBM',
 };
 
 export async function generateMetadata({ params }: { params?: { section?: string } }) {

@@ -15,7 +15,10 @@ export type MasterTabType =
   | 'duty'
   | 'lokasi_penyelesaian'
   | 'dokumen_penyelesaian'
-  | 'knowledge_faq';
+  | 'knowledge_faq'
+  | 'fuel_type'
+  | 'fuel_claim_status'
+  | 'audit_bbm';
 
 /** Lookup bundles yang dimuat sekali untuk semua tab */
 export interface MasterLookups {

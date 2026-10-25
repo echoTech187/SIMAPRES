@@ -51,12 +51,21 @@ function parseSuperadminTab(section?: string): SuperadminTab {
         'lokasi_penyelesaian',
         'dokumen_penyelesaian',
         'knowledge_faq',
+        'fuel_type',
+        'fuel_claim_status',
+        'audit_bbm',
       ].includes(clean)
     ) {
       return clean as MasterTabType;
     }
     if (['faq', 'panduan', 'master_faq', 'buku_pintar', 'sop'].includes(clean)) {
       return 'knowledge_faq';
+    }
+    if (['bbm', 'audit_bbm', 'klaim_bbm', 'logistik'].includes(clean)) {
+      return 'audit_bbm';
+    }
+    if (['fuel', 'fuel_type', 'master_bbm'].includes(clean)) {
+      return 'fuel_type';
     }
     return 'unit';
   }
@@ -828,6 +837,114 @@ export default function SuperadminConsoleView({
               }}
             >
               {(counters as any).knowledgeFaqs || 12}
+            </span>
+          </button>
+
+          {/* TAB 12: AUDIT KLAIM BBM LOGISTIK POLRI (POIN 3.B) */}
+          <button
+            type="button"
+            id="superadmin-tab-audit-bbm"
+            onClick={() => switchTab('audit_bbm')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'audit_bbm' ? '#0284C7' : '#F8FAFC',
+              color: activeTab === 'audit_bbm' ? 'white' : '#475569',
+              border: activeTab === 'audit_bbm' ? '1px solid #0284C7' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>⛽ Audit BBM Logistik</span>
+            <span
+              style={{
+                background: activeTab === 'audit_bbm' ? 'rgba(255,255,255,0.2)' : '#E0F2FE',
+                color: activeTab === 'audit_bbm' ? 'white' : '#0369A1',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              GPS
+            </span>
+          </button>
+
+          {/* TAB 13: MASTER JENIS BAHAN BAKAR (ANTI-HARDCODE) */}
+          <button
+            type="button"
+            id="superadmin-tab-fuel-type"
+            onClick={() => switchTab('fuel_type')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'fuel_type' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'fuel_type' ? 'white' : '#475569',
+              border: activeTab === 'fuel_type' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>🛢️ Master BBM DIPA</span>
+            <span
+              style={{
+                background: activeTab === 'fuel_type' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'fuel_type' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              5
+            </span>
+          </button>
+
+          {/* TAB 14: MASTER STATUS ALUR KLAIM BBM */}
+          <button
+            type="button"
+            id="superadmin-tab-fuel-claim-status"
+            onClick={() => switchTab('fuel_claim_status')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+              background: activeTab === 'fuel_claim_status' ? '#153E75' : '#F8FAFC',
+              color: activeTab === 'fuel_claim_status' ? 'white' : '#475569',
+              border: activeTab === 'fuel_claim_status' ? '1px solid #153E75' : '1px solid #E2E8F0',
+            }}
+          >
+            <span>📑 Status Alur Klaim BBM</span>
+            <span
+              style={{
+                background: activeTab === 'fuel_claim_status' ? 'rgba(255,255,255,0.2)' : '#E2E8F0',
+                color: activeTab === 'fuel_claim_status' ? 'white' : '#475569',
+                fontSize: '11px',
+                padding: '2px 7px',
+                borderRadius: '10px',
+                fontWeight: 800,
+              }}
+            >
+              6
             </span>
           </button>
 

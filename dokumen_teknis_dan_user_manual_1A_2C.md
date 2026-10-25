@@ -1,7 +1,7 @@
-# 📘 DOKUMEN TEKNIS & USER MANUAL OPERASIONAL (POIN 1.A – 2.C)
+# 📘 DOKUMEN TEKNIS & USER MANUAL OPERASIONAL (POIN 1.A – 3.B)
 ## SISTEM MANAJEMEN OPERASIONAL PRESISI 110 (SIMAPRES 110)
 ### POLRES PEKALONGAN – POLDA JAWA TENGAH
-*Versi Dokumen: 2.1 | Tanggal: 25 Oktober 2026 | Klasifikasi: Dokumen Resmi Kedinasan*
+*Versi Dokumen: 2.2 | Tanggal: 25 Oktober 2026 | Klasifikasi: Dokumen Resmi Kedinasan*
 
 ---
 
@@ -16,13 +16,18 @@
    - [1.7 Logika Modul Poin 2.B – Ramah Senior & Auto-WA Personel](#17-logika-modul-poin-2b--ramah-senior--auto-wa-personel)
    - [1.8 Logika Modul Poin 2.C – Geo-Targeting, Auto-Dispatch Polsek & Escalation Siren](#18-logika-modul-poin-2c--geo-targeting-auto-dispatch-polsek--escalation-siren)
    - [1.9 Integrasi WhatsApp Gateway (FlowKirim REST API)](#19-integrasi-whatsapp-gateway-flowkirim-rest-api)
+   - [1.10 Logika Modul Poin 3.A – Alokasi Personel Polsek Minimalis & Buddy System](#110-logika-modul-poin-3a--alokasi-personel-polsek-minimalis--buddy-system)
+   - [1.11 Logika Modul Poin 3.B – Audit Jarak Jalan Raya & Log Reimbursement BBM DIPA](#111-logika-modul-poin-3b--audit-jarak-jalan-raya--log-reimbursement-bbm-dipa)
 2. [BAGIAN II: USER MANUAL OPERASIONAL PER PERAN](#bagian-ii-user-manual-operasional-per-peran)
    - [2.1 Panduan Operator Sentra Layanan 110 (CAD Operator)](#21-panduan-operator-sentra-layanan-110-cad-operator)
    - [2.2 Panduan Perwira Pengawas (Pawas Mako Polres)](#22-panduan-perwira-pengawas-pawas-mako-polres)
    - [2.3 Panduan Petugas Piket SPKT Polsek Kewilayahan](#23-panduan-petugas-piket-spkt-polsek-kewilayahan)
    - [2.4 Panduan Personel Unit Patroli Lapangan](#24-panduan-personel-unit-patroli-lapangan)
-   - [2.5 Panduan Superadmin (Konfigurasi Mako & Master SOP)](#25-panduan-superadmin-konfigurasi-mako--master-sop)
+   - [2.5 Panduan Superadmin (Konfigurasi Mako, Master SOP & Master BBM)](#25-panduan-superadmin-konfigurasi-mako-master-sop--master-bbm)
+   - [2.6 Panduan Bagian Logistik (Bag Log) & Keuangan Polres (Audit & Pencairan BBM DIPA)](#26-panduan-bagian-logistik-bag-log--keuangan-polres-audit--pencairan-bbm-dipa)
 3. [BAGIAN III: MATRIKS PENGUJIAN & TROUBLESHOOTING](#bagian-iii-matriks-pengujian--troubleshooting)
+   - [3.1 Skenario Uji Penerimaan Sistem (UAT Matrix)](#31-skenario-uji-penerimaan-sistem-uat-matrix)
+   - [3.2 Panduan Penanganan Kendala (Troubleshooting Guide)](#32-panduan-penanganan-kendala-troubleshooting-guide)
 
 ---
 
@@ -40,6 +45,7 @@ Sistem SIMAPRES 110 dibangun dengan standar **Clean Architecture (Hexagonal)** d
 │   • Console Operator CAD 110    • Tactical Map Pawas                   │
 │   • Mobile Web Ramah Senior     • One-Tap Quick Accept (/tugas)        │
 │   • Master Console Superadmin   • Portal Tracking Warga (/tracking)    │
+│   • Console Audit BBM Bag Log   • Validasi Dossier Pawas               │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -47,6 +53,7 @@ Sistem SIMAPRES 110 dibangun dengan standar **Clean Architecture (Hexagonal)** d
 │   • createComplaintAndBroadcastAction • quickAcceptComplaintDispatch   │
 │   • getKnowledgeFaqsAction            • transferJurisdictionAction     │
 │   • acceptOfficerDispatchAction       • sahkanKasusPawasAction         │
+│   • getFuelAuditReportAction          • calculateDispatchFuelUsage     │
 └───────────────────────────────────┬────────────────────────────────────┘
                                     │
 ┌───────────────────────────────────▼────────────────────────────────────┐
@@ -54,14 +61,15 @@ Sistem SIMAPRES 110 dibangun dengan standar **Clean Architecture (Hexagonal)** d
 │   • Prisma Client (TiDB Cloud)   • FlowKirim WhatsApp Gateway API      │
 │   • Web Audio API (Siren Alert)  • Google Maps Directions Service      │
 │   • Haversine Spatial Resolver   • Reverse Geocode & Boundary Engine   │
+│   • Fuel Audit Engine (DIPA)     • Road Network Tortuosity Calculator  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Prinsip Additive & Backward-Compatible (Non-Breaking)
-Semua penambahan kode dari poin 1.A sampai 2.C diterapkan secara *additive*:
-1. Tidak ada tabel atau kolom lama yang dihapus/dirombak.
-2. Tidak ada tombol atau kebiasaan operator yang dihilangkan.
-3. Seluruh pengiriman WhatsApp dan pemanggilan gateway pihak ketiga dieksekusi secara *asynchronous* (non-blocking di background), sehingga kegagalan koneksi pihak ketiga **tidak pernah menggagalkan penyimpanan tiket** di database lokal.
+#### Prinsip Additive & Zero-Hardcode (Non-Breaking)
+Semua penambahan kode dari poin 1.A sampai 3.B diterapkan dengan prinsip kepatuhan ketat:
+1. **Additive & Non-Breaking:** Tidak ada tabel, fungsi, atau alur lama yang dirusak atau dihapus. Semua fitur baru memperluas fungsionalitas yang sudah ada.
+2. **Zero-Hardcode Database-Driven:** Seluruh variabel dinas—termasuk jenis bahan bakar (`master_fuel_types`), alur verifikasi klaim (`master_fuel_claim_statuses`), peran regu patroli (`master_patrol_crew_roles`), dan moda penugasan (`master_dispatch_modes`)—dikelola melalui tabel database mandiri dan dapat dikonfigurasi melalui antarmuka Superadmin tanpa perlu mengubah kode sumber (*redeploy*).
+3. **Fail-Safe & Asynchronous:** Seluruh pengiriman WhatsApp dan integrasi API luar dijalankan secara non-blocking di latar belakang. Gangguan pada gateway luar tidak pernah menggagalkan penyimpanan tiket lokal.
 
 ---
 
@@ -96,6 +104,11 @@ graph TD
     
     N -->|Batas Waktu Habis & Belum Diterima| Q[2.C.2 Sirine Mako Polres Berbunyi]
     Q --> R[Tombol Panggilan Telepon Manual ke Polsek / Personel]
+
+    O --> S[Poin 3.A: Ka SPKT Tunjuk Buddy System 2 Orang]
+    S --> T[Poin 3.B: Fuel Audit Engine Hitung KM PP & Liter BBM DIPA]
+    T --> U[Unit Tiba di TKP & Selesaikan Tugas BAP]
+    U --> V[Bag Log Verifikasi Log Jarak & Cairkan Reimbursement DIPA]
 ```
 
 ---
@@ -122,63 +135,115 @@ model PoliceStation {
   officers               PoliceOfficer[]
   complaints             Complaint[]
   dispatches             ComplaintDispatch[]
+  patrol_vehicles        PatrolVehicle[]
   @@map("police_stations")
 }
 ```
 
-#### 2. Model `ComplaintDispatch` (`complaint_dispatches`)
-Menyimpan rekaman disposisi taktis satuan, status respon, dan tenggat eskalasi:
+#### 2. Model `MasterFuelType` & `MasterFuelClaimStatus` (Poin 3.B - 100% Anti-Hardcode)
 ```prisma
-model ComplaintDispatch {
-  id                    BigInt                @id @default(autoincrement())
-  complaint_id          BigInt
-  unit_id               Int
-  officer_id            BigInt?
-  station_id            Int?                  // Polsek yang ditargetkan
-  is_primary_unit       Boolean               @default(true)
-  personnel_quota       Int                   @default(1)
-  tactical_orders       String?               @db.Text
-  dispatch_status       String                @default("DISPATCHED") @db.VarChar(30)
-  dispatched_at         DateTime              @default(now())
-  accepted_at           DateTime?
-  departed_at           DateTime?
-  arrived_at            DateTime?
-  completed_at          DateTime?
-  escalation_deadline_at DateTime?            // Batas waktu respon (Safety Net Timer)
-  wa_officer_status     String?               @default("NONE") @db.VarChar(30)
-  wa_polsek_status      String?               @default("NONE") @db.VarChar(30)
-  is_escalated          Boolean               @default(false)
-  @@map("complaint_dispatches")
+model MasterFuelType {
+  id                     Int             @id @default(autoincrement())
+  key                    String          @unique @db.VarChar(30)
+  label                  String          @db.VarChar(100)
+  default_price_per_liter Decimal        @default(10000.00) @db.Decimal(10, 2)
+  icon_emoji             String          @default("⛽") @db.VarChar(10)
+  display_order          Int             @default(1)
+  is_active              Boolean         @default(true)
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+
+  vehicles               PatrolVehicle[]
+  @@map("master_fuel_types")
+}
+
+model MasterFuelClaimStatus {
+  id            Int                 @id @default(autoincrement())
+  key           String              @unique @db.VarChar(30)
+  label         String              @db.VarChar(100)
+  badge_color   String              @default("#64748b") @db.VarChar(30)
+  badge_bg      String              @default("#f1f5f9") @db.VarChar(30)
+  keterangan    String?             @db.VarChar(255)
+  display_order Int                 @default(1)
+  is_active     Boolean             @default(true)
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  dispatches    ComplaintDispatch[]
+  @@map("master_fuel_claim_statuses")
 }
 ```
 
-#### 3. Model `MasterKnowledgeFaq` & `MasterKnowledgeFaqCategory`
-Penyimpanan buku pintar SOP dinamis untuk operator 110:
+#### 3. Model `MasterPatrolCrewRole` & `MasterDispatchMode` (Poin 3.A)
 ```prisma
-model MasterKnowledgeFaqCategory {
-  id            Int                  @id @default(autoincrement())
-  name          String               @db.VarChar(100)
-  slug          String               @unique @db.VarChar(100)
-  icon          String               @default("📖") @db.VarChar(20)
-  display_order Int                  @default(1)
-  is_active     Boolean              @default(true)
-  faqs          MasterKnowledgeFaq[]
-  @@map("master_knowledge_faq_categories")
+model MasterPatrolCrewRole {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(30)
+  label         String   @db.VarChar(100)
+  description   String?  @db.VarChar(255)
+  display_order Int      @default(1)
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  @@map("master_patrol_crew_roles")
 }
 
-model MasterKnowledgeFaq {
-  id             Int                         @id @default(autoincrement())
-  category_id    Int
-  category_rel   MasterKnowledgeFaqCategory  @relation(fields: [category_id], references: [id], onDelete: Cascade)
-  category_key   String                      @db.VarChar(50)
-  title          String                      @db.VarChar(200)
-  pertanyaan     String                      @db.VarChar(255)
-  jawaban_singkat String                     @db.Text
-  checklist_syarat String?                   @db.Text
-  biaya_pnbp     String?                     @db.VarChar(100)
-  waktu_proses   String?                     @db.VarChar(100)
-  is_active      Boolean                     @default(true)
-  @@map("master_knowledge_faqs")
+model MasterDispatchMode {
+  id            Int                 @id @default(autoincrement())
+  key           String              @unique @db.VarChar(30)
+  label         String              @db.VarChar(100)
+  description   String?             @db.VarChar(255)
+  display_order Int                 @default(1)
+  is_active     Boolean             @default(true)
+  created_at    DateTime            @default(now())
+  updated_at    DateTime            @updatedAt
+
+  dispatches    ComplaintDispatch[]
+  @@map("master_dispatch_modes")
+}
+```
+
+#### 4. Relasi Armada & Disposisi (`PatrolVehicle` & `ComplaintDispatch`)
+```prisma
+model PatrolVehicle {
+  id                      Int                 @id @default(autoincrement())
+  station_id              Int
+  vehicle_type            String              @db.VarChar(30) // MOBIL_PATROLI_R4, MOTOR_PATROLI_R2
+  police_plate_number     String              @unique @db.VarChar(20)
+  callsign                String              @db.VarChar(50)
+  fuel_type_id            Int?                // FK ke master_fuel_types
+  fuel_type_rel           MasterFuelType?     @relation(fields: [fuel_type_id], references: [id])
+  fuel_ratio_km_per_liter Decimal             @default(8.0) @db.Decimal(5, 2)
+  is_active               Boolean             @default(true)
+  dispatches              ComplaintDispatch[]
+  @@map("patrol_vehicles")
+}
+
+model ComplaintDispatch {
+  id                     BigInt                 @id @default(autoincrement())
+  complaint_id           BigInt
+  unit_id                Int
+  officer_id             BigInt?
+  station_id             Int?
+  dispatch_mode_id       Int?                   // FK ke master_dispatch_modes (Poin 3.A)
+  dispatch_mode_rel      MasterDispatchMode?    @relation(fields: [dispatch_mode_id], references: [id])
+  assigned_vehicle_id    Int?                   // FK ke patrol_vehicles (Poin 3.B)
+  assigned_vehicle_rel   PatrolVehicle?         @relation(fields: [assigned_vehicle_id], references: [id])
+  crew_leader_nrp        String?                @db.VarChar(30)
+  crew_leader_name       String?                @db.VarChar(100)
+  crew_partner_nrp       String?                @db.VarChar(30)
+  crew_partner_name      String?                @db.VarChar(100)
+  mako_start_lat         Decimal?               @db.Decimal(10, 8)
+  mako_start_lng         Decimal?               @db.Decimal(11, 8)
+  round_trip_km          Decimal?               @db.Decimal(8, 2)
+  fuel_liters_used       Decimal?               @db.Decimal(8, 2)
+  fuel_cost_estimated    Decimal?               @db.Decimal(12, 2)
+  fuel_claim_status_id   Int?                   // FK ke master_fuel_claim_statuses (Poin 3.B)
+  fuel_claim_status_rel  MasterFuelClaimStatus? @relation(fields: [fuel_claim_status_id], references: [id])
+  fuel_claim_notes       String?                @db.VarChar(255)
+  escalation_deadline_at DateTime?
+  @@map("complaint_dispatches")
 }
 ```
 
@@ -261,104 +326,147 @@ model MasterKnowledgeFaq {
 
 ---
 
+### 1.10 Logika Modul Poin 3.A – Alokasi Personel Polsek Minimalis & Buddy System
+
+* **Modul Sumber:** [`src/app/actions/complaint.actions.ts`](file:///c:/Users/Pongo/Downloads/SIMAPRES/src/app/actions/complaint.actions.ts), [`src/app/tugas/konfirmasi/page.tsx`](file:///c:/Users/Pongo/Downloads/SIMAPRES/src/app/tugas/konfirmasi/page.tsx), `master_patrol_crew_roles`, `master_dispatch_modes`.
+* **Latar Belakang Operasional:**
+  Kondisi riil di Polsek jajaran (tipe Rural/Polsek Pedesaan seperti Paninggaran, Petungkriyono, Lebakbarang, Talun) hanya memiliki 2–4 personel piket per 1x24 jam (Ka SPKT, Bamin, dan 1–2 Bintara Jaga). Jika CAD Polres mengunci disposisi ke individu tertentu, penugasan akan macet jika anggota tersebut sedang menangani laporan di SPKT atau sedang patroli di sektor lain. Selain itu, memberangkatkan 1 personel sendirian melanggar *Perkap No. 1 Tahun 2019 tentang TPTKP* dan membahayakan keselamatan anggota (*officer safety*).
+* **Solusi & Mekanisme Kerja:**
+  1. **Disposisi Berbasis Unit Piket Polsek (`UNIT_PIKET_POLSEK`):** Disposisi awal ditujukan ke satuan kantor Polsek secara utuh, bukan personil per personil.
+  2. **Diskresi Ka SPKT Polsek:** Ka SPKT yang memegang meja piket berwenang menunjuk siapa 2 personel yang siaga berangkat meluncur ke TKP.
+  3. **Form Konfirmasi Buddy System:** Halaman `/tugas/konfirmasi` menyediakan dua isian wajib:
+     * **Ka Tim Patroli / Leader:** Nama & pangkat petugas penanggung jawab (contoh: *Aipda Bambang Triyono*).
+     * **Rekan Pendamping (Buddy System):** Nama petugas pendamping (contoh: *Bripka Dimas Surya*).
+  4. **Pencatatan Berpasangan:** Keduanya dicatat ke kolom `crew_leader_name` dan `crew_partner_name` di `complaint_dispatches`. Jika terjadi eskalasi atau kontak tembak, Pawas Mako Polres mengetahui persis siapa dua anggota yang berada di lapangan.
+
+---
+
+### 1.11 Logika Modul Poin 3.B – Audit Jarak Jalan Raya & Log Reimbursement BBM DIPA
+
+* **Modul Sumber:** [`src/infrastructure/services/fuel-audit.service.ts`](file:///c:/Users/Pongo/Downloads/SIMAPRES/src/infrastructure/services/fuel-audit.service.ts), [`src/app/actions/master.actions.ts`](file:///c:/Users/Pongo/Downloads/SIMAPRES/src/app/actions/master.actions.ts), [`TabAuditBbm.tsx`](file:///c:/Users/Pongo/Downloads/SIMAPRES/src/components/console/master/tabs/TabAuditBbm.tsx).
+* **Latar Belakang Operasional:**
+  Personel piket Polsek sering kali terpaksa "nombok" bensin swadaya dari saku pribadi saat menerima panggilan darurat 110 dengan jarak TKP puluhan kilometer di medan perbukitan, karena ketiadaan pencatatan jarak tempuh digital yang diakui oleh Biro Logistik (Bag Log) dan Bendahara Pengeluaran Keuangan (BPP).
+* **Formula & Mekanisme Kerja:**
+  1. **Perhitungan Jarak Tempuh Riil Jaringan Jalan (Round-Trip KM):**
+     Jarak garis lurus Haversine dari Mako Polsek ke TKP dikalikan dengan faktor kelokan kontur jalan raya (*Road Network Tortuosity Multiplier* = `1.25`), lalu dikalikan 2 (Pergi - Pulang):
+     $$\text{RoundTripKM} = 2 \times (\text{HaversineKM} \times 1.25)$$
+  2. **Kalkulasi Kuota BBM Berdasarkan Profil Kendaraan:**
+     Konsumsi liter bahan bakar dihitung dari rasio efisiensi armada dinas (`fuel_ratio_km_per_liter`) di tabel `patrol_vehicles` (misal R4 Strada Triton = 8.0 KM/L; R2 Trail = 35.0 KM/L):
+     $$\text{LiterBBM} = \frac{\text{RoundTripKM}}{\text{RasioKMPL}}$$
+  3. **Estimasi Biaya Rupiah Berdasarkan Master Database (`master_fuel_types`):**
+     Nilai reimbursement dihitung otomatis menggunakan harga satuan dinas (`default_price_per_liter`):
+     $$\text{BiayaBBM} = \text{LiterBBM} \times \text{HargaSatuanDB}$$
+  4. **Alur Klaim & Verifikasi Bagian Logistik (Bag Log):**
+     * Tiket terbit dengan status klaim awal: `UNCLAIMED`.
+     * Petugas Polsek mengonfirmasi armada yang digunakan: status berubah ke `DRAFT_POLSEK`.
+     * Akhir bulan, Bag Log mengaudit jarak tempuh dan menyetujui klaim: status `DISETUJUI_BAGLOG` ➔ `DICAIRKAN`.
+     * Fitur **Export Lembar Bukti SPJ (PDF)** menghasilkan cetakan resmi siap tanda tangan Kapolsek dan Kabag Logistik.
+
+---
+
 # BAGIAN II: USER MANUAL OPERASIONAL PER PERAN
 
 ---
 
 ### 2.1 Panduan Operator Sentra Layanan 110 (CAD Operator)
 
-#### A. Menerima Telepon Permintaan Informasi / Syarat Layanan (Poin 2.A)
-1. Saat warga menelepon dan menanyakan syarat pengurusan (misal: SIM hilang, perpanjangan STNK, syarat SKCK, alur laporan kehilangan):
-2. **JANGAN membuat tiket baru** di form CAD.
-3. Klik tombol pintasan **`[ 📖 Panduan Cepat / SOP ]`** di bagian atas form CAD atau navigasi ke menu `/console/panduan`.
-4. Ketik kata kunci pada kotak pencarian (contoh: *"SIM Hilang"* atau *"SKCK"*).
-5. Bacakan jawaban singkat dan checklist berkas yang tertera pada layar kepada penelepon.
-6. Tanyakan kepada penelepon: *"Apakah Bapak/Ibu ingin kami kirimkan rincian syarat ini ke nomor WhatsApp Anda?"*
-7. Jika ya, klik tombol **`[ 💬 Kirim Panduan via WhatsApp ]`**, masukkan nomor HP warga, dan klik **Kirim**.
-
-#### B. Menerima Laporan Kejadian Riil / Darurat (Poin 1.A & 2.C)
-1. Isi form CAD seperti biasa: Nama Pelapor, Nomor Kontak, Kategori Kejadian, dan Alamat TKP.
-2. Tentukan titik lokasi di peta koordinat.
-3. Perhatikan indikator batas wilayah:
-   * Jika muncul peringatan kuning *"TKP di Luar Wilayah Hukum Polres Pekalongan"*, klik tombol **`[ 🔁 Alihkan ke Polres Tetangga ]`** untuk memilih Polresta Batang/Pemalang.
-4. Pilih tingkat urgensi:
-   * **🔴 Darurat:** Untuk kejadian genting seperti tawuran, begal, kecelakaan berdarah, kebakaran.
-   * **🟡 Sedang:** Untuk gangguan ketertiban biasa, kemacetan, sengketa ringan.
-   * **🟢 Normal:** Untuk pengaduan non-darurat.
-5. Klik tombol **`[ ⚡ Simpan & Disposisikan ]`**.
-6. Sistem secara otomatis menyiarkan tiket ke konsol armada dan mengirimkan notifikasi WhatsApp taktis ke Polsek yang membawahi wilayah TKP tersebut.
+1. **Menerima Panggilan Masuk:**
+   * Angkat telepon dinas dan buka halaman **Konsol CAD Operator** (`/console/cad` atau `/console/operator`).
+   * Tanyakan nama pelapor, nomor telepon aktif, dan lokasi kejadian secara ramah.
+2. **Jika Warga Menanyakan Informasi Syarat Layanan (Poin 2.A):**
+   * Klik tombol **`[ 📖 Panduan Cepat / SOP ]`** di bilah atas atau tekan ikon Buku Pintar.
+   * Ketik kata kunci (misal: *SIM*, *SKCK*, *Laporan Kehilangan*).
+   * Bacakan poin checklist syarat dan biaya PNBP resmi PP No. 76/2020.
+   * Klik tombol **`[ 💬 Kirim Panduan ke WA Warga ]`** agar warga menerima rangkuman teks rapi di WhatsApp-nya.
+3. **Jika Terjadi Insiden di Perbatasan Luar Pekalongan (Poin 1.A):**
+   * Tandai titik TKP di peta.
+   * Jika banner kuning *"TKP Terdeteksi di Luar Wilayah Hukum"* muncul, klik **`[ 🔁 Teruskan ke Mako Terdekat ]`**.
+   * Pilih Mako tujuan (misal: *Polresta Batang* atau *Polres Pemalang*), lalu klik **Konfirmasi Transfer**.
+4. **Menyimpan & Menyiarkan Laporan (Disposisi Serentak):**
+   * Pilih tingkat urgensi: `DARURAT`, `SEDANG`, atau `NORMAL`.
+   * Klik tombol besar merah: **`[ 🚀 SIMPAN & SIARKAN DISPOSISI SERENTAK ]`**. Sistem otomatis memetakan Polsek pembina wilayah dan mengirim notifikasi WhatsApp taktis.
 
 ---
 
 ### 2.2 Panduan Perwira Pengawas (Pawas Mako Polres)
 
-#### A. Memantau Live Map Posisi Riil & Navigasi Rute (Poin 1.B)
-1. Buka tab **[🗺️ Peta Taktis Operasional]** di konsol Pawas.
-2. Seluruh posisi kendaraan dinas dan personel patroli tergelar akan muncul dengan ikon sesuai satuan (Samapta, Lantas, Reskrim).
-3. Pada insiden berstatus `DARURAT`, klik marker insiden untuk melihat garis rute jalan raya resmi (Google Directions API) dari posisi mobil patroli menuju titik TKP lengkap dengan jarak dan estimasi waktu tempuh (*ETA*).
-
-#### B. Memantau Alarm Eskalasi 3–5 Menit & Tindakan Intervensi (Poin 2.C.2)
-1. Di bagian atas layar konsol, perhatikan bilah **Hitung Mundur Respon**:
-   * Menampilkan sisa waktu respon target (contoh: `⏱️ Sisa Waktu Respon Target: 02:45`).
-2. Jika dalam 3 menit (untuk Darurat) atau 5 menit (untuk Sedang) belum ada petugas Polsek atau unit patroli yang menerima tugas:
-   * **Sirine Mako Polres otomatis berbunyi.**
-   * Bilah hitung mundur berubah menjadi kartu merah berkedip: **`🚨 ESKALASI MAKO 110: WAKTU RESPON HABIS`**.
-3. **Langkah Intervensi Pawas:**
-   * Klik tombol **`[ 📞 Telepon Piket (Nomor Polsek) ]`** untuk menelepon meja piket Polsek via jaringan GSM/telepon komando dan memerintahkan regu siaga segera bergerak.
-   * Atau klik tombol **`[ 🔁 Alihkan Disposisi ]`** untuk mengalihkan penugasan langsung ke Tim Resmob / Raimas Samapta Mako Polres jika Polsek setempat berhalangan.
-   * Klik tombol **`[ Mute ]`** untuk mematikan suara sirine sementara saat Pawas sedang berbicara di telepon.
+1. **Memantau Peta Taktis Armada (Poin 1.B):**
+   * Buka tab **[🗺️ Peta Taktis Armada]** di konsol Pawas.
+   * Posisi riil personel dan kendaraan patroli ter-update otomatis setiap 20 detik.
+   * Untuk kasus darurat yang sedang ditangani, perhatikan **garis navigasi Google Directions** yang menghubungkan posisi personel ke TKP beserta estimasi waktu tempuh (ETA).
+2. **Memantau Alarm Eskalasi 3–5 Menit (Poin 2.C.2):**
+   * Perhatikan bilah hitung mundur waktu respon target di bilah atas konsol.
+   * Jika hitung mundur mencapai 00:00 dan Polsek belum menerima tugas, speaker komputer Mako akan membunyikan sirine dua nada kepolisian.
+   * **Tindakan Pawas:**
+     * Klik tombol **`[ 📞 Telepon Piket (Nomor Polsek) ]`** untuk memerintahkan petugas piket segera meluncur.
+     * Atau klik **`[ 🔁 Alihkan Disposisi ]`** untuk mengerahkan Tim Resmob/Raimas Samapta Polres.
 
 ---
 
 ### 2.3 Panduan Petugas Piket SPKT Polsek Kewilayahan
 
-#### Prosedur Menerima Disposisi WhatsApp (Poin 2.C.1):
-1. HP inventaris piket SPKT Polsek akan bergetar dan menerima pesan resmi dari SPKT Mako 110:
-   * Menampilkan Nomor Tiket, Kategori Kejadian, Alamat TKP, Nama & Nomor Kontak Pelapor, serta Uraian Kasus.
-2. **Langkah 1 (Lihat Rute):** Klik tautan **`🗺️ Navigasi Google Maps`** pada pesan WhatsApp untuk langsung membuka peta dan rute jalan tercepat ke TKP.
-3. **Langkah 2 (Konfirmasi Respon):** Klik tautan **`👉 Konfirmasi Penerimaan Tugas`**.
-4. Halaman peramban di HP akan terbuka. Masukkan nama/pangkat petugas piket (contoh: *Aipda Agus - SPKT*) lalu tekan tombol besar hijau: **`[ ⚡ TERIMA TUGAS & MELUNCUR KE TKP ]`**.
-5. Seketika sirine di Mako Polres mati dan status di sistem berubah menjadi *"Sedang Meluncur Menuju Lokasi"*.
-6. Segera bunyikan lonceng/sirine mako Polsek dan perintahkan regu patroli piket yang bertugas untuk meluncur ke lokasi kejadian.
+1. **Menerima Notifikasi Disposisi WhatsApp (Poin 2.C.1):**
+   * HP dinas piket SPKT Polsek akan bergetar dan menerima pesan resmi dari SPKT Mako 110 yang memuat Nomor Tiket, Kategori Kejadian, Alamat TKP, Nama Pelapor, dan Uraian Kasus.
+2. **Membuka Rute & Melakukan Konfirmasi Cepat:**
+   * Klik tautan **`🗺️ Navigasi Google Maps`** untuk membuka peta rute jalan ke TKP.
+   * Klik tautan **`👉 Konfirmasi Penerimaan Tugas`** untuk membuka halaman respon cepat di peramban HP.
+3. **Menerapkan Buddy System (Poin 3.A):**
+   * Pada kolom **Nama & NRP Ka Tim Patroli**, masukkan identitas pimpinan regu (contoh: *Aipda Bambang T.*).
+   * Pada kolom **Nama & NRP Rekan Pendamping (Buddy System)**, masukkan identitas petugas pendamping (contoh: *Bripka Dimas S.*).
+4. **Memilih Armada Dinas & Verifikasi Kuota BBM (Poin 3.B):**
+   * Pilih kendaraan yang digunakan (contoh: *Mobil Patroli Strada Triton - 110-34 IX* atau *Motor Trail KLX*).
+   * Perhatikan kartu **Audit BBM & Jarak Tempuh Otomatis** di layar: sistem menampilkan jarak tempuh PP (misal: *24.6 KM*), estimasi konsumsi bahan bakar (misal: *3.08 Liter Solar DIPA*), dan jaminan klaim anggaran dinas.
+5. **Meluncur ke TKP:**
+   * Tekan tombol besar hijau: **`[ ⚡ TERIMA TUGAS & MELUNCUR KE TKP ]`**. Sirine di Mako Polres seketika mati dan status di sistem berubah menjadi *"Meluncur ke TKP"*.
 
 ---
 
 ### 2.4 Panduan Personel Unit Patroli Lapangan
 
-#### A. Menerima Tugas Melalui WhatsApp (Layar HP Terkunci di Phone Holder - Poin 2.B.2):
-1. Jika sedang berpatroli dan layar HP sedang mati di dashboard mobil, pesan WhatsApp taktis darurat akan masuk dengan nada dering notifikasi.
-2. Buka pesan WA, klik tautan navigasi Google Maps untuk panduan arah jalan ke TKP.
-3. Klik tautan konfirmasi satu sentuhan `[ Terima Tugas ]` di WhatsApp untuk mengunci tiket ke regu patroli Anda.
-
-#### B. Menggunakan Aplikasi Mobile Ramah Senior (Poin 2.B.1):
-1. Jika konsol Simopmas terbuka di tablet/HP dinas, popup darurat berbunyi dual-tone akan muncul di layar.
-2. Tekan tombol besar **`[ TERIMA TUGAS ➔ ]`**.
-3. Saat mobil patroli mulai bergerak, tekan tombol **`[ 🚔 KAMI MELUNCUR KE TKP ]`**.
-4. Saat kendaraan tiba di lokasi, tekan tombol **`[ 📍 SUDAH TIBA DI TKP ]`** (GPS akan mencatat koordinat dan jam tiba secara otomatis).
-5. Setelah situasi terkendali, tekan tombol **`[ 📋 SUSUN LAPORAN TINDAKAN / BAP ]`**.
-6. Ambil foto bukti menggunakan fitur **Kamera Langsung** (otomatis tercetak watermark tanggal, jam, koordinat GPS, dan nama petugas).
-7. Tulis resume singkat tindakan yang telah diambil, lalu tekan tombol **`[ KIRIM LAPORAN SELESAI ]`**.
+1. **Menerima Tugas via Mode Ramah Senior (Poin 2.B.1):**
+   * Saat popup tugas muncul di HP dinas/tablet, tekan tombol besar **`[ TERIMA TUGAS ➔ ]`**.
+   * Saat roda kendaraan mulai berputar, tekan tombol **`[ 🚔 KAMI MELUNCUR KE TKP ]`**.
+   * Saat tiba di lokasi, tekan tombol **`[ 📍 SUDAH TIBA DI TKP ]`** (GPS mencatat waktu dan koordinat kedatangan secara presisi).
+2. **Penyusunan BAP & Bukti Foto Terwatermark:**
+   * Setelah situasi terkendali, tekan tombol **`[ 📋 SUSUN LAPORAN TINDAKAN / BAP ]`**.
+   * Gunakan kamera langsung di aplikasi: foto bukti otomatis dibubuhi watermark tanggal, jam, koordinat GPS, dan identitas petugas.
+   * Tulis resume singkat penanganan kasus, lalu tekan tombol **`[ KIRIM LAPORAN SELESAI ]`**.
 
 ---
 
-### 2.5 Panduan Superadmin (Konfigurasi Mako & Master SOP)
+### 2.5 Panduan Superadmin (Konfigurasi Mako, Master SOP & Master BBM)
 
-#### A. Mengatur Nomor WhatsApp Meja Piket & Kontak Polsek (Poin 2.C):
-1. Login ke konsol dengan akun Superadmin.
-2. Buka menu **Data Master** ➔ Tab **[🏢 Kantor Polisi & Posko (Mako)]**.
-3. Cari nama Polsek yang ingin diatur (contoh: Polsek Kajen, Polsek Kedungwuni, Polsek Wiradesa).
-4. Klik tombol **Edit** (ikon pensil).
-5. Masukkan nomor HP pada kolom:
-   * **`No. WhatsApp Piket SPKT (Disposisi Otomatis)`**: Nomor HP WhatsApp aktif yang dipegang petugas piket SPKT Polsek.
-   * **`No. Kontak Pimpinan / Kapolsek`**: Nomor HP dinas/pribadi Kapolsek untuk eskalasi darurat.
-6. Klik **Simpan Perubahan**.
+1. **Mengatur Kontak Meja Piket Polsek (Poin 2.C):**
+   * Masuk ke menu **Data Master** ➔ Tab **[🏢 Kantor Polisi & Posko]** (`/console/station`).
+   * Klik ikon Edit pada Polsek terkait. Masukkan nomor WhatsApp aktif pada kolom `No. WhatsApp Piket SPKT` dan `No. Kontak Kapolsek`.
+2. **Mengelola Katalog Buku Pintar SOP 110 (Poin 2.A):**
+   * Buka menu **Data Master** ➔ Tab **[📖 Buku Pintar SOP]** (`/console/knowledge_faq`).
+   * Tambah atau ubah skrip jawaban operator, rincian checklist berkas, dan biaya PNBP resmi.
+3. **Mengelola Master Jenis Bahan Bakar & Harga Dinas (Poin 3.B):**
+   * Buka menu **Data Master** ➔ Tab **[⛽ Jenis Bahan Bakar]** (`/console/fuel_type`).
+   * Kelola daftar BBM dinas (`SOLAR_DIPA`, `PERTALITE`, `PERTAMAX`, `DEXLITE`).
+   * Jika terjadi perubahan harga satuan acuan dinas, ubah kolom `Harga Acuan per Liter (Rp)`. Seluruh kalkulasi otomatis pada penugasan baru akan mengacu pada tarif terbaru di database tanpa mengubah baris kode sistem.
+4. **Mengelola Master Status Klaim Reimbursement (Poin 3.B):**
+   * Buka menu **Data Master** ➔ Tab **[📋 Status Klaim BBM]** (`/console/fuel_claim_status`).
+   * Kelola tahapan persetujuan (`UNCLAIMED`, `DRAFT_POLSEK`, `DIAJUKAN_BAGLOG`, `DISETUJUI_BAGLOG`, `DICAIRKAN`, `DITOLAK`) dan warna lencana (*badge*).
 
-#### B. Menambah dan Mengubah Katalog Buku Pintar SOP (Poin 2.A):
-1. Buka menu **Data Master** ➔ Tab **[📖 Buku Pintar SOP]** (`/console/knowledge_faq`).
-2. Untuk menambah materi panduan baru, klik tombol **`[ + Tambah SOP / FAQ Baru ]`**.
-3. Pilih kategori layanan (misal: *SIM*, *SKCK*, *Lalu Lintas*, dll.).
-4. Masukkan judul panduan, skrip jawaban ramah telepon untuk operator, daftar checklist berkas, biaya PNBP resmi, dan estimasi waktu pengurusan.
-5. Klik **Simpan SOP**. Materi akan seketika dapat dicari dan dibagikan oleh seluruh operator CAD 110 di Mako.
+---
+
+### 2.6 Panduan Bagian Logistik (Bag Log) & Keuangan Polres (Audit & Pencairan BBM DIPA)
+
+1. **Membuka Konsol Audit Jarak & BBM DIPA:**
+   * Login sebagai Bag Log atau Superadmin, buka menu **Data Master** ➔ Tab **[📊 Audit & Klaim BBM DIPA]** (`/console/audit_bbm`).
+2. **Melihat Ringkasan Anggaran:**
+   * Pantau 4 kartu metrik utama di bagian atas:
+     * **Total Misi Selesai:** Jumlah penugasan 110 yang telah tuntas ditangani regu patroli.
+     * **Total Jarak Tempuh Audit (PP):** Akumulasi kilometer jaringan jalan raya riil yang ditempuh.
+     * **Total Konsumsi BBM:** Akumulasi volume liter bahan bakar dinas yang digunakan.
+     * **Estimasi Anggaran Reimbursement:** Total nilai rupiah yang berhak dicairkan dari pagu DIPA.
+3. **Filter Berdasarkan Polsek & Periode Bulan:**
+   * Gunakan dropdown **Pilih Polsek Kewilayahan** dan **Pilih Bulan Penugasan** untuk memeriksa perincian per polsek.
+4. **Verifikasi & Ekspor Berkas SPJ:**
+   * Periksa tabel penugasan: pastikan tanggal, nomor tiket, plat kendaraan dinas, Ka Tim Patroli, dan jarak kilometer logis.
+   * Klik tombol biru **`[ 🖨️ Cetak Lembar Bukti SPJ (PDF) ]`** untuk mencetak format rekapitulasi resmi dinas yang siap ditandatangani oleh Kapolsek dan Kabag Logistik guna pencairan dana BBM.
 
 ---
 
@@ -376,6 +484,8 @@ model MasterKnowledgeFaq {
 | **UAT-2B** | Pembuatan tiket DARURAT dengan kondisi HP personel terkunci. | Bot WhatsApp mengirimkan pesan taktis ke HP personel; tautan konfirmasi `/tugas/konfirmasi` dapat diakses dan diterima dalam 1 sentuhan. | ✅ **LULUS** |
 | **UAT-2C1** | Pembuatan tiket di Kecamatan Kedungwuni. | Sistem otomatis memetakan ke Polsek Kedungwuni via Geo-Targeting; pesan WA terkirim otomatis ke nomor piket Polsek Kedungwuni. | ✅ **LULUS** |
 | **UAT-2C2** | Tiket DARURAT tidak direspon selama 3 menit. | Hitung mundur mencapai 00:00; sirine Web Audio API berbunyi di speaker Mako; tombol telepon langsung piket Polsek muncul di layar Pawas. | ✅ **LULUS** |
+| **UAT-3A** | Konfirmasi penerimaan tugas di Polsek dengan 2 personel piket (*Buddy System*). | Halaman `/tugas/konfirmasi` mencatat Ka Tim Patroli dan Rekan Pendamping secara berpasangan di kolom `crew_leader_name` & `crew_partner_name` tanpa mengunci akun individual secara kaku. | ✅ **LULUS** |
+| **UAT-3B** | Verifikasi kuota BBM dan jarak tempuh PP pada tiket penugasan Polsek. | Sistem menghitung jarak PP via faktor kelokan 1.25x jalan raya; konsumsi liter BBM dan rupiah dihitung dinamis dari `MasterFuelType` tanpa ada hardcode harga; rekap SPJ Bag Log dapat diekspor. | ✅ **LULUS** |
 
 ---
 
@@ -391,6 +501,9 @@ model MasterKnowledgeFaq {
 3. **Kendala: Deteksi Polsek Tidak Sesuai Wilayah TKP**
    * *Penyebab:* Alamat yang diketik terlalu singkat atau titik pin GPS di peta belum tepat.
    * *Solusi:* Pastikan operator menandai pin GPS di peta dengan presisi atau menyertakan nama kecamatan/desa pada kolom alamat TKP. Pawas juga dapat mengubah stasiun penanganan secara manual melalui modal alihkan disposisi.
+4. **Kendala: Nilai Reimbursement BBM Berbeda dengan Harga SPBU Terkini**
+   * *Penyebab:* Terjadi penyesuaian harga BBM nasional yang belum diperbarui pada tabel master database.
+   * *Solusi:* Buka konsol Superadmin ➔ Tab **[⛽ Jenis Bahan Bakar]** (`/console/fuel_type`), ubah nilai pada kolom `default_price_per_liter`. Perubahan harga seketika berlaku untuk penugasan baru tanpa perlu restart server atau mengubah baris kode sistem.
 
 ---
 *Dokumen ini sah sebagai panduan teknis dan standar operasional prosedur implementasi fitur SIMAPRES 110 Polres Pekalongan.*
