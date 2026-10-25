@@ -1930,36 +1930,38 @@ export async function getStationPerformanceRankingsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
-    const stations = await prisma.policeStation.findMany({
-      where: { is_active: true },
-      include: {
-        complaints: {
-          select: {
-            id: true,
-            status: true,
-            created_at: true,
-            citizen_review_rel: {
-              select: {
-                star_rating: true,
-                review_text: true,
-              },
+    const [rawStations, allComplaints] = await Promise.all([
+      (prisma.policeStation as any).findMany({
+        orderBy: { id: 'asc' },
+      }),
+      prisma.complaint.findMany({
+        select: {
+          id: true,
+          station_id: true,
+          status: true,
+          created_at: true,
+          citizen_review_rel: {
+            select: {
+              star_rating: true,
+              review_text: true,
             },
-            dispatches: {
-              select: {
-                dispatched_at: true,
-                arrived_at: true,
-                completed_at: true,
-                dispatch_status: true,
-              },
+          },
+          dispatches: {
+            select: {
+              dispatched_at: true,
+              arrived_at: true,
+              completed_at: true,
+              dispatch_status: true,
             },
           },
         },
-      },
-      orderBy: { id: 'asc' },
-    });
+      }),
+    ]);
 
-    const items: StationPerformanceRankItem[] = stations.map((st) => {
-      const complaints = st.complaints ? st.complaints : [];
+    const activeStations = (rawStations as any[]).filter((st: any) => st.is_active !== false);
+
+    const items: StationPerformanceRankItem[] = activeStations.map((st: any) => {
+      const complaints = allComplaints.filter((c: any) => c.station_id === st.id);
       const totalMasuk = complaints.length;
       let totalSelesai = 0;
       let totalDiproses = 0;
@@ -2035,8 +2037,8 @@ export async function getStationPerformanceRankingsAction() {
         stationCode: st.station_code,
         stationName: st.station_name,
         stationLevel: st.station_level,
-        phonePiket: st.phone_piket,
-        phoneKapolsek: st.phone_kapolsek,
+        phonePiket: st.phone_piket ? st.phone_piket : null,
+        phoneKapolsek: st.phone_kapolsek ? st.phone_kapolsek : null,
         totalMasuk,
         totalSelesai,
         totalDiproses,
