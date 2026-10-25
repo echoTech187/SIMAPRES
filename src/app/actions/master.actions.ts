@@ -359,12 +359,8 @@ export async function createMasterOperationalUnitAction(data: {
     if (!cleanShort) {
       return { success: false, error: 'Singkatan nama satuan operasional wajib diisi!' };
     }
-    if (!data.duties?.trim()) {
-      return { success: false, error: 'Tugas pokok fungsi (Tupoksi) wajib diisi!' };
-    }
-    if (!data.default_orders?.trim()) {
-      return { success: false, error: 'Perintah taktis default (SOP) wajib diisi!' };
-    }
+    const effectiveDuties = data.duties?.trim() ? data.duties.trim() : 'Melaksanakan tugas pelayanan dan pengamanan presisi kepolisian.';
+    const effectiveOrders = data.default_orders?.trim() ? data.default_orders.trim() : 'Meluncur ke TKP, amankan perimeter, koordinasi dengan pelapor, dan laporkan perkembangan situasi ke Pawas.';
 
     const created = await prisma.masterOperationalUnit.create({
       data: {
@@ -372,8 +368,8 @@ export async function createMasterOperationalUnitAction(data: {
         unit_name: cleanName,
         short_name: cleanShort,
         icon_emoji: data.icon_emoji?.trim(),
-        duties: data.duties.trim(),
-        default_orders: data.default_orders.trim(),
+        duties: effectiveDuties,
+        default_orders: effectiveOrders,
         display_order: Number(data.display_order) || 1,
         is_active: Boolean(data.is_active),
       },
@@ -415,13 +411,6 @@ export async function updateMasterOperationalUnitAction(
     if (!cleanShort) {
       return { success: false, error: 'Singkatan nama satuan operasional wajib diisi!' };
     }
-    if (!data.duties?.trim()) {
-      return { success: false, error: 'Tugas pokok fungsi (Tupoksi) wajib diisi!' };
-    }
-    if (!data.default_orders?.trim()) {
-      return { success: false, error: 'Perintah taktis default (SOP) wajib diisi!' };
-    }
-
     const updated = await prisma.masterOperationalUnit.update({
       where: { id: idCheck.value },
       data: {
@@ -429,8 +418,8 @@ export async function updateMasterOperationalUnitAction(
         unit_name: cleanName,
         short_name: cleanShort,
         icon_emoji: data.icon_emoji?.trim(),
-        duties: data.duties.trim(),
-        default_orders: data.default_orders.trim(),
+        ...(data.duties?.trim() ? { duties: data.duties.trim() } : {}),
+        ...(data.default_orders?.trim() ? { default_orders: data.default_orders.trim() } : {}),
         display_order: data.display_order !== undefined ? Number(data.display_order) : undefined,
         is_active: data.is_active !== undefined ? Boolean(data.is_active) : undefined,
       },

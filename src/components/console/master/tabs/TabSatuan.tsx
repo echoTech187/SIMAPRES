@@ -123,18 +123,41 @@ export default function TabSatuan({ lookups, showToast, onRefreshDropdowns }: Ma
           <div style={{ marginBottom: '14px' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Tugas Pokok & Fungsi (Tupoksi)</label>
             <textarea
-              rows={8}
+              rows={4}
               placeholder="Uraian tugas pokok satuan..."
               value={formData.duties}
               onChange={(e) => setFormData({ ...formData, duties: e.target.value })}
               style={{
                 width: '100%',
-                minHeight: '210px',
+                minHeight: '110px',
                 padding: '10px 12px',
                 borderRadius: '8px',
                 border: '1px solid #CBD5E1',
                 fontSize: '12.5px',
                 lineHeight: '1.6',
+                boxSizing: 'border-box',
+                resize: 'vertical',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+              Perintah Taktis Default (SOP Disposisi Pawas)
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Instruksi taktis otomatis saat unit menerima disposisi (contoh: Meluncur ke TKP, amankan perimeter, dan laporkan perkembangan pertama ke Pawas)..."
+              value={formData.default_orders}
+              onChange={(e) => setFormData({ ...formData, default_orders: e.target.value })}
+              style={{
+                width: '100%',
+                minHeight: '85px',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                fontSize: '12.5px',
+                lineHeight: '1.5',
                 boxSizing: 'border-box',
                 resize: 'vertical',
                 fontFamily: 'inherit',
