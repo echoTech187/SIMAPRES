@@ -11,6 +11,7 @@ import PawasConsoleView from '@/components/console/PawasConsoleView';
 import PersonilConsoleView from '@/components/console/PersonilConsoleView';
 
 import OperatorConsoleView from '@/components/console/OperatorConsoleView';
+import LogistikConsoleView from '@/components/console/LogistikConsoleView';
 
 export const viewport = {
   width: 'device-width',
@@ -47,7 +48,7 @@ export default async function ConsolePage({
     redirect('/?alert=unauthenticated&from=/console');
   }
 
-  const section = searchParams?.page ? searchParams.page : (searchParams?.tab ? searchParams.tab : (session.role === 'OPERATOR' ? 'operator' : 'beranda'));
+  const section = searchParams?.page ? searchParams.page : (searchParams?.tab ? searchParams.tab : (session.role === 'OPERATOR' ? 'operator' : (session.role === 'LOGISTIK' ? 'audit_bbm' : 'beranda')));
 
   // 2. Pre-fetch targeted data secara paralel langsung di Server (RSC) per-role
   let initialMasterData: any = null;
@@ -83,6 +84,11 @@ export default async function ConsolePage({
     if (opRes.success && opRes.data) {
       initialOperatorData = opRes.data;
       initialMasterData = opRes.data.filterData;
+    }
+  } else if (session.role === 'LOGISTIK') {
+    const masterRes = await getMasterFilterOptionsAction();
+    if (masterRes.success && masterRes.data) {
+      initialMasterData = masterRes.data;
     }
   } else {
     const masterRes = await getMasterFilterOptionsAction();
@@ -141,6 +147,13 @@ export default async function ConsolePage({
           initialSection={section}
           initialMasterData={initialMasterData}
           initialOperatorData={initialOperatorData}
+        />
+      )}
+      {session.role === 'LOGISTIK' && (
+        <LogistikConsoleView
+          session={session}
+          initialSection={section}
+          initialMasterData={initialMasterData}
         />
       )}
       {session.role === 'PERSONIL' && (

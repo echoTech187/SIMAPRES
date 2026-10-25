@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Home, Map, ShieldAlert, BarChart3, User, Shield, BookOpen, Fuel } from 'lucide-react';
+import { Home, Map, ShieldAlert, BarChart3, User, Shield, BookOpen } from 'lucide-react';
 import {
   disposisiMultiSatuanAction,
   updateComplaintStatusAction,
@@ -33,7 +33,6 @@ import TabKinerjaPawas from './pawas/tabs/TabKinerjaPawas';
 import TabOperatorCadPawas from './pawas/tabs/TabOperatorCadPawas';
 import TabTolakLogPawas from './pawas/tabs/TabTolakLogPawas';
 import TabBukuPintarSop from './pawas/tabs/TabBukuPintarSop';
-import TabAuditBbm from './master/tabs/TabAuditBbm';
 
 import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
@@ -131,11 +130,6 @@ function parsePawasTab(tabOrSection?: string | null): PawasTab {
     case 'faq':
     case 'sop':
       return 'view-panduan';
-    case 'bbm':
-    case 'audit_bbm':
-    case 'audit-bbm':
-    case 'logistik':
-      return 'view-bbm';
     case 'beranda':
     default:
       return 'view-beranda';
@@ -160,8 +154,6 @@ function pawasTabToSlug(tabId: string): string {
       return 'tolak';
     case 'view-panduan':
       return 'panduan';
-    case 'view-bbm':
-      return 'audit-bbm';
     case 'view-beranda':
     default:
       return '';
@@ -1656,23 +1648,7 @@ function CommandCenterContent({
               <span>Buku Pintar SOP</span>
             </button>
 
-            {/* TAB: AUDIT BBM & LOGISTIK PATROLI (POIN 3.B) */}
-            <button
-              type="button"
-              id="nav-audit-bbm"
-              onClick={() => switchTab('view-bbm')}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: '8px',
-                padding: '8px 18px', borderRadius: '8px', fontSize: '12.5px', fontWeight: 700,
-                cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s ease',
-                background: activeTab === 'view-bbm' ? '#153E75' : '#F8FAFC',
-                color: activeTab === 'view-bbm' ? 'white' : '#475569',
-                border: activeTab === 'view-bbm' ? '1px solid #153E75' : '1px solid #E2E8F0',
-              }}
-            >
-              <Fuel size={15} strokeWidth={2.2} />
-              <span>Audit BBM Patroli</span>
-            </button>
+
 
           </div>
         </div>
@@ -1909,14 +1885,6 @@ function CommandCenterContent({
             initialCallerName={simCaller?.nama || ''}
           />
         )}
-
-        {activeTab === 'view-bbm' && (
-          <TabAuditBbm
-            lookups={{} as any}
-            userProfile={userProfile}
-            showToast={(msg: string) => showFriendlyToast('info', 'Audit BBM', msg)}
-          />
-        )}
       </main>
 
       {/* ── BOTTOM NAVIGATION (Mobile & Tablet Pawas & Operator) ── */}
@@ -1969,17 +1937,7 @@ function CommandCenterContent({
           <span className="nav-label">Kinerja</span>
         </div>
 
-        {/* TAB: AUDIT BBM (POIN 3.B) */}
-        <div
-          id="pawas-bottom-nav-bbm"
-          className={`nav-item ${activeTab === 'view-bbm' ? 'active' : ''}`}
-          onClick={() => switchTab('view-bbm')}
-        >
-          <span className="nav-icon">
-            <Fuel size={20} strokeWidth={activeTab === 'view-bbm' ? 2.4 : 1.8} />
-          </span>
-          <span className="nav-label">BBM SPJ</span>
-        </div>
+
 
         {/* TAB: PROFIL */}
         <div

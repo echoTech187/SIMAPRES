@@ -10,6 +10,7 @@ import SuperadminConsoleView from '@/components/console/SuperadminConsoleView';
 import PawasConsoleView from '@/components/console/PawasConsoleView';
 import PersonilConsoleView from '@/components/console/PersonilConsoleView';
 import OperatorConsoleView from '@/components/console/OperatorConsoleView';
+import LogistikConsoleView from '@/components/console/LogistikConsoleView';
 
 const sectionTitleMap: Record<string, string> = {
   beranda: 'Beranda Operasional',
@@ -122,6 +123,11 @@ export default async function ConsoleSectionPage({
       initialOperatorData = opRes.data;
       initialMasterData = opRes.data.filterData;
     }
+  } else if (session.role === 'LOGISTIK') {
+    const masterRes = await getMasterFilterOptionsAction();
+    if (masterRes.success && masterRes.data) {
+      initialMasterData = masterRes.data;
+    }
   } else {
     const masterRes = await getMasterFilterOptionsAction();
     initialMasterData = masterRes.success ? masterRes.data : null;
@@ -179,6 +185,13 @@ export default async function ConsoleSectionPage({
           initialSection={section}
           initialMasterData={initialMasterData}
           initialOperatorData={initialOperatorData}
+        />
+      )}
+      {session.role === 'LOGISTIK' && (
+        <LogistikConsoleView
+          session={session}
+          initialSection={section}
+          initialMasterData={initialMasterData}
         />
       )}
       {session.role === 'PERSONIL' && (

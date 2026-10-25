@@ -11,7 +11,6 @@ export type PawasTab =
   | 'view-profil'
   | 'view-operator'
   | 'view-tolak'
-  | 'view-panduan'
-  | 'view-bbm';
+  | 'view-panduan';
 
 export type PresensiStatusType = 'SUDAH_MASUK' | 'BELUM_MASUK' | 'SUDAH_PULANG';

@@ -81,6 +81,7 @@ export default function TabUnitPersonel({
     if (r === 'SUPERADMIN') return { className: 'badge-role role-superadmin', icon: '⚡', label };
     if (r === 'PAWAS') return { className: 'badge-role role-pawas', icon: '👑', label };
     if (r === 'OPERATOR') return { className: 'badge-role role-operator', icon: '🎧', label };
+    if (r === 'LOGISTIK') return { className: 'badge-role role-logistik', icon: '⛽', label };
     return { className: 'badge-role role-personil', icon: '👮', label };
   };
 

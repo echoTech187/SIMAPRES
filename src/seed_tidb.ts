@@ -64,6 +64,7 @@ async function seed() {
     { key: 'PAWAS', label: 'Perwira Pengawas (Pawas)', description: 'Pusat kendali komando, monitoring live map radar 110, disposisi taktis dan validasi laporan BAP.', display_order: 2 },
     { key: 'OPERATOR', label: 'Operator SPKT', description: 'Pelayanan Pengaduan 110, CAD Dispatch & Layanan Warga', display_order: 3 },
     { key: 'PERSONIL', label: 'Anggota', description: 'Penerimaan tugas lapangan, e-logbook kedinasan, update status TKP, dan telemetri GPS aktif.', display_order: 4 },
+    { key: 'LOGISTIK', label: 'Biro Logistik & Keuangan (Bag Log / Si-Keu)', description: 'Audit konsumsi BBM armada patroli, verifikasi bukti pengeluaran SPJ DIPA Polri, dan tata kelola pagu anggaran bahan bakar.', display_order: 5 },
   ];
   for (const r of roles) {
     await prisma.masterRole.upsert({
