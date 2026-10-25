@@ -96,7 +96,6 @@ export default function TabArmada({ lookups, showToast, onRefreshDropdowns }: Ma
           return <span style={{ fontSize: '11px', fontWeight: 800, padding: '3px 8px', borderRadius: '12px', background: bg, color, border: '1px solid currentColor' }}>● {item.status_operasional}</span>;
         }},
         { header: 'NRP PENGEMUDI', render: (item) => <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#475569' }}>{item.driver_officer_nrp}</span> },
-        { header: 'QR TOKEN', render: (item) => <code style={{ fontSize: '11px', color: '#6366F1', background: '#EEF2FF', padding: '2px 6px', borderRadius: '4px' }}>{item.qr_token}</code> },
       ]}
       renderFormFields={(formData, setFormData) => (
         <>

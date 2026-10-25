@@ -80,7 +80,6 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
       extraSearchFields={(item) => [item.station_code, item.station_name, item.station_level, item.address, item.phone_piket, item.phone_kapolsek]}
       modalWidth="720px"
       tableColumns={[
-        { header: 'KODE / KEY', render: (item) => <code className="master-code-badge">{item.station_code}</code> },
         { header: 'NAMA / LABEL', render: (item) => <span className="master-text-primary">{item.station_name}</span> },
         { header: 'TINGKAT & ALAMAT', render: (item) => (
           <div>

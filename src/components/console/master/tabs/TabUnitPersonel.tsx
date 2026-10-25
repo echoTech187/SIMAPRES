@@ -346,30 +346,6 @@ export default function TabUnitPersonel({
           ),
         },
         {
-          header: 'KONSOL',
-          render: (u: any) => (
-            <Link
-              href={`/personil?nrp=${encodeURIComponent(u.nrp)}`}
-              className="action-btn-reg"
-              style={{
-                background: '#ECFDF5',
-                color: '#059669',
-                borderColor: '#A7F3D0',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '11px',
-                fontWeight: 700,
-                padding: '4px 8px',
-                borderRadius: '6px',
-              }}
-            >
-              🛡️ Buka
-            </Link>
-          ),
-        },
-        {
           header: 'STATUS GPS',
           render: () => (
             <span className="badge-status status-aktif">

@@ -71,7 +71,6 @@ export default function TabRole({ lookups, showToast, onRefreshDropdowns }: Mast
       getDeleteLabel={(item) => item.label || item.key}
       extraSearchFields={(item) => [item.description]}
       tableColumns={[
-        { header: 'KODE / KEY', render: (item) => <code style={{ background: '#F1F5F9', color: '#0F172A', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '11.5px' }}>{item.key}</code> },
         { header: 'NAMA / LABEL', render: (item) => <span style={{ fontWeight: 700, color: '#1E293B' }}>{item.label}</span> },
         { header: 'WEWENANG SISTEM', render: (item) => <span style={{ color: '#64748B', fontSize: '12px', maxWidth: '320px', display: 'block' }}>{item.description}</span> },
         { header: 'URUTAN', width: '80px', render: (item) => <span style={{ fontWeight: 700, color: '#64748B' }}>{item.display_order ?? 1}</span> },

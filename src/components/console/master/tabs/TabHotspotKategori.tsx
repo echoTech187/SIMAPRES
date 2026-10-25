@@ -72,7 +72,6 @@ export default function TabHotspotKategori({ lookups, showToast, onRefreshDropdo
       getDeleteLabel={(item) => item.label || item.key}
       extraSearchFields={(item) => [item.description]}
       tableColumns={[
-        { header: 'KODE / KEY', render: (item) => <code style={{ background: '#F1F5F9', color: '#0F172A', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '11.5px' }}>{item.key}</code> },
         { header: 'ICON', width: '60px', render: (item) => <span style={{ fontSize: '20px' }}>{item.icon}</span> },
         { header: 'NAMA / LABEL', render: (item) => <span style={{ fontWeight: 700, color: '#1E293B' }}>{item.label}</span> },
         { header: 'DESKRIPSI', render: (item) => <span style={{ color: '#64748B', fontSize: '12px' }}>{item.description}</span> },

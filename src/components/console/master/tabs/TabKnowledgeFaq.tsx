@@ -380,32 +380,23 @@ export default function TabKnowledgeFaq({ lookups, showToast, onRefreshDropdowns
           ]}
           tableColumns={[
             {
-              header: 'SLUG / KODE',
-              width: '140px',
-              render: (item) => (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '18px' }}>{item.icon || '📖'}</span>
-                  <code style={{ background: '#F1F5F9', color: '#1E40AF', padding: '3px 7px', borderRadius: '6px', fontWeight: 700, fontSize: '11px' }}>
-                    {item.slug}
-                  </code>
-                </div>
-              ),
-            },
-            {
               header: 'JUDUL & KATEGORI',
               render: (item) => (
-                <div>
-                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '13px', lineHeight: 1.3 }}>
-                    {item.judul}
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, fontSize: '10px' }}>
-                      {item.kategori_label}
-                    </span>
-                    <span>•</span>
-                    <span style={{ fontStyle: 'italic', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                      {item.subjudul}
-                    </span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ fontSize: '18px', lineHeight: 1.2 }}>{item.icon || '📖'}</span>
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '13px', lineHeight: 1.3 }}>
+                      {item.judul}
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ background: '#EFF6FF', color: '#1D4ED8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700, fontSize: '10px' }}>
+                        {item.kategori_label}
+                      </span>
+                      <span>•</span>
+                      <span style={{ fontStyle: 'italic', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        {item.subjudul}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ),
@@ -729,29 +720,20 @@ export default function TabKnowledgeFaq({ lookups, showToast, onRefreshDropdowns
           extraSearchFields={(item) => [item.key || '', item.label || '', item.description || '']}
           tableColumns={[
             {
-              header: 'KODE KATEGORI (KEY)',
-              width: '180px',
+              header: 'LABEL KATEGORI',
               render: (item) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '20px' }}>{item.icon || '🏷️'}</span>
-                  <code style={{ background: '#F1F5F9', color: '#1E40AF', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '11.5px' }}>
-                    {item.key}
-                  </code>
-                </div>
-              ),
-            },
-            {
-              header: 'LABEL TAMPILAN',
-              render: (item) => (
-                <div>
-                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '13px' }}>
-                    {item.label}
-                  </div>
-                  {item.description && (
-                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-                      {item.description}
+                  <div>
+                    <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '13px' }}>
+                      {item.label}
                     </div>
-                  )}
+                    {item.description && (
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                        {item.description}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ),
             },

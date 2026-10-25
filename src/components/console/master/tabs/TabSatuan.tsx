@@ -74,7 +74,6 @@ export default function TabSatuan({ lookups, showToast, onRefreshDropdowns }: Ma
       getDeleteLabel={(item) => item.unit_name || item.key}
       extraSearchFields={(item) => [item.unit_name, item.short_name, item.duties]}
       tableColumns={[
-        { header: 'KODE / KEY', render: (item) => <code style={{ background: '#F1F5F9', color: '#0F172A', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '11.5px' }}>{item.key}</code> },
         { header: 'NAMA / LABEL', render: (item) => <span style={{ fontWeight: 700, color: '#1E293B' }}>{item.icon_emoji ? `${item.icon_emoji} ` : ''}{item.unit_name}</span> },
         { header: 'SINGKATAN & TUPOKSI', render: (item) => (
           <div>

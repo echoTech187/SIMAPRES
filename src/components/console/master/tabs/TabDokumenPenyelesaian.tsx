@@ -90,7 +90,6 @@ export default function TabDokumenPenyelesaian({ lookups, showToast, onRefreshDr
       getDeleteLabel={(item) => item.label || item.key}
       extraSearchFields={(item) => [item.keterangan, item.allowed_extensions]}
       tableColumns={[
-        { header: 'KODE / KEY', render: (item) => <code style={{ background: '#F1F5F9', color: '#0F172A', padding: '3px 8px', borderRadius: '6px', fontWeight: 700, fontSize: '11.5px' }}>{item.key}</code> },
         { header: 'NAMA DOKUMEN', render: (item) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {item.icon && <span style={{ fontSize: '16px' }}>{item.icon}</span>}
