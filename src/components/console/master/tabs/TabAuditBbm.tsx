@@ -57,7 +57,9 @@ export default function TabAuditBbm({ lookups, showToast }: MasterTabProps) {
   return (
     <div className="audit-bbm-container" style={{ padding: '4px', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Stylesheet Khusus Pratinjau Cetak Berkas SPJ Resmi Polri */}
-      <style>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @media screen {
           .spj-print-header { display: none !important; }
           .spj-signature-block { display: none !important; }
@@ -173,7 +175,9 @@ export default function TabAuditBbm({ lookups, showToast }: MasterTabProps) {
             display: inline-block !important;
           }
         }
-      `}</style>
+      `,
+        }}
+      />
 
       {/* KOP SURAT POLRI RESMI (HANYA MUNCUL DI PRATINJAU CETAK / PDF) */}
       <div className="spj-print-header" style={{ borderBottom: '3px double #000000', paddingBottom: '8px', marginBottom: '14px' }}>

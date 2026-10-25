@@ -162,7 +162,9 @@ export default function Select2CategoryDropdown({
         ...style,
       }}
     >
-      <style>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes slideUpBottomDrawer {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
@@ -175,7 +177,9 @@ export default function Select2CategoryDropdown({
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
         }
-      `}</style>
+      `,
+        }}
+      />
 
       {/* Hidden input untuk integrasi form native jika diperlukan */}
       <input

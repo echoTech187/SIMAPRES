@@ -10,7 +10,9 @@ export function ConsoleSkeleton({ role = 'PAWAS' }: { role?: 'SUPERADMIN' | 'PAW
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <style>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes shimmer {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
@@ -21,7 +23,9 @@ export function ConsoleSkeleton({ role = 'PAWAS' }: { role?: 'SUPERADMIN' | 'PAW
           animation: shimmer 1.5s ease-in-out infinite;
           border-radius: 8px;
         }
-      `}</style>
+      `,
+        }}
+      />
 
       {/* Topbar Skeleton */}
       <div
