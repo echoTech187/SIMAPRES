@@ -30,6 +30,15 @@ export default function ModalCetakLaporan({
   const stationList = stationRankings?.overallRanking ? stationRankings.overallRanking : [];
   const operatorList = operatorRankings?.overallRanking ? operatorRankings.overallRanking : [];
 
+  const handlePrint = () => {
+    const origTitle = document.title;
+    document.title = '';
+    window.print();
+    setTimeout(() => {
+      document.title = origTitle;
+    }, 500);
+  };
+
   return (
     <div
       id="modal-cetak-laporan-pawas"
@@ -70,7 +79,7 @@ export default function ModalCetakLaporan({
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
-              onClick={() => window.print()}
+              onClick={handlePrint}
               style={{ background: '#10B981', color: 'white', border: 'none', padding: '7px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}
             >
               🖨️ Cetak Dokumen / PDF

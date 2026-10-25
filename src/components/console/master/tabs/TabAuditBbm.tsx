@@ -61,7 +61,12 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
   }, [selectedStationId, selectedMonth, selectedYear]);
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    document.title = '';
     window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
   };
 
   const selectedStationObj = stationsList.find((s) => String(s.id) === String(selectedStationId));
@@ -80,12 +85,14 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
         @media print {
           @page {
             size: A4 landscape;
-            margin: 10mm 12mm;
+            margin: 0;
           }
           body, html {
             background: #FFFFFF !important;
             color: #000000 !important;
             font-family: 'Times New Roman', Times, serif !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           /* Sembunyikan elemen web portal (sidebar, topbar, bottom nav, tabs, tombol aksi, filter bar) */
           header,
@@ -112,13 +119,25 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
           /* Reset container ke full paper width tanpa overflow scroll */
           .registrasi-body,
           .superadmin-layout-wrapper,
-          main.registrasi-container,
-          .audit-bbm-container {
+          main.registrasi-container {
             height: auto !important;
             max-height: none !important;
             overflow: visible !important;
             margin: 0 !important;
             padding: 0 !important;
+            width: 100% !important;
+            display: block !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #FFFFFF !important;
+          }
+          .audit-bbm-container {
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 10mm 14mm !important;
+            box-sizing: border-box !important;
             width: 100% !important;
             display: block !important;
             box-shadow: none !important;
