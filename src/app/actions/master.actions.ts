@@ -658,19 +658,21 @@ export async function createPoliceStationMasterAction(data: {
       return { success: false, error: 'Radius pantau geofence harus berupa angka lebih besar dari 0 meter!' };
     }
 
+    const stationData: any = {
+      station_code: cleanCode,
+      station_name: cleanName,
+      station_level: data.station_level.trim(),
+      address: data.address.trim(),
+      office_lat: Number(data.office_lat),
+      office_lng: Number(data.office_lng),
+      geofence_radius_meters: Number(data.geofence_radius_meters),
+      phone_piket: data.phone_piket?.trim() || null,
+      phone_kapolsek: data.phone_kapolsek?.trim() || null,
+      is_active: data.is_active ?? true,
+    };
+
     const created = await prisma.policeStation.create({
-      data: {
-        station_code: cleanCode,
-        station_name: cleanName,
-        station_level: data.station_level.trim(),
-        address: data.address.trim(),
-        office_lat: Number(data.office_lat),
-        office_lng: Number(data.office_lng),
-        geofence_radius_meters: Number(data.geofence_radius_meters),
-        phone_piket: data.phone_piket?.trim() || null,
-        phone_kapolsek: data.phone_kapolsek?.trim() || null,
-        is_active: data.is_active ?? true,
-      },
+      data: stationData,
     });
 
     await auditLog('CREATE_POLICE_STATION', `Menambahkan kantor polisi baru: ${created.station_code} - ${created.station_name}`);
@@ -732,20 +734,22 @@ export async function updatePoliceStationMasterAction(
       return { success: false, error: 'Radius pantau geofence harus berupa angka lebih besar dari 0 meter!' };
     }
 
+    const updateData: any = {
+      station_code: cleanCode,
+      station_name: cleanName,
+      station_level: data.station_level.trim(),
+      address: data.address.trim(),
+      office_lat: Number(data.office_lat),
+      office_lng: Number(data.office_lng),
+      geofence_radius_meters: Number(data.geofence_radius_meters),
+      phone_piket: data.phone_piket?.trim() || null,
+      phone_kapolsek: data.phone_kapolsek?.trim() || null,
+      ...(data.is_active !== undefined ? { is_active: Boolean(data.is_active) } : {}),
+    };
+
     const updated = await prisma.policeStation.update({
       where: { id: idCheck.value },
-      data: {
-        station_code: cleanCode,
-        station_name: cleanName,
-        station_level: data.station_level.trim(),
-        address: data.address.trim(),
-        office_lat: Number(data.office_lat),
-        office_lng: Number(data.office_lng),
-        geofence_radius_meters: Number(data.geofence_radius_meters),
-        phone_piket: data.phone_piket?.trim() || null,
-        phone_kapolsek: data.phone_kapolsek?.trim() || null,
-        ...(data.is_active !== undefined ? { is_active: Boolean(data.is_active) } : {}),
-      },
+      data: updateData,
     });
 
     await auditLog('UPDATE_POLICE_STATION', `Memperbarui kantor polisi ID ${idCheck.value}: ${updated.station_code} - ${updated.station_name}`);

@@ -507,7 +507,7 @@ export async function quickAcceptComplaintDispatchAction(input: {
 
     const now = new Date();
     // Cek apakah sudah pernah diterima oleh petugas mana pun
-    const alreadyAccepted = complaint.dispatches.find((d: any) => d.accepted_at !== null);
+    const alreadyAccepted: any = complaint.dispatches.find((d: any) => d.accepted_at !== null);
     if (alreadyAccepted) {
       const accepter = alreadyAccepted.crew_leader_name || alreadyAccepted.officer?.user?.full_name || 'Petugas Siaga';
       return {
