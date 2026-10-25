@@ -48,8 +48,13 @@ const sectionTitleMap: Record<string, string> = {
   fuel_claim_status: 'Master Alur Status Klaim BBM',
 };
 
-export async function generateMetadata({ params }: { params?: { section?: string } }) {
-  const section = params?.section ? params.section.toLowerCase() : 'beranda';
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ section?: string }>;
+}) {
+  const resolvedParams = await params;
+  const section = resolvedParams?.section ? resolvedParams.section.toLowerCase() : 'beranda';
   const title = sectionTitleMap[section] ? sectionTitleMap[section] : 'Konsol Operasional';
   return {
     title: `${title} - SIMOPMAS 110`,
@@ -73,18 +78,27 @@ export default async function ConsoleSectionPage({
   params,
   searchParams,
 }: {
-  params?: { section?: string };
-  searchParams?: { tab?: string; page?: string; nrp?: string };
+  params: Promise<{ section?: string }>;
+  searchParams: Promise<{ tab?: string; page?: string; nrp?: string }>;
 }) {
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
   // 1. Verifikasi Autentikasi Server-Side
   const session = await getSession();
 
-  const currentSection = params?.section ? params.section : 'beranda';
+  const currentSection = resolvedParams?.section ? resolvedParams.section : 'beranda';
   if (!session) {
     redirect(`/?alert=unauthenticated&from=/console/${encodeURIComponent(currentSection)}`);
   }
 
-  const section = params?.section?.toLowerCase() ? params.section.toLowerCase() : (searchParams?.page ? searchParams.page : (searchParams?.tab ? searchParams.tab : 'beranda'));
+  const section = resolvedParams?.section?.toLowerCase()
+    ? resolvedParams.section.toLowerCase()
+    : resolvedSearchParams?.page
+    ? resolvedSearchParams.page
+    : resolvedSearchParams?.tab
+    ? resolvedSearchParams.tab
+    : 'beranda';
   if (section === 'fuel_claim_status') {
     redirect('/console/audit_bbm');
   }
@@ -133,7 +147,7 @@ export default async function ConsoleSectionPage({
     initialMasterData = masterRes.success ? masterRes.data : null;
 
     if (session.role === 'PERSONIL') {
-      const targetNrp = searchParams?.nrp ? searchParams.nrp : session.identifier;
+      const targetNrp = resolvedSearchParams?.nrp ? resolvedSearchParams.nrp : session.identifier;
       const [cRes, pRes, poRes, fleetRes, hotRes] = await Promise.all([
         getOfficerComplaintsAction(targetNrp),
         getOfficerProfileByNrpAction(targetNrp),

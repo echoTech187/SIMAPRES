@@ -39,8 +39,10 @@ import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 export default async function ConsolePage({
   searchParams,
 }: {
-  searchParams?: { tab?: string; page?: string; nrp?: string };
+  searchParams: Promise<{ tab?: string; page?: string; nrp?: string }>;
 }) {
+  const resolvedSearchParams = await searchParams;
+
   // 1. Verifikasi Autentikasi Server-Side langsung dari HTTP-Only Cookie
   const session = await getSession();
 
@@ -48,7 +50,15 @@ export default async function ConsolePage({
     redirect('/?alert=unauthenticated&from=/console');
   }
 
-  const section = searchParams?.page ? searchParams.page : (searchParams?.tab ? searchParams.tab : (session.role === 'OPERATOR' ? 'operator' : (session.role === 'LOGISTIK' ? 'audit_bbm' : 'beranda')));
+  const section = resolvedSearchParams?.page
+    ? resolvedSearchParams.page
+    : resolvedSearchParams?.tab
+    ? resolvedSearchParams.tab
+    : session.role === 'OPERATOR'
+    ? 'operator'
+    : session.role === 'LOGISTIK'
+    ? 'audit_bbm'
+    : 'beranda';
 
   // 2. Pre-fetch targeted data secara paralel langsung di Server (RSC) per-role
   let initialMasterData: any = null;
@@ -95,7 +105,7 @@ export default async function ConsolePage({
     initialMasterData = masterRes.success ? masterRes.data : null;
 
     if (session.role === 'PERSONIL') {
-      const targetNrp = searchParams?.nrp ? searchParams.nrp : session.identifier;
+      const targetNrp = resolvedSearchParams?.nrp ? resolvedSearchParams.nrp : session.identifier;
       const [cRes, pRes, poRes, fleetRes, hotRes] = await Promise.all([
         getOfficerComplaintsAction(targetNrp),
         getOfficerProfileByNrpAction(targetNrp),

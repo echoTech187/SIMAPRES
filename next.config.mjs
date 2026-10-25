@@ -5,13 +5,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
     dangerouslyAllowSVG: false,
-    domains: ['localhost','https://simapres-nu.vercel.app', 'maps.googleapis.com'],
+    domains: ['localhost', 'simapres-nu.vercel.app', 'maps.googleapis.com'],
   },
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
-    outputFileTracingIncludes: {
-      '/**/*': ['./node_modules/.prisma/client/**/*', './prisma/**/*'],
-    },
+  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  outputFileTracingIncludes: {
+    '/**/*': ['./node_modules/.prisma/client/**/*', './prisma/**/*'],
   },
 };
 
