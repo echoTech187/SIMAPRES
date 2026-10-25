@@ -169,22 +169,29 @@ export default function TabKinerjaOperator({
 
       const avgIntakeMinutes = item.avgIntakeMinutes ? item.avgIntakeMinutes : 2.1;
 
-      const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
-      const volumeScore = Math.min(35, totalTiketInput * 7);
-      const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
-      const compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+      let compositeScore = item.compositeScore ? item.compositeScore : 75;
+      let predikat = item.predikat ? item.predikat : 'Siaga (Belum Ada Tiket)';
+      let predikatColor = item.predikatColor ? item.predikatColor : '#64748B';
 
-      let predikat = 'Operator Siaga Standar';
-      let predikatColor = '#D97706';
-      if (compositeScore >= 90) {
-        predikat = 'Operator Teladan 110';
-        predikatColor = '#059669';
-      } else if (compositeScore >= 80) {
-        predikat = 'Pelayanan Prima';
-        predikatColor = '#2563EB';
-      } else if (compositeScore < 70) {
-        predikat = 'Perlu Evaluasi SOP';
-        predikatColor = '#DC2626';
+      if (totalTiketInput > 0) {
+        const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
+        const volumeScore = Math.min(35, totalTiketInput * 7);
+        const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
+        compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+
+        if (compositeScore >= 90) {
+          predikat = 'Operator Teladan 110';
+          predikatColor = '#059669';
+        } else if (compositeScore >= 80) {
+          predikat = 'Pelayanan Prima';
+          predikatColor = '#2563EB';
+        } else if (compositeScore < 70) {
+          predikat = 'Perlu Evaluasi SOP';
+          predikatColor = '#DC2626';
+        } else {
+          predikat = 'Operator Siaga Standar';
+          predikatColor = '#D97706';
+        }
       }
 
       return {
