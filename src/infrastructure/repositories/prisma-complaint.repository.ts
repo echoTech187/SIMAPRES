@@ -190,6 +190,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     const cleanTiket = nomorTiket.trim();
     const cleanWithHash = cleanTiket.startsWith('#') ? cleanTiket : `#${cleanTiket}`;
     const cleanWithoutHash = cleanTiket.startsWith('#') ? cleanTiket.slice(1) : cleanTiket;
+    const strippedTicket = cleanTiket.replace(/^TICKET-/, '');
+    const addedTicket = `TICKET-${cleanTiket}`;
 
     const record = await prisma.complaint.findFirst({
       where: {
@@ -197,6 +199,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           { nomor_tiket: cleanTiket },
           { nomor_tiket: cleanWithHash },
           { nomor_tiket: cleanWithoutHash },
+          { nomor_tiket: strippedTicket },
+          { nomor_tiket: addedTicket },
         ],
       },
       include: COMPLAINT_INCLUDE,
@@ -213,21 +217,32 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     return records.map((r: any) => this.mapToEntity(r));
   }
 
-  private static officerResolutionCache = new Map<string, { resolvedOfficerId: bigint; resolvedUnitId: number | null; isPersonilRole?: boolean; expiresAt: number }>();
+  private static officerResolutionCache = new Map<string, {
+    resolvedOfficerId: bigint;
+    resolvedStationId: number | null;
+    resolvedUnitId: number | null;
+    isPersonilRole?: boolean;
+    isPiket?: boolean;
+    expiresAt: number;
+  }>();
 
   async findAssignedToOfficer(officerId: bigint, activeOnly = false): Promise<ComplaintEntity[]> {
     const officerIdStr = String(officerId);
     const paddedNrp = officerIdStr.padStart(8, '0');
     let resolvedOfficerId = officerId;
+    let resolvedStationId: number | null = null;
     let resolvedUnitId: number | null = null;
 
     let isPersonilRole = true;
+    let isPiket = false;
 
     const cached = PrismaComplaintRepository.officerResolutionCache.get(officerIdStr);
     if (cached && Date.now() < cached.expiresAt) {
       resolvedOfficerId = cached.resolvedOfficerId;
+      resolvedStationId = cached.resolvedStationId;
       resolvedUnitId = cached.resolvedUnitId;
       isPersonilRole = cached.isPersonilRole ?? true;
+      isPiket = cached.isPiket ?? false;
     } else {
       const officer = await prisma.policeOfficer.findFirst({
         where: {
@@ -241,47 +256,98 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         include: {
           user: true,
           unit: true,
+          station: true,
         },
       });
 
       if (officer) {
         resolvedOfficerId = officer.id;
+        resolvedStationId = officer.station_id || null;
         resolvedUnitId = officer.unit_id || null;
         isPersonilRole = officer.user?.role ? officer.user.role === 'PERSONIL' : true;
+
+        // Cek status kesiagaan dinas / piket di Mako:
+        // 1. Status kedinasan aktif (bukan LEPAS_DINAS)
+        const isDutyActive = Boolean(officer.duty_status && officer.duty_status !== 'LEPAS_DINAS');
+
+        // 2. Atau terdaftar dalam jadwal piket hari ini di Mako tempat menginduk
+        let isScheduledToday = false;
+        try {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date();
+          todayEnd.setHours(23, 59, 59, 999);
+
+          const piketMember = await prisma.piketScheduleMember.findFirst({
+            where: {
+              officer_id: officer.id,
+              schedule: {
+                ...(officer.station_id ? { station_id: officer.station_id } : {}),
+                schedule_date: {
+                  gte: todayStart,
+                  lte: todayEnd,
+                },
+                status: { not: 'DIBATALKAN' },
+              },
+              status_kehadiran: { notIn: ['LEPAS_PIKET', 'IZIN', 'SAKIT'] },
+            },
+            select: { id: true },
+          });
+          isScheduledToday = Boolean(piketMember);
+        } catch (_) {}
+
+        isPiket = isDutyActive || isScheduledToday;
       }
 
-      if (resolvedUnitId) {
-        PrismaComplaintRepository.officerResolutionCache.set(officerIdStr, {
-          resolvedOfficerId,
-          resolvedUnitId,
-          isPersonilRole,
-          expiresAt: Date.now() + 5 * 60 * 1000, // 5 menit TTL
-        });
-        if (paddedNrp !== officerIdStr) {
-          PrismaComplaintRepository.officerResolutionCache.set(paddedNrp, {
-            resolvedOfficerId,
-            resolvedUnitId,
-            isPersonilRole,
-            expiresAt: Date.now() + 5 * 60 * 1000,
-          });
-        }
+      const cacheItem = {
+        resolvedOfficerId,
+        resolvedStationId,
+        resolvedUnitId,
+        isPersonilRole,
+        isPiket,
+        expiresAt: Date.now() + 30 * 1000, // 30 detik TTL agar perubahan status piket segera terbaca
+      };
+      PrismaComplaintRepository.officerResolutionCache.set(officerIdStr, cacheItem);
+      if (paddedNrp !== officerIdStr) {
+        PrismaComplaintRepository.officerResolutionCache.set(paddedNrp, cacheItem);
       }
     }
 
-    const dispatchConditions: any[] = [
-      { officer_id: resolvedOfficerId },
-    ];
-    // Hanya akun dengan role PERSONIL yang berhak menerima siaran terbuka disposisi unit
-    if (resolvedUnitId && isPersonilRole) {
-      dispatchConditions.push({ unit_id: resolvedUnitId });
+    // 1. Tiket yang sudah secara spesifik ditugaskan / diterima oleh personil ini
+    const assignedCondition: any = {
+      dispatches: {
+        some: {
+          officer_id: resolvedOfficerId,
+        },
+      },
+    };
+
+    const orConditions: any[] = [assignedCondition];
+
+    // 2. Siaran Terbuka (Open Broadcast / Disposisi Mako):
+    // Syarat ketat:
+    // - Akun ber-role PERSONIL
+    // - Menginduk di Mako tiket (resolvedStationId tidak null)
+    // - Sedang PIKET / dinas aktif di Mako tersebut (isPiket === true)
+    // - Tiket berasal dari Mako yang sama (station_id === resolvedStationId)
+    // - Terbuka untuk semua satuan (tanpa batasan unit_id)
+    if (isPersonilRole && isPiket && resolvedStationId) {
+      orConditions.push({
+        station_id: resolvedStationId,
+        status: { in: ['MENUNGGU', 'DIPROSES'] },
+        dispatches: {
+          some: {
+            OR: [
+              { officer_id: null },
+              { officer_id: resolvedOfficerId },
+            ],
+          },
+        },
+      });
     }
 
     const whereClause: any = {
-      dispatches: {
-        some: {
-          OR: dispatchConditions,
-        },
-      },
+      OR: orConditions,
     };
     if (activeOnly) {
       whereClause.status = {
@@ -297,11 +363,37 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     return records.map((r: any) => this.mapToEntity(r));
   }
 
-  async findAntreanPawas(): Promise<ComplaintEntity[]> {
+  async findAntreanPawas(stationId?: number): Promise<ComplaintEntity[]> {
+    let whereClause: any;
+
+    if (stationId) {
+      const isMakoAsal = Number(stationId) === 60001;
+      if (isMakoAsal) {
+        // Mako Asal 110 (Polres Pekalongan) menampilkan:
+        // 1. Tiket lokal yang berstatus MENUNGGU (station_id 60001 atau belum terikat stasiun)
+        // 2. Tiket yang sedang dalam status DISPOSISI_LINTAS_WILAYAH (agar operator Mako Asal tetap dapat memantau responnya)
+        whereClause = {
+          OR: [
+            { status: 'MENUNGGU', station_id: stationId },
+            { status: 'MENUNGGU', station_id: null },
+            { status: 'DISPOSISI_LINTAS_WILAYAH' },
+          ],
+        };
+      } else {
+        // Polsek / Polres tujuan: Tiket lokal MENUNGGU atau tiket limpahan DISPOSISI_LINTAS_WILAYAH pada stasiun mereka
+        whereClause = {
+          status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
+          station_id: stationId,
+        };
+      }
+    } else {
+      whereClause = {
+        status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
+      };
+    }
+
     const records = await prisma.complaint.findMany({
-      where: {
-        status: 'MENUNGGU',
-      },
+      where: whereClause,
       orderBy: { created_at: 'asc' },
       include: COMPLAINT_INCLUDE,
     });

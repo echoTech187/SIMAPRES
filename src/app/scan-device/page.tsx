@@ -30,7 +30,7 @@ function ScanDeviceContent() {
     });
   }, []);
 
-  const [physicalDeviceId, setPhysicalDeviceId] = useState<string>('MEMUAT DEVICE ID...');
+  const [physicalDeviceId, setPhysicalDeviceId] = useState<string>('Memuat...');
   const [deviceModel, setDeviceModel] = useState<string>('Smartphone Presisi');
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 0, lng: 0 });
   const [accuracyText, setAccuracyText] = useState<string>('');
@@ -142,7 +142,7 @@ function ScanDeviceContent() {
             bg: '#059669',
           });
 
-          if (physicalDeviceId && physicalDeviceId !== 'MEMUAT DEVICE ID...') {
+          if (physicalDeviceId && physicalDeviceId !== 'Memuat...') {
             syncTelemetry(physicalDeviceId, currentPos);
           }
         },
@@ -261,7 +261,7 @@ function ScanDeviceContent() {
             >
               {coords.lat !== 0 || coords.lng !== 0
                 ? `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`
-                : 'Menunggu sinyal GPS...'}
+                : 'Idetifikasi Layanan Lokasi...'}
             </div>
             <div id="disp-accuracy" style={{ fontSize: '10.5px', color: '#64748B', marginTop: '4px' }}>
               {accuracyText}

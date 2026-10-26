@@ -37,6 +37,7 @@ import TabPiketPawas from './piket/TabPiketPawas';
 
 import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
+import ModalDisposisiLintasWilayah from './pawas/modals/ModalDisposisiLintasWilayah';
 import ModalSlaMonitoring from './pawas/modals/ModalSlaMonitoring';
 import ModalKuatPers from './pawas/modals/ModalKuatPers';
 import ModalIkm from './pawas/modals/ModalIkm';
@@ -47,7 +48,6 @@ import ModalPresensiPulang from './pawas/modals/ModalPresensiPulang';
 import ModalKeamananPawas from './pawas/modals/ModalKeamananPawas';
 import ModalLightbox from './pawas/modals/ModalLightbox';
 import ModalTolakPengaduan from './pawas/modals/ModalTolakPengaduan';
-import EscalationAlarmBanner from './pawas/components/EscalationAlarmBanner';
 
 function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
@@ -253,6 +253,9 @@ function CommandCenterContent({
     lat: 0,
     lng: 0,
   });
+
+  const [showLintasWilayahModal, setShowLintasWilayahModal] = useState(false);
+  const [selectedLintasWilayahComplaint, setSelectedLintasWilayahComplaint] = useState<any | null>(null);
 
   // Officer Performance Ranking State (Tier 2: Individu Personel)
   const [officerRankings, setOfficerRankings] = useState<{
@@ -1500,7 +1503,9 @@ function CommandCenterContent({
             <Shield size={22} color="#38BDF8" strokeWidth={2.4} />
           </div>
           <div>
-            <div className="brand-title">SIMOPMAS 110 • POLRI</div>
+            <div className="brand-title">
+              SIMOPMAS 110 • {(userProfile.stationName || session?.stationName || (userProfile.stationId && policeOffices.find((p: any) => String(p.id) === String(userProfile.stationId))?.station_name) || 'Polres Pekalongan').toUpperCase()}
+            </div>
             <div className="brand-subtitle">Konsol Operasional Terpadu – Pengawas &amp; Komando</div>
           </div>
         </div>
@@ -1674,14 +1679,6 @@ function CommandCenterContent({
 
       {/* ── MAIN CONTENT ── */}
       <main className={`pawas-content-area ${activeTab === 'view-peta' ? 'pawas-peta-active' : 'registrasi-container'}`} style={activeTab === 'view-peta' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}>
-        <EscalationAlarmBanner
-          complaints={allRecentComplaints}
-          onOpenDisposisi={(comp) => {
-            setSelectedDisposisiItem(comp);
-            setShowDisposisiModal(true);
-          }}
-        />
-
         {activeTab === 'view-beranda' && (
           <TabBerandaPawas
             userProfile={userProfile}
@@ -1877,6 +1874,11 @@ function CommandCenterContent({
             loadData={loadData}
             session={session}
             antreanPawas={antreanPawas}
+            policeOffices={policeOffices}
+            onOpenDisposisiLintasWilayah={(comp) => {
+              setSelectedLintasWilayahComplaint(comp);
+              setShowLintasWilayahModal(true);
+            }}
           />
         )}
 
@@ -2089,6 +2091,25 @@ function CommandCenterContent({
         onConfirmReject={handleConfirmRejectModal}
         loading={loading}
       />
+
+      {showLintasWilayahModal && selectedLintasWilayahComplaint && (
+        <ModalDisposisiLintasWilayah
+          complaint={selectedLintasWilayahComplaint}
+          policeOffices={policeOffices}
+          allComplaints={allRecentComplaints}
+          currentStationId={userProfile?.stationId || session?.stationId}
+          currentStationName={userProfile?.stationName || session?.stationName}
+          onClose={() => {
+            setShowLintasWilayahModal(false);
+            setSelectedLintasWilayahComplaint(null);
+          }}
+          onSuccess={() => {
+            setShowLintasWilayahModal(false);
+            setSelectedLintasWilayahComplaint(null);
+            loadData();
+          }}
+        />
+      )}
 
     </div>
   );

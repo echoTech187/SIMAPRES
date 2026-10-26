@@ -79,6 +79,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
 
     // 5. Terbitkan Sesi Terenkripsi ke HTTP-Only Cookies (Keamanan Ganda & Standby Timeout 1 Jam)
     const now = Date.now();
+    const station = user.station || user.officer_profile?.station;
     const sessionPayload: SessionPayload = {
       userId: user.id.toString(),
       identifier: user.identifier,
@@ -89,6 +90,9 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
       kelompokRegu: '',
       unitId: unitCode,
       avatar: user.officer_profile?.avatar_url || '',
+      stationId: station ? station.id.toString() : '',
+      stationName: station?.station_name || '',
+      stationCode: station?.station_code || '',
       issuedAt: now,
       expiresAt: now + SESSION_MAX_AGE_SECONDS * 1000,
       lastActiveAt: now,
@@ -168,7 +172,10 @@ export async function getCurrentSessionAction() {
     try {
       const user = await prisma.user.findUnique({
         where: { identifier: session.identifier },
-        include: { officer_profile: true },
+        include: {
+          officer_profile: { include: { station: true } },
+          station: true,
+        },
       });
       if (user) {
         let userAvatar = user.officer_profile?.avatar_url || session.avatar || undefined;
@@ -182,6 +189,8 @@ export async function getCurrentSessionAction() {
           }
         } catch (_) {}
 
+        const userStation = user.station || user.officer_profile?.station;
+
         return {
           success: true,
           data: {
@@ -192,6 +201,9 @@ export async function getCurrentSessionAction() {
             avatar: userAvatar,
             rankPangkat: user.officer_profile?.rank_pangkat || session.rankPangkat,
             pangkat: user.officer_profile?.rank_pangkat || session.rankPangkat,
+            stationId: userStation ? String(userStation.id) : session.stationId,
+            stationName: userStation?.station_name || session.stationName,
+            stationCode: userStation?.station_code || session.stationCode,
           },
         };
       }
@@ -821,6 +833,7 @@ export async function getPoliceOfficesAction() {
         statusColor: '#1E3A8A',
         tugas: o.station_name,
         telemetri: o.geofence_radius_meters,
+        phonePiket: o.phone_piket || null,
       };
     });
 

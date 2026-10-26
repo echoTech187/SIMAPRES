@@ -161,7 +161,11 @@ export default function TrackingMapModal({
 
     // 1. Google Maps Geocoder RESMI (Mengonversi koordinat posisi GPS riil personel saat itu)
     const runGoogleGeocoder = () => {
-      if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+      if (
+        typeof window !== 'undefined' &&
+        !(window as any).__googleGeocoderDisabled &&
+        (window as any).google?.maps?.Geocoder
+      ) {
         try {
           const geocoder = new (window as any).google.maps.Geocoder();
           geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
@@ -173,6 +177,8 @@ export default function TrackingMapModal({
               if (!isDestinationOrTkpAddress(clean)) {
                 setOfficerAddress(clean || full);
               }
+            } else if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+              (window as any).__googleGeocoderDisabled = true;
             }
           });
           return true;
@@ -251,7 +257,7 @@ export default function TrackingMapModal({
   const isWithin50Meters = distanceMeters !== null && distanceMeters <= 50;
 
   const distanceFormatted = useMemo(() => {
-    if (distanceMeters === null) return 'Mendeteksi GPS...';
+    if (distanceMeters === null) return 'Mendeteksi Lokasi...';
     if (distanceMeters >= 1000) return `${(distanceMeters / 1000).toFixed(1)} km`;
     return `${distanceMeters} m`;
   }, [distanceMeters]);

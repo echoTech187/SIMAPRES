@@ -21,10 +21,32 @@ export function generateTrackingToken(ticketNo: string): string {
 
 export function verifyTrackingToken(ticketNo: string, token: string): boolean {
   if (!token || !ticketNo) return false;
-  const expected = generateTrackingToken(ticketNo);
-  try {
-    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
-  } catch {
-    return false;
+  const clean = ticketNo.replace(/^#+/, '').trim();
+  const tokenTrim = token.trim();
+
+  // Daftar variasi nomor tiket (normalisasi vs historical prefix)
+  const candidates: string[] = [clean];
+  if (clean.startsWith('TICKET-')) {
+    candidates.push(clean.replace(/^TICKET-/, ''));
+  } else {
+    candidates.push(`TICKET-${clean}`);
   }
+  if (clean.startsWith('TIKET-')) {
+    candidates.push(`TICKET-${clean}`);
+  }
+
+  for (const candidate of candidates) {
+    const expected = generateTrackingToken(candidate);
+    try {
+      const bufToken = Buffer.from(tokenTrim);
+      const bufExpected = Buffer.from(expected);
+      if (bufToken.length === bufExpected.length && crypto.timingSafeEqual(bufToken, bufExpected)) {
+        return true;
+      }
+    } catch {
+      // lanjut periksa variasi berikutnya
+    }
+  }
+
+  return false;
 }

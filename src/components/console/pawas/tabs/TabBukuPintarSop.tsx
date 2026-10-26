@@ -208,59 +208,6 @@ export default function TabBukuPintarSop({
 
   return (
     <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto', paddingBottom: '60px' }}>
-      {/* ── TOP NAV BREADCRUMB ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-        <div
-          onClick={() => switchTab('view-beranda')}
-          style={{ fontSize: '13px', fontWeight: 700, color: '#153E75', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <span>←</span> Kembali ke Beranda Konsol
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={() => fetchKnowledge()}
-            disabled={isLoadingDb}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: '#F8FAFC',
-              border: '1px solid #CBD5E1',
-              color: '#334155',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: isLoadingDb ? 'wait' : 'pointer',
-            }}
-            title="Sinkronisasi data SOP terbaru dari tabel master_knowledge_faqs"
-          >
-            <span>{isLoadingDb ? '🔄 Memuat...' : '🔄 Sinkron Database'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => switchTab('view-operator')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: '#EFF6FF',
-              border: '1px solid #BFDBFE',
-              color: '#1E40AF',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            <span>🎧</span> Buka Konsol CAD 110
-          </button>
-        </div>
-      </div>
-
       {/* ── HERO BANNER ── */}
       <div
         style={{
@@ -1006,7 +953,7 @@ export default function TabBukuPintarSop({
                   }}
                 >
                   <Send size={15} />
-                  <span>{isSendingWa ? 'Mengirim via Gateway WhatsApp...' : 'Kirim Otomatis Sekarang (Gateway FlowKirim)'}</span>
+                  <span>{isSendingWa ? 'Mengirim via Gateway WhatsApp...' : 'Kirim Otomatis Sekarang'}</span>
                 </button>
 
                 {/* Alternatif Manual WhatsApp Web */}

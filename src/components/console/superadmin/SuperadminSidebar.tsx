@@ -174,7 +174,7 @@ export default function SuperadminSidebar({
   const advancedItems: SidebarItem[] = [
     {
       key: 'lokasi_penyelesaian',
-      label: 'Lokasi Selesai (TKP/RS)',
+      label: 'Lokasi Selesai',
       icon: '📍',
       badge: counters.resolutionLocations || 5,
       badgeColor: 'slate',

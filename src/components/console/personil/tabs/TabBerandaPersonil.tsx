@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Shield,
   AlertTriangle,
@@ -11,7 +11,9 @@ import {
   MessageSquare,
   ChevronRight,
   TrendingUp,
+  UserPlus,
 } from 'lucide-react';
+import ModalTambahRekanRegu from '../components/ModalTambahRekanRegu';
 import { getTaskQuotaInfo } from '../types';
 import type { ComplaintData, OfficerProfile, PersonilTab } from '../types';
 
@@ -51,6 +53,14 @@ export default function TabBerandaPersonil({
   const tptkpCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'TPTKP').length;
   const sambangCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'SAMBANG').length;
   const pengamananCount = logbooks.filter((l) => (l.jenisAksi || '').toUpperCase() === 'PENGAMANAN').length;
+
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [partnerName, setPartnerName] = useState<string | null>(() => {
+    if (!activeComplaint) return null;
+    const dispatches = Array.isArray((activeComplaint as any).dispatches) ? (activeComplaint as any).dispatches : [];
+    const match = dispatches.find((d: any) => d.crew_partner_name);
+    return match ? match.crew_partner_name : null;
+  });
 
   const pendingQuota = pendingAcceptTask ? getTaskQuotaInfo(pendingAcceptTask, officer.unit_id) : null;
 
@@ -156,7 +166,16 @@ export default function TabBerandaPersonil({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-1 sm:pt-0 flex-shrink-0">
+            <div className="flex items-center gap-2 pt-1 sm:pt-0 flex-shrink-0 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowPartnerModal(true)}
+                className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-blue-200 bg-blue-500/15 border border-blue-500/30 hover:bg-blue-500/25 transition-all active:scale-95 whitespace-nowrap"
+              >
+                <UserPlus size={15} className="flex-shrink-0" />
+                <span>{partnerName ? `Partner: ${partnerName}` : '+ Rekan Regu'}</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => onOpenChat(activeComplaint)}
@@ -380,6 +399,18 @@ export default function TabBerandaPersonil({
           </div>
         </div>
       </div>
+
+      {showPartnerModal && activeComplaint && (
+        <ModalTambahRekanRegu
+          isOpen={showPartnerModal}
+          complaint={activeComplaint}
+          officer={officer}
+          onClose={() => setShowPartnerModal(false)}
+          onSuccess={(name) => {
+            setPartnerName(name);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -68,31 +68,28 @@ function personilTabToSlug(tabId: PersonilTab): string {
   }
 }
 
-// Audio alert synthesizer for emergency dispatches
+// Audio alert sirine patwal MP3 looping untuk penugasan darurat
+let personilAlertAudioInstance: HTMLAudioElement | null = null;
+
 function playPoliceAlertAudio() {
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    if (ctx.state === 'suspended') ctx.resume();
+    if (typeof window === 'undefined') return;
+    if (!personilAlertAudioInstance) {
+      personilAlertAudioInstance = new Audio('/audio/nada_dering_suara_mobil_patwal_viral_tiktok.mp3');
+      personilAlertAudioInstance.loop = true;
+      personilAlertAudioInstance.preload = 'auto';
+    }
+    personilAlertAudioInstance.currentTime = 0;
+    personilAlertAudioInstance.play().catch(() => {});
+  } catch (_) {}
+}
 
-    const playTone = (freq: number, start: number, duration: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
-      gain.gain.setValueAtTime(0.32, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    };
-
-    playTone(880, 0, 0.18);
-    playTone(1174.66, 0.18, 0.28);
-    playTone(880, 0.5, 0.18);
-    playTone(1318.51, 0.68, 0.45);
+function stopPoliceAlertAudio() {
+  try {
+    if (personilAlertAudioInstance) {
+      personilAlertAudioInstance.pause();
+      personilAlertAudioInstance.currentTime = 0;
+    }
   } catch (_) {}
 }
 
@@ -314,6 +311,7 @@ function PersonilContent({
             playPoliceAlertAudio();
           }
         } else {
+          stopPoliceAlertAudio();
           setPendingAcceptTask(null);
           setShowAcceptModal(false);
         }
@@ -513,6 +511,7 @@ function PersonilContent({
       });
 
       if (res?.success) {
+        stopPoliceAlertAudio();
         alert(
           `✓ Penugasan #${task.nomorTiket || task.id} BERHASIL DITERIMA!\n\nStatus kini: DIPROSES.\nMembuka Peta Navigasi Rute TKP...`
         );
@@ -790,7 +789,10 @@ function PersonilContent({
           officer={officer}
           isAccepting={isAcceptingTask}
           onAccept={handleAcceptTask}
-          onClose={() => setShowAcceptModal(false)}
+          onClose={() => {
+            stopPoliceAlertAudio();
+            setShowAcceptModal(false);
+          }}
         />
       )}
 

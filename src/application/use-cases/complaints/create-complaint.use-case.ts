@@ -54,15 +54,11 @@ export class CreateComplaintUseCase {
       throw new Error('Uraian keterangan kejadian wajib diisi.');
     }
 
-    // Nomor Registrasi Tiket Resmi (Format Baku Wallboard 110: TICKET-0018xxxxxx tanpa tanda '#' di depan)
+    // Nomor Registrasi Tiket Resmi (Gunakan input manual operator apa adanya jika diisi; generate otomatis jika kosong)
     let nomorTiket = input.nomorTiket?.trim();
     if (nomorTiket) {
       // Hapus karakter '#' di awal jika user menginputnya
-      nomorTiket = nomorTiket.replace(/^#+/, '');
-      // Normalisasi format baku: jika hanya mengetik angka
-      if (!nomorTiket.startsWith('TICKET-')) {
-        nomorTiket = `TICKET-${nomorTiket}`;
-      }
+      nomorTiket = nomorTiket.replace(/^#+/, '').trim();
 
       // Validasi anti-duplikasi nomor tiket
       const existing = (await this.complaintRepo.findByNomorTiket(nomorTiket)) || (await this.complaintRepo.findByNomorTiket(`#${nomorTiket}`));
@@ -70,7 +66,7 @@ export class CreateComplaintUseCase {
         throw new Error(`Nomor tiket ${nomorTiket} sudah terdaftar di pangkalan data! Kasus ini telah tercatat sebelumnya.`);
       }
     } else {
-      // Generate format baku 10 digit TICKET-0018xxxxxx tanpa tanda '#' di depan
+      // Generate format baku 10 digit TICKET-0018xxxxxx jika operator mengosongkan input
       const random10Digit = String(Math.floor(1800000000 + Math.random() * 99999999)).padStart(10, '0');
       nomorTiket = `TICKET-${random10Digit}`;
     }

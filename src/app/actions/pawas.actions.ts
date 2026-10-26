@@ -23,8 +23,19 @@ function serializeBigInt<T>(obj: T): T {
   );
 }
 
-export async function invalidatePawasUnifiedCache() {
+export async function invalidatePawasUnifiedCache(stationId?: number | string) {
   cacheInvalidate('pawas_unified_data');
+  cacheInvalidate('pawas_unified_data_all');
+  cacheInvalidate('antrean_pawas_all');
+  if (stationId) {
+    cacheInvalidate(`pawas_unified_data_${stationId}`);
+    cacheInvalidate(`antrean_pawas_${stationId}`);
+  }
+  // Bersihkan stasiun utama (Polres Pekalongan, Polresta Batang, Polsek Pekalongan Selatan)
+  [60001, 210001, 120001].forEach((sid) => {
+    cacheInvalidate(`pawas_unified_data_${sid}`);
+    cacheInvalidate(`antrean_pawas_${sid}`);
+  });
 }
 
 /**
@@ -32,10 +43,12 @@ export async function invalidatePawasUnifiedCache() {
  * Eliminates 9-18 separate HTTP round-trips over the network and speeds up initial load time.
  * Menggunakan in-memory cache server (TTL 15 detik) untuk responsivitas instan (< 5ms).
  */
-export async function getPawasUnifiedDataAction(forceFresh = false) {
+export async function getPawasUnifiedDataAction(stationId?: number | string, forceFresh = false) {
   try {
+    const numStationId = stationId ? Number(stationId) : undefined;
+    const cacheKey = numStationId ? `pawas_unified_data_${numStationId}` : 'pawas_unified_data_all';
     if (!forceFresh) {
-      const cached = cacheGet<any>('pawas_unified_data');
+      const cached = cacheGet<any>(cacheKey);
       if (cached) {
         return { success: true, data: cached };
       }
@@ -55,7 +68,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       recentLogbooksRaw,
     ] = await Promise.all([
       getMasterFilterOptionsAction(),
-      getPendingComplaintsAction(),
+      getPendingComplaintsAction(numStationId),
       getAllRecentComplaintsAction(),
       getRegisteredUnitsAction(),
       getPatrolFleetUnitsAction(),
@@ -104,7 +117,7 @@ export async function getPawasUnifiedDataAction(forceFresh = false) {
       recentLogbooks: serializeBigInt(recentLogbooksRaw ? recentLogbooksRaw : []),
     };
 
-    cacheSet('pawas_unified_data', payload, 15000); // 15 detik TTL
+    cacheSet(cacheKey, payload, 15000); // 15 detik TTL
 
     return {
       success: true,

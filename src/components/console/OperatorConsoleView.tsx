@@ -1,25 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Headphones, Map, BookOpen, User, Shield, Award } from 'lucide-react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { Headphones, Map, BookOpen, User, Award } from 'lucide-react';
 import {
-  getPendingComplaintsAction,
   disposisiMultiSatuanAction,
-  getAllRecentComplaintsAction,
   updateComplaintStatusAction,
-  getMasterFilterOptionsAction,
 } from '@/app/actions/complaint.actions';
 import {
-  getRegisteredUnitsAction,
-  getPoliceOfficesAction,
   logoutAction,
 } from '@/app/actions/auth.actions';
-import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
 import { getPawasUnifiedDataAction } from '@/app/actions/pawas.actions';
-import { ConsoleSkeleton } from './ConsoleSkeleton';
 import HeaderProfileBadge from './HeaderProfileBadge';
-import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import { toast } from '@/components/ui/Toast';
 import '@/app/registrasi-unit/registrasi-unit.css';
 import { searchIndonesianLocations, type LocationSuggestionItem } from '@/lib/indonesian-location-search';
@@ -37,6 +29,13 @@ import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
 import ModalKeamananPawas from './pawas/modals/ModalKeamananPawas';
 import ModalLightbox from './pawas/modals/ModalLightbox';
 import ModalTolakPengaduan from './pawas/modals/ModalTolakPengaduan';
+import ModalDisposisiLintasWilayah from './pawas/modals/ModalDisposisiLintasWilayah';
+import dynamic from 'next/dynamic';
+
+const EscalationAlarmBanner = dynamic(
+  () => import('./pawas/components/EscalationAlarmBanner'),
+  { ssr: false }
+);
 
 function calculateDistanceHaversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
@@ -172,6 +171,9 @@ function OperatorConsoleContent({
         role: session.role,
         roleBadge: 'OPERATOR SPKT',
         avatar: session.avatar || session.avatar_url || null,
+        stationName: session.stationName || '',
+        stationId: session.stationId || '',
+        stationCode: session.stationCode || '',
       };
     }
     return {
@@ -184,6 +186,9 @@ function OperatorConsoleContent({
       role: 'OPERATOR',
       roleBadge: 'OPERATOR SPKT',
       avatar: null,
+      stationName: '',
+      stationId: '',
+      stationCode: '',
     };
   });
 
@@ -207,17 +212,15 @@ function OperatorConsoleContent({
   const [simCaller, setSimCaller] = useState({
     nomorTiket: '',
     nama: '',
-    nik: '',
-    noTelp: '',
-    alamatKtp: '',
-    kategoriId: '',
-    subkategoriId: '',
-    deskripsi: '',
-    lokasi: '',
-    latitude: 0,
-    longitude: 0,
-    urgensi: 'SEDANG',
-    sumberLaporan: 'CALL_110',
+    telepon: '',
+    alamat: '',
+    kategori: '',
+    kategoriKey: '',
+    subcategoryId: undefined as number | undefined,
+    urgensi: '',
+    uraian: '',
+    lat: 0,
+    lng: 0,
   });
 
   const [cadFormErrors, setCadFormErrors] = useState<Record<string, string>>({});
@@ -249,6 +252,8 @@ function OperatorConsoleContent({
   });
   const [showKeamananModal, setShowKeamananModal] = useState(false);
   const [pinOtorisasiPawas, setPinOtorisasiPawas] = useState<string[]>(['', '', '', '', '', '']);
+  const [showLintasWilayahModal, setShowLintasWilayahModal] = useState(false);
+  const [selectedLintasWilayahComplaint, setSelectedLintasWilayahComplaint] = useState<any>(null);
 
   // Disposisi state
   const [selectedSatuanKeys, setSelectedSatuanKeys] = useState<string[]>([]);
@@ -288,7 +293,8 @@ function OperatorConsoleContent({
   const loadData = async (force = false) => {
     setLoading(true);
     try {
-      const res = await getPawasUnifiedDataAction();
+      const activeStationId = userProfile?.stationId || session?.stationId;
+      const res = await getPawasUnifiedDataAction(activeStationId, force);
       if (res.success && res.data) {
         const d = res.data;
         if (d.filterData) {
@@ -315,42 +321,93 @@ function OperatorConsoleContent({
   };
 
   const validateCadForm = useCallback((): Record<string, string> => {
-    const errs: Record<string, string> = {};
-    if (!simCaller.nama?.trim()) errs.nama = 'Nama pelapor wajib diisi.';
-    if (!simCaller.noTelp?.trim()) errs.noTelp = 'Nomor telepon/HP wajib diisi.';
-    if (!simCaller.deskripsi?.trim()) errs.deskripsi = 'Kronologi kejadian perkara wajib diisi.';
-    if (!simCaller.lokasi?.trim()) errs.lokasi = 'Alamat/titik TKP wajib diisi.';
-    return errs;
+    const errors: Record<string, string> = {};
+    const rawPhone = (simCaller.telepon || '').trim();
+    const digitsOnly = rawPhone.replace(/\D/g, '');
+    if (!rawPhone) {
+      errors.telepon = 'Nomor telepon pelapor wajib diisi agar petugas dapat melakukan panggilan balik atau konfirmasi.';
+    } else if (digitsOnly.length < 9) {
+      errors.telepon = 'Nomor telepon terlalu pendek. Masukkan minimal 9–14 digit nomor telepon aktif.';
+    } else if (digitsOnly.length > 15) {
+      errors.telepon = 'Nomor telepon terlalu panjang (maksimal 15 digit). Mohon periksa kembali.';
+    } else if (!/^(0|62|\+62)/.test(rawPhone)) {
+      errors.telepon = 'Format nomor belum sesuai. Awali dengan 08... atau +62... (contoh: 08123456789).';
+    }
+
+    const cleanNama = (simCaller.nama || '').trim();
+    if (!cleanNama) {
+      errors.nama = 'Nama warga pelapor wajib diisi.';
+    } else if (cleanNama.length < 3) {
+      errors.nama = 'Nama pelapor minimal 3 karakter huruf (contoh: Bpk. Budi Santoso).';
+    } else if (/^\d+$/.test(cleanNama)) {
+      errors.nama = 'Nama pelapor tidak boleh hanya berupa angka. Silakan masukkan nama yang benar.';
+    }
+
+    if (!simCaller.subcategoryId && !simCaller.kategori) {
+      errors.kategori = 'Silakan pilih kategori laporan kejadian sesuai keterangan penelepon agar SOP penanganan tepat.';
+    }
+
+    if (!simCaller.urgensi) {
+      errors.urgensi = 'Silakan tentukan tingkat urgensi penanganan (Darurat, Sedang, atau Normal).';
+    }
+
+    const cleanAlamat = (simCaller.alamat || '').trim();
+    if (!cleanAlamat) {
+      errors.alamat = 'Alamat TKP atau patokan lokasi wajib diisi (atau klik "Pilih Titik di Peta").';
+    } else if (cleanAlamat.length < 5) {
+      errors.alamat = 'Keterangan alamat terlalu singkat (minimal 5 karakter, misal nama jalan, RT/RW, atau nama gedung).';
+    }
+
+    const cleanUraian = (simCaller.uraian || '').trim();
+    if (!cleanUraian) {
+      errors.uraian = 'Ringkasan uraian kejadian wajib diisi sebagai informasi awal bagi petugas patroli.';
+    } else if (cleanUraian.length < 10) {
+      errors.uraian = 'Uraian terlalu singkat (minimal 10 karakter agar situasi di lokasi dapat dipahami dengan baik).';
+    }
+
+    return errors;
   }, [simCaller]);
 
-  const handleCadLocationSearch = useCallback(async (q: string) => {
-    if (!q || q.trim().length < 3) {
+  const searchTimeoutRef = useRef<any>(null);
+
+  const handleCadLocationSearch = useCallback((query: string) => {
+    setSimCaller((prev: any) => ({ ...prev, alamat: query }));
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+
+    if (!query || query.trim().length < 2) {
       setCadLocationSuggestions([]);
       setShowCadSuggestions(false);
       return;
     }
+
     setIsSearchingCadLocation(true);
-    try {
-      const results = await searchIndonesianLocations(q);
-      setCadLocationSuggestions(results);
-      setShowCadSuggestions(true);
-    } catch {
-      setCadLocationSuggestions([]);
-    } finally {
-      setIsSearchingCadLocation(false);
-    }
-  }, []);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await searchIndonesianLocations(query, {
+          lat: simCaller.lat || undefined,
+          lng: simCaller.lng || undefined,
+          limit: 1000,
+        });
+        setCadLocationSuggestions(results);
+        setShowCadSuggestions(results.length > 0);
+      } catch {
+        setCadLocationSuggestions([]);
+      } finally {
+        setIsSearchingCadLocation(false);
+      }
+    }, 200);
+  }, [simCaller.lat, simCaller.lng]);
 
   const showToast = useCallback((msg: string) => {
     toast.showNotification(msg, 4000);
   }, []);
 
-  const handleSelectCadSuggestion = useCallback((item: LocationSuggestionItem) => {
+  const handleSelectCadSuggestion = useCallback((item: { fullAddress?: string; label?: string; lat: number; lng: number }) => {
     setSimCaller((prev: any) => ({
       ...prev,
-      lokasi: item.fullAddress ? item.fullAddress : item.label,
-      latitude: item.lat,
-      longitude: item.lng,
+      alamat: item.fullAddress ? item.fullAddress : (item.label || ''),
+      lat: item.lat,
+      lng: item.lng,
     }));
     setShowCadSuggestions(false);
   }, []);
@@ -495,7 +552,9 @@ function OperatorConsoleContent({
             <Headphones size={22} color="#FFFFFF" strokeWidth={2.4} />
           </div>
           <div>
-            <div className="brand-title">SIMOPMAS 110 • POLRI</div>
+            <div className="brand-title">
+              SIMOPMAS 110 • {(userProfile.stationName || session?.stationName || (userProfile.stationId && policeOffices.find((p: any) => String(p.id) === String(userProfile.stationId))?.station_name) || 'Polres Pekalongan').toUpperCase()}
+            </div>
             <div className="brand-subtitle">Sentra Pelayanan SPKT &amp; CAD Dispatch Darurat 110</div>
           </div>
         </div>
@@ -630,6 +689,22 @@ function OperatorConsoleContent({
 
       {/* ── MAIN CONTENT ── */}
       <main className={`pawas-content-area ${activeTab === 'view-peta' ? 'pawas-peta-active' : 'registrasi-container'}`} style={activeTab === 'view-peta' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}>
+        {/* Render banner alarm eskalasi di atas tab selain CAD, Kinerja, dan Peta */}
+        {activeTab !== 'view-operator' && activeTab !== 'view-laporan' && activeTab !== 'view-peta' && (
+          <EscalationAlarmBanner
+            complaints={allRecentComplaints}
+            currentStationId={userProfile?.stationId || session?.stationId}
+            currentStationName={userProfile?.stationName || session?.stationName}
+            currentUser={session || userProfile}
+            policeOffices={policeOffices}
+            onOpenDisposisiLintasWilayah={(comp) => {
+              setSelectedLintasWilayahComplaint(comp);
+              setShowLintasWilayahModal(true);
+            }}
+            onRefresh={loadData}
+          />
+        )}
+
         {activeTab === 'view-operator' && (
           <TabOperatorCadPawas
             switchTab={switchTab}
@@ -656,6 +731,25 @@ function OperatorConsoleContent({
             loadData={loadData}
             session={session}
             antreanPawas={antreanPawas}
+            policeOffices={policeOffices}
+            onOpenDisposisiLintasWilayah={(comp) => {
+              setSelectedLintasWilayahComplaint(comp);
+              setShowLintasWilayahModal(true);
+            }}
+            escalationBanner={
+              <EscalationAlarmBanner
+                complaints={allRecentComplaints}
+                currentStationId={userProfile?.stationId || session?.stationId}
+                currentStationName={userProfile?.stationName || session?.stationName}
+                currentUser={session || userProfile}
+                policeOffices={policeOffices}
+                onOpenDisposisiLintasWilayah={(comp) => {
+                  setSelectedLintasWilayahComplaint(comp);
+                  setShowLintasWilayahModal(true);
+                }}
+                onRefresh={loadData}
+              />
+            }
           />
         )}
 
@@ -677,8 +771,8 @@ function OperatorConsoleContent({
             switchTab={switchTab}
             userProfile={userProfile}
             showFriendlyToast={showFriendlyToast}
-            initialCallerPhone={simCaller?.noTelp ? simCaller.noTelp : ''}
-            initialCallerName={simCaller?.nama ? simCaller.nama : ''}
+            initialCallerPhone={simCaller?.telepon || ''}
+            initialCallerName={simCaller?.nama || ''}
           />
         )}
 
@@ -688,6 +782,20 @@ function OperatorConsoleContent({
             allRecentComplaints={allRecentComplaints}
             operatorRankings={operatorRankings}
             switchTab={switchTab}
+            escalationBanner={
+              <EscalationAlarmBanner
+                complaints={allRecentComplaints}
+                currentStationId={userProfile?.stationId || session?.stationId}
+                currentStationName={userProfile?.stationName || session?.stationName}
+                currentUser={session || userProfile}
+                policeOffices={policeOffices}
+                onOpenDisposisiLintasWilayah={(comp) => {
+                  setSelectedLintasWilayahComplaint(comp);
+                  setShowLintasWilayahModal(true);
+                }}
+                onRefresh={loadData}
+              />
+            }
           />
         )}
 
@@ -839,6 +947,26 @@ function OperatorConsoleContent({
         onConfirmReject={handleConfirmRejectModal}
         loading={loading}
       />
+
+      {showLintasWilayahModal && selectedLintasWilayahComplaint && (
+        <ModalDisposisiLintasWilayah
+          complaint={selectedLintasWilayahComplaint}
+          policeOffices={policeOffices}
+          allComplaints={allRecentComplaints}
+          currentStationId={userProfile?.stationId || session?.stationId}
+          currentStationName={userProfile?.stationName || session?.stationName}
+          onClose={() => {
+            setShowLintasWilayahModal(false);
+            setSelectedLintasWilayahComplaint(null);
+          }}
+          onSuccess={async () => {
+            setShowLintasWilayahModal(false);
+            setSelectedLintasWilayahComplaint(null);
+            showFriendlyToast('success', 'Disposisi Dialihkan', 'Laporan berhasil dialihkan ke Mako tujuan terdekat.');
+            await loadData();
+          }}
+        />
+      )}
     </div>
   );
 }

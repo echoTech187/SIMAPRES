@@ -199,9 +199,198 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
 }
 
 /**
- * Buat Pengaduan & Langsung Siarkan (Broadcast Terbuka) ke Seluruh Armada Siaga 110
- * Menghilangkan disposisi manual; sistem langsung menyiarkan serentak ke semua personil yang sedang bertugas.
+ * Helper: Mengambil rincian lengkap petugas piket SPKT & personil dinas hari ini pada Mako tertentu
  */
+export async function getActiveSpktDutyDetails(stationId: number): Promise<{
+  kaSpktNama: string;
+  kaSpktPhone: string;
+  dutyOfficerNames: string[];
+  dutyOfficers: Array<{ id: string; nrp: string; name: string; rank: string; phone?: string }>;
+}> {
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const schedule = await prisma.piketSchedule.findFirst({
+      where: {
+        station_id: stationId,
+        schedule_date: { gte: todayStart, lte: todayEnd },
+        status: { not: 'DIBATALKAN' },
+      },
+      include: {
+        ka_spkt: { include: { user: true } },
+        members: {
+          where: {
+            status_kehadiran: { notIn: ['LEPAS_PIKET', 'IZIN', 'SAKIT'] },
+          },
+          include: { officer: { include: { user: true } } },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    const kaSpktNama = schedule?.ka_spkt
+      ? `${schedule.ka_spkt.rank_pangkat || ''} ${schedule.ka_spkt.user.full_name}`.trim()
+      : 'Ka SPKT Piket Mako';
+    const kaSpktPhone = schedule?.ka_spkt?.user?.phone_number || '';
+
+    const dutyOfficers: any[] = [];
+    if (schedule?.members) {
+      for (const m of schedule.members) {
+        if (m.officer) {
+          dutyOfficers.push({
+            id: String(m.officer.id),
+            nrp: m.officer.nrp,
+            name: m.officer.user.full_name,
+            rank: m.officer.rank_pangkat || '',
+            phone: m.officer.user.phone_number || '',
+          });
+        }
+      }
+    }
+
+    if (dutyOfficers.length === 0) {
+      const activeOfficers = await prisma.policeOfficer.findMany({
+        where: {
+          station_id: stationId,
+          duty_status: { not: 'LEPAS_DINAS' },
+        },
+        include: { user: true },
+        take: 12,
+      });
+      for (const off of activeOfficers) {
+        dutyOfficers.push({
+          id: String(off.id),
+          nrp: off.nrp,
+          name: off.user.full_name,
+          rank: off.rank_pangkat || '',
+          phone: off.user.phone_number || '',
+        });
+      }
+    }
+
+    return {
+      kaSpktNama,
+      kaSpktPhone,
+      dutyOfficerNames: dutyOfficers.map((o) => `${o.rank} ${o.name}`.trim()),
+      dutyOfficers,
+    };
+  } catch (err) {
+    return {
+      kaSpktNama: 'Petugas Piket SPKT',
+      kaSpktPhone: '',
+      dutyOfficerNames: [],
+      dutyOfficers: [],
+    };
+  }
+}
+
+/**
+ * Helper: Mencari nomor HP dan identitas Ka SPKT / Petugas Piket SPKT yang bertugas hari ini pada Mako tertentu
+ * CATATAN PENTING: Dilarang menggunakan targetStation.phone_piket statis, melainkan dinamis dari roster piket harian.
+ */
+async function getActiveSpktDutyOfficerPhone(stationId: number): Promise<{ nama: string; phone: string } | null> {
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // 1. Cek dari jadwal piket resmi hari ini di Mako tersebut
+    const schedule = await prisma.piketSchedule.findFirst({
+      where: {
+        station_id: stationId,
+        schedule_date: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+        status: { not: 'DIBATALKAN' },
+      },
+      include: {
+        ka_spkt: {
+          include: { user: true },
+        },
+        members: {
+          where: {
+            role_piket: { in: ['KA_SPKT', 'ANGGOTA_SPKT', 'PIKET_SPKT', 'PIKET_OPERATOR_CAD'] },
+            status_kehadiran: { notIn: ['LEPAS_PIKET', 'IZIN', 'SAKIT'] },
+          },
+          include: {
+            officer: { include: { user: true } },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (schedule?.ka_spkt?.user?.phone_number) {
+      return {
+        nama: `${schedule.ka_spkt.rank_pangkat || ''} ${schedule.ka_spkt.user.full_name}`.trim(),
+        phone: schedule.ka_spkt.user.phone_number,
+      };
+    }
+
+    if (schedule?.members && schedule.members.length > 0) {
+      for (const m of schedule.members) {
+        if (m.officer?.user?.phone_number) {
+          return {
+            nama: `${m.officer.rank_pangkat || ''} ${m.officer.user.full_name}`.trim(),
+            phone: m.officer.user.phone_number,
+          };
+        }
+      }
+    }
+
+    // 2. Fallback: Personil di Mako tersebut yang saat ini aktif dinas SPKT
+    const activeSpktOfficer = await prisma.policeOfficer.findFirst({
+      where: {
+        station_id: stationId,
+        duty_status: { in: ['PIKET_SPKT', 'DINAS_PATROLI'] },
+        OR: [
+          { jabatan: { contains: 'SPKT' } },
+          { unit: { key: { contains: 'SPKT' } } },
+          { user: { role: { in: ['OPERATOR', 'PAWAS'] } } },
+        ],
+        user: { phone_number: { not: '' } },
+      },
+      include: { user: true },
+    });
+
+    if (activeSpktOfficer?.user?.phone_number) {
+      return {
+        nama: `${activeSpktOfficer.rank_pangkat || ''} ${activeSpktOfficer.user.full_name}`.trim(),
+        phone: activeSpktOfficer.user.phone_number,
+      };
+    }
+
+    // 3. Fallback: Personil apapun di Mako tersebut yang sedang dinas aktif dan punya nomor HP
+    const anyActiveOfficerInMako = await prisma.policeOfficer.findFirst({
+      where: {
+        station_id: stationId,
+        duty_status: { not: 'LEPAS_DINAS' },
+        user: { phone_number: { not: '' } },
+      },
+      include: { user: true },
+    });
+
+    if (anyActiveOfficerInMako?.user?.phone_number) {
+      return {
+        nama: `${anyActiveOfficerInMako.rank_pangkat || ''} ${anyActiveOfficerInMako.user.full_name}`.trim(),
+        phone: anyActiveOfficerInMako.user.phone_number,
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.warn('[getActiveSpktDutyOfficerPhone Error]:', err);
+    return null;
+  }
+}
+
 /**
  * Buat Pengaduan & Langsung Siarkan (Broadcast Terbuka) ke Seluruh Armada Siaga 110
  * Dilengkapi dengan Filter Berbasis Wilayah (Geo-Targeting Polsek) & Filter Urgensi (Escalation Timer)
@@ -240,29 +429,63 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
     const allStationsRaw: any[] = await (prisma as any).policeStation.findMany();
     const allStations = allStationsRaw.filter((st) => st.is_active !== false);
 
+    // Resolusi Mako Asal Operator (Home Station)
+    const operatorStationId = auth.user?.stationId ? Number(auth.user.stationId) : null;
+    const homeStation = (operatorStationId ? allStations.find((s) => s.id === operatorStationId) : null) ||
+      allStations.find((s) => (s.station_code || '').includes('PEKALONGAN') || (s.station_name || '').toLowerCase().includes('pekalongan')) ||
+      allStations[0];
+
+    // Evaluasi Batas Yurisdiksi (E-Routing Boundary)
+    const { evaluateJurisdictionBoundary } = await import('@/lib/jurisdiction-boundary');
+    const boundaryCheck = evaluateJurisdictionBoundary({
+      tkpLat: Number(input.tkpLat),
+      tkpLng: Number(input.tkpLng),
+      tkpAlamat: input.tkpAlamatTeks,
+      currentStationId: homeStation?.id || 60001,
+      currentStationName: homeStation?.station_name || 'Polres Pekalongan',
+      stations: allStations.map((st: any) => ({
+        id: st.id,
+        stationCode: st.station_code,
+        stationName: st.station_name,
+        officeLat: st.office_lat,
+        officeLng: st.office_lng,
+      })),
+    });
+
+    const isOutsideJurisdiction = boundaryCheck.isOutsideJurisdiction;
+
     const { resolveSektorWilayah } = await import('@/lib/reverse-geocode');
     const resolvedSektor = resolveSektorWilayah(input.tkpAlamatTeks);
     const resolvedLower = resolvedSektor.toLowerCase();
 
-    let targetStation: any = allStations.find((st: any) => {
-      const sName = (st.station_name || '').toLowerCase();
-      return resolvedLower.includes(sName) || (input.tkpAlamatTeks && input.tkpAlamatTeks.toLowerCase().includes(sName));
-    });
+    let targetStation: any = null;
 
-    // Fallback ke Haversine jarak terdekat jika koordinat valid
-    if (!targetStation && input.tkpLat && input.tkpLng && allStations.length > 0) {
-      const { HaversineService } = await import('@/infrastructure/services/haversine.service');
-      let minDistance = Infinity;
-      for (const st of allStations) {
-        const d = HaversineService.calculateDistanceKm(
-          Number(input.tkpLat),
-          Number(input.tkpLng),
-          Number(st.office_lat),
-          Number(st.office_lng)
-        );
-        if (d < minDistance) {
-          minDistance = d;
-          targetStation = st;
+    if (isOutsideJurisdiction) {
+      // ATURAN KRUSIAL USER: Jika titik TKP terindikasi di luar yurisdiksi mako asal (misal terdeteksi di Batang),
+      // tiket JANGAN dialihkan dulu ke Mako tetangga sebelum operator mengklik tombol 'Disposisi Lintas Wilayah'!
+      // Tiket tetap menginduk pada Mako asal operator (homeStation) dengan status MENUNGGU.
+      targetStation = homeStation;
+    } else {
+      targetStation = allStations.find((st: any) => {
+        const sName = (st.station_name || '').toLowerCase();
+        return resolvedLower.includes(sName) || (input.tkpAlamatTeks && input.tkpAlamatTeks.toLowerCase().includes(sName));
+      });
+
+      // Fallback ke Haversine jarak terdekat jika koordinat valid
+      if (!targetStation && input.tkpLat && input.tkpLng && allStations.length > 0) {
+        const { HaversineService } = await import('@/infrastructure/services/haversine.service');
+        let minDistance = Infinity;
+        for (const st of allStations) {
+          const d = HaversineService.calculateDistanceKm(
+            Number(input.tkpLat),
+            Number(input.tkpLng),
+            Number(st.office_lat),
+            Number(st.office_lng)
+          );
+          if (d < minDistance) {
+            minDistance = d;
+            targetStation = st;
+          }
         }
       }
     }
@@ -299,13 +522,14 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
     }
 
     await prisma.$transaction(async (tx) => {
-      // Ubah status pengaduan menjadi DIPROSES (Tahap 2) & tautkan station_id jika ditemukan
+      // Hubungkan station_id jika ditemukan, status complaint tetap MENUNGGU (Tahap 1: Disiarkan ke Armada)
+      // Status baru berubah menjadi DIPROSES (Tahap 2) saat ada personel yang mengklik Terima/Ambil Tugas
       await tx.complaint.update({
         where: { id: complaintIdBig },
         data: {
-          status: 'DIPROSES',
-          status_id: 2,
-          tahap: 2,
+          status: 'MENUNGGU',
+          status_id: 1,
+          tahap: 1,
           ...(targetStation ? { station_id: targetStation.id } : {}),
         },
       });
@@ -358,6 +582,8 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
       timeout: 20000,
     });
 
+
+
     // 4. Background Secondary Dispatcher (WhatsApp Notifier Taktis - Non-blocking)
     (async () => {
       try {
@@ -365,47 +591,61 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
         const cleanJenis = input.jenisKejadian || input.kategoriLaporan || 'Layanan Darurat 110';
         const ringkasan = input.ringkasanKeterangan || input.deskripsiKejadian || '-';
 
-        // A. Notifikasi ke Piket Polsek (2.C Kebutuhan 1): Berlaku untuk DARURAT & SEDANG
-        if ((isDarurat || isSedang) && targetStation?.phone_piket) {
-          WhatsAppService.sendPolsekNotice({
-            nomorTiket: complaintData.nomorTiket || `#${complaintIdBig}`,
-            polsekName: targetStation.station_name,
-            polsekHp: targetStation.phone_piket,
-            jenisKejadian: cleanJenis,
-            urgensi,
-            tkpAlamatTeks: input.tkpAlamatTeks,
-            tkpLat: Number(input.tkpLat),
-            tkpLng: Number(input.tkpLng),
-            pelaporNama: input.pelaporNama || input.namaPelapor,
-            pelaporHp: input.pelaporHp || input.noHpPelapor,
-            ringkasan,
-            deadlineMinutes: deadlineMinutes || 3,
-          }).then(async (res) => {
-            if (res.success) {
-              await (prisma as any).complaintDispatch.updateMany({
-                where: { complaint_id: complaintIdBig },
-                data: { wa_polsek_status: 'SENT' } as any,
-              }).catch(() => {});
-            }
-          }).catch((err) => console.warn('[Auto-WA Polsek Error]:', err));
+        // A. Notifikasi ke Ka SPKT / Petugas Piket SPKT Polsek yang bertugas hari itu (DILARANG pakai phone_piket statis)
+        if (targetStation && (isDarurat || isSedang)) {
+          const spktDuty = await getActiveSpktDutyOfficerPhone(targetStation.id);
+          if (spktDuty?.phone) {
+            WhatsAppService.sendPolsekNotice({
+              nomorTiket: complaintData.nomorTiket || `#${complaintIdBig}`,
+              polsekName: targetStation.station_name,
+              polsekHp: spktDuty.phone,
+              jenisKejadian: cleanJenis,
+              urgensi,
+              tkpAlamatTeks: input.tkpAlamatTeks,
+              tkpLat: Number(input.tkpLat),
+              tkpLng: Number(input.tkpLng),
+              pelaporNama: input.pelaporNama || input.namaPelapor,
+              pelaporHp: input.pelaporHp || input.noHpPelapor,
+              ringkasan,
+              deadlineMinutes: deadlineMinutes || 3,
+            }).then(async (res) => {
+              if (res.success) {
+                await (prisma as any).complaintDispatch.updateMany({
+                  where: { complaint_id: complaintIdBig },
+                  data: { wa_polsek_status: 'SENT' } as any,
+                }).catch(() => {});
+              }
+            }).catch((err) => console.warn('[Auto-WA Polsek Error]:', err));
+          } else {
+            console.log(`[Auto-WA Polsek]: Tidak ada nomor HP Ka SPKT / Personil Piket bertugas hari ini di ${targetStation.station_name}.`);
+          }
         }
 
-        // B. Notifikasi ke Personel Lapangan Terdekat (2.B Kebutuhan 2): Hanya untuk DARURAT
-        if (isDarurat) {
+        // B. Notifikasi ke Personel Lapangan Terdekat: HANYA yang menginduk dan piket di Mako tersebut
+        if (isDarurat && targetStation) {
+          // Cari personil yang menginduk di Mako tiket dan sedang dinas patroli/piket
           const activeOfficers = await prisma.policeOfficer.findMany({
             where: {
-              duty_status: 'DINAS_PATROLI',
+              station_id: targetStation.id,
+              duty_status: { in: ['DINAS_PATROLI', 'PIKET_SPKT'] },
               user: { phone_number: { not: '' } },
             },
             include: { user: true },
           });
 
-          const candidates = activeOfficers.length > 0 ? activeOfficers : await prisma.policeOfficer.findMany({
-            where: { user: { phone_number: { not: '' } } },
-            include: { user: true },
-            take: 3,
-          });
+          // Jika tidak ada yang DINAS_PATROLI/PIKET_SPKT, cek personil mako yang tidak LEPAS_DINAS
+          const candidates = activeOfficers.length > 0 
+            ? activeOfficers 
+            : await prisma.policeOfficer.findMany({
+                where: {
+                  station_id: targetStation.id,
+                  duty_status: { not: 'LEPAS_DINAS' },
+                  user: { phone_number: { not: '' } },
+                },
+                include: { user: true },
+              });
 
+          // HAPUS TOTAL FALLBACK KE MAKO LAIN! DILARANG mengambil personil di luar targetStation.id
           if (candidates.length > 0) {
             let nearestOfficer = candidates[0];
             if (input.tkpLat && input.tkpLng) {
@@ -450,6 +690,8 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
                 }
               }).catch((err) => console.warn('[Auto-WA Officer Error]:', err));
             }
+          } else {
+            console.log(`[Auto-WA Officer]: Tidak ada personil lapangan yang sedang piket di ${targetStation.station_name}. Fallback lintas Mako dicegah.`);
           }
         }
       } catch (waErr) {
@@ -462,8 +704,9 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
       success: true,
       data: {
         ...complaintData,
-        status: 'DIPROSES',
-        tahap: 2,
+        status: 'MENUNGGU',
+        status_id: 1,
+        tahap: 1,
         stationName: targetStation?.station_name || resolvedSektor,
         escalationDeadlineAt: escalationDeadline ? escalationDeadline.toISOString() : null,
       },
@@ -471,6 +714,255 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
   } catch (err: any) {
     console.error('Error in auto broadcast dispatch:', err);
     return { success: true, data: complaintData };
+  }
+}
+
+/**
+ * Buat Pengaduan & Langsung Selesaikan di Meja Operator CAD 110 (Layanan Konsultasi / Informasi SOP)
+ * Kasus tuntas dilayani operator tanpa memerlukan pergerakan armada siaga / personil ke TKP.
+ * Menghasilkan tiket resmi SELESAI (tahap 5), mencatat log audit, dan mengirim tautan kuesioner evaluasi operator ke WhatsApp warga.
+ */
+export async function createComplaintAndResolveAtOperatorDeskAction(input: CreateComplaintActionInput & {
+  resolutionNotes: string;
+  sendWhatsAppConfirmation?: boolean;
+}): Promise<{
+  success: boolean;
+  error?: string;
+  data?: any;
+}> {
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  const cleanNotes = (input.resolutionNotes || '').trim();
+  if (!cleanNotes) {
+    return { success: false, error: 'Catatan penjelasan / petunjuk SOP penyelesaian wajib diisi!' };
+  }
+
+  // 1. Buat pengaduan dasar via createComplaintAction
+  const createRes = await createComplaintAction(input);
+  if (!createRes.success || !createRes.data) {
+    return { success: false, error: createRes.error };
+  }
+
+  const complaintData = createRes.data;
+  if (!complaintData?.id) {
+    return { success: false, error: 'ID tiket tidak terbentuk.' };
+  }
+  const complaintIdBig = BigInt(complaintData.id);
+  const nomorTiket = complaintData.nomorTiket;
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const actorName = auth.user.fullName || 'Operator CAD 110';
+    const actorRole = auth.user.role || 'OPERATOR';
+
+    await prisma.$transaction(async (tx) => {
+      // Perbarui status menjadi SELESAI, tahap 5, dan catat resolusi di Meja Operator
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
+        data: {
+          status: 'SELESAI',
+          status_id: 4,
+          tahap: 5,
+          operator_id: auth.user.userId ? BigInt(auth.user.userId) : null,
+          resolution_location_key: 'OPERATOR_DESK',
+          resolution_location_name: 'Meja Operator CAD 110',
+          resolution_document_key: 'KONSULTASI_SELESAI',
+          resolution_document_name: 'Layanan Informasi / Konsultasi SOP 110',
+        },
+      });
+
+      // Catat Complaint Audit Log
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action: 'RESOLVED_AT_OPERATOR_DESK',
+          notes: cleanNotes,
+        },
+      });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
+    });
+
+    // Kirim notifikasi WhatsApp resmi dengan tautan kuesioner evaluasi operator (non-blocking)
+    const phone = input.pelaporHp || input.noHpPelapor;
+    if (input.sendWhatsAppConfirmation !== false && phone && phone !== '-') {
+      (async () => {
+        try {
+          const { WhatsAppService } = await import('@/infrastructure/services/whatsapp.service');
+          const sendRes = await WhatsAppService.sendOperatorConsultationNotification({
+            nomorTiket,
+            pelaporNama: input.pelaporNama || input.namaPelapor,
+            pelaporHp: phone,
+            jenisKejadian: input.jenisKejadian || input.kategoriLaporan || 'Layanan Informasi & Konsultasi 110',
+            operatorNotes: cleanNotes,
+            operatorName: actorName,
+          });
+
+          if (sendRes.success) {
+            const { prisma } = await import('@/infrastructure/db/prisma.client');
+            await prisma.complaintAuditLog.create({
+              data: {
+                complaint_id: complaintIdBig,
+                actor_name: 'Sistem Gateway WhatsApp',
+                actor_role: 'SYSTEM',
+                action: 'WHATSAPP_NOTIFICATION',
+                notes: `Konfirmasi penyelesaian konsultasi & tautan kuesioner operator terkirim ke ${phone}. Status: ${sendRes.statusText}`,
+              },
+            }).catch(() => {});
+          }
+        } catch (wErr) {
+          console.warn('[WhatsApp Consultation Notification Error]:', wErr);
+        }
+      })();
+    }
+
+    safeRevalidatePath('/console');
+    return {
+      success: true,
+      data: {
+        ...complaintData,
+        status: 'SELESAI',
+        tahap: 5,
+        resolutionLocationKey: 'OPERATOR_DESK',
+        resolutionDocumentKey: 'KONSULTASI_SELESAI',
+        resolutionNotes: cleanNotes,
+        operatorName: actorName,
+      },
+    };
+  } catch (err: any) {
+    console.error('Error in resolve at operator desk:', err);
+    return { success: false, error: err.message || 'Gagal menyelesaikan pengaduan di meja operator.' };
+  }
+}
+
+/**
+ * Selesaikan Pengaduan yang Sedang Antre Langsung di Meja Operator CAD 110
+ * Untuk laporan yang sudah terlanjur tercatat di antrean pawas namun setelah diverifikasi/ditelepon balik
+ * merupakan permohonan informasi/konsultasi SOP yang tuntas langsung oleh operator.
+ */
+export async function resolveQueuedComplaintAtOperatorDeskAction(input: {
+  complaintId: string | number;
+  resolutionNotes: string;
+  sendWhatsAppConfirmation?: boolean;
+}): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  const cleanNotes = (input.resolutionNotes || '').trim();
+  if (!cleanNotes) {
+    return { success: false, error: 'Catatan penjelasan / petunjuk SOP penyelesaian wajib diisi!' };
+  }
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const complaintIdBig = BigInt(input.complaintId);
+
+    const existing = await prisma.complaint.findUnique({
+      where: { id: complaintIdBig },
+      select: {
+        id: true,
+        nomor_tiket: true,
+        pelapor_nama: true,
+        pelapor_hp: true,
+        jenis_kejadian: true,
+      },
+    });
+
+    if (!existing) {
+      return { success: false, error: 'Data pengaduan tidak ditemukan.' };
+    }
+
+    const actorName = auth.user.fullName || 'Operator CAD 110';
+    const actorRole = auth.user.role || 'OPERATOR';
+
+    await prisma.$transaction(async (tx) => {
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
+        data: {
+          status: 'SELESAI',
+          status_id: 4,
+          tahap: 5,
+          operator_id: auth.user.userId ? BigInt(auth.user.userId) : null,
+          resolution_location_key: 'OPERATOR_DESK',
+          resolution_location_name: 'Meja Operator CAD 110',
+          resolution_document_key: 'KONSULTASI_SELESAI',
+          resolution_document_name: 'Layanan Informasi / Konsultasi SOP 110',
+        },
+      });
+
+      // Batalkan atau selesaikan dispatch jika ada
+      await tx.complaintDispatch.updateMany({
+        where: { complaint_id: complaintIdBig },
+        data: {
+          dispatch_status: 'COMPLETED',
+          dispatch_status_id: 5,
+          completed_at: new Date(),
+        },
+      });
+
+      // Catat log audit
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: actorName,
+          actor_role: actorRole,
+          action: 'RESOLVED_AT_OPERATOR_DESK',
+          notes: cleanNotes,
+        },
+      });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
+    });
+
+    // Kirim notifikasi WhatsApp
+    if (input.sendWhatsAppConfirmation !== false && existing.pelapor_hp && existing.pelapor_hp !== '-') {
+      (async () => {
+        try {
+          const { WhatsAppService } = await import('@/infrastructure/services/whatsapp.service');
+          const sendRes = await WhatsAppService.sendOperatorConsultationNotification({
+            nomorTiket: existing.nomor_tiket,
+            pelaporNama: existing.pelapor_nama,
+            pelaporHp: existing.pelapor_hp,
+            jenisKejadian: existing.jenis_kejadian,
+            operatorNotes: cleanNotes,
+            operatorName: actorName,
+          });
+
+          if (sendRes.success) {
+            const { prisma } = await import('@/infrastructure/db/prisma.client');
+            await prisma.complaintAuditLog.create({
+              data: {
+                complaint_id: complaintIdBig,
+                actor_name: 'Sistem Gateway WhatsApp',
+                actor_role: 'SYSTEM',
+                action: 'WHATSAPP_NOTIFICATION',
+                notes: `Konfirmasi penyelesaian konsultasi & tautan kuesioner operator terkirim ke ${existing.pelapor_hp}. Status: ${sendRes.statusText}`,
+              },
+            }).catch(() => {});
+          }
+        } catch (wErr) {
+          console.warn('[WhatsApp Consultation Notification Error]:', wErr);
+        }
+      })();
+    }
+
+    safeRevalidatePath('/console');
+    return { success: true };
+  } catch (err: any) {
+    console.error('Error in resolveQueuedComplaintAtOperatorDeskAction:', err);
+    return { success: false, error: err.message || 'Gagal menyelesaikan pengaduan di meja operator.' };
   }
 }
 
@@ -802,15 +1294,15 @@ export async function getOfficerComplaintsAction(officerId: string, activeOnly =
   }
 }
 
-export async function getAntreanPawasAction() {
-  const cacheKey = 'antrean_pawas';
+export async function getAntreanPawasAction(stationId?: number) {
+  const cacheKey = stationId ? `antrean_pawas_${stationId}` : 'antrean_pawas_all';
   const cached = cacheGet<any>(cacheKey);
   if (cached) {
     return cached;
   }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
-    const results = await repo.findAntreanPawas();
+    const results = await repo.findAntreanPawas(stationId);
     const result = { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
     cacheSet(cacheKey, result, 15000); // 15 detik TTL
     return result;
@@ -867,8 +1359,8 @@ export async function getCadRecommendationsAction(
   }
 }
 
-export async function getPendingComplaintsAction() {
-  return getAntreanPawasAction();
+export async function getPendingComplaintsAction(stationId?: number) {
+  return getAntreanPawasAction(stationId);
 }
 
 export async function getComplaintsByStatusAction(status: string) {
@@ -1066,13 +1558,13 @@ export async function disposisiMultiSatuanAction(input: {
     const tkpLng = complaint?.tkp_lng ? Number(complaint.tkp_lng) : null;
 
     await prisma.$transaction(async (tx) => {
-      // 1. Update Complaint Status
+      // 1. Update Complaint Status: Tetap MENUNGGU (Tahap 1) sampai ada personil yang mengklik 'Terima Tugas'
       await tx.complaint.update({
         where: { id: complaintIdBig },
         data: {
-          status: 'DIPROSES',
-          status_id: 2,
-          tahap: 2,
+          status: 'MENUNGGU',
+          status_id: 1,
+          tahap: 1,
         },
       });
 
@@ -1147,6 +1639,69 @@ export async function disposisiMultiSatuanAction(input: {
       timeout: 20000,
     });
 
+    // 4. Background Secondary Dispatcher (WhatsApp Notifier Taktis untuk Disposisi Pawas)
+    (async () => {
+      try {
+        const { WhatsAppService } = await import('@/infrastructure/services/whatsapp.service');
+        const comp = await prisma.complaint.findUnique({
+          where: { id: complaintIdBig },
+          include: { station: true },
+        });
+        if (!comp || !comp.station_id) return;
+
+        // A. Notifikasi ke Ka SPKT yang bertugas hari itu di Mako tersebut
+        const spktDuty = await getActiveSpktDutyOfficerPhone(comp.station_id);
+        if (spktDuty?.phone) {
+          WhatsAppService.sendPolsekNotice({
+            nomorTiket: comp.nomor_tiket || `#${complaintIdBig}`,
+            polsekName: comp.station?.station_name || 'SPKT Mako',
+            polsekHp: spktDuty.phone,
+            jenisKejadian: comp.jenis_kejadian || 'Disposisi Pawas 110',
+            urgensi: ((comp.urgensi as string) || 'SEDANG').toUpperCase() as any,
+            tkpAlamatTeks: comp.tkp_alamat_teks || '-',
+            tkpLat: Number(comp.tkp_lat || 0),
+            tkpLng: Number(comp.tkp_lng || 0),
+            pelaporNama: comp.pelapor_nama,
+            pelaporHp: comp.pelapor_hp,
+            ringkasan: `Disposisi Pawas ke Satuan [${satuanNames}]: ${input.arahanTaktis || comp.ringkasan_keterangan || '-'}`,
+            deadlineMinutes: 3,
+          }).catch((err) => console.warn('[Disposisi Auto-WA Polsek Error]:', err));
+        }
+
+        // B. Notifikasi ke Personil Lapangan di Mako tersebut yang sedang dinas/piket
+        const makoOfficers = await prisma.policeOfficer.findMany({
+          where: {
+            station_id: comp.station_id,
+            duty_status: { in: ['DINAS_PATROLI', 'PIKET_SPKT'] },
+            user: { phone_number: { not: '' } },
+          },
+          include: { user: true },
+          take: 3,
+        });
+
+        for (const off of makoOfficers) {
+          if (off.user?.phone_number) {
+            WhatsAppService.sendOfficerAlert({
+              nomorTiket: comp.nomor_tiket || `#${complaintIdBig}`,
+              officerNama: `${off.rank_pangkat} ${off.user.full_name}`,
+              officerHp: off.user.phone_number,
+              jenisKejadian: comp.jenis_kejadian || 'Disposisi Pawas 110',
+              urgensi: ((comp.urgensi as string) || 'SEDANG').toUpperCase() as any,
+              tkpAlamatTeks: comp.tkp_alamat_teks || '-',
+              tkpLat: Number(comp.tkp_lat || 0),
+              tkpLng: Number(comp.tkp_lng || 0),
+              pelaporNama: comp.pelapor_nama,
+              pelaporHp: comp.pelapor_hp,
+              ringkasan: `Disposisi Pawas [${satuanNames}]: ${input.arahanTaktis || comp.ringkasan_keterangan || '-'}`,
+              deadlineMinutes: 3,
+            }).catch((err) => console.warn('[Disposisi Auto-WA Officer Error]:', err));
+          }
+        }
+      } catch (e) {
+        console.warn('[Disposisi WhatsApp Secondary Error]:', e);
+      }
+    })();
+
     safeRevalidatePath('/console');
     return { success: true };
   } catch (error: any) {
@@ -1184,39 +1739,58 @@ export async function transferComplaintCrossJurisdictionAction(input: {
       return { success: false, error: 'Laporan pengaduan tidak ditemukan.' };
     }
 
-    const targetStation = await prisma.policeStation.findUnique({
+    let targetStation = await prisma.policeStation.findUnique({
       where: { id: Number(input.targetStationId) },
     });
+
+    if (!targetStation && input.targetStationName) {
+      targetStation = await prisma.policeStation.findFirst({
+        where: {
+          OR: [
+            { station_name: { contains: input.targetStationName } },
+            { station_code: { contains: input.targetStationName.toUpperCase().replace(/\s+/g, '_') } },
+          ],
+        },
+      });
+    }
 
     if (!targetStation) {
       return { success: false, error: 'Mako / Polres tujuan tidak valid atau tidak ditemukan dalam sistem.' };
     }
 
     const previousStationName = comp.station?.station_name || 'Polres Pekalongan';
+    const targetDuty = await getActiveSpktDutyDetails(targetStation.id);
+    const nowTime = new Date();
+    const deadlineMinutes = (comp.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? 3 : 5;
+    const expiredAt = new Date(nowTime.getTime() + deadlineMinutes * 60 * 1000);
+
+    const dutyPiketText = `Ka SPKT: ${targetDuty.kaSpktNama}${targetDuty.dutyOfficerNames.length > 0 ? ` | Anggota: ${targetDuty.dutyOfficerNames.join(', ')}` : ''}`;
+    const actorName = input.actorName ? input.actorName : (auth.user?.fullName ? auth.user.fullName : 'Operator/Pawas CAD');
+    const actorRole = auth.user?.role ? auth.user.role : 'OPERATOR';
+
     const auditNotes =
       input.notes ||
-      `Pengalihan Yurisdiksi Batas Wilayah: Laporan dialihkan dari ${previousStationName} ke ${targetStation.station_name}. Alasan: ${input.transferReason || 'Deteksi koordinat TKP berada di luar wilayah hukum mako asal.'}`;
+      `[DISPOSISI LINTAS WILAYAH MASUK] Tiket: ${comp.nomor_tiket} | Kasus: ${comp.jenis_kejadian} | TKP: ${comp.tkp_alamat_teks} | Urgensi: ${comp.urgensi} | Dari: ${previousStationName} (Petugas: ${actorName}) ➔ Ke: ${targetStation.station_name} | Petugas Piket Hari Ini (${targetStation.station_name}): ${dutyPiketText} | Waktu Masuk Disposisi: ${nowTime.toLocaleString('id-ID')} | Batas Respon Expired: ${expiredAt.toLocaleString('id-ID')} | Status: MENUNGGU_RESPON_MAKO_TUJUAN | Alasan: ${input.transferReason || 'Deteksi koordinat TKP berada di luar wilayah hukum mako asal.'}`;
+
+    const isReturningToMakoAsal = Number(targetStation.id) === 60001;
 
     await prisma.$transaction(async (tx) => {
-      // 1. Update status & station_id complaint
+      // 1. Update status & station_id complaint (jika ditarik ke Mako Asal, status kembali MENUNGGU agar siap didisposisikan mandiri)
       await tx.complaint.update({
         where: { id: complaintIdBig },
         data: {
           station_id: targetStation.id,
-          status: 'DISPOSISI_LINTAS_WILAYAH',
-          status_id: 2, // Kode status pemrosesan aktif
-          tahap: 2,
+          status: isReturningToMakoAsal ? 'MENUNGGU' : 'DISPOSISI_LINTAS_WILAYAH',
+          status_id: isReturningToMakoAsal ? 1 : 2,
+          tahap: isReturningToMakoAsal ? 1 : 2,
         },
       });
 
       // 2. Audit Trail Resmi
-      const actorName = input.actorName ? input.actorName : (auth.user?.fullName ? auth.user.fullName : 'Operator/Pawas CAD');
-      const actorRole = auth.user?.role ? auth.user.role : 'OPERATOR';
-
       await tx.complaintAuditLog.create({
         data: {
           complaint_id: complaintIdBig,
-          action: 'DISPOSISI_LINTAS_WILAYAH',
+          action: isReturningToMakoAsal ? 'PENARIKAN_KEMBALI_MAKO_ASAL' : 'DISPOSISI_LINTAS_WILAYAH',
           actor_name: actorName,
           actor_role: actorRole,
           notes: auditNotes,
@@ -1224,6 +1798,19 @@ export async function transferComplaintCrossJurisdictionAction(input: {
           action_lng: comp.tkp_lng,
         },
       });
+
+      // 3. Update Station ID pada seluruh record dispatches tiket ini ke Mako Baru
+      await (tx as any).complaintDispatch.updateMany({
+        where: { complaint_id: complaintIdBig },
+        data: {
+          station_id: targetStation.id,
+          escalation_deadline_at: isReturningToMakoAsal ? null : expiredAt,
+          is_escalated: false,
+          tactical_orders: isReturningToMakoAsal
+            ? `Tiket ditarik kembali ke Mako Asal (${targetStation.station_name}) karena kesatuan yurisdiksi sebelumnya tidak memberikan respon. Segera disposisikan ke personel lapangan internal.`
+            : `Disposisi Lintas Wilayah: Dialihkan ke ${targetStation.station_name}. ${input.transferReason || ''}`,
+        } as any,
+      }).catch(() => {});
     });
 
     // Invalidate micro-cache pelacakan agar tampilan warga langsung refresh seketika
@@ -1233,9 +1820,45 @@ export async function transferComplaintCrossJurisdictionAction(input: {
       if (cleanTiket) {
         cacheInvalidate(`tracking_${cleanTiket}`);
       }
+      cacheInvalidate('pawas_unified_data_60001');
+      cacheInvalidate('antrean_pawas_60001');
+      if (targetStation.id) {
+        cacheInvalidate(`pawas_unified_data_${targetStation.id}`);
+        cacheInvalidate(`antrean_pawas_${targetStation.id}`);
+      }
     } catch (_) {}
 
+    // Background Secondary Dispatcher ke Ka SPKT / Petugas Piket SPKT bertugas hari ini di Mako Tujuan
+    (async () => {
+      try {
+        const spktDuty = await getActiveSpktDutyOfficerPhone(targetStation.id);
+        if (spktDuty?.phone) {
+          const { WhatsAppService } = await import('@/infrastructure/services/whatsapp.service');
+          await WhatsAppService.sendPolsekNotice({
+            nomorTiket: comp.nomor_tiket || `#${complaintIdBig}`,
+            polsekName: targetStation.station_name,
+            polsekHp: spktDuty.phone,
+            jenisKejadian: comp.jenis_kejadian || 'Disposisi Lintas Wilayah',
+            urgensi: (comp.urgensi || 'DARURAT').toUpperCase(),
+            tkpAlamatTeks: comp.tkp_alamat_teks || '',
+            tkpLat: Number(comp.tkp_lat),
+            tkpLng: Number(comp.tkp_lng),
+            pelaporNama: comp.pelapor_nama || 'Warga',
+            pelaporHp: comp.pelapor_hp || '-',
+            ringkasan: `🚨 DISPOSISI LINTAS WILAYAH 110: Dialihkan dari ${previousStationName} ke ${targetStation.station_name}. Alasan: ${input.transferReason || 'Koordinat TKP berada di wilayah hukum Anda.'}`,
+            deadlineMinutes: deadlineMinutes,
+          });
+        }
+      } catch (waErr) {
+        console.warn('[WA Cross Jurisdiction Notice Error]:', waErr);
+      }
+    })();
+
     safeRevalidatePath('/console');
+    try {
+      const { invalidatePawasUnifiedCache } = await import('@/app/actions/pawas.actions');
+      await invalidatePawasUnifiedCache(targetStation.id);
+    } catch (_) {}
     return {
       success: true,
       data: {
@@ -1247,6 +1870,215 @@ export async function transferComplaintCrossJurisdictionAction(input: {
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal melakukan disposisi lintas wilayah.' };
+  }
+}
+
+/**
+ * Terima & Langsung Disposisikan ke Armada Siaga Hari Ini di Mako Tujuan
+ * Digunakan oleh Operator SPKT di Mako Tujuan (misal Polresta Batang) saat menerima limpahan lintas wilayah.
+ * Menghentikan suara sirine patwal, mengunci penerimaan, mencatat log resmi, dan langsung menyiarkan serentak ke personil piket.
+ */
+export async function acceptAndBroadcastCrossJurisdictionAction(input: {
+  complaintId: string;
+  actorName?: string;
+  actorRole?: string;
+}): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+}> {
+  const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const complaintIdBig = BigInt(input.complaintId);
+    const now = new Date();
+
+    const comp = await prisma.complaint.findUnique({
+      where: { id: complaintIdBig },
+      include: {
+        station: true,
+        dispatches: { include: { unit: true } },
+        complaint_logs: {
+          where: { action: 'DISPOSISI_LINTAS_WILAYAH' },
+          orderBy: { created_at: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!comp) {
+      return { success: false, error: 'Tiket pengaduan tidak ditemukan.' };
+    }
+
+    const targetStationId = comp.station_id || (auth.user.stationId ? Number(auth.user.stationId) : null);
+    if (!targetStationId) {
+      return { success: false, error: 'ID Mako tujuan tidak valid.' };
+    }
+
+    const targetStationName = comp.station?.station_name || auth.user.stationName || 'Mako Tujuan';
+    const actorName = input.actorName || auth.user.fullName || 'Operator SPKT';
+    const actorRole = input.actorRole || auth.user.role || 'OPERATOR';
+
+    // Ambil data piket hari ini di Mako tujuan
+    const dutyDetails = await getActiveSpktDutyDetails(targetStationId);
+    const transferLog = comp.complaint_logs[0];
+    const waktuMasuk = transferLog ? new Date(transferLog.created_at).toLocaleString('id-ID') : '-';
+    const waktuDiterima = now.toLocaleString('id-ID');
+
+    const dutyPiketText = `Ka SPKT: ${dutyDetails.kaSpktNama}${dutyDetails.dutyOfficerNames.length > 0 ? ` | Anggota: ${dutyDetails.dutyOfficerNames.join(', ')}` : ''}`;
+    const pendisposisiAsal = transferLog?.actor_name ? `${transferLog.actor_name} (${transferLog.actor_role})` : 'Operator Mako Asal';
+
+    const acceptNotes = `[DISPOSISI LINTAS WILAYAH DITERIMA] Tiket: ${comp.nomor_tiket} | Kasus: ${comp.jenis_kejadian} | TKP: ${comp.tkp_alamat_teks} | Urgensi: ${comp.urgensi} | Penerima Tiket: ${actorName} (${actorRole} ${targetStationName}) | Pendisposisi Mako Asal: ${pendisposisiAsal} | Petugas Piket Hari Ini (${targetStationName}): ${dutyPiketText} | Waktu Masuk: ${waktuMasuk} | Waktu Diterima: ${waktuDiterima} | Status: DITERIMA_DAN_DISIARKAN_KE_PERSONIL | Sirine Mako dihentikan, tugas disiarkan terbuka ke seluruh personil dinas aktif ${targetStationName}.`;
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Status complaint beralih ke DIPROSES (Tahap 2: Sudah Didisposisikan & Disiarkan ke Personel/Armada)
+      // Tiket resmi masuk ke proses penanganan aktif lapangan dan keluar dari antrean menunggu disposisi
+      await tx.complaint.update({
+        where: { id: complaintIdBig },
+        data: {
+          status: 'DIPROSES',
+          status_id: 2,
+          tahap: 2,
+          station_id: targetStationId,
+        },
+      });
+
+      // 2. Audit Trail Resmi
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          action: 'CROSS_JURISDICTION_ACCEPTED',
+          actor_name: actorName,
+          actor_role: actorRole,
+          notes: acceptNotes,
+          action_lat: comp.tkp_lat,
+          action_lng: comp.tkp_lng,
+        },
+      });
+
+      // 3. Update status dispatches: Hentikan eskalasi, bersihkan deadline eskalasi lama, arahkan ke personil Mako tujuan
+      await (tx as any).complaintDispatch.updateMany({
+        where: { complaint_id: complaintIdBig },
+        data: {
+          station_id: targetStationId,
+          is_escalated: false,
+          escalation_deadline_at: null,
+          dispatched_at: now,
+          tactical_orders: `Siaran Terbuka Mako ${targetStationName}: Disposisi resmi diterima oleh ${actorName}. Armada siaga terdekat segera klaim tugas.`,
+        } as any,
+      }).catch(() => {});
+    });
+
+    try {
+      const { cacheInvalidate } = await import('@/lib/app-cache');
+      cacheInvalidate(`antrean_pawas_${targetStationId}`);
+      cacheInvalidate('antrean_pawas_60001');
+      cacheInvalidate('antrean_pawas_all');
+      cacheInvalidate(`pawas_unified_data_${targetStationId}`);
+      cacheInvalidate('pawas_unified_data_60001');
+      cacheInvalidate('pawas_unified_data_all');
+      cacheInvalidate('recent_complaints_50');
+      cacheInvalidate('recent_complaints_100');
+      const cleanTiket = (comp.nomor_tiket || '').replace(/^#+/, '').trim();
+      if (cleanTiket) cacheInvalidate(`tracking_${cleanTiket}`);
+      const { invalidatePawasUnifiedCache } = await import('@/app/actions/pawas.actions');
+      await invalidatePawasUnifiedCache(targetStationId);
+      await invalidatePawasUnifiedCache(60001);
+    } catch (_) {}
+
+    safeRevalidatePath('/console');
+    return {
+      success: true,
+      message: `Laporan resmi diterima oleh ${targetStationName} dan telah disiarkan ke seluruh armada patroli siaga hari ini.`,
+    };
+  } catch (err: any) {
+    console.error('Error acceptAndBroadcastCrossJurisdictionAction:', err);
+    return { success: false, error: err.message || 'Gagal menerima disposisi lintas wilayah.' };
+  }
+}
+
+/**
+ * Tambah Rekan Regu / Partner Lapangan (Buddy System)
+ * Dijalankan oleh Personil yang sudah menerima tugas untuk menggabungkan anggota dinas lain.
+ */
+export async function addCrewPartnerToDispatchAction(input: {
+  complaintId: string;
+  partnerOfficerId?: string;
+  partnerName: string;
+  partnerNrp?: string;
+}): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+}> {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  const cleanPartnerName = (input.partnerName || '').trim();
+  if (!cleanPartnerName) {
+    return { success: false, error: 'Nama rekan regu wajib diisi.' };
+  }
+
+  try {
+    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const complaintIdBig = BigInt(input.complaintId);
+
+    const dispatch = await prisma.complaintDispatch.findFirst({
+      where: { complaint_id: complaintIdBig, accepted_at: { not: null } },
+      include: { officer: { include: { user: true } } },
+    });
+
+    if (!dispatch) {
+      return { success: false, error: 'Disposisi penugasan aktif tidak ditemukan.' };
+    }
+
+    const leaderName = dispatch.crew_leader_name || dispatch.officer?.user?.full_name || auth.user.fullName || 'Petugas Utama';
+
+    await prisma.complaintDispatch.update({
+      where: { id: dispatch.id },
+      data: {
+        crew_partner_name: cleanPartnerName,
+        crew_partner_nrp: input.partnerNrp?.trim() || null,
+        tactical_orders: (dispatch.tactical_orders || '') + ` | Regu Patroli Diperkuat: ${cleanPartnerName}`,
+      },
+    });
+
+    await prisma.complaintAuditLog.create({
+      data: {
+        complaint_id: complaintIdBig,
+        actor_name: leaderName,
+        actor_role: 'PERSONIL',
+        action: 'ADD_CREW_PARTNER',
+        notes: `Penambahan Anggota Regu Lapangan (Buddy System): ${cleanPartnerName}${input.partnerNrp ? ` (NRP: ${input.partnerNrp})` : ''} resmi ditambahkan ke regu patroli oleh ${leaderName}.`,
+      },
+    });
+
+    safeRevalidatePath('/console');
+    return {
+      success: true,
+      message: `Rekan regu ${cleanPartnerName} berhasil ditambahkan ke penugasan.`,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal menambahkan rekan regu.' };
+  }
+}
+
+/**
+ * Mengambil daftar personel dinas aktif hari ini di Mako tertentu untuk pilihan rekan regu (Buddy System)
+ */
+export async function getAvailableStationOfficersAction(stationId?: number | string) {
+  try {
+    const stId = stationId ? Number(stationId) : 60001;
+    const duty = await getActiveSpktDutyDetails(stId);
+    return { success: true, data: duty.dutyOfficers };
+  } catch (err: any) {
+    return { success: false, error: err.message, data: [] };
   }
 }
 
@@ -1287,11 +2119,20 @@ export async function acceptOfficerDispatchAction(input: {
           { user: { identifier: input.officerNrp } },
         ],
       },
-      include: { user: true, unit: true },
+      include: { user: true, unit: true, station: true },
     });
 
     if (!officer) {
       return { success: false, error: `Personel dengan NRP ${input.officerNrp} tidak terdaftar di sistem.` };
+    }
+
+    // Validasi pembatasan Mako: Personel hanya boleh menerima tiket yang menginduk di Makonya
+    const compRecord = await prisma.complaint.findUnique({
+      where: { id: complaintIdBig },
+      select: { id: true, station_id: true },
+    });
+    if (compRecord?.station_id && officer.station_id && compRecord.station_id !== officer.station_id) {
+      return { success: false, error: 'Tiket ini berasal dari Mako lain. Anda hanya dapat menerima penugasan dari Mako tempat Anda menginduk.' };
     }
 
     const officerName = officer.user.full_name;

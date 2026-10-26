@@ -759,7 +759,7 @@ export default function PortalWargaPage() {
                       className={`btn-location-action ${hasValidGps ? 'active' : ''}`}
                     >
                       <Navigation size={14} className={isLocating ? 'animate-spin' : ''} />
-                      <span>{isLocating ? 'Mencari Satelit GPS...' : 'Deteksi GPS Saya'}</span>
+                      <span>{isLocating ? 'Mencari Lokasi...' : 'Deteksi GPS Saya'}</span>
                     </button>
 
                     <button
@@ -881,7 +881,7 @@ export default function PortalWargaPage() {
                   className="btn-submit-complaint"
                 >
                   <Send size={18} />
-                  <span>{isSubmitting ? 'MENGIRIM...' : 'KIRIM PENGADUAN'}</span>
+                  <span>{isSubmitting ? 'Mengirim...' : 'KIRIM PENGADUAN'}</span>
                 </button>
               </form>
             </div>
@@ -937,7 +937,7 @@ export default function PortalWargaPage() {
               className="btn-trigger-sos"
               style={{ width: '100%', padding: '14px', fontSize: '14px', marginBottom: '10px' }}
             >
-              {isSosSending ? 'MEMANCARKAN SINYAL...' : 'KIRIM SINYAL SOS SEKARANG'}
+              {isSosSending ? 'Memproses...' : 'KIRIM SINYAL SOS SEKARANG'}
             </button>
 
             <button

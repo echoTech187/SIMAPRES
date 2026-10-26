@@ -5,7 +5,6 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import { logUserActivity } from '@/lib/activity-logger';
-import { ConsoleSkeleton } from '@/components/console/ConsoleSkeleton';
 import SuperadminConsoleView from '@/components/console/SuperadminConsoleView';
 import PawasConsoleView from '@/components/console/PawasConsoleView';
 import PersonilConsoleView from '@/components/console/PersonilConsoleView';
@@ -50,6 +49,26 @@ export default async function ConsolePage({
     redirect('/?alert=unauthenticated&from=/console');
   }
 
+  // Augment session dengan Mako / Station jika belum tersimpan di cookie sesi aktif
+  if ((!session.stationName || !session.stationId) && session.userId) {
+    try {
+      const { prisma } = await import('@/infrastructure/db/prisma.client');
+      const u = await prisma.user.findUnique({
+        where: { id: BigInt(session.userId) },
+        select: {
+          station: { select: { id: true, station_name: true, station_code: true } },
+          officer_profile: { select: { station: { select: { id: true, station_name: true, station_code: true } } } },
+        },
+      });
+      const st = u?.station || u?.officer_profile?.station;
+      if (st) {
+        session.stationName = st.station_name;
+        session.stationId = String(st.id);
+        session.stationCode = st.station_code;
+      }
+    } catch {}
+  }
+
   const section = resolvedSearchParams?.page
     ? resolvedSearchParams.page
     : resolvedSearchParams?.tab
@@ -84,13 +103,13 @@ export default async function ConsolePage({
       counters: countersRes.success && countersRes.data ? countersRes.data : null,
     };
   } else if (session.role === 'PAWAS') {
-    const pawasRes = await getPawasUnifiedDataAction();
+    const pawasRes = await getPawasUnifiedDataAction(session.stationId);
     if (pawasRes.success && pawasRes.data) {
       initialPawasData = pawasRes.data;
       initialMasterData = pawasRes.data.filterData;
     }
   } else if (session.role === 'OPERATOR') {
-    const opRes = await getPawasUnifiedDataAction();
+    const opRes = await getPawasUnifiedDataAction(session.stationId);
     if (opRes.success && opRes.data) {
       initialOperatorData = opRes.data;
       initialMasterData = opRes.data.filterData;
@@ -134,7 +153,7 @@ export default async function ConsolePage({
 
   // 4. Render Tampilan Client Component Berdasarkan Role dengan Data Pre-Loaded
   return (
-    <Suspense fallback={<ConsoleSkeleton role={session.role} />}>
+    <Suspense>
       {session.role === 'SUPERADMIN' && (
         <SuperadminConsoleView
           session={session}

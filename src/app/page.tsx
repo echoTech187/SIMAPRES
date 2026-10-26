@@ -582,7 +582,7 @@ export default function LoginPage() {
             </div>
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-amber-400/10 border border-amber-400/20 text-amber-300 font-bold text-[10.5px] sm:text-[11px]">
               <Clock size={12} className="text-amber-400" />
-              <span>{liveWib || 'Memuat WIB...'}</span>
+              <span>{liveWib || 'Memuat...'}</span>
             </div>
           </div>
 

@@ -67,6 +67,27 @@ interface SimapresGoogleMapProps {
 let googleMapsPromise: Promise<any> | null = null;
 export function loadGoogleMaps(): Promise<any> {
   if (typeof window === 'undefined') return Promise.resolve(null);
+
+  // Redam error Geocoding Billing dari Google Maps SDK agar Next.js dev overlay tidak memunculkan pop-up modal
+  if (!(window as any).__simapresGmapsHooked) {
+    (window as any).__simapresGmapsHooked = true;
+    const origConsoleError = console.error;
+    console.error = function (...args: any[]) {
+      const msg = args.map((a) => (a && a.stack ? a.stack : String(a))).join(' ');
+      if (
+        msg.includes('Geocoding Service') ||
+        msg.includes('enable Billing on the Google Cloud Project') ||
+        msg.includes('developers.google.com/maps/gmp-get-started')
+      ) {
+        console.warn(
+          '[SIMAPRES MAPS] Google Geocoding Billing belum aktif. Sistem otomatis menggunakan OpenStreetMap Nominatim (100% Gratis).'
+        );
+        return;
+      }
+      origConsoleError.apply(console, args);
+    };
+  }
+
   if ((window as any).google?.maps?.Map) {
     return Promise.resolve((window as any).google.maps);
   }

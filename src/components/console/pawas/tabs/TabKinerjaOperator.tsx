@@ -9,6 +9,7 @@ export interface TabKinerjaOperatorProps {
   allRecentComplaints: any[];
   operatorRankings?: any;
   switchTab: (tab: PawasTab) => void;
+  escalationBanner?: React.ReactNode;
 }
 
 const getLocalTodayDateString = () => {
@@ -24,6 +25,7 @@ export default function TabKinerjaOperator({
   allRecentComplaints = [],
   operatorRankings,
   switchTab,
+  escalationBanner,
 }: TabKinerjaOperatorProps) {
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [kinerjaDate, setKinerjaDate] = useState(() => getLocalTodayDateString());
@@ -315,6 +317,9 @@ export default function TabKinerjaOperator({
           <span>←</span> Kembali ke Konsol CAD
         </button>
       </div>
+
+      {/* Banner Alarm Eskalasi (Posisinya dibalik: diletakkan tepat di bawah header) */}
+      {escalationBanner}
 
       {/* FILTER PERIODE & KALENDER DINAMIS */}
       <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>

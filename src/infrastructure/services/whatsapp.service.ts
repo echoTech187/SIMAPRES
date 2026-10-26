@@ -42,6 +42,16 @@ export interface PolsekNoticePayload {
   appUrl?: string;
 }
 
+export interface OperatorConsultationPayload {
+  nomorTiket: string;
+  pelaporNama?: string;
+  pelaporHp: string;
+  jenisKejadian?: string;
+  operatorNotes?: string;
+  operatorName?: string;
+  appUrl?: string;
+}
+
 export interface WhatsAppSendResult {
   success: boolean;
   messageId?: string;
@@ -86,7 +96,7 @@ export class WhatsAppService {
   }
 
   /**
-   * Mengirim pesan teks umum via FlowKirim API
+   * Mengirim pesan teks umum via Gateway Mandiri Baileys (Prioritas Utama - No Watermark) atau Fallback FlowKirim
    */
   private static async sendRawMessage(recipientPhone: string, messageText: string): Promise<WhatsAppSendResult> {
     const { apiBase, apiToken, deviceId, sessionId } = this.getApiConfig();
@@ -101,7 +111,52 @@ export class WhatsAppService {
       };
     }
 
-    // Jika API token belum dikonfigurasi di file .env
+    // OPSI 1 (Prioritas Utama): Gateway Mandiri Baileys (100% Bebas Biaya & Tanpa Watermark)
+    // Jika WA_GATEWAY_URL diatur ke 'flowkirim' / 'off' / 'disabled', lewati Opsi 1 dan langsung ke Opsi 2
+    const rawGatewayUrl = (process.env.WA_GATEWAY_URL || '').trim();
+    const isGatewayDisabled = rawGatewayUrl.toLowerCase() === 'flowkirim' || rawGatewayUrl.toLowerCase() === 'off' || rawGatewayUrl.toLowerCase() === 'disabled';
+    
+    // Di mode development gunakan localhost:5001 sebagai default jika tidak didisable
+    const localGatewayUrl = isGatewayDisabled
+      ? ''
+      : (rawGatewayUrl || (process.env.NODE_ENV !== 'production' ? 'http://localhost:5001' : '')).replace(/\/+$/, '');
+
+    if (localGatewayUrl) {
+      try {
+        const localRes = await fetch(`${localGatewayUrl}/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: cleanPhone,
+            message: messageText,
+          }),
+          signal: AbortSignal.timeout(3500),
+        });
+
+        if (localRes.ok) {
+          const localData = await localRes.json().catch(() => null);
+          if (localData?.success) {
+            console.log('[WhatsAppService] Pesan terkirim via Opsi 1 (Gateway Mandiri Baileys) ke %s', cleanPhone);
+            return {
+              success: true,
+              messageId: localData.messageId,
+              statusText: 'Pesan berhasil terkirim via Gateway Mandiri Mako (Opsi 1 - Bebas Watermark)',
+              recipientPhone: cleanPhone,
+            };
+          }
+        }
+      } catch (err: any) {
+        console.warn(
+          '[WhatsAppService] Opsi 1 (Gateway Mandiri Mako) offline/tidak merespons (%s). Otomatis beralih ke Opsi 2 (FlowKirim Cloud)...',
+          err.message || 'Timeout'
+        );
+      }
+    }
+
+    // OPSI 2 (Cadangan Handal / Cloud Fallback): FlowKirim REST API
+    // Digunakan jika server Mako belum 24 jam, PC operator mati lampu, atau tidak ingin pasang server lokal.
+
+    // 2. Fallback: Jika API token FlowKirim belum dikonfigurasi di file .env
     if (!apiToken) {
       console.warn(
         '[WhatsAppService] FLOWKIRIM_API_TOKEN belum diset di .env. Notifikasi ke %s disimulasikan (berhasil lokal).',
@@ -182,7 +237,7 @@ export class WhatsAppService {
       return {
         success: true,
         messageId: responseData?.data?.message_id || responseData?.data?.id || undefined,
-        statusText: 'Pesan berhasil terkirim via FlowKirim',
+        statusText: 'Pesan berhasil terkirim via FlowKirim (Opsi 2 - Cloud Fallback)',
         recipientPhone: cleanPhone,
       };
     } catch (err: any) {
@@ -231,6 +286,49 @@ export class WhatsAppService {
    */
   public static async sendTicketNotification(payload: WhatsAppNotificationPayload): Promise<WhatsAppSendResult> {
     const messageText = payload.customMessage || this.buildTicketMessage(payload);
+    return this.sendRawMessage(payload.pelaporHp, messageText);
+  }
+
+  /**
+   * Menyusun pesan WhatsApp konfirmasi penyelesaian layanan konsultasi di Meja Operator CAD 110
+   */
+  public static buildOperatorConsultationMessage(payload: OperatorConsultationPayload): string {
+    const { polresName, appUrl: defaultAppUrl } = this.getApiConfig();
+    const appUrl = (payload.appUrl || defaultAppUrl || 'http://localhost:3000').replace(/\/+$/, '');
+    const cleanTiket = (payload.nomorTiket || '').replace(/^#+/, '').trim();
+    const trackingToken = generateTrackingToken(cleanTiket);
+    const trackingUrl = `${appUrl}/tracking?tiket=${encodeURIComponent(cleanTiket)}&token=${encodeURIComponent(trackingToken)}&view=operator`;
+
+    const nama = payload.pelaporNama && payload.pelaporNama !== '-' ? payload.pelaporNama : 'Bapak/Ibu Warga';
+    const kategori = payload.jenisKejadian || 'Layanan Informasi & Konsultasi 110';
+    const operator = payload.operatorName || 'Petugas Operator SPKT 110';
+    const notes = payload.operatorNotes || 'Konsultasi telah dilayani dan dijelaskan sesuai SOP kepolisian.';
+
+    return (
+      `*SENTRA PELAYANAN KEPOLISIAN TERPADU (SPKT) 110*\n` +
+      `*${polresName.toUpperCase()}*\n\n` +
+      `Halo *${nama}*,\n\n` +
+      `Terima kasih telah menghubungi Call Center Layanan Polisi 110.\n` +
+      `Konsultasi / permohonan informasi Anda telah tuntas dilayani langsung di Meja Operator:\n\n` +
+      `📋 *Nomor Tiket Layanan:* ${cleanTiket}\n` +
+      `💡 *Jenis Layanan:* ${kategori}\n` +
+      `👨‍✈️ *Operator Bertugas:* ${operator}\n` +
+      `📝 *Catatan Petunjuk / SOP Diberikan:*\n` +
+      `_${notes}_\n\n` +
+      `Layanan ini berstatus *SELESAI (Tuntas di Meja Operator)* tanpa memerlukan pergerakan armada patroli ke lokasi Anda.\n\n` +
+      `⭐ *SURVEI KEPUASAN MASYARAKAT (IKM 110)*\n` +
+      `Mohon kesediaan Bapak/Ibu memberikan penilaian rating & ulasan singkat atas keramahan, kecepatan, dan kejelasan informasi Operator kami melalui tautan resmi:\n` +
+      `🔗 ${trackingUrl}\n\n` +
+      `_Penilaian Anda sangat berharga untuk terus meningkatkan mutu pelayanan Polri Presisi 110._\n` +
+      `_Salam Presisi._`
+    );
+  }
+
+  /**
+   * Mengirim notifikasi penyelesaian konsultasi di Meja Operator via FlowKirim REST API
+   */
+  public static async sendOperatorConsultationNotification(payload: OperatorConsultationPayload): Promise<WhatsAppSendResult> {
+    const messageText = this.buildOperatorConsultationMessage(payload);
     return this.sendRawMessage(payload.pelaporHp, messageText);
   }
 

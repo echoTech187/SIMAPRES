@@ -165,6 +165,8 @@ export async function searchIndonesianLocations(
   return results.slice(0, limit);
 }
 
+let isGoogleGeocoderDisabled = false;
+
 /**
  * Reverse Geocodes coordinates into a readable Indonesian address:
  * Uses Google Maps Geocoder if loaded, or OpenStreetMap Nominatim reverse
@@ -172,7 +174,7 @@ export async function searchIndonesianLocations(
 export async function resolveIndonesianAddress(targetLat: number, targetLng: number): Promise<string> {
   if (!targetLat || !targetLng) return '';
 
-  if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+  if (!isGoogleGeocoderDisabled && typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
     try {
       const geocoder = new (window as any).google.maps.Geocoder();
       const addr = await new Promise<string | null>((resolve) => {
@@ -180,12 +182,18 @@ export async function resolveIndonesianAddress(targetLat: number, targetLng: num
           if (status === 'OK' && results?.[0]?.formatted_address) {
             resolve(results[0].formatted_address);
           } else {
+            // Jika billing tidak aktif atau kuota habis, nonaktifkan geocoder Google agar tidak memicu error berulang
+            if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+              isGoogleGeocoderDisabled = true;
+            }
             resolve(null);
           }
         });
       });
       if (addr) return addr;
-    } catch (_) {}
+    } catch (_) {
+      isGoogleGeocoderDisabled = true;
+    }
   }
 
   try {

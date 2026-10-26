@@ -57,7 +57,6 @@ export default function LiveCameraWatermarkCapture({
   tkpLat,
   tkpLng,
   tkpAlamat,
-  isSimulationMode = true,
   gpsLat = 0,
   gpsLng = 0,
   onPhotoCaptured,
@@ -832,7 +831,7 @@ export default function LiveCameraWatermarkCapture({
                 boxShadow: '0 2px 6px rgba(21,62,117,0.3)',
               }}
             >
-              <span>📷</span> {isProcessing ? 'Mengakses Kamera...' : 'Aktifkan Kamera Live'}
+              <span>📷</span> {isProcessing ? 'Identifikasi Akses Kamera...' : 'Aktifkan Kamera Live'}
             </button>
           </div>
         </div>
@@ -998,7 +997,7 @@ export default function LiveCameraWatermarkCapture({
                 👮 {personilPangkat} {personilNama} (NRP: {personilNrp})
               </div>
               <div style={{ color: '#E2E8F0', marginTop: '2px' }}>
-                📍 {isResolvingAddress ? 'Mencari alamat satelit...' : activeAddress}
+                📍 {isResolvingAddress ? 'Identifikasi Lokasi...' : activeAddress}
               </div>
               <div style={{ color: '#38BDF8', fontFamily: 'monospace', marginTop: '2px' }}>
                 🌐 Lat: {activeLat ? activeLat.toFixed(6) : '0.000000'}, Lng: {activeLng ? activeLng.toFixed(6) : '0.000000'}

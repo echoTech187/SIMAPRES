@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Clock,
   MessageSquare,
-  ArrowLeft,
   Copy,
   Check,
   Sparkles,
@@ -19,7 +18,7 @@ import {
   HelpCircle,
   Award,
   AlertCircle,
-  Radio,
+  Navigation,
 } from 'lucide-react';
 import { submitRatingAction } from '@/app/actions/complaint.actions';
 
@@ -82,17 +81,6 @@ export const OPERATOR_SCORE_LABELS: Record<number, { label: string; desc: string
   5: { label: 'Sangat Puas (Prima)', desc: 'Pelayanan prima, cepat, humanis, dan solutif!', color: '#10B981' },
 };
 
-const SUGGESTED_TAGS = [
-  '⚡ Angkat Sangat Cepat',
-  '🤝 Ramah & Sabar',
-  '📖 Informasi Jelas & Tepat',
-  '💡 Solutif & Membantu',
-  '🗣️ Artikulasi Jelas',
-  '⏱️ Tidak Bertele-tele',
-  '⭐ Pelayanan Presisi',
-  '🛡️ Sigap Melayani',
-];
-
 export default function CitizenOperatorReviewView({
   nomorTiket,
   token,
@@ -104,6 +92,8 @@ export default function CitizenOperatorReviewView({
   const [loading, setLoading] = useState(!initialData);
   const [complaint, setComplaint] = useState<any | null>(initialData || null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [isNotFound, setIsNotFound] = useState(false);
 
   // Ratings State (per kriteria 1-5, default 5 bintang)
   const [fiveRatings, setFiveRatings] = useState<Record<string, number>>({
@@ -115,8 +105,7 @@ export default function CitizenOperatorReviewView({
   });
   const [hoverRatings, setHoverRatings] = useState<Record<string, number | undefined>>({});
 
-  // Tags & Review Text
-  const [selectedTags, setSelectedTags] = useState<string[]>(['⚡ Angkat Sangat Cepat', '📖 Informasi Jelas & Tepat']);
+  // Review Text & Submission State
   const [reviewText, setReviewText] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [ratingDone, setRatingDone] = useState(false);
@@ -138,23 +127,46 @@ export default function CitizenOperatorReviewView({
     fetch(`/api/tracking?tiket=${encodeURIComponent(cleanTiket)}${tokenQuery}`)
       .then(async (res) => {
         if (!isMounted) return;
+        if (res.status === 403) {
+          const errJson = await res.json().catch(() => ({}));
+          setIsUnauthorized(true);
+          setComplaint(null);
+          throw new Error(errJson.error || 'Akses ditolak: Tautan pelacakan tidak valid atau tidak memiliki token verifikasi resmi.');
+        }
+        if (res.status === 404) {
+          setIsNotFound(true);
+          setComplaint(null);
+          throw new Error('Pengaduan tidak ditemukan.');
+        }
         if (!res.ok) {
           const errJson = await res.json().catch(() => ({}));
+          setComplaint(null);
           throw new Error(errJson.error || 'Gagal memuat rincian laporan.');
         }
         return res.json();
       })
       .then((data) => {
         if (!isMounted) return;
-        if (data?.complaint) {
-          setComplaint(data.complaint);
-          if (data.complaint.citizenRating) {
+        const comp = data?.data?.complaint || data?.complaint;
+        if (comp) {
+          setComplaint(comp);
+          setIsUnauthorized(false);
+          setIsNotFound(false);
+          setErrorMsg(null);
+          if (comp.citizenRating) {
             setRatingDone(true);
           }
+        } else {
+          setIsNotFound(true);
+          setComplaint(null);
+          setErrorMsg('Pengaduan tidak ditemukan.');
         }
       })
       .catch((err) => {
-        if (isMounted) setErrorMsg(err.message || 'Kendala memuat data.');
+        if (isMounted) {
+          setErrorMsg(err.message || 'Kendala memuat data.');
+          setComplaint(null);
+        }
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -186,12 +198,6 @@ export default function CitizenOperatorReviewView({
     setFiveRatings((prev) => ({ ...prev, [critId]: score }));
   };
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
   // Skor Komposit Rata-Rata (1-5)
   const averageScore = useMemo(() => {
     const scores = Object.values(fiveRatings);
@@ -215,7 +221,6 @@ export default function CitizenOperatorReviewView({
       ).join(', ');
 
       const allTagsCombined = [
-        ...selectedTags,
         `[Skor Operator: ${averageScore}★]`,
         critTagsFormatted,
       ].filter(Boolean).join(' | ');
@@ -265,83 +270,6 @@ export default function CitizenOperatorReviewView({
       }}
     >
       <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-        {/* TOP NAV BAR */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
-          <button
-            type="button"
-            onClick={onBack || (() => window.history.back())}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: '#CBD5E1',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <ArrowLeft size={14} />
-            <span>Kembali ke Pelacakan</span>
-          </button>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 800,
-                color: '#ECC473',
-                background: 'rgba(236,196,115,0.12)',
-                padding: '4px 10px',
-                borderRadius: '20px',
-                border: '1px solid rgba(236,196,115,0.3)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              <Headphones size={12} color="#ECC473" />
-              <span>SURVEI LAYANAN OPERATOR 110</span>
-            </span>
-
-            {onSwitchToRadar && (
-              <button
-                type="button"
-                onClick={onSwitchToRadar}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  background: 'rgba(37,99,235,0.15)',
-                  border: '1px solid rgba(59,130,246,0.3)',
-                  color: '#93C5FD',
-                  padding: '5px 12px',
-                  borderRadius: '8px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                <Radio size={12} />
-                <span>Peta Radar</span>
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* LOADING & ERROR STATES */}
         {loading && (
           <div
@@ -371,28 +299,170 @@ export default function CitizenOperatorReviewView({
           </div>
         )}
 
-        {errorMsg && !loading && (
+        {/* AKSES DITOLAK (403 FORBIDDEN / TOKEN TIDAK VALID) */}
+        {!loading && (isUnauthorized || (errorMsg && !complaint && !isNotFound)) && (
           <div
             style={{
-              padding: '16px 20px',
-              background: 'rgba(239,68,68,0.12)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: '12px',
-              color: '#FCA5A5',
-              fontSize: '13px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
+              background: 'linear-gradient(135deg, #180D12 0%, #0F1420 100%)',
+              border: '1.5px solid rgba(239,68,68,0.4)',
+              borderRadius: '20px',
+              padding: '40px 24px',
+              textAlign: 'center',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+              maxWidth: '560px',
+              margin: '30px auto',
             }}
           >
-            <AlertCircle size={18} color="#EF4444" />
-            <span>{errorMsg}</span>
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                margin: '0 auto 16px',
+                borderRadius: '50%',
+                background: 'rgba(239,68,68,0.12)',
+                border: '2px solid rgba(239,68,68,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#EF4444',
+                fontSize: '28px',
+              }}
+            >
+              <Shield size={32} />
+            </div>
+
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 14px',
+                borderRadius: '999px',
+                background: 'rgba(239,68,68,0.15)',
+                border: '1px solid rgba(239,68,68,0.35)',
+                color: '#F87171',
+                fontSize: '11px',
+                fontWeight: 900,
+                letterSpacing: '0.8px',
+                marginBottom: '14px',
+              }}
+            >
+              AKSES DITOLAK · 403 FORBIDDEN
+            </div>
+
+            <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#FFFFFF', margin: '0 0 10px' }}>
+              Tautan Pelacakan Tidak Sah
+            </h2>
+
+            <p style={{ fontSize: '13px', color: '#CBD5E1', lineHeight: 1.6, maxWidth: '440px', margin: '0 auto 20px' }}>
+              {errorMsg || 'Akses ditolak: Tautan pelacakan tidak valid atau tidak memiliki token verifikasi resmi.'}
+            </p>
+
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                textAlign: 'left',
+                fontSize: '12px',
+                color: '#94A3B8',
+                lineHeight: 1.5,
+                marginBottom: '24px',
+              }}
+            >
+              <div style={{ color: '#ECC473', fontWeight: 800, marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>🔒</span>
+                <span>Protokol Keamanan Warga SIMOPMAS 110</span>
+              </div>
+              Demi melindungi privasi pelapor dan menjaga validitas penilaian layanan kepolisian, formulir evaluasi hanya dapat diakses melalui link resmi ber-token yang dikirimkan via WhatsApp konfirmasi laporan.
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={onBack || (() => (window.location.href = '/tracking'))}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+                  color: '#0A0D14',
+                  fontWeight: 900,
+                  fontSize: '13px',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                Kembali ke Pencarian Laporan
+              </button>
+              <a
+                href="tel:110"
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: '#FCA5A5',
+                  fontWeight: 700,
+                  fontSize: '12.5px',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                <PhoneCall size={14} />
+                Hubungi Call Center 110
+              </a>
+            </div>
           </div>
         )}
 
-        {/* MAIN CARD CONTENT */}
-        {!loading && (
+        {/* TIKET TIDAK DITEMUKAN */}
+        {!loading && isNotFound && !complaint && (
+          <div
+            style={{
+              background: '#0D111A',
+              border: '1px solid rgba(236,196,115,0.25)',
+              borderRadius: '20px',
+              padding: '40px 24px',
+              textAlign: 'center',
+              boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+              maxWidth: '520px',
+              margin: '30px auto',
+            }}
+          >
+            <div style={{ fontSize: '42px', marginBottom: '14px' }}>🔍</div>
+            <h2 style={{ fontSize: '19px', fontWeight: 900, color: '#FFFFFF', margin: '0 0 8px' }}>
+              Tiket Tidak Ditemukan
+            </h2>
+            <p style={{ fontSize: '13px', color: '#94A3B8', maxWidth: '380px', margin: '0 auto 24px', lineHeight: 1.6 }}>
+              Nomor tiket <strong style={{ color: '#ECC473', fontFamily: 'monospace' }}>{cleanTiket || '-'}</strong> tidak ditemukan dalam basis data sistem kepolisian.
+            </p>
+            <button
+              type="button"
+              onClick={onBack || (() => (window.location.href = '/tracking'))}
+              style={{
+                padding: '12px 24px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+                color: '#0A0D14',
+                fontWeight: 900,
+                fontSize: '13px',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Cari Nomor Tiket Lain
+            </button>
+          </div>
+        )}
+
+        {/* MAIN CARD CONTENT (HANYA MUNCUL JIKA DATA RESMI BERHASIL DIMUAT) */}
+        {!loading && !isUnauthorized && !isNotFound && complaint && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* HERO CARD: INFORMASI LAYANAN OPERATOR 110 */}
             <div
@@ -501,6 +571,16 @@ export default function CitizenOperatorReviewView({
                     <span>Tuntas di Meja Operator</span>
                   </div>
                 </div>
+
+                {complaint?.operatorName && (
+                  <div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Petugas Operator</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#ECC473', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Headphones size={13} />
+                      <span>{complaint.operatorName}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* URAIAN / CATATAN KONSULTASI */}
@@ -519,6 +599,28 @@ export default function CitizenOperatorReviewView({
                 >
                   <strong style={{ color: '#E2E8F0' }}>Ringkasan Panggilan: </strong>
                   {complaint.deskripsiKejadian}
+                </div>
+              )}
+
+              {/* PETUNJUK / ARAHAN SOP OPERATOR */}
+              {complaint?.catatanSelesai && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    background: 'rgba(16,185,129,0.08)',
+                    border: '1px solid rgba(16,185,129,0.25)',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    fontSize: '12px',
+                    color: '#E2E8F0',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <strong style={{ color: '#4ADE80', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                    <CheckCircle2 size={13} />
+                    Petunjuk / Arahan SOP dari Operator:
+                  </strong>
+                  {complaint.catatanSelesai}
                 </div>
               )}
             </div>
@@ -727,9 +829,6 @@ export default function CitizenOperatorReviewView({
                           <div style={{ flex: 1, minWidth: '240px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                               <span style={{ fontSize: '14px' }}>{crit.icon}</span>
-                              <span style={{ fontSize: '10px', fontWeight: 900, color: '#ECC473', background: 'rgba(236,196,115,0.12)', padding: '1px 6px', borderRadius: '4px' }}>
-                                INDIKATOR {crit.number}
-                              </span>
                               <h3 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: '#F1F5F9' }}>
                                 {crit.title}
                               </h3>
@@ -776,70 +875,6 @@ export default function CitizenOperatorReviewView({
                       </div>
                     );
                   })}
-                </div>
-
-                {/* SKOR KOMPOSIT OVERALL BANNER */}
-                <div
-                  style={{
-                    background: 'rgba(236,196,115,0.08)',
-                    border: '1px solid rgba(236,196,115,0.25)',
-                    borderRadius: '12px',
-                    padding: '14px 18px',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ fontSize: '24px' }}>📊</div>
-                    <div>
-                      <div style={{ fontSize: '11px', color: '#CBD5E1', fontWeight: 600 }}>
-                        Skor Kepuasan Rata-Rata Warga
-                      </div>
-                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#ECC473' }}>
-                        {averageScore} dari 5.0 Bintang • <span style={{ color: scoreInfo.color }}>{scoreInfo.label}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ fontSize: '11.5px', color: '#94A3B8', maxWidth: '300px', lineHeight: 1.4 }}>
-                    {scoreInfo.desc}
-                  </div>
-                </div>
-
-                {/* QUICK TAGS / KATA KUNCI APRESIASI */}
-                <div style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#CBD5E1', marginBottom: '8px' }}>
-                    Apresiasi &amp; Sorotan Layanan (Pilih yang sesuai):
-                  </label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {SUGGESTED_TAGS.map((tag) => {
-                      const isSel = selectedTags.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleTag(tag)}
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            fontSize: '11.5px',
-                            fontWeight: isSel ? 800 : 600,
-                            border: isSel ? '1px solid #ECC473' : '1px solid rgba(255,255,255,0.1)',
-                            background: isSel ? 'rgba(236,196,115,0.18)' : 'rgba(255,255,255,0.03)',
-                            color: isSel ? '#ECC473' : '#94A3B8',
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          {tag} {isSel && '✓'}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
 
                 {/* CATATAN ULASAN TERTULIS */}
@@ -894,11 +929,11 @@ export default function CitizenOperatorReviewView({
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <Sparkles size={16} />
+                  <Star size={16} />
                   <span>
                     {submittingRating
-                      ? 'Menyimpan Penilaian...'
-                      : `Kirim Evaluasi Operator (${averageScore}★)`}
+                      ? 'Memproses...'
+                      : `Kirim Penilaian`}
                   </span>
                 </button>
               </form>

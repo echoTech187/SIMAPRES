@@ -5,7 +5,10 @@ import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
 import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
 import {
+  createComplaintAction,
   createComplaintAndBroadcastAction,
+  createComplaintAndResolveAtOperatorDeskAction,
+  resolveQueuedComplaintAtOperatorDeskAction,
   sendWhatsAppNotificationAction,
   transferComplaintCrossJurisdictionAction,
 } from '@/app/actions/complaint.actions';
@@ -17,6 +20,89 @@ const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
   ssr: false,
   loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
 });
+
+// Helper untuk mengambil nama kesatuan Mako yang didisposisikan terakhir kali
+export const getLastDispatchedStationName = (item: any, offices: any[] = []): string => {
+  if (!item) return '';
+  // 1. Cek dispatches terakhir
+  const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
+  if (dispatches.length > 0) {
+    const lastDisp = dispatches[dispatches.length - 1];
+    if (lastDisp?.station?.station_name) return lastDisp.station.station_name;
+    if (lastDisp?.station?.name) return lastDisp.station.name;
+    if (lastDisp?.stationName) return lastDisp.stationName;
+    if (lastDisp?.station_id) {
+      const found = offices.find((po: any) => String(po.id) === String(lastDisp.station_id));
+      if (found?.station_name) return found.station_name;
+      if (found?.name) return found.name;
+    }
+  }
+
+  // 2. Cek audit logs untuk tindakan DISPOSISI_LINTAS_WILAYAH
+  const logs = item.complaint_logs || item.complaintLogs || item.auditLogs || [];
+  if (Array.isArray(logs) && logs.length > 0) {
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const l = logs[i];
+      if ((l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') && l.notes) {
+        const match = l.notes.match(/Ke:\s*([^|➔\n]+)/i) || l.notes.match(/ke\s+([^.\n|➔]+)/i);
+        if (match && match[1]) {
+          return match[1].trim();
+        }
+      }
+    }
+  }
+
+  // 3. Cek station complaint utama
+  if (item.station?.station_name) return item.station.station_name;
+  if (item.station?.name) return item.station.name;
+  if (item.stationName) return item.stationName;
+  if (item.station_id || item.stationId) {
+    const sid = item.station_id || item.stationId;
+    const found = offices.find((po: any) => String(po.id) === String(sid));
+    if (found?.station_name) return found.station_name;
+    if (found?.name) return found.name;
+  }
+
+  return '';
+};
+
+// Helper untuk mengambil station_id kesatuan Mako yang didisposisikan terakhir kali
+export const getLastDispatchedStationId = (item: any, offices: any[] = []): number | string | null => {
+  if (!item) return null;
+  // 1. Cek dispatches terakhir
+  const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
+  if (dispatches.length > 0) {
+    const lastDisp = dispatches[dispatches.length - 1];
+    if (lastDisp?.station_id) return lastDisp.station_id;
+    if (lastDisp?.station?.id) return lastDisp.station.id;
+  }
+
+  // 2. Cek audit logs untuk tindakan DISPOSISI_LINTAS_WILAYAH
+  const logs = item.complaint_logs || item.complaintLogs || item.auditLogs || [];
+  if (Array.isArray(logs) && logs.length > 0) {
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const l = logs[i];
+      if ((l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') && l.notes) {
+        const match = l.notes.match(/Ke:\s*([^|➔\n]+)/i) || l.notes.match(/ke\s+([^.\n|➔]+)/i);
+        if (match && match[1]) {
+          const targetName = match[1].trim().toLowerCase().replace(/^(polres|polresta|polsek)\s+/, '');
+          const found = offices.find((po: any) => {
+            const pName = (po.station_name || po.name || '').toLowerCase().replace(/^(polres|polresta|polsek)\s+/, '').trim();
+            return pName === targetName;
+          });
+          if (found?.id) return found.id;
+        }
+      }
+    }
+  }
+
+  // 3. Cek station complaint utama
+  if (item.station_id || item.stationId || item.station?.id) {
+    return item.station_id || item.stationId || item.station?.id;
+  }
+
+  return null;
+};
 
 export interface TabOperatorCadPawasProps {
   switchTab: (tab: PawasTab) => void;
@@ -43,6 +129,9 @@ export interface TabOperatorCadPawasProps {
   antreanPawas: any[];
   bukaModalTolak?: (item: any) => void;
   setTolakComplaint?: (item: any) => void;
+  policeOffices?: any[];
+  escalationBanner?: React.ReactNode;
+  onOpenDisposisiLintasWilayah?: (item: any) => void;
 }
 
 export default function TabOperatorCadPawas({
@@ -70,6 +159,9 @@ export default function TabOperatorCadPawas({
   antreanPawas,
   bukaModalTolak,
   setTolakComplaint,
+  policeOffices = [],
+  escalationBanner,
+  onOpenDisposisiLintasWilayah,
 }: TabOperatorCadPawasProps) {
   const [broadcastModalData, setBroadcastModalData] = useState<any | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -78,6 +170,106 @@ export default function TabOperatorCadPawas({
   const [waSendResult, setWaSendResult] = useState<{ success?: boolean; text?: string } | null>(null);
   const [transferModalItem, setTransferModalItem] = useState<{ item: any; boundary: any } | null>(null);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [deskResolveModalData, setDeskResolveModalData] = useState<{
+    isFromCadForm: boolean;
+    item?: any;
+    nomorTiket: string;
+    namaPelapor: string;
+    teleponPelapor: string;
+    jenisKejadian: string;
+    alamatTkp: string;
+    resolutionNotes: string;
+    sendWa: boolean;
+  } | null>(null);
+  const [isResolvingDesk, setIsResolvingDesk] = useState(false);
+
+  // Resolusi Mako Kepolisian aktif untuk penempatan alamat otomatis (Informasi / Konsultasi)
+  const resolvedMakoOffice = React.useMemo(() => {
+    if (policeOffices && policeOffices.length > 0) {
+      const userStationId = userProfile?.stationId || userProfile?.station_id || session?.stationId || session?.station_id;
+      if (userStationId) {
+        const found = policeOffices.find((p: any) => String(p.id) === String(userStationId));
+        if (found) return found;
+      }
+      const userStationName = userProfile?.stationName || userProfile?.satuanNama || session?.stationName || session?.satuanNama;
+      if (userStationName) {
+        const found = policeOffices.find(
+          (p: any) =>
+            (p.name && p.name.toLowerCase().includes(userStationName.toLowerCase())) ||
+            (userStationName && userStationName.toLowerCase().includes(p.name?.toLowerCase()))
+        );
+        if (found) return found;
+      }
+      const polres = policeOffices.find((p: any) => p.type === 'POLRES' || p.code?.includes('POLRES') || p.name?.toLowerCase().includes('polres')) || policeOffices[0];
+      return polres || null;
+    }
+    return null;
+  }, [policeOffices, userProfile, session]);
+
+  const defaultMakoName = resolvedMakoOffice?.name || 'Mako SPKT Polres Pekalongan 110';
+  const defaultMakoAddress = resolvedMakoOffice?.address
+    ? (resolvedMakoOffice.address.includes(resolvedMakoOffice.name) ? resolvedMakoOffice.address : `${resolvedMakoOffice.name}, ${resolvedMakoOffice.address}`)
+    : 'Mako SPKT Polres Pekalongan, Jl. Rinjani No.1, Tanjungsari, Kajen, Kabupaten Pekalongan, Jawa Tengah 51161';
+  const defaultMakoLat = resolvedMakoOffice?.lat ? Number(resolvedMakoOffice.lat) : -7.026779;
+  const defaultMakoLng = resolvedMakoOffice?.lng ? Number(resolvedMakoOffice.lng) : 109.59308;
+
+  // Deteksi apakah kategori aktif berjenis Informasi / Konsultasi
+  const isCurrentCategoryConsultation = React.useMemo(() => {
+    if (!simCaller.subcategoryId && !simCaller.kategoriKey) return false;
+    if (simCaller.kategoriKey === 'INFORMASIKONSULTASI' || simCaller.kategoriKey === 'PELAYANAN_PUBLIK') return true;
+    const matchedSub = (dbSubcategories || []).find((s: any) => String(s.id) === String(simCaller.subcategoryId));
+    if (!matchedSub) return false;
+    return Boolean(
+      matchedSub.category_key === 'INFORMASIKONSULTASI' ||
+      matchedSub.category_key === 'PELAYANAN_PUBLIK' ||
+      matchedSub.category_rel?.key === 'INFORMASIKONSULTASI' ||
+      (matchedSub.category_rel?.label && matchedSub.category_rel.label.toLowerCase().includes('informasi')) ||
+      (matchedSub.category_rel?.label && matchedSub.category_rel.label.toLowerCase().includes('konsultasi')) ||
+      (matchedSub.category_key && matchedSub.category_key.toUpperCase().includes('INFORMASI')) ||
+      (matchedSub.category_key && matchedSub.category_key.toUpperCase().includes('KONSULTASI'))
+    );
+  }, [simCaller.subcategoryId, simCaller.kategoriKey, dbSubcategories]);
+
+  // Efek otomatis mengisi alamat Mako & ringkasan konsultasi jika kategori INFORMASIKONSULTASI terpilih
+  useEffect(() => {
+    if (!simCaller.subcategoryId) return;
+    const matchedSub = (dbSubcategories || []).find((s: any) => String(s.id) === String(simCaller.subcategoryId));
+    if (!matchedSub) return;
+
+    const isInfoKonsultasi = Boolean(
+      matchedSub.category_key === 'INFORMASIKONSULTASI' ||
+      matchedSub.category_key === 'PELAYANAN_PUBLIK' ||
+      matchedSub.category_rel?.key === 'INFORMASIKONSULTASI' ||
+      (matchedSub.category_rel?.label && matchedSub.category_rel.label.toLowerCase().includes('informasi')) ||
+      (matchedSub.category_rel?.label && matchedSub.category_rel.label.toLowerCase().includes('konsultasi')) ||
+      (matchedSub.category_key && matchedSub.category_key.toUpperCase().includes('INFORMASI')) ||
+      (matchedSub.category_key && matchedSub.category_key.toUpperCase().includes('KONSULTASI'))
+    );
+
+    if (isInfoKonsultasi) {
+      const needsAlamat = !simCaller.alamat || simCaller.alamat.trim() === '';
+      const needsUraian = !simCaller.uraian || simCaller.uraian.trim() === '';
+      if (needsAlamat || needsUraian) {
+        setSimCaller((prev: any) => ({
+          ...prev,
+          alamat: needsAlamat ? defaultMakoAddress : prev.alamat,
+          lat: needsAlamat ? defaultMakoLat : prev.lat,
+          lng: needsAlamat ? defaultMakoLng : prev.lng,
+          uraian: needsUraian
+            ? `Pelapor menghubungi Call Center 110 untuk berkonsultasi mengenai ${matchedSub.nama_kasus}. Petugas operator SPKT 110 telah memberikan penjelasan mengenai persyaratan resmi, estimasi biaya PNBP, dan alur prosedur penanganan sesuai standar operasional kepolisian.`
+            : prev.uraian,
+          urgensi: prev.urgensi || 'NORMAL',
+        }));
+        setCadFormErrors((errs: any) => {
+          const next = { ...errs };
+          if (needsAlamat) delete next.alamat;
+          if (needsUraian) delete next.uraian;
+          delete next.urgensi;
+          return next;
+        });
+      }
+    }
+  }, [simCaller.subcategoryId, dbSubcategories, defaultMakoAddress, defaultMakoLat, defaultMakoLng]);
 
   const handleExecuteTransfer = async () => {
     if (!transferModalItem) return;
@@ -110,6 +302,86 @@ export default function TabOperatorCadPawas({
     }
   };
 
+  const handleExecuteDeskResolution = async () => {
+    if (!deskResolveModalData) return;
+    const notes = deskResolveModalData.resolutionNotes.trim();
+    if (!notes) {
+      showFriendlyToast('warning', 'Catatan Wajib Diisi', 'Mohon isi catatan petunjuk SOP / solusi yang telah diberikan kepada warga.');
+      return;
+    }
+
+    setIsResolvingDesk(true);
+    try {
+      if (deskResolveModalData.isFromCadForm) {
+        const res = await createComplaintAndResolveAtOperatorDeskAction({
+          nomorTiket: simCaller.nomorTiket?.trim() || undefined,
+          namaPelapor: simCaller.nama,
+          noHpPelapor: simCaller.telepon,
+          kategoriLaporan: simCaller.kategori,
+          kategoriKey: (simCaller as any).kategoriKey || undefined,
+          subcategoryId: simCaller.subcategoryId,
+          platformKey: 'layanan110',
+          urgensi: (simCaller as any).urgensi || 'SEDANG',
+          tkpAlamatTeks: simCaller.alamat,
+          tkpLat: simCaller.lat,
+          tkpLng: simCaller.lng,
+          deskripsiKejadian: simCaller.uraian,
+          saluranLaporan: 'CALL_110',
+          operatorId: session?.userId ? String(session.userId) : null,
+          resolutionNotes: notes,
+          sendWhatsAppConfirmation: deskResolveModalData.sendWa,
+        });
+
+        if (res.success && res.data) {
+          showFriendlyToast(
+            'success',
+            'Pengaduan Selesai',
+            `Tiket ${res.data.nomorTiket || res.data.id} berhasil dituntaskan langsung di Meja Operator 110.`
+          );
+          setSimCaller({
+            nomorTiket: '',
+            nama: '',
+            telepon: '',
+            alamat: '',
+            kategori: '',
+            kategoriKey: '',
+            subcategoryId: undefined,
+            urgensi: '',
+            uraian: '',
+            lat: 0,
+            lng: 0,
+          });
+          setDeskResolveModalData(null);
+          await loadData();
+        } else {
+          showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyelesaikan laporan.');
+        }
+      } else {
+        const res = await resolveQueuedComplaintAtOperatorDeskAction({
+          complaintId: String(deskResolveModalData.item.id),
+          resolutionNotes: notes,
+          sendWhatsAppConfirmation: deskResolveModalData.sendWa,
+        });
+
+        if (res.success) {
+          showFriendlyToast(
+            'success',
+            'Pengaduan Selesai',
+            `Tiket ${deskResolveModalData.nomorTiket} berhasil dituntaskan langsung di Meja Operator 110.`
+          );
+          setDeskResolveModalData(null);
+          await loadData();
+        } else {
+          showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyelesaikan laporan.');
+        }
+      }
+    } catch (err: any) {
+      showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat memproses laporan saat ini.');
+    } finally {
+      setIsResolvingDesk(false);
+    }
+  };
+
   // Lock body scroll and trigger map canvas resize when fullscreen map opens
   useEffect(() => {
     if (showMapPickerCad) {
@@ -127,52 +399,17 @@ export default function TabOperatorCadPawas({
 
   return (
     <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-        <div
-          onClick={() => switchTab('view-beranda')}
-          style={{ fontSize: '13px', fontWeight: 700, color: '#153E75', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <span>←</span> Kembali ke Beranda
+      <div style={{ marginBottom: '16px' }}>
+        <h2 className="page-title" style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>
+          Konsol Pengaduan &amp; Disposisi Terpadu
+        </h2>
+        <div style={{ color: '#64748B', fontSize: '12px', marginTop: '2px' }}>
+          Perekaman Laporan Masyarakat Masuk &amp; Penugasan Unit Patroli
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-        <div>
-          <h2 className="page-title" style={{ margin: 0, fontSize: '18px', fontWeight: 800 }}>
-            Konsol Pengaduan &amp; Disposisi Terpadu
-          </h2>
-          <div style={{ color: '#64748B', fontSize: '12px' }}>
-            Perekaman Laporan Masyarakat Masuk &amp; Penugasan Unit Patroli
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            id="cad-btn-buku-sop"
-            onClick={() => switchTab('view-panduan')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              background: '#F0FDF4',
-              color: '#15803D',
-              border: '1.5px solid #86EFAC',
-              fontSize: '12px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(22, 163, 74, 0.12)',
-            }}
-          >
-            <span>📖</span>
-            <span>Buku Pintar SOP &amp; Layanan (FAQ 110)</span>
-          </button>
-          <span style={{ fontSize: '11.5px', fontWeight: 800, background: '#EFF6FF', color: '#1D4ED8', padding: '5px 12px', borderRadius: '8px', border: '1px solid #BFDBFE' }}>
-            👑 Akses Penuh: Input Laporan &amp; Disposisi Unit
-          </span>
-        </div>
-      </div>
+      {/* Banner Alarm Eskalasi (Posisinya dibalik: diletakkan tepat di bawah judul konsol) */}
+      {escalationBanner}
 
       <div className="cad-operator-grid">
         {/* Kolom Kiri: Panggilan Masuk & Form */}
@@ -259,7 +496,7 @@ export default function TabOperatorCadPawas({
                 <label className="form-label" style={{ fontSize: '11.5px', marginBottom: 0, fontWeight: 700, color: '#153E75', display: 'flex', alignItems: 'center', gap: '5px' }}>
                   <span>🎫 Nomor Tiket (Opsional / Wallboard 110)</span>
                 </label>
-                <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600 }}>Format Baku: TICKET-0018xxxxxx</span>
+                <span style={{ fontSize: '10px', color: '#64748B', fontWeight: 600 }}>Input Manual / Auto-Generate</span>
               </div>
               <div style={{ position: 'relative' }}>
                 <input
@@ -270,7 +507,7 @@ export default function TabOperatorCadPawas({
                     const val = e.target.value.toUpperCase();
                     setSimCaller({ ...simCaller, nomorTiket: val });
                   }}
-                  placeholder="Contoh: TICKET-0018396186 (Kosongkan jika ingin auto-generate)"
+                  placeholder="Contoh: TIKET-1893474212 (Kosongkan jika ingin auto-generate)"
                   style={{
                     border: '1px solid #CBD5E1',
                     background: simCaller.nomorTiket ? '#F0FDF4' : 'white',
@@ -301,7 +538,7 @@ export default function TabOperatorCadPawas({
               <input
                 type="tel"
                 className="form-control"
-                value={simCaller.telepon}
+                value={simCaller.telepon || ''}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^\d+-\s]/g, '');
                   setSimCaller({ ...simCaller, telepon: val });
@@ -334,7 +571,7 @@ export default function TabOperatorCadPawas({
               <input
                 type="text"
                 className="form-control"
-                value={simCaller.nama}
+                value={simCaller.nama || ''}
                 onChange={(e) => {
                   const val = e.target.value;
                   setSimCaller({ ...simCaller, nama: val });
@@ -370,19 +607,66 @@ export default function TabOperatorCadPawas({
                   selectedId={simCaller.subcategoryId}
                   onSelect={(item) => {
                     if (item) {
+                      const isInfoKonsultasi = Boolean(
+                        item.category_key === 'INFORMASIKONSULTASI' ||
+                        item.category_key === 'PELAYANAN_PUBLIK' ||
+                        item.category_rel?.key === 'INFORMASIKONSULTASI' ||
+                        (item.category_rel?.label && item.category_rel.label.toLowerCase().includes('informasi')) ||
+                        (item.category_rel?.label && item.category_rel.label.toLowerCase().includes('konsultasi')) ||
+                        (item.category_key && item.category_key.toUpperCase().includes('INFORMASI')) ||
+                        (item.category_key && item.category_key.toUpperCase().includes('KONSULTASI'))
+                      );
+
+                      let newAlamat = simCaller.alamat;
+                      let newLat = simCaller.lat;
+                      let newLng = simCaller.lng;
+                      let newUraian = simCaller.uraian;
+
+                      if (isInfoKonsultasi) {
+                        newAlamat = defaultMakoAddress;
+                        newLat = defaultMakoLat;
+                        newLng = defaultMakoLng;
+                        if (!simCaller.uraian || simCaller.uraian.trim() === '' || simCaller.uraian.startsWith('Pelapor menghubungi Call Center 110 untuk berkonsultasi')) {
+                          newUraian = `Pelapor menghubungi Call Center 110 untuk berkonsultasi mengenai ${item.nama_kasus}. Petugas operator SPKT 110 telah memberikan penjelasan mengenai persyaratan resmi, estimasi biaya PNBP, dan alur prosedur penanganan sesuai standar operasional kepolisian.`;
+                        }
+                        showFriendlyToast(
+                          'info',
+                          'Layanan Informasi & Konsultasi 110',
+                          'Alamat Mako & draf ringkasan konsultasi otomatis terisi. Siap diselesaikan di Meja Operator.'
+                        );
+                      } else {
+                        // Jika sebelumnya terisi alamat Mako otomatis & sekarang berganti ke kasus TKP biasa, reset agar operator mengisi TKP sebenarnya
+                        if (simCaller.alamat === defaultMakoAddress) {
+                          newAlamat = '';
+                          newLat = 0;
+                          newLng = 0;
+                        }
+                        if (simCaller.uraian?.startsWith('Pelapor menghubungi Call Center 110 untuk berkonsultasi')) {
+                          newUraian = '';
+                        }
+                      }
+
                       setSimCaller({
                         ...simCaller,
                         subcategoryId: item.id,
                         kategori: item.nama_kasus,
                         kategoriKey: item.category_key,
-                        urgensi: (item.default_urgensi as any) || simCaller.urgensi,
-                        uraian: simCaller.uraian,
+                        urgensi: isInfoKonsultasi ? ((item.default_urgensi as any) || 'NORMAL') : ((item.default_urgensi as any) || simCaller.urgensi),
+                        alamat: newAlamat,
+                        lat: newLat,
+                        lng: newLng,
+                        uraian: newUraian,
                       });
-                      if (cadFormErrors.kategori || cadFormErrors.urgensi) {
+
+                      if (cadFormErrors.kategori || (isInfoKonsultasi && (cadFormErrors.alamat || cadFormErrors.uraian || cadFormErrors.urgensi))) {
                         setCadFormErrors((prev) => {
                           const next = { ...prev };
                           delete next.kategori;
-                          delete next.urgensi;
+                          if (isInfoKonsultasi) {
+                            delete next.alamat;
+                            delete next.uraian;
+                            delete next.urgensi;
+                          }
                           return next;
                         });
                       }
@@ -397,6 +681,27 @@ export default function TabOperatorCadPawas({
                   }}
                 />
               </div>
+              {isCurrentCategoryConsultation && (
+                <div
+                  style={{
+                    marginTop: '8px',
+                    padding: '8px 12px',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '11px',
+                    color: '#065F46',
+                  }}
+                >
+                  <span style={{ fontSize: '15px' }}>🏢</span>
+                  <div style={{ flex: 1, lineHeight: 1.4 }}>
+                    <strong>Mode Layanan Informasi / Konsultasi:</strong> Alamat TKP otomatis diset ke <strong>{defaultMakoName}</strong> dan uraian draf terisi. Anda dapat langsung klik <strong>&ldquo;✅ Selesai&rdquo;</strong> di bawah.
+                  </div>
+                </div>
+              )}
               {cadFormErrors.kategori && (
                 <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                   <span>⚠️</span> {cadFormErrors.kategori}
@@ -499,7 +804,7 @@ export default function TabOperatorCadPawas({
                   type="text"
                   className="form-control"
                   placeholder="Ketik alamat TKP atau cari nama tempat..."
-                  value={simCaller.alamat}
+                  value={simCaller.alamat || ''}
                   onChange={(e) => {
                     handleCadLocationSearch(e.target.value);
                     if (cadFormErrors.alamat) {
@@ -520,6 +825,12 @@ export default function TabOperatorCadPawas({
                     transition: 'all 0.15s ease',
                   }}
                 />
+                {isCurrentCategoryConsultation && (
+                  <div style={{ marginTop: '4px', fontSize: '10.5px', color: '#059669', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <span>🏢</span>
+                    <span>Lokasi TKP otomatis dihubungkan ke Mako Kepolisian karena jenis aduan adalah permohonan informasi / konsultasi SOP.</span>
+                  </div>
+                )}
                 {isSearchingCadLocation && (
                   <div
                     style={{
@@ -957,7 +1268,7 @@ export default function TabOperatorCadPawas({
                   transition: 'all 0.15s ease',
                 }}
                 placeholder="Tuliskan keterangan pelapor secara jelas (kronologi singkat, ciri-ciri pelaku jika ada, situasi terkini di TKP)..."
-                value={simCaller.uraian}
+                value={simCaller.uraian || ''}
                 onChange={(e) => {
                   const val = e.target.value;
                   setSimCaller({ ...simCaller, uraian: val });
@@ -970,6 +1281,12 @@ export default function TabOperatorCadPawas({
                   }
                 }}
               />
+              {isCurrentCategoryConsultation && (
+                <div style={{ marginTop: '4px', fontSize: '10.5px', color: '#059669', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span>✍️</span>
+                  <span>Uraian terisi otomatis sebagai laporan konsultasi resmi. Anda tetap dapat menambahkan detail pertanyaan atau catatan khusus bila diperlukan.</span>
+                </div>
+              )}
               {cadFormErrors.uraian && (
                 <div style={{ marginTop: '4px', fontSize: '11px', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                   <span>⚠️</span> {cadFormErrors.uraian}
@@ -977,129 +1294,245 @@ export default function TabOperatorCadPawas({
               )}
             </div>
 
-            {/* Boundary Warning on CAD Input Form */}
+            {/* Boundary Warning & Dynamic Action on CAD Input Form */}
             {(() => {
               const formBoundary = evaluateJurisdictionBoundary({
                 tkpLat: simCaller.lat,
                 tkpLng: simCaller.lng,
                 tkpAlamat: simCaller.alamat,
               });
-              if (!formBoundary.isOutsideJurisdiction) return null;
+              const isOutside = formBoundary.isOutsideJurisdiction;
+              const targetName = formBoundary.targetStation?.stationName || formBoundary.detectedRegionName || 'Mako Tetangga';
+
               return (
-                <div
-                  style={{
-                    marginBottom: '12px',
-                    padding: '10px 14px',
-                    background: '#FEF3C7',
-                    border: '1.5px solid #F59E0B',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    color: '#92400E',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    boxShadow: '0 2px 8px rgba(245,158,11,0.15)',
-                  }}
-                >
-                  <span style={{ fontSize: '18px' }}>⚠️</span>
-                  <div>
-                    <div style={{ fontWeight: 800 }}>Indikasi Batas Wilayah (E-Routing Boundary):</div>
-                    <div>
-                      Titik TKP terindikasi berada di yurisdiksi{' '}
-                      <strong>{formBoundary.targetStation?.stationName || formBoundary.detectedRegionName}</strong>.
-                      Laporan tetap dapat disimpan ke antrean atau diteruskan ke Mako tetangga pasca-registrasi.
+                <>
+                  {isOutside && (
+                    <div
+                      style={{
+                        marginBottom: '12px',
+                        padding: '10px 14px',
+                        background: '#FEF3C7',
+                        border: '1.5px solid #F59E0B',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#92400E',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        boxShadow: '0 2px 8px rgba(245,158,11,0.15)',
+                      }}
+                    >
+                      <span style={{ fontSize: '18px' }}>⚠️</span>
+                      <div>
+                        <div style={{ fontWeight: 800 }}>Indikasi Batas Wilayah (E-Routing Boundary):</div>
+                        <div>
+                          Titik TKP terindikasi berada di yurisdiksi <strong>{targetName}</strong>. Laporan akan dialihkan ke Mako tetangga melalui koordinasi lintas wilayah tanpa penugasan ke armada lokal.
+                        </div>
+                      </div>
                     </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      id="btn-cad-selesai-meja"
+                      disabled={loading}
+                      onClick={() => {
+                        const errors = validateCadForm();
+                        if (Object.keys(errors).length > 0) {
+                          setCadFormErrors(errors);
+                          showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
+                          const el = document.getElementById('cad-form-container');
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          return;
+                        }
+
+                        const matchedSub = (dbSubcategories || []).find((s: any) => String(s.id) === String(simCaller.subcategoryId));
+                        const defaultSopNotes = matchedSub?.sop_guidance
+                          ? `Operator telah memberikan panduan SOP: ${matchedSub.sop_guidance}`
+                          : `Pelapor telah berkonsultasi mengenai ${simCaller.kategori || 'layanan kepolisian'}. Operator telah menjelaskan prosedur, syarat resmi, dan solusi penanganan secara tuntas sesuai SOP Polri Presisi 110.`;
+
+                        setCadFormErrors({});
+                        setDeskResolveModalData({
+                          isFromCadForm: true,
+                          nomorTiket: simCaller.nomorTiket?.trim() || '',
+                          namaPelapor: simCaller.nama,
+                          teleponPelapor: simCaller.telepon,
+                          jenisKejadian: simCaller.kategori,
+                          alamatTkp: simCaller.alamat,
+                          resolutionNotes: defaultSopNotes,
+                          sendWa: true,
+                        });
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: '220px',
+                        padding: '14px 18px',
+                        background: loading ? '#94A3B8' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        letterSpacing: '0.2px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>✅</span>  Simpan & Selesaikan
+                    </button>
+                    <button
+                      type="button"
+                      id="btn-cad-simpan-disposisi"
+                      disabled={loading}
+                      onClick={async () => {
+                        const errors = validateCadForm();
+                        if (Object.keys(errors).length > 0) {
+                          setCadFormErrors(errors);
+                          showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
+                          const el = document.getElementById('cad-form-container');
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          return;
+                        }
+
+                        setCadFormErrors({});
+                        setLoading(true);
+                        try {
+                          if (isOutside) {
+                            // JIKA DI LUAR YURISDIKSI:
+                            // Buat tiket tanpa broadcast ke armada lokal, lalu langsung buka Modal Disposisi Lintas Wilayah
+                            const res = await createComplaintAction({
+                              nomorTiket: simCaller.nomorTiket?.trim() || undefined,
+                              namaPelapor: simCaller.nama,
+                              noHpPelapor: simCaller.telepon,
+                              kategoriLaporan: simCaller.kategori,
+                              kategoriKey: (simCaller as any).kategoriKey || undefined,
+                              subcategoryId: simCaller.subcategoryId,
+                              platformKey: 'layanan110',
+                              urgensi: (simCaller as any).urgensi,
+                              tkpAlamatTeks: simCaller.alamat,
+                              tkpLat: simCaller.lat,
+                              tkpLng: simCaller.lng,
+                              deskripsiKejadian: simCaller.uraian,
+                              saluranLaporan: 'CALL_110',
+                              operatorId: session?.userId ? String(session.userId) : null,
+                            });
+                            if (res.success && res.data) {
+                              showFriendlyToast(
+                                'info',
+                                'Tiket Lintas Wilayah Terdaftar',
+                                `Tiket ${res.data.nomorTiket || res.data.id} berhasil dicatat. Silakan konfirmasi pengalihan ke ${targetName}.`
+                              );
+                              // Langsung munculkan Modal Disposisi Lintas Wilayah (Poin 1.A)
+                              setTransferModalItem({ item: res.data, boundary: formBoundary });
+                              setSimCaller({
+                                nomorTiket: '',
+                                nama: '',
+                                telepon: '',
+                                alamat: '',
+                                kategori: '',
+                                kategoriKey: '',
+                                subcategoryId: undefined,
+                                urgensi: '',
+                                uraian: '',
+                                lat: 0,
+                                lng: 0,
+                              });
+                              await loadData();
+                            } else {
+                              showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyimpan laporan.');
+                            }
+                          } else {
+                            // JIKA DI DALAM YURISDIKSI:
+                            // Alur standar: Siarkan langsung ke seluruh armada siaga lokal
+                            const res = await createComplaintAndBroadcastAction({
+                              nomorTiket: simCaller.nomorTiket?.trim() || undefined,
+                              namaPelapor: simCaller.nama,
+                              noHpPelapor: simCaller.telepon,
+                              kategoriLaporan: simCaller.kategori,
+                              kategoriKey: (simCaller as any).kategoriKey || undefined,
+                              subcategoryId: simCaller.subcategoryId,
+                              platformKey: 'layanan110',
+                              urgensi: (simCaller as any).urgensi,
+                              tkpAlamatTeks: simCaller.alamat,
+                              tkpLat: simCaller.lat,
+                              tkpLng: simCaller.lng,
+                              deskripsiKejadian: simCaller.uraian,
+                              saluranLaporan: 'CALL_110',
+                              operatorId: session?.userId ? String(session.userId) : null,
+                            });
+                            if (res.success && res.data) {
+                              showFriendlyToast(
+                                'success',
+                                'Laporan Berhasil Disimpan & Disiarkan',
+                                `Tiket ${res.data.nomorTiket || res.data.id} berhasil disiarkan secara serentak ke seluruh armada siaga.`
+                              );
+                              setBroadcastModalData(res.data);
+                              setSimCaller({
+                                nomorTiket: '',
+                                nama: '',
+                                telepon: '',
+                                alamat: '',
+                                kategori: '',
+                                kategoriKey: '',
+                                subcategoryId: undefined,
+                                urgensi: '',
+                                uraian: '',
+                                lat: 0,
+                                lng: 0,
+                              });
+                              await loadData();
+                            } else {
+                              showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyimpan laporan.');
+                            }
+                          }
+                        } catch (err: any) {
+                          showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat memproses laporan saat ini.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: '200px',
+                        padding: '14px 18px',
+                        background: loading
+                          ? '#94A3B8'
+                          : isOutside
+                          ? 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                          : 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+                        color: isOutside ? '#0F172A' : '#111827',
+                        border: isOutside ? '1.5px solid #B45309' : 'none',
+                        borderRadius: '10px',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        cursor: loading ? 'not-allowed' : 'pointer',
+                        boxShadow: isOutside
+                          ? '0 4px 15px rgba(217, 119, 6, 0.4)'
+                          : '0 4px 15px rgba(201, 150, 53, 0.35)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        letterSpacing: '0.2px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {loading
+                        ? '⏳ Memproses...'
+                        : isOutside
+                        ? `🔄 Simpan & Alihkan ke ${targetName}`
+                        : '⚡ Simpan Tiket + Disposisi'}
+                    </button>
                   </div>
-                </div>
+                </>
               );
             })()}
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                id="btn-cad-simpan-disposisi"
-                disabled={loading}
-                onClick={async () => {
-                  const errors = validateCadForm();
-                  if (Object.keys(errors).length > 0) {
-                    setCadFormErrors(errors);
-                    showFriendlyToast('warning', 'Formulir Belum Lengkap', Object.values(errors)[0]);
-                    const el = document.getElementById('cad-form-container');
-                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    return;
-                  }
-
-                  setCadFormErrors({});
-                  setLoading(true);
-                  try {
-                    const res = await createComplaintAndBroadcastAction({
-                      nomorTiket: simCaller.nomorTiket?.trim() || undefined,
-                      namaPelapor: simCaller.nama,
-                      noHpPelapor: simCaller.telepon,
-                      kategoriLaporan: simCaller.kategori,
-                      kategoriKey: (simCaller as any).kategoriKey || undefined,
-                      subcategoryId: simCaller.subcategoryId,
-                      platformKey: 'layanan110',
-                      urgensi: (simCaller as any).urgensi,
-                      tkpAlamatTeks: simCaller.alamat,
-                      tkpLat: simCaller.lat,
-                      tkpLng: simCaller.lng,
-                      deskripsiKejadian: simCaller.uraian,
-                      saluranLaporan: 'CALL_110',
-                      operatorId: session?.userId ? String(session.userId) : null,
-                    });
-                    if (res.success && res.data) {
-                      showFriendlyToast(
-                        'success',
-                        'Laporan Berhasil Disimpan & Disiarkan',
-                        `Tiket ${res.data.nomorTiket || res.data.id} berhasil disiarkan secara serentak ke seluruh armada siaga.`
-                      );
-                      setBroadcastModalData(res.data);
-                      setSimCaller({
-                        nomorTiket: '',
-                        nama: '',
-                        telepon: '',
-                        alamat: '',
-                        kategori: '',
-                        kategoriKey: '',
-                        subcategoryId: undefined,
-                        urgensi: '',
-                        uraian: '',
-                        lat: 0,
-                        lng: 0,
-                      });
-                      await loadData();
-                    } else {
-                      showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyimpan laporan.');
-                    }
-                  } catch (err: any) {
-                    showFriendlyToast('error', 'Terjadi Kendala Sistem', err.message || 'Sistem tidak dapat memproses laporan saat ini.');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: '14px 20px',
-                  background: loading ? '#94A3B8' : 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-                  color: '#111827',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontWeight: 900,
-                  fontSize: '13.5px',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 15px rgba(201, 150, 53, 0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  letterSpacing: '0.3px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {loading ? '⏳ Menyiarkan ke Seluruh Armada...' : '⚡ Simpan & Disposisikan'}
-              </button>
-            </div>
           </div>
 
         </div>
@@ -1155,34 +1588,109 @@ export default function TabOperatorCadPawas({
                         tkpAlamat: item.tkpAlamatTeks,
                       });
 
-                      if (!boundary.isOutsideJurisdiction) return null;
+                      const isCrossJurisdiction = item.status === 'DISPOSISI_LINTAS_WILAYAH' || boundary.isOutsideJurisdiction;
 
-                      const targetName = boundary.targetStation?.stationName || 'Polresta Batang';
+                      if (!isCrossJurisdiction) return null;
+
+                      // Wilayah yang tertulis di sini adalah wilayah yang didisposisikan terakhir kali
+                      const lastStation = getLastDispatchedStationName(item, policeOffices);
+                      const targetName = lastStation || boundary.targetStation?.stationName || 'Polresta Batang';
+                      const targetStationId = getLastDispatchedStationId(item, policeOffices);
+
+                      // Sesuai koreksi user: Bandingkan station_id user login dengan station_id dari getLastDispatchedStation
+                      const userStationId = userProfile?.stationId || session?.stationId;
+                      const userStationName = userProfile?.stationName || session?.stationName;
+
+                      const isUserTargetStation = Boolean(
+                        (userStationId && targetStationId && String(userStationId) === String(targetStationId)) ||
+                        (userStationName && lastStation && userStationName.trim().toLowerCase() === lastStation.trim().toLowerCase())
+                      );
+
+                      // Jika user yang login adalah Mako Tujuan (misal Polresta Batang),
+                      // mereka TIDAK PERLU melihat tombol "Transfer ke Polresta Batang" atau alert batas wilayah untuk diri sendiri!
+                      if (isUserTargetStation) return null;
+
+                      // Deteksi apakah waktu respon sudah expired (3-5 menit tanpa respon)
+                      const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
+                      const dispatchWithDeadline = dispatches.find((d: any) => d.escalation_deadline_at || d.escalationDeadlineAt);
+                      const rawDeadline = dispatchWithDeadline?.escalation_deadline_at || dispatchWithDeadline?.escalationDeadlineAt;
+                      let deadlineMs = rawDeadline ? new Date(rawDeadline).getTime() : null;
+
+                      if (!deadlineMs) {
+                        const logs = item.complaint_logs || item.complaintLogs || item.auditLogs || [];
+                        const xLog = Array.isArray(logs) ? logs.find((l: any) => l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') : null;
+                        if (xLog?.created_at) {
+                          deadlineMs = new Date(xLog.created_at).getTime() + 3 * 60 * 1000;
+                        } else if (item.updated_at || item.created_at) {
+                          deadlineMs = new Date(item.updated_at || item.created_at).getTime() + 3 * 60 * 1000;
+                        }
+                      }
+
+                      const isExpired = Boolean(deadlineMs && deadlineMs <= Date.now());
+
+                      // Jika tiket sudah didisposisikan antar wilayah dan belum expired (sedang menunggu respon mako tujuan):
+                      // ALERT DAN TOMBOL TRANSFER HILANG DARI MAKO ASAL!
+                      if (item.status === 'DISPOSISI_LINTAS_WILAYAH' && !isExpired) {
+                        return (
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              marginBottom: '6px',
+                              padding: '6px 10px',
+                              background: '#F8FAFC',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '11px',
+                              color: '#475569',
+                              fontWeight: 700,
+                            }}
+                          >
+                            <span style={{ fontSize: '13px' }}>⏳</span>
+                            <span>Menunggu respon dari <strong>{targetName}</strong> (Batas waktu 3–5 menit)</span>
+                          </div>
+                        );
+                      }
+
                       return (
                         <div
                           style={{
                             marginTop: '8px',
                             marginBottom: '6px',
                             padding: '8px 10px',
-                            background: '#FFFBEB',
-                            border: '1.5px solid #F59E0B',
+                            background: isExpired ? '#FEF2F2' : '#FFFBEB',
+                            border: isExpired ? '1.5px solid #EF4444' : '1.5px solid #F59E0B',
                             borderRadius: '8px',
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#B45309', fontSize: '11px', fontWeight: 800, marginBottom: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isExpired ? '#DC2626' : '#B45309', fontSize: '11px', fontWeight: 800, marginBottom: '6px' }}>
                             <span>⚠️</span>
-                            <span>Batas Wilayah: TKP di {boundary.detectedRegionName}</span>
+                            <span>
+                              {isExpired
+                                ? `Waktu Respon Habis: ${targetName} Tidak Merespon`
+                                : `Batas Wilayah: TKP di ${boundary.detectedRegionName || targetName}`}
+                            </span>
                           </div>
                           <button
                             type="button"
                             id={`btn-transfer-lintas-${item.id}`}
                             disabled={loading || isTransferring}
-                            onClick={() => setTransferModalItem({ item, boundary })}
+                            onClick={() => {
+                              if (onOpenDisposisiLintasWilayah) {
+                                onOpenDisposisiLintasWilayah(item);
+                              } else {
+                                setTransferModalItem({ item, boundary });
+                              }
+                            }}
                             style={{
                               width: '100%',
                               padding: '8px 10px',
-                              background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                              color: '#0F172A',
+                              background: isExpired
+                                ? 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)'
+                                : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                              color: isExpired ? '#FFFFFF' : '#0F172A',
                               fontWeight: 900,
                               fontSize: '11px',
                               borderRadius: '6px',
@@ -1192,76 +1700,133 @@ export default function TabOperatorCadPawas({
                               alignItems: 'center',
                               justifyContent: 'center',
                               gap: '6px',
-                              boxShadow: '0 2px 6px rgba(217,119,6,0.3)',
+                              boxShadow: isExpired
+                                ? '0 2px 6px rgba(220,38,38,0.3)'
+                                : '0 2px 6px rgba(217,119,6,0.3)',
                               transition: 'all 0.15s ease',
                             }}
                           >
-                            <span>🔄 Disposisi Lintas Wilayah (Transfer ke {targetName})</span>
+                            <span>
+                              {isExpired
+                                ? `⚠️ ${targetName} tidak merespon, Alihkan ke wilayah terdekat`
+                                : `🔄 Transfer ke ${targetName}`}
+                            </span>
                           </button>
                         </div>
                       );
                     })()}
-                    <div style={{ marginTop: '16px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
-                      <button
-                        type="button"
-                        id="btn-buka-modal-disposisi"
-                        onClick={() => {
-                          bukaModalDisposisi(item);
-                        }}
-                        style={{
-                          flex: 1,
-                          height: '42px',
-                          padding: '0 14px',
-                          background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
-                          color: 'white',
-                          fontSize: '12.5px',
-                          fontWeight: 800,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          boxShadow: '0 2px 8px rgba(21,62,117,0.25)',
-                          cursor: 'pointer',
-                          margin: 0,
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        Teruskan Tugas ➔
-                      </button>
-                      <button
-                        type="button"
-                        id="btn-tolak-dossier"
-                        onClick={() => {
-                          if (bukaModalTolak) {
-                            bukaModalTolak(item);
-                          } else {
-                            setTolakComplaint?.(item);
-                          }
-                        }}
-                        style={{
-                          flex: 1,
-                          height: '42px',
-                          padding: '0 14px',
-                          borderRadius: '8px',
-                          border: '1px solid #FCA5A5',
-                          background: '#FEF2F2',
-                          color: '#DC2626',
-                          fontWeight: 800,
-                          fontSize: '12.5px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          margin: 0,
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <span>✕</span> Tolak / Revisi
-                      </button>
-                    </div>
+
+                    {/* Tombol aksi reguler hanya ditampilkan jika BUKAN tiket disposisi antar wilayah */}
+                    {(() => {
+                      const boundary = evaluateJurisdictionBoundary({
+                        tkpLat: item.tkpLat || item.tkp_lat,
+                        tkpLng: item.tkpLng || item.tkp_lng,
+                        tkpAlamat: item.tkpAlamatTeks,
+                      });
+                      const isCrossJurisdiction = item.status === 'DISPOSISI_LINTAS_WILAYAH' || boundary.isOutsideJurisdiction;
+                      if (isCrossJurisdiction) return null;
+
+                      return (
+                        <div style={{ marginTop: '16px', display: 'flex', gap: '8px', alignItems: 'stretch', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            id="btn-buka-modal-disposisi"
+                            onClick={() => {
+                              bukaModalDisposisi(item);
+                            }}
+                            style={{
+                              flex: 1,
+                              minWidth: '120px',
+                              height: '42px',
+                              padding: '0 12px',
+                              background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                              color: 'white',
+                              fontSize: '12px',
+                              fontWeight: 800,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              borderRadius: '8px',
+                              border: 'none',
+                              boxShadow: '0 2px 8px rgba(21,62,117,0.25)',
+                              cursor: 'pointer',
+                              margin: 0,
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            Teruskan Tugas ➔
+                          </button>
+                          <button
+                            type="button"
+                            id={`btn-selesai-meja-${item.id}`}
+                            onClick={() => {
+                              setDeskResolveModalData({
+                                isFromCadForm: false,
+                                item: item,
+                                nomorTiket: item.nomorTiket || '',
+                                namaPelapor: item.pelaporNama || item.pelapor_nama || '',
+                                teleponPelapor: item.pelaporHp || item.pelapor_hp || '',
+                                jenisKejadian: item.jenisKejadian || item.jenis_kejadian || '',
+                                alamatTkp: item.tkpAlamatTeks || item.tkp_alamat_teks || '',
+                                resolutionNotes: `Layanan informasi / konsultasi atas pengaduan ${item.nomorTiket} telah selesai dijelaskan oleh Operator 110 kepada pelapor sesuai SOP kepolisian.`,
+                                sendWa: true,
+                              });
+                            }}
+                            style={{
+                              height: '42px',
+                              padding: '0 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #A7F3D0',
+                              background: '#ECFDF5',
+                              color: '#059669',
+                              fontWeight: 800,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              margin: 0,
+                              transition: 'all 0.15s ease',
+                            }}
+                            title="Selesaikan langsung di Meja Operator tanpa disposisi lapangan"
+                          >
+                            <span>✓</span> Selesai
+                          </button>
+                          <button
+                            type="button"
+                            id="btn-tolak-dossier"
+                            onClick={() => {
+                              if (bukaModalTolak) {
+                                bukaModalTolak(item);
+                              } else {
+                                setTolakComplaint?.(item);
+                              }
+                            }}
+                            style={{
+                              height: '42px',
+                              padding: '0 12px',
+                              borderRadius: '8px',
+                              border: '1px solid #FCA5A5',
+                              background: '#FEF2F2',
+                              color: '#DC2626',
+                              fontWeight: 800,
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '5px',
+                              margin: 0,
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>✕</span> Tolak
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))
               )}
@@ -1434,7 +1999,7 @@ export default function TabOperatorCadPawas({
                       <input
                         type="text"
                         readOnly
-                        value={trackingUrl}
+                        value={trackingUrl || ''}
                         style={{
                           flex: 1,
                           background: 'rgba(255, 255, 255, 0.05)',
@@ -1492,7 +2057,7 @@ export default function TabOperatorCadPawas({
                                 complaintId: broadcastModalData.id,
                               });
                               if (res.success) {
-                                setWaSendResult({ success: true, text: res.statusText || 'Pesan berhasil dikirim via FlowKirim!' });
+                                setWaSendResult({ success: true, text: res.statusText || 'Pesan berhasil dikirim via WhatsApp!' });
                                 showFriendlyToast('success', 'WhatsApp Terkirim', `Notifikasi tiket ${ticketNo} telah dikirim ke nomor warga.`);
                               } else {
                                 setWaSendResult({ success: false, text: res.error || res.statusText || 'Gagal mengirim pesan.' });
@@ -1523,7 +2088,7 @@ export default function TabOperatorCadPawas({
                           }}
                         >
                           <span>{isSendingWa ? '⏳' : '⚡'}</span>
-                          <span>{isSendingWa ? 'Mengirim via FlowKirim Gateway...' : 'Kirim Otomatis ke WhatsApp Warga (FlowKirim)'}</span>
+                          <span>{isSendingWa ? 'Mengirim pesan WhatsApp...' : 'Kirim Otomatis ke WhatsApp Warga'}</span>
                         </button>
 
                         {waSendResult && (
@@ -1802,6 +2367,254 @@ export default function TabOperatorCadPawas({
                 }}
               >
                 {isTransferring ? '⏳ Mengalihkan ke Mako Tujuan...' : `⚡ Alihkan ke ${transferModalItem.boundary.targetStation?.stationName || 'Mako Tujuan'}`}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL PENYELESAIAN DI MEJA OPERATOR (LAYANAN INFORMASI / SOP) */}
+      {deskResolveModalData && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(11, 15, 25, 0.88)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              background: '#0F172A',
+              border: '1.5px solid rgba(16, 185, 129, 0.4)',
+              borderRadius: '16px',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.7)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '92vh',
+            }}
+          >
+            {/* Header Modal */}
+            <div
+              style={{
+                padding: '18px 24px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '10px',
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    fontSize: '18px',
+                    fontWeight: 900,
+                  }}
+                >
+                  🎧
+                </div>
+                <div>
+                  <div style={{ fontSize: '14.5px', fontWeight: 800, color: '#FFFFFF' }}>
+                    Selesai
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#6EE7B7' }}>
+                    Layanan Informasi & Konsultasi
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={isResolvingDesk}
+                onClick={() => setDeskResolveModalData(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94A3B8',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body Modal */}
+            <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* Ringkasan Data Tiket / Pelapor */}
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700, textTransform: 'uppercase' }}>
+                    PELAPOR
+                  </span>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#ECC473', fontSize: '12.5px' }}>
+                    {deskResolveModalData.nomorTiket || 'Tiket Otomatis'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                  {deskResolveModalData.namaPelapor} ({deskResolveModalData.teleponPelapor})
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#CBD5E1' }}>
+                  📌 <strong>Kategori:</strong> {deskResolveModalData.jenisKejadian || 'Konsultasi 110'}
+                </div>
+                {deskResolveModalData.alamatTkp && (
+                  <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                    📍 {deskResolveModalData.alamatTkp}
+                  </div>
+                )}
+              </div>
+
+              {/* Input Catatan SOP / Penjelasan Operator */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '11.5px',
+                    fontWeight: 800,
+                    color: '#E2E8F0',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Catatan Penjelasan / Petunjuk SOP yang Diberikan ke Warga <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <textarea
+                  rows={4}
+                  value={deskResolveModalData.resolutionNotes || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDeskResolveModalData((prev) => prev ? { ...prev, resolutionNotes: val } : null);
+                  }}
+                  placeholder="Contoh: Warga menanyakan syarat pembuatan SKCK baru. Operator telah menjelaskan berkas persyaratan (KTP, KK, Akta Lahir, pasfoto 4x6 latar merah 4 lbr, surat pengantar desa/kelurahan) serta jam operasional loket SPKT..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    background: '#0B1120',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    borderRadius: '10px',
+                    color: '#FFFFFF',
+                    fontSize: '12.5px',
+                    lineHeight: 1.5,
+                    resize: 'vertical',
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                  }}
+                />
+                <span style={{ fontSize: '10.5px', color: '#94A3B8', marginTop: '4px', display: 'block' }}>
+                  Catatan ini akan tersimpan di audit log resmi serta ditampilkan pada bukti pelacakan warga.
+                </span>
+              </div>
+
+              {/* Checkbox WhatsApp */}
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={Boolean(deskResolveModalData.sendWa)}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setDeskResolveModalData((prev) => prev ? { ...prev, sendWa: checked } : null);
+                  }}
+                  style={{ marginTop: '2px', cursor: 'pointer' }}
+                />
+                <div style={{ fontSize: '11.5px', color: '#E2E8F0', lineHeight: 1.4 }}>
+                  <strong style={{ color: '#34D399' }}>Kirim Konfirmasi WhatsApp & Tautan Kuesioner Warga</strong>
+                  <div style={{ color: '#94A3B8', fontSize: '10.5px', marginTop: '2px' }}>
+                    Pelapor otomatis menerima WhatsApp resmi berisi nomor tiket, ringkasan arahan SOP, dan tautan survei kepuasan mutu pelayanan operator.
+                  </div>
+                </div>
+              </label>
+            </div>
+
+            {/* Footer Modal Actions */}
+            <div
+              style={{
+                padding: '14px 24px 20px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                gap: '10px',
+              }}
+            >
+              <button
+                type="button"
+                disabled={isResolvingDesk}
+                onClick={() => setDeskResolveModalData(null)}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: '#CBD5E1',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '12.5px',
+                  cursor: isResolvingDesk ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                id="btn-konfirmasi-selesai-meja"
+                disabled={isResolvingDesk || !deskResolveModalData.resolutionNotes.trim()}
+                onClick={handleExecuteDeskResolution}
+                style={{
+                  flex: 2,
+                  padding: '11px 16px',
+                  background: isResolvingDesk || !deskResolveModalData.resolutionNotes.trim()
+                    ? '#64748B'
+                    : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 900,
+                  fontSize: '12.5px',
+                  cursor: isResolvingDesk || !deskResolveModalData.resolutionNotes.trim() ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                }}
+              >
+                {isResolvingDesk ? '⏳ Memproses Penyelesaian...' : '✅ Konfirmasi & Selesaikan di Meja'}
               </button>
             </div>
           </div>

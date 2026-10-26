@@ -93,8 +93,8 @@ export default function PersonilHeader({
             <div className="text-xs sm:text-sm font-black tracking-wider uppercase text-amber-400 leading-tight">
               SIMOPMAS 110
             </div>
-            <div className="text-[10px] font-bold text-slate-400 tracking-wide mt-0.5">
-              Konsol Lapangan
+            <div className="text-[10px] font-bold text-slate-400 tracking-wide mt-0.5 truncate max-w-[180px]">
+              {officer.stationName || 'Polres Pekalongan'}
             </div>
           </div>
         </div>

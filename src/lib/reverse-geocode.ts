@@ -44,7 +44,11 @@ export async function reverseGeocodeCoords(lat: number, lng: number): Promise<st
   }
 
   // 1. Google Maps Geocoder if active on client
-  if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+  if (
+    typeof window !== 'undefined' &&
+    !(window as any).__googleGeocoderDisabled &&
+    (window as any).google?.maps?.Geocoder
+  ) {
     try {
       const address = await new Promise<string>((resolve, reject) => {
         const geocoder = new (window as any).google.maps.Geocoder();
@@ -53,6 +57,9 @@ export async function reverseGeocodeCoords(lat: number, lng: number): Promise<st
             const clean = results[0].formatted_address.replace(/^[A-Z0-9\+]+\s+/, '').trim();
             resolve(clean || results[0].formatted_address);
           } else {
+            if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+              (window as any).__googleGeocoderDisabled = true;
+            }
             reject(new Error(status));
           }
         });

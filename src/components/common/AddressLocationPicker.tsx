@@ -1166,7 +1166,7 @@ export default function AddressLocationPicker({
                     maxWidth: '650px',
                   }}
                 >
-                  {tempAddress || 'Geser atau klik peta untuk memilih lokasi...'}
+                  {tempAddress}
                 </span>
               </div>
               <div

@@ -209,9 +209,8 @@ export default function CitizenLiveRadarTracker({
     const hasAssignedOfficer = Boolean(
       complaint.assignedOfficer || complaint.assigned_officer_id || complaint.assignedOfficerId
     );
-    const tahap = Number(complaint.tahap || 0);
     const status = (complaint.status || '').toUpperCase();
-    return hasAcceptedDispatch || hasAssignedOfficer || tahap >= 2 || status === 'DIPROSES' || status === 'MENUNGGU_PENGESAHAN';
+    return hasAcceptedDispatch || hasAssignedOfficer || status === 'MENUNGGU_PENGESAHAN';
   }, [complaint, isCompleted]);
 
   const isArrived = useMemo(() => {
@@ -436,6 +435,21 @@ export default function CitizenLiveRadarTracker({
       }
     };
   }, [nomorTiket, token]);
+
+  // Auto-switch to Operator Review when ticket is resolved at operator desk without field patrol
+  useEffect(() => {
+    if (complaint && onSwitchToOperatorReview) {
+      const isDesk = Boolean(
+        complaint.isDeskResolved ||
+        complaint.resolutionLocationKey === 'OPERATOR_DESK' ||
+        complaint.resolutionDocumentKey === 'KONSULTASI_SELESAI' ||
+        (complaint.status === 'SELESAI' && (!complaint.dispatches || complaint.dispatches.length === 0))
+      );
+      if (isDesk) {
+        onSwitchToOperatorReview();
+      }
+    }
+  }, [complaint, onSwitchToOperatorReview]);
 
   const assignedOfficer = useMemo(() => {
     if (!complaint) return null;
@@ -841,6 +855,7 @@ export default function CitizenLiveRadarTracker({
               chatMessages={chatMessages}
               onOpenChat={() => setIsChatOpen(true)}
               mapComplaint={mapComplaint}
+              onSwitchToOperatorReview={onSwitchToOperatorReview}
             />
 
             {/* Chat Bottom Drawer Overlay if citizen opens past chat */}
@@ -1417,9 +1432,24 @@ function RadarSearchingFullScreenView({
           </h1>
 
           {/* Subtitle */}
-          <p className="text-xs sm:text-[13px] text-slate-400 leading-relaxed max-w-sm mx-auto mb-6">
+          <p className="text-xs sm:text-[13px] text-slate-400 leading-relaxed max-w-sm mx-auto mb-4">
             Sinyal darurat disiarkan secara serentak ke seluruh armada patroli Presisi di sekitar wilayah Anda.
           </p>
+
+          {/* Boundary / E-Routing Information Banner if detected */}
+          {Boolean(
+            complaint?.isOutsideJurisdiction ||
+            /batang|perbatasan|warungasem/i.test(complaint?.tkpAlamatTeks || '') ||
+            complaint?.crossJurisdiction?.isOutsideJurisdiction
+          ) && (
+            <div className="mb-5 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-left flex items-start gap-2.5 max-w-md mx-auto">
+              <span className="text-base flex-shrink-0">📍</span>
+              <div className="text-[11.5px] leading-relaxed text-slate-300">
+                <strong className="text-amber-300 font-bold block mb-0.5">Indikasi Batas Wilayah (E-Routing Boundary):</strong>
+                Titik lokasi Anda terdeteksi di sekitar perbatasan yurisdiksi. Operator Sentra 110 sedang mengoordinasikan pengalihan pos penanganan terdekat agar penanganan tiba dalam waktu sesingkat mungkin.
+              </div>
+            </div>
+          )}
 
           {/* Big Radar Graphic */}
           <div
@@ -2482,6 +2512,7 @@ function CompletedIndependentView({
   chatMessages,
   onOpenChat,
   mapComplaint,
+  onSwitchToOperatorReview,
 }: any) {
   const [hoverRatings, setHoverRatings] = useState<Record<string, number>>({});
   const [showMapPreview, setShowMapPreview] = useState(false);
@@ -2540,6 +2571,37 @@ function CompletedIndependentView({
 
       {/* 2. MAIN SCROLLABLE RESOLUTION CONTENT */}
       <main className="flex-1 w-full max-w-xl mx-auto px-4 py-5 sm:py-7 space-y-4 sm:space-y-5 pb-16">
+        {/* BANNER LAYANAN KONSULTASI SELESAI*/}
+        {(complaint?.isDeskResolved || complaint?.resolutionLocationKey === 'OPERATOR_DESK' || (!complaint?.dispatches || complaint.dispatches.length === 0)) && (
+          <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/35 flex items-center justify-center text-xl flex-shrink-0">
+                🎧
+              </div>
+              <div>
+                <div className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-2">
+                  <span>Layanan Konsultasi Selesai</span>
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-bold">
+                    TUNTAS
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  Pengaduan ini telah selesai dilayani langsung oleh operator tanpa membutuhkan pergerakan patroli lapangan.
+                </p>
+              </div>
+            </div>
+            {onSwitchToOperatorReview && (
+              <button
+                type="button"
+                onClick={onSwitchToOperatorReview}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs shadow-md transition-all whitespace-nowrap flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer"
+              >
+                <span>⭐</span> Beri Ulasan Pelayanan Operator
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Step Indicator Progress (Visualizing Independent Completion Step) */}
         <div className="bg-[#121621] border border-white/10 rounded-2xl p-3 shadow-md">
           <div className="flex items-center justify-between text-[11px] font-black text-slate-400 px-1 mb-2">

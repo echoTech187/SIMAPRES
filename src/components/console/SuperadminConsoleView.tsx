@@ -1,12 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import {
   getRegisteredUnitsAction,
-  registerNewUnitAction,
-  deleteRegisteredUnitAction,
   getMasterDropdownsAction,
   logoutAction,
   getCurrentSessionAction,
@@ -18,12 +16,10 @@ import {
 } from '@/app/actions/device.actions';
 import { getMasterCountersAction } from '@/app/actions/master.actions';
 import MasterDataManager, { MasterTabType } from './master/MasterDataManager';
-import MasterTabShell from './master/tabs/MasterTabShell';
 import TabUnitPersonel from './master/tabs/TabUnitPersonel';
 import TabProfilSuperadmin from './profile/TabProfilSuperadmin';
 import SuperadminSidebar from './superadmin/SuperadminSidebar';
-import { ConsoleSkeleton } from './ConsoleSkeleton';
-import HeaderProfileBadge, { getInitials } from './HeaderProfileBadge';
+import HeaderProfileBadge from './HeaderProfileBadge';
 import { toast } from '@/components/ui/Toast';
 import ResponsiveModal from '@/components/ui/ResponsiveModal';
 import { Shield } from 'lucide-react';
@@ -344,7 +340,9 @@ export default function SuperadminConsoleView({
             <Shield size={22} color="#38BDF8" strokeWidth={2.4} />
           </div>
           <div>
-            <div className="brand-title">SIMOPMAS 110 • POLRI</div>
+            <div className="brand-title">
+              SIMOPMAS 110 • {(currentUser?.stationName || session?.stationName || 'Polres Pekalongan').toUpperCase()}
+            </div>
             <div className="brand-subtitle">Modul Pendaftaran &amp; Manajemen Satuan Unit Terpadu</div>
           </div>
         </Link>

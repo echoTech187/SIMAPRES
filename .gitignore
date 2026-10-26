@@ -13,5 +13,13 @@ simapres-performance.patch
 SIMAPRES_110_end_to_end_analysis.md
 subagent_18.txt
 docs
+wa_auth_session
 laporan_status_simapres.md
 dokumen_teknis_dan_user_manual_1A_3B.md
+dokumen_estimasi_biaya_dan_justifikasi_anggaran.md
+dokumen_teknis_dan_user_manual.md
+PANDUAN_SETUP_WHATSAPP_GATEWAY.md
+wa_auth_session
+wa_credentials
+node_modules/whatsapp-web.js/sessions
+node_modules/whatsapp-web.js/storage

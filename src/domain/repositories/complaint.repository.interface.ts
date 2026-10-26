@@ -12,7 +12,7 @@ export interface IComplaintRepository {
   findByNomorTiket(nomorTiket: string): Promise<ComplaintEntity | null>;
   findByPelaporHp(hp: string): Promise<ComplaintEntity[]>;
   findAssignedToOfficer(officerId: bigint, activeOnly?: boolean): Promise<ComplaintEntity[]>;
-  findAntreanPawas(): Promise<ComplaintEntity[]>;
+  findAntreanPawas(stationId?: number): Promise<ComplaintEntity[]>;
   findAllRecent(limit?: number): Promise<ComplaintEntity[]>;
   create(complaint: ComplaintEntity): Promise<ComplaintEntity>;
   update(complaint: ComplaintEntity): Promise<ComplaintEntity>;

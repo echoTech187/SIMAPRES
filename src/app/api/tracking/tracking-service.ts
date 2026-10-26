@@ -55,7 +55,9 @@ async function loadTrackingData(
     SELECT 
       c.id, c.nomor_tiket, c.status, c.tahap, c.urgensi, c.pelapor_nama, c.pelapor_hp,
       c.jenis_kejadian, c.ringkasan_keterangan, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng,
-      c.station_id, c.created_at, c.updated_at,
+      c.station_id, c.operator_id, c.resolution_location_key, c.resolution_document_key,
+      c.created_at, c.updated_at,
+      u_op.full_name AS operator_name,
       st.station_name, st.station_code, st.address AS station_address,
       d.id AS dispatch_id, d.dispatch_status, d.accepted_at, d.departed_at, d.arrived_at, d.completed_at,
       o.id AS officer_id, o.nrp, o.rank_pangkat, o.jabatan, o.assigned_patrol_vehicle,
@@ -63,12 +65,19 @@ async function loadTrackingData(
       u.full_name, u.phone_number,
       un.id AS unit_id, un.unit_name, un.short_name
     FROM complaints c
+    LEFT JOIN users u_op ON u_op.id = c.operator_id
     LEFT JOIN police_stations st ON st.id = c.station_id
     LEFT JOIN complaint_dispatches d ON d.complaint_id = c.id
     LEFT JOIN police_officers o ON o.id = d.officer_id
     LEFT JOIN users u ON u.id = o.user_id
     LEFT JOIN master_operational_units un ON un.id = d.unit_id
-    WHERE c.nomor_tiket IN (${tiket}, ${cleanTiket}, ${withHash})
+    WHERE c.nomor_tiket IN (
+      ${tiket}, 
+      ${cleanTiket}, 
+      ${withHash},
+      ${cleanTiket.startsWith('TICKET-') ? cleanTiket.replace(/^TICKET-/, '') : `TICKET-${cleanTiket}`},
+      ${cleanTiket.startsWith('TIKET-') ? `TICKET-${cleanTiket}` : cleanTiket}
+    )
     ORDER BY d.id ASC
   `;
 
@@ -102,7 +111,7 @@ async function loadTrackingData(
       WHERE complaint_id = ${compId}
         AND notes IS NOT NULL
         AND notes != ''
-        AND (action IN ('COMPLAINT_COMPLETED', 'REPORT_SUBMITTED', 'SELESAI') OR action LIKE '%Selesai%' OR action LIKE '%BAP%')
+        AND (action IN ('COMPLAINT_COMPLETED', 'REPORT_SUBMITTED', 'SELESAI', 'RESOLVED_AT_OPERATOR_DESK') OR action LIKE '%Selesai%' OR action LIKE '%BAP%' OR action LIKE '%Operator%')
       ORDER BY id DESC
       LIMIT 1
     `.catch(() => [] as any[]),
@@ -339,6 +348,14 @@ async function loadTrackingData(
     citizenRating,
     citizenTags,
     citizenReview,
+    resolutionLocationKey: first.resolution_location_key || null,
+    resolutionDocumentKey: first.resolution_document_key || null,
+    operatorName: first.operator_name || null,
+    isDeskResolved: Boolean(
+      first.resolution_location_key === 'OPERATOR_DESK' ||
+      first.resolution_document_key === 'KONSULTASI_SELESAI' ||
+      (first.status === 'SELESAI' && (!sortedDispatches || sortedDispatches.length === 0))
+    ),
     dispatches: sortedDispatches,
     timelines: [],
     complaintLogs: [],
