@@ -158,17 +158,18 @@ export function loadGoogleMaps(): Promise<any> {
 // In-memory cache for road geometry to prevent repeated network requests
 const roadGeometryCache = new Map<string, { lat: number; lng: number }[]>();
 
-// Helper to fetch real road-following coordinates via OSRM GeoJSON with timeout
-export async function getRealRoadPath(
+// Helper to fetch real road-following coordinates & ETA via OSRM GeoJSON with timeout
+export async function getRealRoadRoute(
   startLat: number,
   startLng: number,
   endLat: number,
   endLng: number
-): Promise<{ lat: number; lng: number }[] | null> {
+): Promise<DetailedRoadRoute | null> {
   if (!startLat || !startLng || !endLat || !endLng) return null;
   const cacheKey = `${startLat.toFixed(4)},${startLng.toFixed(4)};${endLat.toFixed(4)},${endLng.toFixed(4)}`;
-  if (roadGeometryCache.has(cacheKey)) {
-    return roadGeometryCache.get(cacheKey)!;
+  const cached = detailedRouteCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < 120000) {
+    return cached.route;
   }
 
   try {
@@ -184,13 +185,33 @@ export async function getRealRoadPath(
         lat,
         lng,
       }));
+      const r0 = data.routes[0];
+      const distKm = (r0.distance / 1000).toFixed(1);
+      const minutes = Math.max(1, Math.round(r0.duration / 60));
+      const durationText = minutes >= 60 ? `±${Math.floor(minutes / 60)} Jam ${minutes % 60} Mnt` : `±${minutes} Mnt`;
+      const route: DetailedRoadRoute = {
+        path,
+        distanceText: `${distKm} KM`,
+        durationText,
+        distanceValue: r0.distance,
+        durationValue: r0.duration,
+      };
+      detailedRouteCache.set(cacheKey, { route, timestamp: Date.now() });
       roadGeometryCache.set(cacheKey, path);
-      return path;
+      return route;
     }
-  } catch (err) {
-    console.warn('Road routing notice (OSRM):', err);
-  }
+  } catch (_) {}
   return null;
+}
+
+export async function getRealRoadPath(
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number
+): Promise<{ lat: number; lng: number }[] | null> {
+  const r = await getRealRoadRoute(startLat, startLng, endLat, endLng);
+  return r?.path || null;
 }
 
 // Definisi detail rute jalan resmi (Google Directions / Fallback)
@@ -205,12 +226,27 @@ export interface DetailedRoadRoute {
 
 const detailedRouteCache = new Map<string, { route: DetailedRoadRoute; timestamp: number }>();
 
+// Proteksi Error Konsol: Google Maps DirectionsService dinonaktifkan secara default.
+// Ini mencegah spam error 'REQUEST_DENIED' di browser console bagi project yang belum mengaktifkan
+// API berbayar 'Directions API' di Google Cloud Console. Sistem menggunakan OSRM secara mulus tanpa error.
+const isGoogleDirectionsApiEnabled = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_ENABLE_GOOGLE_DIRECTIONS === 'true';
+let isGoogleDirectionsApiAvailable = isGoogleDirectionsApiEnabled;
+let directionsDisabledUntil = 0;
+
 // Prioritas Utama: Google Maps DirectionsService (Akurasi Jalan Raya Nyata & Belokan Google Maps)
 export function getGoogleDirectionsRoute(
   maps: any,
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number }
 ): Promise<DetailedRoadRoute | null> {
+  if (!isGoogleDirectionsApiEnabled || !isGoogleDirectionsApiAvailable) {
+    if (Date.now() < directionsDisabledUntil) {
+      return Promise.resolve(null);
+    }
+    if (!isGoogleDirectionsApiEnabled) return Promise.resolve(null);
+    isGoogleDirectionsApiAvailable = true;
+  }
+
   if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
     return Promise.resolve(null);
   }
@@ -261,6 +297,11 @@ export function getGoogleDirectionsRoute(
             detailedRouteCache.set(cacheKey, { route, timestamp: now });
             resolve(route);
           } else {
+            // Jika REQUEST_DENIED / ACCESS_DENIED, hentikan panggilan berulang ke API agar tidak spam error
+            if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT' || status === 'ACCESS_DENIED') {
+              isGoogleDirectionsApiAvailable = false;
+              directionsDisabledUntil = Date.now() + 600000; // Diamkan selama 10 menit
+            }
             resolve(null);
           }
         }
@@ -281,7 +322,7 @@ export async function getGoogleDirectionsPath(
   return route?.path || null;
 }
 
-// Master Route Resolver: Prioritas 1 Google Directions -> Prioritas 2 OSRM -> Prioritas 3 Tactical Curve
+// Master Route Resolver: Prioritas 1 OSRM (Bebas Kuota, Tanpa API Key, Rute Jalan Riil) -> Fallback Google Directions -> Fallback Tactical Curve
 export async function getBestRoadRoute(
   maps: any,
   origin: { lat: number; lng: number },
@@ -296,8 +337,16 @@ export async function getBestRoadRoute(
   const dLat = Number(destination.lat);
   const dLng = Number(destination.lng);
 
-  // Tier 1: Google Maps DirectionsService (Prioritas Utama untuk Rute Jalan Raya Nyata)
-  if (maps) {
+  // Tier 1: OSRM Road Geometry & ETA (Bebas Kuota, Tanpa API Key, Akurasi Rute Jalan Raya Indonesia)
+  try {
+    const osrmRoute = await getRealRoadRoute(oLat, oLng, dLat, dLng);
+    if (osrmRoute && osrmRoute.path && osrmRoute.path.length >= 2) {
+      return osrmRoute;
+    }
+  } catch (_) {}
+
+  // Tier 2: Google Maps DirectionsService (Hanya jika OSRM belum merespons dan API aktif)
+  if (maps && isGoogleDirectionsApiAvailable) {
     try {
       const googleRes = await getGoogleDirectionsRoute(maps, { lat: oLat, lng: oLng }, { lat: dLat, lng: dLng });
       if (googleRes && googleRes.path && googleRes.path.length >= 2) {
@@ -305,14 +354,6 @@ export async function getBestRoadRoute(
       }
     } catch (_) {}
   }
-
-  // Tier 2: OSRM Road Geometry jika Google Directions belum merespons
-  try {
-    const osrmPath = await getRealRoadPath(oLat, oLng, dLat, dLng);
-    if (osrmPath && osrmPath.length >= 2) {
-      return { path: osrmPath };
-    }
-  } catch (_) {}
 
   // Tier 3: Tactical Path Curve sebagai fallback darurat agar tidak pernah blank
   return {

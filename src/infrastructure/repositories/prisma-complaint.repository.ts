@@ -325,15 +325,16 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     const orConditions: any[] = [assignedCondition];
 
     // 2. Siaran Terbuka (Open Broadcast / Disposisi Mako):
-    // Syarat ketat:
+    // Syarat Operasional Presisi 110:
     // - Akun ber-role PERSONIL
     // - Menginduk di Mako tiket (resolvedStationId tidak null)
-    // - Sedang PIKET / dinas aktif di Mako tersebut (isPiket === true)
-    // - Tiket berasal dari Mako yang sama (station_id === resolvedStationId)
-    // - Terbuka untuk semua satuan (tanpa batasan unit_id)
-    if (isPersonilRole && isPiket && resolvedStationId) {
+    // - Terbuka untuk seluruh personel di Mako tersebut (siapa cepat dia dapat / respon cepat)
+    if (isPersonilRole && resolvedStationId) {
       orConditions.push({
-        station_id: resolvedStationId,
+        OR: [
+          { station_id: resolvedStationId },
+          { dispatches: { some: { station_id: resolvedStationId } } },
+        ],
         status: { in: ['MENUNGGU', 'DIPROSES'] },
         dispatches: {
           some: {

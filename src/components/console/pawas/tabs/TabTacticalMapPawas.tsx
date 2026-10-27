@@ -344,7 +344,7 @@ export default function TabTacticalMapPawas({
             </button>
           </div>
           <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            Piket Operasi Siaga 1x24 Jam • Regu Alpha Presisi
+            Piket Operasi Siaga • Regu Alpha Presisi
           </div>
 
 

@@ -44,6 +44,8 @@ const sectionTitleMap: Record<string, string> = {
   master_faq: 'Master Buku Pintar SOP & Layanan Warga',
   audit_bbm: 'Audit Klaim BBM Logistik Polri',
   fuel_type: 'Master Jenis Bahan Bakar Dinas (BBM)',
+  piket: 'Jadwal & Roster Piket Presisi',
+  'jadwal-piket': 'Jadwal & Roster Piket Presisi',
   fuel_claim_status: 'Master Alur Status Klaim BBM',
 };
 

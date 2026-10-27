@@ -265,20 +265,18 @@
       font-family: inherit;
     }
 
-    /* GLOBAL MODAL FULLSCREEN ON MOBILE (< 768px) */
+    /* MASTER & PAWAS FORM MODALS FULLSCREEN ON MOBILE (< 768px) */
     @media (max-width: 767.98px) {
       .master-modal-overlay,
       .pawas-modal-overlay,
-      .responsive-modal-overlay,
-      div[id^="modal-"] {
+      .responsive-modal-overlay {
         padding: 0 !important;
         align-items: stretch !important;
         justify-content: stretch !important;
       }
       .master-modal-content,
       .pawas-modal-dialog,
-      .responsive-modal-container,
-      div[id^="modal-"] > div:first-child {
+      .responsive-modal-container {
         width: 100vw !important;
         max-width: 100vw !important;
         min-width: 100vw !important;

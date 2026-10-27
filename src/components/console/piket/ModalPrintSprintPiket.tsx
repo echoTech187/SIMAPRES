@@ -266,7 +266,7 @@ export default function ModalPrintSprintPiket({
                   </td>
                   <td style={{ border: '1px solid #000', padding: '4px 6px' }}>{pawas.jabatan || 'Pawas Siaga Mako'}</td>
                   <td style={{ border: '1px solid #000', padding: '4px 6px' }}>PERWIRA PENGAWAS (PAWAS)</td>
-                  <td style={{ border: '1px solid #000', padding: '4px 6px' }}>Komando Mako 1x24 Jam</td>
+                  <td style={{ border: '1px solid #000', padding: '4px 6px' }}>Komando Mako</td>
                 </tr>
               )}
               {/* Ka SPKT */}

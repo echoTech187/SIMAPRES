@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getOfficerTodayPiketScheduleAction } from '@/app/actions/piket.actions';
 import {
   Shield,
   AlertTriangle,
@@ -62,10 +63,50 @@ export default function TabBerandaPersonil({
     return match ? match.crew_partner_name : null;
   });
 
+  // Sinkronisasi partnerName saat activeComplaint atau disposisi diperbarui
+  useEffect(() => {
+    if (!activeComplaint) {
+      setPartnerName(null);
+      return;
+    }
+    const dispatches = Array.isArray((activeComplaint as any).dispatches) ? (activeComplaint as any).dispatches : [];
+    const match = dispatches.find((d: any) => d.crew_partner_name);
+    if (match && match.crew_partner_name !== partnerName) {
+      setPartnerName(match.crew_partner_name);
+    }
+  }, [activeComplaint?.id, (activeComplaint as any)?.dispatches]);
+
+  // Data Jadwal Piket Riil Personil (Anti-Hardcode)
+  const [piketSchedule, setPiketSchedule] = useState<{
+    reguPiket: string;
+    jamDinas: string;
+    peranPenugasan: string;
+    statusPresensi: string;
+    isScheduled: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    const officerKey = officer?.id || officer?.nrp;
+    if (!officerKey) return;
+    let active = true;
+    getOfficerTodayPiketScheduleAction(officerKey)
+      .then((res) => {
+        if (!active) return;
+        if (res.success && res.data) {
+          setPiketSchedule(res.data);
+        }
+      })
+      .catch((err) => console.warn('Gagal memuat jadwal piket personil:', err));
+
+    return () => {
+      active = false;
+    };
+  }, [officer?.id, officer?.nrp]);
+
   const pendingQuota = pendingAcceptTask ? getTaskQuotaInfo(pendingAcceptTask, officer.unit_id) : null;
 
   return (
-    <div className="w-full space-y-5 pb-6">
+    <div className="w-full pb-6">
       {/* ======================================================== */}
       {/* 1. HERO ALERT: DISPATCH INCOMING / ACTIVE MISSION / CLEAR */}
       {/* ======================================================== */}
@@ -173,7 +214,19 @@ export default function TabBerandaPersonil({
                 className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-blue-200 bg-blue-500/15 border border-blue-500/30 hover:bg-blue-500/25 transition-all active:scale-95 whitespace-nowrap"
               >
                 <UserPlus size={15} className="flex-shrink-0" />
-                <span>{partnerName ? `Partner: ${partnerName}` : '+ Rekan Regu'}</span>
+                <span>
+                  {partnerName ? (
+                    (() => {
+                      const count = partnerName.includes('|')
+                        ? partnerName.split('|').filter(Boolean).length
+                        : partnerName.split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i).filter(Boolean).length;
+                      if (count > 1) return `Regu (${count} Rekan)`;
+                      return `Partner: ${partnerName.replace(/\s*\|\s*/g, ', ')}`;
+                    })()
+                  ) : (
+                    '+ Rekan Regu'
+                  )}
+                </span>
               </button>
 
               <button
@@ -335,30 +388,43 @@ export default function TabBerandaPersonil({
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-black text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Shield size={14} />
-                <span>Jadwal Piket Jaga Saya (SOP Polri)</span>
+                <span>Jadwal Piket Jaga Saya</span>
               </span>
-              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                1x24 JAM
+              <span className="text-xs text-amber-300 font-bold flex items-center gap-1">
+                <span></span>
+                <ChevronRight size={14} />
               </span>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Regu Piket :</span>
-                <span className="font-bold text-white bg-slate-800/80 px-2 py-0.5 rounded">Regu A (Satu)</span>
+                <span className="font-bold text-white bg-slate-800/80 px-2 py-0.5 rounded">
+                  {piketSchedule?.reguPiket || (officer.satuan ? `Piket ${officer.satuan}` : 'Regu Cadangan')}
+                </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Jam Dinas :</span>
-                <span className="font-bold text-white">08.00 s/d 08.00 WIB (+1)</span>
+                <span className="font-bold text-white">
+                  {piketSchedule?.jamDinas || '08.00 s/d 08.00 WIB (+1)'}
+                </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Peran Penugasan :</span>
-                <span className="font-bold text-emerald-400">Piket Patroli Perintis Presisi</span>
+                <span className="font-bold text-emerald-400">
+                  {piketSchedule?.peranPenugasan || officer.jabatan || 'Piket Patroli Perintis Presisi'}
+                </span>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Status Presensi :</span>
-                <span className="font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                  ✓ HADIR DINAS SIAGA
+                <span className={`font-black px-2 py-0.5 rounded border text-[11px] ${
+                  (piketSchedule?.statusPresensi || officer.dutyStatus) !== 'LEPAS_DINAS'
+                    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                    : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                }`}>
+                  {(piketSchedule?.statusPresensi || officer.dutyStatus) !== 'LEPAS_DINAS'
+                    ? '✓ HADIR DINAS SIAGA'
+                    : '• LEPAS DINAS / CADANGAN'}
                 </span>
               </div>
             </div>
@@ -378,7 +444,7 @@ export default function TabBerandaPersonil({
                 Capaian Respon & Standar SOP
               </span>
               <span className="text-xs text-amber-300 font-bold flex items-center gap-1">
-                <span>Lihat di Profile</span>
+                <span>Lihat</span>
                 <ChevronRight size={14} />
               </span>
             </div>

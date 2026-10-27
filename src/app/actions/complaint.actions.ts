@@ -34,9 +34,13 @@ function safeRevalidatePath(path?: string) {
 // Helper serialize BigInt to string
 function serializeBigInt<T>(obj: T): T {
   return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
+    JSON.stringify(obj, (key, value) => {
+      if (typeof value === 'bigint') return value.toString();
+      if (value && typeof value === 'object' && value.d && Array.isArray(value.d)) {
+        return Number(value);
+      }
+      return value;
+    })
   );
 }
 
@@ -245,7 +249,9 @@ export async function getActiveSpktDutyDetails(stationId: number): Promise<{
             id: String(m.officer.id),
             nrp: m.officer.nrp,
             name: m.officer.user.full_name,
+            full_name: m.officer.user.full_name,
             rank: m.officer.rank_pangkat || '',
+            pangkat: m.officer.rank_pangkat || '',
             phone: m.officer.user.phone_number || '',
           });
         }
@@ -253,20 +259,22 @@ export async function getActiveSpktDutyDetails(stationId: number): Promise<{
     }
 
     if (dutyOfficers.length === 0) {
-      const activeOfficers = await prisma.policeOfficer.findMany({
+      const allStationOfficers = await prisma.policeOfficer.findMany({
         where: {
           station_id: stationId,
-          duty_status: { not: 'LEPAS_DINAS' },
+          user: { is_active: true },
         },
         include: { user: true },
-        take: 12,
+        take: 20,
       });
-      for (const off of activeOfficers) {
+      for (const off of allStationOfficers) {
         dutyOfficers.push({
           id: String(off.id),
           nrp: off.nrp,
           name: off.user.full_name,
+          full_name: off.user.full_name,
           rank: off.rank_pangkat || '',
+          pangkat: off.rank_pangkat || '',
           phone: off.user.phone_number || '',
         });
       }
@@ -2008,8 +2016,14 @@ export async function acceptAndBroadcastCrossJurisdictionAction(input: {
 export async function addCrewPartnerToDispatchAction(input: {
   complaintId: string;
   partnerOfficerId?: string;
-  partnerName: string;
+  partnerName?: string;
   partnerNrp?: string;
+  partners?: Array<{
+    officerId?: string;
+    name: string;
+    nrp?: string;
+    pangkat?: string;
+  }>;
 }): Promise<{
   success: boolean;
   error?: string;
@@ -2020,10 +2034,37 @@ export async function addCrewPartnerToDispatchAction(input: {
     return { success: false, error: auth.error };
   }
 
-  const cleanPartnerName = (input.partnerName || '').trim();
-  if (!cleanPartnerName) {
-    return { success: false, error: 'Nama rekan regu wajib diisi.' };
+  // Normalisasi daftar rekan regu (mendukung 1 atau banyak personil)
+  let partnerNames: string[] = [];
+  let partnerNrps: string[] = [];
+
+  if (Array.isArray(input.partners) && input.partners.length > 0) {
+    input.partners.forEach((p) => {
+      const name = (p.name || '').trim();
+      if (name && !partnerNames.includes(name)) {
+        partnerNames.push(name);
+        if (p.nrp?.trim()) partnerNrps.push(p.nrp.trim());
+      }
+    });
+  } else if (input.partnerName?.trim()) {
+    const raw = input.partnerName;
+    const splitNames = raw.includes('|')
+      ? raw.split('|').map((s) => s.trim()).filter(Boolean)
+      : raw.split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i).map((s) => s.trim()).filter(Boolean);
+    partnerNames = splitNames;
+    if (input.partnerNrp?.trim()) {
+      partnerNrps = input.partnerNrp.includes('|')
+        ? input.partnerNrp.split('|').map((s) => s.trim()).filter(Boolean)
+        : input.partnerNrp.split(',').map((s) => s.trim()).filter(Boolean);
+    }
   }
+
+  if (partnerNames.length === 0) {
+    return { success: false, error: 'Minimal pilih atau masukkan 1 nama rekan regu.' };
+  }
+
+  const cleanPartnerName = partnerNames.join(' | ').substring(0, 120);
+  const cleanPartnerNrp = partnerNrps.length > 0 ? partnerNrps.join(' | ').substring(0, 50) : null;
 
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
@@ -2044,8 +2085,8 @@ export async function addCrewPartnerToDispatchAction(input: {
       where: { id: dispatch.id },
       data: {
         crew_partner_name: cleanPartnerName,
-        crew_partner_nrp: input.partnerNrp?.trim() || null,
-        tactical_orders: (dispatch.tactical_orders || '') + ` | Regu Patroli Diperkuat: ${cleanPartnerName}`,
+        crew_partner_nrp: cleanPartnerNrp,
+        tactical_orders: (dispatch.tactical_orders || '') + ` | Regu Patroli Diperkuat (${partnerNames.length} Personel): ${cleanPartnerName}`,
       },
     });
 
@@ -2055,14 +2096,14 @@ export async function addCrewPartnerToDispatchAction(input: {
         actor_name: leaderName,
         actor_role: 'PERSONIL',
         action: 'ADD_CREW_PARTNER',
-        notes: `Penambahan Anggota Regu Lapangan (Buddy System): ${cleanPartnerName}${input.partnerNrp ? ` (NRP: ${input.partnerNrp})` : ''} resmi ditambahkan ke regu patroli oleh ${leaderName}.`,
+        notes: `Penambahan Anggota Regu Lapangan (${partnerNames.length} Personel): ${cleanPartnerName}${cleanPartnerNrp ? ` (NRP: ${cleanPartnerNrp})` : ''} resmi ditambahkan ke regu patroli oleh ${leaderName}.`,
       },
     });
 
     safeRevalidatePath('/console');
     return {
       success: true,
-      message: `Rekan regu ${cleanPartnerName} berhasil ditambahkan ke penugasan.`,
+      message: `${partnerNames.length} Rekan regu berhasil ditambahkan ke penugasan.`,
     };
   } catch (err: any) {
     return { success: false, error: err.message || 'Gagal menambahkan rekan regu.' };
@@ -2076,7 +2117,7 @@ export async function getAvailableStationOfficersAction(stationId?: number | str
   try {
     const stId = stationId ? Number(stationId) : 60001;
     const duty = await getActiveSpktDutyDetails(stId);
-    return { success: true, data: duty.dutyOfficers };
+    return { success: true, data: serializeBigInt(duty.dutyOfficers || []) };
   } catch (err: any) {
     return { success: false, error: err.message, data: [] };
   }

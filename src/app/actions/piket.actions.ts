@@ -4,10 +4,15 @@ import { prisma } from '@/infrastructure/db/prisma.client';
 import { revalidatePath } from 'next/cache';
 
 function serializeBigInt<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
   return JSON.parse(
-    JSON.stringify(obj, (_key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
+    JSON.stringify(obj, (_key, value) => {
+      if (typeof value === 'bigint') return value.toString();
+      if (value && typeof value === 'object' && (value.isDecimal || value.constructor?.name === 'Decimal')) {
+        return Number(value);
+      }
+      return value;
+    })
   );
 }
 
@@ -226,7 +231,7 @@ export async function getPiketTimelineAction({
 
     return {
       success: true,
-      data: timelineItems,
+      data: serializeBigInt(timelineItems),
     };
   } catch (err: any) {
     console.error('getPiketTimelineAction error:', err);
@@ -631,7 +636,7 @@ export async function getPiketLookupsAction(_station_id?: number) {
     return {
       success: true,
       data: {
-        stations,
+        stations: serializeBigInt(stations),
         officers: serializeBigInt(officers),
         operationalUnits: serializeBigInt(operationalUnits),
         roles: POLRI_PIKET_ROLES,
@@ -644,5 +649,90 @@ export async function getPiketLookupsAction(_station_id?: number) {
       success: false,
       error: err.message || 'Gagal memuat lookup piket',
     };
+  }
+}
+
+/**
+ * Mendapatkan jadwal piket riil hari ini untuk personil tertentu (Anti-Hardcode)
+ */
+export async function getOfficerTodayPiketScheduleAction(officerIdOrNrp: string | number) {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const officer = await prisma.policeOfficer.findFirst({
+      where: {
+        OR: [
+          { id: !isNaN(Number(officerIdOrNrp)) ? BigInt(officerIdOrNrp) : undefined },
+          { nrp: String(officerIdOrNrp) },
+        ],
+      },
+      include: {
+        user: true,
+        station: true,
+      },
+    });
+
+    if (!officer) {
+      return { success: false, data: null };
+    }
+
+    const piketMember = await prisma.piketMember.findFirst({
+      where: {
+        officer_id: officer.id,
+        schedule: {
+          schedule_date: { gte: todayStart, lte: todayEnd },
+          status: { not: 'DIBATALKAN' },
+        },
+      },
+      include: {
+        schedule: {
+          include: {
+            pawas: { include: { user: true } },
+            ka_spkt: { include: { user: true } },
+            station: true,
+          },
+        },
+      },
+    });
+
+    if (piketMember && piketMember.schedule) {
+      const sch = piketMember.schedule;
+      return {
+        success: true,
+        data: serializeBigInt({
+          isScheduled: true,
+          reguPiket: sch.regu_name || 'Regu Piket Mako',
+          shiftName: sch.shift_name || '24 Jam Penuh',
+          jamDinas: sch.shift_name ? `${sch.shift_name} (08.00 s/d 08.00 WIB)` : '08.00 s/d 08.00 WIB (+1)',
+          peranPenugasan: piketMember.peran_jaga || 'Piket Siaga Mako',
+          statusPresensi: piketMember.status_kehadiran || 'HADIR_DINAS',
+          catatan: piketMember.catatan,
+          pawasNama: sch.pawas?.user?.full_name || 'PAWAS',
+          kaSpktNama: sch.ka_spkt?.user?.full_name || 'Ka SPKT',
+          stationName: sch.station?.station_name || officer.station?.station_name,
+        }),
+      };
+    }
+
+    // Jika belum terjadwal hari ini, tampilkan data riil dari profil officer dan status dinasnya
+    return {
+      success: true,
+      data: serializeBigInt({
+        isScheduled: false,
+        reguPiket: officer.station?.station_name ? `Piket ${officer.station.station_name}` : 'Regu Cadangan',
+        shiftName: 'Siaga Operasional',
+        jamDinas: 'Siaga 24 Jam Presisi',
+        peranPenugasan: officer.jabatan || 'Personil Lapangan',
+        statusPresensi: officer.duty_status || 'LEPAS_DINAS',
+        catatan: null,
+        stationName: officer.station?.station_name || 'Polres Pekalongan',
+      }),
+    };
+  } catch (err: any) {
+    console.error('getOfficerTodayPiketScheduleAction error:', err);
+    return { success: false, error: err.message, data: null };
   }
 }

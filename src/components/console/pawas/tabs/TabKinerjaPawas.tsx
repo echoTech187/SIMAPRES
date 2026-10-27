@@ -86,7 +86,7 @@ export default function TabKinerjaPawas({
     });
 
     if (kinerjaPeriod === 'harian') {
-      return `PIKET 1X24 JAM • ${formattedDate.toUpperCase()}`;
+      return `PIKET • ${formattedDate.toUpperCase()}`;
     }
     if (kinerjaPeriod === 'mingguan') {
       return `ANEV MINGGUAN (7 HARI S/D ${formattedDate.toUpperCase()})`;
@@ -541,7 +541,7 @@ export default function TabKinerjaPawas({
                 transition: 'all 0.15s ease',
               }}
             >
-              Harian (1x24 Jam)
+              Harian
             </button>
             <button
               type="button"

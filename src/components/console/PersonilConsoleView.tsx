@@ -269,6 +269,7 @@ function PersonilContent({
   });
 
   const isPollingRef = useRef<boolean>(false);
+  const lastComplaintsHashRef = useRef<string>('');
 
   // 1. Data Loader
   const loadData = async (targetOfficerId?: string, preferredComplaintId?: string | number) => {
@@ -287,62 +288,74 @@ function PersonilContent({
       ]);
 
       if (cRes?.success && cRes?.data) {
-        setComplaints(cRes.data);
+        // Cek apakah data komplain benar-benar berubah sebelum memicu re-render
+        const currentHash = JSON.stringify(cRes.data.map((c: any) => [
+          c.id,
+          c.status,
+          c.tahap,
+          c.dispatches?.length,
+          c.dispatches?.map((d: any) => [d.id, d.officer_id, d.crew_partner_name, d.dispatch_status]),
+        ]));
 
-        // Check if there is a pending dispatch needing acceptance (only if on duty)
-        const isOfficerOnDuty = officer.dutyStatus !== 'LEPAS_DINAS';
-        const pending = isOfficerOnDuty
-          ? cRes.data.find((c: any) =>
-              isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id)
-            )
-          : null;
+        if (currentHash !== lastComplaintsHashRef.current || preferredComplaintId) {
+          lastComplaintsHashRef.current = currentHash;
+          setComplaints(cRes.data);
 
-        // PENTING: Hanya akun dengan role PERSONIL dan menggunakan HP lapangan terdaftar (hasil scan QR)
-        // yang berhak menerima modal notifikasi panggilan tugas darurat & berbunyi sirine.
-        // Role PAWAS, SUPERADMIN, atau perangkat Laptop dinonaktifkan sepenuhnya dari popup ini.
-        const isUserPersonilRole = session?.role ? session.role.toUpperCase() === 'PERSONIL' : false;
+          // Check if there is a pending dispatch needing acceptance
+          const pending = cRes.data.find((c: any) =>
+            isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id)
+          ) || null;
 
-        if (pending && isOfficerOnDuty && isPairedDeviceRef.current && isUserPersonilRole) {
-          setPendingAcceptTask(pending);
-          const taskId = String(pending.nomorTiket || pending.id);
-          if (!promptedTaskIdsRef.current.has(taskId)) {
-            promptedTaskIdsRef.current.add(taskId);
-            setShowAcceptModal(true);
-            playPoliceAlertAudio();
+          // PENTING: Hanya akun dengan role PERSONIL dan menggunakan HP lapangan terdaftar (hasil scan QR)
+          // yang berhak memicu popup otomatis panggilan tugas darurat dengan sirine audio.
+          // Pada tampilan Laptop / Desktop, hero banner tetap ditampilkan agar petugas dapat mengonfirmasi.
+          const isUserPersonilRole = session?.role ? session.role.toUpperCase() === 'PERSONIL' : false;
+          const isOfficerOnDuty = officer.dutyStatus !== 'LEPAS_DINAS';
+
+          if (pending) {
+            setPendingAcceptTask(pending);
+            if (isOfficerOnDuty && isPairedDeviceRef.current && isUserPersonilRole) {
+              const taskId = String(pending.nomorTiket || pending.id);
+              if (!promptedTaskIdsRef.current.has(taskId)) {
+                promptedTaskIdsRef.current.add(taskId);
+                setShowAcceptModal(true);
+                playPoliceAlertAudio();
+              }
+            }
+          } else {
+            stopPoliceAlertAudio();
+            setPendingAcceptTask(null);
+            setShowAcceptModal(false);
           }
-        } else {
-          stopPoliceAlertAudio();
-          setPendingAcceptTask(null);
-          setShowAcceptModal(false);
-        }
 
-        // Active ongoing complaint (Hanya tiket aktif yang belum SELESAI / DITOLAK)
-        const targetId =
-          preferredComplaintId ||
-          activeComplaintRef.current?.id ||
-          activeComplaintRef.current?.nomorTiket;
+          // Active ongoing complaint (Hanya tiket aktif yang belum SELESAI / DITOLAK)
+          const targetId =
+            preferredComplaintId ||
+            activeComplaintRef.current?.id ||
+            activeComplaintRef.current?.nomorTiket;
 
-        let active = targetId
-          ? cRes.data.find(
+          let active = targetId
+            ? cRes.data.find(
+                (c: any) =>
+                  (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
+                  hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
+                  c.status !== 'SELESAI' &&
+                  c.status !== 'DITOLAK'
+              )
+            : null;
+
+          if (!active) {
+            active = cRes.data.find(
               (c: any) =>
-                (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
                 hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
                 c.status !== 'SELESAI' &&
                 c.status !== 'DITOLAK'
-            )
-          : null;
+            );
+          }
 
-        if (!active) {
-          active = cRes.data.find(
-            (c: any) =>
-              hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
-              c.status !== 'SELESAI' &&
-              c.status !== 'DITOLAK'
-          );
+          setActiveComplaint(active || null);
+          activeComplaintRef.current = active || null;
         }
-
-        setActiveComplaint(active || null);
-        activeComplaintRef.current = active || null;
       }
 
       if (lRes?.success && lRes?.data) {
@@ -468,23 +481,27 @@ function PersonilContent({
       );
     }
 
-    // Panggil loadData() seketika pada awal mount (tidak menunggu 30 detik pertama)
+    // Panggil loadData() seketika pada awal mount
     loadData();
 
-    // Deteksi saat layar HP menyala atau tab peramban kembali aktif / fokus
+    // Deteksi saat layar HP menyala atau tab peramban kembali aktif / fokus (dibatasi minimal 15 detik jeda)
+    let lastWakeLoadTime = Date.now();
     const handleWakeOrFocus = () => {
+      const now = Date.now();
+      if (now - lastWakeLoadTime < 15000) return;
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        lastWakeLoadTime = now;
         loadData();
       }
     };
     document.addEventListener('visibilitychange', handleWakeOrFocus);
     window.addEventListener('focus', handleWakeOrFocus);
 
-    // Polling interval dipercepat untuk respon siaga cepat (setiap 5 detik)
+    // Polling interval background siaga (setiap 12 detik, stabil & hemat resource)
     const pollInterval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       loadData();
-    }, 5000);
+    }, 12000);
 
     return () => {
       if (watchId !== null && typeof navigator !== 'undefined' && navigator.geolocation) {
@@ -781,8 +798,8 @@ function PersonilContent({
       />
 
       {/* 4. Modals & Drawers */}
-      {/* Task Accept Emergency Modal (MUTLAK HANYA UNTUK ROLE PERSONIL DI HP TERDAFTAR) */}
-      {isPairedDevice && session?.role === 'PERSONIL' && (
+      {/* Task Accept Emergency Modal */}
+      {session?.role === 'PERSONIL' && (
         <TaskAcceptModal
           isOpen={showAcceptModal}
           task={pendingAcceptTask}

@@ -104,9 +104,15 @@ export default function TaskAcceptModal({
 
   return (
     <div
-      id="modal-konfirmasi-terima-tugas"
+      id="task-accept-emergency-dialog"
       data-testid="modal-konfirmasi-terima-tugas"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      style={{
+        padding: '16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
     >
       {/* Dark backdrop */}
       <div
@@ -116,11 +122,14 @@ export default function TaskAcceptModal({
 
       {/* Modal Dialog */}
       <div
-        className="relative w-full max-w-lg rounded-3xl overflow-hidden z-10 transition-all duration-300 animate-in fade-in zoom-in-95"
+        className="relative w-full max-w-lg rounded-3xl overflow-hidden z-10 transition-all duration-300 animate-in fade-in zoom-in-95 my-auto"
         style={{
           background: 'linear-gradient(180deg, #181C26 0%, #0E1118 100%)',
           border: theme.modalBorder,
           boxShadow: theme.modalGlow,
+          borderRadius: '24px',
+          maxHeight: 'calc(100dvh - 32px)',
+          overflowY: 'auto',
         }}
       >
         {/* Dynamic Header Banner */}
