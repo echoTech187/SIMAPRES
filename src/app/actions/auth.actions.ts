@@ -25,74 +25,54 @@ import {
 } from '@/lib/session';
 import { logUserActivity } from '@/lib/activity-logger';
 
+import { UseCaseFactory } from '@/application/factories/use-case.factory';
+
 export async function loginInternalAction(nrp: string, kataSandi: string) {
   try {
-    const trimmedNrp = nrp.trim();
-    if (!trimmedNrp) {
-      return { success: false, error: 'Silakan masukkan NRP / ID Petugas!' };
-    }
+    const loginUseCase = UseCaseFactory.getLoginUseCase();
+    const loginResult = await loginUseCase.execute({ nrp, kataSandi });
 
-    if (!kataSandi || !kataSandi.trim()) {
-      return { success: false, error: 'Silakan masukkan kata sandi Anda!' };
-    }
-
-    // 1. Cek akun pengguna di tabel users (Sumber Otoritas Utama)
-    const user = await prisma.user.findUnique({
-      where: { identifier: trimmedNrp },
-      include: {
-        officer_profile: {
-          include: {
-            unit: true,
-            station: true,
-          },
-        },
-        station: true,
-      },
-    });
-
-    if (!user) {
+    if (!loginResult.success || !loginResult.data) {
       return {
         success: false,
-        error: `Akses Ditolak: Akun dengan NRP / ID "${trimmedNrp}" tidak terdaftar dalam pangkalan data SIMOPMAS 110!`,
+        error: loginResult.error || 'Terjadi kesalahan sistem login.',
       };
     }
 
-    // 2. Verifikasi kata sandi dengan bcrypt
-    let isMatch = false;
-    if (user.password_hash) {
-      isMatch = await bcrypt.compare(kataSandi.trim(), user.password_hash);
-    }
-
-    if (!isMatch) {
-      return { success: false, error: 'Kata sandi yang Anda masukkan tidak sesuai. Silakan periksa kembali!' };
-    }
-
-    // 3. Standarisasi RBAC murni dari database (SUPERADMIN, PAWAS, PERSONIL)
-    const userRole = user.role;
-
-    // 4. Rute Navigasi Terpadu (Single Console URL SIMOPMAS 110)
-    const targetRoute = '/console';
-
-    const rankPangkat = user.officer_profile?.rank_pangkat || '';
-    const satuanNama = user.officer_profile?.unit?.unit_name || user.officer_profile?.jabatan || '';
-    const unitCode = user.officer_profile?.unit?.key || (user.officer_profile?.unit_id ? user.officer_profile.unit_id.toString() : '');
-
-    // 5. Terbitkan Sesi Terenkripsi ke HTTP-Only Cookies (Keamanan Ganda & Standby Timeout 1 Jam)
-    const now = Date.now();
-    const station = user.station || user.officer_profile?.station;
-    const sessionPayload: SessionPayload = {
-      userId: user.id.toString(),
-      identifier: user.identifier,
-      fullName: user.full_name,
-      role: userRole as any,
-      rankPangkat,
+    const {
+      userId,
+      nrp: userNrp,
+      fullName,
+      nama,
+      pangkat,
       satuanNama,
-      kelompokRegu: '',
-      unitId: unitCode,
-      avatar: user.officer_profile?.avatar_url || '',
-      stationId: station ? station.id.toString() : '',
-      stationName: station?.station_name || '',
-      stationCode: station?.station_code || '',
+      kelompokRegu,
+      unitId,
+      role,
+      userRole,
+      targetRoute,
+      avatarUrl,
+      stationId,
+      stationName,
+      stationCode,
+      rawOfficer,
+    } = loginResult.data;
+
+    // Terbitkan Sesi Terenkripsi ke HTTP-Only Cookies (Keamanan Ganda & Standby Timeout 1 Jam)
+    const now = Date.now();
+    const sessionPayload: SessionPayload = {
+      userId,
+      identifier: userNrp,
+      fullName,
+      role: role as any,
+      rankPangkat: pangkat,
+      satuanNama,
+      kelompokRegu,
+      unitId,
+      avatar: avatarUrl || '',
+      stationId: stationId || '',
+      stationName: stationName || '',
+      stationCode: stationCode || '',
       issuedAt: now,
       expiresAt: now + SESSION_MAX_AGE_SECONDS * 1000,
       lastActiveAt: now,
@@ -100,26 +80,15 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
 
     await setSessionCookie(sessionPayload);
 
-    // Update waktu login terakhir di database & catat aktivitas
+    // Catat log aktivitas login
     try {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { last_login_at: new Date() },
-      });
-      // Jika role adalah PERSONIL, otomatis aktifkan status kedinasan (DINAS_PATROLI)
-      if (userRole === 'PERSONIL') {
-        await prisma.policeOfficer.updateMany({
-          where: { user_id: user.id },
-          data: { duty_status: 'DINAS_PATROLI' },
-        });
-      }
       await logUserActivity({
-        userId: user.id.toString(),
-        identifier: user.identifier,
-        userName: user.full_name,
-        role: userRole,
+        userId,
+        identifier: userNrp,
+        userName: fullName,
+        role,
         activityType: 'LOGIN',
-        description: `Autentikasi berhasil: ${userRole} (${user.identifier} - ${user.full_name}) masuk ke konsol terpadu`,
+        description: `Autentikasi berhasil: ${role} (${userNrp} - ${fullName}) masuk ke konsol terpadu`,
         endpoint: '/console',
       });
     } catch (_) {}
@@ -127,17 +96,17 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
     return {
       success: true,
       data: {
-        userId: user.id.toString(),
-        nrp: user.identifier,
-        fullName: user.full_name,
-        nama: user.full_name,
-        pangkat: rankPangkat,
+        userId,
+        nrp: userNrp,
+        fullName,
+        nama,
+        pangkat,
         satuanNama,
-        kelompokRegu: '',
-        unitId: unitCode,
-        role: userRole,
-        userRole: userRole,
-        officer: user.officer_profile ? serializeBigInt(user.officer_profile) : null,
+        kelompokRegu,
+        unitId,
+        role,
+        userRole,
+        officer: rawOfficer ? serializeBigInt(rawOfficer) : null,
         registeredUnit: null,
         targetRoute,
       },
@@ -146,6 +115,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
     return { success: false, error: error.message || 'Terjadi kesalahan sistem login.' };
   }
 }
+
 
 export async function logoutAction(reason = 'USER_MANUAL') {
   try {

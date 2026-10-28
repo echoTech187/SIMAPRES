@@ -2,6 +2,7 @@ import { PrismaComplaintRepository } from '@/infrastructure/repositories/prisma-
 import { PrismaOfficerRepository } from '@/infrastructure/repositories/prisma-officer.repository';
 import { PrismaLogbookRepository } from '@/infrastructure/repositories/prisma-logbook.repository';
 import { PrismaHotspotRepository } from '@/infrastructure/repositories/prisma-hotspot.repository';
+import { PrismaUserRepository } from '@/infrastructure/repositories/prisma-user.repository';
 
 import { CreateComplaintUseCase } from '../use-cases/complaints/create-complaint.use-case';
 import { DispatchComplaintUseCase } from '../use-cases/complaints/dispatch-complaint.use-case';
@@ -10,14 +11,20 @@ import { SubmitRatingUseCase } from '../use-cases/complaints/submit-rating.use-c
 import { CreateLogbookEntryUseCase } from '../use-cases/logbook/create-logbook-entry.use-case';
 import { ManageHotspotsUseCase } from '../use-cases/hotspots/manage-hotspots.use-case';
 import { CalculateCadDispatchUseCase } from '../use-cases/cad/calculate-cad-dispatch.use-case';
+import { LoginUseCase } from '../use-cases/auth/login.use-case';
 
 // Singleton Repositories
 const complaintRepo = new PrismaComplaintRepository();
 const officerRepo = new PrismaOfficerRepository();
 const logbookRepo = new PrismaLogbookRepository();
 const hotspotRepo = new PrismaHotspotRepository();
+const userRepo = new PrismaUserRepository();
 
 export class UseCaseFactory {
+  static getLoginUseCase(): LoginUseCase {
+    return new LoginUseCase(userRepo);
+  }
+
   static getCreateComplaintUseCase(): CreateComplaintUseCase {
     return new CreateComplaintUseCase(complaintRepo);
   }
