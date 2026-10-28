@@ -427,8 +427,12 @@ export default function PortalWargaPage() {
       {/* Topbar Header Presisi */}
       <header className="warga-topbar">
         <Link href="/warga" className="warga-topbar-brand">
-          <div className="warga-brand-badge">
-            <Shield size={22} color="#ECC473" strokeWidth={2.4} />
+          <div className="warga-brand-badge" style={{ padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img
+              src="/logo_simopmas.png"
+              alt="Logo SIMOPMAS 110"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
           <div>
             <div className="warga-brand-title">SIMOPMAS 110 • POLRI</div>

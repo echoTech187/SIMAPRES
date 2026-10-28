@@ -304,7 +304,7 @@ function LoginForm() {
                 <img
                   src="/logo_simopmas.png"
                   alt="Logo SIMOPMAS 110"
-                  className="w-full h-full object-contain filter drop-shadow-[0_0_6px_rgba(255,255,255,0.45)]"
+                  className="w-full h-full object-contain "
                 />
               </div>
               <div className="min-w-0">
@@ -568,7 +568,7 @@ export default function LoginPage() {
               <img
                 src="/logo_simopmas.png"
                 alt="Logo SIMOPMAS 110"
-                className="w-full h-full object-contain filter drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
+                className="w-full h-full object-contain "
               />
             </div>
             <div>

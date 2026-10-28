@@ -575,8 +575,12 @@ function OperatorConsoleContent({
           style={{ cursor: 'pointer', textDecoration: 'none' }}
           onClick={() => switchTab('view-operator')}
         >
-          <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0284C7' }}>
-            <Headphones size={22} color="#FFFFFF" strokeWidth={2.4} />
+          <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
+            <img
+              src="/logo_simopmas.png"
+              alt="Logo SIMOPMAS 110"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
           <div>
             <div className="brand-title">

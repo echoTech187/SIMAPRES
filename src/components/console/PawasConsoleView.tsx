@@ -1499,8 +1499,12 @@ function CommandCenterContent({
           style={{ cursor: 'pointer', textDecoration: 'none' }}
           onClick={() => switchTab('view-beranda')}
         >
-          <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Shield size={22} color="#38BDF8" strokeWidth={2.4} />
+          <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
+            <img
+              src="/logo_simopmas.png"
+              alt="Logo SIMOPMAS 110"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
           <div>
             <div className="brand-title">

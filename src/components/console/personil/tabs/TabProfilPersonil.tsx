@@ -1042,14 +1042,12 @@ export default function TabProfilPersonil({
           boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
         }}
       >
-        <div
-          className="w-10 h-10 rounded-2xl flex items-center justify-center text-amber-400 shadow-md"
-          style={{
-            background: 'linear-gradient(135deg, rgba(236, 196, 115, 0.15) 0%, rgba(184, 130, 42, 0.08) 100%)',
-            border: '1px solid rgba(236, 196, 115, 0.3)',
-          }}
-        >
-          <Shield size={20} className="stroke-[2.5]" />
+        <div className="w-11 h-11 rounded-2xl p-1 flex items-center justify-center shadow-md bg-white/[0.08] border border-white/10 flex-shrink-0">
+          <img
+            src="/logo_simopmas.png"
+            alt="Logo SIMOPMAS 110"
+            className="w-full h-full object-contain"
+          />
         </div>
 
         <div>
