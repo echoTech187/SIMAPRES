@@ -435,8 +435,8 @@ export default function PortalWargaPage() {
             />
           </div>
           <div>
-            <div className="warga-brand-title">SIMOPMAS 110 • POLRI</div>
-            <div className="warga-brand-sub">Portal Layanan Pengaduan Resmi Masyarakat</div>
+            <div className="warga-brand-title mb-1">SIMOPMAS 110</div>
+            <div className="warga-brand-sub">Sistem Monitoring Polisi Bersama Masyarakat</div>
           </div>
         </Link>
       </header>

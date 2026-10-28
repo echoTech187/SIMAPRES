@@ -99,10 +99,11 @@
 }
 
 .warga-brand-title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.05em;
   background: linear-gradient(135deg, #FFFBEB 0%, #ECC473 60%, #D4A346 100%);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   line-height: 1.2;
@@ -124,7 +125,7 @@
     height: 48px;
   }
   .warga-brand-title {
-    font-size: 13.5px;
+    font-size: 16px;
   }
   .warga-brand-sub {
     font-size: 10px;
