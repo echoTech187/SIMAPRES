@@ -1375,24 +1375,18 @@ function RadarSearchingFullScreenView({
           {/* Brand Left */}
           <div
             style={{
-              width: '32px',
-              height: '32px',
-              background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-              borderRadius: '8px',
+              width: '40px',
+              height: '40px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
-              boxShadow: '0 2px 10px rgba(201,150,53,0.35)',
             }}
           >
-            <div
-              style={{
-                width: '16px',
-                height: '16px',
-                background: '#0A0D14',
-                clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-              }}
+            <img
+              src="/logo_simopmas.png"
+              alt="Logo SIMOPMAS 110"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
           </div>
           <div>
@@ -2138,13 +2132,13 @@ function CrossJurisdictionTransferIndependentView({
           {/* Left: Brand SIMOPMAS 110 */}
           <div className="flex items-center gap-2.5">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{
-                background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-                boxShadow: '0 2px 10px rgba(201,150,53,0.3)',
-              }}
+              className="w-10 h-10 flex items-center justify-center flex-shrink-0"
             >
-              <Shield size={20} className="text-[#0A0D14]" />
+              <img
+                src="/logo_simopmas.png"
+                alt="Logo SIMOPMAS 110"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">

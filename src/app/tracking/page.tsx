@@ -141,28 +141,21 @@ function TrackingContent() {
                 href="/warga"
                 style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}
               >
-                {/* Hexagon badge */}
+                {/* Official SIMOPMAS Logo */}
                 <div
                   style={{
-                    width: '34px',
-                    height: '34px',
-                    background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-                    borderRadius: '9px',
+                    width: '44px',
+                    height: '44px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
-                    boxShadow: '0 3px 12px rgba(201,150,53,0.4)',
-                    animation: 'tp-badge-pulse 2.5s ease-in-out infinite',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '18px',
-                      height: '18px',
-                      background: '#0A0D14',
-                      clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)',
-                    }}
+                  <img
+                    src="/logo_simopmas.png"
+                    alt="Logo SIMOPMAS 110"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
                 </div>
                 <div>
@@ -182,235 +175,213 @@ function TrackingContent() {
                   </div>
                 </div>
               </Link>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  fontSize: '10.5px',
-                  fontWeight: 800,
-                  color: '#ECC473',
-                }}
-              >
-                <div
-                  style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    background: '#ECC473',
-                    animation: 'tp-badge-pulse 1.8s ease-in-out infinite',
-                  }}
-                />
-                PORTAL RESMI
-              </div>
             </div>
           </header>
 
           {/* ─────────────── MAIN CONTENT ─────────────── */}
           <main style={{ flex: 1 }}>
-          <div
-            style={{
-              maxWidth: '440px',
-              margin: '48px auto 24px',
-              padding: '0 16px',
-            }}
-          >
             <div
               style={{
-                background: 'rgba(18,22,33,0.9)',
-                border: '1px solid rgba(236,196,115,0.2)',
-                borderRadius: '24px',
-                padding: '32px 24px',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(236,196,115,0.04)',
-                backdropFilter: 'blur(16px)',
+                maxWidth: '440px',
+                margin: '48px auto 24px',
+                padding: '0 16px',
               }}
             >
-              {/* Icon */}
               <div
                 style={{
-                  width: '60px',
-                  height: '60px',
-                  borderRadius: '18px',
-                  background: 'rgba(236,196,115,0.1)',
-                  border: '1.5px solid rgba(236,196,115,0.28)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 20px',
-                  color: '#ECC473',
+                  background: 'rgba(18,22,33,0.9)',
+                  border: '1px solid rgba(236,196,115,0.2)',
+                  borderRadius: '24px',
+                  padding: '32px 24px',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(236,196,115,0.04)',
+                  backdropFilter: 'blur(16px)',
                 }}
               >
-                <Radio size={28} />
-              </div>
-
-              <h1
-                style={{
-                  fontSize: '20px',
-                  fontWeight: 900,
-                  color: '#FFFFFF',
-                  textAlign: 'center',
-                  margin: '0 0 8px',
-                  letterSpacing: '-0.3px',
-                }}
-              >
-                Lacak Laporan Saya
-              </h1>
-              <p
-                style={{
-                  fontSize: '13px',
-                  color: '#64748B',
-                  textAlign: 'center',
-                  lineHeight: 1.6,
-                  margin: '0 0 28px',
-                }}
-              >
-                Masukkan nomor tiket yang Anda terima saat membuat laporan untuk memantau status penanganan secara langsung.
-              </p>
-
-              <form onSubmit={handleSearch}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '10.5px',
-                    fontWeight: 800,
-                    color: '#ECC473',
-                    marginBottom: '7px',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  NOMOR TIKET
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: TICKET-1897638850"
-                  value={ticketInput}
-                  onChange={(e) => setTicketInput(e.target.value)}
-                  autoFocus
-                  required
-                  style={{
-                    width: '100%',
-                    background: 'rgba(9,10,15,0.85)',
-                    border: '1.5px solid rgba(236,196,115,0.28)',
-                    borderRadius: '13px',
-                    padding: '13px 16px',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    fontFamily: 'monospace',
-                    letterSpacing: '0.5px',
-                    outline: 'none',
-                    marginBottom: '16px',
-                  }}
-                />
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '10.5px',
-                    fontWeight: 800,
-                    color: '#ECC473',
-                    marginBottom: '7px',
-                    letterSpacing: '0.5px',
-                  }}
-                >
-                  TOKEN VERIFIKASI KEAMANAN
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: 8646b7f837e4f414"
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(9,10,15,0.85)',
-                    border: '1.5px solid rgba(236,196,115,0.28)',
-                    borderRadius: '13px',
-                    padding: '13px 16px',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    fontWeight: 700,
-                    fontFamily: 'monospace',
-                    letterSpacing: '0.5px',
-                    outline: 'none',
-                    marginBottom: '8px',
-                  }}
-                />
+                {/* Icon */}
                 <div
                   style={{
-                    fontSize: '11px',
-                    color: '#94A3B8',
-                    lineHeight: 1.5,
-                    marginBottom: '20px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '6px',
-                  }}
-                >
-                  <span style={{ color: '#ECC473', fontSize: '13px' }}>🔒</span>
-                  <span>
-                    Token 16 karakter tertera pada pesan resmi WhatsApp 110 Anda. Akses tanpa token resmi akan ditolak demi perlindungan privasi pelapor.
-                  </span>
-                </div>
-                <button
-                  type="submit"
-                  style={{
-                    width: '100%',
-                    background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-                    color: '#0A0D14',
-                    fontWeight: 900,
-                    fontSize: '14px',
-                    padding: '14px',
-                    border: 'none',
-                    borderRadius: '13px',
-                    cursor: 'pointer',
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '18px',
+                    background: 'rgba(236,196,115,0.1)',
+                    border: '1.5px solid rgba(236,196,115,0.28)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    boxShadow: '0 6px 20px rgba(201,150,53,0.4)',
+                    margin: '0 auto 20px',
+                    color: '#ECC473',
                   }}
                 >
-                  <Search size={16} />
-                  <span>Lacak Sekarang</span>
-                </button>
-              </form>
+                  <Radio size={28} />
+                </div>
 
-              {/* Emergency */}
-              <div
-                style={{
-                  marginTop: '24px',
-                  paddingTop: '18px',
-                  borderTop: '1px solid rgba(255,255,255,0.06)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '12px',
-                  color: '#475569',
-                }}
-              >
-                <span>Butuh bantuan darurat?</span>
-                <a
-                  href="tel:110"
+                <h1
                   style={{
-                    color: '#FCD34D',
-                    fontWeight: 800,
-                    textDecoration: 'none',
+                    fontSize: '20px',
+                    fontWeight: 900,
+                    color: '#FFFFFF',
+                    textAlign: 'center',
+                    margin: '0 0 8px',
+                    letterSpacing: '-0.3px',
+                  }}
+                >
+                  Lacak Laporan Saya
+                </h1>
+                <p
+                  style={{
+                    fontSize: '13px',
+                    color: '#64748B',
+                    textAlign: 'center',
+                    lineHeight: 1.6,
+                    margin: '0 0 28px',
+                  }}
+                >
+                  Masukkan nomor tiket yang Anda terima saat membuat laporan untuk memantau status penanganan secara langsung.
+                </p>
+
+                <form onSubmit={handleSearch}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      color: '#ECC473',
+                      marginBottom: '7px',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    NOMOR TIKET
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: TICKET-1897638850"
+                    value={ticketInput}
+                    onChange={(e) => setTicketInput(e.target.value)}
+                    autoFocus
+                    required
+                    style={{
+                      width: '100%',
+                      background: 'rgba(9,10,15,0.85)',
+                      border: '1.5px solid rgba(236,196,115,0.28)',
+                      borderRadius: '13px',
+                      padding: '13px 16px',
+                      color: '#FFFFFF',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      letterSpacing: '0.5px',
+                      outline: 'none',
+                      marginBottom: '16px',
+                    }}
+                  />
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      color: '#ECC473',
+                      marginBottom: '7px',
+                      letterSpacing: '0.5px',
+                    }}
+                  >
+                    TOKEN VERIFIKASI KEAMANAN
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 8646b7f837e4f414"
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    style={{
+                      width: '100%',
+                      background: 'rgba(9,10,15,0.85)',
+                      border: '1.5px solid rgba(236,196,115,0.28)',
+                      borderRadius: '13px',
+                      padding: '13px 16px',
+                      color: '#FFFFFF',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      letterSpacing: '0.5px',
+                      outline: 'none',
+                      marginBottom: '8px',
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#94A3B8',
+                      lineHeight: 1.5,
+                      marginBottom: '20px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '6px',
+                    }}
+                  >
+                    <span style={{ color: '#ECC473', fontSize: '13px' }}>🔒</span>
+                    <span>
+                      Token 16 karakter tertera pada pesan resmi WhatsApp 110 Anda. Akses tanpa token resmi akan ditolak demi perlindungan privasi pelapor.
+                    </span>
+                  </div>
+                  <button
+                    type="submit"
+                    style={{
+                      width: '100%',
+                      background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
+                      color: '#0A0D14',
+                      fontWeight: 900,
+                      fontSize: '14px',
+                      padding: '14px',
+                      border: 'none',
+                      borderRadius: '13px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: '0 6px 20px rgba(201,150,53,0.4)',
+                    }}
+                  >
+                    <Search size={16} />
+                    <span>Lacak Sekarang</span>
+                  </button>
+                </form>
+
+                {/* Emergency */}
+                <div
+                  style={{
+                    marginTop: '24px',
+                    paddingTop: '18px',
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px',
+                    justifyContent: 'space-between',
+                    fontSize: '12px',
+                    color: '#475569',
                   }}
                 >
-                  <Phone size={13} />
-                  Hubungi 110
-                </a>
+                  <span>Butuh bantuan darurat?</span>
+                  <a
+                    href="tel:110"
+                    style={{
+                      color: '#FCD34D',
+                      fontWeight: 800,
+                      textDecoration: 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Phone size={13} />
+                    Hubungi 110
+                  </a>
+                </div>
               </div>
             </div>
-          </div>
-        </main>
-      </>
-    )}
-  </div>
-);
+          </main>
+        </>
+      )}
+    </div>
+  );
 }
 
 /* ── Error Boundary ── */
