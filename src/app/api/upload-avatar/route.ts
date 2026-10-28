@@ -11,9 +11,24 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'Akses ditolak: Anda harus login untuk mengunggah foto profil.' },
+        { status: 401 }
+      );
+    }
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const nrpParam = (formData.get('nrp') as string | null)?.trim();
+
+    // Pencegahan IDOR: Hanya SUPERADMIN yang boleh mengunggah foto untuk NRP orang lain
+    if (nrpParam && nrpParam !== session.identifier && session.role !== 'SUPERADMIN') {
+      return NextResponse.json(
+        { success: false, error: 'Akses ditolak: Anda hanya berwenang mengubah foto profil akun dinas sendiri.' },
+        { status: 403 }
+      );
+    }
 
     if (!file) {
       return NextResponse.json({ success: false, error: 'Berkas foto tidak ditemukan.' }, { status: 400 });
