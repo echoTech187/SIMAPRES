@@ -11,9 +11,9 @@ export const metadata: Metadata = {
   title: 'SIMOPMAS 110 - Sistem Monitoring Polisi Bersama Masyarakat',
   description: 'Sistem Terpadu Monitoring Polisi Bersama Masyarakat - SIMOPMAS 110',
   icons: {
-    icon: '/logo_simopmas.png',
-    shortcut: '/logo_simopmas.png',
-    apple: '/logo_simopmas.png',
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/favicon-256.png',
   },
 };
 

@@ -300,7 +300,7 @@ function LoginForm() {
             
             {/* Terminal Card Header */}
             <div className="flex items-center gap-3.5 pb-4 border-b border-white/10">
-              <div className="w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/10 p-1 flex items-center justify-center shadow-lg shadow-black/40 flex-shrink-0">
+              <div className="w-20 h-20">
                 <img
                   src="/logo_simopmas.png"
                   alt="Logo SIMOPMAS 110"
@@ -564,7 +564,7 @@ export default function LoginPage() {
           
           {/* Left Brand Identity */}
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.08] border border-white/10 p-1 flex items-center justify-center shadow-md shadow-black/30 flex-shrink-0">
+            <div className="w-12 h-12 ">
               <img
                 src="/logo_simopmas.png"
                 alt="Logo SIMOPMAS 110"
