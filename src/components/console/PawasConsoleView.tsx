@@ -1499,7 +1499,7 @@ function CommandCenterContent({
           style={{ cursor: 'pointer', textDecoration: 'none' }}
           onClick={() => switchTab('view-beranda')}
         >
-          <div className="brand-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
+          <div className="brand-icon">
             <img
               src="/logo_simopmas.png"
               alt="Logo SIMOPMAS 110"

@@ -89,15 +89,12 @@
 }
 
 .warga-brand-badge {
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(236, 196, 115, 0.16) 0%, rgba(14, 22, 38, 0.9) 100%);
-  border: 1px solid var(--warga-gold-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 15px var(--warga-gold-glow);
   flex-shrink: 0;
 }
 
@@ -123,8 +120,8 @@
     padding: 12px 16px;
   }
   .warga-brand-badge {
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
   }
   .warga-brand-title {
     font-size: 13.5px;
