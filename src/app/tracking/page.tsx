@@ -178,7 +178,7 @@ function TrackingContent() {
                     SIMOPMAS 110
                   </div>
                   <div style={{ fontSize: '10.5px', color: '#64748B', fontWeight: 600, marginTop: '1px' }}>
-                    Sistem Monitoring Laporan
+                    Sistem Monitoring Polisi Bersama Masyarakat
                   </div>
                 </div>
               </Link>
