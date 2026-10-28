@@ -318,8 +318,9 @@ export default function EscalationAlarmBanner({
       .filter(Boolean) as any[];
   }, [isMounted, complaints, currentStationId, currentStationName, dismissedTransfers]);
 
-  const overdueItems = escalatedItems.filter((item) => item.isOverdue);
-  const activeCountdownItems = escalatedItems.filter((item) => !item.isOverdue);
+  // Tiket yang memicu alert interaktif & sirine: tiket yang benar-benar overdue ATAU tiket pelimpahan masuk ke kesatuan ini (isTargetMako)
+  const overdueItems = escalatedItems.filter((item) => item.isOverdue || item.isTargetMako);
+  const activeCountdownItems = escalatedItems.filter((item) => !item.isOverdue && !item.isTargetMako);
 
   // Satukan semua item banner aktif ke dalam list terpadu untuk tampilan slider/carousel hemat ruang
   const allBanners = useMemo(() => {
@@ -752,6 +753,34 @@ export default function EscalationAlarmBanner({
                   >
                     {item.nomorTiket}
                   </span>
+                  {isTargetMako && (
+                    <span
+                      style={{
+                        backgroundColor: item.diffSec > 0 ? (item.diffSec < 60 ? '#DC2626' : '#1E40AF') : '#991B1B',
+                        color: '#FFFFFF',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {item.diffSec > 0 ? (
+                        <>
+                          <span>⏱️ Sisa Waktu:</span>
+                          <span>
+                            {String(Math.floor(item.diffSec / 60)).padStart(2, '0')}:
+                            {String(item.diffSec % 60).padStart(2, '0')}
+                          </span>
+                        </>
+                      ) : (
+                        <span>⚠️ WAKTU RESPON HABIS</span>
+                      )}
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '14px', fontWeight: 700, marginTop: '4px' }}>
                   {item.jenisKejadian} •{' '}

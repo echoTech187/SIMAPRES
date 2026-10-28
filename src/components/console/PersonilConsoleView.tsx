@@ -245,6 +245,19 @@ function PersonilContent({
     }
   }, [officer.deviceId]);
 
+  // Pemicu otomatis Modal Popup Warna-Warni saat tugas masuk & HP TERHUBUNG
+  useEffect(() => {
+    const isOnDuty = officer.dutyStatus !== 'LEPAS_DINAS';
+    if (pendingAcceptTask && isPairedDevice && isOnDuty) {
+      const taskId = String(pendingAcceptTask.nomorTiket || pendingAcceptTask.id);
+      if (!promptedTaskIdsRef.current.has(taskId)) {
+        promptedTaskIdsRef.current.add(taskId);
+        setShowAcceptModal(true);
+        playPoliceAlertAudio();
+      }
+    }
+  }, [pendingAcceptTask, isPairedDevice, officer.dutyStatus]);
+
   // Chat & Modal Penyelesaian Tugas
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [chatComplaint, setChatComplaint] = useState<ComplaintData | null>(null);
@@ -306,22 +319,8 @@ function PersonilContent({
             isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id)
           ) || null;
 
-          // PENTING: Hanya akun dengan role PERSONIL dan menggunakan HP lapangan terdaftar (hasil scan QR)
-          // yang berhak memicu popup otomatis panggilan tugas darurat dengan sirine audio.
-          // Pada tampilan Laptop / Desktop, hero banner tetap ditampilkan agar petugas dapat mengonfirmasi.
-          const isUserPersonilRole = session?.role ? session.role.toUpperCase() === 'PERSONIL' : false;
-          const isOfficerOnDuty = officer.dutyStatus !== 'LEPAS_DINAS';
-
           if (pending) {
             setPendingAcceptTask(pending);
-            if (isOfficerOnDuty && isPairedDeviceRef.current && isUserPersonilRole) {
-              const taskId = String(pending.nomorTiket || pending.id);
-              if (!promptedTaskIdsRef.current.has(taskId)) {
-                promptedTaskIdsRef.current.add(taskId);
-                setShowAcceptModal(true);
-                playPoliceAlertAudio();
-              }
-            }
           } else {
             stopPoliceAlertAudio();
             setPendingAcceptTask(null);
@@ -799,19 +798,17 @@ function PersonilContent({
 
       {/* 4. Modals & Drawers */}
       {/* Task Accept Emergency Modal */}
-      {session?.role === 'PERSONIL' && (
-        <TaskAcceptModal
-          isOpen={showAcceptModal}
-          task={pendingAcceptTask}
-          officer={officer}
-          isAccepting={isAcceptingTask}
-          onAccept={handleAcceptTask}
-          onClose={() => {
-            stopPoliceAlertAudio();
-            setShowAcceptModal(false);
-          }}
-        />
-      )}
+      <TaskAcceptModal
+        isOpen={showAcceptModal}
+        task={pendingAcceptTask}
+        officer={officer}
+        isAccepting={isAcceptingTask}
+        onAccept={handleAcceptTask}
+        onClose={() => {
+          stopPoliceAlertAudio();
+          setShowAcceptModal(false);
+        }}
+      />
 
       {/* In-App 2-Way Live Chat Drawer */}
       <PersonilChatDrawer

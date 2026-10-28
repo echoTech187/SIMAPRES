@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Headphones, Map, BookOpen, User, Award } from 'lucide-react';
 import {
@@ -290,8 +290,8 @@ function OperatorConsoleContent({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const loadData = async (force = false) => {
-    setLoading(true);
+  const loadData = async (force = false, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const activeStationId = userProfile?.stationId || session?.stationId;
       const res = await getPawasUnifiedDataAction(activeStationId, force);
@@ -316,7 +316,7 @@ function OperatorConsoleContent({
       console.warn('Error loading operator data:', e);
     } finally {
       setIsServerDataLoaded(true);
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -535,6 +535,33 @@ function OperatorConsoleContent({
   }, [dbSatuans, fleetUnits]);
 
   const waitingCount = antreanPawas.length;
+
+  // Polling data otomatis untuk Sentra Layanan 110 & CAD (Setiap 4 detik saat tab aktif)
+  useEffect(() => {
+    let lastWakeLoadTime = 0;
+    const handleWakeOrFocus = () => {
+      const now = Date.now();
+      if (now - lastWakeLoadTime < 3000) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        lastWakeLoadTime = now;
+        loadData(false, true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleWakeOrFocus);
+    window.addEventListener('focus', handleWakeOrFocus);
+
+    const pollInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      loadData(false, true);
+    }, 4000);
+
+    return () => {
+      clearInterval(pollInterval);
+      document.removeEventListener('visibilitychange', handleWakeOrFocus);
+      window.removeEventListener('focus', handleWakeOrFocus);
+    };
+  }, [userProfile?.stationId, session?.stationId]);
 
   return (
     <div

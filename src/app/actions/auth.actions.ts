@@ -106,6 +106,13 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
         where: { id: user.id },
         data: { last_login_at: new Date() },
       });
+      // Jika role adalah PERSONIL, otomatis aktifkan status kedinasan (DINAS_PATROLI)
+      if (userRole === 'PERSONIL') {
+        await prisma.policeOfficer.updateMany({
+          where: { user_id: user.id },
+          data: { duty_status: 'DINAS_PATROLI' },
+        });
+      }
       await logUserActivity({
         userId: user.id.toString(),
         identifier: user.identifier,
@@ -144,6 +151,15 @@ export async function logoutAction(reason = 'USER_MANUAL') {
   try {
     const session = await getSession();
     if (session) {
+      // Jika role adalah PERSONIL, otomatis set lepas dinas di database saat logout
+      if (session.role === 'PERSONIL' && session.userId) {
+        try {
+          await prisma.policeOfficer.updateMany({
+            where: { user_id: BigInt(session.userId) },
+            data: { duty_status: 'LEPAS_DINAS' },
+          });
+        } catch (_) {}
+      }
       await logUserActivity({
         userId: session.userId,
         identifier: session.identifier,
@@ -781,6 +797,7 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
       stationRadius: assignedStation?.geofence_radius_meters ? Number(assignedStation.geofence_radius_meters) : 1000,
       currentGpsLat: officerProfile?.current_gps_lat ? Number(officerProfile.current_gps_lat) : null,
       currentGpsLng: officerProfile?.current_gps_lng ? Number(officerProfile.current_gps_lng) : null,
+      dutyStatus: officerProfile?.duty_status || 'LEPAS_DINAS',
     };
 
     officerProfileCache.set(clean, { data, expiresAt: now + OFFICER_PROFILE_CACHE_TTL_MS });
