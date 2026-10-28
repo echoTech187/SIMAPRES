@@ -300,7 +300,13 @@ function LoginForm() {
             
             {/* Terminal Card Header */}
             <div className="flex items-center gap-3.5 pb-4 border-b border-white/10">
-              <PolriPresisiInsignia size={44} />
+              <div className="w-12 h-12 rounded-2xl bg-white/[0.08] border border-white/10 p-1 flex items-center justify-center shadow-lg shadow-black/40 flex-shrink-0">
+                <img
+                  src="/logo_simopmas.png"
+                  alt="Logo SIMOPMAS 110"
+                  className="w-full h-full object-contain filter drop-shadow-[0_0_6px_rgba(255,255,255,0.45)]"
+                />
+              </div>
               <div className="min-w-0">
                 <div className="text-[10.5px] font-semibold text-amber-300 tracking-wide uppercase flex items-center gap-1.5">
                   <span>SIMOPMAS 110</span>
@@ -558,8 +564,12 @@ export default function LoginPage() {
           
           {/* Left Brand Identity */}
           <div className="flex items-center gap-2.5 sm:gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-md shadow-amber-400/20">
-              <Shield size={16} className="text-slate-950 fill-slate-950" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.08] border border-white/10 p-1 flex items-center justify-center shadow-md shadow-black/30 flex-shrink-0">
+              <img
+                src="/logo_simopmas.png"
+                alt="Logo SIMOPMAS 110"
+                className="w-full h-full object-contain filter drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
+              />
             </div>
             <div>
               <div className="text-xs sm:text-sm font-extrabold tracking-wide uppercase text-amber-300 leading-tight flex items-center gap-2">

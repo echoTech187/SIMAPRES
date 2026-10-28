@@ -561,13 +561,16 @@ export default function SuperadminSidebar({
         <span
           title="Sistem Terhubung Presisi"
           style={{
-            fontSize: '12px',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          🛡️
+          <img
+            src="/logo_simopmas.png"
+            alt="SIMOPMAS 110"
+            style={{ width: '20px', height: '20px', objectFit: 'contain' }}
+          />
         </span>
       </div>
     </aside>

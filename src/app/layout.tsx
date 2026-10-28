@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-
+import { SpeedInsights } from "@vercel/speed-insights/next"
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
@@ -11,7 +11,9 @@ export const metadata: Metadata = {
   title: 'SIMOPMAS 110 - Sistem Monitoring Polisi Bersama Masyarakat',
   description: 'Sistem Terpadu Monitoring Polisi Bersama Masyarakat - SIMOPMAS 110',
   icons: {
-    icon: '/favicon.ico',
+    icon: '/logo_simopmas.png',
+    shortcut: '/logo_simopmas.png',
+    apple: '/logo_simopmas.png',
   },
 };
 
@@ -34,6 +36,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-[#F8FAFC] text-[#0F172A] min-h-screen">
+        <SpeedInsights/>
         <InactivityMonitor />
         <ToastContainer />
         {children}

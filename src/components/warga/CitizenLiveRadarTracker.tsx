@@ -965,14 +965,12 @@ export default function CitizenLiveRadarTracker({
             >
               {/* Left: Brand SIMOPMAS 110 */}
               <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                <div
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{
-                    background: 'linear-gradient(135deg, #ECC473 0%, #C99635 100%)',
-                    boxShadow: '0 2px 8px rgba(201,150,53,0.3)',
-                  }}
-                >
-                  <Shield size={15} className="text-[#0A0D14]" />
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white/[0.08] border border-white/10 p-0.5 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <img
+                    src="/logo_simopmas.png"
+                    alt="Logo SIMOPMAS 110"
+                    className="w-full h-full object-contain filter drop-shadow-[0_0_3px_rgba(255,255,255,0.4)]"
+                  />
                 </div>
                 <div className="leading-tight">
                   <div className="text-xs sm:text-sm font-black text-white tracking-wide whitespace-nowrap">

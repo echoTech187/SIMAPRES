@@ -79,14 +79,12 @@ export default function PersonilHeader({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-2.5 flex items-center justify-between gap-2.5 sm:gap-4">
         {/* Left: Brand & Officer Brief */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-shrink-0">
-          <div
-            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #ECC473 0%, #D4A346 50%, #B8822A 100%)',
-              boxShadow: '0 0 16px rgba(236, 196, 115, 0.35)',
-            }}
-          >
-            <Shield size={20} className="text-[#0B0C10] fill-[#0B0C10]" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/[0.08] border border-white/10 p-1 flex items-center justify-center flex-shrink-0 shadow-md">
+            <img
+              src="/logo_simopmas.png"
+              alt="Logo SIMOPMAS 110"
+              className="w-full h-full object-contain filter drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
+            />
           </div>
 
           <div className="min-w-0">
