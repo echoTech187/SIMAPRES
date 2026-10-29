@@ -36,6 +36,7 @@ interface TabBerandaPersonilProps {
   onOpenAcceptModal: (task: ComplaintData) => void;
   onOpenChat: (complaint: ComplaintData) => void;
   onQuickAction: (type: 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN') => void;
+  onOpenGiatMap?: (giat: any) => void;
 }
 
 export default function TabBerandaPersonil({
@@ -52,6 +53,7 @@ export default function TabBerandaPersonil({
   onOpenAcceptModal,
   onOpenChat,
   onQuickAction,
+  onOpenGiatMap,
 }: TabBerandaPersonilProps) {
   // 1. Giat Mandiri Lapangan (Logbook Non-Tiket)
   const patroliCount = logbooks.filter((l) => (l.jenisAksi || l.action_type || '').toUpperCase() === 'PATROLI').length;
@@ -776,7 +778,13 @@ export default function TabBerandaPersonil({
                   <div className="flex items-center gap-2.5 pt-1 sm:pt-0 flex-shrink-0 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => onTabChange('peta')}
+                      onClick={() => {
+                        if (onOpenGiatMap) {
+                          onOpenGiatMap(giat);
+                        } else {
+                          onTabChange('peta');
+                        }
+                      }}
                       className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 whitespace-nowrap"
                       style={{
                         background: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)',

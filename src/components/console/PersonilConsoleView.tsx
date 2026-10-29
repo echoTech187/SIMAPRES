@@ -66,6 +66,27 @@ function PersonilContent(props: {
     activeComplaintRef,
   } = usePersonilConsole(props);
 
+  // State giat lapangan aktif yang dipilih untuk dipantau di peta
+  const [selectedGiat, setSelectedGiat] = React.useState<any | null>(null);
+
+  const fallbackActiveGiat = React.useMemo(() => {
+    if (!Array.isArray(logbooks) || logbooks.length === 0) return null;
+    return (
+      logbooks.find((l: any) => {
+        const type = (l.jenisAksi || l.action_type || '').toUpperCase();
+        const desc = l.deskripsiKegiatan || l.activity_description || '';
+        const hasComplaint = l.complaintId || l.complaint_id;
+        const status = String(l.statusValidasi || l.validation_status || '').toUpperCase();
+        return (
+          ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
+          desc.startsWith('[PENGAJUAN GIAT')
+        ) && !hasComplaint && (status === 'BELUM_DIVALIDASI' || status === 'VALID');
+      }) || null
+    );
+  }, [logbooks]);
+
+  const currentActiveGiat = selectedGiat || fallbackActiveGiat;
+
   const hasActiveGiat = Boolean(
     logbooks &&
     logbooks.some((l: any) => {
@@ -137,6 +158,10 @@ function PersonilContent(props: {
               setChatDrawerOpen(true);
             }}
             onQuickAction={handleQuickAction}
+            onOpenGiatMap={(giat) => {
+              setSelectedGiat(giat);
+              switchTab('peta');
+            }}
           />
         )}
 
@@ -144,6 +169,7 @@ function PersonilContent(props: {
           <TabMapsPersonil
             officer={officer}
             activeComplaint={activeComplaint}
+            activeGiat={currentActiveGiat}
             currentGps={currentGps}
             fleetUnits={fleetUnits}
             hotspots={hotspots}
@@ -156,6 +182,11 @@ function PersonilContent(props: {
             onOpenWizard={handleOpenFinishModal}
             onUpdateStep={handleUpdateStep}
             isUpdatingStep={isUpdatingStep}
+            onGiatCompleted={() => {
+              setSelectedGiat(null);
+              loadData();
+              switchTab('beranda');
+            }}
           />
         )}
 

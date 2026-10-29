@@ -17,12 +17,18 @@ import {
   AlertTriangle,
   Radio,
   Clock,
+  Car,
+  CheckCircle2,
+  TrendingUp,
+  X,
 } from 'lucide-react';
 import { getDistanceFromLatLonInMeters, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile, DispatchStepAction } from '../types';
 import { getBestRoadRoute, getRealRoadPath } from '@/components/maps/SimapresGoogleMap';
 import { updateDeviceTelemetryAction } from '@/app/actions/auth.actions';
+import { completeGiatPatroliAction } from '@/app/actions/logbook.actions';
 import { getComplaintActionPermissions } from '@/domain/rules/complaint.rules';
+import { toast } from '@/components/ui/Toast';
 
 const SimapresLeafletMap = dynamic(() => import('@/components/maps/SimapresLeafletMap'), {
   ssr: false,
@@ -39,6 +45,7 @@ const SimapresLeafletMap = dynamic(() => import('@/components/maps/SimapresLeafl
 interface TabMapsPersonilProps {
   officer: OfficerProfile;
   activeComplaint: ComplaintData | null;
+  activeGiat?: any | null;
   currentGps: { lat: number; lng: number };
   fleetUnits: any[];
   hotspots: any[];
@@ -48,11 +55,13 @@ interface TabMapsPersonilProps {
   onOpenWizard: (complaint: ComplaintData) => void;
   onUpdateStep: (stepKey: DispatchStepAction) => Promise<void>;
   isUpdatingStep: boolean;
+  onGiatCompleted?: () => void;
 }
 
 export default function TabMapsPersonil({
   officer,
   activeComplaint,
+  activeGiat,
   currentGps,
   fleetUnits,
   hotspots,
@@ -62,6 +71,7 @@ export default function TabMapsPersonil({
   onOpenWizard,
   onUpdateStep,
   isUpdatingStep,
+  onGiatCompleted,
 }: TabMapsPersonilProps) {
   const [showOtherOfficers, setShowOtherOfficers] = useState(true);
   const [showTraffic, setShowTraffic] = useState(true);
@@ -71,6 +81,12 @@ export default function TabMapsPersonil({
   // Bottom drawer draggable / minimizable state
   const [isDrawerExpanded, setIsDrawerExpanded] = useState(false);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  // State drawer & modal untuk Giat Patroli Mandiri (Odometer KM)
+  const [isPatrolDrawerExpanded, setIsPatrolDrawerExpanded] = useState(true);
+  const [showCompleteGiatModal, setShowCompleteGiatModal] = useState(false);
+  const [patrolSummaryNote, setPatrolSummaryNote] = useState('');
+  const [isSubmittingFinishGiat, setIsSubmittingFinishGiat] = useState(false);
 
   // Dev bypass & Realistic Navigation Simulation State
   const [bypassDevRadius, setBypassDevRadius] = useState(false);
@@ -85,6 +101,113 @@ export default function TabMapsPersonil({
   const effectiveGps = useMemo(() => {
     return simulatedGps || currentGps;
   }, [simulatedGps, currentGps]);
+
+  // Parsing rincian Giat Patroli Aktif
+  const patrolInfo = useMemo(() => {
+    if (!activeGiat) return null;
+    const type = (activeGiat.jenisAksi || activeGiat.action_type || 'PATROLI').toUpperCase();
+    const rawDesc = activeGiat.deskripsiKegiatan || activeGiat.activity_description || '';
+
+    const lines = rawDesc.split('\n');
+    let route = activeGiat.lokasiKlaimAlamat || activeGiat.claimed_address || '';
+    let vehicle = '';
+    let partners = '';
+
+    for (const l of lines) {
+      const line = l.trim();
+      if (!route && line.startsWith('• Rencana Rute/Lokasi:')) route = line.replace('• Rencana Rute/Lokasi:', '').trim();
+      else if (line.startsWith('• Armada Kendaraan:')) vehicle = line.replace('• Armada Kendaraan:', '').trim();
+      else if (line.startsWith('• Rekan Regu:')) partners = line.replace('• Rekan Regu:', '').trim();
+    }
+
+    const icon = type === 'PATROLI' ? '🚔' : type === 'SAMBANG' ? '🤝' : type === 'PENGAMANAN' ? '⚠️' : '🛡️';
+    const title = type === 'PATROLI' ? 'Giat Patroli Rutin Blue Light Beat' : type === 'SAMBANG' ? 'Giat Sambang Dialogis Warga' : type === 'PENGAMANAN' ? 'Giat Pengamanan & Penjagaan Jalur' : 'Giat Respon TPTKP Presisi';
+
+    return {
+      type,
+      title,
+      icon,
+      route: route || 'Wilayah Hukum Polres Pekalongan',
+      vehicle: vehicle || 'Ranmor Roda 4 Samapta',
+      partners,
+    };
+  }, [activeGiat]);
+
+  // Live Odometer Tracking via GPS (Sesuai Catatan User No. 1: Tanpa sisa waktu, akumulasi KM berjalan untuk klaim Sikeu)
+  const [odometerMeters, setOdometerMeters] = useState<number>(() => {
+    if (typeof window !== 'undefined' && activeGiat?.id) {
+      try {
+        const saved = localStorage.getItem(`simapres_giat_km_${activeGiat.id}`);
+        if (saved) return Number(saved) || 0;
+      } catch {}
+    }
+    const initialMeters = Number(activeGiat?.deviasiMeter || activeGiat?.deviation_meters || 0);
+    return initialMeters > 0 ? initialMeters : 0;
+  });
+
+  const lastGpsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  useEffect(() => {
+    if (!activeGiat?.id || !effectiveGps?.lat || !effectiveGps?.lng) return;
+
+    if (!lastGpsRef.current) {
+      lastGpsRef.current = { lat: effectiveGps.lat, lng: effectiveGps.lng };
+      return;
+    }
+
+    const d = getDistanceFromLatLonInMeters(
+      lastGpsRef.current.lat,
+      lastGpsRef.current.lng,
+      effectiveGps.lat,
+      effectiveGps.lng
+    );
+
+    // Filter noise GPS: hanya hitung perpindahan riil 10m - 2000m
+    if (d >= 10 && d <= 2000) {
+      setOdometerMeters((prev) => {
+        const next = Math.round((prev + d) * 100) / 100;
+        try {
+          localStorage.setItem(`simapres_giat_km_${activeGiat.id}`, String(next));
+        } catch {}
+        return next;
+      });
+      lastGpsRef.current = { lat: effectiveGps.lat, lng: effectiveGps.lng };
+    }
+  }, [effectiveGps?.lat, effectiveGps?.lng, activeGiat?.id]);
+
+  const currentOdometerKm = (odometerMeters / 1000).toFixed(2);
+
+  const handleFinishGiatPatroli = async () => {
+    if (!activeGiat?.id) return;
+    setIsSubmittingFinishGiat(true);
+    try {
+      const res = await completeGiatPatroliAction({
+        logbookId: activeGiat.id,
+        finalMeters: odometerMeters,
+        catatanHasil: patrolSummaryNote.trim() || 'Patroli selesai dalam situasi aman dan kondusif.',
+      });
+
+      if (res.success) {
+        toast.success(
+          'Giat Patroli Selesai',
+          `Total ${currentOdometerKm} KM telah tercatat untuk laporan klaim bagian keuangan (Sikeu).`
+        );
+        try {
+          localStorage.removeItem(`simapres_giat_km_${activeGiat.id}`);
+        } catch {}
+        setShowCompleteGiatModal(false);
+        if (onGiatCompleted) {
+          onGiatCompleted();
+        }
+      } else {
+        toast.error('Gagal Menyelesaikan Giat', res.error || 'Terjadi kesalahan sistem.');
+      }
+    } catch (err: any) {
+      toast.error('Gagal Menyelesaikan Giat', err.message || 'Terjadi kesalahan.');
+    } finally {
+      setIsSubmittingFinishGiat(false);
+    }
+  };
 
   // 1. Ekstraksi koordinat TKP akurat dari berbagai format database entity
   const tkpCoords = useMemo(() => {
@@ -303,6 +426,9 @@ const EMPTY_ARRAY: any[] = [];
   // Posisi 3 tombol kontrol peta (+, -, locate) dinamis tepat mengambang di atas drawer
   const controlsBottomOffset = useMemo(() => {
     if (!isMissionActive) {
+      if (activeGiat) {
+        return isPatrolDrawerExpanded ? '370px' : '160px';
+      }
       // Saat siaga patroli tanpa tiket aktif, ada kartu siaga di bottom-[74px] setinggi ~64px
       return '154px';
     }
@@ -313,7 +439,7 @@ const EMPTY_ARRAY: any[] = [];
       : (isDrawerExpanded ? 480 : 135);
     const calculated = 74 + baseHeight + 16;
     return `${calculated}px`;
-  }, [isMissionActive, drawerHeight, isDrawerExpanded]);
+  }, [isMissionActive, activeGiat, isPatrolDrawerExpanded, drawerHeight, isDrawerExpanded]);
 
   // Touch gesture handlers untuk drag up / down
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -1069,6 +1195,245 @@ const EMPTY_ARRAY: any[] = [];
             </div>
           </div>
         </div>
+      ) : activeGiat && patrolInfo ? (
+        <>
+          {/* ======================================================== */}
+          {/* DRAWER BOTTOM: HUD GIAT PATROLI TAKTIS & ODOMETER KM     */}
+          {/* ======================================================== */}
+          <div
+            id="patrol-bottom-drawer"
+            className="absolute bottom-[74px] sm:bottom-[78px] md:bottom-6 left-3 right-3 sm:left-6 sm:right-6 md:left-6 md:right-auto md:w-[480px] max-w-xl md:max-w-none mx-auto md:mx-0 z-20 rounded-3xl backdrop-blur-2xl transition-all duration-300 ease-in-out select-none"
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.97) 0%, rgba(10, 15, 28, 0.98) 100%)',
+              border: '1.5px solid rgba(56, 189, 248, 0.4)',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(2, 132, 199, 0.2)',
+            }}
+          >
+            {/* Draggable Handle Pill */}
+            <div
+              onClick={() => setIsPatrolDrawerExpanded((prev) => !prev)}
+              className="w-full flex flex-col items-center justify-center pt-2.5 pb-1 cursor-pointer group"
+            >
+              <div className="w-12 h-1.5 rounded-full bg-white/25 group-hover:bg-sky-400/80 transition-colors" />
+            </div>
+
+            <div className="p-4 sm:p-5 pt-0.5 space-y-3">
+              {/* Top Bar: Status Giat & Collapse Toggle */}
+              <div className="flex items-center justify-between gap-2">
+                <div
+                  onClick={() => setIsPatrolDrawerExpanded((prev) => !prev)}
+                  className="flex items-center gap-2 cursor-pointer min-w-0"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping flex-shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 whitespace-nowrap">
+                    GIAT LAPANGAN AKTIF
+                  </span>
+                  <span className="text-xs font-mono font-bold text-sky-400 whitespace-nowrap">
+                    #LOG-{String(activeGiat.id).padStart(5, '0')}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPatrolDrawerExpanded((prev) => !prev)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors flex-shrink-0"
+                  title={isPatrolDrawerExpanded ? 'Perkecil Tampilan' : 'Perbesar Tampilan'}
+                >
+                  {isPatrolDrawerExpanded ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                </button>
+              </div>
+
+              {/* Minimized View: Just Odometer & Title */}
+              {!isPatrolDrawerExpanded && (
+                <div
+                  onClick={() => setIsPatrolDrawerExpanded(true)}
+                  className="flex items-center justify-between gap-3 pt-0.5 cursor-pointer"
+                >
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-bold text-white truncate">
+                      {patrolInfo.title}
+                    </h3>
+                    <p className="text-[10.5px] text-slate-400 truncate">
+                      {patrolInfo.route}
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 font-mono font-black text-xs shrink-0">
+                    🛣️ {currentOdometerKm} KM
+                  </div>
+                </div>
+              )}
+
+              {/* Expanded Content: Detail, Odometer Display, & Action Buttons */}
+              {isPatrolDrawerExpanded && (
+                <div className="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                  {/* Title & Route Sasaran */}
+                  <div>
+                    <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-1.5">
+                      <span>{patrolInfo.icon}</span>
+                      <span>{patrolInfo.title}</span>
+                    </h2>
+                    <div className="flex items-center gap-1 text-xs text-slate-300 mt-1">
+                      <MapPin size={13} className="text-sky-400 flex-shrink-0" />
+                      <span className="line-clamp-1">Sasaran: {patrolInfo.route}</span>
+                    </div>
+                    {patrolInfo.vehicle && (
+                      <div className="flex items-center gap-1 text-[11px] text-slate-400 mt-0.5">
+                        <Car size={13} className="text-emerald-400 flex-shrink-0" />
+                        <span>{patrolInfo.vehicle}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* DIGITAL ODOMETER CARD (Sesuai Catatan User No. 1: Tanpa sisa waktu, hanya KM berjalan untuk klaim keuangan) */}
+                  <div
+                    className="rounded-2xl p-3 sm:p-4 text-center space-y-1 relative overflow-hidden"
+                    style={{
+                      background: 'linear-gradient(180deg, rgba(8, 47, 73, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                    }}
+                  >
+                    <div className="text-[10px] font-black uppercase tracking-wider text-sky-400 flex items-center justify-center gap-1.5">
+                      <TrendingUp size={13} />
+                      <span>JARAK TEMPUH PATROLI (ODOMETER GPS)</span>
+                    </div>
+
+                    <div className="flex items-baseline justify-center gap-1.5 py-1">
+                      <span className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight drop-shadow-md">
+                        {currentOdometerKm}
+                      </span>
+                      <span className="text-sm font-bold text-sky-400 font-mono">
+                        KM
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] text-slate-400 font-medium flex items-center justify-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <span>Tercatat otomatis untuk klaim BBM Bag Log / Sikeu</span>
+                    </div>
+                  </div>
+
+                  {/* DUA TOMBOL AKSI TAKTIS (Sesuai Catatan User No. 2: Tanpa tombol foto singgah) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    {/* 1. Buka di Google Maps App */}
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                        patrolInfo.route || 'Polres Pekalongan'
+                      )}&travelmode=driving`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-sky-200 bg-sky-500/15 border border-sky-500/30 hover:bg-sky-500/25 active:scale-95 transition-all text-center whitespace-nowrap"
+                    >
+                      <Navigation size={14} className="flex-shrink-0" />
+                      <span>Buka Google Maps ↗</span>
+                    </a>
+
+                    {/* 2. Selesaikan Giat Patroli */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCompleteGiatModal(true)}
+                      className="w-full py-2.5 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 text-slate-950 active:scale-95 transition-all text-center shadow-lg whitespace-nowrap"
+                      style={{
+                        background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)',
+                        boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                      }}
+                    >
+                      <CheckCircle2 size={14} className="flex-shrink-0" />
+                      <span>Selesaikan Giat Patroli</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* MODAL KONFIRMASI SELESAIKAN GIAT PATROLI */}
+          {showCompleteGiatModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+              <div
+                className="w-full max-w-md rounded-3xl p-5 sm:p-6 text-slate-100 shadow-2xl border space-y-4 animate-in zoom-in-95 duration-200"
+                style={{
+                  background: 'linear-gradient(180deg, #151821 0%, #0E1017 100%)',
+                  borderColor: 'rgba(56, 189, 248, 0.4)',
+                }}
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">🏁</span>
+                    <div>
+                      <h3 className="text-sm font-black text-white">Selesaikan Giat Patroli</h3>
+                      <p className="text-[11px] text-slate-400">#LOG-{String(activeGiat.id).padStart(5, '0')} • {patrolInfo.type}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowCompleteGiatModal(false)}
+                    className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Total KM Summary Box */}
+                <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-500/30 text-center space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-400">
+                    AKUMULASI JARAK TEMPUH RIIL KLAIM SIKEU
+                  </span>
+                  <div className="text-3xl font-mono font-black text-white">
+                    {currentOdometerKm} <span className="text-sm font-bold text-sky-400">KM</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    Data ini akan dibukukan ke logbook dinas untuk verifikasi BBM Bag Log / Sikeu.
+                  </p>
+                </div>
+
+                {/* Catatan / Resume Patroli */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-300">
+                    Catatan Hasil Patroli / Situasi Beat:
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={patrolSummaryNote}
+                    onChange={(e) => setPatrolSummaryNote(e.target.value)}
+                    placeholder="Contoh: Patroli beat selesai dilaksanakan, situasi kamtibmas aman, tertib, dan kondusif."
+                    className="w-full px-3 py-2 rounded-xl text-xs bg-slate-900 border border-slate-700 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2.5 pt-2">
+                  <button
+                    type="button"
+                    disabled={isSubmittingFinishGiat}
+                    onClick={() => setShowCompleteGiatModal(false)}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-xs bg-slate-800 text-slate-300 hover:bg-slate-700 active:scale-95 transition-all"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmittingFinishGiat}
+                    onClick={handleFinishGiatPatroli}
+                    className="flex-1 py-2.5 rounded-xl font-black text-xs text-slate-950 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5"
+                    style={{
+                      background: 'linear-gradient(135deg, #34D399 0%, #10B981 100%)',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                    }}
+                  >
+                    {isSubmittingFinishGiat ? (
+                      <span>Menyimpan...</span>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={15} />
+                        <span>Kirim &amp; Kunci KM</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         /* Status Siaga Patroli (Tanpa Penugasan Aktif) */
         <div
