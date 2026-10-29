@@ -1338,7 +1338,7 @@ export async function getAntreanPawasAction(stationId?: number) {
   }
 }
 
-export async function getAllRecentComplaintsAction(limit = 50) {
+export async function getAllRecentComplaintsAction(limit = 15) {
   const cacheKey = `recent_complaints_${limit}`;
   const cached = cacheGet<any>(cacheKey);
   if (cached) {
@@ -1491,51 +1491,82 @@ export async function getMasterFilterOptionsAction() {
 
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
-    const [rawRejections, categories, platforms, giats, satuans, statuses, dispatchStatuses, subcategories, urgencyLevels, dutyStatuses] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `SELECT id, \`key\`, label, display_order FROM master_rejection_reasons WHERE is_active = true ORDER BY display_order ASC`
-      ).catch(() => []),
-      prisma.masterIncidentCategory.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      prisma.masterReportSource.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      prisma.masterActivityType.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      prisma.masterOperationalUnit.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      prisma.masterComplaintStatus.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      (prisma as any).masterDispatchStatus.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      (prisma as any).masterIncidentSubcategory.findMany({
-        where: { is_active: true },
-        orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }],
-        include: {
-          category_rel: true,
-          unit_rel: true,
-        },
-      }),
-      prisma.masterUrgencyLevel.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      prisma.masterDutyStatus.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-    ]);
+    let categories: any[] = [];
+    let platforms: any[] = [];
+    let giats: any[] = [];
+    let satuans: any[] = [];
+    let statuses: any[] = [];
+    let dispatchStatuses: any[] = [];
+    let subcategories: any[] = [];
+    let rawRejections: any[] = [];
+    let urgencyLevels: any[] = [];
+    let dutyStatuses: any[] = [];
+
+    try {
+      // 1. Eksekusi cepat dalam 1 round-trip menggunakan JSON_ARRAYAGG di TiDB
+      const fastRow: any = await prisma.$queryRawUnsafe(`
+        SELECT 
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_rejection_reasons WHERE is_active = 1) as rejection_reasons,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_incident_categories WHERE is_active = 1) as categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'icon', icon, 'active_bg', active_bg, 'active_text', active_text, 'inactive_bg', inactive_bg, 'inactive_text', inactive_text, 'inactive_border', inactive_border, 'display_order', display_order)) FROM master_report_sources WHERE is_active = 1) as platforms,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_activity_types WHERE is_active = 1) as giats,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'unit_name', unit_name, 'short_name', short_name, 'display_order', display_order)) FROM master_operational_units WHERE is_active = 1) as satuans,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'keterangan', keterangan, 'display_order', display_order)) FROM master_complaint_statuses WHERE is_active = 1) as statuses,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'keterangan', keterangan, 'display_order', display_order)) FROM master_dispatch_statuses WHERE is_active = 1) as dispatch_statuses,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'category_id', category_id, 'category_key', category_key, 'unit_id', unit_id, 'unit_key', unit_key, 'nama_kasus', nama_kasus, 'default_urgensi', default_urgensi, 'deskripsi_sop', deskripsi_sop, 'display_order', display_order)) FROM master_incident_subcategories WHERE is_active = 1) as subcategories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_urgency_levels WHERE is_active = 1) as urgency_levels,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_duty_statuses WHERE is_active = 1) as duty_statuses;
+      `);
+
+      if (Array.isArray(fastRow) && fastRow[0]) {
+        const row = fastRow[0];
+        const parseJson = (val: any) => typeof val === 'string' ? JSON.parse(val) : (val || []);
+        categories = parseJson(row.categories);
+        platforms = parseJson(row.platforms);
+        giats = parseJson(row.giats);
+        satuans = parseJson(row.satuans);
+        statuses = parseJson(row.statuses);
+        dispatchStatuses = parseJson(row.dispatch_statuses);
+        subcategories = parseJson(row.subcategories);
+        rawRejections = parseJson(row.rejection_reasons);
+        urgencyLevels = parseJson(row.urgency_levels);
+        dutyStatuses = parseJson(row.duty_statuses);
+      }
+    } catch (_) {
+      // Fallback ke Prisma findMany jika queryRaw terkendala
+      const [fRejections, fCategories, fPlatforms, fGiats, fSatuans, fStatuses, fDispatchStatuses, fSubcategories, fUrgencyLevels, fDutyStatuses] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT id, \`key\`, label, display_order FROM master_rejection_reasons WHERE is_active = true ORDER BY display_order ASC`
+        ).catch(() => []),
+        prisma.masterIncidentCategory.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        prisma.masterReportSource.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        prisma.masterActivityType.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        prisma.masterOperationalUnit.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        prisma.masterComplaintStatus.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        (prisma as any).masterDispatchStatus.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        (prisma as any).masterIncidentSubcategory.findMany({ where: { is_active: true }, orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }] }),
+        prisma.masterUrgencyLevel.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        prisma.masterDutyStatus.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+      ]);
+      categories = fCategories;
+      platforms = fPlatforms;
+      giats = fGiats;
+      satuans = fSatuans;
+      statuses = fStatuses;
+      dispatchStatuses = fDispatchStatuses;
+      subcategories = fSubcategories;
+      rawRejections = fRejections;
+      urgencyLevels = fUrgencyLevels;
+      dutyStatuses = fDutyStatuses;
+    }
+
+    // Hubungkan relasi category_rel & unit_rel dalam memory tanpa round-trip tambahan ke database
+    const catMap = new Map(categories.map((c: any) => [c.id, c]));
+    const unitMap = new Map(satuans.map((u: any) => [u.id, u]));
+    for (const sub of subcategories) {
+      if (sub.category_id) (sub as any).category_rel = catMap.get(sub.category_id) || null;
+      if (sub.unit_id) (sub as any).unit_rel = unitMap.get(sub.unit_id) || null;
+    }
 
     const serialized = {
       categories: serializeBigInt(categories),
@@ -2660,124 +2691,222 @@ export async function getOfficerPerformanceRankingsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
-    const officers = await prisma.policeOfficer.findMany({
-      include: {
-        user: { select: { id: true, full_name: true, is_active: true } },
-        unit: { select: { unit_name: true, short_name: true } },
-        dispatches: {
-          select: {
-            dispatch_status: true,
-            dispatched_at: true,
-            arrived_at: true,
-            completed_at: true,
-            complaint: {
-              select: {
-                citizen_review_rel: {
-                  select: {
-                    star_rating: true,
-                    review_text: true,
+    let items: OfficerPerformanceRankItem[] | null = null;
+
+    try {
+      const rows: any[] = await prisma.$queryRaw`
+        SELECT 
+          po.id as officer_id,
+          po.nrp,
+          po.rank_pangkat,
+          po.jabatan,
+          po.assigned_patrol_vehicle,
+          po.avatar_url,
+          u.full_name,
+          un.unit_name,
+          un.short_name as unit_short_name,
+          
+          COUNT(d.id) as total_diterima,
+          SUM(CASE WHEN d.dispatch_status = 'COMPLETED' OR d.completed_at IS NOT NULL THEN 1 ELSE 0 END) as total_selesai,
+          SUM(CASE WHEN (d.dispatch_status != 'COMPLETED' AND d.completed_at IS NULL) THEN 1 ELSE 0 END) as total_proses,
+          
+          AVG(CASE 
+            WHEN d.arrived_at IS NOT NULL AND d.dispatched_at IS NOT NULL AND d.arrived_at >= d.dispatched_at
+            THEN TIMESTAMPDIFF(MINUTE, d.dispatched_at, d.arrived_at)
+            ELSE NULL
+          END) as avg_response_time,
+          
+          AVG(cr.star_rating) as avg_rating,
+          COUNT(cr.id) as total_reviews,
+          (
+            SELECT cr2.review_text
+            FROM complaint_dispatches d2
+            JOIN citizen_reviews cr2 ON cr2.complaint_id = d2.complaint_id
+            WHERE d2.officer_id = po.id AND cr2.review_text IS NOT NULL AND cr2.review_text != ''
+            ORDER BY cr2.created_at DESC
+            LIMIT 1
+          ) as recent_review_text
+          
+        FROM police_officers po
+        LEFT JOIN users u ON u.id = po.user_id
+        LEFT JOIN master_operational_units un ON un.id = po.unit_id
+        LEFT JOIN complaint_dispatches d ON d.officer_id = po.id
+        LEFT JOIN citizen_reviews cr ON cr.complaint_id = d.complaint_id AND (d.dispatch_status = 'COMPLETED' OR d.completed_at IS NOT NULL)
+        GROUP BY po.id, po.nrp, po.rank_pangkat, po.jabatan, po.assigned_patrol_vehicle, po.avatar_url, u.full_name, un.unit_name, un.short_name
+        ORDER BY po.id ASC;
+      `;
+
+      if (Array.isArray(rows)) {
+        items = rows.map((r: any) => {
+          const totalDiterima = Number(r.total_diterima || 0);
+          const totalSelesai = Number(r.total_selesai || 0);
+          const totalProses = Number(r.total_proses || 0);
+          const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 0;
+          const avgResponseTimeMinutes = r.avg_response_time !== null ? Math.round(Number(r.avg_response_time)) : null;
+          const avgRating = r.avg_rating !== null ? Math.round(Number(r.avg_rating) * 10) / 10 : 0;
+          const totalReviews = Number(r.total_reviews || 0);
+
+          let predikat = 'Belum Ada Ulasan';
+          let predikatColor = '#64748B';
+
+          if (totalProses > 0 && totalSelesai === 0) {
+            predikat = 'Sedang Bertugas';
+            predikatColor = '#2563EB';
+          } else if (avgRating >= 4.7) {
+            predikat = 'Sangat Presisi (Teladan)';
+            predikatColor = '#059669';
+          } else if (avgRating >= 4.0) {
+            predikat = 'Pelayanan Baik';
+            predikatColor = '#2563EB';
+          } else if (avgRating > 0) {
+            predikat = 'Perlu Evaluasi';
+            predikatColor = '#D97706';
+          }
+
+          return {
+            officerId: r.officer_id.toString(),
+            nrp: r.nrp,
+            namaLengkap: r.full_name || r.nrp,
+            pangkat: r.rank_pangkat,
+            jabatan: r.jabatan,
+            unit: r.unit_short_name || r.unit_name || r.jabatan,
+            assignedPatrolVehicle: r.assigned_patrol_vehicle || '-',
+            avatarUrl: r.avatar_url,
+            totalDiterima,
+            totalSelesai,
+            totalProses,
+            completionRate,
+            avgResponseTimeMinutes,
+            avgRating,
+            totalReviews,
+            predikat,
+            predikatColor,
+            recentReviewText: r.recent_review_text || null,
+          };
+        });
+      }
+    } catch (_rawErr) {
+      // Fallback ke Prisma findMany
+    }
+
+    if (!items) {
+      const officers = await prisma.policeOfficer.findMany({
+        include: {
+          user: { select: { id: true, full_name: true, is_active: true } },
+          unit: { select: { unit_name: true, short_name: true } },
+          dispatches: {
+            select: {
+              dispatch_status: true,
+              dispatched_at: true,
+              arrived_at: true,
+              completed_at: true,
+              complaint: {
+                select: {
+                  citizen_review_rel: {
+                    select: {
+                      star_rating: true,
+                      review_text: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-      orderBy: { id: 'asc' },
-    });
+        orderBy: { id: 'asc' },
+      });
 
-    const items: OfficerPerformanceRankItem[] = officers.map((off) => {
-      const dispatches = off.dispatches || [];
-      const totalDiterima = dispatches.length;
+      items = officers.map((off) => {
+        const dispatches = off.dispatches || [];
+        const totalDiterima = dispatches.length;
 
-      let totalSelesai = 0;
-      let totalProses = 0;
-      let totalResponseTime = 0;
-      let responseCount = 0;
-      let totalStars = 0;
-      let reviewCount = 0;
-      let recentReviewText: string | null = null;
+        let totalSelesai = 0;
+        let totalProses = 0;
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        let totalStars = 0;
+        let reviewCount = 0;
+        let recentReviewText: string | null = null;
 
-      for (const d of dispatches) {
-        const c = d.complaint;
-        if (!c) continue;
+        for (const d of dispatches) {
+          const c = d.complaint;
+          if (!c) continue;
 
-        const isOfficerCompleted = d.dispatch_status === 'COMPLETED' || d.completed_at != null;
+          const isOfficerCompleted = d.dispatch_status === 'COMPLETED' || d.completed_at != null;
 
-        if (isOfficerCompleted) {
-          totalSelesai++;
-        } else {
-          totalProses++;
-        }
+          if (isOfficerCompleted) {
+            totalSelesai++;
+          } else {
+            totalProses++;
+          }
 
-        // Hitung selisih waktu dari pertama kali tiket didisposikan sampai tiba di TKP
-        const dispatchTime = d.dispatched_at ? new Date(d.dispatched_at).getTime() : null;
-        const arrivalTime = d.arrived_at ? new Date(d.arrived_at).getTime() : null;
+          const dispatchTime = d.dispatched_at ? new Date(d.dispatched_at).getTime() : null;
+          const arrivalTime = d.arrived_at ? new Date(d.arrived_at).getTime() : null;
 
-        if (dispatchTime && arrivalTime && arrivalTime >= dispatchTime) {
-          const diffMin = Math.round((arrivalTime - dispatchTime) / 60000);
-          if (diffMin >= 0) {
-            totalResponseTime += Math.max(1, diffMin);
-            responseCount++;
+          if (dispatchTime && arrivalTime && arrivalTime >= dispatchTime) {
+            const diffMin = Math.round((arrivalTime - dispatchTime) / 60000);
+            if (diffMin >= 0) {
+              totalResponseTime += Math.max(1, diffMin);
+              responseCount++;
+            }
+          }
+
+          if (isOfficerCompleted && c.citizen_review_rel?.star_rating) {
+            totalStars += c.citizen_review_rel.star_rating;
+            reviewCount++;
+            if (!recentReviewText && c.citizen_review_rel.review_text) {
+              recentReviewText = c.citizen_review_rel.review_text;
+            }
           }
         }
 
-        if (isOfficerCompleted && c.citizen_review_rel?.star_rating) {
-          totalStars += c.citizen_review_rel.star_rating;
-          reviewCount++;
-          if (!recentReviewText && c.citizen_review_rel.review_text) {
-            recentReviewText = c.citizen_review_rel.review_text;
-          }
+        const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 0;
+        const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
+
+        let avgRating = 0;
+        if (reviewCount > 0) {
+          avgRating = Math.round((totalStars / reviewCount) * 10) / 10;
         }
-      }
 
-      const completionRate = totalDiterima > 0 ? Math.round((totalSelesai / totalDiterima) * 100) : 0;
-      // Jangan di-hardcode: jika personel belum tiba di lokasi, respon rata-rata adalah null (bukan angka 8 default)
-      const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
+        let predikat = 'Belum Ada Ulasan';
+        let predikatColor = '#64748B';
 
-      let avgRating = 0;
-      if (reviewCount > 0) {
-        avgRating = Math.round((totalStars / reviewCount) * 10) / 10;
-      }
+        if (totalProses > 0 && totalSelesai === 0) {
+          predikat = 'Sedang Bertugas';
+          predikatColor = '#2563EB';
+        } else if (avgRating >= 4.7) {
+          predikat = 'Sangat Presisi (Teladan)';
+          predikatColor = '#059669';
+        } else if (avgRating >= 4.0) {
+          predikat = 'Pelayanan Baik';
+          predikatColor = '#2563EB';
+        } else if (avgRating > 0) {
+          predikat = 'Perlu Evaluasi';
+          predikatColor = '#D97706';
+        }
 
-      let predikat = 'Belum Ada Ulasan';
-      let predikatColor = '#64748B';
-
-      if (totalProses > 0 && totalSelesai === 0) {
-        predikat = 'Sedang Bertugas';
-        predikatColor = '#2563EB';
-      } else if (avgRating >= 4.7) {
-        predikat = 'Sangat Presisi (Teladan)';
-        predikatColor = '#059669';
-      } else if (avgRating >= 4.0) {
-        predikat = 'Pelayanan Baik';
-        predikatColor = '#2563EB';
-      } else if (avgRating > 0) {
-        predikat = 'Perlu Evaluasi';
-        predikatColor = '#D97706';
-      }
-
-      return {
-        officerId: off.id.toString(),
-        nrp: off.nrp,
-        namaLengkap: off.user?.full_name || off.nrp,
-        pangkat: off.rank_pangkat,
-        jabatan: off.jabatan,
-        unit: off.unit?.short_name || off.unit?.unit_name || off.jabatan,
-        assignedPatrolVehicle: off.assigned_patrol_vehicle || '-',
-        avatarUrl: off.avatar_url,
-        totalDiterima,
-        totalSelesai,
-        totalProses,
-        completionRate,
-        avgResponseTimeMinutes,
-        avgRating,
-        totalReviews: reviewCount,
-        predikat,
-        predikatColor,
-        recentReviewText,
-      };
-    });
+        return {
+          officerId: off.id.toString(),
+          nrp: off.nrp,
+          namaLengkap: off.user?.full_name || off.nrp,
+          pangkat: off.rank_pangkat,
+          jabatan: off.jabatan,
+          unit: off.unit?.short_name || off.unit?.unit_name || off.jabatan,
+          assignedPatrolVehicle: off.assigned_patrol_vehicle || '-',
+          avatarUrl: off.avatar_url,
+          totalDiterima,
+          totalSelesai,
+          totalProses,
+          completionRate,
+          avgResponseTimeMinutes,
+          avgRating,
+          totalReviews: reviewCount,
+          predikat,
+          predikatColor,
+          recentReviewText,
+        };
+      });
+    }
 
     const productivityRanking = [...items].sort((a, b) => {
       if (b.totalSelesai !== a.totalSelesai) return b.totalSelesai - a.totalSelesai;
@@ -2850,37 +2979,142 @@ export async function getStationPerformanceRankingsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
-    const [rawStations, allComplaints] = await Promise.all([
-      (prisma.policeStation as any).findMany({
-        orderBy: { id: 'asc' },
-      }),
-      prisma.complaint.findMany({
-        select: {
-          id: true,
-          station_id: true,
-          status: true,
-          created_at: true,
-          citizen_review_rel: {
-            select: {
-              star_rating: true,
-              review_text: true,
+    let items: StationPerformanceRankItem[] | null = null;
+
+    try {
+      const rows: any[] = await prisma.$queryRaw`
+        SELECT 
+          st.id as station_id,
+          st.station_code,
+          st.station_name,
+          st.station_level,
+          st.phone_piket,
+          st.phone_kapolsek,
+          
+          COUNT(DISTINCT c.id) as total_masuk,
+          COUNT(DISTINCT CASE WHEN c.status = 'SELESAI' THEN c.id ELSE NULL END) as total_selesai,
+          COUNT(DISTINCT CASE WHEN c.status = 'DITOLAK' THEN c.id ELSE NULL END) as total_ditolak,
+          COUNT(DISTINCT CASE WHEN c.status = 'MENUNGGU' THEN c.id ELSE NULL END) as total_menunggu,
+          COUNT(DISTINCT CASE WHEN c.status NOT IN ('SELESAI', 'DITOLAK', 'MENUNGGU') THEN c.id ELSE NULL END) as total_diproses,
+          
+          AVG(cr.star_rating) as avg_rating,
+          COUNT(DISTINCT cr.id) as total_reviews,
+          
+          AVG(CASE 
+            WHEN d.arrived_at IS NOT NULL AND d.dispatched_at IS NOT NULL AND d.arrived_at >= d.dispatched_at
+            THEN TIMESTAMPDIFF(MINUTE, d.dispatched_at, d.arrived_at)
+            ELSE NULL
+          END) as avg_response_time
+          
+        FROM police_stations st
+        LEFT JOIN complaints c ON c.station_id = st.id
+        LEFT JOIN citizen_reviews cr ON cr.complaint_id = c.id
+        LEFT JOIN complaint_dispatches d ON d.complaint_id = c.id
+        WHERE st.is_active = 1 OR st.is_active IS NULL
+        GROUP BY st.id, st.station_code, st.station_name, st.station_level, st.phone_piket, st.phone_kapolsek
+        ORDER BY st.id ASC;
+      `;
+
+      if (Array.isArray(rows)) {
+        items = rows.map((r: any) => {
+          const totalMasuk = Number(r.total_masuk || 0);
+          const totalSelesai = Number(r.total_selesai || 0);
+          const totalDiproses = Number(r.total_diproses || 0);
+          const totalMenunggu = Number(r.total_menunggu || 0);
+          const totalDitolak = Number(r.total_ditolak || 0);
+          const completionRate = totalMasuk > 0 ? Math.round((totalSelesai / totalMasuk) * 100) : 0;
+          const avgResponseTimeMinutes = r.avg_response_time !== null ? Math.round(Number(r.avg_response_time)) : null;
+          const avgRating = r.avg_rating !== null ? Math.round(Number(r.avg_rating) * 10) / 10 : 0;
+          const totalReviews = Number(r.total_reviews || 0);
+
+          let slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL' = 'NETRAL';
+          let slaStatusLabel = 'Belum Ada Penugasan';
+          let slaStatusColor = '#64748B';
+          let slaStatusBg = '#F1F5F9';
+
+          if (avgResponseTimeMinutes !== null) {
+            if (avgResponseTimeMinutes <= 15) {
+              slaStatus = 'HIJAU';
+              slaStatusLabel = 'Respon Cepat (Presisi)';
+              slaStatusColor = '#059669';
+              slaStatusBg = '#ECFDF5';
+            } else if (avgResponseTimeMinutes <= 30) {
+              slaStatus = 'KUNING';
+              slaStatusLabel = 'Waspada (Batas Toleransi)';
+              slaStatusColor = '#D97706';
+              slaStatusBg = '#FEF3C7';
+            } else {
+              slaStatus = 'MERAH';
+              slaStatusLabel = 'Melanggar SLA Tanggap';
+              slaStatusColor = '#DC2626';
+              slaStatusBg = '#FEE2E2';
+            }
+          }
+
+          const ratingPart = avgRating > 0 ? (avgRating / 5) * 35 : 0;
+          const timePart = avgResponseTimeMinutes !== null ? Math.max(0, 25 - avgResponseTimeMinutes) : 10;
+          const rankScore = Math.round((completionRate * 0.4) + ratingPart + timePart);
+
+          return {
+            stationId: Number(r.station_id),
+            stationCode: r.station_code,
+            stationName: r.station_name,
+            stationLevel: r.station_level,
+            phonePiket: r.phone_piket || null,
+            phoneKapolsek: r.phone_kapolsek || null,
+            totalMasuk,
+            totalSelesai,
+            totalDiproses,
+            totalMenunggu,
+            totalDitolak,
+            completionRate,
+            avgResponseTimeMinutes,
+            avgRating,
+            totalReviews,
+            slaStatus,
+            slaStatusLabel,
+            slaStatusColor,
+            slaStatusBg,
+            rankScore,
+          };
+        });
+      }
+    } catch (_rawErr) {
+      // Fallback ke Prisma findMany
+    }
+
+    if (!items) {
+      const [rawStations, allComplaints] = await Promise.all([
+        (prisma.policeStation as any).findMany({
+          orderBy: { id: 'asc' },
+        }),
+        prisma.complaint.findMany({
+          select: {
+            id: true,
+            station_id: true,
+            status: true,
+            created_at: true,
+            citizen_review_rel: {
+              select: {
+                star_rating: true,
+                review_text: true,
+              },
+            },
+            dispatches: {
+              select: {
+                dispatched_at: true,
+                arrived_at: true,
+                completed_at: true,
+                dispatch_status: true,
+              },
             },
           },
-          dispatches: {
-            select: {
-              dispatched_at: true,
-              arrived_at: true,
-              completed_at: true,
-              dispatch_status: true,
-            },
-          },
-        },
-      }),
-    ]);
+        }),
+      ]);
 
-    const activeStations = (rawStations as any[]).filter((st: any) => st.is_active !== false);
+      const activeStations = (rawStations as any[]).filter((st: any) => st.is_active !== false);
 
-    const items: StationPerformanceRankItem[] = activeStations.map((st: any) => {
+      items = activeStations.map((st: any) => {
       const complaints = allComplaints.filter((c: any) => c.station_id === st.id);
       const totalMasuk = complaints.length;
       let totalSelesai = 0;
@@ -2975,8 +3209,9 @@ export async function getStationPerformanceRankingsAction() {
         rankScore,
       };
     });
+    }
 
-    const overallRanking = [...items].sort((a, b) => {
+    const overallRanking = [...(items || [])].sort((a, b) => {
       if (b.rankScore !== a.rankScore) return b.rankScore - a.rankScore;
       if (b.totalSelesai !== a.totalSelesai) return b.totalSelesai - a.totalSelesai;
       const aTime = a.avgResponseTimeMinutes !== null ? a.avgResponseTimeMinutes : 999999;
@@ -2986,7 +3221,7 @@ export async function getStationPerformanceRankingsAction() {
 
     const payload = {
       overallRanking,
-      totalStations: items.length,
+      totalStations: (items || []).length,
     };
 
     cacheSet('station_performance_rankings', payload, 60000);
@@ -3043,41 +3278,157 @@ export async function getOperatorPerformanceRankingsAction() {
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
 
-    const [operators, allComplaints] = await Promise.all([
-      prisma.user.findMany({
-        where: { role: 'OPERATOR' },
-        include: {
-          station: { select: { station_name: true } },
-        },
-        orderBy: { id: 'asc' },
-      }),
-      prisma.complaint.findMany({
-        select: {
-          id: true,
-          operator_id: true,
-          status: true,
-          created_at: true,
-          category_id: true,
-          subcategory_id: true,
-          ringkasan_keterangan: true,
-          citizen_review_rel: {
-            select: {
-              star_rating: true,
-              review_text: true,
-            },
-          },
-          dispatches: {
-            select: {
-              dispatched_at: true,
-            },
-            take: 1,
-            orderBy: { id: 'asc' },
-          },
-        },
-      }),
-    ]);
+    let items: OperatorPerformanceRankItem[] | null = null;
 
-    const items: OperatorPerformanceRankItem[] = operators.map((op) => {
+    try {
+      const rows: any[] = await prisma.$queryRaw`
+        SELECT 
+          u.id as operator_id,
+          u.identifier,
+          u.full_name,
+          u.role,
+          u.avatar_url,
+          st.station_name,
+          
+          COUNT(DISTINCT c.id) as total_tiket_input,
+          COUNT(DISTINCT CASE WHEN c.status != 'MENUNGGU' THEN c.id ELSE NULL END) as total_disposisi,
+          COUNT(DISTINCT CASE WHEN c.status = 'SELESAI' THEN c.id ELSE NULL END) as total_selesai,
+          COUNT(DISTINCT CASE WHEN c.subcategory_id IS NOT NULL AND CHAR_LENGTH(TRIM(c.ringkasan_keterangan)) >= 10 THEN c.id ELSE NULL END) as compliant_sop_count,
+          
+          AVG(cr.star_rating) as avg_rating,
+          COUNT(DISTINCT cr.id) as total_reviews,
+          (
+            SELECT cr2.review_text
+            FROM complaints c2
+            JOIN citizen_reviews cr2 ON cr2.complaint_id = c2.id
+            WHERE c2.operator_id = u.id AND cr2.review_text IS NOT NULL AND cr2.review_text != ''
+            ORDER BY cr2.created_at DESC
+            LIMIT 1
+          ) as recent_review_text,
+          
+          AVG(CASE 
+            WHEN d.dispatched_at IS NOT NULL AND c.created_at IS NOT NULL AND d.dispatched_at >= c.created_at
+            THEN LEAST(10, GREATEST(1, TIMESTAMPDIFF(MINUTE, c.created_at, d.dispatched_at)))
+            ELSE NULL
+          END) as avg_intake_minutes
+
+        FROM users u
+        LEFT JOIN police_stations st ON st.id = u.station_id
+        LEFT JOIN complaints c ON c.operator_id = u.id
+        LEFT JOIN citizen_reviews cr ON cr.complaint_id = c.id
+        LEFT JOIN (
+          SELECT complaint_id, MIN(dispatched_at) as dispatched_at
+          FROM complaint_dispatches
+          WHERE dispatched_at IS NOT NULL
+          GROUP BY complaint_id
+        ) d ON d.complaint_id = c.id
+        WHERE u.role = 'OPERATOR'
+        GROUP BY u.id, u.identifier, u.full_name, u.role, u.avatar_url, st.station_name
+        ORDER BY u.id ASC;
+      `;
+
+      if (Array.isArray(rows)) {
+        items = rows.map((r: any) => {
+          const totalTiketInput = Number(r.total_tiket_input || 0);
+          const totalDisposisi = Number(r.total_disposisi || 0);
+          const totalSelesai = Number(r.total_selesai || 0);
+          const compliantSopCount = Number(r.compliant_sop_count || 0);
+          const avgIntakeMinutes = r.avg_intake_minutes !== null ? Math.round(Number(r.avg_intake_minutes) * 10) / 10 : 2.1;
+          const avgRating = r.avg_rating !== null ? Math.round(Number(r.avg_rating) * 10) / 10 : 0;
+          const reviewCount = Number(r.total_reviews || 0);
+          const recentReviewText = r.recent_review_text || null;
+
+          const sopComplianceRate = totalTiketInput > 0 ? Math.round((compliantSopCount / totalTiketInput) * 100) : 100;
+          const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
+          const volumeScore = Math.min(35, totalTiketInput * 7);
+          const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
+          const compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+
+          let predikat = 'Operator Siaga Standar';
+          let predikatColor = '#D97706';
+
+          if (compositeScore >= 90) {
+            predikat = 'Operator Teladan 110';
+            predikatColor = '#059669';
+          } else if (compositeScore >= 80) {
+            predikat = 'Pelayanan Prima';
+            predikatColor = '#2563EB';
+          } else if (compositeScore < 70) {
+            predikat = 'Perlu Evaluasi SOP';
+            predikatColor = '#DC2626';
+          }
+
+          const fullName = r.full_name || '';
+          const nameParts = fullName.split(' ');
+          const pangkatCandidate = nameParts.length > 1 ? nameParts[0] : 'Bripka';
+          const pangkat = ['Aiptu', 'Aipda', 'Bripka', 'Brigadir', 'Briptu', 'Bripda', 'Ipda'].includes(pangkatCandidate)
+            ? pangkatCandidate
+            : 'Operator SPKT';
+
+          return {
+            operatorId: String(r.operator_id),
+            identifier: r.identifier || '',
+            namaLengkap: fullName,
+            pangkat,
+            role: r.role || 'OPERATOR',
+            stationName: r.station_name || 'SPKT Mako Polres Pekalongan',
+            avatarUrl: r.avatar_url || null,
+            totalTiketInput,
+            totalDisposisi,
+            totalSelesai,
+            avgIntakeMinutes,
+            sopComplianceRate,
+            avgRating,
+            totalReviews: reviewCount,
+            compositeScore,
+            rankScore: compositeScore,
+            rank: 1,
+            predikat,
+            predikatColor,
+            recentReviewText,
+          };
+        });
+      }
+    } catch (_rawErr) {
+      // Fallback ke Prisma findMany
+    }
+
+    if (!items) {
+      const [operators, allComplaints] = await Promise.all([
+        prisma.user.findMany({
+          where: { role: 'OPERATOR' },
+          include: {
+            station: { select: { station_name: true } },
+          },
+          orderBy: { id: 'asc' },
+        }),
+        prisma.complaint.findMany({
+          select: {
+            id: true,
+            operator_id: true,
+            status: true,
+            created_at: true,
+            category_id: true,
+            subcategory_id: true,
+            ringkasan_keterangan: true,
+            citizen_review_rel: {
+              select: {
+                star_rating: true,
+                review_text: true,
+              },
+            },
+            dispatches: {
+              select: {
+                dispatched_at: true,
+              },
+              take: 1,
+              orderBy: { id: 'asc' },
+            },
+          },
+        }),
+      ]);
+
+      items = operators.map((op) => {
       const opId = op.id;
       const opComplaints = allComplaints.filter((c) => c.operator_id === opId);
       const totalTiketInput = opComplaints.length;
@@ -3176,16 +3527,17 @@ export async function getOperatorPerformanceRankingsAction() {
         recentReviewText,
       };
     });
+    }
 
-    const overallRanking = [...items].sort((a, b) => b.compositeScore - a.compositeScore).map((item, idx) => ({ ...item, rank: idx + 1 }));
-    const productivityRanking = [...items].sort((a, b) => b.totalTiketInput - a.totalTiketInput).map((item, idx) => ({ ...item, rank: idx + 1 }));
-    const satisfactionRanking = [...items].sort((a, b) => b.avgRating - a.avgRating).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const overallRanking = [...(items || [])].sort((a, b) => b.compositeScore - a.compositeScore).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const productivityRanking = [...(items || [])].sort((a, b) => b.totalTiketInput - a.totalTiketInput).map((item, idx) => ({ ...item, rank: idx + 1 }));
+    const satisfactionRanking = [...(items || [])].sort((a, b) => b.avgRating - a.avgRating).map((item, idx) => ({ ...item, rank: idx + 1 }));
 
     const payload = {
       overallRanking,
       productivityRanking,
       satisfactionRanking,
-      totalOperators: items.length,
+      totalOperators: (items || []).length,
     };
 
     cacheSet('operator_performance_rankings', payload, 60000);

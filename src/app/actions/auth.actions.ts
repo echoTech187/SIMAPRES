@@ -273,49 +273,119 @@ export async function getRegisteredUnitsAction() {
   }
 
   try {
-    // Sumber tunggal (single source of truth): police_officers + users + master_operational_units
-    const officers = await prisma.policeOfficer.findMany({
-      include: {
-        user: true,
-        unit: true,
-        station: true,
-      },
-      orderBy: { created_at: 'asc' },
-    });
+    let safeUnits: any[];
+    try {
+      const rawOfficers: any[] = await prisma.$queryRaw`
+        SELECT 
+          po.id, po.nrp, po.rank_pangkat, po.jabatan, po.duty_status, po.device_id,
+          po.station_id, po.unit_id, po.assigned_patrol_vehicle, po.current_gps_lat,
+          po.current_gps_lng, po.avatar_url,
+          u.role as user_role, u.full_name as user_full_name, u.station_id as user_station_id,
+          un.key as unit_key, un.unit_name,
+          st.station_name, st.station_code
+        FROM police_officers po
+        LEFT JOIN users u ON u.id = po.user_id
+        LEFT JOIN master_operational_units un ON un.id = po.unit_id
+        LEFT JOIN police_stations st ON st.id = po.station_id
+        ORDER BY po.created_at ASC;
+      `;
 
-    const safeUnits = officers.map((off) => {
-      const isAktif =
-        off.duty_status === 'DINAS_PATROLI' ||
-        off.duty_status === 'PIKET_SPKT' ||
-        off.duty_status === 'SIAGA';
-      const userRole = off.user?.role ? off.user.role : 'PERSONIL';
-      const rawFullName = off.user?.full_name || off.nrp;
-      const unitCode = off.unit?.key || (off.unit_id ? off.unit_id.toString() : '');
-      const unitTitle = off.unit?.unit_name || off.jabatan || '';
+      safeUnits = rawOfficers.map((off) => {
+        const isAktif =
+          off.duty_status === 'DINAS_PATROLI' ||
+          off.duty_status === 'PIKET_SPKT' ||
+          off.duty_status === 'SIAGA';
+        const userRole = off.user_role || 'PERSONIL';
+        const rawFullName = off.user_full_name || off.nrp;
+        const unitCode = off.unit_key || (off.unit_id ? off.unit_id.toString() : '');
+        const unitTitle = off.unit_name || off.jabatan || '';
 
-      return {
-        id: off.id.toString(),
-        nrp: off.nrp,
-        nama: rawFullName,
-        pangkat: off.rank_pangkat || '',
-        role: userRole,
-        unitId: unitCode,
-        satuanNama: unitTitle,
-        kelompokRegu: '',
-        deviceID: off.device_id || null,
-        status: isAktif ? 'Aktif' : 'Nonaktif',
-        stationId: off.station_id || off.user?.station_id || null,
-        stationName: off.station?.station_name || null,
-        stationCode: off.station?.station_code || null,
-        dutyStatus: off.duty_status || 'LEPAS_DINAS',
-        assignedVehicle: off.assigned_patrol_vehicle || null,
-        hasLiveGps: Boolean(off.current_gps_lat && off.current_gps_lng),
-        avatarUrl: off.avatar_url || null,
-        live_lat: off.current_gps_lat != null ? Number(off.current_gps_lat) : null,
-        live_lng: off.current_gps_lng != null ? Number(off.current_gps_lng) : null,
-        password: null,
-      };
-    });
+        return {
+          id: off.id.toString(),
+          nrp: off.nrp,
+          nama: rawFullName,
+          pangkat: off.rank_pangkat || '',
+          role: userRole,
+          unitId: unitCode,
+          satuanNama: unitTitle,
+          kelompokRegu: '',
+          deviceID: off.device_id || null,
+          status: isAktif ? 'Aktif' : 'Nonaktif',
+          stationId: off.station_id || off.user_station_id || null,
+          stationName: off.station_name || null,
+          stationCode: off.station_code || null,
+          dutyStatus: off.duty_status || 'LEPAS_DINAS',
+          assignedVehicle: off.assigned_patrol_vehicle || null,
+          hasLiveGps: Boolean(off.current_gps_lat && off.current_gps_lng),
+          avatarUrl: off.avatar_url || null,
+          live_lat: off.current_gps_lat != null ? Number(off.current_gps_lat) : null,
+          live_lng: off.current_gps_lng != null ? Number(off.current_gps_lng) : null,
+          password: null,
+        };
+      });
+    } catch (_rawErr) {
+      // Fallback ke Prisma findMany
+      const officers = await prisma.policeOfficer.findMany({
+        select: {
+          id: true,
+          nrp: true,
+          rank_pangkat: true,
+          jabatan: true,
+          duty_status: true,
+          device_id: true,
+          station_id: true,
+          unit_id: true,
+          assigned_patrol_vehicle: true,
+          current_gps_lat: true,
+          current_gps_lng: true,
+          avatar_url: true,
+          user: {
+            select: { role: true, full_name: true, station_id: true },
+          },
+          unit: {
+            select: { key: true, unit_name: true },
+          },
+          station: {
+            select: { station_name: true, station_code: true },
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      });
+
+      safeUnits = officers.map((off) => {
+        const isAktif =
+          off.duty_status === 'DINAS_PATROLI' ||
+          off.duty_status === 'PIKET_SPKT' ||
+          off.duty_status === 'SIAGA';
+        const userRole = off.user?.role ? off.user.role : 'PERSONIL';
+        const rawFullName = off.user?.full_name || off.nrp;
+        const unitCode = off.unit?.key || (off.unit_id ? off.unit_id.toString() : '');
+        const unitTitle = off.unit?.unit_name || off.jabatan || '';
+
+        return {
+          id: off.id.toString(),
+          nrp: off.nrp,
+          nama: rawFullName,
+          pangkat: off.rank_pangkat || '',
+          role: userRole,
+          unitId: unitCode,
+          satuanNama: unitTitle,
+          kelompokRegu: '',
+          deviceID: off.device_id || null,
+          status: isAktif ? 'Aktif' : 'Nonaktif',
+          stationId: off.station_id || off.user?.station_id || null,
+          stationName: off.station?.station_name || null,
+          stationCode: off.station?.station_code || null,
+          dutyStatus: off.duty_status || 'LEPAS_DINAS',
+          assignedVehicle: off.assigned_patrol_vehicle || null,
+          hasLiveGps: Boolean(off.current_gps_lat && off.current_gps_lng),
+          avatarUrl: off.avatar_url || null,
+          live_lat: off.current_gps_lat != null ? Number(off.current_gps_lat) : null,
+          live_lng: off.current_gps_lng != null ? Number(off.current_gps_lng) : null,
+          password: null,
+        };
+      });
+    }
 
     const serialized = serializeBigInt(safeUnits);
     cacheSet('active_officers_units', serialized, 30000); // 30 detik TTL
@@ -700,7 +770,15 @@ export async function updateDeviceTelemetryAction(input: {
   }
 }
 
+let masterDropdownsCache: { data: any; expiresAt: number } | null = null;
+const MASTER_DROPDOWNS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 menit
+
 export async function getMasterDropdownsAction() {
+  const now = Date.now();
+  if (masterDropdownsCache && now < masterDropdownsCache.expiresAt) {
+    return { success: true, data: masterDropdownsCache.data };
+  }
+
   try {
     const [units, ranks, roles, stations] = await Promise.all([
       prisma.masterOperationalUnit.findMany({
@@ -752,6 +830,8 @@ export async function getMasterDropdownsAction() {
         level: st.station_level,
       })),
     ];
+
+    masterDropdownsCache = { data: items, expiresAt: now + MASTER_DROPDOWNS_CACHE_TTL_MS };
     return { success: true, data: items };
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -759,7 +839,7 @@ export async function getMasterDropdownsAction() {
 }
 
 const officerProfileCache = new Map<string, { data: any; expiresAt: number }>();
-const OFFICER_PROFILE_CACHE_TTL_MS = 30 * 1000; // 30 detik
+const OFFICER_PROFILE_CACHE_TTL_MS = 60 * 1000; // 60 detik
 
 let policeOfficesCache: { data: any; expiresAt: number } | null = null;
 const POLICE_OFFICES_CACHE_TTL_MS = 10 * 60 * 1000; // 10 menit
@@ -773,71 +853,117 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
       return { success: true, data: cached.data };
     }
 
-    const user = await prisma.user.findUnique({
-      where: { identifier: clean },
-      include: {
-        officer_profile: {
-          include: {
-            station: true,
-            unit: true,
+    let data: any = null;
+
+    // 1. Eksekusi cepat dalam 1 round-trip menggunakan query SQL dengan JOIN
+    try {
+      const rows: any[] = await prisma.$queryRaw`
+        SELECT 
+          po.id as officer_id, po.nrp, po.rank_pangkat, po.jabatan, po.kpi_score, po.device_id,
+          po.assigned_patrol_vehicle, po.current_gps_lat, po.current_gps_lng, po.avatar_url,
+          po.duty_status, po.station_id, po.unit_id, po.user_id,
+          u.id as user_id_from_user, u.role, u.full_name, u.phone_number, u.identifier,
+          st.id as station_id_res, st.station_name, st.station_code, st.station_level,
+          st.office_lat, st.office_lng, st.geofence_radius_meters,
+          un.id as unit_id_res, un.key as unit_key, un.unit_name, un.short_name as unit_short_name
+        FROM police_officers po
+        LEFT JOIN users u ON u.id = po.user_id
+        LEFT JOIN police_stations st ON st.id = po.station_id
+        LEFT JOIN master_operational_units un ON un.id = po.unit_id
+        WHERE po.nrp = ${clean} OR u.identifier = ${clean}
+        LIMIT 1;
+      `;
+
+      if (rows && rows[0]) {
+        const r = rows[0];
+        const roleStr = r.role ? r.role.toLowerCase() : 'personil';
+        const kpiScore = r.kpi_score ? Number(r.kpi_score) : 100;
+        const officerId = r.officer_id ? r.officer_id.toString() : (r.user_id_from_user ? r.user_id_from_user.toString() : '');
+        const userId = r.user_id_from_user ? r.user_id_from_user.toString() : (r.user_id ? r.user_id.toString() : '');
+
+        data = {
+          id: officerId,
+          officerId,
+          userId,
+          nrp: clean,
+          fullName: r.full_name || clean,
+          pangkat: r.rank_pangkat || '',
+          satuan: r.unit_name || r.jabatan || '',
+          jabatan: r.jabatan || '',
+          unit_id: r.unit_id || null,
+          unitId: r.unit_key || '',
+          role: roleStr,
+          deviceId: r.device_id || null,
+          avatar: r.avatar_url || null,
+          kpi: kpiScore,
+          stationId: r.station_id || null,
+          stationName: r.station_name || null,
+          stationLat: r.office_lat ? Number(r.office_lat) : null,
+          stationLng: r.office_lng ? Number(r.office_lng) : null,
+          stationRadius: r.geofence_radius_meters ? Number(r.geofence_radius_meters) : 1000,
+          currentGpsLat: r.current_gps_lat ? Number(r.current_gps_lat) : null,
+          currentGpsLng: r.current_gps_lng ? Number(r.current_gps_lng) : null,
+          dutyStatus: r.duty_status || 'LEPAS_DINAS',
+        };
+      }
+    } catch (_rawErr) {
+      // Fallback ke Prisma findUnique
+    }
+
+    if (!data) {
+      const user = await prisma.user.findUnique({
+        where: { identifier: clean },
+        include: {
+          officer_profile: {
+            include: {
+              station: true,
+              unit: true,
+            },
           },
+          station: true,
         },
-        station: true,
-      },
-    });
+      });
 
-    const officerProfile =
-      user?.officer_profile ||
-      (await prisma.policeOfficer.findUnique({
-        where: { nrp: clean },
-        include: { station: true, unit: true },
-      }));
+      const officerProfile =
+        user?.officer_profile ||
+        (await prisma.policeOfficer.findUnique({
+          where: { nrp: clean },
+          include: { station: true, unit: true },
+        }));
 
-    if (!user && !officerProfile) return { success: false, error: 'Data personel tidak ditemukan.' };
+      if (!user && !officerProfile) return { success: false, error: 'Data personel tidak ditemukan.' };
 
-    const roleStr = user?.role ? user.role.toLowerCase() : 'personil';
+      const roleStr = user?.role ? user.role.toLowerCase() : 'personil';
+      const kpiScore = officerProfile?.kpi_score ? Number(officerProfile.kpi_score) : 100;
+      const assignedStation = officerProfile?.station || user?.station || null;
+      const officerId = officerProfile?.id ? officerProfile.id.toString() : (user?.id ? user.id.toString() : '');
+      const userId = user?.id ? user.id.toString() : (officerProfile?.user_id ? officerProfile.user_id.toString() : '');
 
-    const kpiScore = officerProfile?.kpi_score
-      ? Number(officerProfile.kpi_score)
-      : 100;
-
-    const assignedStation = officerProfile?.station || user?.station || null;
-
-    const officerId = officerProfile?.id
-      ? officerProfile.id.toString()
-      : user?.id
-      ? user.id.toString()
-      : '';
-    const userId = user?.id
-      ? user.id.toString()
-      : officerProfile?.user_id
-      ? officerProfile.user_id.toString()
-      : '';
-
-    const data = {
-      id: officerId,
-      officerId,
-      userId,
-      nrp: clean,
-      fullName: user?.full_name || clean,
-      pangkat: officerProfile?.rank_pangkat || '',
-      satuan: officerProfile?.unit?.unit_name || officerProfile?.jabatan || '',
-      jabatan: officerProfile?.jabatan || '',
-      unit_id: officerProfile?.unit_id || null,
-      unitId: officerProfile?.unit?.key || '',
-      role: roleStr,
-      deviceId: officerProfile?.device_id || null,
-      avatar: officerProfile?.avatar_url || null,
-      kpi: kpiScore,
-      stationId: assignedStation?.id || null,
-      stationName: assignedStation?.station_name || null,
-      stationLat: assignedStation?.office_lat ? Number(assignedStation.office_lat) : null,
-      stationLng: assignedStation?.office_lng ? Number(assignedStation.office_lng) : null,
-      stationRadius: assignedStation?.geofence_radius_meters ? Number(assignedStation.geofence_radius_meters) : 1000,
-      currentGpsLat: officerProfile?.current_gps_lat ? Number(officerProfile.current_gps_lat) : null,
-      currentGpsLng: officerProfile?.current_gps_lng ? Number(officerProfile.current_gps_lng) : null,
-      dutyStatus: officerProfile?.duty_status || 'LEPAS_DINAS',
-    };
+      data = {
+        id: officerId,
+        officerId,
+        userId,
+        nrp: clean,
+        fullName: user?.full_name || clean,
+        pangkat: officerProfile?.rank_pangkat || '',
+        satuan: officerProfile?.unit?.unit_name || officerProfile?.jabatan || '',
+        jabatan: officerProfile?.jabatan || '',
+        unit_id: officerProfile?.unit_id || null,
+        unitId: officerProfile?.unit?.key || '',
+        role: roleStr,
+        deviceId: officerProfile?.device_id || null,
+        avatar: officerProfile?.avatar_url || null,
+        kpi: kpiScore,
+        stationId: assignedStation?.id || null,
+        stationName: assignedStation?.station_name || null,
+        stationLat: assignedStation?.office_lat ? Number(assignedStation.office_lat) : null,
+        stationLng: assignedStation?.office_lng ? Number(assignedStation.office_lng) : null,
+        stationRadius: assignedStation?.geofence_radius_meters ? Number(assignedStation.geofence_radius_meters) : 1000,
+        currentGpsLat: officerProfile?.current_gps_lat ? Number(officerProfile.current_gps_lat) : null,
+        currentGpsLng: officerProfile?.current_gps_lng ? Number(officerProfile.current_gps_lng) : null,
+        dutyStatus: officerProfile?.duty_status || 'LEPAS_DINAS',
+      };
+    }
 
     officerProfileCache.set(clean, { data, expiresAt: now + OFFICER_PROFILE_CACHE_TTL_MS });
 
@@ -857,41 +983,87 @@ export async function getPoliceOfficesAction() {
       return { success: true, data: policeOfficesCache.data };
     }
 
-    const rawOffices = await prisma.policeStation.findMany({
-      orderBy: { id: 'asc' },
-      include: {
-        users: {
-          select: {
-            full_name: true,
-            role: true,
+    let data: any[] | null = null;
+
+    try {
+      const rawRows: any[] = await prisma.$queryRaw`
+        SELECT 
+          st.id,
+          st.station_code as code,
+          st.station_name as name,
+          st.station_level as type,
+          st.address,
+          st.office_lat,
+          st.office_lng,
+          st.geofence_radius_meters,
+          st.phone_piket,
+          COALESCE(GROUP_CONCAT(u.full_name SEPARATOR ', '), '-') as petugas
+        FROM police_stations st
+        LEFT JOIN users u ON u.station_id = st.id AND u.is_active = 1
+        WHERE st.is_active = 1 OR st.is_active IS NULL
+        GROUP BY st.id, st.station_code, st.station_name, st.station_level, st.address, st.office_lat, st.office_lng, st.geofence_radius_meters, st.phone_piket
+        ORDER BY st.id ASC;
+      `;
+
+      if (Array.isArray(rawRows)) {
+        data = rawRows.map((o: any) => ({
+          id: Number(o.id),
+          code: o.code,
+          name: o.name,
+          type: o.type,
+          address: o.address,
+          lat: Number(o.office_lat),
+          lng: Number(o.office_lng),
+          radius: Number(o.geofence_radius_meters || 500),
+          petugas: o.petugas || '-',
+          status: o.type,
+          statusColor: '#1E3A8A',
+          tugas: o.name,
+          telemetri: o.geofence_radius_meters,
+          phonePiket: o.phone_piket || null,
+        }));
+      }
+    } catch (_sqlErr) {
+      // Fallback ke Prisma findMany jika queryRaw terkendala
+    }
+
+    if (!data) {
+      const rawOffices = await prisma.policeStation.findMany({
+        orderBy: { id: 'asc' },
+        include: {
+          users: {
+            select: {
+              full_name: true,
+              role: true,
+            },
+            take: 5,
           },
-          take: 5,
         },
-      },
-    });
+      });
 
-    const data = rawOffices.map((o: any) => {
-      const userNames = (o.users || []).map((u: any) => u.full_name).filter(Boolean);
-      const petugasStr = userNames.length > 0 ? userNames.join(', ') : '-';
-      const levelLabel = o.station_level;
+      data = rawOffices.map((o: any) => {
+        const userNames = (o.users || []).map((u: any) => u.full_name).filter(Boolean);
+        const petugasStr = userNames.length > 0 ? userNames.join(', ') : '-';
+        const levelLabel = o.station_level;
 
-      return {
-        id: o.id,
-        code: o.station_code,
-        name: o.station_name,
-        type: o.station_level,
-        address: o.address,
-        lat: Number(o.office_lat),
-        lng: Number(o.office_lng),
-        radius: Number(o.geofence_radius_meters || 500),
-        petugas: petugasStr,
-        status: levelLabel,
-        statusColor: '#1E3A8A',
-        tugas: o.station_name,
-        telemetri: o.geofence_radius_meters,
-        phonePiket: o.phone_piket || null,
-      };
-    });
+        return {
+          id: o.id,
+          code: o.station_code,
+          name: o.station_name,
+          type: o.station_level,
+          address: o.address,
+          lat: Number(o.office_lat),
+          lng: Number(o.office_lng),
+          radius: Number(o.geofence_radius_meters || 500),
+          petugas: petugasStr,
+          status: levelLabel,
+          statusColor: '#1E3A8A',
+          tugas: o.station_name,
+          telemetri: o.geofence_radius_meters,
+          phonePiket: o.phone_piket || null,
+        };
+      });
+    }
 
     policeOfficesCache = { data, expiresAt: now + POLICE_OFFICES_CACHE_TTL_MS };
 

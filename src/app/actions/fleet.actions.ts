@@ -14,7 +14,7 @@ function serializeBigInt<T>(obj: T): T {
 }
 
 let patrolFleetCache: { data: any; expiresAt: number } | null = null;
-const PATROL_FLEET_CACHE_TTL_MS = 10 * 1000;
+const PATROL_FLEET_CACHE_TTL_MS = 20 * 1000;
 
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -43,255 +43,502 @@ export async function getPatrolFleetUnitsAction() {
       return { success: true, data: patrolFleetCache.data };
     }
 
-    // 1. Ambil data personil, armada, disposisi, stasiun mako, sesi QR pairing
-    const [
-      officers,
-      vehicles,
-      activeDispatches,
-      stations,
-      pairingSessions,
-      vehicleUsageLogs,
-    ] = await Promise.all([
-      prisma.policeOfficer.findMany({
-        where: {
-          user: {
-            role: 'PERSONIL',
-          },
-          duty_status: { in: ['DINAS_PATROLI', 'PIKET_SPKT', 'SIAGA'] },
-        },
-        include: {
-          user: true,
-          unit: true,
-          station: true,
-          logbooks: {
-            orderBy: { created_at: 'desc' },
-            take: 1,
-          },
-        },
-        orderBy: { rank_pangkat: 'asc' },
-      }),
-      prisma.patrolVehicle.findMany({
-        include: {
-          unit: true,
-          station: true,
-        },
-        orderBy: { id: 'asc' },
-      }),
-      prisma.complaintDispatch.findMany({
-        where: {
-          complaint: {
-            status: { notIn: ['SELESAI', 'DITOLAK'] },
-          },
-        },
-        include: {
-          complaint: true,
-          officer: { include: { user: true } },
-        },
-      }),
-      prisma.policeStation.findMany().catch(() => []),
-      prisma.devicePairingSession.findMany({ where: { status: 'PAIRED' } }).catch(() => []),
-      prisma.vehicleUsageLog.findMany({ where: { status_sesi: 'ACTIVE' } }).catch(() => []),
-    ]);
+    let formattedOfficers: any[] | null = null;
 
-    // Mako Induk Utama (Polres atau Kantor Kepolisian Default dari Database)
-    const primaryStation =
-      stations.find((s) => s.station_level === 'POLRES') || stations[0] || null;
-    const defaultMakoLat = primaryStation?.office_lat ? Number(primaryStation.office_lat) : 0;
-    const defaultMakoLng = primaryStation?.office_lng ? Number(primaryStation.office_lng) : 0;
-    const defaultMakoName = primaryStation?.station_name || 'Mako Komando';
+    // 1. Jalankan Single-Round-Trip Fast SQL Query di TiDB Cloud
+    try {
+      const rawOfficers: any[] = await prisma.$queryRaw`
+        SELECT 
+          po.id as officer_id,
+          po.nrp,
+          po.rank_pangkat,
+          po.jabatan,
+          po.assigned_patrol_vehicle,
+          po.current_gps_lat,
+          po.current_gps_lng,
+          po.avatar_url,
+          po.duty_status,
+          po.last_gps_heartbeat_at,
+          po.device_id,
+          po.station_id,
+          po.unit_id,
+          
+          u.full_name,
+          un.unit_name,
+          un.key as unit_key,
+          
+          st.station_name,
+          st.office_lat as mako_lat,
+          st.office_lng as mako_lng,
+          st.address as station_address,
+          
+          -- Latest Logbook
+          lb.actual_lat as lb_lat,
+          lb.actual_lng as lb_lng,
+          lb.claimed_address as lb_address,
+          lb.activity_description as lb_activity,
+          
+          -- Active Dispatch & Complaint
+          cd.id as dispatch_id,
+          c.nomor_tiket,
+          c.jenis_kejadian,
+          c.tkp_alamat_teks,
+          c.tkp_lat,
+          c.tkp_lng,
+          
+          -- Vehicle
+          pv.nama_armada,
+          
+          -- Pairing / QR scan
+          CASE WHEN ps.officer_scanned = 1 THEN 1 ELSE 0 END as has_scanned_qr,
+          
+          -- Vehicle usage
+          CASE WHEN vu.officer_has_vu = 1 THEN 1 ELSE 0 END as has_vehicle_usage
+          
+        FROM police_officers po
+        JOIN users u ON u.id = po.user_id AND u.role = 'PERSONIL'
+        LEFT JOIN master_operational_units un ON un.id = po.unit_id
+        LEFT JOIN police_stations st ON st.id = po.station_id
+        LEFT JOIN patrol_vehicles pv ON pv.nomor_lambung = po.assigned_patrol_vehicle
+        
+        -- Subquery for latest logbook
+        LEFT JOIN (
+          SELECT l1.officer_id, l1.actual_lat, l1.actual_lng, l1.claimed_address, l1.activity_description
+          FROM officer_logbooks l1
+          INNER JOIN (
+            SELECT officer_id, MAX(created_at) as max_created
+            FROM officer_logbooks
+            GROUP BY officer_id
+          ) l2 ON l1.officer_id = l2.officer_id AND l1.created_at = l2.max_created
+        ) lb ON lb.officer_id = po.id
+        
+        -- Active dispatch (single latest)
+        LEFT JOIN (
+          SELECT d1.officer_id, MAX(d1.id) as max_disp_id
+          FROM complaint_dispatches d1
+          JOIN complaints c1 ON c1.id = d1.complaint_id AND c1.status NOT IN ('SELESAI', 'DITOLAK')
+          GROUP BY d1.officer_id
+        ) cd_max ON cd_max.officer_id = po.id
+        LEFT JOIN complaint_dispatches cd ON cd.id = cd_max.max_disp_id
+        LEFT JOIN complaints c ON c.id = cd.complaint_id
+        
+        -- Pairing (aggregated flag per nrp / device)
+        LEFT JOIN (
+          SELECT 
+            nrp, device_id, 1 as officer_scanned
+          FROM device_pairing_sessions
+          WHERE status = 'PAIRED' AND scanned_at IS NOT NULL
+          GROUP BY nrp, device_id
+        ) ps ON (ps.nrp = po.nrp OR (po.device_id IS NOT NULL AND ps.device_id = po.device_id))
+        
+        -- Vehicle usage (aggregated flag per officer)
+        LEFT JOIN (
+          SELECT officer_id, 1 as officer_has_vu
+          FROM vehicle_usage_logs
+          WHERE status_sesi = 'ACTIVE'
+          GROUP BY officer_id
+        ) vu ON vu.officer_id = po.id
+        
+        WHERE po.duty_status IN ('DINAS_PATROLI', 'PIKET_SPKT', 'SIAGA')
+        GROUP BY po.id, po.nrp, po.rank_pangkat, po.jabatan, po.assigned_patrol_vehicle, po.current_gps_lat, po.current_gps_lng, po.avatar_url, po.duty_status, po.last_gps_heartbeat_at, po.device_id, po.station_id, po.unit_id, u.full_name, un.unit_name, un.key, st.station_name, st.office_lat, st.office_lng, st.address, lb.actual_lat, lb.actual_lng, lb.claimed_address, lb.activity_description, cd.id, c.nomor_tiket, c.jenis_kejadian, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng, pv.nama_armada, ps.officer_scanned, vu.officer_has_vu
+        ORDER BY po.rank_pangkat ASC;
+      `;
 
-    // Map active dispatch by officer NRP or ID
-    const activeDispatchMap = new Map<string, any>();
-    activeDispatches.forEach((d) => {
-      if (d.officer?.nrp) activeDispatchMap.set(d.officer.nrp, d);
-      if (d.officer_id) activeDispatchMap.set(d.officer_id.toString(), d);
-    });
+      if (Array.isArray(rawOfficers)) {
+        const defaultMakoLat = -7.026779;
+        const defaultMakoLng = 109.59308;
+        const defaultMakoName = 'Polres Pekalongan';
 
-    const vehicleMap = new Map(vehicles.map((v) => [v.nomor_lambung, v]));
+        formattedOfficers = rawOfficers.map((o) => {
+          const nrp = o.nrp;
+          const makoLat = o.mako_lat ? Number(o.mako_lat) : defaultMakoLat;
+          const makoLng = o.mako_lng ? Number(o.mako_lng) : defaultMakoLng;
+          const makoName = o.station_name || defaultMakoName;
 
-    // Map pairing sessions by NRP dan Device ID (bukti riil scan QR perangkat)
-    const pairingMap = new Map<string, any>();
-    pairingSessions.forEach((p) => {
-      if (p.nrp) pairingMap.set(p.nrp, p);
-      if (p.device_id) pairingMap.set(p.device_id, p);
-    });
+          const isDeviceRegistered = Boolean(o.device_id);
+          const hasScannedQr = Boolean(Number(o.has_scanned_qr));
+          const hasVehicleUsage = Boolean(Number(o.has_vehicle_usage));
 
-    // Map vehicle check-in logs
-    const vehicleUsageMap = new Map<string, any>();
-    vehicleUsageLogs.forEach((vu) => {
-      vehicleUsageMap.set(vu.officer_id.toString(), vu);
-    });
+          const rawGpsLat = o.current_gps_lat != null ? Number(o.current_gps_lat) : null;
+          const rawGpsLng = o.current_gps_lng != null ? Number(o.current_gps_lng) : null;
 
-    // 2. Format data personil piket aktif dengan validasi GPS & verifikasi Scan QR
-    const formattedOfficers = officers.map((o) => {
-      const nrp = o.nrp;
-      const latestLogbook = o.logbooks?.[0];
+          const hasCoords =
+            rawGpsLat != null &&
+            rawGpsLng != null &&
+            !isNaN(rawGpsLat) &&
+            !isNaN(rawGpsLng) &&
+            Math.abs(rawGpsLat) > 0.001 &&
+            Math.abs(rawGpsLng) > 0.001;
 
-      // Tentukan Mako resmi personel (dari relasi station, atau Mako Induk Polres)
-      const station = o.station || primaryStation;
-      const makoLat = station?.office_lat ? Number(station.office_lat) : defaultMakoLat;
-      const makoLng = station?.office_lng ? Number(station.office_lng) : defaultMakoLng;
-      const makoName = station?.station_name || defaultMakoName;
+          const distFromMakoKm = hasCoords ? getDistanceKm(rawGpsLat!, rawGpsLng!, makoLat, makoLng) : 0;
+          const isStaleDummyCoords = distFromMakoKm > 80 && !hasScannedQr;
 
-      // Verifikasi Pendaftaran & Scan QR
-      const isDeviceRegistered = Boolean(o.device_id);
+          const isGpsValid = Boolean(
+            hasCoords &&
+            !isStaleDummyCoords &&
+            (hasScannedQr || o.last_gps_heartbeat_at != null)
+          );
 
-      const pairingRecord = pairingMap.get(nrp) || (o.device_id ? pairingMap.get(o.device_id) : null);
-      const hasScannedQr = Boolean(pairingRecord && pairingRecord.scanned_at);
-      const hasVehicleUsage = Boolean(vehicleUsageMap.get(o.id.toString()));
+          let lat = makoLat;
+          let lng = makoLng;
+          let isAtMako = false;
 
-      // Koordinat GPS Aktual
-      const rawGpsLat = o.current_gps_lat != null ? Number(o.current_gps_lat) : null;
-      const rawGpsLng = o.current_gps_lng != null ? Number(o.current_gps_lng) : null;
+          if (isGpsValid) {
+            lat = rawGpsLat!;
+            lng = rawGpsLng!;
+            isAtMako = false;
+          } else if (
+            o.lb_lat &&
+            o.lb_lng &&
+            Math.abs(Number(o.lb_lat)) > 0.001
+          ) {
+            lat = Number(o.lb_lat);
+            lng = Number(o.lb_lng);
+            isAtMako = false;
+          } else {
+            lat = makoLat;
+            lng = makoLng;
+            isAtMako = true;
+          }
 
-      const hasCoords =
-        rawGpsLat != null &&
-        rawGpsLng != null &&
-        !isNaN(rawGpsLat) &&
-        !isNaN(rawGpsLng) &&
-        Math.abs(rawGpsLat) > 0.001 &&
-        Math.abs(rawGpsLng) > 0.001;
+          const currentPos = {
+            lat: Number(lat.toFixed(6)),
+            lng: Number(lng.toFixed(6)),
+          };
 
-      // Cek jarak koordinat terhadap Mako: mendeteksi anomali dummy Jakarta (-6.2) bila Mako di Pekalongan (-7.0)
-      const distFromMakoKm: number = hasCoords ? getDistanceKm(rawGpsLat!, rawGpsLng!, makoLat, makoLng) : 0;
-      const isStaleDummyCoords = distFromMakoKm > 80 && !hasScannedQr;
+          let currentStatus = isAtMako || o.duty_status === 'PIKET_SPKT' || o.duty_status === 'SIAGA' ? 'SIAGA' : 'PATROLI';
+          let statusColor = currentStatus === 'SIAGA' ? '#2563EB' : '#10B981';
+          let statusLabel = isAtMako ? 'Siaga Mako' : (currentStatus === 'SIAGA' ? 'Siaga Mako' : 'Patroli Aktif');
 
-      // GPS hanya sah/valid jika:
-      // 1. Ada koordinat dan bukan 0/0
-      // 2. Bukan anomali dummy di luar yurisdiksi Mako tanpa scan QR
-      // 3. Personel telah scan QR atau memiliki heartbeat GPS yang aktif
-      const isGpsValid = Boolean(
-        hasCoords &&
-        !isStaleDummyCoords &&
-        (hasScannedQr || o.last_gps_heartbeat_at != null)
-      );
+          let lokasiTeks = isAtMako
+            ? `Mako ${makoName}`
+            : o.lb_address ||
+              (o.station_address
+                ? `${o.station_name}, ${o.station_address}`
+                : `Wilayah Hukum ${makoName}`);
 
-      let lat = makoLat;
-      let lng = makoLng;
-      let isAtMako = false;
+          let aktivitas = isAtMako
+            ? (hasScannedQr ? 'Siaga Mako • Standby Penugasan' : 'Siaga Mako • Belum Validasi QR Device')
+            : o.lb_activity ||
+              o.jabatan ||
+              'Patroli Terpadu Presisi Kewilayahan';
 
-      if (isGpsValid) {
-        lat = rawGpsLat!;
-        lng = rawGpsLng!;
-        isAtMako = false;
-      } else if (
-        latestLogbook?.actual_lat &&
-        latestLogbook?.actual_lng &&
-        Math.abs(Number(latestLogbook.actual_lat)) > 0.001
-      ) {
-        lat = Number(latestLogbook.actual_lat);
-        lng = Number(latestLogbook.actual_lng);
-        isAtMako = false;
-      } else {
-        // WAJIB DI MAKO: Jika GPS belum valid, posisi MUTLAK berada di Mako, BUKAN di koordinat acak!
-        lat = makoLat;
-        lng = makoLng;
-        isAtMako = true;
+          let routePoints: { lat: number; lng: number }[] = [];
+
+          if (o.dispatch_id) {
+            currentStatus = 'DARURAT';
+            statusColor = '#EF4444';
+            statusLabel = 'Menuju TKP';
+            const ticket = o.nomor_tiket || '110';
+            const jenis = o.jenis_kejadian || 'Insiden Lapangan';
+            const tkpAddr = o.tkp_alamat_teks || 'Lokasi TKP';
+            aktivitas = `Tanggap Darurat Tiket ${ticket.replace(/^#+/, '')}: ${jenis}`;
+            lokasiTeks = `Meluncur ke ${tkpAddr}`;
+
+            if (o.tkp_lat && o.tkp_lng) {
+              routePoints = [
+                currentPos,
+                {
+                  lat: Number(o.tkp_lat),
+                  lng: Number(o.tkp_lng),
+                },
+              ];
+            }
+          }
+
+          const ranmorStr = o.nama_armada
+            ? `${o.nama_armada} (${o.assigned_patrol_vehicle})`
+            : o.assigned_patrol_vehicle || 'Tanpa Ranmor';
+
+          const rawFullName = o.full_name || o.nrp;
+          const rankPangkat = o.rank_pangkat || 'Personel';
+          const cleanName = rawFullName.replace(new RegExp(`^${rankPangkat}\\s*`, 'i'), '').trim();
+          const displayTitle = `${rankPangkat} ${cleanName}`;
+          const unitName = o.unit_name || o.jabatan;
+          const category = o.unit_key ? o.unit_key.toLowerCase() : undefined;
+
+          const telemetri = isGpsValid
+            ? (o.last_gps_heartbeat_at
+                ? `GPS Aktif (${new Date(o.last_gps_heartbeat_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })})`
+                : 'Sinyal GPS Terhubung')
+            : (hasScannedQr
+                ? 'Standby di Mako (Menunggu GPS)'
+                : '⚠️ Belum Scan QR Device');
+
+          return {
+            key: `OFFICER-${o.nrp}`,
+            nrp: o.nrp,
+            officerId: o.officer_id.toString(),
+            pos: currentPos,
+            iconEmoji: '👮',
+            title: displayTitle,
+            petugas: `${displayTitle} (NRP ${o.nrp})`,
+            pangkat: rankPangkat,
+            namaLengkap: displayTitle,
+            satuan: unitName,
+            jabatan: o.jabatan || 'Personil Piket Operasional',
+            sub: isAtMako ? `${unitName} • Siaga Mako` : `${unitName} • ${ranmorStr}`,
+            status: currentStatus,
+            statusLabel,
+            statusColor,
+            tugas: `Tugas: ${aktivitas}`,
+            aktivitas,
+            lokasiTeks,
+            telemetri,
+            speedKmh: isAtMako ? 0 : 0,
+            batteryLevel: 95,
+            category,
+            routePoints,
+            assignedVehicle: o.assigned_patrol_vehicle || null,
+            lastHeartbeat: o.last_gps_heartbeat_at || new Date().toISOString(),
+            isGpsValid,
+            isAtMako,
+            hasScannedQr,
+            isDeviceRegistered,
+            hasVehicleUsage,
+            makoName,
+            stationId: o.station_id || 60001,
+          };
+        });
       }
+    } catch (_rawErr) {
+      // Fallback ke Prisma
+    }
 
-      const currentPos = {
-        lat: Number(lat.toFixed(6)),
-        lng: Number(lng.toFixed(6)),
-      };
-
-      // Cek apakah personel sedang ditugaskan merespon pengaduan warga aktif
-      const activeDispatch = activeDispatchMap.get(nrp) || activeDispatchMap.get(o.id.toString());
-      let currentStatus = isAtMako || o.duty_status === 'PIKET_SPKT' || o.duty_status === 'SIAGA' ? 'SIAGA' : 'PATROLI';
-      let statusColor = currentStatus === 'SIAGA' ? '#2563EB' : '#10B981';
-      let statusLabel = isAtMako ? 'Siaga Mako' : (currentStatus === 'SIAGA' ? 'Siaga Mako' : 'Patroli Aktif');
-
-      let lokasiTeks = isAtMako
-        ? `Mako ${makoName}`
-        : latestLogbook?.claimed_address ||
-          (station?.address
-            ? `${station.station_name}, ${station.address}`
-            : `Wilayah Hukum ${makoName}`);
-
-      let aktivitas = isAtMako
-        ? (hasScannedQr ? 'Siaga Mako • Standby Penugasan' : 'Siaga Mako • Belum Validasi QR Device')
-        : latestLogbook?.activity_description ||
-          o.jabatan ||
-          'Patroli Terpadu Presisi Kewilayahan';
-
-      let routePoints: { lat: number; lng: number }[] = [];
-
-      if (activeDispatch) {
-        currentStatus = 'DARURAT';
-        statusColor = '#EF4444';
-        statusLabel = 'Menuju TKP';
-        const ticket = activeDispatch.complaint?.nomor_tiket || '110';
-        const jenis = activeDispatch.complaint?.jenis_kejadian || 'Insiden Lapangan';
-        const tkpAddr = activeDispatch.complaint?.tkp_alamat_teks || 'Lokasi TKP';
-        aktivitas = `Tanggap Darurat Tiket ${ticket.replace(/^#+/, '')}: ${jenis}`;
-        lokasiTeks = `Meluncur ke ${tkpAddr}`;
-
-        if (activeDispatch.complaint?.tkp_lat && activeDispatch.complaint?.tkp_lng) {
-          routePoints = [
-            currentPos,
-            {
-              lat: Number(activeDispatch.complaint.tkp_lat),
-              lng: Number(activeDispatch.complaint.tkp_lng),
+    if (!formattedOfficers) {
+      // 2. Fallback: Ambil data personil, armada, disposisi, stasiun mako, sesi QR pairing via Prisma
+      const [
+        officers,
+        vehicles,
+        activeDispatches,
+        stations,
+        pairingSessions,
+        vehicleUsageLogs,
+      ] = await Promise.all([
+        prisma.policeOfficer.findMany({
+          where: {
+            user: {
+              role: 'PERSONIL',
             },
-          ];
+            duty_status: { in: ['DINAS_PATROLI', 'PIKET_SPKT', 'SIAGA'] },
+          },
+          include: {
+            user: true,
+            unit: true,
+            station: true,
+            logbooks: {
+              orderBy: { created_at: 'desc' },
+              take: 1,
+            },
+          },
+          orderBy: { rank_pangkat: 'asc' },
+        }),
+        prisma.patrolVehicle.findMany({
+          include: {
+            unit: true,
+            station: true,
+          },
+          orderBy: { id: 'asc' },
+        }),
+        prisma.complaintDispatch.findMany({
+          where: {
+            complaint: {
+              status: { notIn: ['SELESAI', 'DITOLAK'] },
+            },
+          },
+          include: {
+            complaint: true,
+            officer: { include: { user: true } },
+          },
+        }),
+        prisma.policeStation.findMany().catch(() => []),
+        prisma.devicePairingSession.findMany({ where: { status: 'PAIRED' } }).catch(() => []),
+        prisma.vehicleUsageLog.findMany({ where: { status_sesi: 'ACTIVE' } }).catch(() => []),
+      ]);
+
+      const primaryStation =
+        stations.find((s) => s.station_level === 'POLRES') || stations[0] || null;
+      const defaultMakoLat = primaryStation?.office_lat ? Number(primaryStation.office_lat) : 0;
+      const defaultMakoLng = primaryStation?.office_lng ? Number(primaryStation.office_lng) : 0;
+      const defaultMakoName = primaryStation?.station_name || 'Mako Komando';
+
+      const activeDispatchMap = new Map<string, any>();
+      activeDispatches.forEach((d) => {
+        if (d.officer?.nrp) activeDispatchMap.set(d.officer.nrp, d);
+        if (d.officer_id) activeDispatchMap.set(d.officer_id.toString(), d);
+      });
+
+      const vehicleMap = new Map(vehicles.map((v) => [v.nomor_lambung, v]));
+
+      const pairingMap = new Map<string, any>();
+      pairingSessions.forEach((p) => {
+        if (p.nrp) pairingMap.set(p.nrp, p);
+        if (p.device_id) pairingMap.set(p.device_id, p);
+      });
+
+      const vehicleUsageMap = new Map<string, any>();
+      vehicleUsageLogs.forEach((vu) => {
+        vehicleUsageMap.set(vu.officer_id.toString(), vu);
+      });
+
+      formattedOfficers = officers.map((o) => {
+        const nrp = o.nrp;
+        const latestLogbook = o.logbooks?.[0];
+
+        const station = o.station || primaryStation;
+        const makoLat = station?.office_lat ? Number(station.office_lat) : defaultMakoLat;
+        const makoLng = station?.office_lng ? Number(station.office_lng) : defaultMakoLng;
+        const makoName = station?.station_name || defaultMakoName;
+
+        const isDeviceRegistered = Boolean(o.device_id);
+        const pairingRecord = pairingMap.get(nrp) || (o.device_id ? pairingMap.get(o.device_id) : null);
+        const hasScannedQr = Boolean(pairingRecord && pairingRecord.scanned_at);
+        const hasVehicleUsage = Boolean(vehicleUsageMap.get(o.id.toString()));
+
+        const rawGpsLat = o.current_gps_lat != null ? Number(o.current_gps_lat) : null;
+        const rawGpsLng = o.current_gps_lng != null ? Number(o.current_gps_lng) : null;
+
+        const hasCoords =
+          rawGpsLat != null &&
+          rawGpsLng != null &&
+          !isNaN(rawGpsLat) &&
+          !isNaN(rawGpsLng) &&
+          Math.abs(rawGpsLat) > 0.001 &&
+          Math.abs(rawGpsLng) > 0.001;
+
+        const distFromMakoKm: number = hasCoords ? getDistanceKm(rawGpsLat!, rawGpsLng!, makoLat, makoLng) : 0;
+        const isStaleDummyCoords = distFromMakoKm > 80 && !hasScannedQr;
+
+        const isGpsValid = Boolean(
+          hasCoords &&
+          !isStaleDummyCoords &&
+          (hasScannedQr || o.last_gps_heartbeat_at != null)
+        );
+
+        let lat = makoLat;
+        let lng = makoLng;
+        let isAtMako = false;
+
+        if (isGpsValid) {
+          lat = rawGpsLat!;
+          lng = rawGpsLng!;
+          isAtMako = false;
+        } else if (
+          latestLogbook?.actual_lat &&
+          latestLogbook?.actual_lng &&
+          Math.abs(Number(latestLogbook.actual_lat)) > 0.001
+        ) {
+          lat = Number(latestLogbook.actual_lat);
+          lng = Number(latestLogbook.actual_lng);
+          isAtMako = false;
+        } else {
+          lat = makoLat;
+          lng = makoLng;
+          isAtMako = true;
         }
-      }
 
-      const assignedVeh = o.assigned_patrol_vehicle ? vehicleMap.get(o.assigned_patrol_vehicle) : null;
-      const ranmorStr = assignedVeh
-        ? `${assignedVeh.nama_armada} (${assignedVeh.nomor_lambung})`
-        : o.assigned_patrol_vehicle || 'Tanpa Ranmor';
+        const currentPos = {
+          lat: Number(lat.toFixed(6)),
+          lng: Number(lng.toFixed(6)),
+        };
 
-      const rawFullName = o.user?.full_name || o.nrp;
-      const rankPangkat = o.rank_pangkat || 'Personel';
-      const cleanName = rawFullName.replace(new RegExp(`^${rankPangkat}\\s*`, 'i'), '').trim();
-      const displayTitle = `${rankPangkat} ${cleanName}`;
-      const unitName = o.unit?.unit_name || o.jabatan;
-      const category = o.unit?.key?.toLowerCase();
+        const activeDispatch = activeDispatchMap.get(nrp) || activeDispatchMap.get(o.id.toString());
+        let currentStatus = isAtMako || o.duty_status === 'PIKET_SPKT' || o.duty_status === 'SIAGA' ? 'SIAGA' : 'PATROLI';
+        let statusColor = currentStatus === 'SIAGA' ? '#2563EB' : '#10B981';
+        let statusLabel = isAtMako ? 'Siaga Mako' : (currentStatus === 'SIAGA' ? 'Siaga Mako' : 'Patroli Aktif');
 
-      const telemetri = isGpsValid
-        ? (o.last_gps_heartbeat_at
-            ? `GPS Aktif (${new Date(o.last_gps_heartbeat_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })})`
-            : 'Sinyal GPS Terhubung')
-        : (hasScannedQr
-            ? 'Standby di Mako (Menunggu GPS)'
-            : '⚠️ Belum Scan QR Device');
+        let lokasiTeks = isAtMako
+          ? `Mako ${makoName}`
+          : latestLogbook?.claimed_address ||
+            (station?.address
+              ? `${station.station_name}, ${station.address}`
+              : `Wilayah Hukum ${makoName}`);
 
-      return {
-        key: `OFFICER-${o.nrp}`,
-        nrp: o.nrp,
-        officerId: o.id.toString(),
-        pos: currentPos,
-        iconEmoji: '👮',
-        title: displayTitle,
-        petugas: `${displayTitle} (NRP ${o.nrp})`,
-        pangkat: rankPangkat,
-        namaLengkap: displayTitle,
-        satuan: unitName,
-        jabatan: o.jabatan || 'Personil Piket Operasional',
-        sub: isAtMako ? `${unitName} • Siaga Mako` : `${unitName} • ${ranmorStr}`,
-        status: currentStatus,
-        statusLabel,
-        statusColor,
-        tugas: `Tugas: ${aktivitas}`,
-        aktivitas,
-        lokasiTeks,
-        telemetri,
-        speedKmh: isAtMako ? 0 : 0,
-        batteryLevel: 95,
-        category,
-        routePoints,
-        assignedVehicle: o.assigned_patrol_vehicle || null,
-        lastHeartbeat: o.last_gps_heartbeat_at || new Date().toISOString(),
-        // Metadata Verifikasi Audit Presisi
-        isGpsValid,
-        isAtMako,
-        hasScannedQr,
-        isDeviceRegistered,
-        hasVehicleUsage,
-        makoName,
-        stationId: station?.id || primaryStation?.id || null,
-      };
-    });
+        let aktivitas = isAtMako
+          ? (hasScannedQr ? 'Siaga Mako • Standby Penugasan' : 'Siaga Mako • Belum Validasi QR Device')
+          : latestLogbook?.activity_description ||
+            o.jabatan ||
+            'Patroli Terpadu Presisi Kewilayahan';
+
+        let routePoints: { lat: number; lng: number }[] = [];
+
+        if (activeDispatch) {
+          currentStatus = 'DARURAT';
+          statusColor = '#EF4444';
+          statusLabel = 'Menuju TKP';
+          const ticket = activeDispatch.complaint?.nomor_tiket || '110';
+          const jenis = activeDispatch.complaint?.jenis_kejadian || 'Insiden Lapangan';
+          const tkpAddr = activeDispatch.complaint?.tkp_alamat_teks || 'Lokasi TKP';
+          aktivitas = `Tanggap Darurat Tiket ${ticket.replace(/^#+/, '')}: ${jenis}`;
+          lokasiTeks = `Meluncur ke ${tkpAddr}`;
+
+          if (activeDispatch.complaint?.tkp_lat && activeDispatch.complaint?.tkp_lng) {
+            routePoints = [
+              currentPos,
+              {
+                lat: Number(activeDispatch.complaint.tkp_lat),
+                lng: Number(activeDispatch.complaint.tkp_lng),
+              },
+            ];
+          }
+        }
+
+        const assignedVeh = o.assigned_patrol_vehicle ? vehicleMap.get(o.assigned_patrol_vehicle) : null;
+        const ranmorStr = assignedVeh
+          ? `${assignedVeh.nama_armada} (${assignedVeh.nomor_lambung})`
+          : o.assigned_patrol_vehicle || 'Tanpa Ranmor';
+
+        const rawFullName = o.user?.full_name || o.nrp;
+        const rankPangkat = o.rank_pangkat || 'Personel';
+        const cleanName = rawFullName.replace(new RegExp(`^${rankPangkat}\\s*`, 'i'), '').trim();
+        const displayTitle = `${rankPangkat} ${cleanName}`;
+        const unitName = o.unit?.unit_name || o.jabatan;
+        const category = o.unit?.key?.toLowerCase();
+
+        const telemetri = isGpsValid
+          ? (o.last_gps_heartbeat_at
+              ? `GPS Aktif (${new Date(o.last_gps_heartbeat_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })})`
+              : 'Sinyal GPS Terhubung')
+          : (hasScannedQr
+              ? 'Standby di Mako (Menunggu GPS)'
+              : '⚠️ Belum Scan QR Device');
+
+        return {
+          key: `OFFICER-${o.nrp}`,
+          nrp: o.nrp,
+          officerId: o.id.toString(),
+          pos: currentPos,
+          iconEmoji: '👮',
+          title: displayTitle,
+          petugas: `${displayTitle} (NRP ${o.nrp})`,
+          pangkat: rankPangkat,
+          namaLengkap: displayTitle,
+          satuan: unitName,
+          jabatan: o.jabatan || 'Personil Piket Operasional',
+          sub: isAtMako ? `${unitName} • Siaga Mako` : `${unitName} • ${ranmorStr}`,
+          status: currentStatus,
+          statusLabel,
+          statusColor,
+          tugas: `Tugas: ${aktivitas}`,
+          aktivitas,
+          lokasiTeks,
+          telemetri,
+          speedKmh: isAtMako ? 0 : 0,
+          batteryLevel: 95,
+          category,
+          routePoints,
+          assignedVehicle: o.assigned_patrol_vehicle || null,
+          lastHeartbeat: o.last_gps_heartbeat_at || new Date().toISOString(),
+          isGpsValid,
+          isAtMako,
+          hasScannedQr,
+          isDeviceRegistered,
+          hasVehicleUsage,
+          makoName,
+          stationId: station?.id || primaryStation?.id || null,
+        };
+      });
+    }
 
     const serialized = serializeBigInt(formattedOfficers);
     patrolFleetCache = { data: serialized, expiresAt: now + PATROL_FLEET_CACHE_TTL_MS };

@@ -71,7 +71,7 @@ export async function getPawasDashboardDataAction(stationId?: number | string, f
     const [filterRes, qRes, allRes, uRes, logbookRes] = await Promise.all([
       getMasterFilterOptionsAction(),
       getPendingComplaintsAction(numStationId),
-      getAllRecentComplaintsAction(50),
+      getAllRecentComplaintsAction(15),
       getRegisteredUnitsAction(),
       getRecentLogbooksAction(10, numStationId),
     ]);
@@ -229,47 +229,30 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
         return { success: true, data: cached };
       }
     }
-    const [
-      filterRes,
-      qRes,
-      allRes,
-      uRes,
-      fRes,
-      oRes,
-      hRes,
-      ikmRes,
-      rankRes,
-      stationRankRes,
-      operatorRankRes,
-      logbookRes,
-    ] = await Promise.all([
-      getMasterFilterOptionsAction(),
-      getPendingComplaintsAction(numStationId),
-      getAllRecentComplaintsAction(),
-      getRegisteredUnitsAction(),
-      getPatrolFleetUnitsAction(),
-      getPoliceOfficesAction(),
-      getHotspotsAction(),
-      getIkmStatsAction(),
-      getOfficerPerformanceRankingsAction(),
-      getStationPerformanceRankingsAction(),
-      getOperatorPerformanceRankingsAction(),
-      getRecentLogbooksAction(8, numStationId),
+
+    const [dashRes, mapRes, analyticsRes] = await Promise.all([
+      getPawasDashboardDataAction(numStationId, forceFresh),
+      getPawasMapDataAction(forceFresh),
+      getPawasAnalyticsDataAction(forceFresh),
     ]);
 
+    const dash = dashRes.success && dashRes.data ? dashRes.data : ({} as any);
+    const map = mapRes.success && mapRes.data ? mapRes.data : ({} as any);
+    const analytics = analyticsRes.success && analyticsRes.data ? analyticsRes.data : ({} as any);
+
     const payload = {
-      filterData: filterRes.success ? filterRes.data : null,
-      pendingComplaints: qRes.success && qRes.data ? qRes.data : [],
-      allRecentComplaints: allRes.success && allRes.data ? allRes.data : [],
-      registeredUnits: uRes.success && uRes.data ? uRes.data : [],
-      fleetUnits: fRes.success && fRes.data ? fRes.data : [],
-      policeOffices: oRes.success && oRes.data ? oRes.data : [],
-      hotspots: hRes.success && hRes.data ? hRes.data : [],
-      ikmStats: ikmRes.success && ikmRes.data ? ikmRes.data : null,
-      officerRankings: rankRes.success && rankRes.data ? rankRes.data : null,
-      stationRankings: stationRankRes.success && stationRankRes.data ? stationRankRes.data : null,
-      operatorRankings: operatorRankRes.success && operatorRankRes.data ? operatorRankRes.data : null,
-      recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],
+      filterData: dash.filterData || null,
+      pendingComplaints: dash.pendingComplaints || [],
+      allRecentComplaints: dash.allRecentComplaints || [],
+      registeredUnits: dash.registeredUnits || [],
+      fleetUnits: map.fleetUnits || [],
+      policeOffices: map.policeOffices || [],
+      hotspots: map.hotspots || [],
+      ikmStats: analytics.ikmStats || null,
+      officerRankings: analytics.officerRankings || null,
+      stationRankings: analytics.stationRankings || null,
+      operatorRankings: analytics.operatorRankings || null,
+      recentLogbooks: dash.recentLogbooks || [],
     };
 
     cacheSet(cacheKey, payload, 15000); // 15 detik TTL

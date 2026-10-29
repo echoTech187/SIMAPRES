@@ -105,33 +105,34 @@ export async function fetchConsoleRoleData(
     }
   } else {
     // Role default / PERSONIL
-    const masterRes = await getMasterFilterOptionsAction();
-    initialMasterData = masterRes.success ? masterRes.data : null;
-
     if (session.role === 'PERSONIL') {
       const targetNrp = searchParams?.nrp ? searchParams.nrp : session.identifier;
-      const [cRes, pRes, poRes, fleetRes, hotRes] = await Promise.all([
+      const targetOfficerId = session.userId;
+      const isMapRequested = (searchParams as any)?.tab === 'peta' || (searchParams as any)?.tab === 'view-peta';
+
+      const [masterRes, cRes, pRes, lRes, mapData] = await Promise.all([
+        getMasterFilterOptionsAction(),
         getOfficerComplaintsAction(targetNrp),
         getOfficerProfileByNrpAction(targetNrp),
-        getPoliceOfficesAction(),
-        getPatrolFleetUnitsAction(),
-        getHotspotsAction(),
+        targetOfficerId ? getOfficerLogbooksAction(String(targetOfficerId), 20) : Promise.resolve({ success: false, data: [] }),
+        isMapRequested
+          ? Promise.all([getPoliceOfficesAction(), getPatrolFleetUnitsAction(), getHotspotsAction()])
+          : Promise.resolve(null),
       ]);
 
+      if (masterRes.success) initialMasterData = masterRes.data;
       if (cRes.success && cRes.data) initialComplaints = cRes.data;
       if (pRes.success && pRes.data) initialOfficer = pRes.data;
-      if (poRes.success && poRes.data) initialPoliceOffices = poRes.data;
-      if (fleetRes.success && fleetRes.data) initialFleetUnits = fleetRes.data;
-      if (hotRes.success && hotRes.data) initialHotspots = hotRes.data;
-
-      // Pre-fetch logbook riil secara server-side agar konsol personel langsung instan pada 0ms render pertama
-      const targetOfficerId = pRes?.data?.officerId || pRes?.data?.id || session.userId;
-      if (targetOfficerId) {
-        try {
-          const lRes = await getOfficerLogbooksAction(String(targetOfficerId));
-          if (lRes?.success && lRes?.data) initialLogbooks = lRes.data;
-        } catch (_) {}
+      if (lRes?.success && lRes?.data) initialLogbooks = lRes.data;
+      if (mapData) {
+        const [poRes, fleetRes, hotRes] = mapData;
+        if (poRes?.success && poRes?.data) initialPoliceOffices = poRes.data;
+        if (fleetRes?.success && fleetRes?.data) initialFleetUnits = fleetRes.data;
+        if (hotRes?.success && hotRes?.data) initialHotspots = hotRes.data;
       }
+    } else {
+      const masterRes = await getMasterFilterOptionsAction();
+      initialMasterData = masterRes.success ? masterRes.data : null;
     }
   }
 

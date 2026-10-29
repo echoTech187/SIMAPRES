@@ -2,26 +2,132 @@ import { IComplaintRepository, IkmStats } from '@/domain/repositories/complaint.
 import { ComplaintEntity, ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entity';
 // SIMAPRES 110 - Prisma Complaint Repository Implementation (Normalized Schema)
 import { prisma } from '../db/prisma.client';
+import { Prisma } from '@prisma/client';
 
 const COMPLAINT_INCLUDE = {
-  complaint_logs: { orderBy: { created_at: 'asc' } },
-  dispatches: { include: { unit: true, station: true, officer: { include: { user: true } } } },
-  evidences: { orderBy: { uploaded_at: 'asc' } },
-  citizen_review_rel: true,
-  operator: true,
-  station: true,
-  category_rel: true,
-  subcategory_rel: { include: { unit_rel: true, category_rel: true } },
-  source_rel: true,
-  resolution_location_rel: true,
-  resolution_document_rel: true,
+  complaint_logs: {
+    select: {
+      id: true,
+      actor_name: true,
+      actor_role: true,
+      action: true,
+      notes: true,
+      action_lat: true,
+      action_lng: true,
+      created_at: true,
+    },
+    orderBy: { created_at: 'asc' as const },
+  },
+  dispatches: {
+    select: {
+      id: true,
+      complaint_id: true,
+      unit_id: true,
+      officer_id: true,
+      is_primary_unit: true,
+      dispatch_status: true,
+      dispatched_at: true,
+      accepted_at: true,
+      departed_at: true,
+      arrived_at: true,
+      completed_at: true,
+      estimated_distance: true,
+      estimated_eta: true,
+      tactical_orders: true,
+      crew_partner_name: true,
+      unit: {
+        select: { id: true, unit_name: true, short_name: true },
+      },
+      officer: {
+        select: {
+          id: true,
+          nrp: true,
+          rank_pangkat: true,
+          jabatan: true,
+          avatar_url: true,
+          assigned_patrol_vehicle: true,
+          current_gps_lat: true,
+          current_gps_lng: true,
+          user: {
+            select: { full_name: true, phone_number: true },
+          },
+        },
+      },
+    },
+  },
+  evidences: {
+    select: {
+      id: true,
+      incident_phase: true,
+      file_url: true,
+      caption: true,
+      uploaded_at: true,
+    },
+    orderBy: { uploaded_at: 'asc' as const },
+  },
+  citizen_review_rel: {
+    select: {
+      id: true,
+      star_rating: true,
+      review_text: true,
+      feedback_tags: true,
+    },
+  },
+  operator: {
+    select: {
+      id: true,
+      full_name: true,
+      identifier: true,
+    },
+  },
 } as const;
 
 // Batas riwayat tugas personel yang dimuat (tugas aktif selalu dimuat penuh)
-const OFFICER_HISTORY_LIMIT = 100;
+const OFFICER_HISTORY_LIMIT = 15;
 
 export class PrismaComplaintRepository implements IComplaintRepository {
-  private mapToEntity(record: any): ComplaintEntity {
+  private static masterCache: {
+    categories: Map<number, any>;
+    subcategories: Map<number, any>;
+    sources: Map<number, any>;
+    stations: Map<number, any>;
+    expiresAt: number;
+  } | null = null;
+
+  public static async getMasterDictionaries() {
+    const now = Date.now();
+    if (PrismaComplaintRepository.masterCache && now < PrismaComplaintRepository.masterCache.expiresAt) {
+      return PrismaComplaintRepository.masterCache;
+    }
+    try {
+      const [categories, subcategories, sources, stations] = await Promise.all([
+        prisma.masterIncidentCategory.findMany(),
+        prisma.masterIncidentSubcategory.findMany({ include: { unit_rel: true } }),
+        prisma.masterReportSource.findMany(),
+        prisma.policeStation.findMany({ select: { id: true, station_name: true, station_code: true, station_level: true } }),
+      ]);
+
+      const dict = {
+        categories: new Map(categories.map((c) => [c.id, c])),
+        subcategories: new Map(subcategories.map((s) => [s.id, s])),
+        sources: new Map(sources.map((src) => [src.id, src])),
+        stations: new Map(stations.map((st) => [st.id, st])),
+        expiresAt: now + 15 * 60 * 1000,
+      };
+      PrismaComplaintRepository.masterCache = dict;
+      return dict;
+    } catch (_) {
+      return {
+        categories: new Map(),
+        subcategories: new Map(),
+        sources: new Map(),
+        stations: new Map(),
+        expiresAt: now + 5000,
+      };
+    }
+  }
+
+  private mapToEntity(record: any, dict?: any): ComplaintEntity {
     // 1. Petugas & Armada Disposisi
     const acceptedDispatch = record.dispatches?.find((d: any) => d.accepted_at && d.officer);
     const primaryDispatch = acceptedDispatch || record.dispatches?.find((d: any) => d.is_primary_unit) || record.dispatches?.[0] || null;
@@ -85,12 +191,12 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       urgensi: record.urgensi as UrgensiLevel,
       kategoriId: record.category_id,
       kategoriKey: record.kategori_key,
-      kategoriRel: record.category_rel,
+      kategoriRel: record.category_rel || (dict && record.category_id ? dict.categories.get(record.category_id) : null),
       subcategoryId: record.subcategory_id,
-      subcategory: record.subcategory_rel,
+      subcategory: record.subcategory_rel || (dict && record.subcategory_id ? dict.subcategories.get(record.subcategory_id) : null),
       platformId: record.source_id,
       platformKey: record.platform_key,
-      platformRel: record.source_rel,
+      platformRel: record.source_rel || (dict && record.source_id ? dict.sources.get(record.source_id) : null),
       tkpAlamatTeks: record.tkp_alamat_teks,
       tkpLat: Number(record.tkp_lat),
       tkpLng: Number(record.tkp_lng),
@@ -161,7 +267,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         evidences: record.evidences || [],
         citizenReviewRel: citizenReview || null,
         stationId: record.station_id,
-        station: record.station || null,
+        station: record.station || (dict && record.station_id ? dict.stations.get(record.station_id) : null),
         resolutionLocationId: record.resolution_location_id,
         resolutionLocationKey: record.resolution_location_key,
         resolutionLocationName: record.resolution_location_name,
@@ -177,12 +283,230 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       });
     }
 
-  async findById(id: bigint): Promise<ComplaintEntity | null> {
-    const record = await prisma.complaint.findUnique({
-      where: { id },
-      include: COMPLAINT_INCLUDE,
+  private mapRawRowToEntity(r: any): ComplaintEntity {
+    let cLogs: any[] = [];
+    if (r.logs_json) {
+      cLogs = typeof r.logs_json === 'string' ? JSON.parse(r.logs_json) : r.logs_json;
+    }
+    const pawasLog = cLogs.slice().reverse().find((l: any) => l.actor_role === 'PAWAS');
+
+    let responseTimeMinutes: number | null = null;
+    const dispTime = r.dispatched_at || r.created_at;
+    const arrTime = r.arrived_at || null;
+    if (dispTime && arrTime) {
+      const diffMs = new Date(arrTime).getTime() - new Date(dispTime).getTime();
+      responseTimeMinutes = Math.max(1, Math.round(diffMs / (1000 * 60)));
+    }
+
+    const logTindakan = cLogs.slice().reverse().find((l: any) => l.notes && (l.action?.includes('Tindakan') || l.action?.includes('TKP')));
+    const catatanTindakan = logTindakan?.notes?.replace(/^Catatan:\s*/i, '') || null;
+
+    const logSelesai = cLogs.slice().reverse().find((l: any) => l.notes && (l.action?.includes('Selesai') || l.action?.includes('BAP')));
+    const catatanSelesai = logSelesai?.notes?.replace(/^Catatan:\s*/i, '') || null;
+
+    const waktuMeluncur = r.departed_at ? new Date(r.departed_at).toISOString() : null;
+    const koordinatGps = r.tkp_lat && r.tkp_lng ? `${Number(r.tkp_lat).toFixed(6)}, ${Number(r.tkp_lng).toFixed(6)}` : null;
+    const waktuTiba = r.arrived_at ? new Date(r.arrived_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB' : null;
+    const waktuSelesaiDate = r.completed_at || null;
+    const waktuSelesai = waktuSelesaiDate ? new Date(waktuSelesaiDate).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB' : null;
+
+    return new ComplaintEntity({
+      id: r.id,
+      nomorTiket: r.nomor_tiket,
+      pelaporNama: r.pelapor_nama,
+      pelaporHp: r.pelapor_hp,
+      jenisKejadian: r.jenis_kejadian,
+      urgensi: r.urgensi as UrgensiLevel,
+      kategoriId: r.category_id,
+      kategoriKey: r.kategori_key,
+      kategoriRel: r.category_id ? { id: r.category_id, key: r.kategori_key, label: r.category_label } : null,
+      subcategoryId: r.subcategory_id,
+      subcategory: r.subcategory_id ? { id: r.subcategory_id, nama_kasus: r.subcategory_name, default_urgensi: r.subcategory_default_urgensi } : null,
+      platformId: r.source_id,
+      platformKey: r.platform_key,
+      platformRel: r.source_id ? { id: r.source_id, key: r.platform_key, label: r.source_label, icon: r.source_icon } : null,
+      tkpAlamatTeks: r.tkp_alamat_teks,
+      tkpLat: Number(r.tkp_lat),
+      tkpLng: Number(r.tkp_lng),
+      ringkasanKeterangan: r.ringkasan_keterangan,
+      status: r.status as ComplaintStatus,
+      tahap: r.tahap,
+      alasanTolak: r.alasan_tolak,
+      operatorId: r.operator_id,
+      assignedOfficerId: r.officer_id || null,
+      assignedOfficer: r.officer_id ? {
+        id: r.officer_id,
+        nrp: r.officer_nrp,
+        rankPangkat: r.officer_rank,
+        jabatan: r.officer_jabatan,
+        assignedPatrolVehicle: r.officer_vehicle,
+        currentGpsLat: r.officer_gps_lat ? Number(r.officer_gps_lat) : null,
+        currentGpsLng: r.officer_gps_lng ? Number(r.officer_gps_lng) : null,
+        namaLengkap: r.officer_full_name || '',
+        phoneNumber: r.officer_phone || null,
+        unitName: r.unit_name || r.officer_jabatan || null,
+        avatarUrl: r.officer_avatar,
+      } : null,
+      pawasValidasiId: null,
+      pawas: pawasLog ? { id: 0n, namaLengkap: pawasLog.actor_name, identifier: pawasLog.actor_name } : null,
+      operator: null,
+      disposisiAt: r.dispatched_at || null,
+      responTibaTkpAt: r.arrived_at || null,
+      selesaiAt: r.completed_at || null,
+      responseTimeMinutes,
+      citizenRating: r.citizen_rating || null,
+      citizenReview: r.citizen_review || null,
+      citizenTags: r.citizen_tags || null,
+      fotoBuktiUrl: r.foto_bukti_url || null,
+      catatanTindakan,
+      catatanSelesai,
+      waktuMeluncur,
+      koordinatGps,
+      waktuTiba,
+      waktuSelesai,
+      waktuSelesaiDate,
+      timelines: cLogs.map((t: any, idx: number) => ({
+        tahapKe: idx + 1,
+        tahapTitle: t.action,
+        catatan: t.notes,
+        fotoBuktiUrl: r.foto_bukti_url,
+        gpsLat: t.action_lat ? Number(t.action_lat) : null,
+        gpsLng: t.action_lng ? Number(t.action_lng) : null,
+        createdAt: t.created_at,
+      })),
+      dispatches: r.dispatch_id ? [{
+        id: r.dispatch_id,
+        complaint_id: r.id,
+        officer_id: r.officer_id,
+        dispatch_status: r.dispatch_status,
+        dispatched_at: r.dispatched_at,
+        arrived_at: r.arrived_at,
+        completed_at: r.completed_at,
+        departed_at: r.departed_at,
+        is_primary_unit: true,
+        unit: r.unit_name ? { unit_name: r.unit_name, short_name: r.unit_short_name } : null,
+        officer: r.officer_id ? {
+          id: r.officer_id,
+          nrp: r.officer_nrp,
+          rank_pangkat: r.officer_rank,
+          user: { full_name: r.officer_full_name, phone_number: r.officer_phone },
+        } : null,
+      }] : [],
+      complaintLogs: cLogs,
+      evidences: r.foto_bukti_url ? [{ id: 1, incident_phase: 'LAPORAN_AWAL', file_url: r.foto_bukti_url }] : [],
+      citizenReviewRel: r.citizen_rating ? { star_rating: r.citizen_rating, review_text: r.citizen_review } : null,
+      stationId: r.station_id,
+      station: r.station_id ? { id: r.station_id, station_name: r.station_name, station_code: r.station_code, station_level: r.station_level } : null,
+      resolutionLocationId: r.resolution_location_id,
+      resolutionLocationKey: r.resolution_location_key,
+      resolutionLocationName: r.resolution_location_name,
+      resolutionLocationRel: null,
+      resolutionDocumentId: r.resolution_document_id,
+      resolutionDocumentKey: r.resolution_document_key,
+      resolutionDocumentName: r.resolution_document_name,
+      resolutionDocumentRel: null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
     });
-    return record ? this.mapToEntity(record) : null;
+  }
+
+  private async queryComplaintsFastSql(
+    whereClauseSql: Prisma.Sql,
+    orderBySql: Prisma.Sql,
+    limitNum: number
+  ): Promise<ComplaintEntity[]> {
+    const query = Prisma.sql`
+      SELECT 
+        c.id, c.nomor_tiket, c.pelapor_nama, c.pelapor_hp, c.jenis_kejadian, c.urgensi,
+        c.category_id, c.kategori_key, c.subcategory_id, c.source_id, c.platform_key,
+        c.station_id, c.operator_id, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng,
+        c.ringkasan_keterangan, c.status, c.tahap, c.alasan_tolak,
+        c.resolution_location_id, c.resolution_location_key, c.resolution_location_name,
+        c.resolution_document_id, c.resolution_document_key, c.resolution_document_name,
+        c.created_at, c.updated_at,
+        
+        -- Primary Dispatch & Officer
+        d.id as dispatch_id, d.officer_id, d.unit_id as dispatch_unit_id, d.dispatch_status,
+        d.dispatched_at, d.accepted_at, d.departed_at, d.arrived_at, d.completed_at,
+        d.estimated_distance, d.estimated_eta, d.tactical_orders, d.crew_partner_name,
+        
+        -- Unit
+        u.unit_name, u.short_name as unit_short_name,
+        
+        -- Officer
+        po.nrp as officer_nrp, po.rank_pangkat as officer_rank, po.jabatan as officer_jabatan,
+        po.avatar_url as officer_avatar, po.assigned_patrol_vehicle as officer_vehicle,
+        po.current_gps_lat as officer_gps_lat, po.current_gps_lng as officer_gps_lng,
+        usr.full_name as officer_full_name, usr.phone_number as officer_phone,
+        
+        -- Station
+        st.station_name, st.station_code, st.station_level,
+        
+        -- Category & Subcategory
+        cat.label as category_label,
+        sub.nama_kasus as subcategory_name, sub.default_urgensi as subcategory_default_urgensi,
+        
+        -- Source
+        src.label as source_label, src.icon as source_icon,
+        
+        -- Citizen Review
+        cr.star_rating as citizen_rating, cr.review_text as citizen_review, cr.feedback_tags as citizen_tags,
+        
+        -- Initial Evidence (foto awal)
+        ev.file_url as foto_bukti_url,
+
+        -- Audit Logs
+        al.logs_json
+
+      FROM complaints c
+      LEFT JOIN complaint_dispatches d ON d.complaint_id = c.id AND (d.is_primary_unit = 1 OR d.is_primary_unit IS NULL)
+      LEFT JOIN master_operational_units u ON u.id = d.unit_id
+      LEFT JOIN police_officers po ON po.id = d.officer_id
+      LEFT JOIN users usr ON usr.id = po.user_id
+      LEFT JOIN police_stations st ON st.id = c.station_id
+      LEFT JOIN master_incident_categories cat ON cat.id = c.category_id
+      LEFT JOIN master_incident_subcategories sub ON sub.id = c.subcategory_id
+      LEFT JOIN master_report_sources src ON src.id = c.source_id
+      LEFT JOIN citizen_reviews cr ON cr.complaint_id = c.id
+      LEFT JOIN complaint_evidences ev ON ev.complaint_id = c.id AND ev.incident_phase = 'LAPORAN_AWAL'
+      LEFT JOIN (
+        SELECT 
+          complaint_id,
+          JSON_ARRAYAGG(
+            JSON_OBJECT(
+              'id', id,
+              'actor_name', actor_name,
+              'actor_role', actor_role,
+              'action', action,
+              'notes', notes,
+              'action_lat', action_lat,
+              'action_lng', action_lng,
+              'created_at', created_at
+            )
+          ) as logs_json
+        FROM complaint_audit_logs
+        GROUP BY complaint_id
+      ) al ON al.complaint_id = c.id
+      WHERE ${whereClauseSql}
+      ORDER BY ${orderBySql}
+      LIMIT ${limitNum};
+    `;
+
+    const rows: any[] = await prisma.$queryRaw(query);
+    return rows.map((r) => this.mapRawRowToEntity(r));
+  }
+
+  async findById(id: bigint): Promise<ComplaintEntity | null> {
+    const [record, dict] = await Promise.all([
+      prisma.complaint.findUnique({
+        where: { id },
+        include: COMPLAINT_INCLUDE,
+      }),
+      PrismaComplaintRepository.getMasterDictionaries(),
+    ]);
+    return record ? this.mapToEntity(record, dict) : null;
   }
 
   async findByNomorTiket(nomorTiket: string): Promise<ComplaintEntity | null> {
@@ -193,28 +517,34 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     const strippedTicket = cleanTiket.replace(/^TICKET-/, '');
     const addedTicket = `TICKET-${cleanTiket}`;
 
-    const record = await prisma.complaint.findFirst({
-      where: {
-        OR: [
-          { nomor_tiket: cleanTiket },
-          { nomor_tiket: cleanWithHash },
-          { nomor_tiket: cleanWithoutHash },
-          { nomor_tiket: strippedTicket },
-          { nomor_tiket: addedTicket },
-        ],
-      },
-      include: COMPLAINT_INCLUDE,
-    });
-    return record ? this.mapToEntity(record) : null;
+    const [record, dict] = await Promise.all([
+      prisma.complaint.findFirst({
+        where: {
+          OR: [
+            { nomor_tiket: cleanTiket },
+            { nomor_tiket: cleanWithHash },
+            { nomor_tiket: cleanWithoutHash },
+            { nomor_tiket: strippedTicket },
+            { nomor_tiket: addedTicket },
+          ],
+        },
+        include: COMPLAINT_INCLUDE,
+      }),
+      PrismaComplaintRepository.getMasterDictionaries(),
+    ]);
+    return record ? this.mapToEntity(record, dict) : null;
   }
 
   async findByPelaporHp(hp: string): Promise<ComplaintEntity[]> {
-    const records = await prisma.complaint.findMany({
-      where: { pelapor_hp: hp },
-      orderBy: { created_at: 'desc' },
-      include: COMPLAINT_INCLUDE,
-    });
-    return records.map((r: any) => this.mapToEntity(r));
+    const [records, dict] = await Promise.all([
+      prisma.complaint.findMany({
+        where: { pelapor_hp: hp },
+        orderBy: { created_at: 'desc' },
+        include: COMPLAINT_INCLUDE,
+      }),
+      PrismaComplaintRepository.getMasterDictionaries(),
+    ]);
+    return records.map((r: any) => this.mapToEntity(r, dict));
   }
 
   private static officerResolutionCache = new Map<string, {
@@ -244,59 +574,50 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       isPersonilRole = cached.isPersonilRole ?? true;
       isPiket = cached.isPiket ?? false;
     } else {
-      const officer = await prisma.policeOfficer.findFirst({
-        where: {
-          OR: [
-            { id: officerId },
-            { user_id: officerId },
-            { nrp: officerIdStr },
-            { nrp: paddedNrp },
-          ],
-        },
-        include: {
-          user: true,
-          unit: true,
-          station: true,
-        },
-      });
+      let officer: any = null;
+      try {
+        const offRows: any[] = await prisma.$queryRaw`
+          SELECT po.id, po.station_id, po.unit_id, po.duty_status, u.role
+          FROM police_officers po
+          LEFT JOIN users u ON u.id = po.user_id
+          WHERE po.id = ${officerId} OR po.user_id = ${officerId} OR po.nrp = ${officerIdStr} OR po.nrp = ${paddedNrp}
+          LIMIT 1;
+        `;
+        if (offRows && offRows[0]) {
+          officer = offRows[0];
+          resolvedOfficerId = BigInt(officer.id);
+          resolvedStationId = officer.station_id || null;
+          resolvedUnitId = officer.unit_id || null;
+          isPersonilRole = officer.role ? officer.role === 'PERSONIL' : true;
+          const isDutyActive = Boolean(officer.duty_status && officer.duty_status !== 'LEPAS_DINAS');
+          isPiket = isDutyActive;
+        }
+      } catch (_) {
+        // Fallback ke Prisma
+      }
 
-      if (officer) {
-        resolvedOfficerId = officer.id;
-        resolvedStationId = officer.station_id || null;
-        resolvedUnitId = officer.unit_id || null;
-        isPersonilRole = officer.user?.role ? officer.user.role === 'PERSONIL' : true;
+      if (!officer) {
+        const fallbackOfficer = await prisma.policeOfficer.findFirst({
+          where: {
+            OR: [
+              { id: officerId },
+              { user_id: officerId },
+              { nrp: officerIdStr },
+              { nrp: paddedNrp },
+            ],
+          },
+          include: {
+            user: { select: { role: true } },
+          },
+        });
 
-        // Cek status kesiagaan dinas / piket di Mako:
-        // 1. Status kedinasan aktif (bukan LEPAS_DINAS)
-        const isDutyActive = Boolean(officer.duty_status && officer.duty_status !== 'LEPAS_DINAS');
-
-        // 2. Atau terdaftar dalam jadwal piket hari ini di Mako tempat menginduk
-        let isScheduledToday = false;
-        try {
-          const todayStart = new Date();
-          todayStart.setHours(0, 0, 0, 0);
-          const todayEnd = new Date();
-          todayEnd.setHours(23, 59, 59, 999);
-
-          const piketMember = await prisma.piketScheduleMember.findFirst({
-            where: {
-              officer_id: officer.id,
-              schedule: {
-                ...(officer.station_id ? { station_id: officer.station_id } : {}),
-                schedule_date: {
-                  gte: todayStart,
-                  lte: todayEnd,
-                },
-                status: { not: 'DIBATALKAN' },
-              },
-              status_kehadiran: { notIn: ['LEPAS_PIKET', 'IZIN', 'SAKIT'] },
-            },
-            select: { id: true },
-          });
-          isScheduledToday = Boolean(piketMember);
-        } catch (_) {}
-
-        isPiket = isDutyActive || isScheduledToday;
+        if (fallbackOfficer) {
+          resolvedOfficerId = fallbackOfficer.id;
+          resolvedStationId = fallbackOfficer.station_id || null;
+          resolvedUnitId = fallbackOfficer.unit_id || null;
+          isPersonilRole = fallbackOfficer.user?.role ? fallbackOfficer.user.role === 'PERSONIL' : true;
+          isPiket = Boolean(fallbackOfficer.duty_status && fallbackOfficer.duty_status !== 'LEPAS_DINAS');
+        }
       }
 
       const cacheItem = {
@@ -305,7 +626,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         resolvedUnitId,
         isPersonilRole,
         isPiket,
-        expiresAt: Date.now() + 30 * 1000, // 30 detik TTL agar perubahan status piket segera terbaca
+        expiresAt: Date.now() + 60 * 1000,
       };
       PrismaComplaintRepository.officerResolutionCache.set(officerIdStr, cacheItem);
       if (paddedNrp !== officerIdStr) {
@@ -313,101 +634,167 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       }
     }
 
-    // 1. Tiket yang sudah secara spesifik ditugaskan / diterima oleh personil ini
-    const assignedCondition: any = {
-      dispatches: {
-        some: {
-          officer_id: resolvedOfficerId,
-        },
-      },
-    };
+    try {
+      const officerIdNum = Number(resolvedOfficerId);
+      let whereSql: Prisma.Sql;
+      if (isPersonilRole && resolvedStationId) {
+        const stId = Number(resolvedStationId);
+        if (activeOnly) {
+          whereSql = Prisma.sql`(
+            EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+            OR (
+              c.station_id = ${stId}
+              AND c.status IN ('MENUNGGU', 'DIPROSES')
+              AND (
+                NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id IS NOT NULL)
+                OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+              )
+            )
+          ) AND c.status NOT IN ('SELESAI', 'DITOLAK')`;
+        } else {
+          whereSql = Prisma.sql`
+            EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+            OR (
+              c.station_id = ${stId}
+              AND c.status IN ('MENUNGGU', 'DIPROSES')
+              AND (
+                NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id IS NOT NULL)
+                OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+              )
+            )`;
+        }
+      } else {
+        if (activeOnly) {
+          whereSql = Prisma.sql`EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum}) AND c.status NOT IN ('SELESAI', 'DITOLAK')`;
+        } else {
+          whereSql = Prisma.sql`EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})`;
+        }
+      }
 
-    const orConditions: any[] = [assignedCondition];
-
-    // 2. Siaran Terbuka (Open Broadcast / Disposisi Mako):
-    // Syarat Operasional Presisi 110:
-    // - Akun ber-role PERSONIL
-    // - Menginduk di Mako tiket (resolvedStationId tidak null)
-    // - Terbuka untuk seluruh personel di Mako tersebut (siapa cepat dia dapat / respon cepat)
-    if (isPersonilRole && resolvedStationId) {
-      orConditions.push({
-        OR: [
-          { station_id: resolvedStationId },
-          { dispatches: { some: { station_id: resolvedStationId } } },
-        ],
-        status: { in: ['MENUNGGU', 'DIPROSES'] },
+      return await this.queryComplaintsFastSql(
+        whereSql,
+        Prisma.sql`c.created_at DESC`,
+        activeOnly ? 20 : OFFICER_HISTORY_LIMIT
+      );
+    } catch (_err) {
+      // Fallback ke Prisma findMany jika raw query menemui kendala
+      const assignedCondition: any = {
         dispatches: {
           some: {
-            OR: [
-              { officer_id: null },
-              { officer_id: resolvedOfficerId },
-            ],
+            officer_id: resolvedOfficerId,
           },
         },
-      });
-    }
-
-    const whereClause: any = {
-      OR: orConditions,
-    };
-    if (activeOnly) {
-      whereClause.status = {
-        notIn: ['SELESAI', 'DITOLAK'],
       };
+
+      const orConditions: any[] = [assignedCondition];
+      if (isPersonilRole && resolvedStationId) {
+        orConditions.push({
+          OR: [
+            { station_id: resolvedStationId },
+            { dispatches: { some: { station_id: resolvedStationId } } },
+          ],
+          status: { in: ['MENUNGGU', 'DIPROSES'] },
+          dispatches: {
+            some: {
+              OR: [
+                { officer_id: null },
+                { officer_id: resolvedOfficerId },
+              ],
+            },
+          },
+        });
+      }
+
+      const whereClause: any = {
+        OR: orConditions,
+      };
+      if (activeOnly) {
+        whereClause.status = {
+          notIn: ['SELESAI', 'DITOLAK'],
+        };
+      }
+      const [records, dict] = await Promise.all([
+        prisma.complaint.findMany({
+          where: whereClause,
+          orderBy: { created_at: 'desc' },
+          take: activeOnly ? undefined : OFFICER_HISTORY_LIMIT,
+          include: COMPLAINT_INCLUDE,
+        }),
+        PrismaComplaintRepository.getMasterDictionaries(),
+      ]);
+      return records.map((r: any) => this.mapToEntity(r, dict));
     }
-    const records = await prisma.complaint.findMany({
-      where: whereClause,
-      orderBy: { created_at: 'desc' },
-      take: activeOnly ? undefined : OFFICER_HISTORY_LIMIT,
-      include: COMPLAINT_INCLUDE,
-    });
-    return records.map((r: any) => this.mapToEntity(r));
   }
 
   async findAntreanPawas(stationId?: number): Promise<ComplaintEntity[]> {
-    let whereClause: any;
-
-    if (stationId) {
-      const isMakoAsal = Number(stationId) === 60001;
-      if (isMakoAsal) {
-        // Mako Asal 110 (Polres Pekalongan) menampilkan:
-        // 1. Tiket lokal yang berstatus MENUNGGU (station_id 60001 atau belum terikat stasiun)
-        // 2. Tiket yang sedang dalam status DISPOSISI_LINTAS_WILAYAH (agar operator Mako Asal tetap dapat memantau responnya)
-        whereClause = {
-          OR: [
-            { status: 'MENUNGGU', station_id: stationId },
-            { status: 'MENUNGGU', station_id: null },
-            { status: 'DISPOSISI_LINTAS_WILAYAH' },
-          ],
-        };
+    try {
+      let whereSql: Prisma.Sql;
+      if (stationId) {
+        const isMakoAsal = Number(stationId) === 60001;
+        if (isMakoAsal) {
+          whereSql = Prisma.sql`(c.status = 'MENUNGGU' AND (c.station_id = ${Number(stationId)} OR c.station_id IS NULL)) OR c.status = 'DISPOSISI_LINTAS_WILAYAH'`;
+        } else {
+          whereSql = Prisma.sql`c.status IN ('MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH') AND c.station_id = ${Number(stationId)}`;
+        }
       } else {
-        // Polsek / Polres tujuan: Tiket lokal MENUNGGU atau tiket limpahan DISPOSISI_LINTAS_WILAYAH pada stasiun mereka
+        whereSql = Prisma.sql`c.status IN ('MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH')`;
+      }
+      return await this.queryComplaintsFastSql(whereSql, Prisma.sql`c.created_at ASC`, 20);
+    } catch (_err) {
+      let whereClause: any;
+
+      if (stationId) {
+        const isMakoAsal = Number(stationId) === 60001;
+        if (isMakoAsal) {
+          whereClause = {
+            OR: [
+              { status: 'MENUNGGU', station_id: stationId },
+              { status: 'MENUNGGU', station_id: null },
+              { status: 'DISPOSISI_LINTAS_WILAYAH' },
+            ],
+          };
+        } else {
+          whereClause = {
+            status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
+            station_id: stationId,
+          };
+        }
+      } else {
         whereClause = {
           status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
-          station_id: stationId,
         };
       }
-    } else {
-      whereClause = {
-        status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
-      };
-    }
 
-    const records = await prisma.complaint.findMany({
-      where: whereClause,
-      orderBy: { created_at: 'asc' },
-      include: COMPLAINT_INCLUDE,
-    });
-    return records.map((r: any) => this.mapToEntity(r));
+      const [records, dict] = await Promise.all([
+        prisma.complaint.findMany({
+          where: whereClause,
+          orderBy: { created_at: 'asc' },
+          include: COMPLAINT_INCLUDE,
+        }),
+        PrismaComplaintRepository.getMasterDictionaries(),
+      ]);
+      return records.map((r: any) => this.mapToEntity(r, dict));
+    }
   }
 
-  async findAllRecent(limit = 50): Promise<ComplaintEntity[]> {
-    const records = await prisma.complaint.findMany({
-      take: limit,
-      orderBy: { created_at: 'desc' },
-      include: COMPLAINT_INCLUDE,
-    });
-    return records.map((r: any) => this.mapToEntity(r));
+  async findAllRecent(limit = 15): Promise<ComplaintEntity[]> {
+    try {
+      return await this.queryComplaintsFastSql(
+        Prisma.sql`1=1`,
+        Prisma.sql`c.created_at DESC`,
+        limit
+      );
+    } catch (_err) {
+      const [records, dict] = await Promise.all([
+        prisma.complaint.findMany({
+          take: limit,
+          orderBy: { created_at: 'desc' },
+          include: COMPLAINT_INCLUDE,
+        }),
+        PrismaComplaintRepository.getMasterDictionaries(),
+      ]);
+      return records.map((r: any) => this.mapToEntity(r, dict));
+    }
   }
 
   async create(complaint: ComplaintEntity): Promise<ComplaintEntity> {
