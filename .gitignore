@@ -27,3 +27,8 @@ node_modules/whatsapp-web.js/storage
 test.md
 ROADMAP.md
 
+
+# E2E local data (contains device ids) and outputs
+e2e/.data/
+test-results/
+playwright-report/
