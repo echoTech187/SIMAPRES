@@ -16,7 +16,7 @@ import {
   CheckCircle2,
   Car,
 } from 'lucide-react';
-import SimapresGoogleMap, { MapUnitData } from '@/components/SimapresGoogleMap';
+import SimapresGoogleMap, { MapUnitData } from '@/components/maps/SimapresGoogleMap';
 
 interface TrackingMapModalProps {
   isOpen: boolean;

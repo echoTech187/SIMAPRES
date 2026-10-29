@@ -25,3 +25,5 @@ wa_auth_session
 wa_credentials
 node_modules/whatsapp-web.js/sessions
 node_modules/whatsapp-web.js/storage
+test.md
+ROADMAP.md

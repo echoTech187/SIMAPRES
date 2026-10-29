@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import dynamic from 'next/dynamic';
-import Select2CategoryDropdown from '@/components/Select2CategoryDropdown';
+import Select2CategoryDropdown from '@/components/ui/Select2CategoryDropdown';
 import {
   createComplaintAction,
   createComplaintAndBroadcastAction,
@@ -13,10 +13,11 @@ import {
   transferComplaintCrossJurisdictionAction,
 } from '@/app/actions/complaint.actions';
 import { PawasTab } from '../types';
-import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
+import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 import { evaluateJurisdictionBoundary } from '@/lib/jurisdiction-boundary';
+import { getCrossJurisdictionTimeoutMs } from '@/lib/escalation-config';
 
-const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
+const MiniMapPicker = dynamic(() => import('@/components/maps/MiniMapPicker'), {
   ssr: false,
   loading: () => <div style={{ height: '220px', background: '#E2E8F0' }} />,
 });
@@ -1610,7 +1611,7 @@ export default function TabOperatorCadPawas({
                       // mereka TIDAK PERLU melihat tombol "Transfer ke Polresta Batang" atau alert batas wilayah untuk diri sendiri!
                       if (isUserTargetStation) return null;
 
-                      // Deteksi apakah waktu respon sudah expired (3-5 menit tanpa respon)
+                      // Deteksi apakah waktu respon sudah expired (1 menit tanpa respon)
                       const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
                       const dispatchWithDeadline = dispatches.find((d: any) => d.escalation_deadline_at || d.escalationDeadlineAt);
                       const rawDeadline = dispatchWithDeadline?.escalation_deadline_at || dispatchWithDeadline?.escalationDeadlineAt;
@@ -1620,9 +1621,9 @@ export default function TabOperatorCadPawas({
                         const logs = item.complaint_logs || item.complaintLogs || item.auditLogs || [];
                         const xLog = Array.isArray(logs) ? logs.find((l: any) => l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') : null;
                         if (xLog?.created_at) {
-                          deadlineMs = new Date(xLog.created_at).getTime() + 3 * 60 * 1000;
+                          deadlineMs = new Date(xLog.created_at).getTime() + getCrossJurisdictionTimeoutMs();
                         } else if (item.updated_at || item.created_at) {
-                          deadlineMs = new Date(item.updated_at || item.created_at).getTime() + 3 * 60 * 1000;
+                          deadlineMs = new Date(item.updated_at || item.created_at).getTime() + getCrossJurisdictionTimeoutMs();
                         }
                       }
 

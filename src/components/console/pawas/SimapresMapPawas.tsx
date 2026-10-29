@@ -7,7 +7,7 @@ import {
   MapUnitData,
   getBestRoadRoute,
   generateTacticalPath,
-} from '@/components/SimapresGoogleMap';
+} from '@/components/maps/SimapresGoogleMap';
 
 export interface SimapresMapPawasProps {
   userProfile?: any;

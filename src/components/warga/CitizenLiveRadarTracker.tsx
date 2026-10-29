@@ -31,8 +31,9 @@ import {
 import type { ChatMessageItem } from '@/types/chat.types';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
 import { formatIncidentDateTime } from '@/lib/date-utils';
+import { isDeskResolvedComplaint } from '@/domain/rules/resolution.rules';
 
-const SimapresGoogleMap = dynamic(() => import('@/components/SimapresGoogleMap'), {
+const SimapresGoogleMap = dynamic(() => import('@/components/maps/SimapresGoogleMap'), {
   ssr: false,
   loading: () => (
     <div
@@ -438,16 +439,8 @@ export default function CitizenLiveRadarTracker({
 
   // Auto-switch to Operator Review when ticket is resolved at operator desk without field patrol
   useEffect(() => {
-    if (complaint && onSwitchToOperatorReview) {
-      const isDesk = Boolean(
-        complaint.isDeskResolved ||
-        complaint.resolutionLocationKey === 'OPERATOR_DESK' ||
-        complaint.resolutionDocumentKey === 'KONSULTASI_SELESAI' ||
-        (complaint.status === 'SELESAI' && (!complaint.dispatches || complaint.dispatches.length === 0))
-      );
-      if (isDesk) {
-        onSwitchToOperatorReview();
-      }
+    if (complaint && onSwitchToOperatorReview && isDeskResolvedComplaint(complaint)) {
+      onSwitchToOperatorReview();
     }
   }, [complaint, onSwitchToOperatorReview]);
 
@@ -2564,7 +2557,7 @@ function CompletedIndependentView({
       {/* 2. MAIN SCROLLABLE RESOLUTION CONTENT */}
       <main className="flex-1 w-full max-w-xl mx-auto px-4 py-5 sm:py-7 space-y-4 sm:space-y-5 pb-16">
         {/* BANNER LAYANAN KONSULTASI SELESAI*/}
-        {(complaint?.isDeskResolved || complaint?.resolutionLocationKey === 'OPERATOR_DESK' || (!complaint?.dispatches || complaint.dispatches.length === 0)) && (
+        {isDeskResolvedComplaint(complaint) && (
           <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-slate-950 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/35 flex items-center justify-center text-xl flex-shrink-0">

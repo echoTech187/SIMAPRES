@@ -663,26 +663,57 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       });
 
       // 2. Sinkronisasi tabel relasi complaint_dispatches jika ada petugas yang ditugaskan
+      let actualOfficerId: bigint | null = null;
+      let officerUnitId: number | null = null;
+
       if (data.assignedOfficerId) {
-        const existingDispatch = await tx.complaintDispatch.findFirst({
+        const rawOfficerId = BigInt(data.assignedOfficerId);
+        const po = await tx.policeOfficer.findFirst({
+          where: {
+            OR: [
+              { id: rawOfficerId },
+              { user_id: rawOfficerId },
+            ],
+          },
+          select: { id: true, unit_id: true },
+        });
+
+        if (po) {
+          actualOfficerId = po.id;
+          if (po.unit_id) officerUnitId = po.unit_id;
+        } else {
+          const poExists = await tx.policeOfficer.findUnique({
+            where: { id: rawOfficerId },
+            select: { id: true, unit_id: true },
+          });
+          if (poExists) {
+            actualOfficerId = poExists.id;
+            if (poExists.unit_id) officerUnitId = poExists.unit_id;
+          }
+        }
+      }
+
+      if (actualOfficerId || data.assignedOfficerId) {
+        let existingDispatch = await tx.complaintDispatch.findFirst({
           where: {
             complaint_id: complaintId,
             OR: [
-              { officer_id: data.assignedOfficerId },
+              ...(actualOfficerId ? [{ officer_id: actualOfficerId }] : []),
               { is_primary_unit: true },
             ],
           },
-          orderBy: { is_primary_unit: 'desc' },
+          orderBy: [{ is_primary_unit: 'desc' }, { id: 'desc' }],
         });
 
-        let unitId: number | null = null;
-        const officer = await tx.policeOfficer.findUnique({
-          where: { id: data.assignedOfficerId },
-          select: { unit_id: true },
-        });
-        if (officer?.unit_id) {
-          unitId = officer.unit_id;
-        } else {
+        if (!existingDispatch) {
+          existingDispatch = await tx.complaintDispatch.findFirst({
+            where: { complaint_id: complaintId },
+            orderBy: [{ is_primary_unit: 'desc' }, { id: 'desc' }],
+          });
+        }
+
+        let unitId: number | null = officerUnitId || existingDispatch?.unit_id || null;
+        if (!unitId) {
           const defaultUnit = await tx.masterOperationalUnit.findFirst({ select: { id: true } });
           if (defaultUnit) unitId = defaultUnit.id;
         }
@@ -730,7 +761,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           await tx.complaintDispatch.update({
             where: { id: existingDispatch.id },
             data: {
-              officer_id: data.assignedOfficerId,
+              ...(actualOfficerId ? { officer_id: actualOfficerId } : {}),
               dispatch_status: dispatchStatus,
               dispatch_status_id: dispatchStatusId,
               ...(departedAt ? { departed_at: departedAt } : {}),
@@ -739,11 +770,11 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             } as any,
           });
 
-          if (data.assignedOfficerId) {
+          if (actualOfficerId) {
             await tx.complaintDispatch.updateMany({
               where: {
                 complaint_id: complaintId,
-                officer_id: data.assignedOfficerId,
+                officer_id: actualOfficerId,
                 id: { not: existingDispatch.id },
               },
               data: {
@@ -760,7 +791,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             data: {
               complaint_id: complaintId,
               unit_id: unitId,
-              officer_id: data.assignedOfficerId,
+              ...(actualOfficerId ? { officer_id: actualOfficerId } : {}),
               is_primary_unit: true,
               personnel_quota: 1,
               tactical_orders: data.ringkasanKeterangan || null,
@@ -813,9 +844,15 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           let actorName = sessionUser?.fullName;
           let actorRole = sessionUser?.role;
 
-          if (!actorName && data.assignedOfficerId) {
-            const off = await tx.policeOfficer.findUnique({
-              where: { id: data.assignedOfficerId },
+          if (!actorName && (actualOfficerId || data.assignedOfficerId)) {
+            const rawId = data.assignedOfficerId ? BigInt(data.assignedOfficerId) : null;
+            const off = await tx.policeOfficer.findFirst({
+              where: {
+                OR: [
+                  ...(actualOfficerId ? [{ id: actualOfficerId }] : []),
+                  ...(rawId ? [{ id: rawId }, { user_id: rawId }] : []),
+                ],
+              },
               include: { user: true },
             });
             if (off) {
@@ -846,11 +883,11 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
           // 3.1 Catat ke officer_logbooks untuk Audit Integritas Dual-GPS (Propam)
           const devMeters = Number(latestTimeline?.deviationMeters || 0);
-          if (data.assignedOfficerId && (latestTimeline.tahapTitle?.includes('Tindakan') || latestTimeline.tahapTitle?.includes('TKP') || isAnomaly)) {
+          if (actualOfficerId && (latestTimeline.tahapTitle?.includes('Tindakan') || latestTimeline.tahapTitle?.includes('TKP') || isAnomaly)) {
             const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
             await tx.officerLogbook.create({
               data: {
-                officer_id: data.assignedOfficerId,
+                officer_id: actualOfficerId,
                 complaint_id: complaintId,
                 action_type: 'TPTKP',
                 claimed_address: (data.tkpAlamatTeks || 'TKP Laporan').slice(0, 250),

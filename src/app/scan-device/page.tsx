@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { updateDeviceTelemetryAction, getMasterDropdownsAction } from '@/app/actions/auth.actions';
 import { pairDeviceSessionAction } from '@/app/actions/device.actions';
+import { getOrCreateClientDeviceId, getClientDeviceBrand } from '@/lib/device-fingerprint';
 import './scan-device.css';
 
 function ScanDeviceContent() {
@@ -42,63 +43,10 @@ function ScanDeviceContent() {
 
   // Ekstraksi sidik jari hardware
   useEffect(() => {
-    let brand = 'Smartphone Presisi';
-    const storedHwId = localStorage.getItem('simapres_hardware_device_id');
-    const storedBrand = localStorage.getItem('simapres_device_brand_name');
-
-    if (storedHwId) {
-      setPhysicalDeviceId(storedHwId);
-      if (storedBrand) setDeviceModel(storedBrand);
-      return;
-    }
-
-    if (typeof window !== 'undefined') {
-      const ua = navigator.userAgent;
-      const screenRes = `${window.screen.width}x${window.screen.height}x${window.screen.colorDepth}`;
-      const cores = navigator.hardwareConcurrency || 4;
-      const mem = (navigator as any).deviceMemory || 4;
-      const lang = navigator.language || 'id-ID';
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta';
-
-      let gpuVendor = 'GENERIC-GPU';
-      try {
-        const canvas = document.createElement('canvas');
-        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-        if (gl) {
-          const debugInfo = (gl as any).getExtension('WEBGL_debug_renderer_info');
-          if (debugInfo) {
-            gpuVendor = (gl as any).getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || 'MALI-ADRENO';
-          }
-        }
-      } catch (e) {
-        gpuVendor = 'EMBEDDED-GPU';
-      }
-
-      if (/iPhone/i.test(ua)) brand = 'Apple iPhone';
-      else if (/Samsung/i.test(ua)) brand = 'Samsung Galaxy';
-      else if (/Xiaomi|Redmi|POCO/i.test(ua)) brand = 'Xiaomi / Redmi';
-      else if (/Oppo/i.test(ua)) brand = 'Oppo Mobile';
-      else if (/Vivo/i.test(ua)) brand = 'Vivo Mobile';
-      else if (/Realme/i.test(ua)) brand = 'Realme Mobile';
-      else if (/Android/i.test(ua)) brand = 'Android Smartphone';
-      else brand = 'Mobile Terminal';
-
-      const rawEntropy = `${ua}_${screenRes}_${cores}_${mem}_${lang}_${timezone}_${gpuVendor}`;
-      let hash = 0;
-      for (let i = 0; i < rawEntropy.length; i++) {
-        hash = (hash << 5) - hash + rawEntropy.charCodeAt(i);
-        hash |= 0;
-      }
-
-      const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(-8);
-      const generatedId = `DEV-HP-${hex}`;
-
-      localStorage.setItem('simapres_hardware_device_id', generatedId);
-      localStorage.setItem('simapres_device_brand_name', brand);
-
-      setPhysicalDeviceId(generatedId);
-      setDeviceModel(brand);
-    }
+    const devId = getOrCreateClientDeviceId();
+    const brand = getClientDeviceBrand();
+    if (devId) setPhysicalDeviceId(devId);
+    if (brand) setDeviceModel(brand);
   }, []);
 
   const syncTelemetry = async (devId: string, currentCoords: { lat: number; lng: number }) => {

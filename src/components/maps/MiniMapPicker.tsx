@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useCallback } from 'react';
 import { loadGoogleMaps } from './SimapresGoogleMap';
-import { resolveIndonesianAddress, LocationSuggestionItem } from '@/lib/indonesian-location-search';
+import { resolveIndonesianAddress, LocationSuggestionItem } from '@/infrastructure/services/indonesian-location-search.service';
 
 export interface SearchResultMarkerItem {
   id?: string | number;

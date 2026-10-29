@@ -5,7 +5,7 @@ import { prisma } from '@/infrastructure/db/prisma.client';
 // revalidatePath sengaja di-skip di sini agar mutasi master data tidak memicu reload halaman penuh di browser konsol
 const revalidatePath = (_path: string) => {};
 import { getSession } from '@/lib/session';
-import { logUserActivity } from '@/lib/activity-logger';
+import { logUserActivity } from '@/infrastructure/logging/activity-logger';
 
 function serializeBigInt<T>(obj: T): T {
   return JSON.parse(

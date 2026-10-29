@@ -5,6 +5,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, Navigation, Loader2, MessageS
 import { acceptAndBroadcastCrossJurisdictionAction, getActiveSpktDutyDetails } from '@/app/actions/complaint.actions';
 import { getLastDispatchedStationName, getLastDispatchedStationId } from '../tabs/TabOperatorCadPawas';
 import { evaluateJurisdictionBoundary } from '@/lib/jurisdiction-boundary';
+import { getCrossJurisdictionTimeoutMs } from '@/lib/escalation-config';
 
 interface EscalationAlarmBannerProps {
   complaints: any[];
@@ -14,6 +15,33 @@ interface EscalationAlarmBannerProps {
   currentStationName?: string | null;
   currentUser?: any;
   policeOffices?: any[];
+}
+
+// Module-level deduplication cache to ensure getActiveSpktDutyDetails is fetched at most ONCE per station across all component mounts
+const globalDutyCache = new Map<number, any>();
+const globalDutyPromises = new Map<number, Promise<any>>();
+
+async function fetchDutyDetailsCached(stationId: number) {
+  if (globalDutyCache.has(stationId)) {
+    return globalDutyCache.get(stationId);
+  }
+  if (globalDutyPromises.has(stationId)) {
+    return globalDutyPromises.get(stationId);
+  }
+  const promise = getActiveSpktDutyDetails(stationId)
+    .then((res) => {
+      if (res) {
+        globalDutyCache.set(stationId, res);
+      }
+      globalDutyPromises.delete(stationId);
+      return res;
+    })
+    .catch((err) => {
+      globalDutyPromises.delete(stationId);
+      throw err;
+    });
+  globalDutyPromises.set(stationId, promise);
+  return promise;
 }
 
 export default function EscalationAlarmBanner({
@@ -34,6 +62,7 @@ export default function EscalationAlarmBanner({
     dutyOfficers: any[];
   } | null>(null);
   const [targetDuties, setTargetDuties] = useState<Record<string, any>>({});
+  const requestedStationsRef = useRef<Set<number>>(new Set());
   const [isMounted, setIsMounted] = useState(false);
   const [dismissedTransfers, setDismissedTransfers] = useState<string[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -65,10 +94,12 @@ export default function EscalationAlarmBanner({
   const isPlayingRef = useRef<boolean>(false);
   const shouldPlayRef = useRef<boolean>(false);
 
-  // Ambil data kontak Operator / Ka SPKT piket bertugas hari ini pada Mako lokal
+  // Ambil data kontak Operator / Ka SPKT piket bertugas hari ini pada Mako lokal (deduplicated)
   useEffect(() => {
     const stId = currentStationId ? Number(currentStationId) : 60001;
-    getActiveSpktDutyDetails(stId)
+    if (requestedStationsRef.current.has(stId)) return;
+    requestedStationsRef.current.add(stId);
+    fetchDutyDetailsCached(stId)
       .then((res) => {
         if (res) {
           setDutyPiketInfo(res);
@@ -134,7 +165,7 @@ export default function EscalationAlarmBanner({
         // Deteksi apakah ini tiket lintas wilayah
         const isCrossJurisdiction = c.status === 'DISPOSISI_LINTAS_WILAYAH';
 
-        // Hitung deadline eskalasi standar 3-5 menit
+        // Hitung deadline eskalasi standar 1 menit
         let deadlineMs: number | null = null;
         const dispatchWithDeadline = dispatches.find((d: any) => d.escalation_deadline_at || d.escalationDeadlineAt);
         const rawDeadline = dispatchWithDeadline?.escalation_deadline_at || dispatchWithDeadline?.escalationDeadlineAt;
@@ -144,9 +175,9 @@ export default function EscalationAlarmBanner({
           // Cari waktu dari audit log DISPOSISI_LINTAS_WILAYAH jika dispatch belum tercatat
           const xLog = Array.isArray(logs) ? logs.find((l: any) => l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') : null;
           if (xLog?.created_at) {
-            deadlineMs = new Date(xLog.created_at).getTime() + 3 * 60 * 1000;
+            deadlineMs = new Date(xLog.created_at).getTime() + getCrossJurisdictionTimeoutMs();
           } else if (c.updated_at || c.created_at) {
-            deadlineMs = new Date(c.updated_at || c.created_at).getTime() + 3 * 60 * 1000;
+            deadlineMs = new Date(c.updated_at || c.created_at).getTime() + getCrossJurisdictionTimeoutMs();
           }
         }
 
@@ -385,14 +416,8 @@ export default function EscalationAlarmBanner({
     setCurrentSlideIndex((prev) => (prev + 1) % allBanners.length);
   }, [allBanners.length]);
 
-  // Inisialisasi Audio Sirine Patwal Realistis (Looping Tanpa Jeda)
-  // Mendukung Desktop, Android, dan iPhone (iOS)
+  // Inisialisasi Audio Sirine Patwal Realistis (Lazy-load hanya saat ada insiden overdue aktif)
   useEffect(() => {
-    const audio = new Audio('/audio/nada_dering_suara_mobil_patwal_viral_tiktok.mp3');
-    audio.loop = true;
-    audio.preload = 'auto';
-    audioRef.current = audio;
-
     // Handler untuk membuka kunci audio (Audio Autoplay Unlock) di mobile iOS / Android
     const unlockAndPlay = () => {
       if (shouldPlayRef.current && audioRef.current && !isPlayingRef.current) {
@@ -416,14 +441,22 @@ export default function EscalationAlarmBanner({
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
+        audioRef.current = null;
+        isPlayingRef.current = false;
       }
     };
   }, []);
 
-  // Kontrol pemutaran terus-menerus tanpa jeda saat ada overdue items
+  // Kontrol pemutaran terus-menerus tanpa jeda saat ada overdue items (Lazy-init Audio)
   useEffect(() => {
     if (overdueItems.length > 0) {
       shouldPlayRef.current = true;
+      if (!audioRef.current) {
+        const audio = new Audio('/audio/nada_dering_suara_mobil_patwal_viral_tiktok.mp3');
+        audio.loop = true;
+        audio.preload = 'metadata';
+        audioRef.current = audio;
+      }
       if (audioRef.current && !isPlayingRef.current) {
         audioRef.current
           .play()
@@ -431,8 +464,6 @@ export default function EscalationAlarmBanner({
             isPlayingRef.current = true;
           })
           .catch((err) => {
-            // Mobile browser memblokir autoplay sebelum user gesture pertama;
-            // listener window click/touchstart di atas akan langsung membunyikan pada sentuhan pertama.
             console.log('[EscalationAudio] Menunggu interaksi pertama untuk membunyikan sirine patwal:', err);
           });
       }
@@ -541,38 +572,39 @@ export default function EscalationAlarmBanner({
     [policeOffices, currentStationId]
   );
 
-  // Ambil data kontak piket Ka SPKT Mako penugasan atau Mako tujuan terdekat
+  const activeSlideTicketId = allBanners[currentSlideIndex]?.data?.complaint?.id || allBanners[currentSlideIndex]?.data?.nomorTiket;
+  const activeSlideType = allBanners[currentSlideIndex]?.type;
+
+  // Ambil data kontak piket Ka SPKT Mako penugasan atau Mako tujuan terdekat HANYA untuk slide aktif saat ini
   useEffect(() => {
-    overdueItems.forEach((item) => {
-      const assignedOffice = (policeOffices || []).find((po: any) =>
-        (item.complaint?.station_id && String(po.id) === String(item.complaint.station_id)) ||
-        (po.name && po.name.toLowerCase() === item.stationName?.toLowerCase()) ||
-        (po.station_name && po.station_name.toLowerCase() === item.stationName?.toLowerCase())
-      );
-      if (assignedOffice && assignedOffice.id && !targetDuties[assignedOffice.id]) {
-        getActiveSpktDutyDetails(Number(assignedOffice.id))
+    const activeSlide = allBanners[currentSlideIndex] || allBanners[0];
+    if (!activeSlide || activeSlide.type !== 'overdue') return;
+    const item = activeSlide.data;
+    if (!item) return;
+
+    const assignedOffice = (policeOffices || []).find((po: any) =>
+      (item.complaint?.station_id && String(po.id) === String(item.complaint.station_id)) ||
+      (po.name && po.name.toLowerCase() === item.stationName?.toLowerCase()) ||
+      (po.station_name && po.station_name.toLowerCase() === item.stationName?.toLowerCase())
+    );
+
+    const targetOffice = !item.isCrossJurisdiction ? findNearestTargetOffice(item.complaint) : null;
+    const targetId = assignedOffice?.id || targetOffice?.id;
+
+    if (targetId) {
+      const stId = Number(targetId);
+      if (!requestedStationsRef.current.has(stId)) {
+        requestedStationsRef.current.add(stId);
+        fetchDutyDetailsCached(stId)
           .then((res) => {
             if (res) {
-              setTargetDuties((prev) => ({ ...prev, [assignedOffice.id]: res }));
+              setTargetDuties((prev) => ({ ...prev, [stId]: res }));
             }
           })
-          .catch((e) => console.warn('Gagal memuat kontak piket assigned:', e));
+          .catch((e) => console.warn('Gagal memuat kontak piket:', e));
       }
-
-      if (!item.isCrossJurisdiction) {
-        const targetOffice = findNearestTargetOffice(item.complaint);
-        if (targetOffice && targetOffice.id && !targetDuties[targetOffice.id]) {
-          getActiveSpktDutyDetails(Number(targetOffice.id))
-            .then((res) => {
-              if (res) {
-                setTargetDuties((prev) => ({ ...prev, [targetOffice.id]: res }));
-              }
-            })
-            .catch((e) => console.warn('Gagal memuat kontak piket target:', e));
-        }
-      }
-    });
-  }, [overdueItems, findNearestTargetOffice, targetDuties, policeOffices]);
+    }
+  }, [activeSlideTicketId, activeSlideType, findNearestTargetOffice, policeOffices]);
 
   if (!isMounted) return null;
   if (allBanners.length === 0) return null;

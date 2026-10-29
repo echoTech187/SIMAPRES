@@ -39,6 +39,9 @@ function mapDbRowToKnowledgeItem(row: any): KnowledgeFaqItem {
   };
 }
 
+// In-memory server-side cache untuk data panduan SOP & FAQ master (TTL 5 menit)
+let serverKnowledgeCache: { data: GetKnowledgeItemsResult; expiry: number } | null = null;
+
 /**
  * Mengambil daftar master panduan SOP & Dynamic FAQ secara dinamis dari database (Tabel master_knowledge_faqs)
  */
@@ -46,6 +49,11 @@ export async function getKnowledgeBaseItemsAction(
   searchQuery?: string,
   categoryFilter?: string
 ): Promise<GetKnowledgeItemsResult> {
+  const isDefaultQuery = !searchQuery && (!categoryFilter || categoryFilter === 'ALL');
+  if (isDefaultQuery && serverKnowledgeCache && Date.now() < serverKnowledgeCache.expiry) {
+    return serverKnowledgeCache.data;
+  }
+
   try {
     let dbRows = await prisma.masterKnowledgeFaq.findMany({
       where: {
@@ -120,12 +128,21 @@ export async function getKnowledgeBaseItemsAction(
       count: countMap.get(mc.key) || 0,
     }));
 
-    return {
+    const result = {
       success: true,
       data: items,
       total: items.length,
       categories,
     };
+
+    if (isDefaultQuery) {
+      serverKnowledgeCache = {
+        data: result,
+        expiry: Date.now() + 5 * 60 * 1000, // 5 menit TTL
+      };
+    }
+
+    return result;
   } catch (error: any) {
     console.error('[getKnowledgeBaseItemsAction] Database query error:', error);
     return {

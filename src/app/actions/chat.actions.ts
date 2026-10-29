@@ -2,7 +2,7 @@
 
 import { prisma } from '@/infrastructure/db/prisma.client';
 import type { ChatMessageItem } from '@/types/chat.types';
-import { cacheInvalidate } from '@/lib/app-cache';
+import { cacheInvalidate } from '@/infrastructure/cache/app-cache';
 import { requireRole } from '@/lib/session';
 
 // In-memory fallback / quick cache for ultra-responsive low-latency chat

@@ -1,18 +1,29 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CheckCircle2,
   FileText,
   X,
-  Send,
   AlertCircle,
   MapPin,
   User,
 } from 'lucide-react';
 import { fieldStepAction } from '@/app/actions/complaint.actions';
-import LiveCameraWatermarkCapture from '@/components/LiveCameraWatermarkCapture';
+import LiveCameraWatermarkCapture from '@/components/common/LiveCameraWatermarkCapture';
 import type { ComplaintData, OfficerProfile } from '../types';
+import TacticalModalFooter from '@/components/ui/TacticalModalFooter';
+import TacticalAlert from '@/components/ui/TacticalAlert';
+import ResolutionSelector from '@/components/ui/ResolutionSelector';
+import {
+  STANDARD_RESOLUTION_LOCATIONS,
+  STANDARD_RESOLUTION_DOCUMENTS,
+  validateResolutionSubmission,
+  isEligibleForRestorativeJustice,
+  requiresStrictTkpGps,
+  type ResolutionLocationKey,
+  type ResolutionDocumentKey,
+} from '@/domain/rules/resolution.rules';
 
 interface ModalPenyelesaianTugasProps {
   isOpen: boolean;
@@ -37,6 +48,21 @@ export default function ModalPenyelesaianTugas({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Form State Berbasis Aturan Domain Resolusi
+  const [locationKey, setLocationKey] = useState<ResolutionLocationKey>('TKP');
+  const [documentKey, setDocumentKey] = useState<ResolutionDocumentKey>('DOKUMENTASI_KONDUSIF');
+
+  const isRjEligible = useMemo(() => {
+    return isEligibleForRestorativeJustice({
+      kategoriKey: complaint.kategori || complaint.jenisKejadian,
+      documentKey,
+    });
+  }, [complaint.kategori, complaint.jenisKejadian, documentKey]);
+
+  const isTkpStrict = useMemo(() => {
+    return requiresStrictTkpGps(locationKey);
+  }, [locationKey]);
+
   if (!isOpen) return null;
 
   const quickPresets = [
@@ -59,8 +85,19 @@ export default function ModalPenyelesaianTugas({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanText = keterangan.trim();
-    if (!cleanText || cleanText.length < 5) {
-      setErrorMsg('Harap ketik keterangan penyelesaian minimal 5 karakter.');
+
+    // 1. Validasi Otoritatif Menggunakan Domain Rules
+    const validation = validateResolutionSubmission({
+      locationKey,
+      documentKey,
+      evidenceCount: capturedPhoto ? 1 : 0,
+      hasPhotoEvidence: Boolean(capturedPhoto),
+      catatan: cleanText,
+      kategoriKey: complaint.kategori || complaint.jenisKejadian,
+    });
+
+    if (!validation.isValid) {
+      setErrorMsg(validation.missingRequirements.join(' '));
       return;
     }
 
@@ -68,12 +105,19 @@ export default function ModalPenyelesaianTugas({
     setErrorMsg(null);
 
     try {
+      const locObj = STANDARD_RESOLUTION_LOCATIONS.find((l) => l.key === locationKey);
+      const docObj = STANDARD_RESOLUTION_DOCUMENTS.find((d) => d.key === documentKey);
+
       const res = await fieldStepAction({
         complaintId: String(complaint.id),
         step: 'COMPLETED',
         officerId: officer.id,
         catatan: cleanText,
         fotoBuktiUrl: capturedPhoto || undefined,
+        resolutionLocationKey: locationKey,
+        resolutionLocationName: locObj?.label || locationKey,
+        resolutionDocumentKey: documentKey,
+        resolutionDocumentName: docObj?.label || documentKey,
         evidencesList: capturedPhoto
           ? [
               {
@@ -94,7 +138,7 @@ export default function ModalPenyelesaianTugas({
       });
 
       if (res?.success) {
-        alert(`✓ Tugas #${complaint.nomorTiket?.replace(/^#+/, '')} berhasil diselesaikan!\nLaporan catatan penanganan telah tersimpan.`);
+        alert(`✓ Tugas #${complaint.nomorTiket?.replace(/^#+/, '')} berhasil diselesaikan!\nLaporan Berita Acara (${docObj?.label || documentKey}) telah tersimpan.`);
         onSuccess();
       } else {
         setErrorMsg(res?.error || 'Gagal menyimpan penyelesaian tugas.');
@@ -183,9 +227,20 @@ export default function ModalPenyelesaianTugas({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Dokumentasi Foto Live Camera Ber-Watermark Otomatis (Fase 5) */}
           <div className="space-y-2">
-            <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
-              <span>📷 Dokumentasi Bukti Lapangan (Live Camera)</span>
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5">
+                <span>📷 Dokumentasi Bukti Lapangan (Live Camera) *</span>
+              </label>
+              {capturedPhoto ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  ✓ Foto Terlampir
+                </span>
+              ) : (
+                <span className="text-[10px] bg-amber-500/10 text-amber-300/80 border border-amber-500/30 px-2 py-0.5 rounded-full font-medium">
+                  Wajib 1 Foto Bukti
+                </span>
+              )}
+            </div>
             <div className="rounded-2xl overflow-hidden border border-amber-500/25 bg-[#080A0F]/80 p-2 sm:p-3">
               <LiveCameraWatermarkCapture
                 personilNama={officer.fullName || 'Petugas Patroli'}
@@ -207,6 +262,22 @@ export default function ModalPenyelesaianTugas({
               />
             </div>
           </div>
+          {/* Pilihan Lokasi & Dokumen Penyelesaian: Reusable ResolutionSelector */}
+          <ResolutionSelector
+            locationKey={locationKey}
+            onLocationChange={(key) => {
+              setLocationKey(key);
+              if (errorMsg) setErrorMsg(null);
+            }}
+            documentKey={documentKey}
+            onDocumentChange={(key) => {
+              setDocumentKey(key);
+              if (errorMsg) setErrorMsg(null);
+            }}
+            isTkpStrict={isTkpStrict}
+            isRjEligible={isRjEligible}
+            kategoriTeks={complaint.jenisKejadian}
+          />
 
           <div>
             <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
@@ -237,9 +308,9 @@ export default function ModalPenyelesaianTugas({
             {/* Panjang Karakter Dipindahkan ke Bawah Textarea Sebelah Kanan */}
             <div className="flex justify-end mt-1.5">
               <span className={`text-[11px] font-mono transition-colors ${
-                keterangan.trim().length >= 5 ? 'text-amber-300/90' : 'text-slate-400'
+                keterangan.trim().length >= 10 ? 'text-amber-300/90' : 'text-slate-400'
               }`}>
-                {keterangan.trim().length} karakter
+                {keterangan.trim().length} / 10 karakter minimum
               </span>
             </div>
           </div>
@@ -263,49 +334,30 @@ export default function ModalPenyelesaianTugas({
             </div>
           </div>
 
-          {/* Error Message */}
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-200 text-xs flex items-center gap-2">
-              <AlertCircle size={16} className="text-rose-400 flex-shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          {/* Reusable TacticalAlert Component */}
+          <TacticalAlert
+            variant="error"
+            message={errorMsg}
+            onClose={() => setErrorMsg(null)}
+          />
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2.5 rounded-xl font-bold text-xs text-slate-300 bg-white/5 hover:bg-white/10 border border-white/10 transition-colors disabled:opacity-50"
-            >
-              Batal
-            </button>
-
-            <button
-              id="btn-selesai-bap"
-              data-testid="btn-selesai-bap"
-              type="submit"
-              disabled={isSubmitting || keterangan.trim().length < 5}
-              className="px-5 py-2.5 rounded-xl font-black text-xs text-slate-900 transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, #ECC473 0%, #D4A346 100%)',
-                boxShadow: '0 4px 14px rgba(212, 163, 70, 0.4)',
-              }}
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                  <span>Menyimpan & Menyelesaikan...</span>
-                </>
-              ) : (
-                <>
-                  <Send size={14} />
-                  <span>Kirim & Selesaikan Tugas ➔</span>
-                </>
-              )}
-            </button>
-          </div>
+          {/* Reusable TacticalModalFooter */}
+          <TacticalModalFooter
+            onCancel={onClose}
+            cancelText="Batal"
+            submitText="Kirim & Selesaikan Tugas ➔"
+            loadingText="Menyimpan & Menyelesaikan..."
+            isSubmitting={isSubmitting}
+            disabled={
+              isSubmitting ||
+              keterangan.trim().length < 10 ||
+              !capturedPhoto ||
+              (documentKey === 'BAP_DAMAI' && !isRjEligible)
+            }
+            submitId="btn-selesai-bap"
+            submitTestId="btn-selesai-bap"
+            variant="gold"
+          />
         </form>
       </div>
     </div>

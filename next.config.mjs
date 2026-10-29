@@ -14,6 +14,15 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: '/:all*(ico|png|jpg|jpeg|svg|mp3|wav|webp)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
+          },
+        ],
+      },
+      {
         source: '/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },

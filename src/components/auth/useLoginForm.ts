@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { loginInternalAction } from '@/app/actions/auth.actions';
+import { getOrCreateClientDeviceId } from '@/lib/device-fingerprint';
 
 export function useLoginForm() {
   const searchParams = useSearchParams();
@@ -14,16 +15,43 @@ export function useLoginForm() {
   const [loading, setLoading] = useState(false);
 
   // Parameter notifikasi dari Middleware / Auto-Logout
-  const alertType = searchParams.get('alert');
+  const rawAlertType = searchParams.get('alert');
+  const [alertType, setAlertType] = useState<string | null>(rawAlertType);
   const alertRole = searchParams.get('role');
   const alertRequired = searchParams.get('required');
 
-  // Bersihkan sessionStorage jika diarahkan karena timeout / logout / ditolak
   useEffect(() => {
-    if (alertType && typeof window !== 'undefined') {
-      sessionStorage.removeItem('simapres_active_user');
+    setAlertType(rawAlertType);
+  }, [rawAlertType]);
+
+  const dismissAlert = () => {
+    setAlertType(null);
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('alert');
+      url.searchParams.delete('role');
+      url.searchParams.delete('required');
+      const cleanUrl = url.pathname + (url.search ? url.search : '');
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  };
+
+  // Otomatis hilangkan alert 'logged_out' setelah 3 detik & bersihkan query URL
+  useEffect(() => {
+    if (alertType === 'logged_out') {
+      const timer = setTimeout(() => {
+        dismissAlert();
+      }, 3000);
+      return () => clearTimeout(timer);
     }
   }, [alertType]);
+
+  // Bersihkan sessionStorage jika diarahkan karena timeout / logout / ditolak
+  useEffect(() => {
+    if (rawAlertType && typeof window !== 'undefined') {
+      sessionStorage.removeItem('simapres_active_user');
+    }
+  }, [rawAlertType]);
 
   // Sapaan hangat dinamis berdasarkan jam lokal
   const dynamicGreeting = useMemo(() => {
@@ -49,7 +77,8 @@ export function useLoginForm() {
     }
 
     setLoading(true);
-    const res = await loginInternalAction(nrp, password);
+    const clientDeviceId = getOrCreateClientDeviceId();
+    const res = await loginInternalAction(nrp, password, clientDeviceId);
     setLoading(false);
 
     if (res.success && res.data) {
@@ -81,5 +110,6 @@ export function useLoginForm() {
     alertRequired,
     dynamicGreeting,
     handleLogin,
+    dismissAlert,
   };
 }

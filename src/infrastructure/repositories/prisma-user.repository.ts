@@ -31,6 +31,7 @@ export class PrismaUserRepository implements IUserRepository {
             stationName: station?.station_name || null,
             stationCode: station?.station_code || null,
             dutyStatus: officer.duty_status || null,
+            deviceId: officer.device_id || null,
           }
         : null,
     });

@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import '@/app/registrasi-unit/registrasi-unit.css';
+import '@/app/console/console.css';
 import { PawasTab } from '../types';
 import { formatIncidentDateTime, formatTimeWib, formatDateTimeWib } from '@/lib/date-utils';
 import TrackingMapModal from '@/components/console/common/TrackingMapModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
 import { formatPhoneNumber } from '@/lib/format-phone';
-import { reverseGeocodeCoords, isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
+import { reverseGeocodeCoords, isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 
 export interface TabValidasiDossierProps {
   activeComplaint: any;

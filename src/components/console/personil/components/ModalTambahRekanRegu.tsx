@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Users, X, Shield, Check, Loader2, Search, Plus } from 'lucide-react';
 import { addCrewPartnerToDispatchAction, getAvailableStationOfficersAction } from '@/app/actions/complaint.actions';
 import type { ComplaintData, OfficerProfile } from '../types';
+import TacticalModalFooter from '@/components/ui/TacticalModalFooter';
+import TacticalAlert from '@/components/ui/TacticalAlert';
 
 interface ModalTambahRekanReguProps {
   isOpen: boolean;
@@ -379,12 +381,11 @@ export default function ModalTambahRekanRegu({
 
         {/* Content Body - Only this section scrolls */}
         <div className="p-4 sm:p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-300 flex items-center gap-2">
-              <span>⚠️</span>
-              <span>{errorMsg}</span>
-            </div>
-          )}
+          <TacticalAlert
+            variant="error"
+            message={errorMsg}
+            onClose={() => setErrorMsg(null)}
+          />
 
           {/* Chips Regu Terpilih (Multi-personnel Badge List) */}
           {selectedOfficers.length > 0 && (
@@ -576,52 +577,28 @@ export default function ModalTambahRekanRegu({
           </div>
         </div>
 
-        {/* Footer Actions - Pinned, 100% Visible & Clickable */}
-        <div
-          className="p-3.5 sm:p-4 border-t flex items-center justify-between gap-3 flex-shrink-0 bg-slate-950/95 backdrop-blur-md sticky bottom-0 z-30 shadow-2xl"
-          style={{
-            borderColor: 'rgba(59, 130, 246, 0.3)',
-          }}
-        >
-          <div className="text-xs text-slate-300">
-            Total Regu: <br className="sm:hidden" />
-            <span className="font-extrabold text-white text-sm sm:text-xs">
-              {selectedOfficers.length + (customName.trim() ? 1 : 0)} Personil
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onClose}
-              type="button"
-              disabled={submitting}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-colors"
-            >
-              Batal
-            </button>
-
-            <button
-              onClick={handleSavePartner}
-              type="button"
-              disabled={submitting || (selectedOfficers.length === 0 && !customName.trim())}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-xs font-black text-white shadow-lg shadow-blue-500/30 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 cursor-pointer"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Menyimpan...</span>
-                </>
-              ) : (
-                <>
-                  <Users size={16} />
-                  <span>
-                    Simpan {selectedOfficers.length > 0 ? `(${selectedOfficers.length})` : ''}
-                  </span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        {/* Footer Actions: Reusable TacticalModalFooter */}
+        <TacticalModalFooter
+          onCancel={onClose}
+          cancelText="Batal"
+          submitText={`Simpan ${selectedOfficers.length > 0 ? `(${selectedOfficers.length})` : ''}`}
+          loadingText="Menyimpan..."
+          isSubmitting={submitting}
+          disabled={submitting || (selectedOfficers.length === 0 && !customName.trim())}
+          submitType="button"
+          onSubmit={handleSavePartner}
+          submitIcon={<Users size={16} />}
+          variant="blue"
+          className="p-3.5 sm:p-4 bg-slate-950/95 backdrop-blur-md sticky bottom-0 z-30 shadow-2xl !border-blue-500/30"
+          extraLeft={
+            <div className="text-xs text-slate-300">
+              Total Regu: <br className="sm:hidden" />
+              <span className="font-extrabold text-white text-sm sm:text-xs">
+                {selectedOfficers.length + (customName.trim() ? 1 : 0)} Personil
+              </span>
+            </div>
+          }
+        />
       </div>
     </div>
   );

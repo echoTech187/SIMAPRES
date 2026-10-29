@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import '@/app/registrasi-unit/registrasi-unit.css';
+import '@/app/console/console.css';
 import { formatIncidentDateTime, formatTimeWib, formatDateTimeWib } from '@/lib/date-utils';
 import TrackingMapModal from '@/components/console/common/TrackingMapModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';

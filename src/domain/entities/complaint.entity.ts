@@ -184,6 +184,10 @@ export class ComplaintEntity {
     return this.props.status;
   }
 
+  get tahap(): number | null | undefined {
+    return this.props.tahap;
+  }
+
   get assignedOfficerId(): bigint | null | undefined {
     return this.props.assignedOfficerId;
   }

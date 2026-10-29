@@ -90,7 +90,7 @@ export class CalculateCadDispatchUseCase {
         nama: officer.jabatan,
         pangkat: officer.rankPangkat,
         satuan: primarySatuan.toUpperCase(),
-        vehicle: officer.assignedPatrolVehicle || 'Patroli Presisi',
+        vehicle: officer.assignedPatrolVehicle ? officer.assignedPatrolVehicle : 'Tanpa Kendaraan Dinas',
         jarakKm,
         etaMenit,
         isSlaAman: etaMenit <= 15,

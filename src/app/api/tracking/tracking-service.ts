@@ -1,5 +1,5 @@
 import { prisma } from '@/infrastructure/db/prisma.client';
-import { cacheGetOrLoad } from '@/lib/app-cache';
+import { cacheGetOrLoad } from '@/infrastructure/cache/app-cache';
 import type { ChatMessageItem } from '@/types/chat.types';
 
 export function serializeBigInt<T>(obj: T): T {

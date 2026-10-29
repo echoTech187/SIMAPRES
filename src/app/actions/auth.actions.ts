@@ -5,7 +5,7 @@ import { prisma } from '@/infrastructure/db/prisma.client';
 import bcrypt from 'bcryptjs';
 // revalidatePath sengaja di-skip di sini agar mutasi akun & unit tidak memicu reload halaman penuh di browser konsol
 const revalidatePath = (_path: string) => {};
-import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
+import { cacheGet, cacheSet, cacheInvalidate } from '@/infrastructure/cache/app-cache';
 
 function serializeBigInt<T>(obj: T): T {
   return JSON.parse(
@@ -23,16 +23,31 @@ import {
   SessionPayload,
   SESSION_MAX_AGE_SECONDS,
 } from '@/lib/session';
-import { logUserActivity } from '@/lib/activity-logger';
+import { logUserActivity } from '@/infrastructure/logging/activity-logger';
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 
-export async function loginInternalAction(nrp: string, kataSandi: string) {
+export async function loginInternalAction(nrp: string, kataSandi: string, clientDeviceId?: string) {
   try {
     const loginUseCase = UseCaseFactory.getLoginUseCase();
-    const loginResult = await loginUseCase.execute({ nrp, kataSandi });
+    const loginResult = await loginUseCase.execute({ nrp, kataSandi, clientDeviceId });
 
     if (!loginResult.success || !loginResult.data) {
+      // Audit log untuk penolakan akses terkait keamanan perangkat
+      if (loginResult.error?.includes('Perangkat') || loginResult.error?.includes('Device ID')) {
+        try {
+          await logUserActivity({
+            userId: '',
+            identifier: nrp,
+            userName: nrp,
+            role: 'PERSONIL',
+            activityType: 'LOGIN_BLOCKED',
+            description: `Akses ditolak: ${loginResult.error}`,
+            endpoint: '/login',
+          });
+        } catch (_) {}
+      }
+
       return {
         success: false,
         error: loginResult.error || 'Terjadi kesalahan sistem login.',
@@ -56,6 +71,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
       stationName,
       stationCode,
       rawOfficer,
+      deviceId,
     } = loginResult.data;
 
     // Terbitkan Sesi Terenkripsi ke HTTP-Only Cookies (Keamanan Ganda & Standby Timeout 1 Jam)
@@ -73,6 +89,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
       stationId: stationId || '',
       stationName: stationName || '',
       stationCode: stationCode || '',
+      deviceId: deviceId || undefined,
       issuedAt: now,
       expiresAt: now + SESSION_MAX_AGE_SECONDS * 1000,
       lastActiveAt: now,
@@ -109,6 +126,7 @@ export async function loginInternalAction(nrp: string, kataSandi: string) {
         officer: rawOfficer ? serializeBigInt(rawOfficer) : null,
         registeredUnit: null,
         targetRoute,
+        deviceId: deviceId || null,
       },
     };
   } catch (error: any) {
@@ -150,10 +168,48 @@ export async function logoutAction(reason = 'USER_MANUAL') {
   }
 }
 
+/**
+ * Pengecekan status keaktifan sesi (heartbeat) ringan tanpa query berat ke database.
+ * Digunakan oleh client-side session guard untuk mendeteksi timeout secara instan.
+ */
+export async function checkSessionAliveAction(): Promise<{
+  valid: boolean;
+  unauthenticated?: boolean;
+  timeLeftSeconds?: number;
+  error?: string;
+}> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return { valid: false, unauthenticated: true, error: 'NO_SESSION' };
+    }
+
+    const now = Date.now();
+    const isTokenExpired = session.expiresAt && now > session.expiresAt;
+    const isIdleTimeout = session.lastActiveAt && (now - session.lastActiveAt > SESSION_MAX_AGE_SECONDS * 1000);
+
+    if (isTokenExpired || isIdleTimeout) {
+      await deleteSessionCookie();
+      return { valid: false, unauthenticated: true, error: isIdleTimeout ? 'IDLE_TIMEOUT' : 'EXPIRED' };
+    }
+
+    // Perpanjang tanda keaktifan sesi
+    await touchSession();
+
+    const timeLeft = session.expiresAt
+      ? Math.max(0, Math.floor((session.expiresAt - now) / 1000))
+      : SESSION_MAX_AGE_SECONDS;
+
+    return { valid: true, timeLeftSeconds: timeLeft };
+  } catch (err: any) {
+    return { valid: false, unauthenticated: true, error: err.message || 'SESSION_CHECK_ERROR' };
+  }
+}
+
 export async function getCurrentSessionAction() {
   try {
     const session = await getSession();
-    if (!session) return { success: false, error: 'Sesi tidak ditemukan.' };
+    if (!session) return { success: false, error: 'Sesi tidak ditemukan.', unauthenticated: true };
 
     try {
       const user = await prisma.user.findUnique({
@@ -747,8 +803,21 @@ export async function getOfficerProfileByNrpAction(nrp: string) {
 
     const assignedStation = officerProfile?.station || user?.station || null;
 
+    const officerId = officerProfile?.id
+      ? officerProfile.id.toString()
+      : user?.id
+      ? user.id.toString()
+      : '';
+    const userId = user?.id
+      ? user.id.toString()
+      : officerProfile?.user_id
+      ? officerProfile.user_id.toString()
+      : '';
+
     const data = {
-      id: user?.id ? user.id.toString() : officerProfile?.id ? officerProfile.id.toString() : '',
+      id: officerId,
+      officerId,
+      userId,
       nrp: clean,
       fullName: user?.full_name || clean,
       pangkat: officerProfile?.rank_pangkat || '',

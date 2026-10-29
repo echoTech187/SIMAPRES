@@ -2,10 +2,15 @@
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entity';
+import { getComplaintActionPermissions, calculateComplaintSlaTargetMinutes } from '@/domain/rules/complaint.rules';
+import { ComplaintNotificationDispatcher } from '@/application/services/complaint-notification.service';
 import { revalidatePath } from 'next/cache';
-import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/app-cache';
-import { reverseGeocodeCoords, isGenericOrCoordinateAddress } from '@/lib/reverse-geocode';
+import { cacheGet, cacheSet, cacheInvalidate } from '@/infrastructure/cache/app-cache';
+import { reverseGeocodeCoords, isGenericOrCoordinateAddress } from '@/infrastructure/services/reverse-geocode.service';
 import { requireRole } from '@/lib/session';
+import { broadcastConsoleEvent } from '@/lib/events/console-events';
+import { prisma } from '@/infrastructure/db/prisma.client';
+import { getCrossJurisdictionTimeoutMinutes } from '@/lib/escalation-config';
 
 export async function invalidateComplaintCaches() {
   cacheInvalidate('antrean_pawas');
@@ -15,6 +20,10 @@ export async function invalidateComplaintCaches() {
   cacheInvalidate('pawas_unified_data');
   cacheInvalidate('officer_complaints');
   cacheInvalidate('tracking_');
+
+  broadcastConsoleEvent({
+    type: 'COMPLAINT_UPDATED',
+  });
 }
 
 function safeRevalidatePath(path?: string) {
@@ -165,42 +174,23 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
     const token = generateTrackingToken(result.nomorTiket);
     const serialized = serializeBigInt(result.toJSON());
 
-    // Otomatis kirim notifikasi WhatsApp resmi ke nomor pelapor (non-blocking)
-    if (cleanHp && cleanHp !== '-') {
-      import('@/infrastructure/services/whatsapp.service')
-        .then(({ WhatsAppService }) => {
-          return WhatsAppService.sendTicketNotification({
-            nomorTiket: result.nomorTiket,
-            pelaporNama: cleanNama,
-            pelaporHp: cleanHp,
-            jenisKejadian: cleanJenis,
-            tkpAlamatTeks: cleanAlamat,
-          });
-        })
-        .then(async (sendRes) => {
-          if (sendRes.success && result.id) {
-            const { prisma } = await import('@/infrastructure/db/prisma.client');
-            await prisma.complaintAuditLog.create({
-              data: {
-                complaint_id: result.id,
-                actor_name: 'Sistem Gateway WhatsApp',
-                actor_role: 'SYSTEM',
-                action: 'WHATSAPP_NOTIFICATION',
-                notes: `Notifikasi registrasi tiket dan tautan radar pelacakan dikirim ke ${cleanHp}. Status: ${sendRes.statusText}`,
-              },
-            }).catch(() => {});
-          }
-        })
-        .catch((err) => {
-          console.warn('[WhatsApp] Gagal mengirim notifikasi background:', err);
-        });
-    }
+    // Otomatis kirim notifikasi WhatsApp resmi ke nomor pelapor via Domain Policy (non-blocking)
+    ComplaintNotificationDispatcher.dispatchAsync(result.id, 'TICKET_CREATED', {
+      nomorTiket: result.nomorTiket,
+      pelaporNama: cleanNama,
+      pelaporHp: cleanHp,
+      jenisKejadian: cleanJenis,
+      tkpAlamatTeks: cleanAlamat,
+    });
 
     return { success: true, data: { ...serialized, trackingToken: token } };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal membuat pengaduan.' };
   }
 }
+
+// Cache in-memory server-side untuk detail dinas SPKT per kantor polisi (TTL 3 menit)
+const spktDutyServerCache = new Map<number, { data: any; expiry: number }>();
 
 /**
  * Helper: Mengambil rincian lengkap petugas piket SPKT & personil dinas hari ini pada Mako tertentu
@@ -212,6 +202,11 @@ export async function getActiveSpktDutyDetails(stationId: number): Promise<{
   dutyOfficers: Array<{ id: string; nrp: string; name: string; rank: string; phone?: string }>;
 }> {
   try {
+    const cached = spktDutyServerCache.get(stationId);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.data;
+    }
+
     const { prisma } = await import('@/infrastructure/db/prisma.client');
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -280,12 +275,19 @@ export async function getActiveSpktDutyDetails(stationId: number): Promise<{
       }
     }
 
-    return {
+    const result = {
       kaSpktNama,
       kaSpktPhone,
       dutyOfficerNames: dutyOfficers.map((o) => `${o.rank} ${o.name}`.trim()),
       dutyOfficers,
     };
+
+    spktDutyServerCache.set(stationId, {
+      data: result,
+      expiry: Date.now() + 3 * 60 * 1000, // 3 menit TTL
+    });
+
+    return result;
   } catch (err) {
     return {
       kaSpktNama: 'Petugas Piket SPKT',
@@ -462,7 +464,7 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
 
     const isOutsideJurisdiction = boundaryCheck.isOutsideJurisdiction;
 
-    const { resolveSektorWilayah } = await import('@/lib/reverse-geocode');
+    const { resolveSektorWilayah } = await import('@/infrastructure/services/reverse-geocode.service');
     const resolvedSektor = resolveSektorWilayah(input.tkpAlamatTeks);
     const resolvedLower = resolvedSektor.toLowerCase();
 
@@ -1205,11 +1207,28 @@ export async function fieldStepAction(input: {
   }
 
   try {
+    let resolvedOfficerId = BigInt(input.officerId);
+    try {
+      const po = await prisma.policeOfficer.findFirst({
+        where: {
+          OR: [
+            { id: resolvedOfficerId },
+            { user_id: resolvedOfficerId },
+            ...(auth.user?.identifier ? [{ nrp: auth.user.identifier }] : []),
+          ],
+        },
+        select: { id: true },
+      });
+      if (po) {
+        resolvedOfficerId = po.id;
+      }
+    } catch (_) {}
+
     const useCase = UseCaseFactory.getFieldStepActionUseCase();
     const result = await useCase.execute({
       complaintId: BigInt(input.complaintId),
       step: input.step,
-      officerId: BigInt(input.officerId),
+      officerId: resolvedOfficerId,
       catatan: input.catatan,
       fotoBuktiUrl: input.fotoBuktiUrl,
       evidencesList: input.evidencesList,
@@ -1398,10 +1417,29 @@ export async function updateComplaintStatusAction(input: {
     const complaint = await repo.findById(BigInt(input.complaintId));
     if (!complaint) return { success: false, error: 'Pengaduan tidak ditemukan.' };
 
+    // Evaluasi izin aksi menggunakan Domain Rules murni
+    const permissions = getComplaintActionPermissions({
+      status: complaint.status,
+      tahap: complaint.tahap,
+      role: auth.user.role,
+    });
+
     if (input.status.toUpperCase() === 'SELESAI') {
+      if (!permissions.canApproveResolution && auth.user.role !== 'SUPERADMIN') {
+        return {
+          success: false,
+          error: `Pengesahan penyelesaian kasus ditolak: Tiket berstatus ${complaint.status} belum dapat disahkan oleh Pawas.`,
+        };
+      }
       complaint.selesaikanKasus(input.catatan);
     }
     if (input.status.toUpperCase() === 'DITOLAK') {
+      if (!permissions.canRejectTicket && !permissions.canRejectResolution && auth.user.role !== 'SUPERADMIN') {
+        return {
+          success: false,
+          error: `Penolakan tiket tidak diizinkan: Tiket berstatus ${complaint.status} tidak dapat ditolak.`,
+        };
+      }
       (complaint as any).props.status = 'DITOLAK';
       (complaint as any).props.alasanTolak = input.catatan || 'Laporan ditolak oleh Pawas';
 
@@ -1769,7 +1807,7 @@ export async function transferComplaintCrossJurisdictionAction(input: {
     const previousStationName = comp.station?.station_name || 'Polres Pekalongan';
     const targetDuty = await getActiveSpktDutyDetails(targetStation.id);
     const nowTime = new Date();
-    const deadlineMinutes = (comp.urgensi || 'DARURAT').toUpperCase() === 'DARURAT' ? 3 : 5;
+    const deadlineMinutes = getCrossJurisdictionTimeoutMinutes();
     const expiredAt = new Date(nowTime.getTime() + deadlineMinutes * 60 * 1000);
 
     const dutyPiketText = `Ka SPKT: ${targetDuty.kaSpktNama}${targetDuty.dutyOfficerNames.length > 0 ? ` | Anggota: ${targetDuty.dutyOfficerNames.join(', ')}` : ''}`;
@@ -1823,7 +1861,7 @@ export async function transferComplaintCrossJurisdictionAction(input: {
 
     // Invalidate micro-cache pelacakan agar tampilan warga langsung refresh seketika
     try {
-      const { cacheInvalidate } = await import('@/lib/app-cache');
+      const { cacheInvalidate } = await import('@/infrastructure/cache/app-cache');
       const cleanTiket = (comp.nomor_tiket || '').replace(/^#+/, '').trim();
       if (cleanTiket) {
         cacheInvalidate(`tracking_${cleanTiket}`);
@@ -1982,7 +2020,7 @@ export async function acceptAndBroadcastCrossJurisdictionAction(input: {
     });
 
     try {
-      const { cacheInvalidate } = await import('@/lib/app-cache');
+      const { cacheInvalidate } = await import('@/infrastructure/cache/app-cache');
       cacheInvalidate(`antrean_pawas_${targetStationId}`);
       cacheInvalidate('antrean_pawas_60001');
       cacheInvalidate('antrean_pawas_all');

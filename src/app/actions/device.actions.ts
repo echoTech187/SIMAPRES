@@ -3,7 +3,7 @@
 // SIMAPRES 110 - Device Server Actions
 import { prisma } from '@/infrastructure/db/prisma.client';
 
-import { cacheInvalidate } from '@/lib/app-cache';
+import { cacheInvalidate } from '@/infrastructure/cache/app-cache';
 
 // Helper serialize BigInt
 function serializeBigInt<T>(obj: T): T {

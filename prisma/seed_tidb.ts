@@ -1,6 +1,6 @@
-import { prisma } from './infrastructure/db/prisma.client';
+import { prisma } from '../src/infrastructure/db/prisma.client';
 import bcrypt from 'bcryptjs';
-import { SUBCATEGORIES_DATA } from '../prisma/seed_subcategories';
+import { SUBCATEGORIES_DATA } from './seed_subcategories';
 
 async function seed() {
   console.log('🌱 Seeding Comprehensive Master Data & Locations to TiDB Cloud...');

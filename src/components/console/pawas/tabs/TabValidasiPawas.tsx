@@ -17,7 +17,7 @@ import {
 import { PawasTab } from '../types';
 import { TabValidasiDossier } from './TabValidasiDossier';
 import { formatPhoneNumber } from '@/lib/format-phone';
-import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/lib/reverse-geocode';
+import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 
 export interface TabValidasiPawasProps {
   userProfile: any;

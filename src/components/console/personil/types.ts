@@ -2,6 +2,8 @@ export type PersonilTab = 'beranda' | 'peta' | 'profil';
 
 export interface OfficerProfile {
   id: string;
+  officerId?: string;
+  userId?: string;
   nrp: string;
   fullName: string;
   pangkat: string;

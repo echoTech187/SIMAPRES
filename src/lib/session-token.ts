@@ -15,6 +15,7 @@ export interface SessionPayload {
   stationId?: string;
   stationName?: string;
   stationCode?: string;
+  deviceId?: string;
   issuedAt: number; // Unix ms
   expiresAt: number; // Unix ms (issuedAt + 3600_000)
   lastActiveAt: number; // Unix ms

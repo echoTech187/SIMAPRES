@@ -1,5 +1,7 @@
 import { IComplaintRepository } from '@/domain/repositories/complaint.repository.interface';
 import { ComplaintEntity } from '@/domain/entities/complaint.entity';
+import { getComplaintActionPermissions } from '@/domain/rules/complaint.rules';
+import { validateResolutionSubmission } from '@/domain/rules/resolution.rules';
 
 export type DispatchStepKey =
   | 'DISPATCHED'
@@ -46,14 +48,28 @@ export class FieldStepActionUseCase {
       (complaint as any).props.assignedOfficerId = input.officerId;
     }
 
+    // 1. Evaluasi izin aksi menggunakan Domain Rules murni
+    const permissions = getComplaintActionPermissions({
+      status: complaint.status,
+      tahap: complaint.tahap,
+      role: 'PERSONIL',
+      isAssignedOfficer: true,
+    });
+
     switch (input.step) {
       case 'DISPATCHED':
         // Persiapan penugasan personil
         break;
       case 'DEPARTED':
+        if (!permissions.canStartMeluncur) {
+          throw new Error(`Aksi Meluncur ditolak oleh aturan domain: Status tiket (${complaint.status}) tahap ${complaint.tahap || 0} tidak valid.`);
+        }
         complaint.personilMeluncur(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;
       case 'ARRIVED':
+        if (!permissions.canArriveTkp) {
+          throw new Error(`Aksi Tiba di TKP ditolak oleh aturan domain: Status tiket (${complaint.status}) tahap ${complaint.tahap || 0} tidak valid.`);
+        }
         complaint.tibaDiTkp(
             input.catatan,
             input.fotoBuktiUrl,
@@ -66,7 +82,27 @@ export class FieldStepActionUseCase {
             input.evidencesList
         );
         break;
-      case 'REPORT_SUBMITTED':
+      case 'REPORT_SUBMITTED': {
+        if (!permissions.canSubmitTindakan && !permissions.canRequestPawasApproval) {
+          throw new Error(`Aksi Pelaporan Tindakan ditolak oleh aturan domain: Status tiket (${complaint.status}) tidak valid.`);
+        }
+
+        // 2. Validasi kelayakan Berita Acara & Restorative Justice jika melampirkan berkas penyelesaian
+        if (input.resolutionLocationKey || input.resolutionDocumentKey) {
+          const resValidation = validateResolutionSubmission({
+            locationKey: input.resolutionLocationKey,
+            documentKey: input.resolutionDocumentKey,
+            hasPhotoEvidence: Boolean(input.fotoBuktiUrl),
+            evidenceCount: input.evidencesList?.length || 0,
+            catatan: input.catatan,
+            kategoriKey: complaint.kategoriKey,
+          });
+
+          if (!resValidation.isValid) {
+            throw new Error(`Validasi Berita Acara Gagal: ${resValidation.missingRequirements.join(' ')}`);
+          }
+        }
+
         complaint.tindakanTkp(
             input.catatan,
             input.fotoBuktiUrl,
@@ -79,6 +115,7 @@ export class FieldStepActionUseCase {
             input.evidencesList
         );
         break;
+      }
       case 'COMPLETED':
         complaint.selesaikanKasusLangsung(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
         break;

@@ -129,7 +129,7 @@ export default function PersonilChatDrawer({
       const res = await sendTicketChatMessageAction({
         complaintIdOrTiket: ticketId,
         senderRole: 'PERSONIL',
-        senderName: officer.fullName ,
+        senderName: officer.fullName || 'Petugas Lapangan',
         text: textToSend,
         officerNrp: officer.nrp,
       });
@@ -300,7 +300,9 @@ export default function PersonilChatDrawer({
                 >
                   <div className="flex items-center gap-1.5 mb-1 px-1">
                     <span className="text-[10px] font-bold text-slate-400">
-                      {isOfficer ? 'Personil Lapangan' : msg.senderName || 'Pelapor'}
+                      {isOfficer
+                        ? (msg.senderName || officer.fullName || 'Petugas')
+                        : (msg.senderName || 'Pelapor')}
                     </span>
                     <span className="text-[9px] text-slate-500 font-mono">
                       {msg.timestamp

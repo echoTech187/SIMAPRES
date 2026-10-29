@@ -30,7 +30,7 @@ import {
   Phone,
   Star,
 } from 'lucide-react';
-import KpiGaugeChart from '@/components/KpiGaugeChart';
+import KpiGaugeChart from '@/components/ui/KpiGaugeChart';
 import { getOfficerInitials, hasOfficerAcceptedTask, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile } from '../types';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';

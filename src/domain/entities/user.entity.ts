@@ -17,6 +17,7 @@ export interface OfficerProfileSummary {
   stationName?: string | null;
   stationCode?: string | null;
   dutyStatus?: string | null;
+  deviceId?: string | null;
 }
 
 export interface UserProps {

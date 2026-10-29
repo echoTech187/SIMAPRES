@@ -20,10 +20,11 @@ import {
 } from 'lucide-react';
 import { getDistanceFromLatLonInMeters, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile, DispatchStepAction } from '../types';
-import { getBestRoadRoute, getRealRoadPath } from '@/components/SimapresGoogleMap';
+import { getBestRoadRoute, getRealRoadPath } from '@/components/maps/SimapresGoogleMap';
 import { updateDeviceTelemetryAction } from '@/app/actions/auth.actions';
+import { getComplaintActionPermissions } from '@/domain/rules/complaint.rules';
 
-const SimapresLeafletMap = dynamic(() => import('@/components/SimapresLeafletMap'), {
+const SimapresLeafletMap = dynamic(() => import('@/components/maps/SimapresLeafletMap'), {
   ssr: false,
   loading: () => (
     <div className="w-full h-full min-h-[500px] bg-[#0E1017] flex items-center justify-center text-amber-300 font-bold">
@@ -161,14 +162,10 @@ export default function TabMapsPersonil({
     return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`;
   }, [tkpCoords, effectiveGps, officer]);
 
-  // 4. Deteksi Tahap Tugas (Workflow Lifecycle Presisi berbasis MasterDispatchStatus):
-  // - DISPATCHED: Persiapan / Berangkat
-  // - DEPARTED: Meluncur ke TKP
-  // - ARRIVED / REPORT_SUBMITTED: Tiba di TKP & Penanganan
-  const complaintStage = useMemo<'persiapan' | 'meluncur' | 'tiba'>(() => {
-    if (!isMissionActive) return 'persiapan';
+  // 4. Deteksi Tahap Tugas Menggunakan Domain Rules Murni (Single Source of Truth)
+  const actionPermissions = useMemo(() => {
+    if (!activeComplaint) return null;
 
-    // Cek status pergerakan personil langsung dari relasi MasterDispatchStatus
     const officerDispatch = activeComplaint?.dispatches?.find(
       (d: any) =>
         (d.officer_id && (String(d.officer_id) === String(officer.id) || d.officer?.nrp === officer.nrp)) ||
@@ -177,43 +174,32 @@ export default function TabMapsPersonil({
 
     const dispatchStatus = String(officerDispatch?.dispatch_status || officerDispatch?.dispatchStatus || '').toUpperCase();
 
-    // 1. Tiba di TKP (ARRIVED / REPORT_SUBMITTED / COMPLETED / responTibaTkpAt)
-    if (
-      dispatchStatus === 'ARRIVED' ||
-      dispatchStatus === 'REPORT_SUBMITTED' ||
-      dispatchStatus === 'COMPLETED' ||
-      Boolean(officerDispatch?.arrived_at) ||
-      Boolean(activeComplaint?.responTibaTkpAt) ||
-      Boolean(activeComplaint?.waktuTiba) ||
-      Number(activeComplaint?.tahap) >= 4 ||
-      activeComplaint?.status === 'MENUNGGU_PENGESAHAN'
-    ) {
-      return 'tiba';
-    }
+    return getComplaintActionPermissions({
+      status: activeComplaint.status,
+      tahap: activeComplaint.tahap,
+      role: 'PERSONIL',
+      isAssignedOfficer: true,
+      dispatchStatus: dispatchStatus || (
+        activeComplaint.responTibaTkpAt || activeComplaint.waktuTiba
+          ? 'ARRIVED'
+          : activeComplaint.waktuMeluncur || activeComplaint.responMeluncurAt
+          ? 'DEPARTED'
+          : 'DISPATCHED'
+      ),
+    });
+  }, [activeComplaint, officer.id, officer.nrp]);
 
-    // 2. Jika status dispatch personil adalah DISPATCHED (dan belum ada departed_at riil),
-    // maka personel MASIH DALAM PERSIAPAN dan BELUM KLIK MELUNCUR!
-    if (
-      dispatchStatus === 'DISPATCHED' &&
-      !officerDispatch?.departed_at &&
-      !activeComplaint?.waktuMeluncur
-    ) {
-      return 'persiapan';
-    }
+  const complaintStage = useMemo<'persiapan' | 'meluncur' | 'tiba'>(() => {
+    if (!isMissionActive || !actionPermissions) return 'persiapan';
 
-    // 3. Meluncur ke TKP (Hanya jika status DEPARTED atau memiliki departed_at / waktuMeluncur riil)
-    if (
-      dispatchStatus === 'DEPARTED' ||
-      Boolean(officerDispatch?.departed_at) ||
-      Boolean(activeComplaint?.waktuMeluncur) ||
-      Boolean(activeComplaint?.responMeluncurAt)
-    ) {
+    if (actionPermissions.canArriveTkp) {
       return 'meluncur';
     }
-
-    // 4. Default awal jika belum berangkat
+    if (actionPermissions.canSubmitTindakan || actionPermissions.canRequestPawasApproval) {
+      return 'tiba';
+    }
     return 'persiapan';
-  }, [isMissionActive, activeComplaint, officer.id, officer.nrp]);
+  }, [isMissionActive, actionPermissions]);
 
   // Master Dispatch Status Dictionary dari database MySQL (key -> { label, badge_color, badge_bg, badge_border })
   const dispatchStatusMap = useMemo(() => {
@@ -348,19 +334,19 @@ const EMPTY_ARRAY: any[] = [];
     setTouchStartY(null);
   };
 
-  // Eksekusi Tombol Utama Sesuai Workflow Sekuensial MasterDispatchStatus
+  // Eksekusi Tombol Utama Sesuai Workflow Sekuensial Berbasis Domain Rules
   const handleMainActionClick = async () => {
-    if (!activeComplaint || isUpdatingStep) return;
+    if (!activeComplaint || isUpdatingStep || !actionPermissions) return;
 
-    if (complaintStage === 'persiapan') {
+    if (actionPermissions.canStartMeluncur) {
       // Tahap 1: Personel Berangkat ke TKP (MasterDispatchStatus: DEPARTED)
       await onUpdateStep('DEPARTED');
-    } else if (complaintStage === 'meluncur') {
+    } else if (actionPermissions.canArriveTkp) {
       // Tahap 2: Konfirmasi Tiba di Lokasi (MasterDispatchStatus: ARRIVED)
       if (!isWithin50Meters) return;
       await onUpdateStep('ARRIVED');
-    } else if (complaintStage === 'tiba') {
-      // Tahap 3: Selesaikan Penanganan Tugas di Lapangan
+    } else if (actionPermissions.canSubmitTindakan || actionPermissions.canRequestPawasApproval) {
+      // Tahap 3: Selesaikan Penanganan Tugas di Lapangan / BAP
       onOpenWizard(activeComplaint);
     }
   };
@@ -962,7 +948,11 @@ const EMPTY_ARRAY: any[] = [];
                   type="button"
                   disabled={
                     isUpdatingStep ||
-                    (complaintStage === 'meluncur' && !isWithin50Meters)
+                    (complaintStage === 'meluncur' && !isWithin50Meters) ||
+                    (!actionPermissions?.canStartMeluncur &&
+                      !actionPermissions?.canArriveTkp &&
+                      !actionPermissions?.canSubmitTindakan &&
+                      !actionPermissions?.canRequestPawasApproval)
                   }
                   onClick={handleMainActionClick}
                   className="flex-1 px-4 sm:px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"

@@ -32,6 +32,11 @@ interface TabBukuPintarSopProps {
   initialCallerName?: string;
 }
 
+// Module-level memory cache so navigating across tabs never re-fetches FAQ items from server
+let cachedFaqItems: KnowledgeFaqItem[] | null = null;
+let cachedFaqCategories: { key: string; label: string; icon: string; count?: number }[] | null = null;
+let isFaqFetching = false;
+
 export default function TabBukuPintarSop({
   switchTab,
   userProfile,
@@ -57,29 +62,40 @@ export default function TabBukuPintarSop({
     if (initialCallerName) setWaRecipientName(initialCallerName);
   }, [initialCallerPhone, initialCallerName]);
 
-  const [dbItems, setDbItems] = useState<KnowledgeFaqItem[]>([]);
-  const [dbCategories, setDbCategories] = useState<{ key: string; label: string; icon: string; count?: number }[]>([]);
-  const [isLoadingDb, setIsLoadingDb] = useState(true);
+  const [dbItems, setDbItems] = useState<KnowledgeFaqItem[]>(() => cachedFaqItems || []);
+  const [dbCategories, setDbCategories] = useState<{ key: string; label: string; icon: string; count?: number }[]>(() => cachedFaqCategories || []);
+  const [isLoadingDb, setIsLoadingDb] = useState(() => !cachedFaqItems);
 
-  const fetchKnowledge = React.useCallback(async () => {
+  const fetchKnowledge = React.useCallback(async (force = false) => {
+    if (cachedFaqItems && !force) {
+      setIsLoadingDb(false);
+      return;
+    }
+    if (isFaqFetching) return;
+    isFaqFetching = true;
     setIsLoadingDb(true);
     try {
       const res = await getKnowledgeBaseItemsAction();
       if (res.success && Array.isArray(res.data)) {
+        cachedFaqItems = res.data;
         setDbItems(res.data);
         if (Array.isArray(res.categories)) {
+          cachedFaqCategories = res.categories;
           setDbCategories(res.categories);
         }
       }
     } catch (e) {
       console.error('Gagal memuat knowledge base dari database:', e);
     } finally {
+      isFaqFetching = false;
       setIsLoadingDb(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchKnowledge();
+    if (!cachedFaqItems) {
+      fetchKnowledge();
+    }
   }, [fetchKnowledge]);
 
   // Categories list (Dinamis dari Master Database master_knowledge_faq_categories)

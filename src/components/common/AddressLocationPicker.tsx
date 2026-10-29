@@ -6,9 +6,9 @@ import dynamic from 'next/dynamic';
 import {
   searchIndonesianLocations,
   type LocationSuggestionItem,
-} from '@/lib/indonesian-location-search';
+} from '@/infrastructure/services/indonesian-location-search.service';
 
-const MiniMapPicker = dynamic(() => import('@/components/MiniMapPicker'), {
+const MiniMapPicker = dynamic(() => import('@/components/maps/MiniMapPicker'), {
   ssr: false,
   loading: () => (
     <div

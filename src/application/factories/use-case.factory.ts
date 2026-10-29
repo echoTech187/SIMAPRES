@@ -12,6 +12,10 @@ import { CreateLogbookEntryUseCase } from '../use-cases/logbook/create-logbook-e
 import { ManageHotspotsUseCase } from '../use-cases/hotspots/manage-hotspots.use-case';
 import { CalculateCadDispatchUseCase } from '../use-cases/cad/calculate-cad-dispatch.use-case';
 import { LoginUseCase } from '../use-cases/auth/login.use-case';
+import { GetPawasDashboardUseCase } from '../use-cases/pawas/get-pawas-dashboard.use-case';
+import { GetPawasMapUseCase } from '../use-cases/pawas/get-pawas-map.use-case';
+import { GetPawasAnalyticsUseCase } from '../use-cases/pawas/get-pawas-analytics.use-case';
+import { GetPawasLogbookUseCase } from '../use-cases/pawas/get-pawas-logbook.use-case';
 
 // Singleton Repositories
 const complaintRepo = new PrismaComplaintRepository();
@@ -51,6 +55,22 @@ export class UseCaseFactory {
 
   static getCalculateCadDispatchUseCase(): CalculateCadDispatchUseCase {
     return new CalculateCadDispatchUseCase(officerRepo);
+  }
+
+  static getPawasDashboardUseCase(): GetPawasDashboardUseCase {
+    return new GetPawasDashboardUseCase(complaintRepo);
+  }
+
+  static getPawasMapUseCase(): GetPawasMapUseCase {
+    return new GetPawasMapUseCase(hotspotRepo);
+  }
+
+  static getPawasAnalyticsUseCase(): GetPawasAnalyticsUseCase {
+    return new GetPawasAnalyticsUseCase(complaintRepo);
+  }
+
+  static getPawasLogbookUseCase(): GetPawasLogbookUseCase {
+    return new GetPawasLogbookUseCase(logbookRepo);
   }
 
   // Direct repo access for queries
