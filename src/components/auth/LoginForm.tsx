@@ -23,6 +23,7 @@ export default function LoginForm() {
           alertRequired={form.alertRequired}
           errorMsg={form.errorMsg}
           onDismissAlert={form.dismissAlert}
+          onDismissError={form.clearError}
         />
 
         {/* Formulir Input Kredensial & Tombol Masuk */}

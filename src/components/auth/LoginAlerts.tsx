@@ -9,6 +9,7 @@ interface LoginAlertsProps {
   alertRequired?: string | null;
   errorMsg?: string | null;
   onDismissAlert?: () => void;
+  onDismissError?: () => void;
 }
 
 export default function LoginAlerts({
@@ -17,6 +18,7 @@ export default function LoginAlerts({
   alertRequired,
   errorMsg,
   onDismissAlert,
+  onDismissError,
 }: LoginAlertsProps) {
   const isUnregisteredDevice = errorMsg?.includes('Akun Belum Aktif');
   const isMismatchedDevice = errorMsg?.includes('Perangkat Tidak Terdaftar') || errorMsg?.includes('Perangkat Tidak Dikenali');
@@ -135,7 +137,7 @@ export default function LoginAlerts({
       {errorMsg && (
         <div
           id="login-alert-error"
-          className={`p-3.5 rounded-2xl text-xs leading-relaxed space-y-1.5 shadow-lg border ${
+          className={`p-3.5 rounded-2xl text-xs leading-relaxed space-y-1.5 shadow-lg border relative transition-all duration-300 animate-in fade-in ${
             isUnregisteredDevice
               ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
               : isMismatchedDevice
@@ -145,9 +147,22 @@ export default function LoginAlerts({
         >
           {isUnregisteredDevice ? (
             <>
-              <div className="font-bold flex items-center gap-1.5 text-amber-300 text-xs">
-                <QrCode size={15} className="shrink-0" />
-                <span>Akun Belum Aktif (Perangkat Belum Terdaftar)</span>
+              <div className="flex items-center justify-between">
+                <div className="font-bold flex items-center gap-1.5 text-amber-300 text-xs">
+                  <QrCode size={15} className="shrink-0" />
+                  <span>Akun Belum Aktif (Perangkat Belum Terdaftar)</span>
+                </div>
+                {onDismissError && (
+                  <button
+                    type="button"
+                    onClick={onDismissError}
+                    className="text-amber-400/70 hover:text-amber-200 p-1 rounded-lg hover:bg-amber-500/20 transition-all flex items-center justify-center shrink-0 ml-2"
+                    title="Tutup Pesan Peringatan"
+                    aria-label="Tutup Pesan Peringatan"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               <div id="login-alert-text" className="text-slate-200 text-[11px] leading-relaxed">
                 {errorMsg}
@@ -161,9 +176,22 @@ export default function LoginAlerts({
             </>
           ) : isMismatchedDevice ? (
             <>
-              <div className="font-bold flex items-center gap-1.5 text-rose-300 text-xs">
-                <ShieldAlert size={15} className="shrink-0" />
-                <span>Akses Ditolak (Perangkat Tidak Terdaftar)</span>
+              <div className="flex items-center justify-between">
+                <div className="font-bold flex items-center gap-1.5 text-rose-300 text-xs">
+                  <ShieldAlert size={15} className="shrink-0" />
+                  <span>Akses Ditolak (Perangkat Tidak Terdaftar)</span>
+                </div>
+                {onDismissError && (
+                  <button
+                    type="button"
+                    onClick={onDismissError}
+                    className="text-rose-400/70 hover:text-rose-200 p-1 rounded-lg hover:bg-rose-500/20 transition-all flex items-center justify-center shrink-0 ml-2"
+                    title="Tutup Pesan Peringatan"
+                    aria-label="Tutup Pesan Peringatan"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               <div id="login-alert-text" className="text-slate-200 text-[11px] leading-relaxed">
                 {errorMsg}
@@ -177,9 +205,22 @@ export default function LoginAlerts({
             </>
           ) : (
             <>
-              <div className="font-bold flex items-center gap-1.5 text-red-400 text-[11px]">
-                <AlertTriangle size={13} className="shrink-0" />
-                <span>Gagal Masuk</span>
+              <div className="flex items-center justify-between">
+                <div className="font-bold flex items-center gap-1.5 text-red-400 text-[11px]">
+                  <AlertTriangle size={13} className="shrink-0" />
+                  <span>Gagal Masuk</span>
+                </div>
+                {onDismissError && (
+                  <button
+                    type="button"
+                    onClick={onDismissError}
+                    className="text-red-400/70 hover:text-red-200 p-1 rounded-lg hover:bg-red-500/20 transition-all flex items-center justify-center shrink-0 ml-2"
+                    title="Tutup Pesan Peringatan"
+                    aria-label="Tutup Pesan Peringatan"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
               <div id="login-alert-text" className="text-slate-200 text-[11px]">
                 {errorMsg}

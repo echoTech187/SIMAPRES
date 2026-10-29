@@ -92,18 +92,34 @@ export function useLoginForm() {
     }
   };
 
-  const clearNrp = () => setNrp('');
+  const clearError = () => setErrorMsg('');
+
+  const handleSetNrp = (val: string) => {
+    setNrp(val);
+    if (errorMsg) setErrorMsg('');
+  };
+
+  const handleSetPassword = (val: string) => {
+    setPassword(val);
+    if (errorMsg) setErrorMsg('');
+  };
+
+  const clearNrp = () => {
+    setNrp('');
+    if (errorMsg) setErrorMsg('');
+  };
   const toggleShowPassword = () => setShowPassword((prev) => !prev);
 
   return {
     nrp,
-    setNrp,
+    setNrp: handleSetNrp,
     clearNrp,
     password,
-    setPassword,
+    setPassword: handleSetPassword,
     showPassword,
     toggleShowPassword,
     errorMsg,
+    clearError,
     loading,
     alertType,
     alertRole,
