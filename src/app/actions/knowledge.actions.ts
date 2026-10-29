@@ -39,8 +39,7 @@ function mapDbRowToKnowledgeItem(row: any): KnowledgeFaqItem {
   };
 }
 
-// In-memory server-side cache untuk data panduan SOP & FAQ master (TTL 5 menit)
-let serverKnowledgeCache: { data: GetKnowledgeItemsResult; expiry: number } | null = null;
+import { cacheGetOrLoad } from '@/infrastructure/cache/app-cache';
 
 /**
  * Mengambil daftar master panduan SOP & Dynamic FAQ secara dinamis dari database (Tabel master_knowledge_faqs)
@@ -49,100 +48,76 @@ export async function getKnowledgeBaseItemsAction(
   searchQuery?: string,
   categoryFilter?: string
 ): Promise<GetKnowledgeItemsResult> {
-  const isDefaultQuery = !searchQuery && (!categoryFilter || categoryFilter === 'ALL');
-  if (isDefaultQuery && serverKnowledgeCache && Date.now() < serverKnowledgeCache.expiry) {
-    return serverKnowledgeCache.data;
-  }
-
+  const cacheKey = `knowledge_base_${searchQuery || ''}_${categoryFilter || 'ALL'}`;
   try {
-    let dbRows = await prisma.masterKnowledgeFaq.findMany({
-      where: {
-        is_active: true,
-        ...(categoryFilter && categoryFilter !== 'ALL'
-          ? { kategori: categoryFilter }
-          : {}),
-      },
-      orderBy: {
-        display_order: 'asc',
-      },
-    });
+    return await cacheGetOrLoad(cacheKey, 300000, async () => {
+      const [dbRows, masterCats] = await Promise.all([
+        prisma.masterKnowledgeFaq.findMany({
+          where: { is_active: true },
+          orderBy: { display_order: 'asc' },
+        }),
+        prisma.masterKnowledgeFaqCategory.findMany({
+          where: { is_active: true },
+          orderBy: { display_order: 'asc' },
+        }).catch(() => []),
+      ]);
 
-    // Jika tabel di database masih kosong (belum terseed), jalankan seeder otomatis
-    if (!dbRows || dbRows.length === 0) {
-      try {
-        const { seedKnowledgeFaqs } = await import('../../../prisma/seed_knowledge_faqs');
-        await seedKnowledgeFaqs();
-        dbRows = await prisma.masterKnowledgeFaq.findMany({
-          where: {
-            is_active: true,
-            ...(categoryFilter && categoryFilter !== 'ALL'
-              ? { kategori: categoryFilter }
-              : {}),
-          },
-          orderBy: {
-            display_order: 'asc',
-          },
-        });
-      } catch (seedErr) {
-        console.warn('[getKnowledgeBaseItemsAction] Auto-seed warning:', seedErr);
+      let rows = dbRows || [];
+      if (!rows || rows.length === 0) {
+        try {
+          const { seedKnowledgeFaqs } = await import('../../../prisma/seed_knowledge_faqs');
+          await seedKnowledgeFaqs();
+          rows = await prisma.masterKnowledgeFaq.findMany({
+            where: { is_active: true },
+            orderBy: { display_order: 'asc' },
+          });
+        } catch (seedErr) {
+          console.warn('[getKnowledgeBaseItemsAction] Auto-seed warning:', seedErr);
+        }
       }
-    }
 
-    let items: KnowledgeFaqItem[] = (dbRows || []).map(mapDbRowToKnowledgeItem);
-
-    // 2. Filter Pencarian Teks jika ada query
-    if (searchQuery && searchQuery.trim() !== '') {
-      const q = searchQuery.toLowerCase().trim();
-      items = items.filter((it) => {
-        const inJudul = it.judul.toLowerCase().includes(q);
-        const inSubjudul = it.subjudul.toLowerCase().includes(q);
-        const inTags = it.tags.some((t) => t.toLowerCase().includes(q));
-        const inSyarat = it.persyaratan.some((p) => p.toLowerCase().includes(q));
-        const inProsedur = it.prosedur.some((pr) => pr.toLowerCase().includes(q));
-        const inLokasi = it.lokasiPelayanan.toLowerCase().includes(q);
-        const inScript = it.scriptOperator.toLowerCase().includes(q);
-        return inJudul || inSubjudul || inTags || inSyarat || inProsedur || inLokasi || inScript;
+      // Calculate category counts from rows
+      const countMap = new Map<string, number>();
+      rows.forEach((it: any) => {
+        countMap.set(it.kategori, (countMap.get(it.kategori) || 0) + 1);
       });
-    }
 
-    // 3. Ambil kategori resmi langsung dari tabel database master_knowledge_faq_categories
-    const masterCats = await prisma.masterKnowledgeFaqCategory.findMany({
-      where: { is_active: true },
-      orderBy: { display_order: 'asc' },
-    }).catch(() => []);
+      const categories = masterCats.map((mc: any) => ({
+        key: mc.key,
+        label: mc.label,
+        icon: mc.icon || '📖',
+        count: countMap.get(mc.key) || 0,
+      }));
 
-    const allActiveRows = await prisma.masterKnowledgeFaq.findMany({
-      where: { is_active: true },
-      select: { kategori: true },
-    }).catch(() => []);
+      // Filter by category if requested
+      if (categoryFilter && categoryFilter !== 'ALL') {
+        rows = rows.filter((r) => r.kategori === categoryFilter);
+      }
 
-    const countMap = new Map<string, number>();
-    allActiveRows.forEach((it: any) => {
-      countMap.set(it.kategori, (countMap.get(it.kategori) || 0) + 1);
-    });
+      let items: KnowledgeFaqItem[] = rows.map(mapDbRowToKnowledgeItem);
 
-    const categories = masterCats.map((mc: any) => ({
-      key: mc.key,
-      label: mc.label,
-      icon: mc.icon || '📖',
-      count: countMap.get(mc.key) || 0,
-    }));
+      // Filter by search query
+      if (searchQuery && searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase().trim();
+        items = items.filter((it) => {
+          const inJudul = it.judul.toLowerCase().includes(q);
+          const inSubjudul = it.subjudul.toLowerCase().includes(q);
+          const inTags = it.tags.some((t) => t.toLowerCase().includes(q));
+          const inSyarat = it.persyaratan.some((p) => p.toLowerCase().includes(q));
+          const inProsedur = it.prosedur.some((pr) => pr.toLowerCase().includes(q));
+          const inLokasi = it.lokasiPelayanan.toLowerCase().includes(q);
+          const inScript = it.scriptOperator.toLowerCase().includes(q);
+          return inJudul || inSubjudul || inTags || inSyarat || inProsedur || inLokasi || inScript;
+        });
+      }
 
-    const result = {
-      success: true,
-      data: items,
-      total: items.length,
-      categories,
-    };
-
-    if (isDefaultQuery) {
-      serverKnowledgeCache = {
-        data: result,
-        expiry: Date.now() + 5 * 60 * 1000, // 5 menit TTL
+      return {
+        success: true,
+        data: items,
+        total: items.length,
+        categories,
       };
-    }
-
-    return result;
+    });
   } catch (error: any) {
     console.error('[getKnowledgeBaseItemsAction] Database query error:', error);
     return {

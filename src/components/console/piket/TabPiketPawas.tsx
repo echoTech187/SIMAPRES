@@ -81,10 +81,17 @@ export default function TabPiketPawas({
   const [quickPos, setQuickPos] = useState('Patroli Samapta Presisi');
   const [addingOfficer, setAddingOfficer] = useState(false);
 
+  // Client-side cache & single-call guards to prevent redundant roundtrips
+  const isLookupsLoadedRef = React.useRef(false);
+  const activePiketCacheRef = React.useRef<Map<string, any>>(new Map());
+  const timelineCacheRef = React.useRef<Map<string, any[]>>(new Map());
+
   const loadLookups = useCallback(async () => {
+    if (isLookupsLoadedRef.current) return;
     try {
+      isLookupsLoadedRef.current = true;
       const res = await getPiketLookupsAction();
-      if (res.success && res.data) {
+      if (res.success && 'data' in res && res.data) {
         const stations = res.data.stations || [];
         const officers = res.data.officers || [];
         const operationalUnits = res.data.operationalUnits || [];
@@ -93,23 +100,24 @@ export default function TabPiketPawas({
           officers,
           operationalUnits,
         });
-        if (stations.length > 0 && !defaultStationId) {
-          setSelectedStationId((prev) => {
-            const exists = stations.some((s: any) => s.id === prev);
-            return exists ? prev : stations[0].id;
-          });
-        }
       }
     } catch (err) {
       console.warn('Gagal memuat lookups piket:', err);
+      isLookupsLoadedRef.current = false;
     }
-  }, [defaultStationId]);
+  }, []);
 
-  // Muat detail piket tanggal yang dipilih
-  const loadActivePiket = useCallback(async (stationId: number, dateStr: string) => {
+  // Muat detail piket tanggal yang dipilih (Instant dari memory cache jika sudah ada)
+  const loadActivePiket = useCallback(async (stationId: number, dateStr: string, bypassCache = false) => {
+    const key = `${stationId}_${dateStr}`;
+    if (!bypassCache && activePiketCacheRef.current.has(key)) {
+      setActivePiket(activePiketCacheRef.current.get(key));
+      return;
+    }
     try {
       const piketRes = await getPiketByDateAction(stationId, dateStr);
-      if (piketRes.success) {
+      if (piketRes.success && 'data' in piketRes) {
+        activePiketCacheRef.current.set(key, piketRes.data);
         setActivePiket(piketRes.data);
       }
     } catch (err) {
@@ -118,7 +126,12 @@ export default function TabPiketPawas({
   }, []);
 
   // Muat baris kartu timeline (hanya bergeser jika anchorDate atau stationId berubah)
-  const loadTimeline = useCallback(async (stationId: number, anchorDate: string) => {
+  const loadTimeline = useCallback(async (stationId: number, anchorDate: string, bypassCache = false) => {
+    const key = `${stationId}_${anchorDate}`;
+    if (!bypassCache && timelineCacheRef.current.has(key)) {
+      setTimeline(timelineCacheRef.current.get(key) || []);
+      return;
+    }
     try {
       const timelineRes = await getPiketTimelineAction({
         station_id: stationId,
@@ -126,7 +139,8 @@ export default function TabPiketPawas({
         daysBefore: 7,
         daysAfter: 7,
       });
-      if (timelineRes.success) {
+      if (timelineRes.success && 'data' in timelineRes) {
+        timelineCacheRef.current.set(key, timelineRes.data || []);
         setTimeline(timelineRes.data || []);
       }
     } catch (err) {
@@ -137,10 +151,12 @@ export default function TabPiketPawas({
   // Memuat ulang seluruh data (misal setelah mutasi tambah/hapus anggota/jadwal)
   const loadData = useCallback(async () => {
     setLoading(true);
+    activePiketCacheRef.current.clear();
+    timelineCacheRef.current.clear();
     try {
       await Promise.all([
-        loadActivePiket(selectedStationId, activeDateStr),
-        loadTimeline(selectedStationId, timelineAnchorDate),
+        loadActivePiket(selectedStationId, activeDateStr, true),
+        loadTimeline(selectedStationId, timelineAnchorDate, true),
       ]);
     } finally {
       setLoading(false);

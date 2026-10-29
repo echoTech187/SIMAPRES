@@ -635,31 +635,6 @@ export default function TabProfilSuperadmin({
           >
             🔒
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: '#1E293B' }}>
-                Keamanan Akun &amp; PIN Otorisasi
-              </h3>
-              <span
-                style={{
-                  background: '#EFF6FF',
-                  color: '#153E75',
-                  fontSize: '10px',
-                  fontWeight: 800,
-                  padding: '2.5px 8px',
-                  borderRadius: '6px',
-                  border: '1px solid #DBEAFE',
-                  whiteSpace: 'nowrap',
-                  letterSpacing: '0.3px',
-                }}
-              >
-                ● KREDENSIAL KEAMANAN
-              </span>
-            </div>
-            <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '3px', lineHeight: 1.4 }}>
-              Kelola kata sandi masuk dan PIN komando dinas 6 digit untuk validasi operasi
-            </div>
-          </div>
         </div>
       )}
 
@@ -698,49 +673,6 @@ export default function TabProfilSuperadmin({
                   style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
                 />
               </div>
-            </div>
-          </div>
-
-          {/* PIN KOMANDO 6 DIGIT */}
-          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <span style={{ fontSize: '16px' }}>🔢</span>
-              <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: '#1E293B' }}>
-                PIN Komando Dinas (6 Digit)
-              </h4>
-            </div>
-            <div style={{ fontSize: '11.5px', color: '#64748B', marginBottom: '14px' }}>
-              Digunakan untuk otorisasi tindakan kritis seperti pembatalan tugas atau reset sistem
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <input
-                  key={i}
-                  type="password"
-                  maxLength={1}
-                  value={pinKomando[i] || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setPinKomando((prev) => {
-                      const next = [...prev];
-                      next[i] = val;
-                      return next;
-                    });
-                  }}
-                  style={{
-                    width: '44px',
-                    height: '50px',
-                    textAlign: 'center',
-                    fontSize: '20px',
-                    fontWeight: 800,
-                    border: '2px solid #CBD5E1',
-                    borderRadius: '10px',
-                    background: '#FFFFFF',
-                    color: '#153E75',
-                  }}
-                />
-              ))}
             </div>
           </div>
 
@@ -1319,7 +1251,7 @@ export default function TabProfilSuperadmin({
               <span style={{ color: profilActiveMenu === 'profil' ? '#1D4ED8' : '#94A3B8', fontWeight: 800 }}>➔</span>
             </div>
 
-            {/* 2. Menu Keamanan Akun & PIN Komando */}
+            {/* 2. Menu Keamanan Akun */}
             <div
               id="btn-menu-keamanan"
               onClick={() => handleOpenMenu('keamanan')}
@@ -1346,7 +1278,7 @@ export default function TabProfilSuperadmin({
                 <span style={{ fontSize: '17px' }}>🔒</span>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: profilActiveMenu === 'keamanan' ? '#1D4ED8' : '#1E293B' }}>
-                    Keamanan Akun &amp; PIN Komando
+                    Keamanan Akun
                   </div>
                   <div style={{ fontSize: '11px', color: '#64748B' }}>Ganti kata sandi login &amp; otorisasi PIN dinas</div>
                 </div>
@@ -1430,7 +1362,7 @@ export default function TabProfilSuperadmin({
           mobileActiveModal === 'profil'
             ? 'Ubah Profil & Pasfoto Dinas'
             : mobileActiveModal === 'keamanan'
-            ? 'Keamanan Akun & PIN Komando'
+            ? 'Keamanan Akun'
             : 'Riwayat Log Lengkap'
         }
         subtitle={

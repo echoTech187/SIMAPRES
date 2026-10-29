@@ -55,7 +55,7 @@ export default function ModalKeamananPawas({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '20px' }}>🔒</span>
             <div>
-              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Keamanan Akun &amp; PIN Komando</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: 800, margin: 0 }}>Keamanan Akun</h3>
               <div style={{ fontSize: '11px', opacity: 0.85 }}>Kredensial SIPP Mabes Polri &amp; Otorisasi Dinas</div>
             </div>
           </div>

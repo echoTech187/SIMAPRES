@@ -515,8 +515,8 @@ function CommandCenterContent(props: {
         {activeTab === 'view-piket' && (
           <TabPiketPawas
             session={session}
-            showToast={(msg: string) => showFriendlyToast('success', 'Piket Jaga', msg)}
-            defaultStationId={userProfile?.station_id}
+            showToast={showToast}
+            defaultStationId={session?.stationId ? Number(session.stationId) : (userProfile?.stationId ? Number(userProfile.stationId) : 60001)}
           />
         )}
       </main>
