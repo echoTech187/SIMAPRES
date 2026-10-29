@@ -61,25 +61,34 @@ export class PrismaLogbookRepository implements ILogbookRepository {
   }
 
   async findByOfficerId(officerId: bigint, limit = 50): Promise<LogbookEntity[]> {
-    const records = await prisma.officerLogbook.findMany({
-      where: {
-        OR: [
-          { officer_id: officerId },
-          { officer: { user_id: officerId } },
-        ],
-      },
+    // 1. Direct indexed scan on officer_id (matches idx_logbook_officer_created: officer_id, created_at DESC)
+    let records = await prisma.officerLogbook.findMany({
+      where: { officer_id: officerId },
       orderBy: { created_at: 'desc' },
       take: limit,
     });
+
+    // 2. Fallback jika parameter yang dikirim merupakan user_id bukan police_officers.id
+    if (records.length === 0) {
+      const officer = await prisma.policeOfficer.findFirst({
+        where: { user_id: officerId },
+        select: { id: true },
+      });
+      if (officer) {
+        records = await prisma.officerLogbook.findMany({
+          where: { officer_id: officer.id },
+          orderBy: { created_at: 'desc' },
+          take: limit,
+        });
+      }
+    }
+
     return records.map((r: any) => this.mapToEntity(r));
   }
 
   async findRecent(limit = 10, stationId?: number): Promise<LogbookEntity[]> {
     const where: any = {
-      OR: [
-        { action_type: { in: ['PATROLI', 'SAMBANG', 'PENGAMANAN'] } },
-        { activity_description: { startsWith: '[PENGAJUAN GIAT' } },
-      ],
+      action_type: { in: ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'] },
     };
     if (stationId) {
       where.officer = { station_id: stationId };

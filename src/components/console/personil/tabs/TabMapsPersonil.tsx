@@ -135,15 +135,24 @@ export default function TabMapsPersonil({
 
   // Live Odometer Tracking via GPS (Sesuai Catatan User No. 1: Tanpa sisa waktu, akumulasi KM berjalan untuk klaim Sikeu)
   const [odometerMeters, setOdometerMeters] = useState<number>(() => {
-    if (typeof window !== 'undefined' && activeGiat?.id) {
-      try {
-        const saved = localStorage.getItem(`simapres_giat_km_${activeGiat.id}`);
-        if (saved) return Number(saved) || 0;
-      } catch {}
-    }
     const initialMeters = Number(activeGiat?.deviasiMeter || activeGiat?.deviation_meters || 0);
     return initialMeters > 0 ? initialMeters : 0;
   });
+
+  // Sinkronisasi akumulasi KM dari localStorage device setelah hydration tuntas
+  useEffect(() => {
+    if (activeGiat?.id) {
+      try {
+        const saved = localStorage.getItem(`simapres_giat_km_${activeGiat.id}`);
+        if (saved) {
+          const num = Number(saved);
+          if (!isNaN(num) && num > 0) {
+            setOdometerMeters(num);
+          }
+        }
+      } catch {}
+    }
+  }, [activeGiat?.id]);
 
   const lastGpsRef = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -1274,7 +1283,10 @@ const EMPTY_ARRAY: any[] = [];
                       {patrolInfo.route}
                     </p>
                   </div>
-                  <div className="px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 font-mono font-black text-xs shrink-0">
+                  <div
+                    suppressHydrationWarning
+                    className="px-3 py-1 rounded-full bg-sky-500/15 border border-sky-500/30 text-sky-300 font-mono font-black text-xs shrink-0"
+                  >
                     🛣️ {currentOdometerKm} KM
                   </div>
                 </div>
@@ -1315,7 +1327,10 @@ const EMPTY_ARRAY: any[] = [];
                     </div>
 
                     <div className="flex items-baseline justify-center gap-1.5 py-1">
-                      <span className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight drop-shadow-md">
+                      <span
+                        suppressHydrationWarning
+                        className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight drop-shadow-md"
+                      >
                         {currentOdometerKm}
                       </span>
                       <span className="text-sm font-bold text-sky-400 font-mono">

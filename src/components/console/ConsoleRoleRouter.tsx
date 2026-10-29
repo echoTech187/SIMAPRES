@@ -27,6 +27,7 @@ export default function ConsoleRoleRouter({
     initialOperatorData,
     initialComplaints,
     initialOfficer,
+    initialLogbooks,
     initialPoliceOffices,
     initialFleetUnits,
     initialHotspots,
@@ -73,6 +74,7 @@ export default function ConsoleRoleRouter({
           initialMasterData={initialMasterData}
           initialComplaints={initialComplaints}
           initialOfficer={initialOfficer}
+          initialLogbooks={initialLogbooks}
           initialPoliceOffices={initialPoliceOffices}
           initialFleetUnits={initialFleetUnits}
           initialHotspots={initialHotspots}

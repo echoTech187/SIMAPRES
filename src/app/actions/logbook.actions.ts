@@ -14,7 +14,19 @@ function serializeBigInt<T>(obj: T): T {
 }
 
 const officerLogbooksCache = new Map<string, { data: any; expiresAt: number }>();
-const OFFICER_LOGBOOKS_CACHE_TTL_MS = 20 * 1000; // 20 detik
+const OFFICER_LOGBOOKS_CACHE_TTL_MS = 60 * 1000; // 60 detik cache per personel
+
+export async function invalidateOfficerLogbooksCache(officerId?: string) {
+  if (officerId) {
+    for (const k of officerLogbooksCache.keys()) {
+      if (k.startsWith(`${officerId}_`)) {
+        officerLogbooksCache.delete(k);
+      }
+    }
+  } else {
+    officerLogbooksCache.clear();
+  }
+}
 
 export async function createLogbookAction(input: {
   officerId: string;
@@ -42,7 +54,7 @@ export async function createLogbookAction(input: {
       jamMulai: input.jamMulai || nowTime,
       jamSelesai: input.jamSelesai || nowTime,
     });
-    officerLogbooksCache.clear();
+    invalidateOfficerLogbooksCache(input.officerId);
     await invalidatePawasUnifiedCache().catch(() => {});
     return { success: true, data: serializeBigInt(created.toJSON()) };
   } catch (error: any) {
@@ -110,7 +122,7 @@ export async function validateOfficerLogbookAction(
   try {
     const useCase = UseCaseFactory.getValidateLogbookUseCase();
     const updated = await useCase.execute(BigInt(logbookId), status as any, note);
-    officerLogbooksCache.clear();
+    invalidateOfficerLogbooksCache(updated.officerId ? String(updated.officerId) : undefined);
     await invalidatePawasUnifiedCache().catch(() => {});
     return { success: true, data: serializeBigInt(updated.toJSON()) };
   } catch (error: any) {
@@ -151,7 +163,7 @@ export async function completeGiatPatroliAction(input: {
       },
     });
 
-    officerLogbooksCache.clear();
+    invalidateOfficerLogbooksCache(String(existing.officer_id));
     await invalidatePawasUnifiedCache().catch(() => {});
     return { success: true, data: serializeBigInt(updated) };
   } catch (error: any) {

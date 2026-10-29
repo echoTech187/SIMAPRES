@@ -14,6 +14,7 @@ import { getMasterCountersAction } from '@/app/actions/master.actions';
 import { getPawasDashboardDataAction, getPawasUnifiedDataAction } from '@/app/actions/pawas.actions';
 import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
 import { getHotspotsAction } from '@/app/actions/hotspot.actions';
+import { getOfficerLogbooksAction } from '@/app/actions/logbook.actions';
 
 export interface ConsoleRoleData {
   initialMasterData: any;
@@ -22,6 +23,7 @@ export interface ConsoleRoleData {
   initialOperatorData: any;
   initialComplaints: any[];
   initialOfficer: any;
+  initialLogbooks: any[];
   initialPoliceOffices: any[];
   initialFleetUnits: any[];
   initialHotspots: any[];
@@ -67,6 +69,7 @@ export async function fetchConsoleRoleData(
   let initialOperatorData: any = null;
   let initialComplaints: any[] = [];
   let initialOfficer: any = null;
+  let initialLogbooks: any[] = [];
   let initialPoliceOffices: any[] = [];
   let initialFleetUnits: any[] = [];
   let initialHotspots: any[] = [];
@@ -120,6 +123,15 @@ export async function fetchConsoleRoleData(
       if (poRes.success && poRes.data) initialPoliceOffices = poRes.data;
       if (fleetRes.success && fleetRes.data) initialFleetUnits = fleetRes.data;
       if (hotRes.success && hotRes.data) initialHotspots = hotRes.data;
+
+      // Pre-fetch logbook riil secara server-side agar konsol personel langsung instan pada 0ms render pertama
+      const targetOfficerId = pRes?.data?.officerId || pRes?.data?.id || session.userId;
+      if (targetOfficerId) {
+        try {
+          const lRes = await getOfficerLogbooksAction(String(targetOfficerId));
+          if (lRes?.success && lRes?.data) initialLogbooks = lRes.data;
+        } catch (_) {}
+      }
     }
   }
 
@@ -130,6 +142,7 @@ export async function fetchConsoleRoleData(
     initialOperatorData,
     initialComplaints,
     initialOfficer,
+    initialLogbooks,
     initialPoliceOffices,
     initialFleetUnits,
     initialHotspots,

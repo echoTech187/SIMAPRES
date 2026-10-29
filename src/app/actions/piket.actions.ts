@@ -679,7 +679,7 @@ export async function getOfficerTodayPiketScheduleAction(officerIdOrNrp: string 
       return { success: false, data: null };
     }
 
-    const piketMember = await prisma.piketMember.findFirst({
+    const piketMember = await prisma.piketScheduleMember.findFirst({
       where: {
         officer_id: officer.id,
         schedule: {
@@ -704,12 +704,12 @@ export async function getOfficerTodayPiketScheduleAction(officerIdOrNrp: string 
         success: true,
         data: serializeBigInt({
           isScheduled: true,
-          reguPiket: sch.regu_name || 'Regu Piket Mako',
-          shiftName: sch.shift_name || '24 Jam Penuh',
-          jamDinas: sch.shift_name ? `${sch.shift_name} (08.00 s/d 08.00 WIB)` : '08.00 s/d 08.00 WIB (+1)',
-          peranPenugasan: piketMember.peran_jaga || 'Piket Siaga Mako',
+          reguPiket: (sch as any).regu || (sch as any).regu_name || 'Regu Piket Mako',
+          shiftName: (sch as any).shift_name || '24 Jam Penuh',
+          jamDinas: (sch as any).shift_name ? `${(sch as any).shift_name} (08.00 s/d 08.00 WIB)` : '08.00 s/d 08.00 WIB (+1)',
+          peranPenugasan: piketMember.role_piket || piketMember.pos_penugasan || 'Piket Siaga Mako',
           statusPresensi: piketMember.status_kehadiran || 'HADIR_DINAS',
-          catatan: piketMember.catatan,
+          catatan: piketMember.keterangan,
           pawasNama: sch.pawas?.user?.full_name || 'PAWAS',
           kaSpktNama: sch.ka_spkt?.user?.full_name || 'Ka SPKT',
           stationName: sch.station?.station_name || officer.station?.station_name,

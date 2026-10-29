@@ -19,6 +19,7 @@ function PersonilContent(props: {
   initialMasterData?: any;
   initialComplaints?: any[];
   initialOfficer?: any;
+  initialLogbooks?: any[];
   initialPoliceOffices?: any[];
   initialFleetUnits?: any[];
   initialHotspots?: any[];
@@ -67,15 +68,14 @@ function PersonilContent(props: {
   } = usePersonilConsole(props);
 
   // State giat lapangan aktif yang dipilih untuk dipantau di peta (dipersist ke sessionStorage agar tahan refresh)
-  const [selectedGiat, setSelectedGiat] = React.useState<any | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('simapres_selected_giat');
-        if (saved) return JSON.parse(saved);
-      } catch {}
-    }
-    return null;
-  });
+  const [selectedGiat, setSelectedGiat] = React.useState<any | null>(null);
+
+  React.useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('simapres_selected_giat');
+      if (saved) setSelectedGiat(JSON.parse(saved));
+    } catch {}
+  }, []);
 
   const handleSetSelectedGiat = React.useCallback((giat: any | null) => {
     setSelectedGiat(giat);
@@ -309,6 +309,7 @@ export default function PersonilConsoleView(props: {
   initialMasterData?: any;
   initialComplaints?: any[];
   initialOfficer?: any;
+  initialLogbooks?: any[];
   initialPoliceOffices?: any[];
   initialFleetUnits?: any[];
   initialHotspots?: any[];

@@ -43,6 +43,7 @@ interface UsePersonilConsoleProps {
   initialMasterData?: any;
   initialComplaints?: any[];
   initialOfficer?: any;
+  initialLogbooks?: any[];
   initialPoliceOffices?: any[];
   initialFleetUnits?: any[];
   initialHotspots?: any[];
@@ -54,6 +55,7 @@ export function usePersonilConsole({
   initialMasterData,
   initialComplaints,
   initialOfficer,
+  initialLogbooks,
   initialPoliceOffices,
   initialFleetUnits,
   initialHotspots,
@@ -66,19 +68,24 @@ export function usePersonilConsole({
   const nrpParam = session?.identifier || initialOfficer?.nrp;
 
   // Navigation tab state (Beranda, Maps, Profile)
-  const [activeTab, setActiveTab] = useState<PersonilTab>(() => {
+  const [activeTab, setActiveTab] = useState<PersonilTab>(() => parsePersonilTab(initialSection));
+
+  const activeTabRef = useRef<PersonilTab>(activeTab);
+  activeTabRef.current = activeTab;
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       const parts = window.location.pathname.split('/').filter(Boolean);
       const last = parts[parts.length - 1];
       if (parts[0] === 'console' && parts.length > 1) {
-        return parsePersonilTab(last);
+        const parsed = parsePersonilTab(last);
+        if (parsed !== activeTabRef.current) {
+          setActiveTab(parsed);
+          activeTabRef.current = parsed;
+        }
       }
     }
-    return parsePersonilTab(initialSection);
-  });
-
-  const activeTabRef = useRef<PersonilTab>(activeTab);
-  activeTabRef.current = activeTab;
+  }, [initialSection]);
 
   const switchTab = useCallback((tabId: PersonilTab) => {
     setActiveTab(tabId);
@@ -212,7 +219,7 @@ export function usePersonilConsole({
   >(null);
 
   // Database Static Master Data & Lists
-  const [logbooks, setLogbooks] = useState<any[]>([]);
+  const [logbooks, setLogbooks] = useState<any[]>(() => initialLogbooks?.length ? initialLogbooks : []);
   const [policeOffices, setPoliceOffices] = useState<any[]>(() => initialPoliceOffices?.length ? initialPoliceOffices : (cachedPoliceOffices || []));
   const [fleetUnits, setFleetUnits] = useState<any[]>(() => initialFleetUnits?.length ? initialFleetUnits : (cachedFleetUnits || []));
   const [hotspots, setHotspots] = useState<any[]>(() => initialHotspots?.length ? initialHotspots : (cachedHotspots || []));
@@ -241,68 +248,70 @@ export function usePersonilConsole({
       const activeNrp = nrpParam || officer.nrp;
       const activeOfficerId = targetOfficerId || officer.id;
 
-      const [cRes, lRes] = await Promise.all([
-        getOfficerComplaintsAction(activeNrp),
-        getOfficerLogbooksAction(String(activeOfficerId)),
-      ]);
+      // Jalankan query logbooks dan complaints secara terpisah agar data logbooks tampil instan
+      const logbooksPromise = getOfficerLogbooksAction(String(activeOfficerId)).then((lRes) => {
+        if (lRes?.success && lRes?.data) {
+          setLogbooks(lRes.data);
+        }
+      });
 
-      if (cRes?.success && cRes?.data) {
-        const currentHash = JSON.stringify(cRes.data.map((c: any) => [
-          c.id,
-          c.status,
-          c.tahap,
-          c.dispatches?.length,
-          c.dispatches?.map((d: any) => [d.id, d.officer_id, d.crew_partner_name, d.dispatch_status]),
-        ]));
+      const complaintsPromise = getOfficerComplaintsAction(activeNrp).then((cRes) => {
+        if (cRes?.success && cRes?.data) {
+          const currentHash = JSON.stringify(cRes.data.map((c: any) => [
+            c.id,
+            c.status,
+            c.tahap,
+            c.dispatches?.length,
+            c.dispatches?.map((d: any) => [d.id, d.officer_id, d.crew_partner_name, d.dispatch_status]),
+          ]));
 
-        if (currentHash !== lastComplaintsHashRef.current || preferredComplaintId) {
-          lastComplaintsHashRef.current = currentHash;
-          setComplaints(cRes.data);
+          if (currentHash !== lastComplaintsHashRef.current || preferredComplaintId) {
+            lastComplaintsHashRef.current = currentHash;
+            setComplaints(cRes.data);
 
-          const pending = cRes.data.find((c: any) =>
-            isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id)
-          ) || null;
+            const pending = cRes.data.find((c: any) =>
+              isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id)
+            ) || null;
 
-          if (pending) {
-            setPendingAcceptTask(pending);
-          } else {
-            stopPoliceAlertAudio();
-            setPendingAcceptTask(null);
-            setShowAcceptModal(false);
-          }
+            if (pending) {
+              setPendingAcceptTask(pending);
+            } else {
+              stopPoliceAlertAudio();
+              setPendingAcceptTask(null);
+              setShowAcceptModal(false);
+            }
 
-          const targetId =
-            preferredComplaintId ||
-            activeComplaintRef.current?.id ||
-            activeComplaintRef.current?.nomorTiket;
+            const targetId =
+              preferredComplaintId ||
+              activeComplaintRef.current?.id ||
+              activeComplaintRef.current?.nomorTiket;
 
-          let active = targetId
-            ? cRes.data.find(
+            let active = targetId
+              ? cRes.data.find(
+                  (c: any) =>
+                    (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
+                    hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
+                    c.status !== 'SELESAI' &&
+                    c.status !== 'DITOLAK'
+                )
+              : null;
+
+            if (!active) {
+              active = cRes.data.find(
                 (c: any) =>
-                  (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
                   hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
                   c.status !== 'SELESAI' &&
                   c.status !== 'DITOLAK'
-              )
-            : null;
+              );
+            }
 
-          if (!active) {
-            active = cRes.data.find(
-              (c: any) =>
-                hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
-                c.status !== 'SELESAI' &&
-                c.status !== 'DITOLAK'
-            );
+            setActiveComplaint(active || null);
+            activeComplaintRef.current = active || null;
           }
-
-          setActiveComplaint(active || null);
-          activeComplaintRef.current = active || null;
         }
-      }
+      });
 
-      if (lRes?.success && lRes?.data) {
-        setLogbooks(lRes.data);
-      }
+      await Promise.all([logbooksPromise, complaintsPromise]);
     } catch (e) {
       console.warn('Load dynamic personil data error:', e);
     } finally {
@@ -446,7 +455,7 @@ export function usePersonilConsole({
       document.removeEventListener('visibilitychange', handleWakeOrFocus);
       window.removeEventListener('focus', handleWakeOrFocus);
     };
-  }, [loadData, officer.nrp, initialPoliceOffices, initialFleetUnits, initialHotspots, dispatchStatuses.length]);
+  }, [loadData, officer.nrp]);
 
   // Real-time Event-Driven Sync via Server-Sent Events (SSE)
   useConsoleEventSource({
