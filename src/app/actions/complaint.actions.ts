@@ -3256,6 +3256,8 @@ export interface OperatorPerformanceRankItem {
   totalTiketInput: number;
   totalDisposisi: number;
   totalSelesai: number;
+  validTiketCount?: number;
+  validRate?: number;
   avgIntakeMinutes: number;
   sopComplianceRate: number;
   avgRating: number;
@@ -3303,6 +3305,7 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
           COUNT(DISTINCT c.id) as total_tiket_input,
           COUNT(DISTINCT CASE WHEN c.status != 'MENUNGGU' THEN c.id ELSE NULL END) as total_disposisi,
           COUNT(DISTINCT CASE WHEN c.status = 'SELESAI' THEN c.id ELSE NULL END) as total_selesai,
+          COUNT(DISTINCT CASE WHEN c.status != 'DITOLAK' THEN c.id ELSE NULL END) as valid_tiket_count,
           COUNT(DISTINCT CASE WHEN c.subcategory_id IS NOT NULL AND CHAR_LENGTH(TRIM(c.ringkasan_keterangan)) >= 10 THEN c.id ELSE NULL END) as compliant_sop_count,
           
           AVG(cr.star_rating) as avg_rating,
@@ -3342,30 +3345,47 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
           const totalTiketInput = Number(r.total_tiket_input || 0);
           const totalDisposisi = Number(r.total_disposisi || 0);
           const totalSelesai = Number(r.total_selesai || 0);
+          const validTiketCount = Number(r.valid_tiket_count || 0);
           const compliantSopCount = Number(r.compliant_sop_count || 0);
-          const avgIntakeMinutes = r.avg_intake_minutes !== null ? Math.round(Number(r.avg_intake_minutes) * 10) / 10 : 2.1;
+          const avgIntakeMinutes = r.avg_intake_minutes !== null ? Math.round(Number(r.avg_intake_minutes) * 10) / 10 : 1.0;
           const avgRating = r.avg_rating !== null ? Math.round(Number(r.avg_rating) * 10) / 10 : 0;
           const reviewCount = Number(r.total_reviews || 0);
           const recentReviewText = r.recent_review_text || null;
 
           const sopComplianceRate = totalTiketInput > 0 ? Math.round((compliantSopCount / totalTiketInput) * 100) : 100;
-          const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
-          const volumeScore = Math.min(35, totalTiketInput * 7);
-          const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
-          const compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+          const validRate = totalTiketInput > 0 ? Math.round((validTiketCount / totalTiketInput) * 100) : 100;
 
-          let predikat = 'Operator Siaga Standar';
-          let predikatColor = '#D97706';
+          // Opsi 1: Bobot Penilaian Murni Tanggung Jawab Meja Operator (100 Pts)
+          // 1. Produktivitas Input Tiket (Bobot 40 Pts) - 1 tiket = 8 pts, >= 5 tiket = 40 pts
+          const volumeScore = Math.min(40, totalTiketInput * 8);
+          // 2. Kerapian & Kepatuhan SOP Input Data (Bobot 30 Pts)
+          const sopScore = Math.round((sopComplianceRate / 100) * 30);
+          // 3. Validitas Tiket / Tidak Ditolak (Bobot 15 Pts)
+          const validScore = Math.round((validRate / 100) * 15);
+          // 4. Rating Kepuasan Pelapor (Bobot 15 Pts)
+          const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 15) : (totalTiketInput > 0 ? 12 : 0);
 
-          if (compositeScore >= 90) {
-            predikat = 'Operator Teladan 110';
-            predikatColor = '#059669';
-          } else if (compositeScore >= 80) {
-            predikat = 'Pelayanan Prima';
-            predikatColor = '#2563EB';
-          } else if (compositeScore < 70) {
-            predikat = 'Perlu Evaluasi SOP';
-            predikatColor = '#DC2626';
+          const compositeScore = totalTiketInput > 0
+            ? Math.min(100, Math.round(volumeScore + sopScore + validScore + ratingScore))
+            : 0;
+
+          let predikat = 'Siaga (Belum Ada Tiket)';
+          let predikatColor = '#64748B';
+
+          if (totalTiketInput > 0) {
+            if (compositeScore >= 90) {
+              predikat = 'Operator Teladan 110';
+              predikatColor = '#059669';
+            } else if (compositeScore >= 75) {
+              predikat = 'Pelayanan Baik';
+              predikatColor = '#2563EB';
+            } else if (compositeScore >= 60) {
+              predikat = 'Cukup (Siaga Standar)';
+              predikatColor = '#D97706';
+            } else {
+              predikat = 'Perlu Evaluasi SOP';
+              predikatColor = '#DC2626';
+            }
           }
 
           const fullName = r.full_name || '';
@@ -3386,6 +3406,8 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
             totalTiketInput,
             totalDisposisi,
             totalSelesai,
+            validTiketCount,
+            validRate,
             avgIntakeMinutes,
             sopComplianceRate,
             avgRating,
@@ -3488,27 +3510,36 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
         }
       }
 
+      const validTiketCount = opComplaints.filter((c) => c.status !== 'DITOLAK').length;
+      const validRate = totalTiketInput > 0 ? Math.round((validTiketCount / totalTiketInput) * 100) : 100;
       const sopComplianceRate = totalTiketInput > 0 ? Math.round((compliantSopCount / totalTiketInput) * 100) : 100;
-      const avgIntakeMinutes = intakeCount > 0 ? Math.round((totalIntakeMinutes / intakeCount) * 10) / 10 : 2.1;
+      const avgIntakeMinutes = intakeCount > 0 ? Math.round((totalIntakeMinutes / intakeCount) * 10) / 10 : 1.0;
       const avgRating = reviewCount > 0 ? Math.round((totalStars / reviewCount) * 10) / 10 : 0;
 
-      const speedScore = Math.max(10, Math.min(30, Math.round(30 - (avgIntakeMinutes - 1.5) * 5)));
-      const volumeScore = Math.min(35, totalTiketInput * 7);
-      const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
-      const compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+      // Opsi 1: Bobot Penilaian Murni Tanggung Jawab Meja Operator (100 Pts)
+      const volumeScore = Math.min(40, totalTiketInput * 8);
+      const sopScore = Math.round((sopComplianceRate / 100) * 30);
+      const validScore = Math.round((validRate / 100) * 15);
+      const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 15) : (totalTiketInput > 0 ? 12 : 0);
+      const compositeScore = totalTiketInput > 0 ? Math.min(100, Math.round(volumeScore + sopScore + validScore + ratingScore)) : 0;
 
-      let predikat = 'Operator Siaga Standar';
-      let predikatColor = '#D97706';
+      let predikat = 'Siaga (Belum Ada Tiket)';
+      let predikatColor = '#64748B';
 
-      if (compositeScore >= 90) {
-        predikat = 'Operator Teladan 110';
-        predikatColor = '#059669';
-      } else if (compositeScore >= 80) {
-        predikat = 'Pelayanan Prima';
-        predikatColor = '#2563EB';
-      } else if (compositeScore < 70) {
-        predikat = 'Perlu Evaluasi SOP';
-        predikatColor = '#DC2626';
+      if (totalTiketInput > 0) {
+        if (compositeScore >= 90) {
+          predikat = 'Operator Teladan 110';
+          predikatColor = '#059669';
+        } else if (compositeScore >= 75) {
+          predikat = 'Pelayanan Baik';
+          predikatColor = '#2563EB';
+        } else if (compositeScore >= 60) {
+          predikat = 'Cukup (Siaga Standar)';
+          predikatColor = '#D97706';
+        } else {
+          predikat = 'Perlu Evaluasi SOP';
+          predikatColor = '#DC2626';
+        }
       }
 
       const nameParts = op.full_name.split(' ');
@@ -3528,6 +3559,8 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
         totalTiketInput,
         totalDisposisi,
         totalSelesai,
+        validTiketCount,
+        validRate,
         avgIntakeMinutes,
         sopComplianceRate,
         avgRating,

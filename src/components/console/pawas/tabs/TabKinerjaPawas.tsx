@@ -463,6 +463,8 @@ export default function TabKinerjaPawas({
       const totalTiketInput = opComplaints.length;
       const totalDisposisi = opComplaints.filter((c: any) => c.status !== 'MENUNGGU').length;
       const totalSelesai = opComplaints.filter((c: any) => c.status === 'SELESAI').length;
+      const validTiketCount = opComplaints.filter((c: any) => c.status !== 'DITOLAK').length;
+      const validRate = totalTiketInput > 0 ? Math.round((validTiketCount / totalTiketInput) * 100) : 100;
 
       const stars = opComplaints
         .map((c: any) => c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : null))
@@ -471,53 +473,44 @@ export default function TabKinerjaPawas({
         ? Math.round((stars.reduce((a: number, b: any) => a + Number(b), 0) / stars.length) * 10) / 10
         : 0;
 
-      const sopCompliant = opComplaints.filter((c: any) => c.subcategoryId || c.subcategory_id).length;
+      const sopCompliant = opComplaints.filter((c: any) => {
+        const hasSubcat = Boolean(c.subcategoryId || c.subcategory_id);
+        const textLen = (c.ringkasanKeterangan || c.ringkasan_keterangan || '').trim().length;
+        return hasSubcat && textLen >= 10;
+      }).length;
       const sopComplianceRate = totalTiketInput > 0
         ? Math.round((sopCompliant / totalTiketInput) * 100)
-        : null;
+        : 100;
 
-      let avgIntakeMinutes: number | null = null;
-      if (totalTiketInput > 0) {
-        let totalIntake = 0;
-        let intakeCount = 0;
-        for (const c of opComplaints) {
-          const createTime = getComplaintDate(c)?.getTime();
-          const dispTime = c.dispatches && c.dispatches.length > 0 && c.dispatches[0].dispatched_at
-            ? new Date(c.dispatches[0].dispatched_at).getTime()
-            : null;
-          if (createTime && dispTime && dispTime >= createTime) {
-            const diffMin = Math.round((dispTime - createTime) / 60000);
-            totalIntake += Math.max(1, Math.min(10, diffMin));
-            intakeCount++;
-          }
-        }
-        avgIntakeMinutes = intakeCount > 0 ? Math.round((totalIntake / intakeCount) * 10) / 10 : 1.0;
-      }
-
-      // Hitung Skor Komposit Kinerja Operator (100 Poin)
+      // OPSI 1: Skor Komposit 100 Poin Murni Tanggung Jawab Operator
       let compositeScore = 0;
       let predikat = 'Siaga (Belum Ada Tiket)';
       let predikatColor = '#64748B';
 
       if (totalTiketInput > 0) {
-        const effIntake = avgIntakeMinutes != null ? avgIntakeMinutes : 1.0;
-        const speedScore = Math.max(10, Math.min(30, Math.round(30 - (effIntake - 1.5) * 5)));
-        const volumeScore = Math.min(35, totalTiketInput * 7);
-        const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 35) : 25;
-        compositeScore = Math.max(50, Math.min(100, speedScore + volumeScore + ratingScore));
+        // 1. Produktivitas Input (40 Poin)
+        const volumeScore = Math.min(40, totalTiketInput * 8);
+        // 2. Kerapian & Kepatuhan SOP Input Data (30 Poin)
+        const sopScore = Math.round((sopComplianceRate / 100) * 30);
+        // 3. Validitas & Penyaluran Tiket (15 Poin)
+        const validScore = Math.round((validRate / 100) * 15);
+        // 4. Rating Kepuasan Warga (15 Poin)
+        const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 15) : 12;
+
+        compositeScore = Math.min(100, Math.round(volumeScore + sopScore + validScore + ratingScore));
 
         if (compositeScore >= 90) {
           predikat = 'Operator Teladan 110';
           predikatColor = '#059669';
-        } else if (compositeScore >= 80) {
-          predikat = 'Pelayanan Prima';
+        } else if (compositeScore >= 75) {
+          predikat = 'Pelayanan Baik';
           predikatColor = '#2563EB';
-        } else if (compositeScore < 70) {
+        } else if (compositeScore >= 60) {
+          predikat = 'Cukup (Siaga Standar)';
+          predikatColor = '#D97706';
+        } else {
           predikat = 'Perlu Evaluasi SOP';
           predikatColor = '#DC2626';
-        } else {
-          predikat = 'Operator Siaga Standar';
-          predikatColor = '#D97706';
         }
       }
 
@@ -526,7 +519,8 @@ export default function TabKinerjaPawas({
         totalTiketInput,
         totalDisposisi,
         totalSelesai,
-        avgIntakeMinutes,
+        validTiketCount,
+        validRate,
         sopComplianceRate,
         avgRating,
         totalReviews: stars.length,
@@ -536,9 +530,15 @@ export default function TabKinerjaPawas({
       };
     }).sort((a: any, b: any) => {
       if (rankingCategoryTab === 'produktivitas') {
-        return b.totalTiketInput - a.totalTiketInput;
+        if (b.totalTiketInput !== a.totalTiketInput) {
+          return b.totalTiketInput - a.totalTiketInput;
+        }
+        return b.compositeScore - a.compositeScore;
       }
-      return b.avgRating - a.avgRating;
+      if (b.avgRating !== a.avgRating) {
+        return b.avgRating - a.avgRating;
+      }
+      return b.totalReviews - a.totalReviews;
     });
   }, [operatorRankings, rankingCategoryTab, filteredComplaints]);
 
@@ -1479,21 +1479,21 @@ export default function TabKinerjaPawas({
 
                           <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', textAlign: 'center' }}>
                             <div>
-                              <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket CAD</div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Diinput</div>
                               <div style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>
                                 {item.totalTiketInput} Laporan
                               </div>
                             </div>
                             <div>
-                              <div style={{ fontSize: '10px', color: '#64748B' }}>Entri CAD</div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Valid</div>
                               <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
-                                {item.totalTiketInput > 0 && item.avgIntakeMinutes != null ? `± ${item.avgIntakeMinutes} m` : '-'}
+                                {item.totalTiketInput > 0 ? `${item.validRate != null ? item.validRate : 100}%` : '-'}
                               </div>
                             </div>
                             <div>
-                              <div style={{ fontSize: '10px', color: '#64748B' }}>Rating Warga</div>
-                              <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 && item.avgRating > 0 ? '#D97706' : '#94A3B8' }}>
-                                {item.totalTiketInput > 0 && item.avgRating > 0 ? `⭐ ${item.avgRating.toFixed(1)}` : '-'}
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>Kepatuhan SOP</div>
+                              <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 && item.sopComplianceRate != null ? '#2563EB' : '#94A3B8' }}>
+                                {item.totalTiketInput > 0 && item.sopComplianceRate != null ? `${item.sopComplianceRate}%` : '-'}
                               </div>
                             </div>
                           </div>
@@ -1507,7 +1507,7 @@ export default function TabKinerjaPawas({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '16px' }}>ℹ️</span>
                       <div>
-                        <strong>Instrumen Akuntabilitas Operator 110:</strong> Mengukur kecepatan entri tiket CAD (&le; 2 menit), rasio kepatuhan SOP kejadian, dan indeks kepuasan pelayanan warga pelapor.
+                        <strong>Instrumen Akuntabilitas Operator 110:</strong> Mengukur produktivitas entri laporan warga, kepatuhan kelengkapan SOP data, tingkat validitas penyaluran tiket, dan kepuasan pelayanan warga.
                       </div>
                     </div>
                     <span style={{ background: '#153E75', color: 'white', padding: '3px 9px', borderRadius: '6px', fontWeight: 700, fontSize: '10.5px' }}>
@@ -1523,8 +1523,8 @@ export default function TabKinerjaPawas({
                           <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Rank</th>
                           <th style={{ padding: '8px 10px' }}>Identitas Petugas Operator</th>
                           <th style={{ padding: '8px 10px' }}>Satuan / Penugasan</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket CAD Input</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kecepatan CAD</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Diinput</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Valid</th>
                           <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kepatuhan SOP</th>
                           <th style={{ padding: '8px 10px' }}>Kepuasan Warga (IKM)</th>
                           <th style={{ padding: '8px 10px', textAlign: 'center' }}>Skor Anev</th>
@@ -1554,7 +1554,7 @@ export default function TabKinerjaPawas({
                               {item.totalTiketInput} Tiket
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
-                              {item.totalTiketInput > 0 && item.avgIntakeMinutes != null ? `± ${item.avgIntakeMinutes} m` : '-'}
+                              {item.totalTiketInput > 0 ? `${item.validTiketCount != null ? item.validTiketCount : (item.totalTiketInput || 0)} (${item.validRate != null ? item.validRate : 100}%)` : '-'}
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                               {item.totalTiketInput > 0 && item.sopComplianceRate != null ? (
