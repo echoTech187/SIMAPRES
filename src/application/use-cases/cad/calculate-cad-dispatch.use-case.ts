@@ -26,7 +26,7 @@ export class CalculateCadDispatchUseCase {
     const text = incidentText.toLowerCase();
 
     // 1. Klasifikasi SOP Tupoksi Satuan Polri
-    let primarySatuan = 'sabhara';
+    let primarySatuan = 'samapta';
     let alasanSop = 'SOP Sat Samapta / Sabhara Presisi (Utama) untuk respon cepat & sterilisasi TKP.';
 
     if (
@@ -81,8 +81,18 @@ export class CalculateCadDispatchUseCase {
 
       // Asumsi kecepatan rata-rata kendaraan patroli kota 30 km/jam = 0.5 km/menit
       const etaMenit = Math.max(2, Math.round((jarakKm / 30) * 60));
-      const isPrimarySop = officer.jabatan.toLowerCase().includes(primarySatuan) ||
-        (officer.assignedPatrolVehicle || '').toLowerCase().includes(primarySatuan);
+      
+      const officerText = `${officer.jabatan} ${officer.assignedPatrolVehicle || ''}`.toLowerCase();
+      let isPrimarySop = false;
+      if (primarySatuan === 'lantas') {
+        isPrimarySop = officerText.includes('lantas') || officerText.includes('turjawali') || officerText.includes('lalu lintas');
+      } else if (primarySatuan === 'reskrim') {
+        isPrimarySop = officerText.includes('reskrim') || officerText.includes('resmob') || officerText.includes('serse') || officerText.includes('inafis');
+      } else if (primarySatuan === 'binmas') {
+        isPrimarySop = officerText.includes('binmas') || officerText.includes('bhabin');
+      } else {
+        isPrimarySop = officerText.includes('samapta') || officerText.includes('sabhara') || officerText.includes('raimas') || officerText.includes('patroli');
+      }
 
       recommendations.push({
         officerId: officer.id!,
