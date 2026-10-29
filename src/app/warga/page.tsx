@@ -77,8 +77,8 @@ export default function PortalWargaPage() {
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<number | string | null>(null);
   const [urgensi, setUrgensi] = useState<'DARURAT' | 'SEDANG' | 'NORMAL'>('SEDANG');
   const [lokasi, setLokasi] = useState('');
-  const [lat, setLat] = useState<number>(-7.026803);
-  const [lng, setLng] = useState<number>(109.592982);
+  const [lat, setLat] = useState<number>(0);
+  const [lng, setLng] = useState<number>(0);
   const [hasValidGps, setHasValidGps] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
@@ -400,8 +400,8 @@ export default function PortalWargaPage() {
     setSelectedCategoryKey('KAMTIBMAS');
     setUrgensi('SEDANG');
     setLokasi('');
-    setLat(-7.026803);
-    setLng(109.592982);
+    setLat(0);
+    setLng(0);
     setHasValidGps(false);
     setShowMapPicker(false);
     setUraian('');

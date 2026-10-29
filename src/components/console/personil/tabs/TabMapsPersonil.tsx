@@ -689,17 +689,24 @@ const EMPTY_ARRAY: any[] = [];
   };
 
   // Memoize myUnit data agar tidak re-trigger render marker Google Maps di setiap frame
-  const memoizedMyUnit = useMemo(() => ({
-    key: `petugas_${officer.id || officer.nrp}`,
-    nrp: officer.nrp,
-    callsign: officer.nrp,
-    petugas: officer.fullName,
-    pangkat: officer.pangkat,
-    title: `${officer.pangkat} ${officer.fullName}`,
-    pos: { lat: effectiveGps.lat, lng: effectiveGps.lng },
-    lat: effectiveGps.lat,
-    lng: effectiveGps.lng,
-  }), [officer.id, officer.nrp, officer.fullName, officer.pangkat, effectiveGps.lat, effectiveGps.lng]);
+  const memoizedMyUnit = useMemo(() => {
+    const hasValidGps = Boolean(
+      effectiveGps &&
+      Number(effectiveGps.lat) !== 0 &&
+      Number(effectiveGps.lng) !== 0
+    );
+    return {
+      key: `petugas_${officer.id || officer.nrp}`,
+      nrp: officer.nrp,
+      callsign: officer.nrp,
+      petugas: officer.fullName,
+      pangkat: officer.pangkat,
+      title: `${officer.pangkat} ${officer.fullName}`,
+      pos: hasValidGps ? { lat: Number(effectiveGps.lat), lng: Number(effectiveGps.lng) } : undefined,
+      lat: hasValidGps ? Number(effectiveGps.lat) : undefined,
+      lng: hasValidGps ? Number(effectiveGps.lng) : undefined,
+    };
+  }, [officer.id, officer.nrp, officer.fullName, officer.pangkat, effectiveGps?.lat, effectiveGps?.lng]);
 
   const activeHotspots = useMemo(() => {
     return !activeComplaint && showHotspots ? hotspots : EMPTY_ARRAY;
@@ -712,6 +719,16 @@ const EMPTY_ARRAY: any[] = [];
         mode="fullscreen"
         height="100%"
         targetComplaint={isMissionActive ? activeComplaint : null}
+        centerLat={
+          effectiveGps && Number(effectiveGps.lat) !== 0
+            ? Number(effectiveGps.lat)
+            : (Number(activeGiat?.lokasiKlaimLat || activeGiat?.claimed_lat || activeComplaint?.tkpLat || officer.stationLat) || undefined)
+        }
+        centerLng={
+          effectiveGps && Number(effectiveGps.lng) !== 0
+            ? Number(effectiveGps.lng)
+            : (Number(activeGiat?.lokasiKlaimLng || activeGiat?.claimed_lng || activeComplaint?.tkpLng || officer.stationLng) || undefined)
+        }
         customRoutePath={
           (isSimulating || simulatedGps) && simulationRemainingRoute && simulationRemainingRoute.length >= 2
             ? simulationRemainingRoute

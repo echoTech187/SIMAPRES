@@ -649,19 +649,33 @@ export default function SimapresGoogleMap({
     loadGoogleMaps().then((maps) => {
       if (!isSubscribed || !maps || !mapContainerRef.current) return;
 
-      // Center around coordinates, unit, target TKP, atau default Mako Kepolisian (Polres Pekalongan)
+      // Center around coordinates, unit, target TKP, atau Mako Kepolisian dari database
       const firstOffice = policeOffices && policeOffices.length > 0 ? policeOffices[0] : null;
-      const defaultCenter = (firstOffice?.lat && firstOffice?.lng)
-        ? { lat: Number(firstOffice.lat), lng: Number(firstOffice.lng) }
-        : { lat: -7.026803, lng: 109.592982 };
+      const officeLat = Number(firstOffice?.lat || firstOffice?.office_lat || 0);
+      const officeLng = Number(firstOffice?.lng || firstOffice?.office_lng || 0);
+      const defaultOfficeCenter = (officeLat !== 0 && officeLng !== 0) ? { lat: officeLat, lng: officeLng } : null;
+
+      const hasValidUnitGps = Boolean(
+        myUnit?.pos?.lat &&
+        myUnit?.pos?.lng &&
+        Number(myUnit.pos.lat) !== 0 &&
+        Number(myUnit.pos.lng) !== 0
+      );
+
+      const hasTargetComplaint = Boolean(
+        targetComplaint?.tkpLat &&
+        targetComplaint?.tkpLng &&
+        Number(targetComplaint.tkpLat) !== 0 &&
+        Number(targetComplaint.tkpLng) !== 0
+      );
 
       const centerPos = (centerLat && centerLng && Number(centerLat) !== 0 && Number(centerLng) !== 0)
         ? { lat: Number(centerLat), lng: Number(centerLng) }
-        : (myUnit?.pos?.lat && myUnit?.pos?.lng && Number(myUnit.pos.lat) !== 0
-          ? { lat: Number(myUnit.pos.lat), lng: Number(myUnit.pos.lng) }
-          : (targetComplaint?.tkpLat && targetComplaint?.tkpLng
-            ? { lat: Number(targetComplaint.tkpLat), lng: Number(targetComplaint.tkpLng) }
-            : defaultCenter));
+        : (hasTargetComplaint
+          ? { lat: Number(targetComplaint.tkpLat), lng: Number(targetComplaint.tkpLng) }
+          : (hasValidUnitGps
+            ? { lat: Number(myUnit!.pos!.lat), lng: Number(myUnit!.pos!.lng) }
+            : (defaultOfficeCenter || { lat: 0, lng: 0 })));
 
       const mapOptions = {
         zoom: mode === 'fullscreen' ? 14 : 13,

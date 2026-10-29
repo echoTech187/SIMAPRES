@@ -66,13 +66,20 @@ export default function SimapresMapPawas({
 
   // 1. Tentukan Mako resmi dari pengguna Pawas yang sedang login
   const userMako = useMemo(() => {
-    const defaultMako = {
-      name: 'Polres Pekalongan (Mako Utama)',
-      lat: -7.026803,
-      lng: 109.592982,
-    };
+    if (!policeOffices || policeOffices.length === 0) {
+      return {
+        name: 'Mako Utama',
+        lat: 0,
+        lng: 0,
+      };
+    }
 
-    if (!policeOffices || policeOffices.length === 0) return defaultMako;
+    const firstOffice = policeOffices[0];
+    const defaultMako = {
+      name: firstOffice?.name || firstOffice?.station_name || 'Mako Utama',
+      lat: Number(firstOffice?.lat || firstOffice?.office_lat || 0),
+      lng: Number(firstOffice?.lng || firstOffice?.office_lng || 0),
+    };
 
     // Cari station yang cocok dengan profil pengguna
     const userStationId = userProfile?.station_id || userProfile?.stationId;
@@ -106,7 +113,6 @@ export default function SimapresMapPawas({
     }
 
     // Default ke Mako pertama di database
-    const firstOffice = policeOffices[0];
     if (firstOffice?.lat && firstOffice?.lng) {
       return {
         name: firstOffice.name || firstOffice.namaKantor || defaultMako.name,

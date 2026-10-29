@@ -91,26 +91,24 @@ export default function LiveCameraWatermarkCapture({
     warningMessage?: string;
   } | null>(null);
 
-  // Target TKP Resmi (Fallback ke Mampang Prapatan jika belum ada koordinat dari backend)
-  const targetTkpLat = tkpLat && Number(tkpLat) !== 0 ? Number(tkpLat) : -6.257210;
-  const targetTkpLng = tkpLng && Number(tkpLng) !== 0 ? Number(tkpLng) : 106.818450;
+  // Target TKP Resmi
+  const targetTkpLat = tkpLat && Number(tkpLat) !== 0 ? Number(tkpLat) : 0;
+  const targetTkpLng = tkpLng && Number(tkpLng) !== 0 ? Number(tkpLng) : 0;
   const resolvedTkpAlamat =
     tkpAlamat && !tkpAlamat.toLowerCase().includes('kawasan hukum')
       ? tkpAlamat
       : (alamatTkp && !alamatTkp.includes('TKP') && !alamatTkp.toLowerCase().includes('kawasan hukum')
           ? alamatTkp
-          : 'Jl. Bangka II D No. 12, Mampang Prapatan, Jakarta Selatan');
-  const hasTkpTarget = true;
+          : 'Lokasi Penanganan Tugas Lapangan');
+  const hasTkpTarget = Boolean(targetTkpLat && targetTkpLng);
 
-  // Nama ringkas distrik TKP untuk label saklar (cth: "Mampang Prapatan")
-  const tkpDistrictName = resolvedTkpAlamat.toLowerCase().includes('mampang')
-    ? 'Mampang Prapatan'
-    : (resolvedTkpAlamat.split(',')[0].slice(0, 24) || 'Mampang Prapatan');
+  // Nama ringkas distrik TKP untuk label saklar
+  const tkpDistrictName = resolvedTkpAlamat.split(',')[0].slice(0, 24) || 'Lokasi TKP';
 
-  // Fallback koordinat riil perangkat laptop personel (Tangerang Selatan, ~15.2 km dari TKP)
-  const fallbackRealLat = -6.295896;
-  const fallbackRealLng = 106.690349;
-  const fallbackRealAddress = 'Lengkong Gudang Timur, Serpong, Tangerang Selatan';
+  // Fallback koordinat riil perangkat
+  const fallbackRealLat = targetTkpLat || 0;
+  const fallbackRealLng = targetTkpLng || 0;
+  const fallbackRealAddress = resolvedTkpAlamat;
 
   // Lokasi & Koordinat Terkini Personil (Bukan Alamat Pengaduan Pelapor)
   const [liveGps, setLiveGps] = useState<{ lat: number; lng: number }>({

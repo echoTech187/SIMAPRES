@@ -66,8 +66,29 @@ function PersonilContent(props: {
     activeComplaintRef,
   } = usePersonilConsole(props);
 
-  // State giat lapangan aktif yang dipilih untuk dipantau di peta
-  const [selectedGiat, setSelectedGiat] = React.useState<any | null>(null);
+  // State giat lapangan aktif yang dipilih untuk dipantau di peta (dipersist ke sessionStorage agar tahan refresh)
+  const [selectedGiat, setSelectedGiat] = React.useState<any | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('simapres_selected_giat');
+        if (saved) return JSON.parse(saved);
+      } catch {}
+    }
+    return null;
+  });
+
+  const handleSetSelectedGiat = React.useCallback((giat: any | null) => {
+    setSelectedGiat(giat);
+    if (typeof window !== 'undefined') {
+      try {
+        if (giat) {
+          sessionStorage.setItem('simapres_selected_giat', JSON.stringify(giat));
+        } else {
+          sessionStorage.removeItem('simapres_selected_giat');
+        }
+      } catch {}
+    }
+  }, []);
 
   const fallbackActiveGiat = React.useMemo(() => {
     if (!Array.isArray(logbooks) || logbooks.length === 0) return null;
@@ -84,6 +105,19 @@ function PersonilContent(props: {
       }) || null
     );
   }, [logbooks]);
+
+  // Jika selectedGiat sudah diselesaikan di logbooks, sinkronkan agar tidak stale
+  React.useEffect(() => {
+    if (selectedGiat && Array.isArray(logbooks) && logbooks.length > 0) {
+      const match = logbooks.find((l: any) => String(l.id) === String(selectedGiat.id));
+      if (match) {
+        const st = String(match.statusValidasi || match.validation_status || '').toUpperCase();
+        if (st === 'SELESAI' || st === 'DITOLAK') {
+          handleSetSelectedGiat(null);
+        }
+      }
+    }
+  }, [selectedGiat, logbooks, handleSetSelectedGiat]);
 
   const currentActiveGiat = selectedGiat || fallbackActiveGiat;
 
@@ -159,7 +193,7 @@ function PersonilContent(props: {
             }}
             onQuickAction={handleQuickAction}
             onOpenGiatMap={(giat) => {
-              setSelectedGiat(giat);
+              handleSetSelectedGiat(giat);
               switchTab('peta');
             }}
           />
@@ -183,7 +217,7 @@ function PersonilContent(props: {
             onUpdateStep={handleUpdateStep}
             isUpdatingStep={isUpdatingStep}
             onGiatCompleted={() => {
-              setSelectedGiat(null);
+              handleSetSelectedGiat(null);
               loadData();
               switchTab('beranda');
             }}

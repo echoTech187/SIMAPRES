@@ -62,7 +62,12 @@ export class PrismaLogbookRepository implements ILogbookRepository {
 
   async findByOfficerId(officerId: bigint, limit = 50): Promise<LogbookEntity[]> {
     const records = await prisma.officerLogbook.findMany({
-      where: { officer_id: officerId },
+      where: {
+        OR: [
+          { officer_id: officerId },
+          { officer: { user_id: officerId } },
+        ],
+      },
       orderBy: { created_at: 'desc' },
       take: limit,
     });

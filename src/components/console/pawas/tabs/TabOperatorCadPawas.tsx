@@ -207,12 +207,12 @@ export default function TabOperatorCadPawas({
     return null;
   }, [policeOffices, userProfile, session]);
 
-  const defaultMakoName = resolvedMakoOffice?.name || 'Mako SPKT Polres Pekalongan 110';
+  const defaultMakoName = resolvedMakoOffice?.name || 'Mako SPKT Layanan 110';
   const defaultMakoAddress = resolvedMakoOffice?.address
     ? (resolvedMakoOffice.address.includes(resolvedMakoOffice.name) ? resolvedMakoOffice.address : `${resolvedMakoOffice.name}, ${resolvedMakoOffice.address}`)
-    : 'Mako SPKT Polres Pekalongan, Jl. Rinjani No.1, Tanjungsari, Kajen, Kabupaten Pekalongan, Jawa Tengah 51161';
-  const defaultMakoLat = resolvedMakoOffice?.lat ? Number(resolvedMakoOffice.lat) : -7.026779;
-  const defaultMakoLng = resolvedMakoOffice?.lng ? Number(resolvedMakoOffice.lng) : 109.59308;
+    : 'Mako SPKT Layanan Kepolisian 110';
+  const defaultMakoLat = resolvedMakoOffice?.lat ? Number(resolvedMakoOffice.lat) : 0;
+  const defaultMakoLng = resolvedMakoOffice?.lng ? Number(resolvedMakoOffice.lng) : 0;
 
   // Deteksi apakah kategori aktif berjenis Informasi / Konsultasi
   const isCurrentCategoryConsultation = React.useMemo(() => {
@@ -1175,7 +1175,11 @@ export default function TabOperatorCadPawas({
                     lat={Math.abs(simCaller.lat) > 80 ? 0 : simCaller.lat}
                     lng={Math.abs(simCaller.lat) > 80 ? 0 : simCaller.lng}
                     height="100%"
-                    fallbackCenter={{ lat: -7.026803, lng: 109.592982 }}
+                    fallbackCenter={
+                      resolvedMakoOffice?.lat && resolvedMakoOffice?.lng
+                        ? { lat: Number(resolvedMakoOffice.lat), lng: Number(resolvedMakoOffice.lng) }
+                        : undefined
+                    }
                     onChange={(lat, lng) => {
                       setSimCaller((prev: any) => ({ ...prev, lat, lng }));
                     }}

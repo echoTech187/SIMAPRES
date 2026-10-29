@@ -220,10 +220,14 @@ export function usePersonilConsole({
   const [resolutionDocuments, setResolutionDocuments] = useState<any[]>(() => cachedResolutionDocuments || []);
   const [dispatchStatuses, setDispatchStatuses] = useState<any[]>(() => initialMasterData?.dispatchStatuses || []);
 
-  // GPS Telemetry
-  const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number }>({
-    lat: -6.229728,
-    lng: 106.807447,
+  // GPS Telemetry - inisialisasi dinamis dari database Mako/Station atau telemetry terakhir di DB
+  const [currentGps, setCurrentGps] = useState<{ lat: number; lng: number }>(() => {
+    const lat = Number(initialOfficer?.currentGpsLat || session?.currentGpsLat || initialOfficer?.stationLat || session?.stationLat);
+    const lng = Number(initialOfficer?.currentGpsLng || session?.currentGpsLng || initialOfficer?.stationLng || session?.stationLng);
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      return { lat, lng };
+    }
+    return { lat: 0, lng: 0 };
   });
 
   const isPollingRef = useRef<boolean>(false);
@@ -236,11 +240,10 @@ export function usePersonilConsole({
     try {
       const activeNrp = nrpParam || officer.nrp;
       const activeOfficerId = targetOfficerId || officer.id;
-      const shouldFetchLogbooks = activeTabRef.current !== 'peta';
 
       const [cRes, lRes] = await Promise.all([
         getOfficerComplaintsAction(activeNrp),
-        shouldFetchLogbooks ? getOfficerLogbooksAction(String(activeOfficerId)) : Promise.resolve(null),
+        getOfficerLogbooksAction(String(activeOfficerId)),
       ]);
 
       if (cRes?.success && cRes?.data) {

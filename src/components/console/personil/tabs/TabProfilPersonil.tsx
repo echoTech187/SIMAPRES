@@ -2289,8 +2289,7 @@ export default function TabProfilPersonil({
                                 <span>Titik Sasaran Koordinat TKP:</span>
                               </div>
                               <div className="text-xs font-mono font-bold text-white">
-                                {sel.tkpLat || sel.tkpLatitude ? Number(sel.tkpLat || sel.tkpLatitude).toFixed(5) : '-6.2088'},{' '}
-                                {sel.tkpLng || sel.tkpLongitude ? Number(sel.tkpLng || sel.tkpLongitude).toFixed(5) : '106.8456'}
+                                {sel.tkpLat || sel.tkpLatitude ? `${Number(sel.tkpLat || sel.tkpLatitude).toFixed(5)}, ${Number(sel.tkpLng || sel.tkpLongitude).toFixed(5)}` : '-'}
                               </div>
                             </div>
 

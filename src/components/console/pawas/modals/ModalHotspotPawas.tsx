@@ -25,12 +25,12 @@ export default function ModalHotspotPawas({
 }: ModalHotspotPawasProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
-  const [newWilayah, setNewWilayah] = useState('Kebayoran Baru');
+  const [newWilayah, setNewWilayah] = useState('');
   const [newKategori, setNewKategori] = useState('Tawuran Remaja & Geng Motor');
   const [newStatus, setNewStatus] = useState('BAHAYA_TINGGI');
   const [newJadwal, setNewJadwal] = useState('23:00 - 04:30 WIB');
-  const [newLat, setNewLat] = useState(-6.2415);
-  const [newLng, setNewLng] = useState(106.8025);
+  const [newLat, setNewLat] = useState(0);
+  const [newLng, setNewLng] = useState(0);
 
   if (!isOpen) return null;
 

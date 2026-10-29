@@ -483,7 +483,7 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
                 <span style={{ fontSize: '9.5px', background: '#DCFCE7', color: '#15803D', fontWeight: 700, padding: '1px 5px', borderRadius: '3px' }}>TERKUNCI</span>
               </div>
               <div style={{ fontSize: '11px', fontWeight: 600, color: '#1E293B', fontFamily: 'monospace' }}>
-                {complaint.tkpLat ? Number(complaint.tkpLat).toFixed(4) : '-6.2443'}, {complaint.tkpLng ? Number(complaint.tkpLng).toFixed(4) : '106.8012'}
+                {complaint.tkpLat && complaint.tkpLng ? `${Number(complaint.tkpLat).toFixed(4)}, ${Number(complaint.tkpLng).toFixed(4)}` : '-'}
               </div>
             </div>
 

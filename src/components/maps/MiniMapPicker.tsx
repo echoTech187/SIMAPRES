@@ -29,8 +29,8 @@ interface MiniMapPickerProps {
   onSelectSearchResultMarker?: (marker: SearchResultMarkerItem) => void;
 }
 
-// Default coordinates for Mako Polres Pekalongan / Area Operasional Presisi
-const DEFAULT_CENTER = { lat: -7.026803, lng: 109.592982 };
+// Fallback koordinat jika belum ada titik koordinat yang disuplai
+const DEFAULT_CENTER = { lat: 0, lng: 0 };
 
 export const isValidMapCoord = (cLat?: any, cLng?: any): boolean => {
   if (cLat === null || cLat === undefined || cLng === null || cLng === undefined) return false;
