@@ -369,11 +369,22 @@ export default function TabKinerjaPawas({
 
     return rawOfficerList.map((item: any) => {
       // Saring tiket personel ini pada periode yang dipilih
-      const officerComplaints = filteredComplaints.filter((c: any) =>
-        c.assignedOfficerId === item.officerId ||
-        c.assignedOfficer?.nrp === item.nrp ||
-        c.assignedOfficer?.id === item.officerId
-      );
+      const officerComplaints = filteredComplaints.filter((c: any) => {
+        const cOfficerId = c.assignedOfficerId || c.assignedOfficer?.id;
+        const cNrp = c.assignedOfficer?.nrp;
+        const matchDirect =
+          (cOfficerId && String(cOfficerId) === String(item.officerId)) ||
+          (cNrp && item.nrp && String(cNrp).trim() === String(item.nrp).trim());
+
+        const matchDispatch = Array.isArray(c.dispatches) && c.dispatches.some((d: any) => {
+          const dOffId = d.officer_id || d.officer?.id;
+          const dNrp = d.officer?.nrp;
+          return (dOffId && String(dOffId) === String(item.officerId)) ||
+                 (dNrp && item.nrp && String(dNrp).trim() === String(item.nrp).trim());
+        });
+
+        return Boolean(matchDirect || matchDispatch);
+      });
 
       const totalDiterima = officerComplaints.length;
       const totalSelesai = officerComplaints.filter((c: any) => c.status === 'SELESAI').length;
@@ -385,9 +396,25 @@ export default function TabKinerjaPawas({
       const avgResponseTimeMinutes = respTimes.length > 0 ? Math.round(respTimes.reduce((a, b) => a + b, 0) / respTimes.length) : null;
 
       const stars = officerComplaints
-        .map((c: any) => c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : null))
+        .map((c: any) => c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : (c.citizenReviewRel?.star_rating ? c.citizenReviewRel.star_rating : null)))
         .filter(Boolean);
       const avgRating = stars.length > 0 ? Math.round((stars.reduce((a, b) => a + Number(b), 0) / stars.length) * 10) / 10 : 0;
+
+      let predikat = 'Belum Ada Penugasan';
+      let predikatColor = '#64748B';
+
+      if (totalDiterima > 0) {
+        if (completionRate >= 80 && (avgRating >= 4.0 || avgRating === 0)) {
+          predikat = avgRating >= 4.7 ? 'Sangat Presisi (Teladan)' : 'Pelayanan Baik';
+          predikatColor = avgRating >= 4.7 ? '#059669' : '#2563EB';
+        } else if (completionRate < 80) {
+          predikat = 'Perlu Evaluasi';
+          predikatColor = '#D97706';
+        } else {
+          predikat = 'Sedang Bertugas';
+          predikatColor = '#2563EB';
+        }
+      }
 
       return {
         ...item,
@@ -397,12 +424,23 @@ export default function TabKinerjaPawas({
         avgResponseTimeMinutes,
         avgRating,
         totalReviews: stars.length,
+        predikat,
+        predikatColor,
       };
     }).sort((a: any, b: any) => {
       if (rankingCategoryTab === 'produktivitas') {
-        return b.totalSelesai - a.totalSelesai;
+        if (b.totalSelesai !== a.totalSelesai) {
+          return b.totalSelesai - a.totalSelesai;
+        }
+        if (b.totalDiterima !== a.totalDiterima) {
+          return b.totalDiterima - a.totalDiterima;
+        }
+        return (a.avgResponseTimeMinutes || 999) - (b.avgResponseTimeMinutes || 999);
       }
-      return b.avgRating - a.avgRating;
+      if (b.avgRating !== a.avgRating) {
+        return b.avgRating - a.avgRating;
+      }
+      return b.totalReviews - a.totalReviews;
     });
   }, [officerRankings, rankingCategoryTab, filteredComplaints]);
 
@@ -1188,7 +1226,7 @@ export default function TabKinerjaPawas({
                           </div>
                           <div style={{ minWidth: 0, flex: 1 }}>
                             <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {item.pangkat} {item.namaLengkap}
+                              {item.namaLengkap?.toLowerCase().startsWith((item.pangkat || '').toLowerCase().trim()) ? item.namaLengkap : `${item.pangkat ? item.pangkat + ' ' : ''}${item.namaLengkap || item.nrp}`}
                             </div>
                             <div style={{ fontSize: '10.5px', color: '#64748B' }}>
                               NRP {item.nrp} • {item.unit}
@@ -1262,7 +1300,7 @@ export default function TabKinerjaPawas({
                             </td>
                             <td style={{ padding: '8px 10px' }}>
                               <div style={{ fontWeight: 700, color: '#1E293B' }}>
-                                {item.pangkat} {item.namaLengkap}
+                                {item.namaLengkap?.toLowerCase().startsWith((item.pangkat || '').toLowerCase().trim()) ? item.namaLengkap : `${item.pangkat ? item.pangkat + ' ' : ''}${item.namaLengkap || item.nrp}`}
                               </div>
                               <div style={{ fontSize: '10px', color: '#64748B' }}>NRP: {item.nrp}</div>
                             </td>

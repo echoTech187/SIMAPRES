@@ -461,7 +461,12 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         al.logs_json
 
       FROM complaints c
-      LEFT JOIN complaint_dispatches d ON d.complaint_id = c.id AND (d.is_primary_unit = 1 OR d.is_primary_unit IS NULL)
+      LEFT JOIN (
+        SELECT * FROM (
+          SELECT *, ROW_NUMBER() OVER (PARTITION BY complaint_id ORDER BY is_primary_unit DESC, id DESC) as rn
+          FROM complaint_dispatches
+        ) ranked_d WHERE ranked_d.rn = 1
+      ) d ON d.complaint_id = c.id
       LEFT JOIN master_operational_units u ON u.id = d.unit_id
       LEFT JOIN police_officers po ON po.id = d.officer_id
       LEFT JOIN users usr ON usr.id = po.user_id
