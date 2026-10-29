@@ -433,7 +433,8 @@ export function usePawasConsole({
   // 3. Tab 3: Analytics & Kinerja Loader (Lazy on-demand saat tab Kinerja dibuka)
   const loadAnalyticsData = useCallback(async (force = false) => {
     try {
-      const res = await getPawasAnalyticsDataAction(force);
+      const activeStationId = userProfile?.stationId || session?.stationId;
+      const res = await getPawasAnalyticsDataAction(activeStationId, force);
       if ((res as any)?.unauthenticated) {
         redirectToLogin('inactivity_timeout');
         return;
@@ -453,7 +454,7 @@ export function usePawasConsole({
         console.warn('Error loading pawas analytics data:', e);
       }
     }
-  }, []);
+  }, [userProfile?.stationId, session?.stationId]);
 
   // 4. Tab 4: Logbook Data Loader (Lazy on-demand saat tab Logbook dibuka)
   const loadLogbookData = useCallback(async (force = false) => {

@@ -49,8 +49,12 @@ export default function TabPiketPawas({
   showToast = (msg: string) => alert(msg),
   defaultStationId,
 }: TabPiketPawasProps) {
+  // Hanya SUPERADMIN yang diizinkan lintas Mako/Polsek; peran dinas (PAWAS/PERSONIL/OPERATOR) terkunci pada Mako sendiri
+  const isStationLocked = session?.role !== 'SUPERADMIN';
+  const effectiveStationId = defaultStationId || (session?.stationId ? Number(session.stationId) : 60001);
+
   const [loading, setLoading] = useState(false);
-  const [selectedStationId, setSelectedStationId] = useState<number>(defaultStationId || 60001);
+  const [selectedStationId, setSelectedStationId] = useState<number>(effectiveStationId);
 
   // Tanggal yang sedang aktif dilihat (default: hari ini YYYY-MM-DD dalam waktu lokal)
   const [activeDateStr, setActiveDateStr] = useState<string>(() => formatLocalDateToYMD(new Date()));
@@ -264,7 +268,9 @@ export default function TabPiketPawas({
 
   const selectedStationObj = lookups.stations.find((s) => s.id === Number(selectedStationId));
   const availableOfficersForAdd = lookups.officers.filter(
-    (o) => !activePiket?.members?.some((m: any) => m.officer_id?.toString() === o.id?.toString())
+    (o) =>
+      (!isStationLocked || Number(o.station_id) === Number(selectedStationId)) &&
+      !activePiket?.members?.some((m: any) => m.officer_id?.toString() === o.id?.toString())
   );
 
   const formattedActiveDate = (() => {
@@ -351,27 +357,60 @@ export default function TabPiketPawas({
             {/* Filter Kantor Polisi */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '11px', color: '#CBD5E1', fontWeight: 700 }}>MAKO:</span>
-              <div style={{ minWidth: '220px' }}>
-                <Select2CustomDropdown
-                  value={selectedStationId}
-                  onChange={(val) => setSelectedStationId(Number(val))}
-                  options={lookups.stations.map((s) => ({
-                    value: s.id,
-                    label: s.station_name,
-                    sublabel: s.station_code ? `Kode: ${s.station_code}` : undefined,
-                  }))}
-                  placeholder="-- Pilih Mako --"
-                  searchable={true}
-                  triggerStyle={{
-                    background: '#334155',
-                    borderColor: '#475569',
+              {isStationLocked ? (
+                <div
+                  style={{
+                    background: '#1E293B',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    padding: '6px 14px',
                     color: '#FFFFFF',
-                    padding: '6px 12px',
                     fontSize: '12px',
                     fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
                   }}
-                />
-              </div>
+                >
+                  <span style={{ fontSize: '13px' }}>🏢</span>
+                  <span>{selectedStationObj?.station_name || 'Polres Pekalongan'}</span>
+                  <span
+                    style={{
+                      fontSize: '9.5px',
+                      background: '#0F172A',
+                      color: '#94A3B8',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      border: '1px solid #334155',
+                      letterSpacing: '0.3px',
+                    }}
+                  >
+                    🔒 Mako Anda
+                  </span>
+                </div>
+              ) : (
+                <div style={{ minWidth: '220px' }}>
+                  <Select2CustomDropdown
+                    value={selectedStationId}
+                    onChange={(val) => setSelectedStationId(Number(val))}
+                    options={lookups.stations.map((s) => ({
+                      value: s.id,
+                      label: s.station_name,
+                      sublabel: s.station_code ? `Kode: ${s.station_code}` : undefined,
+                    }))}
+                    placeholder="-- Pilih Mako --"
+                    searchable={true}
+                    triggerStyle={{
+                      background: '#334155',
+                      borderColor: '#475569',
+                      color: '#FFFFFF',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Tombol Atur / Tambah Jadwal Piket */}
@@ -1098,6 +1137,7 @@ export default function TabPiketPawas({
         operationalUnits={lookups.operationalUnits}
         onSuccess={loadData}
         showToast={showToast}
+        isStationLocked={isStationLocked}
       />
 
       {/* MODAL CETAK JADWAL PIKET */}

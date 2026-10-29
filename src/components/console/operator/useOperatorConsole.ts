@@ -257,7 +257,8 @@ export function useOperatorConsole({
   // 3. Analytics / Kinerja Tab: Operator Rankings (Lazy on-demand saat tab Kinerja dibuka)
   const loadAnalyticsData = useCallback(async (force = false) => {
     try {
-      const res = await getPawasAnalyticsDataAction(force);
+      const activeStationId = userProfile?.stationId || session?.stationId;
+      const res = await getPawasAnalyticsDataAction(activeStationId, force);
       if ((res as any)?.unauthenticated) {
         redirectToLogin('inactivity_timeout');
         return;
@@ -274,7 +275,7 @@ export function useOperatorConsole({
         console.warn('Error loading operator analytics data:', e);
       }
     }
-  }, []);
+  }, [userProfile?.stationId, session?.stationId]);
 
   // Unified loadData helper with tab context
   const loadData = useCallback(async (force = false, silent = false) => {

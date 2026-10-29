@@ -114,11 +114,22 @@ export default function TabKinerjaPawas({
     return `Bulan ${formattedMonth}`;
   }, [kinerjaPeriod, selectedDateObj]);
 
-  // FILTER DINAMIS: Menyaring allRecentComplaints sesuai kinerjaPeriod dan kinerjaDate
+  const userStationId = userProfile?.stationId ? Number(userProfile.stationId) : undefined;
+  const isSuperadmin = userProfile?.role === 'SUPERADMIN';
+
+  // FILTER DINAMIS: Menyaring allRecentComplaints sesuai kinerjaPeriod, kinerjaDate, dan Mako aktif
   const filteredComplaints = useMemo(() => {
     if (!Array.isArray(allRecentComplaints) || allRecentComplaints.length === 0) {
       return [];
     }
+
+    // Filter per station jika bukan SUPERADMIN
+    const stationScopedComplaints = (!isSuperadmin && userStationId)
+      ? allRecentComplaints.filter((c: any) => {
+          const cStationId = c.stationId || c.station_id || c.station?.id;
+          return !cStationId || Number(cStationId) === userStationId;
+        })
+      : allRecentComplaints;
 
     const selYear = selectedDateObj.getFullYear();
     const selMonth = selectedDateObj.getMonth();
@@ -128,7 +139,7 @@ export default function TabKinerjaPawas({
       const startOfDay = new Date(selYear, selMonth, selDate, 0, 0, 0, 0).getTime();
       const endOfDay = new Date(selYear, selMonth, selDate, 23, 59, 59, 999).getTime();
 
-      return allRecentComplaints.filter((c) => {
+      return stationScopedComplaints.filter((c) => {
         const d = getComplaintDate(c);
         if (!d) return false;
         const time = d.getTime();
@@ -140,7 +151,7 @@ export default function TabKinerjaPawas({
       const endOfWeek = new Date(selYear, selMonth, selDate, 23, 59, 59, 999).getTime();
       const startOfWeek = new Date(selYear, selMonth, selDate - 6, 0, 0, 0, 0).getTime();
 
-      return allRecentComplaints.filter((c) => {
+      return stationScopedComplaints.filter((c) => {
         const d = getComplaintDate(c);
         if (!d) return false;
         const time = d.getTime();
@@ -149,15 +160,15 @@ export default function TabKinerjaPawas({
     }
 
     if (kinerjaPeriod === 'bulanan') {
-      return allRecentComplaints.filter((c) => {
+      return stationScopedComplaints.filter((c) => {
         const d = getComplaintDate(c);
         if (!d) return false;
         return d.getFullYear() === selYear && d.getMonth() === selMonth;
       });
     }
 
-    return allRecentComplaints;
-  }, [allRecentComplaints, kinerjaPeriod, selectedDateObj]);
+    return stationScopedComplaints;
+  }, [allRecentComplaints, kinerjaPeriod, selectedDateObj, userProfile?.stationId, userProfile?.role]);
 
   // HITUNG METRIK DINAMIS BERDASARKAN HASIL FILTER
   const metrics = useMemo(() => {
@@ -506,8 +517,10 @@ export default function TabKinerjaPawas({
               {periodBadgeText}
             </span>
           </div>
-          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '3px' }}>
-            Posko Pengendalian • <strong>{userProfile?.fullName ? userProfile.fullName : (userProfile?.nama ? userProfile.nama : 'Pawas Piket')} (NRP: {userProfile?.nrp ? userProfile.nrp : '-'})</strong>
+          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span>🏢 Wilayah Mako: <strong style={{ color: '#153E75' }}>{userProfile?.stationName || userProfile?.station_name || 'Polres Pekalongan'}</strong></span>
+            <span>•</span>
+            <span>Posko Pengendalian: <strong>{userProfile?.fullName ? userProfile.fullName : (userProfile?.nama ? userProfile.nama : 'Pawas Piket')} (NRP: {userProfile?.nrp ? userProfile.nrp : '-'})</strong></span>
           </div>
         </div>
 
@@ -523,8 +536,19 @@ export default function TabKinerjaPawas({
       {/* FILTER PERIODE & KALENDER DINAMIS */}
       <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          {/* Tombol Pilihan Rentang Periode */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {/* Mako & Tombol Pilihan Rentang Periode */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#F8FAFC', padding: '6px 12px', borderRadius: '7px', border: '1px solid #E2E8F0' }}>
+              <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>MAKO:</span>
+              <span style={{ fontSize: '11.5px', fontWeight: 800, color: '#153E75' }}>
+                🏢 {userProfile?.stationName || userProfile?.station_name || 'Polres Pekalongan'}
+              </span>
+              <span style={{ fontSize: '9px', background: '#DBEAFE', color: '#1E40AF', padding: '2px 5px', borderRadius: '4px', fontWeight: 700 }}>
+                {userProfile?.role === 'SUPERADMIN' ? 'SEMUA' : 'TERKUNCI'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => setKinerjaPeriod('harian')}
@@ -580,6 +604,7 @@ export default function TabKinerjaPawas({
               Bulanan
             </button>
           </div>
+        </div>
 
           {/* Date Picker Input */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -624,11 +649,11 @@ export default function TabKinerjaPawas({
         {/* Status Indikator Filter yang Sedang Aktif */}
         <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', fontSize: '11px' }}>
           <div style={{ color: '#475569' }}>
-            🔍 Menampilkan evaluasi operasional: <strong>{periodSummaryLabel}</strong> • Ditemukan <strong>{metrics.total} Laporan</strong> dari total {allRecentComplaints.length} arsip
+            🔍 Evaluasi Operasional: <strong>{periodSummaryLabel}</strong> • Wilayah: <strong style={{ color: '#153E75' }}>{userProfile?.stationName || userProfile?.station_name || 'Polres Pekalongan'}</strong> • Ditemukan <strong>{metrics.total} Laporan</strong> dari total {allRecentComplaints.length} arsip
           </div>
           {metrics.total === 0 && (
             <span style={{ color: '#DC2626', fontWeight: 700 }}>
-              ⚠️ Tidak ada laporan pengaduan pada rentang tanggal ini. Silakan ganti tanggal atau rentang.
+              ⚠️ Tidak ada laporan pengaduan untuk Mako ini pada rentang tanggal ini. Silakan ganti tanggal atau rentang.
             </span>
           )}
         </div>
@@ -872,8 +897,13 @@ export default function TabKinerjaPawas({
                           Peringkat {idx + 1} Anev • {item.stationLevel ? item.stationLevel : 'POLSEK'}
                         </div>
                         <div style={{ marginTop: '8px', paddingRight: '35px' }}>
-                          <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {item.stationName}
+                          <div style={{ fontSize: '13.5px', fontWeight: 900, color: '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{item.stationName}</span>
+                            {userStationId && Number(item.stationId) === userStationId && (
+                              <span style={{ fontSize: '9px', background: '#DBEAFE', color: '#1E40AF', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
+                                Mako Anda 📍
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '10.5px', color: '#64748B' }}>
                             Kode: {item.stationCode} • Skor Komposit: <strong>{item.rankScore} Pts</strong>
@@ -928,23 +958,32 @@ export default function TabKinerjaPawas({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredStationRankings.map((st: any, idx: number) => (
-                        <tr
-                          key={st.stationId}
-                          style={{
-                            borderBottom: '1px solid #F1F5F9',
-                            background: idx === 0 ? '#FFFBEB' : (idx % 2 === 1 ? '#FAFAFA' : 'white'),
-                          }}
-                        >
-                          <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800 }}>
-                            {idx === 0 ? '🥇 1' : (idx === 1 ? '🥈 2' : (idx === 2 ? '🥉 3' : `${idx + 1}`))}
-                          </td>
-                          <td style={{ padding: '8px 10px' }}>
-                            <div style={{ fontWeight: 800, color: '#1E293B' }}>{st.stationName}</div>
-                            <div style={{ fontSize: '10px', color: '#64748B' }}>
-                              {st.stationLevel ? st.stationLevel : 'POLSEK'} • Kode: {st.stationCode}
-                            </div>
-                          </td>
+                      {filteredStationRankings.map((st: any, idx: number) => {
+                        const isOwnStation = userStationId && Number(st.stationId) === userStationId;
+                        return (
+                          <tr
+                            key={st.stationId}
+                            style={{
+                              borderBottom: '1px solid #F1F5F9',
+                              background: isOwnStation ? '#EFF6FF' : (idx === 0 ? '#FFFBEB' : (idx % 2 === 1 ? '#FAFAFA' : 'white')),
+                            }}
+                          >
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800 }}>
+                              {idx === 0 ? '🥇 1' : (idx === 1 ? '🥈 2' : (idx === 2 ? '🥉 3' : `${idx + 1}`))}
+                            </td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <div style={{ fontWeight: 800, color: isOwnStation ? '#1E40AF' : '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{st.stationName}</span>
+                                {isOwnStation && (
+                                  <span style={{ fontSize: '9px', background: '#DBEAFE', color: '#1E40AF', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
+                                    Mako Anda 📍
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '10px', color: '#64748B' }}>
+                                {st.stationLevel ? st.stationLevel : 'POLSEK'} • Kode: {st.stationCode}
+                              </div>
+                            </td>
                           <td style={{ padding: '8px 10px', fontWeight: 700, color: '#153E75' }}>
                             <div>{st.totalMasuk} Tiket</div>
                             <div style={{ fontSize: '10px', color: '#64748B' }}>
@@ -1017,7 +1056,8 @@ export default function TabKinerjaPawas({
                             )}
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                     </tbody>
                   </table>
                 </div>

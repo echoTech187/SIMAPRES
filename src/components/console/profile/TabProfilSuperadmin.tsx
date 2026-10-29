@@ -149,7 +149,7 @@ export default function TabProfilSuperadmin({
       showToast('Konfirmasi kata sandi baru tidak sesuai!');
       return;
     }
-    showToast('✓ Kredensial akun & PIN otorisasi dinas berhasil disimpan!');
+    showToast('✓ Kredensial akun berhasil disimpan!');
     setNewPassword('');
     setConfirmPassword('');
     if (mobileActiveModal === 'keamanan') {
@@ -1280,7 +1280,7 @@ export default function TabProfilSuperadmin({
                   <div style={{ fontSize: '13px', fontWeight: 700, color: profilActiveMenu === 'keamanan' ? '#1D4ED8' : '#1E293B' }}>
                     Keamanan Akun
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>Ganti kata sandi login &amp; otorisasi PIN dinas</div>
+                  <div style={{ fontSize: '11px', color: '#64748B' }}>Ganti kata sandi login</div>
                 </div>
               </div>
               <span style={{ color: profilActiveMenu === 'keamanan' ? '#1D4ED8' : '#94A3B8', fontWeight: 800 }}>➔</span>
@@ -1369,7 +1369,7 @@ export default function TabProfilSuperadmin({
           mobileActiveModal === 'profil'
             ? 'Perbarui biodata personel, pangkat & pasfoto resmi kedinasan'
             : mobileActiveModal === 'keamanan'
-            ? 'Ganti kata sandi login & otorisasi PIN dinas'
+            ? 'Ganti kata sandi login'
             : 'Rekam jejak seluruh penanganan laporan & tugas'
         }
         icon={

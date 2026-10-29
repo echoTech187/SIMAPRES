@@ -777,16 +777,18 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     }
   }
 
-  async findAllRecent(limit = 15): Promise<ComplaintEntity[]> {
+  async findAllRecent(limit = 15, stationId?: number): Promise<ComplaintEntity[]> {
     try {
+      const whereSql = stationId ? Prisma.sql`c.station_id = ${stationId}` : Prisma.sql`1=1`;
       return await this.queryComplaintsFastSql(
-        Prisma.sql`1=1`,
+        whereSql,
         Prisma.sql`c.created_at DESC`,
         limit
       );
     } catch (_err) {
       const [records, dict] = await Promise.all([
         prisma.complaint.findMany({
+          where: stationId ? { station_id: stationId } : undefined,
           take: limit,
           orderBy: { created_at: 'desc' },
           include: COMPLAINT_INCLUDE,
@@ -1367,10 +1369,12 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     return this.mapToEntity(reloaded || updated);
   }
 
-  async getIkmStats(): Promise<IkmStats> {
+  async getIkmStats(stationId?: number): Promise<IkmStats> {
     // Ambil data voting langsung dari tabel citizen_reviews yang ter-normalisasi
+    const whereClause = stationId ? { complaint: { station_id: stationId } } : undefined;
     const grouped = await prisma.citizenReview.groupBy({
       by: ['star_rating'],
+      where: whereClause,
       _count: { _all: true },
     });
 

@@ -7,8 +7,8 @@ export interface PawasAnalyticsData {
 export class GetPawasAnalyticsUseCase {
   constructor(private complaintRepo: IComplaintRepository) {}
 
-  async execute(): Promise<PawasAnalyticsData> {
-    const ikmStats = await this.complaintRepo.getIkmStats();
+  async execute(stationId?: number): Promise<PawasAnalyticsData> {
+    const ikmStats = await this.complaintRepo.getIkmStats(stationId);
     return { ikmStats };
   }
 }

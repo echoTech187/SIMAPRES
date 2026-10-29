@@ -110,7 +110,7 @@ export default function ModalKeamananPawas({
             <button
               type="button"
               onClick={() => {
-                showFriendlyToast('success', 'Kredensial Diperbarui', 'Kredensial akun & PIN otorisasi dinas berhasil diperbarui.');
+                showFriendlyToast('success', 'Kredensial Diperbarui', 'Kredensial akun berhasil diperbarui.');
                 onClose();
               }}
               style={{ flex: 2, padding: '10px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer' }}

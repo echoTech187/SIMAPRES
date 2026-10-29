@@ -1338,15 +1338,16 @@ export async function getAntreanPawasAction(stationId?: number) {
   }
 }
 
-export async function getAllRecentComplaintsAction(limit = 15) {
-  const cacheKey = `recent_complaints_${limit}`;
+export async function getAllRecentComplaintsAction(limit = 15, stationId?: number | string) {
+  const numStationId = stationId ? Number(stationId) : undefined;
+  const cacheKey = numStationId ? `recent_complaints_${limit}_st_${numStationId}` : `recent_complaints_${limit}`;
   const cached = cacheGet<any>(cacheKey);
   if (cached) {
     return cached;
   }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
-    const results = await repo.findAllRecent(limit);
+    const results = await repo.findAllRecent(limit, numStationId);
     const result = { success: true, data: serializeBigInt(results.map((r) => r.toJSON())) };
     cacheSet(cacheKey, result, 15000); // 15 detik TTL
     return result;
@@ -1355,15 +1356,16 @@ export async function getAllRecentComplaintsAction(limit = 15) {
   }
 }
 
-export async function getIkmStatsAction() {
-  const cacheKey = 'ikm_stats';
+export async function getIkmStatsAction(stationId?: number | string) {
+  const numStationId = stationId ? Number(stationId) : undefined;
+  const cacheKey = numStationId ? `ikm_stats_st_${numStationId}` : 'ikm_stats';
   const cached = cacheGet<any>(cacheKey);
   if (cached) {
     return cached;
   }
   try {
     const repo = UseCaseFactory.getComplaintRepository();
-    const stats = await repo.getIkmStats();
+    const stats = await repo.getIkmStats(numStationId);
     const result = { success: true, data: stats };
     cacheSet(cacheKey, result, 60000); // 60 detik TTL
     return result;
@@ -2682,14 +2684,17 @@ export interface OfficerPerformanceRankItem {
  * 1. Peringkat Produktivitas (Paling banyak menerima dan menyelesaikan tiket)
  * 2. Peringkat Kepuasan Masyarakat (Rating IKM Bintang 1 - 5)
  */
-export async function getOfficerPerformanceRankingsAction() {
-  const cached = cacheGet<any>('officer_performance_rankings');
+export async function getOfficerPerformanceRankingsAction(stationId?: number | string) {
+  const numStationId = stationId ? Number(stationId) : undefined;
+  const cacheKey = numStationId ? `officer_performance_rankings_st_${numStationId}` : 'officer_performance_rankings';
+  const cached = cacheGet<any>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
 
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const { Prisma } = await import('@prisma/client');
 
     let items: OfficerPerformanceRankItem[] | null = null;
 
@@ -2732,6 +2737,7 @@ export async function getOfficerPerformanceRankingsAction() {
         LEFT JOIN master_operational_units un ON un.id = po.unit_id
         LEFT JOIN complaint_dispatches d ON d.officer_id = po.id
         LEFT JOIN citizen_reviews cr ON cr.complaint_id = d.complaint_id AND (d.dispatch_status = 'COMPLETED' OR d.completed_at IS NOT NULL)
+        ${numStationId ? Prisma.sql`WHERE po.station_id = ${numStationId}` : Prisma.empty}
         GROUP BY po.id, po.nrp, po.rank_pangkat, po.jabatan, po.assigned_patrol_vehicle, po.avatar_url, u.full_name, un.unit_name, un.short_name
         ORDER BY po.id ASC;
       `;
@@ -2791,6 +2797,7 @@ export async function getOfficerPerformanceRankingsAction() {
 
     if (!items) {
       const officers = await prisma.policeOfficer.findMany({
+        where: numStationId ? { station_id: numStationId } : undefined,
         include: {
           user: { select: { id: true, full_name: true, is_active: true } },
           unit: { select: { unit_name: true, short_name: true } },
@@ -2929,7 +2936,7 @@ export async function getOfficerPerformanceRankingsAction() {
       totalOfficers: items.length,
     };
 
-    cacheSet('officer_performance_rankings', payload, 60000); // 60 detik TTL
+    cacheSet(cacheKey, payload, 60000); // 60 detik TTL
 
     return {
       success: true,
@@ -3269,14 +3276,17 @@ export interface OperatorPerformanceRankItem {
  * - Indeks Kepuasan Pelayanan 110 (Rating Bintang Warga)
  * - Skor Komposit Anev Operator (Bobot 100 Poin)
  */
-export async function getOperatorPerformanceRankingsAction() {
-  const cached = cacheGet<any>('operator_performance_rankings');
+export async function getOperatorPerformanceRankingsAction(stationId?: number | string) {
+  const numStationId = stationId ? Number(stationId) : undefined;
+  const cacheKey = numStationId ? `operator_performance_rankings_st_${numStationId}` : 'operator_performance_rankings';
+  const cached = cacheGet<any>(cacheKey);
   if (cached) {
     return { success: true, data: cached };
   }
 
   try {
     const { prisma } = await import('@/infrastructure/db/prisma.client');
+    const { Prisma } = await import('@prisma/client');
 
     let items: OperatorPerformanceRankItem[] | null = null;
 
@@ -3322,7 +3332,7 @@ export async function getOperatorPerformanceRankingsAction() {
           WHERE dispatched_at IS NOT NULL
           GROUP BY complaint_id
         ) d ON d.complaint_id = c.id
-        WHERE u.role = 'OPERATOR'
+        WHERE u.role = 'OPERATOR' ${numStationId ? Prisma.sql`AND u.station_id = ${numStationId}` : Prisma.empty}
         GROUP BY u.id, u.identifier, u.full_name, u.role, u.avatar_url, st.station_name
         ORDER BY u.id ASC;
       `;
@@ -3396,7 +3406,10 @@ export async function getOperatorPerformanceRankingsAction() {
     if (!items) {
       const [operators, allComplaints] = await Promise.all([
         prisma.user.findMany({
-          where: { role: 'OPERATOR' },
+          where: {
+            role: 'OPERATOR',
+            ...(numStationId ? { station_id: numStationId } : {}),
+          },
           include: {
             station: { select: { station_name: true } },
           },
@@ -3540,7 +3553,7 @@ export async function getOperatorPerformanceRankingsAction() {
       totalOperators: (items || []).length,
     };
 
-    cacheSet('operator_performance_rankings', payload, 60000);
+    cacheSet(cacheKey, payload, 60000);
 
     return {
       success: true,

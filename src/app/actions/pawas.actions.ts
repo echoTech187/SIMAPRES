@@ -71,7 +71,7 @@ export async function getPawasDashboardDataAction(stationId?: number | string, f
     const [filterRes, qRes, allRes, uRes, logbookRes] = await Promise.all([
       getMasterFilterOptionsAction(),
       getPendingComplaintsAction(numStationId),
-      getAllRecentComplaintsAction(15),
+      getAllRecentComplaintsAction(100, numStationId),
       getRegisteredUnitsAction(),
       getRecentLogbooksAction(10, numStationId),
     ]);
@@ -142,9 +142,10 @@ export async function getPawasMapDataAction(forceFresh = false) {
  * Tab 3: Kinerja & Analitik (Lazy-Loaded On Demand)
  * Hanya dipanggil saat Pawas mengklik tab Kinerja.
  */
-export async function getPawasAnalyticsDataAction(forceFresh = false) {
+export async function getPawasAnalyticsDataAction(stationId?: number | string, forceFresh = false) {
   try {
-    const cacheKey = 'pawas_analytics_data';
+    const numStationId = stationId ? Number(stationId) : undefined;
+    const cacheKey = numStationId ? `pawas_analytics_data_${numStationId}` : 'pawas_analytics_data';
     if (!forceFresh) {
       const cached = cacheGet<any>(cacheKey);
       if (cached) {
@@ -153,10 +154,10 @@ export async function getPawasAnalyticsDataAction(forceFresh = false) {
     }
 
     const [ikmRes, rankRes, stationRankRes, operatorRankRes] = await Promise.all([
-      getIkmStatsAction(),
-      getOfficerPerformanceRankingsAction(),
+      getIkmStatsAction(numStationId),
+      getOfficerPerformanceRankingsAction(numStationId),
       getStationPerformanceRankingsAction(),
-      getOperatorPerformanceRankingsAction(),
+      getOperatorPerformanceRankingsAction(numStationId),
     ]);
 
     const payload = {
@@ -233,7 +234,7 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
     const [dashRes, mapRes, analyticsRes] = await Promise.all([
       getPawasDashboardDataAction(numStationId, forceFresh),
       getPawasMapDataAction(forceFresh),
-      getPawasAnalyticsDataAction(forceFresh),
+      getPawasAnalyticsDataAction(numStationId, forceFresh),
     ]);
 
     const dash = dashRes.success && dashRes.data ? dashRes.data : ({} as any);

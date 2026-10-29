@@ -13,8 +13,8 @@ export interface IComplaintRepository {
   findByPelaporHp(hp: string): Promise<ComplaintEntity[]>;
   findAssignedToOfficer(officerId: bigint, activeOnly?: boolean): Promise<ComplaintEntity[]>;
   findAntreanPawas(stationId?: number): Promise<ComplaintEntity[]>;
-  findAllRecent(limit?: number): Promise<ComplaintEntity[]>;
+  findAllRecent(limit?: number, stationId?: number): Promise<ComplaintEntity[]>;
   create(complaint: ComplaintEntity): Promise<ComplaintEntity>;
   update(complaint: ComplaintEntity): Promise<ComplaintEntity>;
-  getIkmStats(): Promise<IkmStats>;
+  getIkmStats(stationId?: number): Promise<IkmStats>;
 }

@@ -12,7 +12,7 @@ export class GetPawasDashboardUseCase {
   async execute(stationId?: number): Promise<PawasDashboardData> {
     const [pendingComplaints, allRecentComplaints] = await Promise.all([
       this.complaintRepo.findAntreanPawas(stationId),
-      this.complaintRepo.findAllRecent(50),
+      this.complaintRepo.findAllRecent(100, stationId),
     ]);
 
     return {

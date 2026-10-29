@@ -17,6 +17,7 @@ interface ModalAturPiketHarianProps {
   operationalUnits?: any[];
   onSuccess: () => void;
   showToast: (msg: string) => void;
+  isStationLocked?: boolean;
 }
 
 function formatLocalDateToYMD(d: Date = new Date()): string {
@@ -36,6 +37,7 @@ export default function ModalAturPiketHarian({
   operationalUnits,
   onSuccess,
   showToast,
+  isStationLocked = false,
 }: ModalAturPiketHarianProps) {
   const [submitting, setSubmitting] = useState(false);
   const [selectedStationId, setSelectedStationId] = useState<number>(initialStationId || 1);
@@ -104,8 +106,8 @@ export default function ModalAturPiketHarian({
   const stationOfficers = officers.filter(
     (o) => !selectedStationId || Number(o.station_id) === Number(selectedStationId)
   );
-  const availableOfficers = showAllOfficers || stationOfficers.length === 0
-    ? officers
+  const availableOfficers = (!isStationLocked && showAllOfficers) || stationOfficers.length === 0
+    ? (isStationLocked ? (stationOfficers.length > 0 ? stationOfficers : officers) : officers)
     : stationOfficers;
 
   const stationOptions: Select2Option[] = React.useMemo(() => {
@@ -317,30 +319,54 @@ export default function ModalAturPiketHarian({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>Kantor Polisi / Mako</label>
-                <label style={{ fontSize: '10.5px', color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={showAllOfficers}
-                    onChange={(e) => setShowAllOfficers(e.target.checked)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  Lintas Mako / BKO
-                </label>
+                {!isStationLocked && (
+                  <label style={{ fontSize: '10.5px', color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showAllOfficers}
+                      onChange={(e) => setShowAllOfficers(e.target.checked)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Lintas Mako / BKO
+                  </label>
+                )}
               </div>
-              <Select2CustomDropdown
-                value={selectedStationId}
-                onChange={(val) => setSelectedStationId(Number(val))}
-                options={stationOptions}
-                placeholder="-- Pilih Kantor Polisi --"
-                searchable={true}
-                disabled={isDateLocked}
-                triggerStyle={{
-                  padding: '7px 10px',
-                  borderRadius: '6px',
-                  border: '1px solid #CBD5E1',
-                  fontSize: '12px',
-                }}
-              />
+              {isStationLocked ? (
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #CBD5E1',
+                    background: '#F1F5F9',
+                    color: '#1E293B',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>🏢 {stationOptions.find((s) => Number(s.value) === Number(selectedStationId))?.label || 'Mako Anda'}</span>
+                  <span style={{ fontSize: '10px', color: '#64748B', background: '#E2E8F0', padding: '2px 6px', borderRadius: '4px' }}>
+                    Terkunci
+                  </span>
+                </div>
+              ) : (
+                <Select2CustomDropdown
+                  value={selectedStationId}
+                  onChange={(val) => setSelectedStationId(Number(val))}
+                  options={stationOptions}
+                  placeholder="-- Pilih Kantor Polisi --"
+                  searchable={true}
+                  disabled={isDateLocked}
+                  triggerStyle={{
+                    padding: '7px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '12px',
+                  }}
+                />
+              )}
             </div>
           </div>
 
