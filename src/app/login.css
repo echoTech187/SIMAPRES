@@ -24,7 +24,6 @@
 .login-body-wrapper {
   background-color: var(--obsidian-base);
   min-height: 100vh;
-  min-height: 100dvh;
   width: 100%;
   position: relative;
   overflow-x: hidden;
