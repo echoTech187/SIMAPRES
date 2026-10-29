@@ -12,10 +12,12 @@ import {
   Smartphone, 
   AlertTriangle, 
   Headphones, 
-  FileText
+  FileText,
+  ShieldCheck,
 } from 'lucide-react';
 import { PawasTab } from '../types';
 import { TabValidasiDossier } from './TabValidasiDossier';
+import { TabValidasiGiatSection } from './TabValidasiGiatSection';
 import { formatPhoneNumber } from '@/lib/format-phone';
 import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 
@@ -66,6 +68,7 @@ export interface TabValidasiPawasProps {
   formatSlaClock: (sec: number) => string;
   loading?: boolean;
   isServerDataLoaded?: boolean;
+  recentActivities?: any[];
 }
 
 export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
@@ -115,10 +118,29 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
   formatSlaClock,
   loading = false,
   isServerDataLoaded = true,
+  recentActivities = [],
 }) => {
   const [showFilterDrawer, setShowFilterDrawer] = useState(false);
   const [showDetailDrawer, setShowDetailDrawer] = useState(false);
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
+
+  // Jalur Komando Ganda: 'aduan' (Laporan Warga) vs 'giat' (Pengesahan Giat Personel Lapangan)
+  const [komandoTrack, setKomandoTrack] = useState<'aduan' | 'giat'>('aduan');
+
+  const [currentActivities, setCurrentActivities] = useState<any[]>(() => recentActivities || []);
+  useEffect(() => {
+    if (Array.isArray(recentActivities)) {
+      setCurrentActivities(recentActivities);
+    }
+  }, [recentActivities]);
+
+  const giatsList = currentActivities || [];
+  const pendingGiatsCount = React.useMemo(() => {
+    return giatsList.filter((g) => {
+      const st = String(g.statusValidasi || g.validation_status || '').toUpperCase();
+      return st === 'BELUM_DIVALIDASI' || st === 'PENDING' || st === '';
+    }).length;
+  }, [giatsList]);
 
   // Granular loading state: Shimmer does NOT stop until data is completely ready and safely rendered
   const [isDataReady, setIsDataReady] = useState(() => !loading && isServerDataLoaded);
@@ -155,7 +177,112 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
         </div>
       </div>
 
-      {/* Status Filter Tabs (Dynamically Generated from Database dbStatuses) */}
+      {/* ── TRACK SELECTOR: DUAL-TRACK COMMAND (Aduan Warga vs Pengesahan Giat Personel) ── */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          margin: '0 0 16px',
+          background: '#F1F5F9',
+          padding: '5px',
+          borderRadius: '16px',
+          border: '1px solid #E2E8F0',
+          width: 'fit-content',
+          maxWidth: '100%',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <button
+          type="button"
+          id="btn-track-aduan"
+          onClick={() => setKomandoTrack('aduan')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 18px',
+            borderRadius: '12px',
+            border: 'none',
+            background: komandoTrack === 'aduan' ? 'linear-gradient(135deg, #0F172A 0%, #1E3A8A 100%)' : 'transparent',
+            color: komandoTrack === 'aduan' ? '#FFFFFF' : '#475569',
+            fontSize: '12.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: komandoTrack === 'aduan' ? '0 3px 12px rgba(15, 23, 42, 0.25)' : 'none',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <Radio size={15} style={{ color: komandoTrack === 'aduan' ? '#38BDF8' : '#64748B' }} />
+          <span>1. Laporan Aduan Warga (110 / SOS)</span>
+          <span
+            style={{
+              background: komandoTrack === 'aduan' ? 'rgba(56, 189, 248, 0.25)' : '#E2E8F0',
+              color: komandoTrack === 'aduan' ? '#38BDF8' : '#334155',
+              padding: '2px 8px',
+              borderRadius: '10px',
+              fontSize: '11px',
+              fontWeight: 800,
+            }}
+          >
+            {tabCountMenunggu > 0 ? `${tabCountMenunggu} Menunggu` : filteredValidasiComplaints.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-track-giat"
+          onClick={() => setKomandoTrack('giat')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 18px',
+            borderRadius: '12px',
+            border: 'none',
+            background: komandoTrack === 'giat' ? 'linear-gradient(135deg, #0F172A 0%, #0369A1 100%)' : 'transparent',
+            color: komandoTrack === 'giat' ? '#FFFFFF' : '#475569',
+            fontSize: '12.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: komandoTrack === 'giat' ? '0 3px 12px rgba(3, 105, 161, 0.25)' : 'none',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <ShieldCheck size={15} style={{ color: komandoTrack === 'giat' ? '#38BDF8' : '#64748B' }} />
+          <span>2. Pengesahan Giat Personel (Patroli / Sambang / Pam)</span>
+          <span
+            style={{
+              background: pendingGiatsCount > 0 ? '#EF4444' : komandoTrack === 'giat' ? 'rgba(56, 189, 248, 0.25)' : '#E2E8F0',
+              color: pendingGiatsCount > 0 ? '#FFFFFF' : komandoTrack === 'giat' ? '#38BDF8' : '#334155',
+              padding: '2px 8px',
+              borderRadius: '10px',
+              fontSize: '11px',
+              fontWeight: 800,
+            }}
+          >
+            {pendingGiatsCount > 0 ? `${pendingGiatsCount} Butuh Sahkan` : giatsList.length}
+          </span>
+        </button>
+      </div>
+
+      {komandoTrack === 'giat' ? (
+        <TabValidasiGiatSection
+          userProfile={userProfile}
+          logbooks={currentActivities}
+          setLightboxImg={setLightboxImg}
+          setShowLightboxModal={setShowLightboxModal}
+          onGiatStatusUpdated={(updated) => {
+            setCurrentActivities((prev) =>
+              prev.map((item) => (String(item.id) === String(updated.id) ? updated : item))
+            );
+          }}
+        />
+      ) : (
+        <>
+          {/* Status Filter Tabs (Dynamically Generated from Database dbStatuses) */}
       <div className="val-filter-tabs" style={{ display: 'flex', gap: '6px', margin: '0 0 12px', overflowX: 'auto', paddingBottom: '4px', scrollbarWidth: 'none' }}>
         {!isDataReady ? (
           // Shimmer loading skeleton for tabs while waiting for data
@@ -831,6 +958,8 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
           </>
         )}
       </div>
+        </>
+      )}
 
       {/* ── DRAGGABLE FILTER DRAWER BOTTOM SHEET (MOBILE & DESKTOP) ── */}
       {showFilterDrawer && (

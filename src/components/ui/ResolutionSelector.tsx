@@ -52,6 +52,7 @@ export default function ResolutionSelector({
           onChange={(e) => onLocationChange(e.target.value as ResolutionLocationKey)}
           className="w-full px-3 py-2 rounded-xl text-xs text-slate-100 bg-[#0B0D13] border border-amber-500/30 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 outline-none transition-all cursor-pointer"
         >
+          <option value="">Pilih Lokasi Penyelesaian</option>
           {STANDARD_RESOLUTION_LOCATIONS.map((loc) => (
             <option key={loc.key} value={loc.key} className="bg-slate-900 text-white">
               {loc.label}
@@ -73,6 +74,7 @@ export default function ResolutionSelector({
           onChange={(e) => onDocumentChange(e.target.value as ResolutionDocumentKey)}
           className="w-full px-3 py-2 rounded-xl text-xs text-slate-100 bg-[#0B0D13] border border-amber-500/30 focus:border-amber-400 focus:ring-1 focus:ring-amber-400/20 outline-none transition-all cursor-pointer"
         >
+          <option value="">Pilih Dokumen Penyelesaian</option>
           {STANDARD_RESOLUTION_DOCUMENTS.map((doc) => (
             <option key={doc.key} value={doc.key} className="bg-slate-900 text-white">
               {doc.label}

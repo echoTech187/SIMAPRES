@@ -43,6 +43,7 @@ import {
   getOfficerPerformanceRankingsAction,
   type OfficerPerformanceRankItem,
 } from '@/app/actions/complaint.actions';
+import { toast } from '@/components/ui/Toast';
 
 interface TabProfilPersonilProps {
   officer: OfficerProfile;
@@ -127,7 +128,7 @@ export default function TabProfilPersonil({
         setLocalOfficer((prev) => ({ ...prev, dutyStatus: 'DINAS_PATROLI' }));
       }
     } catch (err: any) {
-      alert(`Gagal mengubah status dinas: ${err?.message || 'Terjadi kesalahan'}`);
+      toast.error('Status Dinas', `Gagal mengubah status dinas: ${err?.message || 'Terjadi kesalahan'}`);
     } finally {
       setIsTogglingDuty(false);
     }
@@ -160,12 +161,12 @@ export default function TabProfilPersonil({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Berkas harus berupa gambar berformat JPG, PNG, atau WEBP');
+      toast.warning('Format Berkas', 'Berkas harus berupa gambar berformat JPG, PNG, atau WEBP');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Ukuran berkas foto maksimal 5MB');
+      toast.warning('Ukuran Berkas', 'Ukuran berkas foto maksimal 5MB');
       return;
     }
 
@@ -182,7 +183,7 @@ export default function TabProfilPersonil({
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editFullName.trim()) {
-      alert('Nama lengkap tidak boleh kosong!');
+      toast.warning('Validasi Profil', 'Nama lengkap tidak boleh kosong!');
       return;
     }
 
@@ -227,13 +228,13 @@ export default function TabProfilPersonil({
         setEditAvatar(res.data.avatar || null);
         setSelectedAvatarFile(null);
         setAvatarError(false);
-        alert('✓ Data profil & foto dinas berhasil diperbarui!');
+        toast.success('Profil Diperbarui', '✓ Data profil & foto dinas berhasil diperbarui!');
         setActiveModal(null);
       } else {
-        alert(`Gagal: ${res.error || 'Gagal menyimpan profil'}`);
+        toast.error('Gagal Menyimpan', res.error || 'Gagal menyimpan profil');
       }
     } catch (err: any) {
-      alert(`Terjadi kesalahan: ${err.message || 'Gagal menyimpan'}`);
+      toast.error('Terjadi Kesalahan', err.message || 'Gagal menyimpan profil');
     } finally {
       setIsSavingProfile(false);
     }
@@ -243,19 +244,19 @@ export default function TabProfilPersonil({
   const handleSaveKeamanan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword.trim()) {
-      alert('Silakan masukkan kata sandi lama saat ini!');
+      toast.warning('Validasi Keamanan', 'Silakan masukkan kata sandi lama saat ini!');
       return;
     }
     if (!newPassword.trim()) {
-      alert('Silakan masukkan kata sandi baru!');
+      toast.warning('Validasi Keamanan', 'Silakan masukkan kata sandi baru!');
       return;
     }
     if (newPassword.length < 6) {
-      alert('Kata sandi baru minimal 6 karakter!');
+      toast.warning('Validasi Keamanan', 'Kata sandi baru minimal 6 karakter!');
       return;
     }
     if (newPassword !== confirmPassword) {
-      alert('Konfirmasi kata sandi baru tidak sesuai!');
+      toast.warning('Validasi Keamanan', 'Konfirmasi kata sandi baru tidak sesuai!');
       return;
     }
 
@@ -266,13 +267,13 @@ export default function TabProfilPersonil({
         throw new Error(res.error || 'Gagal mengubah kata sandi');
       }
 
-      alert('✓ Kata sandi akun dinas berhasil diperbarui!');
+      toast.success('Keamanan Akun', '✓ Kata sandi akun dinas berhasil diperbarui!');
       setOldPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setActiveModal(null);
     } catch (err: any) {
-      alert(`Terjadi kesalahan: ${err.message || 'Gagal menyimpan kata sandi'}`);
+      toast.error('Gagal Mengubah Kata Sandi', err.message || 'Gagal menyimpan kata sandi');
     } finally {
       setIsSavingKeamanan(false);
     }
@@ -1204,6 +1205,7 @@ export default function TabProfilPersonil({
                         onChange={(e) => setEditPangkat(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white focus:outline-none focus:border-amber-400 font-medium"
                       >
+                        <option value="">Pilih Pangkat Kedinasan</option>
                         {['BRIPDA', 'BRIPTU', 'BRIPKA', 'AIPDA', 'AIPTU', 'IPDA', 'IPTU', 'AKP', 'KOMPOL', 'AKBP'].map((p) => (
                           <option key={p} value={p}>
                             {p}

@@ -14,6 +14,7 @@ import LiveCameraWatermarkCapture from '@/components/common/LiveCameraWatermarkC
 import type { ComplaintData, OfficerProfile } from '../types';
 import TacticalModalFooter from '@/components/ui/TacticalModalFooter';
 import TacticalAlert from '@/components/ui/TacticalAlert';
+import { toast } from '@/components/ui/Toast';
 import ResolutionSelector from '@/components/ui/ResolutionSelector';
 import {
   STANDARD_RESOLUTION_LOCATIONS,
@@ -138,7 +139,10 @@ export default function ModalPenyelesaianTugas({
       });
 
       if (res?.success) {
-        alert(`✓ Tugas #${complaint.nomorTiket?.replace(/^#+/, '')} berhasil diselesaikan!\nLaporan Berita Acara (${docObj?.label || documentKey}) telah tersimpan.`);
+        toast.success(
+          'Tugas Berhasil Diselesaikan',
+          `✓ Tugas #${complaint.nomorTiket?.replace(/^#+/, '')} berhasil diselesaikan!\nLaporan Berita Acara (${docObj?.label || documentKey}) telah tersimpan.`
+        );
         onSuccess();
       } else {
         setErrorMsg(res?.error || 'Gagal menyimpan penyelesaian tugas.');

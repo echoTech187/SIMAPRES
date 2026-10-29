@@ -82,46 +82,53 @@ export default function TabBerandaPawas({
   satisfactionPercent,
   recentActivities = [],
 }: TabBerandaPawasProps) {
-  // Dynamic Real-time Activities derived from Database (OfficerLogbooks or Real Complaints Timeline)
+  // Dynamic Real-time Activities derived from Database (OfficerLogbooks)
   const dynamicActivities = useMemo(() => {
     if (Array.isArray(recentActivities) && recentActivities.length > 0) {
       return recentActivities.slice(0, 5).map((log: any, idx: number) => {
-        const timeStr = log.start_time
-          ? `${log.start_time} WIB`
-          : log.created_at
-          ? new Date(log.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
-          : '-';
+        const timeRaw = log.jamMulai || log.start_time;
+        const createdRaw = log.createdAt || log.created_at;
+        let timeStr = '-';
+        if (timeRaw && timeRaw !== '-') {
+          timeStr = `${String(timeRaw).replace('.', ':')} WIB`;
+        } else if (createdRaw) {
+          timeStr = `${new Date(createdRaw).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`;
+        }
+
         const off = log.officer;
-        const offName = off?.user?.full_name || off?.nrp || 'Petugas Lapangan';
-        const offRank = off?.rank_pangkat || '';
+        const offName = off?.user?.full_name || off?.fullName || off?.name || off?.nrp || '';
+        const offRank = off?.rank_pangkat || off?.pangkat || '';
         const offUnit = off?.unit?.short_name || off?.unit?.unit_name || off?.jabatan || '';
-        const officerStr = offRank ? `${offRank} ${offName}${offUnit ? ` (${offUnit})` : ''}` : `${offName}${offUnit ? ` (${offUnit})` : ''}`;
-        const desc = log.activity_description || `${log.action_type || 'Patroli'} di ${log.claimed_address || 'wilayah hukum'}`;
+
+        // Cegah duplikasi pangkat (misal "AIPDA AIPDA Fajar")
+        const officerStr = offRank && !offName.toLowerCase().startsWith(offRank.toLowerCase())
+          ? `${offRank} ${offName}${offUnit ? ` (${offUnit})` : ''}`
+          : `${offName}${offUnit ? ` (${offUnit})` : ''}`;
+
+        const rawDesc = log.deskripsiKegiatan || log.activity_description;
+        const actionType = log.jenisAksi || log.action_type;
+        const claimedLoc = log.lokasiKlaimAlamat || log.claimed_address;
+
+        let desc = rawDesc;
+        if (!desc) {
+          desc = `[${actionType}] di ${claimedLoc}`;
+        } else if (desc.startsWith('[PENGAJUAN GIAT')) {
+          const lines = desc.split('\n');
+          const header = lines[0];
+          const rute = lines.find((l: string) => l.includes('Rencana Rute'))?.replace(/^[•\s]*Rencana Rute\/Lokasi:\s*/i, 'di ')?.trim() || '';
+          const armada = lines.find((l: string) => l.includes('Armada Kendaraan'))?.replace(/^[•\s]*Armada Kendaraan:\s*/i, '• Ranmor: ')?.trim() || '';
+          desc = `${header} ${rute} ${armada}`.trim();
+        } else if (!desc.startsWith('[')) {
+          desc = `[${actionType}] ${desc}`;
+        }
+
         const color = idx % 3 === 0 ? '#0284C7' : idx % 3 === 1 ? '#10B981' : '#F59E0B';
         return { time: timeStr, text: `${officerStr} - ${desc}`, color };
       });
     }
 
-    if (Array.isArray(allRecentComplaints) && allRecentComplaints.length > 0) {
-      return allRecentComplaints.slice(0, 4).map((c: any) => {
-        const timeStr = c.created_at || c.createdAt
-          ? new Date(c.created_at || c.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
-          : '-';
-        const unitStr = c.assignedOfficer?.unitName || c.assignedUnitNama || 'Regu SIMOPMAS 110';
-        const statusLabel =
-          c.status === 'SELESAI'
-            ? 'Penanganan Selesai'
-            : c.status === 'DIPROSES'
-            ? 'Meluncur / Tiba di TKP'
-            : 'Menerima Laporan';
-        const text = `${unitStr}: [${c.nomorTiket || '110'}] ${statusLabel} untuk ${c.jenisKejadian || 'Aduan Warga'} di ${c.tkpAlamatTeks || 'TKP'}.`;
-        const color = c.status === 'SELESAI' ? '#10B981' : c.status === 'DIPROSES' ? '#0284C7' : '#F59E0B';
-        return { time: timeStr, text, color };
-      });
-    }
-
     return [];
-  }, [recentActivities, allRecentComplaints]);
+  }, [recentActivities]);
 
   // ── GRANULAR COMPONENT-LEVEL LOADING STATES ──
   const [isFleetReady, setIsFleetReady] = useState(false);

@@ -12,7 +12,7 @@ import {
 import { getRegisteredUnitsAction, getPoliceOfficesAction } from './auth.actions';
 import { getPatrolFleetUnitsAction } from './fleet.actions';
 import { getHotspotsAction } from './hotspot.actions';
-import { prisma } from '@/infrastructure/db/prisma.client';
+import { getRecentLogbooksAction } from './logbook.actions';
 import { cacheGet, cacheSet, cacheInvalidate } from '@/infrastructure/cache/app-cache';
 
 function serializeBigInt<T>(obj: T): T {
@@ -68,11 +68,12 @@ export async function getPawasDashboardDataAction(stationId?: number | string, f
       }
     }
 
-    const [filterRes, qRes, allRes, uRes] = await Promise.all([
+    const [filterRes, qRes, allRes, uRes, logbookRes] = await Promise.all([
       getMasterFilterOptionsAction(),
       getPendingComplaintsAction(numStationId),
       getAllRecentComplaintsAction(50),
       getRegisteredUnitsAction(),
+      getRecentLogbooksAction(10, numStationId),
     ]);
 
     const payload = {
@@ -80,6 +81,7 @@ export async function getPawasDashboardDataAction(stationId?: number | string, f
       pendingComplaints: qRes.success && qRes.data ? qRes.data : [],
       allRecentComplaints: allRes.success && allRes.data ? allRes.data : [],
       registeredUnits: uRes.success && uRes.data ? uRes.data : [],
+      recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],
     };
 
     cacheSet(cacheKey, payload, 15000); // 15 detik TTL
@@ -192,31 +194,10 @@ export async function getPawasLogbookDataAction(limit = 10, forceFresh = false) 
       }
     }
 
-    const recentLogbooksRaw = await prisma.officerLogbook.findMany({
-      take: limit,
-      orderBy: { created_at: 'desc' },
-      include: {
-        officer: {
-          include: {
-            user: {
-              select: {
-                full_name: true,
-                avatar_url: true,
-              },
-            },
-            unit: {
-              select: {
-                unit_name: true,
-                short_name: true,
-              },
-            },
-          },
-        },
-      },
-    }).catch(() => []);
+    const logbookRes = await getRecentLogbooksAction(limit);
 
     const payload = {
-      recentLogbooks: serializeBigInt(recentLogbooksRaw || []),
+      recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],
     };
 
     cacheSet(cacheKey, payload, 15000);
@@ -260,7 +241,7 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
       rankRes,
       stationRankRes,
       operatorRankRes,
-      recentLogbooksRaw,
+      logbookRes,
     ] = await Promise.all([
       getMasterFilterOptionsAction(),
       getPendingComplaintsAction(numStationId),
@@ -273,28 +254,7 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
       getOfficerPerformanceRankingsAction(),
       getStationPerformanceRankingsAction(),
       getOperatorPerformanceRankingsAction(),
-      prisma.officerLogbook.findMany({
-        take: 8,
-        orderBy: { created_at: 'desc' },
-        include: {
-          officer: {
-            include: {
-              user: {
-                select: {
-                  full_name: true,
-                  avatar_url: true,
-                },
-              },
-              unit: {
-                select: {
-                  unit_name: true,
-                  short_name: true,
-                },
-              },
-            },
-          },
-        },
-      }).catch(() => []),
+      getRecentLogbooksAction(8, numStationId),
     ]);
 
     const payload = {
@@ -309,7 +269,7 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
       officerRankings: rankRes.success && rankRes.data ? rankRes.data : null,
       stationRankings: stationRankRes.success && stationRankRes.data ? stationRankRes.data : null,
       operatorRankings: operatorRankRes.success && operatorRankRes.data ? operatorRankRes.data : null,
-      recentLogbooks: serializeBigInt(recentLogbooksRaw ? recentLogbooksRaw : []),
+      recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],
     };
 
     cacheSet(cacheKey, payload, 15000); // 15 detik TTL

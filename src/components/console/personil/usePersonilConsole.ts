@@ -26,6 +26,8 @@ import {
   getMasterResolutionDocumentsAction,
 } from '@/app/actions/master.actions';
 import { useConsoleEventSource } from '@/hooks/useConsoleEventSource';
+import { toast } from '@/components/ui/Toast';
+import type { PengajuanGiatData } from './components/ModalAksiCepat';
 
 // Client-side module cache for static master data
 let cachedPoliceOffices: any[] | null = null;
@@ -203,6 +205,11 @@ export function usePersonilConsole({
   const [finishModalOpen, setFinishModalOpen] = useState(false);
   const [finishComplaint, setFinishComplaint] = useState<ComplaintData | null>(null);
   const [isUpdatingStep, setIsUpdatingStep] = useState(false);
+
+  // Modal Aksi Cepat Presisi Lapangan (Patroli, TPTKP, Sambang, Pengamanan)
+  const [quickActionModalType, setQuickActionModalType] = useState<
+    'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN' | null
+  >(null);
 
   // Database Static Master Data & Lists
   const [logbooks, setLogbooks] = useState<any[]>([]);
@@ -485,8 +492,9 @@ export function usePersonilConsole({
 
       if (res?.success) {
         stopPoliceAlertAudio();
-        alert(
-          `✓ Penugasan #${task.nomorTiket || task.id} BERHASIL DITERIMA!\n\nStatus kini: DIPROSES.\nMembuka Peta Navigasi Rute TKP...`
+        toast.success(
+          'Penugasan Berhasil Diterima',
+          `✓ Penugasan #${task.nomorTiket || task.id} BERHASIL DITERIMA! Membuka Peta Navigasi Rute TKP...`
         );
         setShowAcceptModal(false);
         setPendingAcceptTask(null);
@@ -498,10 +506,10 @@ export function usePersonilConsole({
         await loadData(officer.id, task.id);
         switchTab('peta');
       } else {
-        alert(res?.error || 'Gagal menerima penugasan.');
+        toast.error('Gagal Menerima Penugasan', res?.error || 'Gagal menerima penugasan.');
       }
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan jaringan.');
+      toast.error('Kendala Jaringan', err.message || 'Terjadi kesalahan jaringan.');
     } finally {
       setIsAcceptingTask(false);
     }
@@ -520,7 +528,10 @@ export function usePersonilConsole({
       });
 
       if (res?.success) {
-        alert(`✓ Tahap penanganan #${activeComplaint.nomorTiket} berhasil diperbarui.`);
+        toast.success(
+          'Tahap Penanganan Diperbarui',
+          `✓ Tahap penanganan #${activeComplaint.nomorTiket} berhasil diperbarui.`
+        );
 
         if (stepKey === 'COMPLETED') {
           setActiveComplaint(null);
@@ -536,10 +547,10 @@ export function usePersonilConsole({
           await loadData(officer.id, activeComplaint.id);
         }
       } else {
-        alert(res?.error || 'Gagal memperbarui status tugas.');
+        toast.error('Gagal Memperbarui Status', res?.error || 'Gagal memperbarui status tugas.');
       }
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan sistem.');
+      toast.error('Kesalahan Sistem', err.message || 'Terjadi kesalahan sistem.');
     } finally {
       setIsUpdatingStep(false);
     }
@@ -555,12 +566,13 @@ export function usePersonilConsole({
       });
       if (res.success) {
         setOfficer((prev) => ({ ...prev, dutyStatus: 'DINAS_PATROLI' }));
+        toast.success('Status Dinas Aktif', '✓ Berhasil mengaktifkan status dinas patroli.');
         loadData(officer.id);
       } else {
-        alert(res.error || 'Gagal mengaktifkan status dinas.');
+        toast.error('Gagal Presensi Masuk', res.error || 'Gagal mengaktifkan status dinas.');
       }
     } catch (e: any) {
-      alert(e.message || 'Gagal mengaktifkan status dinas.');
+      toast.error('Gagal Presensi Masuk', e.message || 'Gagal mengaktifkan status dinas.');
     }
   };
 
@@ -576,11 +588,12 @@ export function usePersonilConsole({
         setOfficer((prev) => ({ ...prev, dutyStatus: 'LEPAS_DINAS' }));
         setShowAcceptModal(false);
         setPendingAcceptTask(null);
+        toast.info('Status Lepas Dinas', 'Status dinas berhasil diubah menjadi Lepas Dinas.');
       } else {
-        alert(res.error || 'Gagal melepas status dinas.');
+        toast.error('Gagal Presensi Pulang', res.error || 'Gagal melepas status dinas.');
       }
     } catch (e: any) {
-      alert(e.message || 'Gagal melepas status dinas.');
+      toast.error('Gagal Presensi Pulang', e.message || 'Gagal melepas status dinas.');
     }
   };
 
@@ -592,34 +605,50 @@ export function usePersonilConsole({
     window.location.href = '/?alert=logged_out';
   };
 
-  const handleQuickAction = async (type: 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN') => {
-    const desc = prompt(`Masukkan uraian ringkas kegiatan ${type}:`, `Laporan ${type} oleh ${officer.fullName}`);
-    if (!desc) return;
+  const handleQuickAction = (type: 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN') => {
+    setQuickActionModalType(type);
+  };
 
+  const submitQuickAction = async (
+    data: PengajuanGiatData
+  ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const nowTime = new Date().toTimeString().slice(0, 5);
+      const formattedDeskripsi = [
+        `[PENGAJUAN GIAT ${data.type}]`,
+        `• Rencana Rute/Lokasi: ${data.lokasiSasaran}`,
+        `• Estimasi Waktu: ${data.jamMulai} s/d ${data.jamSelesai} WIB`,
+        `• Armada Kendaraan: ${data.armada}`,
+        `• Rekan Regu: ${data.rekanRegu || '-'}`,
+        `• Rencana Kegiatan: ${data.uraianRencana}`,
+      ].join('\n');
+
       const res = await createLogbookAction({
         officerId: officer.id,
         complaintId: activeComplaint ? String(activeComplaint.id) : undefined,
-        jenisAksi: type,
-        lokasiKlaimAlamat: officer.stationName ? officer.stationName : '',
+        jenisAksi: data.type,
+        lokasiKlaimAlamat: data.lokasiSasaran || (officer.stationName ? officer.stationName : ''),
         lokasiKlaimLat: currentGps.lat,
         lokasiKlaimLng: currentGps.lng,
         lokasiGpsAktualLat: currentGps.lat,
         lokasiGpsAktualLng: currentGps.lng,
-        jamMulai: nowTime,
-        jamSelesai: nowTime,
-        deskripsiKegiatan: desc,
+        jamMulai: data.jamMulai,
+        jamSelesai: data.jamSelesai,
+        deskripsiKegiatan: formattedDeskripsi,
       });
 
       if (res.success) {
-        alert(`✓ Log kegiatan ${type} berhasil dikirim ke server & antrean Pawas!`);
+        toast.success(
+          'Pengajuan Terkirim',
+          `✓ Pengajuan giat ${data.type} berhasil diajukan ke antrean persetujuan Pawas!`
+        );
+        setQuickActionModalType(null);
         await loadData(officer.id);
+        return { success: true };
       } else {
-        alert(res.error || 'Gagal mencatat log.');
+        return { success: false, error: res.error || 'Gagal mengirim pengajuan giat.' };
       }
     } catch (err: any) {
-      alert(err.message || 'Terjadi kesalahan.');
+      return { success: false, error: err.message || 'Terjadi kesalahan sistem saat mengirim pengajuan.' };
     }
   };
 
@@ -661,6 +690,9 @@ export function usePersonilConsole({
     handlePresensiPulang,
     handleLogout,
     handleQuickAction,
+    quickActionModalType,
+    setQuickActionModalType,
+    submitQuickAction,
     activeComplaintRef,
   };
 }

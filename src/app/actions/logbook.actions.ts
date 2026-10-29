@@ -1,6 +1,7 @@
 'use server';
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
+import { invalidatePawasUnifiedCache } from './pawas.actions';
 
 
 function serializeBigInt<T>(obj: T): T {
@@ -41,6 +42,7 @@ export async function createLogbookAction(input: {
       jamSelesai: input.jamSelesai || nowTime,
     });
     officerLogbooksCache.clear();
+    await invalidatePawasUnifiedCache().catch(() => {});
     return { success: true, data: serializeBigInt(created.toJSON()) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menyimpan logbook.' };
@@ -83,5 +85,34 @@ export async function getFlaggedAuditLogbooksAction(limit = 50) {
     return { success: true, data: serializeBigInt(flagged.map((l) => l.toJSON())) };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengambil log audit Propam.' };
+  }
+}
+
+export async function getRecentLogbooksAction(limit = 10, stationId?: number) {
+  try {
+    const useCase = UseCaseFactory.getPawasLogbookUseCase();
+    const result = await useCase.execute(limit, stationId);
+    return {
+      success: true,
+      data: serializeBigInt(result.recentLogbooks.map((l) => l.toJSON())),
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal memuat logbook terbaru.' };
+  }
+}
+
+export async function validateOfficerLogbookAction(
+  logbookId: string | number | bigint,
+  status: 'VALID' | 'FLAGGED_AUDIT' | 'DITOLAK' | string,
+  note?: string
+) {
+  try {
+    const useCase = UseCaseFactory.getValidateLogbookUseCase();
+    const updated = await useCase.execute(BigInt(logbookId), status as any, note);
+    officerLogbooksCache.clear();
+    await invalidatePawasUnifiedCache().catch(() => {});
+    return { success: true, data: serializeBigInt(updated.toJSON()) };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal memvalidasi logbook giat.' };
   }
 }

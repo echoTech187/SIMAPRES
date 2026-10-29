@@ -9,6 +9,7 @@ import TabProfilPersonil from './personil/tabs/TabProfilPersonil';
 import PersonilChatDrawer from './personil/components/PersonilChatDrawer';
 import TaskAcceptModal from './personil/components/TaskAcceptModal';
 import ModalPenyelesaianTugas from './personil/components/ModalPenyelesaianTugas';
+import ModalAksiCepat from './personil/components/ModalAksiCepat';
 import { usePersonilConsole } from './personil/usePersonilConsole';
 import { stopPoliceAlertAudio } from './personil/personil-helpers';
 
@@ -59,8 +60,30 @@ function PersonilContent(props: {
     handlePresensiPulang,
     handleLogout,
     handleQuickAction,
+    quickActionModalType,
+    setQuickActionModalType,
+    submitQuickAction,
     activeComplaintRef,
   } = usePersonilConsole(props);
+
+  const hasActiveGiat = Boolean(
+    logbooks &&
+    logbooks.some((l: any) => {
+      const type = (l.jenisAksi || l.action_type || '').toUpperCase();
+      const desc = l.deskripsiKegiatan || l.activity_description || '';
+      const hasComplaint = l.complaintId || l.complaint_id;
+      const status = String(l.statusValidasi || l.validation_status || '').toUpperCase();
+      return (
+        ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
+        desc.startsWith('[PENGAJUAN GIAT')
+      ) && !hasComplaint && (status === 'BELUM_DIVALIDASI' || status === 'VALID');
+    })
+  );
+
+  const hasActiveMission = Boolean(
+    (activeComplaint && activeComplaint.status !== 'SELESAI' && activeComplaint.status !== 'DITOLAK') ||
+    hasActiveGiat
+  );
 
   return (
     <div
@@ -81,7 +104,7 @@ function PersonilContent(props: {
         onOpenProfile={() => switchTab('profil')}
         activeTab={activeTab}
         onTabChange={switchTab}
-        hasActiveMission={Boolean(activeComplaint)}
+        hasActiveMission={hasActiveMission}
         isPairedDevice={isPairedDevice}
       />
 
@@ -159,11 +182,7 @@ function PersonilContent(props: {
       <PersonilNav
         activeTab={activeTab}
         onTabChange={switchTab}
-        hasActiveMission={Boolean(
-          activeComplaint &&
-            activeComplaint.status !== 'SELESAI' &&
-            activeComplaint.status !== 'DITOLAK'
-        )}
+        hasActiveMission={hasActiveMission}
       />
 
       {/* 4. Modals & Drawers */}
@@ -204,6 +223,17 @@ function PersonilContent(props: {
           }}
         />
       )}
+
+      {/* Modal Pengajuan Giat Lapangan (Patroli, TPTKP, Sambang, Pengamanan) */}
+      <ModalAksiCepat
+        isOpen={Boolean(quickActionModalType)}
+        type={quickActionModalType}
+        officer={officer}
+        currentGps={currentGps}
+        fleetUnits={fleetUnits}
+        onClose={() => setQuickActionModalType(null)}
+        onSubmit={submitQuickAction}
+      />
     </div>
   );
 }

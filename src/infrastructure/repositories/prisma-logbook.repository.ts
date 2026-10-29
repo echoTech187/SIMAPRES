@@ -25,6 +25,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
       deskripsiKegiatan: record.activity_description,
       statusValidasi: record.validation_status as StatusValidasiLogbook,
       createdAt: record.created_at,
+      officer: record.officer,
     });
   }
 
@@ -68,6 +69,42 @@ export class PrismaLogbookRepository implements ILogbookRepository {
     return records.map((r: any) => this.mapToEntity(r));
   }
 
+  async findRecent(limit = 10, stationId?: number): Promise<LogbookEntity[]> {
+    const where: any = {
+      OR: [
+        { action_type: { in: ['PATROLI', 'SAMBANG', 'PENGAMANAN'] } },
+        { activity_description: { startsWith: '[PENGAJUAN GIAT' } },
+      ],
+    };
+    if (stationId) {
+      where.officer = { station_id: stationId };
+    }
+    const records = await prisma.officerLogbook.findMany({
+      where,
+      take: limit,
+      orderBy: { created_at: 'desc' },
+      include: {
+        officer: {
+          include: {
+            user: {
+              select: {
+                full_name: true,
+                avatar_url: true,
+              },
+            },
+            unit: {
+              select: {
+                unit_name: true,
+                short_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    return records.map((r: any) => this.mapToEntity(r));
+  }
+
   async findFlaggedAudit(limit = 50): Promise<LogbookEntity[]> {
     const records = await prisma.officerLogbook.findMany({
       where: { is_deviation_flagged: true },
@@ -94,5 +131,45 @@ export class PrismaLogbookRepository implements ILogbookRepository {
     }
 
     return result;
+  }
+
+  async updateValidationStatus(id: bigint, status: string, note?: string): Promise<LogbookEntity> {
+    const existing = await prisma.officerLogbook.findUnique({ where: { id } });
+    if (!existing) {
+      throw new Error(`Logbook dengan ID ${id} tidak ditemukan.`);
+    }
+
+    let activityDesc = existing.activity_description || '';
+    if (note && note.trim().length > 0) {
+      activityDesc = `${activityDesc}\n\n[CATATAN PAWAS]: ${note.trim()}`;
+    }
+
+    const updated = await prisma.officerLogbook.update({
+      where: { id },
+      data: {
+        validation_status: status,
+        activity_description: activityDesc,
+      },
+      include: {
+        officer: {
+          include: {
+            user: {
+              select: {
+                full_name: true,
+                avatar_url: true,
+              },
+            },
+            unit: {
+              select: {
+                unit_name: true,
+                short_name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.mapToEntity(updated);
   }
 }

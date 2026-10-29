@@ -373,6 +373,7 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
               backgroundColor: '#F8FAFC',
             }}
           >
+            <option value="">Pilih Bulan</option>
             {monthNames.map((m, idx) => (
               <option key={idx + 1} value={idx + 1}>{m}</option>
             ))}
@@ -391,6 +392,7 @@ export default function TabAuditBbm({ lookups, showToast = () => {}, userProfile
               backgroundColor: '#F8FAFC',
             }}
           >
+            <option value="">Pilih Tahun</option>
             {[2024, 2025, 2026, 2027].map((yr) => (
               <option key={yr} value={yr}>{yr}</option>
             ))}

@@ -2211,12 +2211,6 @@
   }
 }
 
-@media (min-width: 1024px) {
-  .val-desktop-only {
-    display: block !important;
-  }
-}
-
 .val-detail-drawer-overlay {
   position: fixed;
   inset: 0;

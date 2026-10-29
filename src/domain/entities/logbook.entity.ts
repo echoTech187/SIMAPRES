@@ -26,6 +26,7 @@ export interface LogbookProps {
   deskripsiKegiatan: string;
   statusValidasi: StatusValidasiLogbook;
   createdAt?: Date;
+  officer?: any;
 }
 
 export class LogbookEntity {
@@ -68,6 +69,10 @@ export class LogbookEntity {
 
   get statusValidasi(): StatusValidasiLogbook {
     return this.props.statusValidasi;
+  }
+
+  get officer(): any {
+    return this.props.officer;
   }
 
   public setValidasi(status: StatusValidasiLogbook): void {

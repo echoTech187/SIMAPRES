@@ -16,6 +16,7 @@ import { GetPawasDashboardUseCase } from '../use-cases/pawas/get-pawas-dashboard
 import { GetPawasMapUseCase } from '../use-cases/pawas/get-pawas-map.use-case';
 import { GetPawasAnalyticsUseCase } from '../use-cases/pawas/get-pawas-analytics.use-case';
 import { GetPawasLogbookUseCase } from '../use-cases/pawas/get-pawas-logbook.use-case';
+import { ValidateLogbookUseCase } from '../use-cases/logbook/validate-logbook.use-case';
 
 // Singleton Repositories
 const complaintRepo = new PrismaComplaintRepository();
@@ -71,6 +72,10 @@ export class UseCaseFactory {
 
   static getPawasLogbookUseCase(): GetPawasLogbookUseCase {
     return new GetPawasLogbookUseCase(logbookRepo);
+  }
+
+  static getValidateLogbookUseCase(): ValidateLogbookUseCase {
+    return new ValidateLogbookUseCase(logbookRepo);
   }
 
   // Direct repo access for queries

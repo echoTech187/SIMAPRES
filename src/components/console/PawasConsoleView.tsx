@@ -407,6 +407,7 @@ function CommandCenterContent(props: {
             formatSlaClock={formatSlaClock}
             loading={loading}
             isServerDataLoaded={isServerDataLoaded}
+            recentActivities={recentActivities}
           />
         )}
 

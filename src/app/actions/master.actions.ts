@@ -1646,25 +1646,43 @@ export async function getMasterVehiclesAction(params?: {
   search?: string;
   status?: string;
   jenis?: string;
+  stationId?: number | string;
 }) {
   try {
-    const where: any = {};
+    const andConditions: any[] = [];
     if (params?.status && typeof params.status === 'string' && params.status.trim()) {
-      where.status_operasional = params.status.trim().toUpperCase();
+      andConditions.push({ status_operasional: params.status.trim().toUpperCase() });
     }
     if (params?.jenis && typeof params.jenis === 'string' && params.jenis.trim()) {
-      where.jenis_kendaraan = params.jenis.trim();
+      andConditions.push({ jenis_kendaraan: params.jenis.trim() });
+    }
+    if (params?.stationId != null) {
+      const stId = Number(params.stationId);
+      andConditions.push({
+        OR: [
+          { station_id: stId },
+          { station_id: null }, // Kendaraan komando induk atau armada siaga umum
+        ],
+      });
     }
     if (params?.search && typeof params.search === 'string' && params.search.trim()) {
       const q = params.search.trim();
-      where.OR = [
-        { nomor_lambung: { contains: q } },
-        { nama_armada: { contains: q } },
-        { plat_nomor_polisi: { contains: q } },
-      ];
+      andConditions.push({
+        OR: [
+          { nomor_lambung: { contains: q } },
+          { nama_armada: { contains: q } },
+          { plat_nomor_polisi: { contains: q } },
+        ],
+      });
     }
+
+    const where: any = andConditions.length > 0 ? { AND: andConditions } : {};
     const rows = await prisma.patrolVehicle.findMany({
       where,
+      include: {
+        station: true,
+        unit: true,
+      },
       orderBy: { id: 'asc' },
     });
     return { success: true, data: serializeBigInt(rows) };
