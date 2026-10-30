@@ -1,4 +1,4 @@
-# 📋 Laporan Hasil Pengujian Otomatis SIMAPRES 110
+# 📋 Laporan Hasil Pengujian Otomatis SIMOPMAS 110
 
 > **Status Eksekusi**: **185 dari 185 Uji Coba Lulus (100% Berhasil)**  
 > **Cakupan Arsitektur**: *Clean Architecture* (Domain Entity & Rules, Application Use Cases, Infrastructure Prisma Repositories, Server Actions, & Security Utilities)  
@@ -8,7 +8,7 @@
 
 ## 📌 Ringkasan Eksekutif
 
-Pengujian otomatis (*Automated Testing*) ini memvalidasi keandalan dan integritas sistem **SIMAPRES 110 (Sistem Informasi Manajemen Operasional Presisi)** dalam melayani pengaduan masyarakat, memantau pergerakan armada patroli kepolisian secara *real-time*, menjamin perlindungan data pribadi sesuai **UU PDP No. 27/2022**, menegakkan mediasi damai (*Restorative Justice*) berbasis **Perpol No. 8/2021**, serta mencegah manipulasi lokasi (*Anti-Fake GPS*).
+Pengujian otomatis (*Automated Testing*) ini memvalidasi keandalan dan integritas sistem **SIMOPMAS 110 - Sistem Monitoring Polisi Bersama Masyarakat** dalam melayani pengaduan masyarakat, memantau pergerakan armada patroli kepolisian secara *real-time*, menjamin perlindungan data pribadi sesuai **UU PDP No. 27/2022**, menegakkan mediasi damai (*Restorative Justice*) berbasis **Perpol No. 8/2021**, serta mencegah manipulasi lokasi (*Anti-Fake GPS*).
 
 ---
 
@@ -16,7 +16,7 @@ Pengujian otomatis (*Automated Testing*) ini memvalidasi keandalan dan integrita
 
 Lapisan ini memuat logika inti kepolisian dan aturan hukum baku yang tidak bergantung pada database atau antarmuka luar.
 
-### A. Entitas Pengaduan Masyarakat (`complaint-entity.test.ts`)
+### A. Entitas Pengaduan Masyarakat
 *Memastikan privasi pelapor terlindungi dan tahapan respon lapangan berjalan runut dari laporan masuk hingga selesai.*
 
 | No | Skenario yang Diuji | Status |
@@ -31,7 +31,7 @@ Lapisan ini memuat logika inti kepolisian dan aturan hukum baku yang tidak berga
 
 ---
 
-### B. Aturan Hak Akses & Matriks Kewenangan (`complaint-rules.test.ts`)
+### B. Aturan Hak Akses & Matriks Kewenangan
 *Mencegah penyalahgunaan wewenang antar peran: Operator 110, Perwira Pengawas (Pawas), Personel Lapangan, dan Warga.*
 
 | No | Skenario yang Diuji | Status |
@@ -48,7 +48,7 @@ Lapisan ini memuat logika inti kepolisian dan aturan hukum baku yang tidak berga
 
 ---
 
-### C. Kebijakan Notifikasi WhatsApp Otomatis (`notification-rules.test.ts`)
+### C. Kebijakan Notifikasi WhatsApp Otomatis
 *Menjamin pelapor dan petugas selalu mendapatkan pembaruan status tanpa biaya SMS melalui WhatsApp resmi.*
 
 | No | Skenario yang Diuji | Status |
@@ -64,7 +64,7 @@ Lapisan ini memuat logika inti kepolisian dan aturan hukum baku yang tidak berga
 
 ---
 
-### D. Standar Mediasi & Keadilan Restoratif (`resolution-rules.test.ts`)
+### D. Standar Mediasi & Keadilan Restoratif
 *Menerapkan prinsip keadilan restoratif secara ketat berlandaskan Perpol No. 8 Tahun 2021.*
 
 | No | Skenario yang Diuji | Status |
@@ -88,7 +88,7 @@ Lapisan ini memuat logika inti kepolisian dan aturan hukum baku yang tidak berga
 
 Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan otentikasi personel, serta validasi operasional.
 
-### A. Rekomendasi Disposisi Cerdas CAD (`calculate-cad-dispatch.test.ts`)
+### A. Rekomendasi Disposisi Cerdas CAD
 *Sistem Computer-Aided Dispatch (CAD) merekomendasikan unit operasional yang paling relevan dan terdekat ke lokasi insiden.*
 
 | No | Skenario yang Diuji | Status |
@@ -101,7 +101,7 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 ---
 
-### B. Otentikasi, Keamanan Sesi & Hardware Binding (`login-and-token-security.test.ts`)
+### B. Otentikasi, Keamanan Sesi & Hardware Binding
 *Menjamin sistem hanya dapat diakses oleh personel kepolisian yang sah dan perangkat ponsel dinas yang terdaftar.*
 
 | No | Skenario yang Diuji | Status |
@@ -121,13 +121,13 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 ---
 
-### C. Alur Pengaduan & Disposisi (`complaint-use-cases.test.ts`)
+### C. Alur Pengaduan & Disposisi
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
 | 54 | **Validasi Wajib**: Memeriksa kelengkapan seluruh kolom data pelapor dan insiden sebelum disimpan | **LULUS** |
 | 55 | **Pencegahan Tiket Ganda**: Mencegah duplikasi nomor registrasi tiket di sistem | **LULUS** |
-| 56 | **Penerbitan Tiket**: Berhasil menerbitkan tiket laporan baru dengan nomor urut resmi SIMAPRES 110 | **LULUS** |
+| 56 | **Penerbitan Tiket**: Berhasil menerbitkan tiket laporan baru dengan nomor urut resmi SIMOPMAS 110 | **LULUS** |
 | 57 | **Disposisi Penugasan**: Menugaskan laporan ke personel lapangan aktif dan mencatat log penugasan (*DISPATCH_ISSUED*) | **LULUS** |
 | 58 | **Proteksi Data Hilang**: Menghentikan proses penugasan dengan aman jika tiket atau personel tidak ditemukan | **LULUS** |
 | 59 | **Penerimaan Survei IKM**: Menerima ulasan dan bintang kepuasan (1 s.d. 5) dari warga pelapor | **LULUS** |
@@ -135,7 +135,7 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 ---
 
-### D. Anti-Fake GPS & Tahapan Lapangan (`field-step-and-gps.test.ts`)
+### D. Anti-Fake GPS & Tahapan Lapangan
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -146,7 +146,7 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 ---
 
-### E. Manajemen Titik Rawan Kejahatan & Laka (`manage-hotspots.test.ts`)
+### E. Manajemen Titik Rawan Kejahatan & Laka
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -157,7 +157,7 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 ---
 
-### F. Buku Mutasi Digital Patroli (`logbook-and-audit.test.ts`)
+### F. Buku Mutasi Digital Patroli
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -167,7 +167,7 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 ---
 
-### G. Supervisi & Keputusan Pawas (`pawas-use-cases.test.ts`)
+### G. Supervisi & Keputusan Pawas
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -181,7 +181,7 @@ Lapisan ini mengatur alur koordinasi pengiriman armada (*dispatching*), keamanan
 
 Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM dan akurasi rumus geodetik.
 
-### A. Repositori Pengaduan (`prisma-complaint.repository.test.ts`)
+### A. Repositori Pengaduan
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -191,7 +191,7 @@ Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM 
 
 ---
 
-### B. Repositori Titik Rawan (`prisma-hotspot.repository.test.ts`)
+### B. Repositori Titik Rawan
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -202,7 +202,7 @@ Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM 
 
 ---
 
-### C. Repositori Buku Mutasi Patroli (`prisma-logbook.repository.test.ts`)
+### C. Repositori Buku Mutasi Patroli
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -212,7 +212,7 @@ Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM 
 
 ---
 
-### D. Repositori Personel Kepolisian (`prisma-officer.repository.test.ts`)
+### D. Repositori Personel Kepolisian
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -225,7 +225,7 @@ Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM 
 
 ---
 
-### E. Repositori Akun Pengguna (`prisma-user.repository.test.ts`)
+### E. Repositori Akun Pengguna
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -237,7 +237,7 @@ Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM 
 
 ---
 
-### F. Audit Bahan Bakar & Geodetik Haversine (`haversine-and-fuel.test.ts`)
+### F. Audit Bahan Bakar & Geodetik Haversine
 *Menghitung jarak presisi tinggi dan mencegah manipulasi pengeluaran BBM armada dinas kepolisian.*
 
 | No | Skenario yang Diuji | Status |
@@ -252,9 +252,9 @@ Lapisan ini memvalidasi komunikasi ke database MySQL/MariaDB melalui Prisma ORM 
 
 ## 4. 🌐 Lapisan Server Actions (Next.js 14 Server Actions)
 
-Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otorisasi RBAC ketat, dan API internal konsol SIMAPRES 110.
+Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otorisasi RBAC ketat, dan API internal konsol SIMOPMAS 110.
 
-### A. Tindakan Autentikasi Masuk & Keluar (`auth.actions.test.ts`)
+### A. Tindakan Autentikasi Masuk & Keluar
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -265,7 +265,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### B. Komunikasi Pesan Taktis Tiket (`chat.actions.test.ts`)
+### B. Komunikasi Pesan Taktis Tiket
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -274,7 +274,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### C. Aksi Pengaduan Warga (`complaint.actions.test.ts`)
+### C. Aksi Pengaduan Warga
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -289,7 +289,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### D. Pemasangan Perangkat QR Telemetri (`device.actions.test.ts`)
+### D. Pemasangan Perangkat QR Telemetri
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -299,7 +299,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### E. Telemetri Armada Patroli (`fleet.actions.test.ts`)
+### E. Telemetri Armada Patroli
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -307,7 +307,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### F. Aksi Pemetaan Titik Rawan (`hotspot.actions.test.ts`)
+### F. Aksi Pemetaan Titik Rawan
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -317,7 +317,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### G. Pustaka SOP & Edukasi Presisi (`knowledge.actions.test.ts`)
+### G. Pustaka SOP & Edukasi Presisi
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -325,7 +325,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### H. Aksi Buku Mutasi Patroli (`logbook.actions.test.ts`)
+### H. Aksi Buku Mutasi Patroli
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -334,7 +334,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### I. Pengelolaan Data Master Kepolisian (`master.actions.test.ts`)
+### I. Pengelolaan Data Master Kepolisian
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -346,7 +346,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### J. Penilaian Kinerja Operator 110 (`operator-ranking.test.ts`)
+### J. Penilaian Kinerja Operator 110
 *Mengevaluasi kecepatan respon panggilan 110, akurasi input data, dan kepatuhan SOP operator SPKT.*
 
 | No | Skenario yang Diuji | Status |
@@ -358,7 +358,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### K. Panel Komando Perwira Pengawas (`pawas.actions.test.ts`)
+### K. Panel Komando Perwira Pengawas
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -368,7 +368,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### L. Penjadwalan Piket & Sprint Tugas (`piket.actions.test.ts`)
+### L. Penjadwalan Piket & Sprint Tugas
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -377,7 +377,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### M. Unggah Berkas & Bukti TKP (`upload.actions.test.ts`)
+### M. Unggah Berkas & Bukti TKP
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -385,16 +385,16 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 ---
 
-### N. Ketahanan Otorisasi & RBAC Server Actions (`security-rbac.actions.test.ts`)
-*Memastikan seluruh RPC Server Action dilindungi dari akses unauthenticated (OWASP API5) dan menegakkan prinsip Least Privilege lintas peran.*
+### N. Ketahanan Otorisasi & Matriks RBAC Kedinasan
+*Memastikan seluruh aksi sistem dilindungi dari akses publik tanpa izin (OWASP API5) dan menegakkan prinsip Least Privilege lintas peran.*
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
-| 140 | **Proteksi Data Master (createMasterRankAction)**: Menolak pemanggilan Server Action oleh pengguna tanpa sesi login (*401 Unauthorized*) | **LULUS** |
-| 141 | **Proteksi Titik Rawan (createHotspotAction)**: Menolak manipulasi titik rawan operasi kepolisian oleh pihak publik/tanpa autentikasi | **LULUS** |
-| 142 | **Proteksi Validasi Mutasi (validateOfficerLogbookAction)**: Menolak aksi pengesahan buku mutasi personel oleh pemanggil tanpa sesi aktif | **LULUS** |
-| 143 | **Proteksi Intelijen Pawas (getPawasUnifiedDataAction)**: Mencegah kebocoran dashboard agregasi pengawasan kepolisian dari perayapan liar | **LULUS** |
-| 144 | **Proteksi Roster Sprint Piket (getPiketLookupsAction)**: Mencegah scraping data penugasan sprint dan daftar regu dinas kepolisian | **LULUS** |
+| 140 | **Proteksi Data Master**: Menolak pemanggilan aksi modifikasi data pangkat oleh pengguna tanpa sesi login (*401 Unauthorized*) | **LULUS** |
+| 141 | **Proteksi Titik Rawan**: Menolak manipulasi titik rawan operasi kepolisian oleh pihak publik/tanpa autentikasi | **LULUS** |
+| 142 | **Proteksi Validasi Mutasi**: Menolak aksi pengesahan buku mutasi personel oleh pemanggil tanpa sesi aktif | **LULUS** |
+| 143 | **Proteksi Intelijen Pawas**: Mencegah kebocoran dashboard agregasi pengawasan kepolisian dari perayapan liar | **LULUS** |
+| 144 | **Proteksi Roster Sprint Piket**: Mencegah scraping data penugasan sprint dan daftar regu dinas kepolisian | **LULUS** |
 | 145 | **Least Privilege Master Rank**: Menolak peran `PERSONIL` saat mencoba memanipulasi data master pangkat (wewenang eksklusif `SUPERADMIN`) | **LULUS** |
 | 146 | **Least Privilege Hotspot**: Menolak peran `LOGISTIK` saat mencoba mengubah status kerawanan titik rawan operasional kepolisian | **LULUS** |
 | 147 | **Least Privilege Armada**: Menolak peran `OPERATOR` saat mencoba memodifikasi inventaris armada ranmor (wewenang eksklusif `LOGISTIK`) | **LULUS** |
@@ -408,7 +408,7 @@ Lapisan ini memvalidasi pintu masuk aksi antarmuka web, pemutakhiran data, otori
 
 Lapisan ini memvalidasi aspek pertahanan siber berlapis (*defense-in-depth*), mitigasi DoS upload berkas, pembatasan laju request (*rate limiting*), normalisasi nomor kontak, dan pembatasan geografis kewilayahan.
 
-### A. Normalisasi Nomor Telepon (`format-phone.test.ts`)
+### A. Normalisasi Nomor Telepon
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -422,7 +422,7 @@ Lapisan ini memvalidasi aspek pertahanan siber berlapis (*defense-in-depth*), mi
 
 ---
 
-### B. Validasi Batas Wilayah Hukum Polres Pekalongan (`jurisdiction-boundary.test.ts`)
+### B. Validasi Batas Wilayah Hukum Polres Pekalongan
 *Mencegah terjadinya salah penanganan laporan di luar wilayah yurisdiksi Polres Pekalongan.*
 
 | No | Skenario yang Diuji | Status |
@@ -435,7 +435,7 @@ Lapisan ini memvalidasi aspek pertahanan siber berlapis (*defense-in-depth*), mi
 
 ---
 
-### C. Keamanan Token Sesi Pengguna (`session-token.test.ts`)
+### C. Keamanan Token Sesi Pengguna
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
@@ -447,20 +447,20 @@ Lapisan ini memvalidasi aspek pertahanan siber berlapis (*defense-in-depth*), mi
 
 ---
 
-### D. Pembatas Laju Permintaan Jendela Geser (`rate-limiter.test.ts`)
+### D. Pembatas Laju Permintaan Jendela Geser (Rate Limiter)
 *Mencegah serangan brute-force, DDoS, dan scraping API menggunakan algoritma Sliding-Window Counter berkinerja tinggi.*
 
 | No | Skenario yang Diuji | Status |
 |:---:|---|:---:|
 | 168 | **Kuota Sliding Window & Konsumsi Token**: Mengizinkan request dalam batas limit dan mengurangi sisa kuota secara presisi hingga habis | **LULUS** |
-| 169 | **Pemeriksaan Kuota Non-Destruktif (checkRateLimit)**: Membaca status dan sisa kuota tanpa mengonsumsi jatah token | **LULUS** |
-| 170 | **Reset Kuota Instan (resetRateLimit)**: Memulihkan kuota penuh saat dipicu oleh aksi sukses (seperti login kredensial valid) | **LULUS** |
+| 169 | **Pemeriksaan Kuota Non-Destruktif**: Membaca status dan sisa kuota tanpa mengonsumsi jatah token | **LULUS** |
+| 170 | **Reset Kuota Instan**: Memulihkan kuota penuh saat dipicu oleh aksi sukses (seperti login kredensial valid) | **LULUS** |
 | 171 | **Isolasi Kunci Kredensial Independen**: Memastikan limitasi per IP atau per pengguna tidak saling mengganggu hak akses entitas lain | **LULUS** |
 | 172 | **Pemulihan Jendela Waktu Otomatis**: Mengizinkan permintaan baru secara mulus setelah sliding window waktu kedaluwarsa | **LULUS** |
 
 ---
 
-### E. Mesin Keamanan Berkas & Anti-DoS 7 Lapis (`file-security.service.test.ts`)
+### E. Mesin Keamanan Berkas & Anti-DoS 7 Lapis
 *Menjamin 100% proteksi terhadap serangan Denial of Service (DoS), Magic Bytes Spoofing, Pixel Flood, Remote Code Execution (RCE), dan Path Traversal.*
 
 | No | Skenario yang Diuji | Status |
