@@ -1,3 +1,5 @@
+import path from 'path';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   distDir: process.env.NODE_ENV === 'development' ? '.next-dev' : '.next',
@@ -10,6 +12,9 @@ const nextConfig = {
       { protocol: 'https', hostname: 'simapres-nu.vercel.app' },
       { protocol: 'https', hostname: 'maps.googleapis.com' },
     ],
+  },
+  turbopack: {
+    root: path.resolve('.'),
   },
   serverExternalPackages: ['@prisma/client', 'bcryptjs'],
   outputFileTracingIncludes: {
