@@ -1,9 +1,19 @@
 import { NextRequest } from 'next/server';
+import { getSession } from '@/lib/session';
 import { subscribeConsoleEvents, type ConsoleEventPayload } from '@/lib/events/console-events';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  // Autentikasi Sesi Dinas: Hanya personil terotentikasi yang boleh mendengarkan event taktis konsol
+  const session = await getSession();
+  if (!session) {
+    return new Response(JSON.stringify({ error: 'Unauthorized: Sesi dinas tidak valid.' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   const { searchParams } = new URL(request.url);
   const clientStationId = searchParams.get('stationId') || '';
 
