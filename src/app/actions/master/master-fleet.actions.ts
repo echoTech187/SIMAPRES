@@ -429,6 +429,36 @@ export async function getFuelAuditReportAction(stationId?: number | null, month?
 // ==============================================================================
 // 6. PENGAJUAN KLAIM STRUK BBM & SPIDOMETER PERSONEL LAPANGAN
 // ==============================================================================
+async function saveEvidencePhoto(photoDataUrl?: string, prefix = 'struk'): Promise<string | null> {
+  if (!photoDataUrl || typeof photoDataUrl !== 'string') return null;
+  if (!photoDataUrl.startsWith('data:image/')) {
+    return photoDataUrl.slice(0, 255);
+  }
+
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const matches = photoDataUrl.match(/^data:image\/([a-zA-Z0-9.+_-]+);base64,(.+)$/);
+    if (matches) {
+      const ext = matches[1].includes('jpeg') ? 'jpg' : matches[1].replace(/[^a-zA-Z0-9]/g, '');
+      const buffer = Buffer.from(matches[2], 'base64');
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+      const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext || 'jpg'}`;
+      const filePath = path.join(uploadDir, fileName);
+      fs.writeFileSync(filePath, buffer);
+      return `/uploads/${fileName}`;
+    }
+  } catch (err) {
+    console.warn(`[Evidence] Gagal menyimpan file ${prefix} ke public/uploads:`, err);
+  }
+
+  // Fallback jika filesystem serverless read-only:
+  return `/uploads/${prefix}_archive_${Date.now()}.jpg`;
+}
+
 export async function submitFuelClaimAction(input: {
   complaintId?: string | number | null;
   dispatchId?: string | number | null;
@@ -477,6 +507,10 @@ export async function submitFuelClaimAction(input: {
       input.notes ? `Catatan: ${input.notes}` : null,
     ].filter(Boolean).join(' | ');
 
+    // Simpan foto bukti ke direktori static public/uploads agar URL ringkas (< 255 karakter)
+    const savedStrukUrl = await saveEvidencePhoto(input.strukPhotoUrl, 'struk_bbm');
+    const savedSpidometerUrl = await saveEvidencePhoto(input.spidometerPhotoUrl, 'spidometer');
+
     if (dispatch) {
       await prisma.complaintDispatch.update({
         where: { id: dispatch.id },
@@ -489,25 +523,25 @@ export async function submitFuelClaimAction(input: {
       });
 
       if (dispatch.complaint_id) {
-        if (input.strukPhotoUrl) {
+        if (savedStrukUrl) {
           await prisma.complaintEvidence.create({
             data: {
               complaint_id: dispatch.complaint_id,
               incident_phase: 'STRUK_BBM',
-              file_url: input.strukPhotoUrl,
-              caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L - Rp ${Number(input.costRupiah).toLocaleString('id-ID')})`,
-              watermark_text: `Klaim BBM DIPA • Struk SPBU: ${input.receiptNumber || '-'}`,
+              file_url: savedStrukUrl,
+              caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L - Rp ${Number(input.costRupiah).toLocaleString('id-ID')})`.slice(0, 255),
+              watermark_text: `Klaim BBM DIPA • Struk SPBU: ${input.receiptNumber || '-'}`.slice(0, 255),
             },
           });
         }
-        if (input.spidometerPhotoUrl) {
+        if (savedSpidometerUrl) {
           await prisma.complaintEvidence.create({
             data: {
               complaint_id: dispatch.complaint_id,
               incident_phase: 'SPIDOMETER',
-              file_url: input.spidometerPhotoUrl,
-              caption: `Foto Spidometer Fisik Randis (${input.odometerKm || 0} KM)`,
-              watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`,
+              file_url: savedSpidometerUrl,
+              caption: `Foto Spidometer Fisik Randis (${input.odometerKm || 0} KM)`.slice(0, 255),
+              watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`.slice(0, 255),
             },
           });
         }
@@ -544,26 +578,26 @@ export async function submitFuelClaimAction(input: {
             },
           });
 
-          if (input.strukPhotoUrl && lastDispatch.complaint_id) {
+          if (savedStrukUrl && lastDispatch.complaint_id) {
             await prisma.complaintEvidence.create({
               data: {
                 complaint_id: lastDispatch.complaint_id,
                 incident_phase: 'STRUK_BBM',
-                file_url: input.strukPhotoUrl,
-                caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L)`,
-                watermark_text: `Klaim BBM DIPA • Struk: ${input.receiptNumber || '-'}`,
+                file_url: savedStrukUrl,
+                caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L)`.slice(0, 255),
+                watermark_text: `Klaim BBM DIPA • Struk: ${input.receiptNumber || '-'}`.slice(0, 255),
               },
             });
           }
 
-          if (input.spidometerPhotoUrl && lastDispatch.complaint_id) {
+          if (savedSpidometerUrl && lastDispatch.complaint_id) {
             await prisma.complaintEvidence.create({
               data: {
                 complaint_id: lastDispatch.complaint_id,
                 incident_phase: 'SPIDOMETER',
-                file_url: input.spidometerPhotoUrl,
-                caption: `Foto Spidometer Fisik (${input.odometerKm || 0} KM)`,
-                watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`,
+                file_url: savedSpidometerUrl,
+                caption: `Foto Spidometer Fisik (${input.odometerKm || 0} KM)`.slice(0, 255),
+                watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`.slice(0, 255),
               },
             });
           }
