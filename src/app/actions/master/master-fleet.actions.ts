@@ -425,3 +425,161 @@ export async function getFuelAuditReportAction(stationId?: number | null, month?
     return { success: false, error: error.message };
   }
 }
+
+// ==============================================================================
+// 6. PENGAJUAN KLAIM STRUK BBM & SPIDOMETER PERSONEL LAPANGAN
+// ==============================================================================
+export async function submitFuelClaimAction(input: {
+  complaintId?: string | number | null;
+  dispatchId?: string | number | null;
+  officerId: string | number;
+  odometerKm?: number | null;
+  liters: number;
+  costRupiah: number;
+  spbuName: string;
+  receiptNumber?: string;
+  purchaseDate?: string;
+  purchaseTime?: string;
+  fuelType?: string;
+  fuelTypeId?: number | null;
+  strukPhotoUrl?: string;
+  spidometerPhotoUrl?: string;
+  notes?: string;
+}) {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN', 'LOGISTIK', 'PAWAS']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  try {
+    const diajukanStatus = await prisma.masterFuelClaimStatus.findUnique({
+      where: { key: 'DIAJUKAN_BAGLOG' },
+    });
+
+    let dispatch = null;
+    if (input.dispatchId) {
+      dispatch = await prisma.complaintDispatch.findUnique({
+        where: { id: BigInt(input.dispatchId) },
+      });
+    } else if (input.complaintId) {
+      dispatch = await prisma.complaintDispatch.findFirst({
+        where: { complaint_id: BigInt(input.complaintId) },
+        orderBy: { id: 'desc' },
+      });
+    }
+
+    const notesSummary = [
+      `SPBU: ${input.spbuName || '-'}`,
+      input.purchaseDate ? `Tgl: ${input.purchaseDate}${input.purchaseTime ? ` ${input.purchaseTime}` : ''}` : null,
+      input.fuelType ? `BBM: ${input.fuelType}` : null,
+      input.receiptNumber ? `No. Struk: ${input.receiptNumber}` : null,
+      input.odometerKm ? `Spidometer: ${input.odometerKm} KM` : null,
+      input.notes ? `Catatan: ${input.notes}` : null,
+    ].filter(Boolean).join(' | ');
+
+    if (dispatch) {
+      await prisma.complaintDispatch.update({
+        where: { id: dispatch.id },
+        data: {
+          fuel_liters_used: input.liters,
+          fuel_cost_estimated: input.costRupiah,
+          fuel_claim_status_id: diajukanStatus?.id || dispatch.fuel_claim_status_id,
+          fuel_claim_notes: notesSummary,
+        },
+      });
+
+      if (dispatch.complaint_id) {
+        if (input.strukPhotoUrl) {
+          await prisma.complaintEvidence.create({
+            data: {
+              complaint_id: dispatch.complaint_id,
+              incident_phase: 'STRUK_BBM',
+              file_url: input.strukPhotoUrl,
+              caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L - Rp ${Number(input.costRupiah).toLocaleString('id-ID')})`,
+              watermark_text: `Klaim BBM DIPA • Struk SPBU: ${input.receiptNumber || '-'}`,
+            },
+          });
+        }
+        if (input.spidometerPhotoUrl) {
+          await prisma.complaintEvidence.create({
+            data: {
+              complaint_id: dispatch.complaint_id,
+              incident_phase: 'SPIDOMETER',
+              file_url: input.spidometerPhotoUrl,
+              caption: `Foto Spidometer Fisik Randis (${input.odometerKm || 0} KM)`,
+              watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`,
+            },
+          });
+        }
+      }
+    } else {
+      let resolvedOfficerId: bigint | null = null;
+      try {
+        const po = await prisma.policeOfficer.findFirst({
+          where: {
+            OR: [
+              { id: BigInt(input.officerId) },
+              { user_id: BigInt(input.officerId) },
+              ...(auth.user?.identifier ? [{ nrp: auth.user.identifier }] : []),
+            ],
+          },
+        });
+        if (po) resolvedOfficerId = po.id;
+      } catch (_) {}
+
+      if (resolvedOfficerId) {
+        const lastDispatch = await prisma.complaintDispatch.findFirst({
+          where: { officer_id: resolvedOfficerId },
+          orderBy: { id: 'desc' },
+        });
+
+        if (lastDispatch) {
+          await prisma.complaintDispatch.update({
+            where: { id: lastDispatch.id },
+            data: {
+              fuel_liters_used: input.liters,
+              fuel_cost_estimated: input.costRupiah,
+              fuel_claim_status_id: diajukanStatus?.id || lastDispatch.fuel_claim_status_id,
+              fuel_claim_notes: notesSummary,
+            },
+          });
+
+          if (input.strukPhotoUrl && lastDispatch.complaint_id) {
+            await prisma.complaintEvidence.create({
+              data: {
+                complaint_id: lastDispatch.complaint_id,
+                incident_phase: 'STRUK_BBM',
+                file_url: input.strukPhotoUrl,
+                caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L)`,
+                watermark_text: `Klaim BBM DIPA • Struk: ${input.receiptNumber || '-'}`,
+              },
+            });
+          }
+
+          if (input.spidometerPhotoUrl && lastDispatch.complaint_id) {
+            await prisma.complaintEvidence.create({
+              data: {
+                complaint_id: lastDispatch.complaint_id,
+                incident_phase: 'SPIDOMETER',
+                file_url: input.spidometerPhotoUrl,
+                caption: `Foto Spidometer Fisik (${input.odometerKm || 0} KM)`,
+                watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    try {
+      revalidatePath('/console');
+    } catch (_) {}
+
+    return {
+      success: true,
+      message: 'Klaim BBM dan bukti foto struk berhasil diajukan ke Staf Logistik (Status: DIAJUKAN).',
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Gagal mengajukan klaim BBM.' };
+  }
+}

@@ -18,6 +18,8 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import ModalTambahRekanRegu from '../components/ModalTambahRekanRegu';
+import ModalKlaimBbm from '../components/ModalKlaimBbm';
+import { toast } from '@/components/ui/Toast';
 import { getTaskQuotaInfo, hasOfficerAcceptedTask, getOfficerInitials } from '../types';
 import type { ComplaintData, OfficerProfile, PersonilTab } from '../types';
 
@@ -106,6 +108,7 @@ export default function TabBerandaPersonil({
   const totalTptkpCount = tiketSelesaiCount + tiketProsesCount + extraLogbookTickets + manualTptkpCount;
 
   const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [showKlaimBbmModal, setShowKlaimBbmModal] = useState(false);
   const [partnerName, setPartnerName] = useState<string | null>(() => {
     if (!activeComplaint) return null;
     const dispatches = Array.isArray((activeComplaint as any).dispatches) ? (activeComplaint as any).dispatches : [];
@@ -879,6 +882,26 @@ export default function TabBerandaPersonil({
                 <div className="text-[10px] text-slate-400 mt-0.5">Ajukan Pam Jalur</div>
               </button>
             </div>
+
+            {/* Quick Action Klaim BBM SPBU */}
+            <div className="mt-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowKlaimBbmModal(true)}
+                className="w-full p-3 rounded-2xl flex items-center justify-between text-left transition-all duration-200 active:scale-95 border border-amber-500/35 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent hover:bg-amber-500/25 group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xl group-hover:scale-105 transition-transform">
+                    ⛽
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-amber-300">KLAIM BBM &amp; STRUK SPBU</div>
+                    <div className="text-[10px] text-slate-400">Unggah foto struk kasir &amp; spidometer dinas ke Logistik</div>
+                  </div>
+                </div>
+                <span className="text-amber-400 font-bold text-xs pr-1 group-hover:translate-x-1 transition-transform">➔</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1034,6 +1057,15 @@ export default function TabBerandaPersonil({
           </div>
         </div>
       </div>
+
+      {/* Modal Klaim BBM & Struk SPBU */}
+      <ModalKlaimBbm
+        isOpen={showKlaimBbmModal}
+        onClose={() => setShowKlaimBbmModal(false)}
+        officer={officer}
+        activeComplaint={activeComplaint}
+        onSuccess={(msg) => toast.success(msg)}
+      />
 
       {showPartnerModal && activeComplaint && (
         <ModalTambahRekanRegu

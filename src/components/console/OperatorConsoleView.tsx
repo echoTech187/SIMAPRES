@@ -43,7 +43,6 @@ import ModalTolakPengaduan from './pawas/modals/ModalTolakPengaduan';
 import ModalDisposisiLintasWilayah from './pawas/modals/ModalDisposisiLintasWilayah';
 
 import { useOperatorConsole } from './operator/useOperatorConsole';
-import { calculateDistanceHaversineKm, getSopRecommendationByIncident } from '@/lib/console/tactical-helpers';
 
 const EscalationAlarmBanner = dynamic(
   () => import('./pawas/components/EscalationAlarmBanner'),
@@ -305,13 +304,8 @@ function OperatorConsoleContent(props: {
             showToast={showToast}
             onBackToBeranda={() => switchTab('view-operator')}
             onLogout={handleLogout}
-            presensiStatus={presensiStatus}
-            setPresensiStatus={setPresensiStatus}
-            jamMasukPiket={jamMasukPiket}
-            setJamMasukPiket={setJamMasukPiket}
-            jamPulangPiket={jamPulangPiket}
-            setJamPulangPiket={setJamPulangPiket}
-            onOpenPresensiPulangModal={() => {}}
+            roleBadge="OPERATOR"
+            roleTitle="Operator Sentra Pelayanan Kepolisian CAD 110"
           />
         )}
 

@@ -471,9 +471,9 @@ export default function ModalAksiCepat({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
       <div
-        className={`w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl border ${config.borderClass} bg-[#0E1017] flex flex-col max-h-[94vh] animate-in zoom-in-95 duration-200`}
+        className={`w-full h-[100dvh] sm:h-auto max-w-none sm:max-w-xl min-h-[100dvh] sm:min-h-0 sm:max-h-[94vh] rounded-none sm:rounded-3xl overflow-hidden shadow-2xl border-0 sm:border ${config.borderClass} bg-[#0E1017] flex flex-col animate-in zoom-in-95 duration-200`}
         style={{
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 35px rgba(236, 196, 115, 0.12)',
         }}

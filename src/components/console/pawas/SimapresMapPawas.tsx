@@ -50,6 +50,7 @@ export default function SimapresMapPawas({
   const trafficLayerRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const patrolPolylinesRef = useRef<any[]>([]);
+  const makoCirclesRef = useRef<any[]>([]);
   const [isMobileOrTablet, setIsMobileOrTablet] = useState(false);
 
   // Deteksi mobile & tablet (<= 1024px) untuk elevasi tombol kontrol di atas bottom-nav
@@ -421,6 +422,10 @@ export default function SimapresMapPawas({
         try { p.setMap(null); } catch (_) {}
       });
       patrolPolylinesRef.current = [];
+      makoCirclesRef.current.forEach((c) => {
+        try { c.setMap(null); } catch (_) {}
+      });
+      makoCirclesRef.current = [];
     };
   }, []);
 
@@ -443,6 +448,10 @@ export default function SimapresMapPawas({
       try { p.setMap(null); } catch (_) {}
     });
     patrolPolylinesRef.current = [];
+    makoCirclesRef.current.forEach((c) => {
+      try { c.setMap(null); } catch (_) {}
+    });
+    makoCirclesRef.current = [];
 
     // 1. Kantor Polisi / Mako Pengguna (Marker Mako Utama)
     (policeOffices || []).forEach((office) => {
@@ -466,6 +475,23 @@ export default function SimapresMapPawas({
         title: office.name || office.namaKantor,
         zIndex: isUserHQ ? 850 : 800,
       });
+
+      // Geofence Yurisdiksi Mako (Radius 1.000 m per SOP Monitoring)
+      if (isUserHQ && maps.Circle) {
+        const makoCircle = new maps.Circle({
+          strokeColor: '#0284C7',
+          strokeOpacity: 0.65,
+          strokeWeight: 1.5,
+          fillColor: '#38BDF8',
+          fillOpacity: 0.12,
+          map,
+          center: officePos,
+          radius: 1000,
+          clickable: false,
+          zIndex: 700,
+        });
+        makoCirclesRef.current.push(makoCircle);
+      }
 
       const officeUnitData: MapUnitData = {
         key: `office_${office.id}`,
@@ -655,13 +681,13 @@ export default function SimapresMapPawas({
       marker.addListener('click', () => {
         handleUnitClick(hotspotUnitData);
         openMarkerDetailWindow(marker, {
-          title: h.title || 'Titik Rawan Kriminalitas',
-          subTitle: h.category || h.kategori || 'Area Pantauan Khusus Pawas',
-          petugas: h.wilayahPolsek || 'Wilayah Hukum Polres Pekalongan',
-          badgeText: h.statusBahaya || 'RAWAN',
+          title: h.title,
+          subTitle: h.category || h.kategori,
+          petugas: h.wilayahPolsek,
+          badgeText: h.statusBahaya,
           badgeColor: '#DC2626',
-          address: h.address || h.lokasi || 'Jalan Raya Wilayah Pekalongan',
-          activity: h.jadwalDisplay || 'Prioritas Patroli Presisi',
+          address: h.address || h.lokasi,
+          activity: h.jadwalDisplay,
           status: 'TITIK RAWAN',
           lat: hotspotPos.lat,
           lng: hotspotPos.lng,

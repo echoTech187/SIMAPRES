@@ -158,10 +158,10 @@ export default function ModalPenyelesaianTugas({
     <div
       id="modal-bap-lapangan"
       data-testid="modal-bap-lapangan"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-200"
     >
       <div
-        className="relative w-full max-w-xl mx-auto max-h-[90vh] overflow-y-auto rounded-3xl p-5 sm:p-6 text-slate-100 shadow-2xl border"
+        className="relative w-full h-[100dvh] sm:h-auto max-w-none sm:max-w-xl min-h-[100dvh] sm:min-h-0 sm:max-h-[90vh] rounded-none sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl text-slate-100 border-0 sm:border p-4 sm:p-6"
         style={{
           background: 'linear-gradient(180deg, #151922 0%, #0C0E14 100%)',
           borderColor: 'rgba(236, 196, 115, 0.35)',

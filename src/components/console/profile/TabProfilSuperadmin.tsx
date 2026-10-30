@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { updateUserProfileAndAvatarAction } from '@/app/actions/auth.actions';
+import { updateUserProfileAndAvatarAction, updateUserPasswordAction } from '@/app/actions/auth.actions';
 import { getInitials } from '../HeaderProfileBadge';
 import ResponsiveModal from '@/components/ui/ResponsiveModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
@@ -81,8 +81,10 @@ export default function TabProfilSuperadmin({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Keamanan & PIN States
+  const [oldPassword, setOldPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [isSavingKeamanan, setIsSavingKeamanan] = useState<boolean>(false);
   const [pinKomando, setPinKomando] = useState<string[]>(['', '', '', '', '', '']);
 
   // Log filter & detail
@@ -143,17 +145,39 @@ export default function TabProfilSuperadmin({
     showToast('Formulir profil telah dikembalikan ke data awal.');
   };
 
-  const handleSaveKeamanan = (e: React.FormEvent) => {
+  const handleSaveKeamanan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword && newPassword !== confirmPassword) {
+    if (!newPassword) {
+      showToast('Silakan masukkan kata sandi baru!');
+      return;
+    }
+    if (newPassword.length < 8) {
+      showToast('Kata sandi desktop minimal 8 karakter sesuai standar keamanan!');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
       showToast('Konfirmasi kata sandi baru tidak sesuai!');
       return;
     }
-    showToast('✓ Kredensial akun berhasil disimpan!');
-    setNewPassword('');
-    setConfirmPassword('');
-    if (mobileActiveModal === 'keamanan') {
-      setMobileActiveModal(null);
+
+    setIsSavingKeamanan(true);
+    try {
+      const res = await updateUserPasswordAction(newPassword, oldPassword);
+      if (res?.success) {
+        showToast('✓ Kata sandi akun dinas berhasil diperbarui!');
+        setOldPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        if (mobileActiveModal === 'keamanan') {
+          setMobileActiveModal(null);
+        }
+      } else {
+        showToast(`Gagal: ${res?.error || 'Terjadi kesalahan saat mengubah kata sandi.'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Gagal mengubah kata sandi.'}`);
+    } finally {
+      setIsSavingKeamanan(false);
     }
   };
 
@@ -648,7 +672,19 @@ export default function TabProfilSuperadmin({
                 Ubah Kata Sandi Masuk Sistem
               </h4>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                  Kata Sandi Lama (Saat Ini)
+                </label>
+                <input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="Masukkan kata sandi saat ini"
+                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                />
+              </div>
               <div>
                 <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
                   Kata Sandi Baru
@@ -657,7 +693,7 @@ export default function TabProfilSuperadmin({
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
+                  placeholder="Minimal 8 karakter"
                   style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
                 />
               </div>
@@ -693,25 +729,26 @@ export default function TabProfilSuperadmin({
           >
             <button
               type="submit"
+              disabled={isSavingKeamanan}
               style={{
                 flex: 2,
                 padding: '12px 16px',
-                background: 'linear-gradient(135deg, #153E75 0%, #2563EB 100%)',
+                background: isSavingKeamanan ? '#94A3B8' : 'linear-gradient(135deg, #153E75 0%, #2563EB 100%)',
                 color: 'white',
                 border: 'none',
                 borderRadius: '10px',
                 fontSize: '13px',
                 fontWeight: 800,
-                cursor: 'pointer',
+                cursor: isSavingKeamanan ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 12px rgba(37,99,235,0.25)',
+                boxShadow: isSavingKeamanan ? 'none' : '0 4px 12px rgba(37,99,235,0.25)',
                 whiteSpace: 'nowrap',
               }}
             >
-              <span>🛡️</span> Simpan Pengaturan Keamanan
+              <span>🛡️</span> {isSavingKeamanan ? 'Menyimpan...' : 'Simpan Pengaturan Keamanan'}
             </button>
             {isModal && (
               <button
@@ -1031,7 +1068,28 @@ export default function TabProfilSuperadmin({
                 textAlign: 'center',
               }}
             >
-              {currentUser?.role === 'PAWAS' || roleBadge === 'PAWAS' ? (
+              {roleBadge === 'OPERATOR' || currentUser?.role === 'OPERATOR' ? (
+                <>
+                  <div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Panggilan Masuk</div>
+                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#FBBF24' }}>
+                      {counters?.totalLaporan ?? complaints.length}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>SLA Dispatch</div>
+                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#34D399' }}>
+                      &lt; 1 Menit
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Tiket Disposisi</div>
+                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#60A5FA' }}>
+                      {counters?.selesaiCount ?? complaints.filter((c: any) => c.status === 'SELESAI').length}
+                    </div>
+                  </div>
+                </>
+              ) : currentUser?.role === 'PAWAS' || roleBadge === 'PAWAS' ? (
                 <>
                   <div>
                     <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Total Laporan</div>
@@ -1071,15 +1129,19 @@ export default function TabProfilSuperadmin({
             </div>
           </div>
 
-          {/* 2. Kartu Presensi Petugas */}
+          {/* 2. Kartu Presensi Petugas / SOP Operator */}
           <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '18px', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-            {/* Header Judul Presensi */}
+            {/* Header Judul Presensi / SOP */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '20px' }}>⏱️</span>
+              <span style={{ fontSize: '20px' }}>{roleBadge === 'OPERATOR' ? '🎧' : '⏱️'}</span>
               <div>
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>Presensi Piket</h4>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
+                  {roleBadge === 'OPERATOR' ? 'Standar Pelayanan Operator 110' : 'Presensi Piket'}
+                </h4>
                 <div style={{ fontSize: '11px', color: '#64748B' }}>
-                  Pencatatan Kehadiran Tugas Piket {roleBadge || currentUser?.role || 'Superadmin'}
+                  {roleBadge === 'OPERATOR'
+                    ? 'SOP Penerimaan Panggilan & SLA Sentra CAD 110'
+                    : `Pencatatan Kehadiran Tugas Piket ${roleBadge || currentUser?.role || 'Superadmin'}`}
                 </div>
               </div>
             </div>
@@ -1116,98 +1178,121 @@ export default function TabProfilSuperadmin({
               </span>
             </div>
 
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '11.5px' }}>
-                <span style={{ color: '#64748B' }}>Status Kehadiran:</span>
-                <span style={{ fontWeight: 800, color: presensiStatus === 'SUDAH_MASUK' ? '#15803D' : '#B45309', background: presensiStatus === 'SUDAH_MASUK' ? '#DCFCE7' : '#FEF3C7', padding: '2px 8px', borderRadius: '6px' }}>
-                  {presensiStatus === 'SUDAH_MASUK' ? '● Dinas Aktif' : '○ Belum Masuk Dinas'}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
-                <span style={{ color: '#64748B' }}>Jam Masuk Piket:</span>
-                <span style={{ fontWeight: 700, color: '#1E293B' }}>{jamMasukPiket}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
-                <span style={{ color: '#64748B' }}>Jam Pulang / Lepas:</span>
-                <span style={{ fontWeight: 700, color: '#64748B' }}>{jamPulangPiket}</span>
-              </div>
-              <div
-                style={{
-                  borderTop: '1px dashed #E2E8F0',
-                  paddingTop: '8px',
-                  marginTop: '6px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
-                  <span style={{ color: '#64748B', whiteSpace: 'nowrap' }}>Radius Mako:</span>
-                  <span style={{ fontWeight: 800, color: '#153E75', textAlign: 'right' }}>
-                    📍 {makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'Polres Metro Jakarta Selatan'}
-                  </span>
+            {roleBadge === 'OPERATOR' ? (
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: '#1E3A8A', marginBottom: '4px' }}>
+                  🎙️ Standar Sapaan Resmi Operator 110:
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <span
+                <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#1E293B', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', marginBottom: '10px', lineHeight: 1.4 }}>
+                  &ldquo;Selamat Pagi / Siang / Malam Kepolisian 110, dengan {currentUser?.name || 'Petugas'}, ada yang bisa kami bantu?&rdquo;
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
+                  <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '8px', borderRadius: '6px', color: '#065F46' }}>
+                    <div style={{ fontWeight: 800, fontSize: '11.5px' }}>SLA Angkat Telepon</div>
+                    <div style={{ fontSize: '10.5px', color: '#047857' }}>Maksimal 3 Dering</div>
+                  </div>
+                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '8px', borderRadius: '6px', color: '#1E40AF' }}>
+                    <div style={{ fontWeight: 800, fontSize: '11.5px' }}>SLA Disposisi Tiket</div>
+                    <div style={{ fontSize: '10.5px', color: '#1D4ED8' }}>Target &lt; 1 Menit</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '11.5px' }}>
+                    <span style={{ color: '#64748B' }}>Status Kehadiran:</span>
+                    <span style={{ fontWeight: 800, color: presensiStatus === 'SUDAH_MASUK' ? '#15803D' : '#B45309', background: presensiStatus === 'SUDAH_MASUK' ? '#DCFCE7' : '#FEF3C7', padding: '2px 8px', borderRadius: '6px' }}>
+                      {presensiStatus === 'SUDAH_MASUK' ? '● Dinas Aktif' : '○ Belum Masuk Dinas'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
+                    <span style={{ color: '#64748B' }}>Jam Masuk Piket:</span>
+                    <span style={{ fontWeight: 700, color: '#1E293B' }}>{jamMasukPiket}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', marginBottom: '6px' }}>
+                    <span style={{ color: '#64748B' }}>Jam Pulang / Lepas:</span>
+                    <span style={{ fontWeight: 700, color: '#64748B' }}>{jamPulangPiket}</span>
+                  </div>
+                  <div
                     style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      color: '#059669',
-                      background: '#ECFDF5',
-                      border: '1px solid #A7F3D0',
-                      padding: '2px 8px',
-                      borderRadius: '6px',
+                      borderTop: '1px dashed #E2E8F0',
+                      paddingTop: '8px',
+                      marginTop: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
                     }}
                   >
-                    Radius {makoRadius || 500}m • Otoritas Presisi
-                  </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
+                      <span style={{ color: '#64748B', whiteSpace: 'nowrap' }}>Radius Mako:</span>
+                      <span style={{ fontWeight: 800, color: '#153E75', textAlign: 'right' }}>
+                        📍 {makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'Polres Metro Jakarta Selatan'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          color: '#059669',
+                          background: '#ECFDF5',
+                          border: '1px solid #A7F3D0',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                        }}
+                      >
+                        Radius {makoRadius || 500}m • Otoritas Presisi
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setPresensiStatus('SUDAH_MASUK');
-                  const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
-                  setJamMasukPiket(now);
-                  showToast('✓ Presensi Masuk telah terekam di sistem server Presisi!');
-                }}
-                disabled={presensiStatus === 'SUDAH_MASUK'}
-                style={{
-                  flex: 1,
-                  padding: '11px 12px',
-                  background: presensiStatus === 'SUDAH_MASUK' ? '#E2E8F0' : '#10B981',
-                  color: presensiStatus === 'SUDAH_MASUK' ? '#94A3B8' : 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 800,
-                  fontSize: '12.5px',
-                  cursor: presensiStatus === 'SUDAH_MASUK' ? 'default' : 'pointer',
-                }}
-              >
-                <span>✅</span> Presensi Masuk
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPresensiPulangModal(true)}
-                disabled={presensiStatus !== 'SUDAH_MASUK'}
-                style={{
-                  flex: 1,
-                  padding: '11px 12px',
-                  background: presensiStatus !== 'SUDAH_MASUK' ? '#E2E8F0' : '#EF4444',
-                  color: presensiStatus !== 'SUDAH_MASUK' ? '#94A3B8' : 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: 800,
-                  fontSize: '12.5px',
-                  cursor: presensiStatus !== 'SUDAH_MASUK' ? 'not-allowed' : 'pointer',
-                }}
-              >
-                <span>🚪</span> Presensi Pulang
-              </button>
-            </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPresensiStatus('SUDAH_MASUK');
+                      const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+                      setJamMasukPiket(now);
+                      showToast('✓ Presensi Masuk telah terekam di sistem server Presisi!');
+                    }}
+                    disabled={presensiStatus === 'SUDAH_MASUK'}
+                    style={{
+                      flex: 1,
+                      padding: '11px 12px',
+                      background: presensiStatus === 'SUDAH_MASUK' ? '#E2E8F0' : '#10B981',
+                      color: presensiStatus === 'SUDAH_MASUK' ? '#94A3B8' : 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '12.5px',
+                      cursor: presensiStatus === 'SUDAH_MASUK' ? 'default' : 'pointer',
+                    }}
+                  >
+                    <span>✅</span> Presensi Masuk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPresensiPulangModal(true)}
+                    disabled={presensiStatus !== 'SUDAH_MASUK'}
+                    style={{
+                      flex: 1,
+                      padding: '11px 12px',
+                      background: presensiStatus !== 'SUDAH_MASUK' ? '#E2E8F0' : '#EF4444',
+                      color: presensiStatus !== 'SUDAH_MASUK' ? '#94A3B8' : 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '12.5px',
+                      cursor: presensiStatus !== 'SUDAH_MASUK' ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    <span>🚪</span> Presensi Pulang
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 3. Kartu Pengaturan Akun */}

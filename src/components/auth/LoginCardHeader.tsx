@@ -16,11 +16,17 @@ export default function LoginCardHeader({ greeting }: LoginCardHeaderProps) {
             className="w-full h-full object-contain"
           />
         </div>
-        <div className="min-w-0">
-          <div className="text-[10.5px] font-semibold text-amber-300 tracking-wide uppercase flex items-center gap-1.5">
-            <span>SIMOPMAS 110</span>
-            <span className="text-slate-600">·</span>
-            <span>PRESISI</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="text-[10.5px] font-semibold text-amber-300 tracking-wide uppercase flex items-center gap-1.5">
+              <span>SIMOPMAS 110</span>
+              <span className="text-slate-600">·</span>
+              <span>PRESISI</span>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-sm">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              End-to-End Encryption Active
+            </span>
           </div>
           <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
             {greeting}, Rekan Petugas

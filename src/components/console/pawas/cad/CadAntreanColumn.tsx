@@ -3,7 +3,7 @@
 import React from 'react';
 import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 import { evaluateJurisdictionBoundary } from '@/lib/jurisdiction-boundary';
-import { getCrossJurisdictionTimeoutMs } from '@/lib/escalation-config';
+import { getCrossJurisdictionTimeoutMs, getCrossJurisdictionTimeoutMinutes } from '@/lib/escalation-config';
 import { getLastDispatchedStationName, getLastDispatchedStationId } from './cad-helpers';
 
 export interface CadAntreanColumnProps {
@@ -147,7 +147,7 @@ export const CadAntreanColumn: React.FC<CadAntreanColumnProps> = ({
                         }}
                       >
                         <span style={{ fontSize: '13px' }}>⏳</span>
-                        <span>Menunggu respon dari <strong>{targetName}</strong> (Batas waktu 3–5 menit)</span>
+                        <span>Menunggu respon dari <strong>{targetName}</strong> (Batas waktu {getCrossJurisdictionTimeoutMinutes()} menit)</span>
                       </div>
                     );
                   }

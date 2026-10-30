@@ -21,7 +21,9 @@ import {
   CheckCircle2,
   TrendingUp,
   X,
+  Fuel,
 } from 'lucide-react';
+import ModalKlaimBbm from '../components/ModalKlaimBbm';
 import { getDistanceFromLatLonInMeters, formatPhoneNumber, getCleanCallNumber } from '../types';
 import type { ComplaintData, OfficerProfile, DispatchStepAction } from '../types';
 import { getBestRoadRoute, getRealRoadPath } from '@/components/maps/SimapresGoogleMap';
@@ -87,6 +89,7 @@ export default function TabMapsPersonil({
   const [showCompleteGiatModal, setShowCompleteGiatModal] = useState(false);
   const [patrolSummaryNote, setPatrolSummaryNote] = useState('');
   const [isSubmittingFinishGiat, setIsSubmittingFinishGiat] = useState(false);
+  const [showKlaimBbmModal, setShowKlaimBbmModal] = useState(false);
 
   // Dev bypass & Realistic Navigation Simulation State
   const [bypassDevRadius, setBypassDevRadius] = useState(false);
@@ -1373,6 +1376,16 @@ const EMPTY_ARRAY: any[] = [];
                       <span>Selesaikan Giat Patroli</span>
                     </button>
                   </div>
+
+                  {/* 3. Klaim BBM & Struk SPBU */}
+                  <button
+                    type="button"
+                    onClick={() => setShowKlaimBbmModal(true)}
+                    className="w-full mt-2 py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-amber-200 bg-amber-500/15 border border-amber-500/35 hover:bg-amber-500/25 active:scale-95 transition-all text-center whitespace-nowrap shadow-md"
+                  >
+                    <Fuel size={14} className="text-amber-400 flex-shrink-0" />
+                    <span>Unggah Struk SPBU &amp; Klaim BBM DIPA ➔</span>
+                  </button>
                 </div>
               )}
             </div>
@@ -1416,6 +1429,17 @@ const EMPTY_ARRAY: any[] = [];
                   <p className="text-[11px] text-slate-300">
                     Data ini akan dibukukan ke logbook dinas untuk verifikasi BBM Bag Log / Sikeu.
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCompleteGiatModal(false);
+                      setShowKlaimBbmModal(true);
+                    }}
+                    className="mt-2 py-1.5 px-3 rounded-lg text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 flex items-center justify-center gap-1.5 mx-auto transition-all"
+                  >
+                    <Fuel size={13} />
+                    <span>Lampirkan Struk SPBU Sekarang</span>
+                  </button>
                 </div>
 
                 {/* Catatan / Resume Patroli */}
@@ -1475,19 +1499,39 @@ const EMPTY_ARRAY: any[] = [];
             border: '1px solid rgba(236, 196, 115, 0.25)',
           }}
         >
-          <div className="flex items-center gap-3">
-            <Shield size={20} className="text-amber-400" />
-            <div>
-              <div className="text-xs font-bold text-white">
-                Siaga Patroli Wilayah
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Peta menampilkan posisi real-time unit Anda.
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Shield size={20} className="text-amber-400 flex-shrink-0" />
+              <div>
+                <div className="text-xs font-bold text-white">
+                  Siaga Patroli Wilayah
+                </div>
+                <div className="text-[11px] text-slate-400">
+                  Peta menampilkan posisi real-time unit Anda.
+                </div>
               </div>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowKlaimBbmModal(true)}
+              className="px-2.5 py-1.5 rounded-xl text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/35 hover:bg-amber-500/30 active:scale-95 transition-all flex items-center gap-1 whitespace-nowrap shadow"
+            >
+              <Fuel size={13} />
+              <span>Klaim BBM</span>
+            </button>
           </div>
         </div>
       )}
+
+      {/* MODAL PENGAJUAN KLAIM STRUK BBM & SPIDOMETER (SOP KLAIM BBM LOGISTIK) */}
+      <ModalKlaimBbm
+        isOpen={showKlaimBbmModal}
+        onClose={() => setShowKlaimBbmModal(false)}
+        officer={officer}
+        activeComplaint={activeComplaint}
+        currentOdometerKm={currentOdometerKm}
+        onSuccess={(msg) => toast.success(msg)}
+      />
     </div>
   );
 }

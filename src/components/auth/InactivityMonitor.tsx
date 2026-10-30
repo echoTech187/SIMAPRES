@@ -10,8 +10,8 @@ const INACTIVITY_LIMIT_SECONDS = 3600;
 const WARNING_THRESHOLD_SECONDS = 3300;
 // Interval check: every 5 seconds
 const CHECK_INTERVAL_MS = 5000;
-// Touch server session interval: every 15 minutes of active usage
-const TOUCH_SERVER_INTERVAL_MS = 15 * 60 * 1000;
+// Touch server session interval: every 2 minutes of active usage (aligned with SOP Autentikasi sliding session heartbeat)
+const TOUCH_SERVER_INTERVAL_MS = 2 * 60 * 1000;
 
 export default function InactivityMonitor() {
   const pathname = usePathname();

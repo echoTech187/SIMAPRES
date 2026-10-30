@@ -24,6 +24,8 @@ export interface TabProfilPawasProps {
   policeOffices?: any[];
   makoTitle?: string;
   makoRadius?: number;
+  roleBadge?: string;
+  roleTitle?: string;
 }
 
 export default function TabProfilPawas({
@@ -45,6 +47,8 @@ export default function TabProfilPawas({
   policeOffices = [],
   makoTitle,
   makoRadius,
+  roleBadge,
+  roleTitle,
 }: TabProfilPawasProps) {
   // Resolve real mako station from policeOffices or currentUser
   const userStation = React.useMemo(() => {
@@ -96,8 +100,14 @@ export default function TabProfilPawas({
       complaints={allRecentComplaints}
       showToast={showToast}
       onLogout={onLogout || (() => {})}
-      roleBadge="PAWAS"
-      roleTitle={currentUser?.jabatan || "Perwira Pengawas (PAWAS) • Posko Pengendalian"}
+      roleBadge={roleBadge || (currentUser?.role === 'OPERATOR' ? 'OPERATOR' : 'PAWAS')}
+      roleTitle={
+        roleTitle ||
+        currentUser?.jabatan ||
+        (currentUser?.role === 'OPERATOR'
+          ? 'Operator CAD 110 • Sentra Komando Pelayanan'
+          : 'Perwira Pengawas (PAWAS) • Posko Pengendalian')
+      }
       makoTitle={resolvedMakoTitle}
       makoRadius={resolvedMakoRadius}
       responCepatPct={responCepatPct}
