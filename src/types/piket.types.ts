@@ -98,8 +98,6 @@ export interface PiketScheduleDetail {
   serah_terima_at?: Date | string | null;
   catatan_arahan_pawas?: string | null;
   kejadian_menonjol?: string | null;
-  ranmor_inventaris?: string | null;
-  rompi_borgol_ht?: string | null;
   created_at: Date | string;
   updated_at: Date | string;
   station?: StationLookupItem | null;

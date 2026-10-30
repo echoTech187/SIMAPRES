@@ -316,33 +316,25 @@ export default function ModalPrintSprintPiket({
             </div>
 
             <div style={{ fontSize: '10pt', marginBottom: '8px' }}>
-              Telah dilaksanakan serah terima tugas jaga dari Regu Lama kepada <strong>{schedule.regu}</strong>, dengan hasil pemeriksaan fisik dan inventaris sebagai berikut:
+              Telah dilaksanakan serah terima tugas jaga dari Regu Lama kepada <strong>{schedule.regu}</strong>, dengan uraian arahan dinas dan situasi kamtibmas sebagai berikut:
             </div>
 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt', marginBottom: '10px' }}>
               <tbody>
                 <tr>
                   <td style={{ border: '1px solid #000', padding: '4px 8px', width: '25%', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    1. KENDARAAN PATROLI
-                  </td>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
-                    {schedule.ranmor_inventaris || '1 Unit Mobil Patroli R4 Sabhara (BBM Siaga), 2 Unit Trail Presisi R2.'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    2. ROMPI / BORGOL / GAWAI DINAS
-                  </td>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
-                    {schedule.rompi_borgol_ht || '4 Rompi Level III-A, 8 Pasang Borgol, Gawai WhatsApp Dinas Siaga.'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    3. ARAHAN PAWAS
+                    1. ARAHAN PAWAS
                   </td>
                   <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
                     {schedule.catatan_arahan_pawas || 'Tingkatkan kewaspadaan markas dan laksanakan patroli perintis presisi di jam rawan.'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
+                    2. KEJADIAN MENONJOL
+                  </td>
+                  <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
+                    {schedule.kejadian_menonjol || 'Nihil / Situasi wilayah hukum terpantau aman dan kondusif.'}
                   </td>
                 </tr>
               </tbody>

@@ -38,7 +38,6 @@ export class PrismaPiketRepository implements IPiketRepository {
           ps.id, ps.station_id, ps.sprint_number, ps.sprint_date, ps.schedule_date, ps.regu,
           ps.shift_type, ps.start_time, ps.end_time, ps.pawas_id, ps.padal_id, ps.ka_spkt_id, ps.status,
           ps.serah_terima_at, ps.catatan_arahan_pawas, ps.kejadian_menonjol,
-          ps.ranmor_inventaris, ps.rompi_borgol_ht,
           ps.created_at, ps.updated_at,
           
           st.station_code, st.station_name, st.station_level,
@@ -98,8 +97,6 @@ export class PrismaPiketRepository implements IPiketRepository {
           serah_terima_at: schRow.serah_terima_at,
           catatan_arahan_pawas: schRow.catatan_arahan_pawas,
           kejadian_menonjol: schRow.kejadian_menonjol,
-          ranmor_inventaris: schRow.ranmor_inventaris,
-          rompi_borgol_ht: schRow.rompi_borgol_ht,
           created_at: schRow.created_at,
           updated_at: schRow.updated_at,
           station: schRow.station_name ? {
