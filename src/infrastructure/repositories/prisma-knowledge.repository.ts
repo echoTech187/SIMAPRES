@@ -4,7 +4,17 @@
  */
 
 import { prisma } from '../db/prisma.client';
-import { IKnowledgeRepository } from '@/domain/repositories/knowledge.repository.interface';
+import {
+  IKnowledgeRepository,
+  KnowledgeFaqItem,
+  KnowledgeCategoryItem,
+  MasterKnowledgeFaqRecord,
+  MasterKnowledgeFaqCategoryRecord,
+  CreateKnowledgeArticleInput,
+  UpdateKnowledgeArticleInput,
+  CreateKnowledgeCategoryInput,
+  UpdateKnowledgeCategoryInput,
+} from '@/domain/repositories/knowledge.repository.interface';
 import { WhatsAppService } from '../services/whatsapp.service';
 
 function safeJsonParse<T>(raw: string, fallback: T): T {
@@ -17,8 +27,8 @@ function safeJsonParse<T>(raw: string, fallback: T): T {
 
 export class PrismaKnowledgeRepository implements IKnowledgeRepository {
   async getKnowledgeItems(searchQuery?: string, categoryFilter?: string): Promise<{
-    items: any[];
-    categories: any[];
+    items: KnowledgeFaqItem[];
+    categories: KnowledgeCategoryItem[];
     total: number;
   }> {
     const [dbRows, masterCats] = await Promise.all([
@@ -47,11 +57,11 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     }
 
     const countMap = new Map<string, number>();
-    rows.forEach((it: any) => {
+    rows.forEach((it) => {
       countMap.set(it.kategori, (countMap.get(it.kategori) || 0) + 1);
     });
 
-    const categories = masterCats.map((mc: any) => ({
+    const categories: KnowledgeCategoryItem[] = masterCats.map((mc) => ({
       key: mc.key,
       label: mc.label,
       icon: mc.icon || '📖',
@@ -62,7 +72,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
       rows = rows.filter((r) => r.kategori === categoryFilter);
     }
 
-    let items = rows.map((row: any) => ({
+    let items: KnowledgeFaqItem[] = rows.map((row) => ({
       id: row.slug || String(row.id),
       kategori: row.kategori,
       kategoriLabel: row.kategori_label,
@@ -82,12 +92,12 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
 
     if (searchQuery && searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase().trim();
-      items = items.filter((it: any) => {
+      items = items.filter((it) => {
         const inJudul = it.judul.toLowerCase().includes(q);
         const inSubjudul = it.subjudul.toLowerCase().includes(q);
-        const inTags = it.tags.some((t: string) => t.toLowerCase().includes(q));
-        const inSyarat = it.persyaratan.some((p: string) => p.toLowerCase().includes(q));
-        const inProsedur = it.prosedur.some((pr: string) => pr.toLowerCase().includes(q));
+        const inTags = it.tags.some((t) => t.toLowerCase().includes(q));
+        const inSyarat = it.persyaratan.some((p) => p.toLowerCase().includes(q));
+        const inProsedur = it.prosedur.some((pr) => pr.toLowerCase().includes(q));
         const inLokasi = it.lokasiPelayanan.toLowerCase().includes(q);
         const inScript = it.scriptOperator.toLowerCase().includes(q);
         return inJudul || inSubjudul || inTags || inSyarat || inProsedur || inLokasi || inScript;
@@ -101,7 +111,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     };
   }
 
-  async getArticleBySlug(slug: string): Promise<any | null> {
+  async getArticleBySlug(slug: string): Promise<MasterKnowledgeFaqRecord | null> {
     return await prisma.masterKnowledgeFaq.findFirst({
       where: { slug, is_active: true },
     });
@@ -123,7 +133,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     return { success: res.success, error: res.error };
   }
 
-  async createArticle(data: any): Promise<any> {
+  async createArticle(data: CreateKnowledgeArticleInput): Promise<MasterKnowledgeFaqRecord> {
     return await prisma.masterKnowledgeFaq.create({
       data: {
         slug: data.slug,
@@ -147,7 +157,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     });
   }
 
-  async updateArticle(id: number, data: any): Promise<any> {
+  async updateArticle(id: number, data: UpdateKnowledgeArticleInput): Promise<MasterKnowledgeFaqRecord> {
     return await prisma.masterKnowledgeFaq.update({
       where: { id },
       data: {
@@ -172,7 +182,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     });
   }
 
-  async getArticleByIdOrSlug(idOrSlug: string): Promise<any | null> {
+  async getArticleByIdOrSlug(idOrSlug: string): Promise<MasterKnowledgeFaqRecord | null> {
     return await prisma.masterKnowledgeFaq.findFirst({
       where: {
         OR: [
@@ -183,7 +193,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     }).catch(() => null);
   }
 
-  async getAllMasterFaqs(): Promise<any[]> {
+  async getAllMasterFaqs(): Promise<MasterKnowledgeFaqRecord[]> {
     let list = await prisma.masterKnowledgeFaq.findMany({
       orderBy: { display_order: 'asc' },
     });
@@ -203,7 +213,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     return list;
   }
 
-  async toggleArticleStatus(id: number): Promise<any> {
+  async toggleArticleStatus(id: number): Promise<MasterKnowledgeFaqRecord | null> {
     const existing = await prisma.masterKnowledgeFaq.findUnique({ where: { id } });
     if (!existing) return null;
     return await prisma.masterKnowledgeFaq.update({
@@ -212,13 +222,13 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     });
   }
 
-  async getMasterCategories(): Promise<any[]> {
+  async getMasterCategories(): Promise<MasterKnowledgeFaqCategoryRecord[]> {
     return await prisma.masterKnowledgeFaqCategory.findMany({
       orderBy: { display_order: 'asc' },
     });
   }
 
-  async createCategory(data: any): Promise<any> {
+  async createCategory(data: CreateKnowledgeCategoryInput): Promise<MasterKnowledgeFaqCategoryRecord> {
     return await prisma.masterKnowledgeFaqCategory.create({
       data: {
         key: data.key,
@@ -231,7 +241,7 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     });
   }
 
-  async updateCategory(id: number, data: any): Promise<any> {
+  async updateCategory(id: number, data: UpdateKnowledgeCategoryInput): Promise<MasterKnowledgeFaqCategoryRecord> {
     return await prisma.masterKnowledgeFaqCategory.update({
       where: { id },
       data,
@@ -248,3 +258,4 @@ export class PrismaKnowledgeRepository implements IKnowledgeRepository {
     return true;
   }
 }
+

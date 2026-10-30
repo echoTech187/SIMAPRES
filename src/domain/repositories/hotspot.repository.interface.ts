@@ -6,5 +6,5 @@ export interface IHotspotRepository {
   create(hotspot: HotspotEntity): Promise<HotspotEntity>;
   update(hotspot: HotspotEntity): Promise<HotspotEntity>;
   delete(key: string): Promise<boolean>;
-  getMasterOptions?(): Promise<{ categories: any[]; dangerLevels: any[] }>;
+  getMasterOptions?(): Promise<{ categories: unknown[]; dangerLevels: unknown[] }>;
 }

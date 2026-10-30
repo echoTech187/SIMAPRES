@@ -29,10 +29,13 @@ describe('Server Action Integration: hotspot.actions (Crime Hotspots)', () => {
       const result = await getHotspotsAction();
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(Array.isArray(result.data)).toBe(true);
-      expect(result.data[0].title).toBe('Simpang Empat Kajen');
+      if (result.success) {
+        expect(result.data).toBeDefined();
+        expect(Array.isArray(result.data)).toBe(true);
+        expect(result.data[0].title).toBe('Simpang Empat Kajen');
+      }
     });
+
   });
 
   describe('createHotspotAction', () => {

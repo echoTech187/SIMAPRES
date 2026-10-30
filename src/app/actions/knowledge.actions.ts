@@ -41,13 +41,9 @@ function mapDbRowToKnowledgeItem(row: any): KnowledgeFaqItem {
   };
 }
 
-function serialize<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
+import { serializeBigInt } from '@/lib/serialization';
+import { getErrorMessage } from '@/types/action.types';
+
 
 /**
  * Mengambil daftar master panduan SOP & Dynamic FAQ secara dinamis dari database (Tabel master_knowledge_faqs)
@@ -222,9 +218,9 @@ export async function getAllMasterFaqsAction() {
   try {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const list = await repo.getAllMasterFaqs();
-    return { success: true, data: serialize(list) };
-  } catch (e: any) {
-    return { success: false, error: e.message, data: [] };
+    return { success: true, data: serializeBigInt(list) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e), data: [] };
   }
 }
 
@@ -235,9 +231,9 @@ export async function createMasterFaqAction(input: MasterFaqInput) {
   try {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const created = await repo.createArticle(input);
-    return { success: true, data: serialize(created) };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: true, data: serializeBigInt(created) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }
 
@@ -248,9 +244,9 @@ export async function updateMasterFaqAction(id: number, input: Partial<MasterFaq
   try {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const updated = await repo.updateArticle(id, input);
-    return { success: true, data: serialize(updated) };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }
 
@@ -262,8 +258,8 @@ export async function deleteMasterFaqAction(id: number) {
     const repo = UseCaseFactory.getKnowledgeRepository();
     await repo.deleteArticle(id);
     return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }
 
@@ -275,9 +271,9 @@ export async function toggleMasterFaqStatusAction(id: number) {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const updated = await repo.toggleArticleStatus(id);
     if (!updated) return { success: false, error: 'Data tidak ditemukan' };
-    return { success: true, data: serialize(updated) };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }
 
@@ -297,9 +293,9 @@ export async function getMasterFaqCategoriesAction() {
   try {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const list = await repo.getMasterCategories();
-    return { success: true, data: serialize(list) };
-  } catch (e: any) {
-    return { success: false, error: e.message, data: [] };
+    return { success: true, data: serializeBigInt(list) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e), data: [] };
   }
 }
 
@@ -310,9 +306,9 @@ export async function createMasterFaqCategoryAction(input: MasterFaqCategoryInpu
   try {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const created = await repo.createCategory(input);
-    return { success: true, data: serialize(created) };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: true, data: serializeBigInt(created) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }
 
@@ -323,9 +319,9 @@ export async function updateMasterFaqCategoryAction(id: number, input: Partial<M
   try {
     const repo = UseCaseFactory.getKnowledgeRepository();
     const updated = await repo.updateCategory(id, input);
-    return { success: true, data: serialize(updated) };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+    return { success: true, data: serializeBigInt(updated) };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }
 
@@ -337,7 +333,7 @@ export async function deleteMasterFaqCategoryAction(id: number) {
     const repo = UseCaseFactory.getKnowledgeRepository();
     await repo.deleteCategory(id);
     return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message };
+  } catch (e: unknown) {
+    return { success: false, error: getErrorMessage(e) };
   }
 }

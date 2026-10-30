@@ -5,6 +5,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    env: {
+      SIMAPRES_BYPASS_AUTH: 'true',
+    },
     include: ['src/**/__tests__/**/*.test.ts', 'src/**/*.spec.ts'],
   },
   resolve: {

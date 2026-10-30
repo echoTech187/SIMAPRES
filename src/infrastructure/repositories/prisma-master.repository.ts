@@ -4,7 +4,13 @@
  */
 
 import { prisma } from '../db/prisma.client';
-import { IMasterRepository } from '@/domain/repositories/master.repository.interface';
+import {
+  IMasterRepository,
+  MasterLookupsBundle,
+  MasterPoliceStationItem,
+  MasterIncidentCategoryItem,
+  MasterOperationalUnitItem,
+} from '@/domain/repositories/master.repository.interface';
 
 export class PrismaMasterRepository implements IMasterRepository {
   async getMasterCounters(): Promise<any> {
@@ -94,9 +100,7 @@ export class PrismaMasterRepository implements IMasterRepository {
     };
   }
 
-  async getMasterLookupsBundle(): Promise<any> {
-    const dangerRepo = (prisma as any).masterHotspotDangerLevel || (prisma as any).masterDangerLevel;
-
+  async getMasterLookupsBundle(): Promise<MasterLookupsBundle> {
     const [
       stationLevels,
       urgencyLevels,
@@ -119,7 +123,7 @@ export class PrismaMasterRepository implements IMasterRepository {
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
-      dangerRepo.findMany({
+      prisma.masterHotspotDangerLevel.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
@@ -141,31 +145,27 @@ export class PrismaMasterRepository implements IMasterRepository {
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }),
-      prisma.$queryRawUnsafe(`
-        SELECT id, \`key\`, label, display_order 
-        FROM master_vehicle_types 
-        WHERE is_active = 1 
-        ORDER BY display_order ASC
-      `).catch(() => []),
-      prisma.$queryRawUnsafe(`
-        SELECT id, \`key\`, label, display_order 
-        FROM master_vehicle_statuses 
-        WHERE is_active = 1 
-        ORDER BY display_order ASC
-      `).catch(() => []),
-      (prisma as any).masterFuelType?.findMany({
+      prisma.masterVehicleType.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }).catch(() => []),
-      (prisma as any).masterFuelClaimStatus?.findMany({
+      prisma.masterVehicleStatus.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }).catch(() => []),
-      (prisma as any).masterPatrolCrewRole?.findMany({
+      prisma.masterFuelType.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }).catch(() => []),
-      (prisma as any).masterDispatchMode?.findMany({
+      prisma.masterFuelClaimStatus.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }).catch(() => []),
+      prisma.masterPatrolCrewRole.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }).catch(() => []),
+      prisma.masterDispatchMode.findMany({
         where: { is_active: true },
         orderBy: { display_order: 'asc' },
       }).catch(() => []),
@@ -180,21 +180,26 @@ export class PrismaMasterRepository implements IMasterRepository {
       hotspotCategories,
       vehicleTypes: Array.isArray(vehicleTypes) ? vehicleTypes : [],
       vehicleStatuses: Array.isArray(vehicleStatuses) ? vehicleStatuses : [],
-      fuelTypes: Array.isArray(fuelTypes) ? fuelTypes : [],
+      fuelTypes: Array.isArray(fuelTypes) ? fuelTypes.map((f) => ({ ...f, default_price_per_liter: Number(f.default_price_per_liter) })) : [],
       fuelClaimStatuses: Array.isArray(fuelClaimStatuses) ? fuelClaimStatuses : [],
       crewRoles: Array.isArray(crewRoles) ? crewRoles : [],
       dispatchModes: Array.isArray(dispatchModes) ? dispatchModes : [],
     };
   }
 
-  async getAllStations(): Promise<any[]> {
-    return await prisma.policeStation.findMany({
+  async getAllStations(): Promise<MasterPoliceStationItem[]> {
+    const stations = await prisma.policeStation.findMany({
       where: { is_active: true },
       orderBy: { station_level: 'asc' },
     });
+    return stations.map((s) => ({
+      ...s,
+      office_lat: s.office_lat ? Number(s.office_lat) : undefined,
+      office_lng: s.office_lng ? Number(s.office_lng) : undefined,
+    }));
   }
 
-  async getAllCategories(): Promise<any[]> {
+  async getAllCategories(): Promise<MasterIncidentCategoryItem[]> {
     return await prisma.masterIncidentCategory.findMany({
       where: { is_active: true },
       include: {
@@ -207,73 +212,61 @@ export class PrismaMasterRepository implements IMasterRepository {
     });
   }
 
-  async getAllUnits(): Promise<any[]> {
+  async getAllUnits(): Promise<MasterOperationalUnitItem[]> {
     return await prisma.masterOperationalUnit.findMany({
       where: { is_active: true },
       orderBy: { display_order: 'asc' },
     });
   }
 
-  async executeMasterQuery(sqlOrStrings: any, ...params: any[]): Promise<any> {
+  async executeMasterQuery<T = unknown>(sqlOrStrings: string | TemplateStringsArray, ...params: unknown[]): Promise<T> {
     if (typeof sqlOrStrings === 'string') {
-      return await prisma.$queryRawUnsafe(sqlOrStrings, ...params);
+      return (await prisma.$queryRawUnsafe(sqlOrStrings, ...params)) as T;
     }
-    return await prisma.$queryRaw(sqlOrStrings, ...params);
+    return (await prisma.$queryRaw(sqlOrStrings, ...params)) as T;
   }
 
-  async findMany(modelName: string, queryOptions: any = {}): Promise<any[]> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.findMany !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
+  private getModelDelegate(modelName: string): Record<string, Function> {
+    const client = prisma as unknown as Record<string, Record<string, Function>>;
+    const model = client[modelName];
+    if (!model) {
+      throw new Error(`Model '${modelName}' is not defined on the database context`);
     }
-    return await model.findMany(queryOptions);
+    return model;
   }
 
-  async findUnique(modelName: string, queryOptions: any): Promise<any | null> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.findUnique !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
-    return await model.findUnique(queryOptions);
+  async findMany<T = unknown>(modelName: string, queryOptions: unknown = {}): Promise<T[]> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.findMany(queryOptions)) as T[];
   }
 
-  async findFirst(modelName: string, queryOptions: any = {}): Promise<any | null> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.findFirst !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
-    return await model.findFirst(queryOptions);
+  async findUnique<T = unknown>(modelName: string, queryOptions: unknown): Promise<T | null> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.findUnique(queryOptions)) as T | null;
   }
 
-  async create(modelName: string, createOptions: any): Promise<any> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.create !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
-    return await model.create(createOptions);
+  async findFirst<T = unknown>(modelName: string, queryOptions: unknown = {}): Promise<T | null> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.findFirst(queryOptions)) as T | null;
   }
 
-  async update(modelName: string, updateOptions: any): Promise<any> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.update !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
-    return await model.update(updateOptions);
+  async create<T = unknown>(modelName: string, createOptions: unknown): Promise<T> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.create(createOptions)) as T;
   }
 
-  async delete(modelName: string, deleteOptions: any): Promise<any> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.delete !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
-    return await model.delete(deleteOptions);
+  async update<T = unknown>(modelName: string, updateOptions: unknown): Promise<T> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.update(updateOptions)) as T;
   }
 
-  async count(modelName: string, countOptions: any = {}): Promise<number> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.count !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
-    return await model.count(countOptions);
+  async delete<T = unknown>(modelName: string, deleteOptions: unknown): Promise<T> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.delete(deleteOptions)) as T;
+  }
+
+  async count(modelName: string, countOptions: unknown = {}): Promise<number> {
+    const model = this.getModelDelegate(modelName);
+    return (await model.count(countOptions)) as number;
   }
 }

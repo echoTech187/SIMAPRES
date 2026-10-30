@@ -35,18 +35,18 @@ export class FuelAuditService {
     const roundTripKm = Number((roadOneWayKm * 2).toFixed(2));
 
     // 2. Ambil profil kendaraan dinas dari database
-    let vehicle: any = null;
+    let vehicle = null;
     if (vehicleId) {
-      vehicle = await (prisma as any).patrolVehicle.findUnique({
+      vehicle = await prisma.patrolVehicle.findUnique({
         where: { id: vehicleId },
         include: { fuel_type_rel: true },
       });
     }
 
     // Default jika kendaraan belum dipilih: Profil Roda-4 Patroli Samapta (Solar DIPA)
-    const defaultFuelType = await (prisma as any).masterFuelType.findFirst({
+    const defaultFuelType = (await prisma.masterFuelType.findFirst({
       where: { key: 'SOLAR_DIPA', is_active: true },
-    }) || { label: 'Solar / Biosolar (DIPA)', default_price_per_liter: 6800.0 };
+    })) || { label: 'Solar / Biosolar (DIPA)', default_price_per_liter: 6800.0 };
 
     const fuelRatioKmPerLiter = vehicle?.fuel_ratio_km_per_liter
       ? Number(vehicle.fuel_ratio_km_per_liter)
@@ -86,7 +86,7 @@ export class FuelAuditService {
     const startDate = new Date(targetYear, targetMonth - 1, 1);
     const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59);
 
-    const dispatches = await (prisma as any).complaintDispatch.findMany({
+    const dispatches = await prisma.complaintDispatch.findMany({
       where: {
         dispatched_at: {
           gte: startDate,

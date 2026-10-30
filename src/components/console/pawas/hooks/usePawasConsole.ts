@@ -20,16 +20,17 @@ import {
   getPawasMapDataAction,
   getPawasAnalyticsDataAction,
   getPawasLogbookDataAction,
-  getPawasUnifiedDataAction,
 } from '@/app/actions/pawas.actions';
-import { createLogbookAction } from '@/app/actions/logbook.actions';
 import { toast } from '@/components/ui/Toast';
-import { searchIndonesianLocations, type LocationSuggestionItem } from '@/infrastructure/services/indonesian-location-search.service';
-import { PawasTab, PresensiStatusType } from '../types';
+import { PresensiStatusType } from '../types';
 import { parsePawasTab, pawasTabToSlug } from '../pawas-helpers';
 import { calculateDistanceHaversineKm } from '@/lib/console/tactical-helpers';
 import { useConsoleEventSource } from '@/hooks/useConsoleEventSource';
 import { redirectToLogin } from '@/hooks/useSessionGuard';
+import { usePawasModals } from './usePawasModals';
+import { usePawasFilters } from './usePawasFilters';
+import { usePawasLogbook } from './usePawasLogbook';
+import { usePawasCad } from './usePawasCad';
 
 interface UsePawasConsoleProps {
   session?: any;
@@ -71,8 +72,8 @@ export function usePawasConsole({
         pangkat: session.rankPangkat ? session.rankPangkat : '',
         satuanNama: session.satuanNama ? session.satuanNama : '',
         unit: session.satuanNama ? session.satuanNama : '',
-        role: session.role ? session.role : 'PAWAS',
-        roleBadge: 'PAWAS',
+        role: session.role ? session.role : '',
+        roleBadge: session.role ? session.role : '',
         avatar: session.avatar ? session.avatar : (session.avatar_url ? session.avatar_url : null),
       };
     }
@@ -83,8 +84,8 @@ export function usePawasConsole({
       pangkat: '',
       satuanNama: '',
       unit: '',
-      role: 'PAWAS',
-      roleBadge: 'PAWAS',
+      role: '',
+      roleBadge: '',
       avatar: null,
     };
   });
@@ -105,23 +106,6 @@ export function usePawasConsole({
   const [presensiStatus, setPresensiStatus] = useState<PresensiStatusType>('BELUM_MASUK');
   const [jamMasukPiket, setJamMasukPiket] = useState('-');
   const [jamPulangPiket, setJamPulangPiket] = useState('-');
-
-  // Operator Simulation
-  const [simCaller, setSimCaller] = useState({
-    nomorTiket: '',
-    nama: '',
-    telepon: '',
-    alamat: '',
-    kategori: '',
-    subcategoryId: undefined as number | undefined,
-    urgensi: '',
-    uraian: '',
-    lat: 0,
-    lng: 0,
-  });
-
-  const [showLintasWilayahModal, setShowLintasWilayahModal] = useState(false);
-  const [selectedLintasWilayahComplaint, setSelectedLintasWilayahComplaint] = useState<any | null>(null);
 
   // Officer Performance Ranking State (Tier 2: Individu Personel)
   const [officerRankings, setOfficerRankings] = useState<{
@@ -158,92 +142,6 @@ export function usePawasConsole({
     toast.showNotification(msg, 4000);
   }, []);
 
-  // Validation Errors
-  const [cadFormErrors, setCadFormErrors] = useState<Record<string, string>>({});
-  const [disposisiFormErrors, setDisposisiFormErrors] = useState<Record<string, string>>({});
-
-  // Location suggestions for Operator CAD
-  const [cadLocationSuggestions, setCadLocationSuggestions] = useState<LocationSuggestionItem[]>([]);
-  const [isSearchingCadLocation, setIsSearchingCadLocation] = useState(false);
-  const [showCadSuggestions, setShowCadSuggestions] = useState(false);
-  const searchTimeoutRef = useRef<any>(null);
-
-  const handleCadLocationSearch = useCallback((query: string) => {
-    setSimCaller((prev) => ({ ...prev, alamat: query }));
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-
-    if (!query || query.trim().length < 2) {
-      setCadLocationSuggestions([]);
-      setShowCadSuggestions(false);
-      return;
-    }
-
-    setIsSearchingCadLocation(true);
-    searchTimeoutRef.current = setTimeout(async () => {
-      try {
-        const items = await searchIndonesianLocations(query, {
-          lat: simCaller.lat || undefined,
-          lng: simCaller.lng || undefined,
-          limit: 1000,
-        });
-        setCadLocationSuggestions(items);
-        setShowCadSuggestions(items.length > 0);
-      } catch (err) {
-        console.warn('Location search error:', err);
-      } finally {
-        setIsSearchingCadLocation(false);
-      }
-    }, 200);
-  }, [simCaller.lat, simCaller.lng]);
-
-  const handleSelectCadSuggestion = useCallback((item: { fullAddress: string; lat: number; lng: number }) => {
-    setSimCaller((prev) => ({
-      ...prev,
-      alamat: item.fullAddress,
-      lat: item.lat,
-      lng: item.lng,
-    }));
-    setCadFormErrors((prev) => {
-      const next = { ...prev };
-      delete next.alamat;
-      return next;
-    });
-    setShowCadSuggestions(false);
-  }, []);
-
-  // Disposisi Modal State
-  const [showDisposisiModal, setShowDisposisiModal] = useState(false);
-  const [selectedDisposisiItem, setSelectedDisposisiItem] = useState<any | null>(null);
-  const [selectedSatuanKeys, setSelectedSatuanKeys] = useState<string[]>([]);
-  const [activePreviewSatuanKey, setActivePreviewSatuanKey] = useState<string>('');
-  const [showEditPersonel, setShowEditPersonel] = useState(false);
-  const [customPersonelNama, setCustomPersonelNama] = useState('');
-  const [kuotaPersonel, setKuotaPersonel] = useState(4);
-  const [arahanPawas, setArahanPawas] = useState('');
-
-  // Sukses Disposisi Modal State
-  const [showSuksesModal, setShowSuksesModal] = useState(false);
-  const [suksesDisposisiData, setSuksesDisposisiData] = useState<any | null>(null);
-
-  // Modals
-  const [showSlaModal, setShowSlaModal] = useState(false);
-  const [showKuatPersModal, setShowKuatPersModal] = useState(false);
-  const [showIkmModal, setShowIkmModal] = useState(false);
-  const [showCetakModal, setShowCetakModal] = useState(false);
-  const [showPresensiPulangModal, setShowPresensiPulangModal] = useState(false);
-  const [showKeamananModal, setShowKeamananModal] = useState(false);
-  const [pinOtorisasiPawas, setPinOtorisasiPawas] = useState<string[]>(['', '', '', '', '', '']);
-  const [showTimePickerModal, setShowTimePickerModal] = useState(false);
-  const [showLightboxModal, setShowLightboxModal] = useState(false);
-  const [lightboxImg, setLightboxImg] = useState({ url: '', title: '', meta: '', desc: '' });
-  const [showHotspotModal, setShowHotspotModal] = useState(false);
-
-  // Supervisi & Validasi State
-  const [valFilterStatus, setValFilterStatus] = useState<string>('semua');
-  const [valFilterPlatform, setValFilterPlatform] = useState<string>('all');
-  const [valFilterKategori, setValFilterKategori] = useState<string>('all');
-  const [selectedValComplaint, setSelectedValComplaint] = useState<any | null>(null);
-
   // Live Stopwatch SLA 3 Cockpit
   const [slaClockSeconds, setSlaClockSeconds] = useState<number>(0);
   const slaClockStartRef = useRef<number>(Date.now());
@@ -260,19 +158,6 @@ export function usePawasConsole({
     const s = sec % 60;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
-
-  // Penolakan Form State
-  const [tolakComplaint, setTolakComplaint] = useState<any | null>(null);
-  const [showTolakModal, setShowTolakModal] = useState<boolean>(false);
-  const [tolakKategori, setTolakKategori] = useState('');
-  const [tolakAlasan, setTolakAlasan] = useState('');
-
-  // Buat Log (+) Form State
-  const [logWaktuMulai, setLogWaktuMulai] = useState('');
-  const [logSektor, setLogSektor] = useState('');
-  const [logJenis, setLogJenis] = useState<string>('');
-  const [logDeskripsi, setLogDeskripsi] = useState('');
-  const [logFotoPreview, setLogFotoPreview] = useState<string | null>(null);
 
   // Master Filter Options from Database
   const [dbCategories, setDbCategories] = useState<any[]>(() => initialMasterData?.categories || initialPawasData?.filterData?.categories || []);
@@ -667,322 +552,148 @@ export function usePawasConsole({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  const isComplaintRejected = useCallback((c: any) => {
-    if (c?.status === 'DITOLAK') return true;
-    if (c?.tahap_revisi === true) return true;
-    const ket = (c?.ringkasanKeterangan || '').toUpperCase();
-    return ket.includes('[DITOLAK PAWAS]') || ket.includes('[REVISI PAWAS]') || ket.includes('DITOLAK PAWAS');
-  }, []);
+  // --- Compose Sub-Hooks for Modals, CAD, Filters, and Logbook ---
+  const {
+    showDisposisiModal,
+    setShowDisposisiModal,
+    selectedDisposisiItem,
+    setSelectedDisposisiItem,
+    selectedSatuanKeys,
+    setSelectedSatuanKeys,
+    activePreviewSatuanKey,
+    setActivePreviewSatuanKey,
+    showEditPersonel,
+    setShowEditPersonel,
+    customPersonelNama,
+    setCustomPersonelNama,
+    kuotaPersonel,
+    setKuotaPersonel,
+    arahanPawas,
+    setArahanPawas,
+    disposisiFormErrors,
+    setDisposisiFormErrors,
+    showSuksesModal,
+    setShowSuksesModal,
+    suksesDisposisiData,
+    setSuksesDisposisiData,
+    showSlaModal,
+    setShowSlaModal,
+    showKuatPersModal,
+    setShowKuatPersModal,
+    showIkmModal,
+    setShowIkmModal,
+    showCetakModal,
+    setShowCetakModal,
+    showPresensiPulangModal,
+    setShowPresensiPulangModal,
+    showKeamananModal,
+    setShowKeamananModal,
+    pinOtorisasiPawas,
+    setPinOtorisasiPawas,
+    showTimePickerModal,
+    setShowTimePickerModal,
+    showLightboxModal,
+    setShowLightboxModal,
+    lightboxImg,
+    setLightboxImg,
+    showHotspotModal,
+    setShowHotspotModal,
+    tolakComplaint,
+    setTolakComplaint,
+    showTolakModal,
+    setShowTolakModal,
+    tolakKategori,
+    setTolakKategori,
+    tolakAlasan,
+    setTolakAlasan,
+    bukaModalTolak,
+    showLintasWilayahModal,
+    setShowLintasWilayahModal,
+    selectedLintasWilayahComplaint,
+    setSelectedLintasWilayahComplaint,
+  } = usePawasModals();
 
-  const resolveComplaintStatus = useCallback((rawStatus?: string | null, isRejected?: boolean) => {
-    const s = (rawStatus || '').toUpperCase().trim();
-    const targetKey = isRejected || s === 'DITOLAK'
-      ? 'DITOLAK'
-      : s === 'SELESAI'
-      ? 'SELESAI'
-      : s === 'MENUNGGU_PENGESAHAN'
-      ? 'MENUNGGU_PENGESAHAN'
-      : s === 'DIPROSES'
-      ? 'DIPROSES'
-      : 'MENUNGGU';
+  const {
+    simCaller,
+    setSimCaller,
+    cadFormErrors,
+    setCadFormErrors,
+    cadLocationSuggestions,
+    setCadLocationSuggestions,
+    isSearchingCadLocation,
+    setIsSearchingCadLocation,
+    showCadSuggestions,
+    setShowCadSuggestions,
+    handleCadLocationSearch,
+    handleSelectCadSuggestion,
+  } = usePawasCad();
 
-    const dbItem = dbStatuses.find(
-      (item) => item.key?.toUpperCase() === targetKey
-    );
+  const {
+    valFilterStatus,
+    setValFilterStatus,
+    valFilterPlatform,
+    setValFilterPlatform,
+    valFilterKategori,
+    setValFilterKategori,
+    selectedValComplaint,
+    setSelectedValComplaint,
+    isComplaintRejected,
+    resolveComplaintStatus,
+    matchesStatus,
+    resolveUrgencyLevel,
+    getComplaintPlatform,
+    matchesPlatform,
+    getComplaintKategoriInfo,
+    matchesKategori,
+    filterComplaintList,
+    openValidasiList,
+    openValidasiWithPlatform,
+    handleSelectPlatformFilter,
+    handleSelectKategoriFilter,
+    handleResetFilters,
+    filteredValidasiComplaints,
+    logsForStatusTabs,
+    tabCountSemua,
+    tabCountMenunggu,
+    logsForPlatform,
+    platCountAll,
+    platCountSos,
+    platCountWarga,
+    platCount110,
+    platCountPersonel,
+    logsForKategori,
+    katCountAll,
+  } = usePawasFilters({
+    allRecentComplaints,
+    dbCategories,
+    dbSubcategories,
+    dbPlatforms,
+    dbGiats,
+    dbStatuses,
+    dbUrgencyLevels,
+    setActiveTab,
+  });
 
-    const statusTheme: Record<string, { bg: string; color: string; border: string }> = {
-      DITOLAK: { bg: '#FEF2F2', color: '#DC2626', border: '#FECACA' },
-      SELESAI: { bg: '#ECFDF5', color: '#059669', border: '#A7F3D0' },
-      MENUNGGU_PENGESAHAN: { bg: '#FAF5FF', color: '#7C3AED', border: '#DDD6FE' },
-      DIPROSES: { bg: '#EFF6FF', color: '#2563EB', border: '#BFDBFE' },
-      MENUNGGU: { bg: '#FFFBEB', color: '#D97706', border: '#FDE68A' },
-    };
-
-    const resolvedKey = dbItem ? dbItem.key.toUpperCase() : targetKey;
-    const theme = statusTheme[resolvedKey] || { bg: '#F1F5F9', color: '#475569', border: '#CBD5E1' };
-    const cleanLabel = dbItem?.label || (resolvedKey === 'DIPROSES' ? 'Sedang Ditangani' : resolvedKey === 'MENUNGGU' ? 'Menunggu Disposisi' : resolvedKey);
-
-    return {
-      id: dbItem?.id ?? 0,
-      key: resolvedKey,
-      label: cleanLabel,
-      badge_color: theme.color,
-      badge_bg: theme.bg,
-      badge_border: theme.border,
-      display_order: dbItem?.display_order ?? 1,
-      icon: '',
-    };
-  }, [dbStatuses]);
-
-  const matchesStatus = useCallback((c: any, status: string) => {
-    if (!status || status === 'semua') return true;
-    const isRejected = isComplaintRejected(c);
-    const meta = resolveComplaintStatus(c?.status, isRejected);
-    const stUpper = status.toUpperCase().trim();
-
-    if (stUpper === meta.key) return true;
-    if (stUpper === 'DIPROSES') {
-      return meta.key === 'DIPROSES';
-    }
-    if (stUpper === 'MENUNGGU') {
-      return meta.key === 'MENUNGGU';
-    }
-    return false;
-  }, [isComplaintRejected, resolveComplaintStatus]);
-
-  const resolveUrgencyLevel = useCallback((rawUrgensi?: string | null) => {
-    const u = (rawUrgensi || '').toUpperCase().trim();
-    if (dbUrgencyLevels.length > 0) {
-      const found = dbUrgencyLevels.find(
-        (lvl: any) => lvl.key?.toUpperCase() === u || lvl.label?.toUpperCase() === u
-      );
-      if (found) {
-        return {
-          key: found.key,
-          label: found.label
-        };
-      }
-    }
-    return {
-      key: u,
-      label: u,
-    };
-  }, [dbUrgencyLevels]);
-
-  const getComplaintPlatform = useCallback((c: any) => {
-    if (c?.platformKey) return c.platformKey;
-    if (c?.platformRel?.key) return c.platformRel.key;
-    if (c?.saluranLaporan) return c.saluranLaporan;
-    return '-';
-  }, []);
-
-  const matchesPlatform = useCallback((c: any, platform: string) => {
-    if (platform === 'all') return true;
-    return getComplaintPlatform(c) === platform;
-  }, [getComplaintPlatform]);
-
-  const getComplaintKategoriInfo = useCallback((c: any) => {
-    const cleanNoEmoji = (str: string) => (str || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
-
-    const getSafeCategoryStyle = (key?: string, dbBg?: string, dbColor?: string, dbBorder?: string) => {
-      if (dbBg && dbColor) {
-        return {
-          background: dbBg,
-          color: dbColor,
-          border: `1px solid ${dbBorder || 'transparent'}`,
-        };
-      }
-      return { background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE' };
-    };
-
-    const sub = c?.subcategory || c?.subcategory_rel;
-    if (sub) {
-      const subCat = sub.category_rel || dbCategories.find((cat: any) => cat.key === sub.category_key || cat.id === sub.category_id);
-      if (subCat) {
-        const rawLabel = sub.nama_kasus || subCat.label || subCat.key || '';
-        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
-        return {
-          key: subCat.key,
-          kategori: rawLabel,
-          label: rawLabel,
-          subKasus: sub.nama_kasus,
-          subUnitKey: sub.unit_key,
-          badgeText,
-          badgeStyle: getSafeCategoryStyle(subCat.key, subCat.badge_bg, subCat.badge_color, subCat.badge_border),
-        };
-      }
-    }
-
-    const rel = c?.kategoriRel || c?.category_rel;
-    if (rel) {
-      const rawLabel = rel.label || rel.key || '';
-      const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
-      return {
-        key: rel.key,
-        kategori: rawLabel,
-        label: rawLabel,
-        badgeText,
-        badgeStyle: getSafeCategoryStyle(rel.key, rel.badge_bg, rel.badge_color, rel.badge_border),
-      };
-    }
-
-    const targetId = c?.category_id || c?.kategoriId;
-    if (targetId && dbCategories.length > 0) {
-      const foundById = dbCategories.find((cat: any) => cat.id === targetId);
-      if (foundById) {
-        const rawLabel = foundById.label || foundById.key || '';
-        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
-        return {
-          key: foundById.key,
-          kategori: rawLabel,
-          label: rawLabel,
-          badgeText,
-          badgeStyle: getSafeCategoryStyle(foundById.key, foundById.badge_bg, foundById.badge_color, foundById.badge_border),
-        };
-      }
-    }
-
-    const rawKey = (c?.kategoriKey || c?.kategori_key || '').toUpperCase();
-    if (rawKey && dbCategories.length > 0) {
-      const foundByKey = dbCategories.find((cat: any) => cat.key.toUpperCase() === rawKey || cat.label.toUpperCase() === rawKey);
-      if (foundByKey) {
-        const rawLabel = foundByKey.label || foundByKey.key || '';
-        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
-        return {
-          key: foundByKey.key,
-          kategori: rawLabel,
-          label: rawLabel,
-          badgeText,
-          badgeStyle: getSafeCategoryStyle(foundByKey.key, foundByKey.badge_bg, foundByKey.badge_color, foundByKey.badge_border),
-        };
-      }
-    }
-
-    const platform = getComplaintPlatform(c);
-    if (platform === 'personel' && dbGiats.length > 0) {
-      const textGiat = `${c?.jenisAksi || ''} ${c?.jenisKejadian || ''} ${c?.ringkasanKeterangan || ''}`.toUpperCase();
-      const foundGiat = dbGiats.find((g: any) => textGiat.includes((g.key || '').toUpperCase()) || textGiat.includes((g.label || '').toUpperCase()));
-      if (foundGiat) {
-        const rawLabel = foundGiat.label || foundGiat.key;
-        const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
-        return {
-          key: foundGiat.key,
-          kategori: rawLabel,
-          label: rawLabel,
-          badgeText,
-          badgeStyle: getSafeCategoryStyle(foundGiat.key, foundGiat.badge_bg, foundGiat.badge_color, foundGiat.badge_border),
-        };
-      }
-    }
-
-    const jenis = (c?.jenisKejadian || '').toLowerCase();
-    const katLaporan = (c?.kategoriLaporan || '').toLowerCase();
-    const combined = `${jenis} ${katLaporan}`;
-    const ringkasan = (c?.ringkasanKeterangan || '').toLowerCase();
-
-    if (dbSubcategories.length > 0) {
-      const matchedSub = dbSubcategories.find((s: any) => {
-        const subName = (s.nama_kasus || '').toLowerCase();
-        return combined.includes(subName) || ringkasan.includes(subName) || subName.includes(jenis);
-      });
-      if (matchedSub) {
-        const subCat = matchedSub.category_rel || dbCategories.find((cat: any) => cat.key === matchedSub.category_key || cat.id === matchedSub.category_id);
-        if (subCat) {
-          const rawLabel = subCat.label || subCat.key || '';
-          const badgeText = cleanNoEmoji(rawLabel) || rawLabel;
-          return {
-            key: subCat.key,
-            kategori: rawLabel,
-            label: rawLabel,
-            subKasus: matchedSub.nama_kasus,
-            subUnitKey: matchedSub.unit_key,
-            badgeText,
-            badgeStyle: getSafeCategoryStyle(subCat.key, subCat.badge_bg, subCat.badge_color, subCat.badge_border),
-          };
-        }
-      }
-    }
-
-    const fallbackLabel = cleanNoEmoji(c?.kategoriLaporan || c?.jenisKejadian) || '';
-    return {
-      key: 'TIDAK_TERKATEGORI',
-      kategori: fallbackLabel,
-      label: fallbackLabel,
-      badgeText: fallbackLabel,
-      badgeStyle: {
-        background: '#F1F5F9',
-        color: '#475569',
-        border: '1px solid #E2E8F0',
-      },
-    };
-  }, [dbCategories, dbGiats, dbSubcategories, getComplaintPlatform]);
-
-  const matchesKategori = useCallback((c: any, kategori: string) => {
-    if (kategori === 'all') return true;
-    const catInfo = getComplaintKategoriInfo(c);
-    const target = kategori.toUpperCase().trim();
-    if (catInfo.key && catInfo.key.toUpperCase() === target) return true;
-    if (catInfo.label && catInfo.label.toUpperCase().includes(target)) return true;
-
-    if (c?.category_id && dbCategories.length > 0) {
-      const cat = dbCategories.find((cc: any) => cc.id === c.category_id);
-      if (cat && cat.key && cat.key.toUpperCase() === target) return true;
-    }
-
-    const normTarget = target;
-    const normCurrent = catInfo.key.toUpperCase();
-    return normTarget === normCurrent;
-  }, [getComplaintKategoriInfo, dbCategories]);
-
-  const filterComplaintList = useCallback((
-    status: string,
-    platform: string,
-    kategori: string,
-    list: any[]
-  ) => {
-    return list.filter(
-      (c) => matchesStatus(c, status) && matchesPlatform(c, platform) && matchesKategori(c, kategori)
-    );
-  }, [matchesStatus, matchesPlatform, matchesKategori]);
-
-  const openValidasiList = useCallback((status: string, doSwitch = true) => {
-    setValFilterStatus(status);
-    const nextFiltered = filterComplaintList(status, valFilterPlatform, valFilterKategori, allRecentComplaints);
-    if (nextFiltered.length > 0) {
-      setSelectedValComplaint(nextFiltered[0]);
-    } else {
-      setSelectedValComplaint(null);
-    }
-    if (doSwitch) {
-      setActiveTab('view-validasi');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [valFilterPlatform, valFilterKategori, allRecentComplaints, filterComplaintList]);
-
-  const openValidasiWithPlatform = useCallback((plat: string) => {
-    setValFilterPlatform(plat);
-    setValFilterKategori('all');
-    const nextFiltered = filterComplaintList(valFilterStatus, plat, 'all', allRecentComplaints);
-    if (nextFiltered.length > 0) {
-      setSelectedValComplaint(nextFiltered[0]);
-    } else {
-      setSelectedValComplaint(null);
-    }
-    setActiveTab('view-validasi');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [valFilterStatus, allRecentComplaints, filterComplaintList]);
-
-  const handleSelectPlatformFilter = useCallback((plat: string) => {
-    setValFilterPlatform(plat);
-    setValFilterKategori('all');
-    const nextFiltered = filterComplaintList(valFilterStatus, plat, 'all', allRecentComplaints);
-    if (nextFiltered.length > 0) {
-      setSelectedValComplaint(nextFiltered[0]);
-    } else {
-      setSelectedValComplaint(null);
-    }
-  }, [valFilterStatus, allRecentComplaints, filterComplaintList]);
-
-  const handleSelectKategoriFilter = useCallback((kat: string) => {
-    setValFilterKategori(kat);
-    const nextFiltered = filterComplaintList(valFilterStatus, valFilterPlatform, kat, allRecentComplaints);
-    if (nextFiltered.length > 0) {
-      setSelectedValComplaint(nextFiltered[0]);
-    } else {
-      setSelectedValComplaint(null);
-    }
-  }, [valFilterStatus, valFilterPlatform, allRecentComplaints, filterComplaintList]);
-
-  const handleResetFilters = useCallback(() => {
-    setValFilterPlatform('all');
-    setValFilterKategori('all');
-    const nextFiltered = filterComplaintList(valFilterStatus, 'all', 'all', allRecentComplaints);
-    if (nextFiltered.length > 0) {
-      setSelectedValComplaint(nextFiltered[0]);
-    } else {
-      setSelectedValComplaint(null);
-    }
-  }, [valFilterStatus, allRecentComplaints, filterComplaintList]);
+  const {
+    logWaktuMulai,
+    setLogWaktuMulai,
+    logSektor,
+    setLogSektor,
+    logJenis,
+    setLogJenis,
+    logDeskripsi,
+    setLogDeskripsi,
+    logFotoPreview,
+    setLogFotoPreview,
+    handleSimpanLogKegiatan,
+  } = usePawasLogbook({
+    session,
+    userProfile,
+    showFriendlyToast,
+    switchTab,
+    loadData,
+    setLoading,
+  });
 
   const validateCadForm = useCallback((): Record<string, string> => {
     const errors: Record<string, string> = {};
@@ -1211,47 +922,6 @@ export function usePawasConsole({
     loadData,
   ]);
 
-  const handleSimpanLogKegiatan = useCallback(async () => {
-    const activeUserId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
-    if (!activeUserId) {
-      showFriendlyToast('error', 'Sesi Berakhir', 'Sesi pengguna tidak valid. Silakan login kembali.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const nowTime = new Date().toTimeString().slice(0, 5);
-      const res = await createLogbookAction({
-        officerId: activeUserId,
-        jenisAksi: (logJenis as any) || '-',
-        lokasiKlaimAlamat: logSektor || '',
-        lokasiKlaimLat: 0,
-        lokasiKlaimLng: 0,
-        lokasiGpsAktualLat: 0,
-        lokasiGpsAktualLng: 0,
-        jamMulai: logWaktuMulai || nowTime,
-        jamSelesai: nowTime,
-        fotoBuktiUrl: logFotoPreview || undefined,
-        deskripsiKegiatan: logDeskripsi || '',
-      });
-
-      if (res.success) {
-        showFriendlyToast('success', 'Buku Mutasi Berhasil', 'Log kegiatan dinas berhasil disimpan ke buku mutasi dan terverifikasi GPS.');
-        switchTab('view-beranda');
-        loadData();
-      } else {
-        showFriendlyToast('error', 'Gagal Menyimpan Log', res.error || 'Gagal menyimpan log.');
-      }
-    } catch (e: any) {
-      showFriendlyToast('error', 'Terjadi Kendala', e.message || 'Gagal menyimpan log kegiatan.');
-    } finally {
-      setLoading(false);
-    }
-  }, [session, userProfile, logJenis, logSektor, logWaktuMulai, logFotoPreview, logDeskripsi, showFriendlyToast, switchTab, loadData]);
-
-  const bukaModalTolak = useCallback((complaint: any) => {
-    setTolakComplaint(complaint);
-    setShowTolakModal(true);
-  }, []);
 
   const handleConfirmRejectModal = useCallback(async (reason: string, notes: string) => {
     if (!tolakComplaint) return;
@@ -1425,35 +1095,6 @@ export function usePawasConsole({
   const hotline110Count = allRecentComplaints.filter((c) => matchesPlatform(c, 'layanan110')).length;
   const personelCount = allRecentComplaints.filter((c) => matchesPlatform(c, 'personel')).length;
 
-  const logsForStatusTabs = useMemo(() => {
-    return allRecentComplaints.filter(
-      (c) => matchesPlatform(c, valFilterPlatform) && matchesKategori(c, valFilterKategori)
-    );
-  }, [allRecentComplaints, valFilterPlatform, valFilterKategori, matchesPlatform, matchesKategori]);
-
-  const tabCountSemua = logsForStatusTabs.length;
-  const tabCountMenunggu = logsForStatusTabs.filter((c) => matchesStatus(c, 'menunggu')).length;
-
-  const logsForPlatform = useMemo(() => {
-    return allRecentComplaints.filter(
-      (c) => matchesStatus(c, valFilterStatus) && matchesKategori(c, valFilterKategori)
-    );
-  }, [allRecentComplaints, valFilterStatus, valFilterKategori, matchesStatus, matchesKategori]);
-
-  const platCountAll = logsForPlatform.length;
-  const platCountSos = logsForPlatform.filter((c) => matchesPlatform(c, 'sos')).length;
-  const platCountWarga = logsForPlatform.filter((c) => matchesPlatform(c, 'warga')).length;
-  const platCount110 = logsForPlatform.filter((c) => matchesPlatform(c, 'layanan110')).length;
-  const platCountPersonel = logsForPlatform.filter((c) => matchesPlatform(c, 'personel')).length;
-
-  const logsForKategori = useMemo(() => {
-    return allRecentComplaints.filter(
-      (c) => matchesStatus(c, valFilterStatus) && matchesPlatform(c, valFilterPlatform)
-    );
-  }, [allRecentComplaints, valFilterStatus, valFilterPlatform, matchesStatus, matchesPlatform]);
-
-  const katCountAll = logsForKategori.length;
-
   const completedWithTime = useMemo(() => {
     return allRecentComplaints.filter((c) => typeof c.responseTimeMinutes === 'number' && c.responseTimeMinutes > 0);
   }, [allRecentComplaints]);
@@ -1499,15 +1140,6 @@ export function usePawasConsole({
       null
     );
   }, [antreanPawas, activeUnfinishedComplaints]);
-
-  const filteredValidasiComplaints = useMemo(() => {
-    return filterComplaintList(
-      valFilterStatus,
-      valFilterPlatform,
-      valFilterKategori,
-      allRecentComplaints
-    );
-  }, [filterComplaintList, valFilterStatus, valFilterPlatform, valFilterKategori, allRecentComplaints]);
 
   const activeComplaint = useMemo(() => {
     return (

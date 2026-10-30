@@ -47,12 +47,15 @@ describe('Server Action Integration: pawas.actions', () => {
       const result = await getPawasDashboardDataAction(60001, true);
 
       expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-      expect(result.data?.pendingComplaints.length).toBe(1);
-      expect(result.data?.allRecentComplaints.length).toBe(1);
-      expect(result.data?.registeredUnits.length).toBe(1);
-      expect(result.data?.recentLogbooks.length).toBe(1);
+      if (result.success) {
+        expect(result.data).toBeDefined();
+        expect(result.data?.pendingComplaints.length).toBe(1);
+        expect(result.data?.allRecentComplaints.length).toBe(1);
+        expect(result.data?.registeredUnits.length).toBe(1);
+        expect(result.data?.recentLogbooks.length).toBe(1);
+      }
     });
+
   });
 
   describe('getPawasMapDataAction', () => {
@@ -75,9 +78,11 @@ describe('Server Action Integration: pawas.actions', () => {
       const result = await getPawasMapDataAction(true);
 
       expect(result.success).toBe(true);
-      expect(result.data?.fleetUnits.length).toBe(1);
-      expect(result.data?.policeOffices.length).toBe(1);
-      expect(result.data?.hotspots.length).toBe(1);
+      if (result.success) {
+        expect(result.data?.fleetUnits.length).toBe(1);
+        expect(result.data?.policeOffices.length).toBe(1);
+        expect(result.data?.hotspots.length).toBe(1);
+      }
     });
   });
 
@@ -106,10 +111,13 @@ describe('Server Action Integration: pawas.actions', () => {
       const result = await getPawasAnalyticsDataAction(60001, true);
 
       expect(result.success).toBe(true);
-      expect(result.data?.ikmStats?.averageRating).toBe(4.8);
-      expect(result.data?.officerRankings?.length).toBe(1);
-      expect(result.data?.stationRankings?.length).toBe(1);
-      expect(result.data?.operatorRankings?.length).toBe(1);
+      if (result.success) {
+        expect(result.data?.ikmStats?.averageRating).toBe(4.8);
+        expect(result.data?.officerRankings?.length).toBe(1);
+        expect(result.data?.stationRankings?.length).toBe(1);
+        expect(result.data?.operatorRankings?.length).toBe(1);
+      }
     });
   });
 });
+

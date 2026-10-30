@@ -15,21 +15,30 @@ import {
   FileText,
   ShieldCheck,
 } from 'lucide-react';
-import { PawasTab } from '../types';
+import {
+  PawasTab,
+  PawasUserProfile,
+  PawasLookupItem,
+  PawasComplaintDossier,
+  PawasFleetUnit,
+  PawasLightboxData,
+  PawasRecentActivity,
+  ComplaintCategoryInfo,
+} from '../types';
 import { TabValidasiDossier } from './TabValidasiDossier';
 import { TabValidasiGiatSection } from './TabValidasiGiatSection';
 import { formatPhoneNumber } from '@/lib/format-phone';
 import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 
 export interface TabValidasiPawasProps {
-  userProfile: any;
+  userProfile: PawasUserProfile;
   switchTab: (tab: PawasTab) => void;
-  dbStatuses: any[];
-  dbPlatforms: any[];
-  dbCategories: any[];
-  dbGiats: any[];
-  logsForStatusTabs: any[];
-  logsForKategori: any[];
+  dbStatuses: PawasLookupItem[];
+  dbPlatforms: PawasLookupItem[];
+  dbCategories: PawasLookupItem[];
+  dbGiats: PawasLookupItem[];
+  logsForStatusTabs: PawasComplaintDossier[];
+  logsForKategori: PawasComplaintDossier[];
   tabCountSemua: number;
   tabCountMenunggu: number;
   platCountAll: number;
@@ -48,27 +57,27 @@ export interface TabValidasiPawasProps {
   handleSelectPlatformFilter: (pKey: string) => void;
   handleSelectKategoriFilter: (kKey: string) => void;
   handleResetFilters: () => void;
-  filteredValidasiComplaints: any[];
-  activeComplaint: any;
-  setSelectedValComplaint: (c: any) => void;
-  matchesStatus: (c: any, stKey: string) => boolean;
-  matchesKategori: (c: any, katKey: string) => boolean;
-  getComplaintKategoriInfo: (c: any) => any;
-  isComplaintRejected: (c: any) => boolean;
-  resolveComplaintStatus: (status: string, isRejected?: boolean) => any;
-  bukaModalDisposisi: (c: any) => void;
-  handleAjukanRevisi: (c: any) => void;
-  handleSahkanPenutupanKasus?: (c: any) => void;
-  setTolakComplaint: (c: any) => void;
-  bukaModalTolak?: (c: any) => void;
+  filteredValidasiComplaints: PawasComplaintDossier[];
+  activeComplaint: PawasComplaintDossier | null;
+  setSelectedValComplaint: (c: PawasComplaintDossier | null) => void;
+  matchesStatus: (c: PawasComplaintDossier, stKey: string) => boolean;
+  matchesKategori: (c: PawasComplaintDossier, katKey: string) => boolean;
+  getComplaintKategoriInfo: (c: PawasComplaintDossier) => ComplaintCategoryInfo;
+  isComplaintRejected: (c: PawasComplaintDossier) => boolean;
+  resolveComplaintStatus: (status: string, isRejected?: boolean) => PawasLookupItem;
+  bukaModalDisposisi: (c: PawasComplaintDossier) => void;
+  handleAjukanRevisi: (c: PawasComplaintDossier) => void;
+  handleSahkanPenutupanKasus?: (c: PawasComplaintDossier) => void;
+  setTolakComplaint: (c: PawasComplaintDossier | null) => void;
+  bukaModalTolak?: (c: PawasComplaintDossier) => void;
   setLightboxImg: (data: any) => void;
   setShowLightboxModal: (show: boolean) => void;
-  fleetUnits: any[];
+  fleetUnits: PawasFleetUnit[];
   slaClockSeconds: number;
   formatSlaClock: (sec: number) => string;
   loading?: boolean;
   isServerDataLoaded?: boolean;
-  recentActivities?: any[];
+  recentActivities?: PawasRecentActivity[];
 }
 
 export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
@@ -302,13 +311,13 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
           [
             { key: 'semua', label: 'Semua', count: tabCountSemua },
             ...(dbStatuses.length > 0
-              ? dbStatuses.map((st: any) => {
-                  const rawLabel = st.label || st.key;
+              ? dbStatuses.map((st: PawasLookupItem) => {
+                  const rawLabel = String(st.label || st.key || '');
                   const cleanLabel = rawLabel.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() || rawLabel;
                   return {
-                    key: st.key.toLowerCase(),
+                    key: String(st.key || '').toLowerCase(),
                     label: cleanLabel,
-                    count: logsForStatusTabs.filter((c) => matchesStatus(c, st.key)).length,
+                    count: logsForStatusTabs.filter((c) => matchesStatus(c, String(st.key || ''))).length,
                   };
                 })
               : [
@@ -798,11 +807,11 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                               {log.pelaporNama}
                             </div>
                             <div style={{ fontSize: '10px', color: '#64748B', flexShrink: 0 }}>
-                              {new Date(log.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
+                              {new Date(log.createdAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB
                             </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', gap: '4px', flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: statMeta.badge_bg || '#EFF6FF', color: statMeta.badge_color || '#2563EB', border: `1px solid ${statMeta.badge_border || '#BFDBFE'}` }}>
+                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: String(statMeta.badge_bg || '#EFF6FF'), color: String(statMeta.badge_color || '#2563EB'), border: `1px solid ${String(statMeta.badge_border || '#BFDBFE')}` }}>
                               {statusText}
                             </span>
                             {platformBadge}
@@ -1094,10 +1103,10 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                     ...dbPlatforms.map((p) => {
                       const pKey = p.key;
                       const count = pKey === 'sos' ? platCountSos : pKey === 'warga' ? platCountWarga : pKey === 'layanan110' ? platCount110 : platCountPersonel;
-                      const rawLabel = p.label || pKey;
+                      const rawLabel = p.label || pKey || '';
                       const cleanLabel = rawLabel.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() || rawLabel;
                       return {
-                        key: pKey,
+                        key: pKey || '',
                         label: cleanLabel,
                         count,
                         activeBg: pKey === 'sos' ? '#DC2626' : pKey === 'warga' ? '#0284C7' : pKey === 'layanan110' ? '#1D4ED8' : '#B45309',
@@ -1116,7 +1125,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                       <button
                         key={p.key}
                         type="button"
-                        onClick={() => handleSelectPlatformFilter(p.key)}
+                        onClick={() => handleSelectPlatformFilter(p.key || 'all')}
                         style={{
                           padding: '8px 14px',
                           borderRadius: '10px',
@@ -1175,12 +1184,12 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                     [
                       { key: 'all', label: 'Semua Giat', count: katCountAll },
                       ...dbGiats.map((g) => {
-                        const rawLabel = g.label || g.name || g.key;
+                        const rawLabel = g.label || g.name || g.key || '';
                         const cleanLabel = rawLabel.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() || rawLabel;
                         return {
-                          key: g.key,
+                          key: g.key || '',
                           label: cleanLabel,
-                          count: logsForKategori.filter((c) => matchesKategori(c, g.key)).length,
+                          count: logsForKategori.filter((c) => matchesKategori(c, g.key || '')).length,
                         };
                       }),
                     ].map((giat) => {
@@ -1189,7 +1198,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                         <button
                           key={giat.key}
                           type="button"
-                          onClick={() => handleSelectKategoriFilter(giat.key)}
+                          onClick={() => handleSelectKategoriFilter(giat.key || 'all')}
                           style={{
                             padding: '8px 14px',
                             borderRadius: '10px',
@@ -1225,12 +1234,12 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                     [
                       { key: 'all', label: 'Semua Jenis', count: katCountAll },
                       ...dbCategories.map((cat) => {
-                        const rawLabel = cat.label || cat.name || cat.key;
+                        const rawLabel = cat.label || cat.name || cat.key || '';
                         const cleanLabel = rawLabel.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim() || rawLabel;
                         return {
-                          key: cat.key,
+                          key: cat.key || '',
                           label: cleanLabel,
-                          count: logsForKategori.filter((c) => matchesKategori(c, cat.key)).length,
+                          count: logsForKategori.filter((c) => matchesKategori(c, cat.key || '')).length,
                         };
                       }),
                     ].map((kat) => {
@@ -1239,7 +1248,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                         <button
                           key={kat.key}
                           type="button"
-                          onClick={() => handleSelectKategoriFilter(kat.key)}
+                          onClick={() => handleSelectKategoriFilter(kat.key || 'all')}
                           style={{
                             padding: '8px 14px',
                             borderRadius: '10px',

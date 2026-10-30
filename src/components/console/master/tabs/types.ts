@@ -21,21 +21,36 @@ export type MasterTabType =
   | 'audit_bbm'
   | 'piket';
 
+import {
+  MasterStationLevelItem,
+  MasterUrgencyLevelItem,
+  MasterHotspotDangerLevelItem,
+  MasterIncidentCategoryItem,
+  MasterOperationalUnitItem,
+  MasterHotspotCategoryItem,
+  MasterVehicleTypeItem,
+  MasterVehicleStatusItem,
+  MasterRankItem,
+  MasterRoleItem,
+} from '@/domain/repositories/master.repository.interface';
+
 /** Lookup bundles yang dimuat sekali untuk semua tab */
 export interface MasterLookups {
-  stationLevelsList: any[];
-  urgencyLevelsList: any[];
-  vehicleTypesList: any[];
-  vehicleStatusesList: any[];
-  dangerLevelsList: any[];
-  categoriesList: any[];
-  unitsList: any[];
-  hotspotCategoriesList: any[];
+  stationLevelsList: MasterStationLevelItem[];
+  urgencyLevelsList: MasterUrgencyLevelItem[];
+  vehicleTypesList: MasterVehicleTypeItem[];
+  vehicleStatusesList: MasterVehicleStatusItem[];
+  dangerLevelsList: MasterHotspotDangerLevelItem[];
+  categoriesList: MasterIncidentCategoryItem[];
+  unitsList: MasterOperationalUnitItem[];
+  hotspotCategoriesList: MasterHotspotCategoryItem[];
   /** Master Pangkat list (opsional) */
-  ranksList?: any[];
+  ranksList?: MasterRankItem[];
   /** Master Role list (opsional) */
-  rolesList?: any[];
+  rolesList?: MasterRoleItem[];
 }
+
+
 
 /** Props standar yang diterima setiap komponen Tab Master */
 export interface MasterTabProps {

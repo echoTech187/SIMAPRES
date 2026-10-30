@@ -2,7 +2,18 @@
 
 import React from 'react';
 import '@/app/console/console.css';
-import { PawasTab } from '../types';
+import {
+  PawasTab,
+  PawasUserProfile,
+  PawasComplaintDossier,
+  PawasLookupItem,
+  PawasFleetUnit,
+  PawasLightboxData,
+  PawasEvidenceItem,
+  PawasDispatchItem,
+  PawasTimelineStep,
+  PawasComplaintLog,
+} from '../types';
 import { formatIncidentDateTime, formatTimeWib, formatDateTimeWib } from '@/lib/date-utils';
 import TrackingMapModal from '@/components/console/common/TrackingMapModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
@@ -10,19 +21,19 @@ import { formatPhoneNumber } from '@/lib/format-phone';
 import { reverseGeocodeCoords, isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 
 export interface TabValidasiDossierProps {
-  activeComplaint: any;
-  userProfile: any;
+  activeComplaint: PawasComplaintDossier;
+  userProfile: PawasUserProfile;
   switchTab: (tab: PawasTab) => void;
-  isComplaintRejected: (c: any) => boolean;
-  resolveComplaintStatus: (status: string, isRejected?: boolean) => any;
-  bukaModalDisposisi: (c: any) => void;
-  handleAjukanRevisi: (c: any) => void;
-  handleSahkanPenutupanKasus?: (c: any) => void;
-  setTolakComplaint: (c: any) => void;
-  bukaModalTolak?: (c: any) => void;
-  setLightboxImg: (data: any) => void;
+  isComplaintRejected: (c: PawasComplaintDossier) => boolean;
+  resolveComplaintStatus: (status: string, isRejected?: boolean) => PawasLookupItem;
+  bukaModalDisposisi: (c: PawasComplaintDossier) => void;
+  handleAjukanRevisi: (c: PawasComplaintDossier) => void;
+  handleSahkanPenutupanKasus?: (c: PawasComplaintDossier) => void;
+  setTolakComplaint: (c: PawasComplaintDossier | null) => void;
+  bukaModalTolak?: (c: PawasComplaintDossier) => void;
+  setLightboxImg: (data: PawasLightboxData | null) => void;
   setShowLightboxModal: (show: boolean) => void;
-  fleetUnits: any[];
+  fleetUnits: PawasFleetUnit[];
   slaClockSeconds: number;
   formatSlaClock: (sec: number) => string;
 }
@@ -222,7 +233,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                 borderRadius: '50%',
                 background: activeStatMeta.key === 'DIPROSES'
                   ? 'linear-gradient(135deg, #1E40AF, #3B82F6)'
-                  : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key)
+                  : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key || '')
                   ? '#10B981'
                   : '#CBD5E1',
                 color: 'white',
@@ -236,15 +247,15 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
             >
               {activeStatMeta.key === 'DIPROSES'
                 ? '🚔'
-                : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key)
+                : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key || '')
                 ? '✓'
                 : null}
             </div>
-            <div style={{ fontSize: '10px', fontWeight: 800, color: activeStatMeta.key === 'DIPROSES' || ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#0F172A' : '#94A3B8', marginTop: '4px', textAlign: 'center' }}>
+            <div style={{ fontSize: '10px', fontWeight: 800, color: activeStatMeta.key === 'DIPROSES' || ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key || '') ? '#0F172A' : '#94A3B8', marginTop: '4px', textAlign: 'center' }}>
               Lapangan
             </div>
-            <div style={{ fontSize: '9px', color: activeStatMeta.key === 'DIPROSES' ? '#2563EB' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? '#059669' : '#94A3B8', fontWeight: 700 }}>
-              {activeStatMeta.key === 'DIPROSES' ? (Number(activeComplaint.tahap) === 3 ? 'Meluncur' : Number(activeComplaint.tahap) >= 4 ? 'Di TKP' : 'Disposisi') : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key) ? 'Tuntas' : 'Menunggu'}
+            <div style={{ fontSize: '9px', color: activeStatMeta.key === 'DIPROSES' ? '#2563EB' : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key || '') ? '#059669' : '#94A3B8', fontWeight: 700 }}>
+              {activeStatMeta.key === 'DIPROSES' ? (Number(activeComplaint.tahap) === 3 ? 'Meluncur' : Number(activeComplaint.tahap) >= 4 ? 'Di TKP' : 'Disposisi') : ['MENUNGGU_PENGESAHAN', 'SELESAI'].includes(activeStatMeta.key || '') ? 'Tuntas' : 'Menunggu'}
             </div>
           </div>
 
@@ -514,9 +525,9 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                 fontWeight: 700,
                 padding: '4px 10px',
                 borderRadius: '12px',
-                background: activeStatMeta.badge_bg || '#EFF6FF',
-                color: activeStatMeta.badge_color || '#2563EB',
-                border: `1px solid ${activeStatMeta.badge_border || '#BFDBFE'}`,
+                background: String(activeStatMeta.badge_bg || '#EFF6FF'),
+                color: String(activeStatMeta.badge_color || '#2563EB'),
+                border: `1px solid ${String(activeStatMeta.badge_border || '#BFDBFE')}`,
               }}
             >
               {activeStatMeta.label}
@@ -583,7 +594,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                     fontWeight: 600,
                   }}
                 >
-                  <span>Foto Bukti Laporan 110 • {new Date(activeComplaint.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
+                  <span>Foto Bukti Laporan 110 • {new Date(activeComplaint.createdAt || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB</span>
                   <span style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(4px)', padding: '2px 8px', borderRadius: '4px', fontSize: '9px' }}>
                     🔍 Perbesar
                   </span>
@@ -698,7 +709,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
               const isStep3Active = !isStep3Completed && Number(activeComplaint.tahap) === 3;
               const step3StatusClass = isStep3Completed ? 'completed' : isStep3Active ? 'active' : 'pending';
 
-              const primaryDispatch = (activeComplaint.dispatches || []).find((d: any) => d.is_primary_unit) || (activeComplaint.dispatches || [])[0];
+              const primaryDispatch = (activeComplaint.dispatches || []).find((d: PawasDispatchItem) => d.is_primary_unit) || (activeComplaint.dispatches || [])[0];
               const baseDate = activeComplaint.created_at || activeComplaint.createdAt || new Date();
               const rawMeluncur = primaryDispatch?.departed_at || activeComplaint.waktuMeluncur || null;
               const formattedMeluncur = rawMeluncur ? formatDateTimeWib(rawMeluncur, baseDate) : null;
@@ -741,7 +752,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                         <span
                           onClick={() => {
                             setLightboxImg({
-                              url: activeComplaint.fotoPersiapan,
+                              url: activeComplaint.fotoPersiapan || '',
                               title: 'Bukti Persiapan & GPS Lapangan',
                               meta: activeComplaint.assignedOfficer?.assignedPatrolVehicle || '-',
                               desc: 'Armada dalam perjalanan menuju TKP',
@@ -812,17 +823,17 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                         {activeComplaint.tkpLat?.toFixed(4)}, {activeComplaint.tkpLng?.toFixed(4)}
                       </div>
                       <div style={{ fontSize: '10.5px', color: '#475569', fontStyle: 'italic', marginTop: '3px' }}>
-                        &quot;{activeComplaint.timelines?.find((t: any) => t.tahapKe === 2 || t.tahapKe === 3)?.catatan || `Unit bergerak menuju ${activeComplaint.tkpAlamatTeks}`}&quot;
+                        &quot;{activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 2 || t.tahapKe === 3)?.catatan || `Unit bergerak menuju ${activeComplaint.tkpAlamatTeks}`}&quot;
                       </div>
                     </div>
 
                     {/* DAFTAR PERSONEL REGU YANG IKUT / MENYETUJUI TUGAS */}
                     {(() => {
-                      const dispatches: any[] = activeComplaint.dispatches || [];
-                      const list: any[] = [];
+                      const dispatches: PawasDispatchItem[] = activeComplaint.dispatches || [];
+                      const list: Array<Record<string, any>> = [];
                       const seen = new Set<string>();
 
-                      dispatches.forEach((d: any) => {
+                      dispatches.forEach((d: PawasDispatchItem) => {
                         const isAcc = Boolean(d.accepted_at || d.arrived_at || d.completed_at);
                         if (!isAcc && !d.officer) return;
                         const off = d.officer;
@@ -857,7 +868,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
 
                       if (list.length === 0 && activeComplaint.assignedOfficer) {
                         const ao = activeComplaint.assignedOfficer;
-                        const rawName = ao.namaLengkap || ao.name || '';
+                        const rawName = ao.namaLengkap || (ao as any).name || '';
                         const rank = ao.rankPangkat || '';
                         const name = formatOfficerName(rank, rawName) || 'Personel Lapangan';
                         const nrp = ao.nrp || '';
@@ -1022,7 +1033,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
               const step4StatusClass = isStep4Completed ? 'completed' : isStep4Active ? 'active' : 'pending';
 
               const step4Evidences = (activeComplaint.evidences || []).filter(
-                (e: any) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN'
+                (e: PawasEvidenceItem) => e.incident_phase === 'TIBA_TKP' || e.incident_phase === 'PENANGANAN'
               );
               const resolvedFotoTindakan = activeComplaint.fotoTindakan || activeComplaint.fotoTiba || step4Evidences[0]?.file_url || null;
 
@@ -1071,7 +1082,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                                   url: step4Evidences[0].file_url,
                                   title: `Bukti Tindakan TKP (1/${step4Evidences.length})`,
                                   meta: `${activeComplaint.nomorTiket} • ${step4Evidences[0].watermark_text || 'Terverifikasi GPS'}`,
-                                  desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
+                                  desc: activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
                                 });
                                 setShowLightboxModal(true);
                               }}
@@ -1086,7 +1097,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                                   url: resolvedFotoTindakan,
                                   title: 'Foto Tindakan Kepolisian di TKP',
                                   meta: activeComplaint.nomorTiket,
-                                  desc: activeComplaint.timelines?.find((t: any) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
+                                  desc: activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 4)?.catatan || 'Pengamanan TKP dan sterilisasi area',
                                 });
                                 setShowLightboxModal(true);
                               }}
@@ -1100,7 +1111,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                         {/* Strip Galeri Foto Tindakan di TKP */}
                         {step4Evidences.length > 0 && (
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
-                            {step4Evidences.map((ev: any, idx: number) => (
+                            {step4Evidences.map((ev: PawasEvidenceItem, idx: number) => (
                               <div
                                 key={ev.id || idx}
                                 onClick={() => {
@@ -1153,8 +1164,8 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                             {(() => {
                               const rawNote =
                                 activeComplaint.catatanTindakan ||
-                                (activeComplaint.timelines || []).slice().reverse().find((t: any) => t.actionKey === 'REPORT_SUBMITTED' && t.catatan)?.catatan ||
-                                (activeComplaint.complaintLogs || []).slice().reverse().find((l: any) => (l.action === 'REPORT_SUBMITTED' || l.action === 'DOKUMENTASI_TKP_FLAGGED') && l.notes)?.notes;
+                                (activeComplaint.timelines || []).slice().reverse().find((t: PawasTimelineStep) => t.actionKey === 'REPORT_SUBMITTED' && t.catatan)?.catatan ||
+                                (activeComplaint.complaintLogs || []).slice().reverse().find((l: PawasComplaintLog) => (l.action === 'REPORT_SUBMITTED' || l.action === 'DOKUMENTASI_TKP_FLAGGED') && l.notes)?.notes;
                               const cleanNote = rawNote
                                 ? rawNote.replace(/^Catatan:\s*/i, '').trim()
                                 : 'Personel tiba di TKP, mengamankan perimeter dan memastikan situasi kamtibmas kondusif.';
@@ -1177,11 +1188,11 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
             {(() => {
               const isStep5Completed = activeComplaint.status === 'SELESAI';
               const isStep5Awaiting = activeComplaint.status === 'MENUNGGU_PENGESAHAN';
-              const isStep5Open = isStep5Completed || isStep5Awaiting || Boolean(activeComplaint.catatanSelesai) || (activeComplaint.tahap >= 5);
+              const isStep5Open = isStep5Completed || isStep5Awaiting || Boolean(activeComplaint.catatanSelesai) || ((activeComplaint.tahap ?? 0) >= 5);
               const step5StatusClass = isStep5Completed ? 'completed' : isStep5Awaiting ? 'active' : 'pending';
 
               const step5Evidences = (activeComplaint.evidences || []).filter(
-                (e: any) =>
+                (e: PawasEvidenceItem) =>
                   e.incident_phase === 'SELESAI_KONDUSIF' ||
                   e.incident_phase === 'SELESAI' ||
                   (e.caption || '').toLowerCase().includes('selesai') ||
@@ -1191,7 +1202,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
               );
               const resolvedFotoSelesai =
                 activeComplaint.fotoSelesai ||
-                step5Evidences.find((e: any) => !e.file_url?.match(/\.(pdf|doc|docx|mp4|webm|mov)$/i))?.file_url;
+                step5Evidences.find((e: PawasEvidenceItem) => !e.file_url?.match(/\.(pdf|doc|docx|mp4|webm|mov)$/i))?.file_url;
 
               return (
                 <div className={`glow-timeline-step ${step5StatusClass}`}>
@@ -1272,7 +1283,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                         {/* Strip Galeri Multi-Media Bukti Penyelesaian */}
                         {step5Evidences.length > 0 && (
                           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
-                            {step5Evidences.map((ev: any, idx: number) => {
+                            {step5Evidences.map((ev: PawasEvidenceItem, idx: number) => {
                               const isDoc = ev.file_url?.match(/\.(pdf|doc|docx)$/i);
                               const isVid = ev.file_url?.match(/\.(mp4|webm|mov)$/i);
 
@@ -1395,7 +1406,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                         <div style={{ background: '#ECFDF5', borderLeft: '3px solid #10B981', borderRadius: '0 6px 6px 0', padding: '6px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                           <div style={{ fontSize: '10px', fontWeight: 700, color: '#047857', marginBottom: '2px' }}>✓ LAPORAN AKHIR PETUGAS:</div>
                           <div style={{ fontSize: '11px', color: '#1E293B' }}>
-                            &quot;{activeComplaint.catatanSelesai || (activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan) || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.'}&quot;
+                            &quot;{activeComplaint.catatanSelesai || (activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 5)?.catatan) || 'Situasi telah aman dan kondusif. Penanganan lapangan tuntas sesuai SOP.'}&quot;
                           </div>
                         </div>
 
@@ -1406,10 +1417,10 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                               <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
                             </div>
                             <div style={{ fontSize: '10.5px', color: '#166534', marginTop: '2px' }}>
-                              <strong>Pengesah:</strong> {activeComplaint.pawas?.namaLengkap || userProfile.fullName} (Pawas) • <strong>Waktu:</strong> {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
+                              <strong>Pengesah:</strong> {activeComplaint.pawas?.namaLengkap || userProfile.namaLengkap || (userProfile as any).fullName || 'Pawas'} (Pawas) • <strong>Waktu:</strong> {activeComplaint.selesaiAt ? new Date(activeComplaint.selesaiAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
                             </div>
                             <div style={{ fontSize: '11px', color: '#1E293B', fontStyle: 'italic', marginTop: '2px' }}>
-                              &quot;{activeComplaint.timelines?.find((t: any) => t.tahapKe === 5)?.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}&quot;
+                              &quot;{activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 5)?.catatan || 'Berita acara lengkap, penanganan tuntas sesuai SOP Polri Presisi.'}&quot;
                             </div>
                           </div>
                         ) : isStep5Awaiting ? (
@@ -1472,8 +1483,8 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                 {/* SLA 2 */}
                 {(() => {
                   const tDisp = activeComplaint.disposisiAt ? new Date(activeComplaint.disposisiAt) : null;
-                  const primaryDispatch = (activeComplaint.dispatches || []).find((d: any) => d.is_primary_unit) || (activeComplaint.dispatches || [])[0];
-                  const logMeluncur = (activeComplaint.complaintLogs || []).find((l: any) => l.action?.includes('Meluncur') || l.action?.includes('MENUJU_TKP'));
+                  const primaryDispatch = (activeComplaint.dispatches || []).find((d: PawasDispatchItem) => d.is_primary_unit) || (activeComplaint.dispatches || [])[0];
+                  const logMeluncur = (activeComplaint.complaintLogs || []).find((l: PawasComplaintLog) => l.action?.includes('Meluncur') || l.action?.includes('MENUJU_TKP'));
                   const rawMove = primaryDispatch?.accepted_at || primaryDispatch?.departed_at || activeComplaint.waktuMeluncur || logMeluncur?.created_at;
                   const tMove = rawMove ? new Date(rawMove) : null;
                   const mTanggap = tDisp && tMove ? Math.max(1, Math.round((tMove.getTime() - tDisp.getTime()) / 60000)) : null;
@@ -1495,7 +1506,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
 
                 {/* SLA 3 */}
                 {(() => {
-                  const primaryDispatch = (activeComplaint.dispatches || []).find((d: any) => d.is_primary_unit) || (activeComplaint.dispatches || [])[0];
+                  const primaryDispatch = (activeComplaint.dispatches || []).find((d: PawasDispatchItem) => d.is_primary_unit) || (activeComplaint.dispatches || [])[0];
                   const rawDepart = primaryDispatch?.departed_at || activeComplaint.waktuMeluncur || null;
                   const rawArrive = primaryDispatch?.arrived_at || activeComplaint.responTibaTkpAt || null;
                   const isMoving = Number(activeComplaint.tahap) === 3;
@@ -1513,7 +1524,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                           {Number(activeComplaint.tahap) === 3
                             ? `Berangkat: ${rawDepart ? formatTimeWib(rawDepart) : (activeComplaint.disposisiAt ? formatTimeWib(activeComplaint.disposisiAt) : '-')}`
                             : rawArrive
-                            ? `Tiba: ${formatTimeWib(rawArrive)}`
+                            ? `Tiba: ${formatTimeWib(rawArrive as string | Date)}`
                             : 'Estimasi: ± 4-6 Menit'}
                         </div>
                         <div style={{ fontFamily: 'inherit', fontSize: '14px', fontWeight: 800, color: '#38BDF8', letterSpacing: '0.3px' }}>
@@ -1534,7 +1545,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
             <div style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E293B' }}>🚔 DISPOSISI PASUKAN OLEH PAWAS</span>
-                <span style={{ fontSize: '10px', fontWeight: 700, background: activeStatMeta.badge_bg || '#EFF6FF', color: activeStatMeta.badge_color || '#2563EB', border: `1px solid ${activeStatMeta.badge_border || '#BFDBFE'}`, padding: '2px 6px', borderRadius: '4px' }}>
+                <span style={{ fontSize: '10px', fontWeight: 700, background: String(activeStatMeta.badge_bg || '#EFF6FF'), color: String(activeStatMeta.badge_color || '#2563EB'), border: `1px solid ${String(activeStatMeta.badge_border || '#BFDBFE')}`, padding: '2px 6px', borderRadius: '4px' }}>
                   {activeStatMeta.key === 'SELESAI' ? 'Penanganan Selesai' : activeStatMeta.key === 'MENUNGGU' ? 'Menunggu Penugasan' : activeStatMeta.label}
                 </span>
               </div>
@@ -1544,10 +1555,10 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                 <div>• <strong>Posisi Awal Armada:</strong> <span style={{ color: '#475569' }}>{activeComplaint.assignedOfficer?.jabatan || 'Polres Metro Jaksel / Posko Presisi'}</span></div>
                 <div>• <strong>Waktu Disposisi:</strong> {activeComplaint.disposisiAt ? formatTimeWib(activeComplaint.disposisiAt) : 'Dalam Antrean'}</div>
                 <div style={{ marginTop: '4px', background: 'white', borderLeft: '3px solid #3B82F6', padding: '6px 8px', borderRadius: '0 6px 6px 0', fontSize: '11.5px', fontStyle: 'italic' }}>
-                  &quot;{activeComplaint.timelines?.find((t: any) => t.tahapKe === 2 || t.tahapKe === 1)?.catatan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan perlindungan warga dan amankan barang bukti.'}&quot;
+                  &quot;{activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 2 || t.tahapKe === 1)?.catatan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan perlindungan warga dan amankan barang bukti.'}&quot;
                 </div>
                 <div style={{ marginTop: '4px', background: '#EFF6FF', borderLeft: '3px solid #0284C7', padding: '6px 8px', borderRadius: '0 6px 6px 0', fontSize: '11.5px', color: '#0369A1' }}>
-                  <strong>🚔 Back-Up Siaga:</strong> {fleetUnits.find(u => u.nrp !== activeComplaint.assignedOfficer?.nrp)?.title || 'Unit Perintis Presisi R-2'} standby radius terdekat
+                  <strong>🚔 Back-Up Siaga:</strong> {String(fleetUnits.find(u => u.nrp !== activeComplaint.assignedOfficer?.nrp)?.title || 'Unit Perintis Presisi R-2')} standby radius terdekat
                 </div>
               </div>
             </div>

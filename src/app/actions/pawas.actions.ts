@@ -14,16 +14,9 @@ import { getPatrolFleetUnitsAction } from './fleet.actions';
 import { getHotspotsAction } from './hotspot.actions';
 import { getRecentLogbooksAction } from './logbook.actions';
 import { cacheGet, cacheSet, cacheInvalidate } from '@/infrastructure/cache/app-cache';
-
-function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
-
+import { getErrorMessage, type ActionResult } from '@/types/action.types';
 import { broadcastConsoleEvent } from '@/lib/events/console-events';
+import { requireRole } from '@/lib/session';
 
 export async function invalidatePawasUnifiedCache(stationId?: number | string) {
   cacheInvalidate('pawas_unified_data');
@@ -52,21 +45,75 @@ export async function invalidatePawasUnifiedCache(stationId?: number | string) {
   });
 }
 
+export interface PawasDashboardData {
+  filterData: any;
+  pendingComplaints: any[];
+  allRecentComplaints: any[];
+  registeredUnits: any[];
+  recentLogbooks: any[];
+  fleetUnits?: any[];
+  policeOffices?: any[];
+  hotspots?: any[];
+}
+
+
+export interface PawasMapData {
+  fleetUnits: any[];
+  policeOffices: any[];
+  hotspots: any[];
+}
+
+export interface PawasAnalyticsData {
+  ikmStats: any;
+  officerRankings: any;
+  stationRankings: any;
+  operatorRankings: any;
+}
+
+export interface PawasLogbookData {
+  recentLogbooks: any[];
+}
+
+export interface PawasUnifiedData {
+  filterData: any;
+  pendingComplaints: any[];
+  allRecentComplaints: any[];
+  registeredUnits: any[];
+  recentLogbooks: any[];
+  fleetUnits: any[];
+  policeOffices: any[];
+  hotspots: any[];
+  ikmStats: any;
+  officerRankings: any;
+  stationRankings: any;
+  operatorRankings: any;
+}
+
+
 /**
  * Tab 1: Beranda Pawas (Zero Overfetching)
  * Hanya memuat antrean tiket, laporan aktif, unit terdaftar, dan filter kategori.
  * Tidak memuat peta, tidak memuat hotspot, tidak memuat ranking, tidak memuat logbook.
  */
-export async function getPawasDashboardDataAction(stationId?: number | string, forceFresh = false) {
+export async function getPawasDashboardDataAction(
+  stationId?: number | string,
+  forceFresh = false
+): Promise<ActionResult<PawasDashboardData>> {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const numStationId = stationId ? Number(stationId) : undefined;
     const cacheKey = numStationId ? `pawas_dashboard_data_${numStationId}` : 'pawas_dashboard_data_all';
     if (!forceFresh) {
-      const cached = cacheGet<any>(cacheKey);
+      const cached = cacheGet<PawasDashboardData>(cacheKey);
       if (cached) {
         return { success: true, data: cached };
       }
     }
+
 
     const [filterRes, qRes, allRes, uRes, logbookRes] = await Promise.all([
       getMasterFilterOptionsAction(),
@@ -90,10 +137,10 @@ export async function getPawasDashboardDataAction(stationId?: number | string, f
       success: true,
       data: payload,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
-      error: err.message || 'Gagal memuat data dashboard Pawas',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -102,11 +149,16 @@ export async function getPawasDashboardDataAction(stationId?: number | string, f
  * Tab 2: Peta Situasi Wilayah (Lazy-Loaded On Demand)
  * Hanya dipanggil saat Pawas mengklik tab Peta.
  */
-export async function getPawasMapDataAction(forceFresh = false) {
+export async function getPawasMapDataAction(forceFresh = false): Promise<ActionResult<PawasMapData>> {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const cacheKey = 'pawas_map_data';
     if (!forceFresh) {
-      const cached = cacheGet<any>(cacheKey);
+      const cached = cacheGet<PawasMapData>(cacheKey);
       if (cached) {
         return { success: true, data: cached };
       }
@@ -118,7 +170,7 @@ export async function getPawasMapDataAction(forceFresh = false) {
       getHotspotsAction(),
     ]);
 
-    const payload = {
+    const payload: PawasMapData = {
       fleetUnits: fleetRes.success && fleetRes.data ? fleetRes.data : [],
       policeOffices: officesRes.success && officesRes.data ? officesRes.data : [],
       hotspots: hotspotsRes.success && hotspotsRes.data ? hotspotsRes.data : [],
@@ -130,10 +182,10 @@ export async function getPawasMapDataAction(forceFresh = false) {
       success: true,
       data: payload,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
-      error: err.message || 'Gagal memuat data peta Pawas',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -142,12 +194,20 @@ export async function getPawasMapDataAction(forceFresh = false) {
  * Tab 3: Kinerja & Analitik (Lazy-Loaded On Demand)
  * Hanya dipanggil saat Pawas mengklik tab Kinerja.
  */
-export async function getPawasAnalyticsDataAction(stationId?: number | string, forceFresh = false) {
+export async function getPawasAnalyticsDataAction(
+  stationId?: number | string,
+  forceFresh = false
+): Promise<ActionResult<PawasAnalyticsData>> {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const numStationId = stationId ? Number(stationId) : undefined;
     const cacheKey = numStationId ? `pawas_analytics_data_${numStationId}` : 'pawas_analytics_data';
     if (!forceFresh) {
-      const cached = cacheGet<any>(cacheKey);
+      const cached = cacheGet<PawasAnalyticsData>(cacheKey);
       if (cached) {
         return { success: true, data: cached };
       }
@@ -160,7 +220,7 @@ export async function getPawasAnalyticsDataAction(stationId?: number | string, f
       getOperatorPerformanceRankingsAction(numStationId),
     ]);
 
-    const payload = {
+    const payload: PawasAnalyticsData = {
       ikmStats: ikmRes.success && ikmRes.data ? ikmRes.data : null,
       officerRankings: rankRes.success && rankRes.data ? rankRes.data : null,
       stationRankings: stationRankRes.success && stationRankRes.data ? stationRankRes.data : null,
@@ -173,10 +233,10 @@ export async function getPawasAnalyticsDataAction(stationId?: number | string, f
       success: true,
       data: payload,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
-      error: err.message || 'Gagal memuat data analitik kinerja Pawas',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -185,11 +245,19 @@ export async function getPawasAnalyticsDataAction(stationId?: number | string, f
  * Tab 4: Buku Mutasi / Logbook (Lazy-Loaded On Demand)
  * Hanya dipanggil saat Pawas mengklik tab Logbook.
  */
-export async function getPawasLogbookDataAction(limit = 10, forceFresh = false) {
+export async function getPawasLogbookDataAction(
+  limit = 10,
+  forceFresh = false
+): Promise<ActionResult<PawasLogbookData>> {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const cacheKey = `pawas_logbook_data_${limit}`;
     if (!forceFresh) {
-      const cached = cacheGet<any>(cacheKey);
+      const cached = cacheGet<PawasLogbookData>(cacheKey);
       if (cached) {
         return { success: true, data: cached };
       }
@@ -197,7 +265,7 @@ export async function getPawasLogbookDataAction(limit = 10, forceFresh = false) 
 
     const logbookRes = await getRecentLogbooksAction(limit);
 
-    const payload = {
+    const payload: PawasLogbookData = {
       recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],
     };
 
@@ -207,10 +275,10 @@ export async function getPawasLogbookDataAction(limit = 10, forceFresh = false) 
       success: true,
       data: payload,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
-      error: err.message || 'Gagal memuat data logbook Pawas',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -220,8 +288,17 @@ export async function getPawasLogbookDataAction(limit = 10, forceFresh = false) 
  * Eliminates 9-18 separate HTTP round-trips over the network and speeds up initial load time.
  * Menggunakan in-memory cache server (TTL 15 detik) untuk responsivitas instan (< 5ms).
  */
-export async function getPawasUnifiedDataAction(stationId?: number | string, forceFresh = false) {
+export async function getPawasUnifiedDataAction(
+  stationId?: number | string,
+  forceFresh = false
+): Promise<ActionResult<PawasUnifiedData>> {
+
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const numStationId = stationId ? Number(stationId) : undefined;
     const cacheKey = numStationId ? `pawas_unified_data_${numStationId}` : 'pawas_unified_data_all';
     if (!forceFresh) {
@@ -237,24 +314,25 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
       getPawasAnalyticsDataAction(numStationId, forceFresh),
     ]);
 
-    const dash = dashRes.success && dashRes.data ? dashRes.data : ({} as any);
-    const map = mapRes.success && mapRes.data ? mapRes.data : ({} as any);
-    const analytics = analyticsRes.success && analyticsRes.data ? analyticsRes.data : ({} as any);
+    const dash = dashRes.success ? dashRes.data : null;
+    const map = mapRes.success ? mapRes.data : null;
+    const analytics = analyticsRes.success ? analyticsRes.data : null;
 
-    const payload = {
-      filterData: dash.filterData || null,
-      pendingComplaints: dash.pendingComplaints || [],
-      allRecentComplaints: dash.allRecentComplaints || [],
-      registeredUnits: dash.registeredUnits || [],
-      fleetUnits: map.fleetUnits || [],
-      policeOffices: map.policeOffices || [],
-      hotspots: map.hotspots || [],
-      ikmStats: analytics.ikmStats || null,
-      officerRankings: analytics.officerRankings || null,
-      stationRankings: analytics.stationRankings || null,
-      operatorRankings: analytics.operatorRankings || null,
-      recentLogbooks: dash.recentLogbooks || [],
+    const payload: PawasUnifiedData = {
+      filterData: dash?.filterData || null,
+      pendingComplaints: dash?.pendingComplaints || [],
+      allRecentComplaints: dash?.allRecentComplaints || [],
+      registeredUnits: dash?.registeredUnits || [],
+      fleetUnits: map?.fleetUnits || [],
+      policeOffices: map?.policeOffices || [],
+      hotspots: map?.hotspots || [],
+      ikmStats: analytics?.ikmStats || null,
+      officerRankings: analytics?.officerRankings || null,
+      stationRankings: analytics?.stationRankings || null,
+      operatorRankings: analytics?.operatorRankings || null,
+      recentLogbooks: dash?.recentLogbooks || [],
     };
+
 
     cacheSet(cacheKey, payload, 15000); // 15 detik TTL
 
@@ -262,10 +340,10 @@ export async function getPawasUnifiedDataAction(stationId?: number | string, for
       success: true,
       data: payload,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       success: false,
-      error: err.message ? err.message : 'Gagal memuat data konsol terpadu Pawas',
+      error: getErrorMessage(err),
     };
   }
 }

@@ -13,13 +13,22 @@ const SimapresMapPawas = dynamic(() => import('../SimapresMapPawas'), {
   ),
 });
 
+import {
+  PawasUserProfile,
+  PawasFleetUnit,
+  PawasHotspotItem,
+  PawasPoliceOfficeItem,
+  PawasComplaintDossier,
+  UrgencyLevelInfo,
+} from '../types';
+
 export interface TabTacticalMapPawasProps {
-  userProfile?: any;
-  fleetUnits: any[];
-  hotspots: any[];
-  policeOffices: any[];
+  userProfile?: PawasUserProfile;
+  fleetUnits: PawasFleetUnit[];
+  hotspots: PawasHotspotItem[];
+  policeOffices: PawasPoliceOfficeItem[];
   setShowHotspotModal: (show: boolean) => void;
-  highPriorityIncident: any;
+  highPriorityIncident: PawasComplaintDossier | null;
   resolveUrgencyLevel: (urgensi?: string | null) => any;
   showFriendlyToast: (type: 'success' | 'warning' | 'error' | 'info', title: string, message: string) => void;
 }
@@ -111,17 +120,17 @@ export default function TabTacticalMapPawas({
           showTraffic={showTraffic}
           focusedUnitKey={focusedUnitKey}
           controlsRightOffset={isMobileScreen ? '16px' : isPicketSidebarOpen ? '396px' : '20px'}
-          onUnitClick={(unit: any) => {
+          onUnitClick={(unit: { key?: string; [k: string]: unknown }) => {
             if (unit.key?.startsWith('tkp_')) {
               setShowIncidentNav(true);
             }
-            setFocusedUnitKey(unit.key);
+            setFocusedUnitKey(unit.key || null);
           }}
-          onSelectUnit={(unit: any) => {
+          onSelectUnit={(unit: { key?: string; [k: string]: unknown }) => {
             if (unit.key?.startsWith('tkp_')) {
               setShowIncidentNav(true);
             }
-            setFocusedUnitKey(unit.key);
+            setFocusedUnitKey(unit.key || null);
           }}
         />
       </div>
@@ -672,7 +681,12 @@ export default function TabTacticalMapPawas({
               <div style={{ fontSize: '14px', fontWeight: 900, color: '#10B981', marginTop: '2px' }}>
                 {highPriorityIncident.status === 'BELUM_DITANGANI' ? 'Menunggu Disposisi' : highPriorityIncident.status}
               </div>
-              <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>Urgensi: {resolveUrgencyLevel(highPriorityIncident.urgensi).label}</div>
+              <div style={{ fontSize: '10.5px', color: '#94A3B8' }}>
+                Urgensi: {(() => {
+                  const urg = resolveUrgencyLevel(highPriorityIncident.urgensi);
+                  return typeof urg === 'object' && urg !== null ? (urg.label || urg.key || 'STANDAR') : (urg || 'STANDAR');
+                })()}
+              </div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '8px 10px' }}>
               <div style={{ fontSize: '10px', color: '#94A3B8', fontWeight: 700 }}>SALURAN PENGADUAN</div>

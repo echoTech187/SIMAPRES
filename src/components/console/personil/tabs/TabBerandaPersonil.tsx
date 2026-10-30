@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { getOfficerTodayPiketScheduleAction } from '@/app/actions/piket.actions';
+import type { OfficerTodayPiketSchedule } from '@/types/piket.types';
 import {
   Shield,
   AlertTriangle,
   MapPin,
   Clock,
-  CheckCircle2,
   Navigation,
   MessageSquare,
   ChevronRight,
@@ -15,7 +15,6 @@ import {
   UserPlus,
   Car,
   Users,
-  Radio,
   ChevronDown,
 } from 'lucide-react';
 import ModalTambahRekanRegu from '../components/ModalTambahRekanRegu';
@@ -128,13 +127,7 @@ export default function TabBerandaPersonil({
   }, [activeComplaint?.id, (activeComplaint as any)?.dispatches]);
 
   // Data Jadwal Piket Riil Personil (Anti-Hardcode)
-  const [piketSchedule, setPiketSchedule] = useState<{
-    reguPiket: string;
-    jamDinas: string;
-    peranPenugasan: string;
-    statusPresensi: string;
-    isScheduled: boolean;
-  } | null>(null);
+  const [piketSchedule, setPiketSchedule] = useState<OfficerTodayPiketSchedule | null>(null);
 
   // State untuk expand roster personel per giat
   const [expandedCrewGiatId, setExpandedCrewGiatId] = useState<string | null>(null);

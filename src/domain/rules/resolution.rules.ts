@@ -253,7 +253,7 @@ export function isDeskResolvedComplaint(complaint?: {
   resolutionLocationKey?: string | null;
   resolutionDocumentKey?: string | null;
   status?: string;
-  dispatches?: any[] | null;
+  dispatches?: unknown[] | null;
 } | null): boolean {
   if (!complaint) return false;
   return Boolean(

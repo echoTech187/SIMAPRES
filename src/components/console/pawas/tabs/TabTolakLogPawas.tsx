@@ -2,14 +2,14 @@
 
 import React from 'react';
 import Select2CustomDropdown from '@/components/ui/Select2CustomDropdown';
-import { PawasTab } from '../types';
+import { PawasTab, PawasComplaintDossier, PawasLookupItem } from '../types';
 
 export interface TabTolakLogPawasProps {
   switchTab: (tab: PawasTab) => void;
-  tolakComplaint: any;
+  tolakComplaint: PawasComplaintDossier | null;
   tolakKategori: string;
   setTolakKategori: (val: string) => void;
-  dbRejectionReasons: any[];
+  dbRejectionReasons: PawasLookupItem[];
   tolakAlasan: string;
   setTolakAlasan: (val: string) => void;
   handleSubmitPenolakan: () => void;
@@ -69,9 +69,9 @@ export default function TabTolakLogPawas({
           <Select2CustomDropdown
             value={tolakKategori}
             onChange={(val) => setTolakKategori(String(val))}
-            options={dbRejectionReasons.map((r: any) => ({
-              value: r.label,
-              label: r.label,
+            options={dbRejectionReasons.map((r: PawasLookupItem) => ({
+              value: String(r.label || r.name || ''),
+              label: String(r.label || r.name || ''),
             }))}
             placeholder="-- Pilih Kategori Alasan Penolakan --"
           />

@@ -4,7 +4,11 @@
  */
 
 import { prisma } from '../db/prisma.client';
-import { IDeviceRepository } from '@/domain/repositories/device.repository.interface';
+import {
+  IDeviceRepository,
+  DevicePairingSession,
+  BindOfficerDeviceInput,
+} from '@/domain/repositories/device.repository.interface';
 
 export class PrismaDeviceRepository implements IDeviceRepository {
   private static tableReadyPromise: Promise<void> | null = null;
@@ -36,7 +40,7 @@ export class PrismaDeviceRepository implements IDeviceRepository {
     return PrismaDeviceRepository.tableReadyPromise;
   }
 
-  async createPairingSession(sessionToken: string, nrp?: string, unitId?: string): Promise<any> {
+  async createPairingSession(sessionToken: string, nrp?: string, unitId?: string): Promise<DevicePairingSession> {
     await this.ensureTable();
     await prisma.$executeRawUnsafe(
       `INSERT INTO device_pairing_sessions 
@@ -55,9 +59,9 @@ export class PrismaDeviceRepository implements IDeviceRepository {
     return { sessionToken, status: 'WAITING' };
   }
 
-  async getPairingSession(sessionToken: string): Promise<any | null> {
+  async getPairingSession(sessionToken: string): Promise<DevicePairingSession | null> {
     await this.ensureTable();
-    const rows: any[] = await prisma.$queryRawUnsafe(
+    const rows = await prisma.$queryRawUnsafe<DevicePairingSession[]>(
       `SELECT session_token, device_id, device_brand, nrp, unit_id, lat, lng, status, scanned_at, created_at, updated_at
        FROM device_pairing_sessions
        WHERE session_token = ?
@@ -75,7 +79,7 @@ export class PrismaDeviceRepository implements IDeviceRepository {
     deviceBrand?: string,
     lat?: number,
     lng?: number
-  ): Promise<any> {
+  ): Promise<DevicePairingSession | null> {
     await this.ensureTable();
     await prisma.$executeRawUnsafe(
       `UPDATE device_pairing_sessions
@@ -94,7 +98,7 @@ export class PrismaDeviceRepository implements IDeviceRepository {
       sessionToken
     );
 
-    const rows: any[] = await prisma.$queryRawUnsafe(
+    const rows = await prisma.$queryRawUnsafe<DevicePairingSession[]>(
       `SELECT session_token, device_id, device_brand, nrp, unit_id, lat, lng, status, scanned_at
        FROM device_pairing_sessions
        WHERE session_token = ?
@@ -105,15 +109,7 @@ export class PrismaDeviceRepository implements IDeviceRepository {
     return rows && rows.length > 0 ? rows[0] : null;
   }
 
-  async bindOfficerDevice(input: {
-    sessionToken?: string | null;
-    deviceId: string;
-    deviceBrand: string;
-    nrp?: string | null;
-    unitId?: string | null;
-    lat: number;
-    lng: number;
-  }): Promise<void> {
+  async bindOfficerDevice(input: BindOfficerDeviceInput): Promise<void> {
     await this.ensureTable();
 
     if (input.sessionToken) {
@@ -181,9 +177,9 @@ export class PrismaDeviceRepository implements IDeviceRepository {
     }
   }
 
-  async checkPairingSession(sessionToken: string): Promise<any | null> {
+  async checkPairingSession(sessionToken: string): Promise<DevicePairingSession | null> {
     await this.ensureTable();
-    const records: any[] = await prisma.$queryRawUnsafe(
+    const records = await prisma.$queryRawUnsafe<any[]>(
       `SELECT session_token, device_id, device_brand, nrp, unit_id, 
               CAST(lat AS DOUBLE) as lat, CAST(lng AS DOUBLE) as lng, status, scanned_at
        FROM device_pairing_sessions

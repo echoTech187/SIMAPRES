@@ -37,14 +37,8 @@ import bcrypt from 'bcryptjs';
 // revalidatePath sengaja di-skip di sini agar mutasi akun & unit tidak memicu reload halaman penuh di browser konsol
 const revalidatePath = (_path: string) => {};
 import { cacheGet, cacheSet, cacheInvalidate } from '@/infrastructure/cache/app-cache';
+import { serializeBigInt } from '@/lib/serialization';
 
-function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
 
 import {
   setSessionCookie,

@@ -1,37 +1,31 @@
 /**
  * SIMAPRES 110 - DOMAIN REPOSITORY INTERFACE: PIKET SPKT
- * Lapisan: Domain (Pure TypeScript, Zero Framework Dependency)
+ * Lapisan: Domain (Pure TypeScript, Zero Framework Dependency, Zero Any)
  */
 
+import {
+  PiketScheduleDetail,
+  PiketTimelineItem,
+  PiketMemberDetail,
+  PiketLookupsResponse,
+  OfficerTodayPiketSchedule,
+  SaveDailyPiketInput,
+  AddOfficerToPiketInput,
+} from '@/types/piket.types';
+
 export interface IPiketRepository {
-  getPiketByDate(station_id?: number, dateStr?: string): Promise<any>;
+  getPiketByDate(station_id?: number, dateStr?: string): Promise<PiketScheduleDetail | null>;
   getPiketTimeline(options: {
     station_id?: number;
     startDateStr?: string;
     daysBefore?: number;
     daysAfter?: number;
-  }): Promise<any>;
-  saveDailyPiket(input: {
-    station_id: number;
-    schedule_date: string;
-    regu?: string;
-    pawas_id?: string | number | null;
-    members: Array<{
-      officer_id: string | number;
-      role_piket?: string;
-      pos_penugasan?: string;
-      status_kehadiran?: string;
-    }>;
-  }): Promise<any>;
-  addOfficerToPiket(input: {
-    schedule_id: number;
-    officer_id: string | number;
-    role_piket?: string;
-    pos_penugasan?: string;
-  }): Promise<any>;
+  }): Promise<PiketTimelineItem[]>;
+  saveDailyPiket(input: SaveDailyPiketInput): Promise<PiketScheduleDetail>;
+  addOfficerToPiket(input: AddOfficerToPiketInput): Promise<PiketMemberDetail>;
   removeOfficerFromPiket(member_id: number): Promise<boolean>;
-  updateMemberAttendance(memberId: number, status: string): Promise<any>;
+  updateMemberAttendance(memberId: number, status: string): Promise<PiketMemberDetail>;
   deleteDailyPiketSchedule(schedule_id: number): Promise<boolean>;
-  getPiketLookups(station_id?: number): Promise<any>;
-  getOfficerTodayPiketSchedule(officerIdOrNrp: string | number): Promise<any>;
+  getPiketLookups(station_id?: number): Promise<PiketLookupsResponse>;
+  getOfficerTodayPiketSchedule(officerIdOrNrp: string | number): Promise<OfficerTodayPiketSchedule | null>;
 }

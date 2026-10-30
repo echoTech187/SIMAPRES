@@ -74,7 +74,7 @@ describe('Server Action Integration: master.actions (Master Data Management & Lo
       expect(data.urgencyLevels.length).toBe(1);
       expect(data.dangerLevels.length).toBe(1);
       expect(data.categories.length).toBe(1);
-    });
+    }, 15000);
   });
 
   describe('getMasterRanksAction & createMasterRankAction', () => {

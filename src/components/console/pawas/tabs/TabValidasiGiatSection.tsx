@@ -22,13 +22,18 @@ import {
 } from 'lucide-react';
 import { validateOfficerLogbookAction } from '@/app/actions/logbook.actions';
 import { toast } from '@/components/ui/Toast';
+import {
+  PawasUserProfile,
+  PawasLogbookItem,
+  PawasLightboxData,
+} from '../types';
 
 export interface TabValidasiGiatSectionProps {
-  userProfile: any;
-  logbooks: any[];
-  setLightboxImg?: (data: any) => void;
+  userProfile: PawasUserProfile;
+  logbooks: PawasLogbookItem[];
+  setLightboxImg?: (data: PawasLightboxData | null) => void;
   setShowLightboxModal?: (show: boolean) => void;
-  onGiatStatusUpdated?: (updatedLogbook: any) => void;
+  onGiatStatusUpdated?: (updatedLogbook: PawasLogbookItem) => void;
 }
 
 export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
@@ -42,7 +47,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
   const [selectedGiatId, setSelectedGiatId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [catatanPawas, setCatatanPawas] = useState('');
-  const [localItems, setLocalItems] = useState<any[]>(logbooks);
+  const [localItems, setLocalItems] = useState<PawasLogbookItem[]>(logbooks);
 
   // Sinkronkan local state jika prop logbooks berubah
   React.useEffect(() => {
@@ -53,11 +58,11 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
 
   // Ekstrak helper nama dan pangkat agar tidak ada duplikasi
   const getCleanOfficerInfo = (item: any) => {
-    const off = item.officer || {};
+    const off = item?.officer || {};
     const usr = off.user || {};
-    const rank = off.rank || off.pangkat || '';
-    const fullName = usr.full_name || off.name || off.full_name || 'Personel Presisi';
-    const nrp = off.nrp || '';
+    const rank = (off.rank || off.pangkat || '') as string;
+    const fullName = (usr.full_name || off.name || off.full_name || 'Personel Presisi') as string;
+    const nrp = (off.nrp || '') as string;
     const unit = off.unit?.unit_name || off.unit?.short_name || off.satuan || 'Sat Samapta';
 
     let displayName = fullName;
@@ -135,7 +140,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
   }, [localItems, giatFilterStatus]);
 
   // Giat aktif yang sedang diinspeksi
-  const activeGiat = useMemo(() => {
+  const activeGiat: any = useMemo(() => {
     if (selectedGiatId) {
       const found = filteredList.find((g) => String(g.id) === String(selectedGiatId));
       if (found) return found;
@@ -187,8 +192,9 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
       } else {
         toast.error('Gagal Memproses', res.error || 'Terjadi kendala saat memperbarui validasi giat.');
       }
-    } catch (err: any) {
-      toast.error('Kesalahan Sistem', err.message || 'Terjadi kesalahan jaringan.');
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Terjadi kesalahan jaringan.';
+      toast.error('Kesalahan Sistem', errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -873,6 +879,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
                   onClick={() => {
                     if (setLightboxImg && setShowLightboxModal) {
                       setLightboxImg({
+                        url: String(activeGiat.fotoBuktiUrl || activeGiat.photo_url || ''),
                         src: activeGiat.fotoBuktiUrl || activeGiat.photo_url,
                         title: `Dokumentasi Giat #${activeGiat.id}`,
                       });
@@ -881,7 +888,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
                   }}
                 >
                   <img
-                    src={activeGiat.fotoBuktiUrl || activeGiat.photo_url}
+                    src={String(activeGiat.fotoBuktiUrl || activeGiat.photo_url || '')}
                     alt="Foto Dokumentasi"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />

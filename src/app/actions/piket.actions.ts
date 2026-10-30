@@ -5,25 +5,21 @@ import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { revalidatePath } from 'next/cache';
 import { cacheGetOrLoad, cacheInvalidate } from '@/infrastructure/cache/app-cache';
 import { requireRole } from '@/lib/session';
+import { serializeBigInt, SerializedBigInt } from '@/lib/serialization';
+import { getErrorMessage, actionSuccess, actionFailure, type ActionResult } from '@/types/action.types';
+import type { PiketLookupsResponse, OfficerTodayPiketSchedule } from '@/types/piket.types';
 
-function serializeBigInt<T>(obj: T): T {
-  if (obj === null || obj === undefined) return obj;
-  return JSON.parse(
-    JSON.stringify(obj, (_key, value) => {
-      if (typeof value === 'bigint') return value.toString();
-      if (value && typeof value === 'object' && (value.isDecimal || value.constructor?.name === 'Decimal')) {
-        return Number(value);
-      }
-      return value;
-    })
-  );
-}
 
 /**
  * Mendapatkan jadwal piket pada tanggal tertentu (Hari ini, Besok, Lusa, dll).
  */
 export async function getPiketByDateAction(station_id?: number, dateStr?: string) {
   try {
+    const auth = await requireRole('ANY_LOGGED_IN');
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const cacheKey = `piket_by_date_${station_id || 'all'}_${dateStr || 'today'}`;
     return await cacheGetOrLoad(cacheKey, 20000, async () => {
       const repo = UseCaseFactory.getPiketRepository();
@@ -33,11 +29,11 @@ export async function getPiketByDateAction(station_id?: number, dateStr?: string
         data: serializeBigInt(schedule),
       };
     });
-  } catch (err: any) {
-    console.error('getPiketByDateAction error:', err);
+  } catch (err: unknown) {
+    console.error('Piket action error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal memuat piket harian',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -57,6 +53,11 @@ export async function getPiketTimelineAction({
   daysAfter?: number;
 }) {
   try {
+    const auth = await requireRole('ANY_LOGGED_IN');
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const cacheKey = `piket_timeline_${station_id || 'all'}_${startDateStr || 'anchor'}_${daysBefore}_${daysAfter}`;
     return await cacheGetOrLoad(cacheKey, 30000, async () => {
       const repo = UseCaseFactory.getPiketRepository();
@@ -71,11 +72,11 @@ export async function getPiketTimelineAction({
         data: serializeBigInt(timelineItems),
       };
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('getPiketTimelineAction error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal memuat timeline piket',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -100,7 +101,7 @@ export async function saveDailyPiketAction({
     pos_penugasan?: string;
     status_kehadiran?: string;
   }>;
-}) {
+}): Promise<ActionResult<unknown>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
@@ -118,12 +119,16 @@ export async function saveDailyPiketAction({
 
     cacheInvalidate('piket_');
     revalidatePath('/console');
-    return result;
-  } catch (err: any) {
+    return {
+      success: true,
+      message: 'Jadwal piket berhasil disimpan',
+      data: serializeBigInt(result),
+    };
+  } catch (err: unknown) {
     console.error('saveDailyPiketAction error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal menyimpan jadwal piket',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -141,7 +146,7 @@ export async function addOfficerToPiketAction({
   officer_id: string | number;
   role_piket?: string;
   pos_penugasan?: string;
-}) {
+}): Promise<ActionResult<unknown>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
@@ -163,11 +168,11 @@ export async function addOfficerToPiketAction({
       message: `Berhasil menambahkan ${created.officer?.user?.full_name || 'personel'} ke piket`,
       data: serializeBigInt(created),
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('addOfficerToPiketAction error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal menambahkan personel ke piket',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -175,7 +180,7 @@ export async function addOfficerToPiketAction({
 /**
  * Hapus personel dari jadwal piket tanggal tertentu
  */
-export async function removeOfficerFromPiketAction(member_id: number) {
+export async function removeOfficerFromPiketAction(member_id: number): Promise<ActionResult<void>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
@@ -189,13 +194,14 @@ export async function removeOfficerFromPiketAction(member_id: number) {
     revalidatePath('/console');
     return {
       success: true,
+      data: undefined,
       message: 'Personel berhasil dihapus dari jadwal piket',
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('removeOfficerFromPiketAction error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal menghapus personel dari piket',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -204,7 +210,7 @@ export async function removeOfficerFromPiketAction(member_id: number) {
  * Presensi Kehadiran Cepat Anggota Piket (Hadir, Izin, Sakit, Lepas Piket)
  * Hanya dapat dilakukan pada hari H dinas berjalan. Pada H-1 dan hari-hari sebelumnya terkunci permanen.
  */
-export async function updateMemberAttendanceAction(memberId: number, status: string) {
+export async function updateMemberAttendanceAction(memberId: number, status: string): Promise<ActionResult<unknown>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
@@ -221,11 +227,11 @@ export async function updateMemberAttendanceAction(memberId: number, status: str
       message: `Status kehadiran ${updated.officer?.user?.full_name || ''} diubah menjadi ${status}`,
       data: serializeBigInt(updated),
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('updateMemberAttendanceAction error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal memperbarui kehadiran',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -233,7 +239,7 @@ export async function updateMemberAttendanceAction(memberId: number, status: str
 /**
  * Hapus jadwal piket pada tanggal tertentu
  */
-export async function deleteDailyPiketScheduleAction(schedule_id: number) {
+export async function deleteDailyPiketScheduleAction(schedule_id: number): Promise<ActionResult<void>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
@@ -247,13 +253,14 @@ export async function deleteDailyPiketScheduleAction(schedule_id: number) {
     revalidatePath('/console');
     return {
       success: true,
+      data: undefined,
       message: 'Jadwal piket tanggal tersebut berhasil dihapus',
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('deleteDailyPiketScheduleAction error:', err);
     return {
       success: false,
-      error: err.message || 'Gagal menghapus jadwal piket',
+      error: getErrorMessage(err),
     };
   }
 }
@@ -261,44 +268,50 @@ export async function deleteDailyPiketScheduleAction(schedule_id: number) {
 /**
  * Dropdown lookup stations dan officers untuk pemilihan piket
  */
-export async function getPiketLookupsAction(station_id?: number) {
+export async function getPiketLookupsAction(
+  station_id?: number
+): Promise<ActionResult<SerializedBigInt<PiketLookupsResponse>>> {
   try {
+    const auth = await requireRole('ANY_LOGGED_IN');
+    if (!auth.authorized) {
+      return actionFailure(auth.error);
+    }
+
     return await cacheGetOrLoad('piket_lookups', 60000, async () => {
       const repo = UseCaseFactory.getPiketRepository();
       const data = await repo.getPiketLookups(station_id);
-      return {
-        success: true,
-        data: serializeBigInt(data),
-      };
+      return actionSuccess(serializeBigInt(data));
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('getPiketLookupsAction error:', err);
-    return {
-      success: false,
-      error: err.message || 'Gagal memuat lookup piket',
-    };
+    return actionFailure(getErrorMessage(err));
   }
 }
 
 /**
  * Mendapatkan jadwal piket riil hari ini untuk personil tertentu (Anti-Hardcode)
  */
-export async function getOfficerTodayPiketScheduleAction(officerIdOrNrp: string | number) {
+export async function getOfficerTodayPiketScheduleAction(
+  officerIdOrNrp: string | number
+): Promise<ActionResult<SerializedBigInt<OfficerTodayPiketSchedule> | null>> {
   try {
+    const auth = await requireRole('ANY_LOGGED_IN');
+    if (!auth.authorized) {
+      return actionFailure(auth.error);
+    }
+
     const cacheKey = `officer_today_piket_${officerIdOrNrp}`;
     return await cacheGetOrLoad(cacheKey, 30000, async () => {
       const repo = UseCaseFactory.getPiketRepository();
       const data = await repo.getOfficerTodayPiketSchedule(officerIdOrNrp);
       if (!data) {
-        return { success: false, data: null };
+        return actionSuccess(null);
       }
-      return {
-        success: true,
-        data: serializeBigInt(data),
-      };
+      return actionSuccess(serializeBigInt(data));
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('getOfficerTodayPiketScheduleAction error:', err);
-    return { success: false, error: err.message, data: null };
+    return actionFailure(getErrorMessage(err));
   }
 }
+

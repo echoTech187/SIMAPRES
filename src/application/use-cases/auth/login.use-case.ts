@@ -75,7 +75,7 @@ export class LoginUseCase {
     }
 
     // 4. Ambil raw officer record untuk kompatibilitas data sesi & verifikasi device
-    let rawOfficer = null;
+    let rawOfficer: any = null;
     if (user.id) {
       try {
         rawOfficer = await this.userRepository.getRawOfficerRecord(user.id);

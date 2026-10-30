@@ -2,13 +2,9 @@ import { prisma } from '@/infrastructure/db/prisma.client';
 import { cacheGetOrLoad } from '@/infrastructure/cache/app-cache';
 import type { ChatMessageItem } from '@/types/chat.types';
 
-export function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
+import { serializeBigInt } from '@/lib/serialization';
+export { serializeBigInt };
+
 
 export interface TrackingDataResult {
   complaint: any;

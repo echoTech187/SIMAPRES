@@ -749,11 +749,12 @@ export class PrismaPiketRepository implements IPiketRepository {
 
     if (piketMember && piketMember.schedule) {
       const sch = piketMember.schedule;
+      const shiftDisplay = sch.shift_type === '1X24_JAM' ? '24 Jam Penuh' : (sch.shift_type || '24 Jam Penuh');
       return {
         isScheduled: true,
-        reguPiket: (sch as any).regu || (sch as any).regu_name || 'Regu Piket Mako',
-        shiftName: (sch as any).shift_name || '24 Jam Penuh',
-        jamDinas: (sch as any).shift_name ? `${(sch as any).shift_name} (08.00 s/d 08.00 WIB)` : '08.00 s/d 08.00 WIB (+1)',
+        reguPiket: sch.regu || 'Regu Piket Mako',
+        shiftName: shiftDisplay,
+        jamDinas: `${shiftDisplay} (08.00 s/d 08.00 WIB)`,
         peranPenugasan: piketMember.role_piket || piketMember.pos_penugasan || 'Piket Siaga Mako',
         statusPresensi: piketMember.status_kehadiran || 'HADIR_DINAS',
         catatan: piketMember.keterangan,

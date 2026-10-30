@@ -1,26 +1,21 @@
 'use server';
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
-
-
-function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
+import { serializeBigInt } from '@/lib/serialization';
+import { getErrorMessage, type ActionResult } from '@/types/action.types';
+import { requireRole } from '@/lib/session';
 
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
 }
-let hotspotsCache: CacheEntry<any> | null = null;
-let masterHotspotOptionsCache: CacheEntry<any> | null = null;
+let hotspotsCache: CacheEntry<any[]> | null = null;
+let masterHotspotOptionsCache: CacheEntry<unknown> | null = null;
 const HOTSPOTS_CACHE_TTL_MS = 60 * 1000; // 60 detik
 const MASTER_HOTSPOT_OPTIONS_TTL_MS = 10 * 60 * 1000; // 10 menit
 
-export async function getHotspotsAction() {
+export async function getHotspotsAction(): Promise<ActionResult<any[]>> {
+
   try {
     const now = Date.now();
     if (hotspotsCache && now - hotspotsCache.timestamp < HOTSPOTS_CACHE_TTL_MS) {
@@ -32,8 +27,8 @@ export async function getHotspotsAction() {
     const serialized = serializeBigInt(hotspots.map((h) => h.toJSON()));
     hotspotsCache = { data: serialized, timestamp: now };
     return { success: true, data: serialized };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal mengambil data titik rawan.' };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -51,6 +46,11 @@ export async function createHotspotAction(input: {
   unitTerdekat?: string | null;
 }) {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const cleanTitle = input.title?.trim();
     if (!cleanTitle) {
       return { success: false, error: 'Nama titik rawan wajib diisi!' };
@@ -107,8 +107,8 @@ export async function createHotspotAction(input: {
     });
     hotspotsCache = null;
     return { success: true, data: serializeBigInt(created.toJSON()) };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal membuat titik rawan.' };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
@@ -127,36 +127,46 @@ export async function updateHotspotAction(
     jadwalDisplay?: string | null;
     unitTerdekat?: string | null;
   }
-) {
+): Promise<ActionResult<unknown>> {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const updated = await useCase.updateHotspot(key, input);
     hotspotsCache = null;
     return { success: true, data: serializeBigInt(updated.toJSON()) };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal memperbarui titik rawan.' };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
-export async function deleteHotspotAction(key: string) {
+export async function deleteHotspotAction(key: string): Promise<ActionResult<{ deleted: boolean }>> {
   try {
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    if (!auth.authorized) {
+      return { success: false, error: auth.error };
+    }
+
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
     const deleted = await useCase.deleteHotspot(key);
     hotspotsCache = null;
-    return { success: true, deleted };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal menghapus titik rawan.' };
+    return { success: true, data: { deleted } };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 }
 
 /**
  * Mengambil master kategori kerawanan dan tingkat status bahaya titik rawan dari database
  */
-export async function getMasterHotspotOptionsAction() {
+export async function getMasterHotspotOptionsAction(): Promise<ActionResult<{ categories: unknown; dangerLevels: unknown }>> {
   try {
     const now = Date.now();
     if (masterHotspotOptionsCache && now - masterHotspotOptionsCache.timestamp < MASTER_HOTSPOT_OPTIONS_TTL_MS) {
-      return { success: true, data: masterHotspotOptionsCache.data };
+      return { success: true, data: masterHotspotOptionsCache.data as { categories: unknown; dangerLevels: unknown } };
     }
 
     const useCase = UseCaseFactory.getManageHotspotsUseCase();
@@ -172,7 +182,7 @@ export async function getMasterHotspotOptionsAction() {
       success: true,
       data: serialized,
     };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal mengambil master titik rawan.' };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error) };
   }
 }

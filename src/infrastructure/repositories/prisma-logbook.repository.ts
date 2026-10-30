@@ -260,7 +260,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
     return this.mapToEntity(updated);
   }
 
-  async completePatrolGiat(id: bigint, finalMeters: number, catatanHasil?: string): Promise<any> {
+  async completePatrolGiat(id: bigint, finalMeters: number, catatanHasil?: string): Promise<LogbookEntity> {
     const existing = await prisma.officerLogbook.findUnique({ where: { id } });
     if (!existing) {
       throw new Error('Data giat tidak ditemukan.');
@@ -277,7 +277,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
       `• Hasil Patroli: ${noteText}`,
     ].join('\n');
 
-    return await prisma.officerLogbook.update({
+    const updated = await prisma.officerLogbook.update({
       where: { id },
       data: {
         end_time: nowTime,
@@ -286,6 +286,8 @@ export class PrismaLogbookRepository implements ILogbookRepository {
         validation_status: 'SELESAI',
       },
     });
+
+    return this.mapToEntity(updated);
   }
 }
 

@@ -13,13 +13,24 @@ export type ComplaintStatus =
   | 'DITOLAK'
   | string;
 
+export interface EvidenceInputItem {
+  fileUrl?: string;
+  caption?: string;
+  watermarkText?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  fileType?: string;
+  fileName?: string | null;
+  [key: string]: unknown;
+}
+
 export interface TimelineStep {
   tahapKe: number;
   actionKey?: string;
   tahapTitle: string;
   catatan?: string | null;
   fotoBuktiUrl?: string | null;
-  evidences?: any[];
+  evidences?: EvidenceInputItem[];
   gpsLat?: number | null;
   gpsLng?: number | null;
   isDiscrepancy?: boolean;
@@ -78,18 +89,18 @@ export interface ComplaintProps {
   citizenTags?: string | null;
   kategoriId?: number | null;
   kategoriKey?: string | null;
-  kategoriRel?: any | null;
+  kategoriRel?: Record<string, unknown> | null;
   subcategoryId?: number | null;
-  subcategory?: any | null;
+  subcategory?: Record<string, unknown> | null;
   platformId?: number | null;
   platformKey?: string | null;
-  platformRel?: any | null;
+  platformRel?: Record<string, unknown> | null;
   stationId?: number | null;
-  station?: any | null;
+  station?: Record<string, unknown> | null;
   timelines?: TimelineStep[];
-  dispatches?: any[];
-  complaintLogs?: any[];
-  evidences?: any[];
+  dispatches?: Record<string, unknown>[];
+  complaintLogs?: Record<string, unknown>[];
+  evidences?: Record<string, unknown>[];
   fotoBuktiUrl?: string | null;
   fotoPersiapan?: string | null;
   fotoTiba?: string | null;
@@ -389,7 +400,7 @@ export class ComplaintEntity {
     deviationMeters?: number,
     warningMessage?: string,
     photoAddress?: string,
-    evidencesList?: any[]
+    evidencesList?: EvidenceInputItem[]
   ): void {
     const formattedTitle = isDiscrepancy
       ? 'Tindakan di TKP [ANOMALI LOKASI]'
@@ -505,7 +516,7 @@ export class ComplaintEntity {
     deviationMeters?: number,
     warningMessage?: string,
     photoAddress?: string,
-    evidencesList?: any[]
+    evidencesList?: EvidenceInputItem[]
   ): void {
     const formattedTitle = isDiscrepancy
       ? 'Tindakan di TKP [ANOMALI LOKASI]'
@@ -575,7 +586,7 @@ export class ComplaintEntity {
       documentKey?: string | null;
       documentName?: string | null;
     },
-    evidencesList?: any[],
+    evidencesList?: EvidenceInputItem[],
     lat?: number,
     lng?: number
   ): void {

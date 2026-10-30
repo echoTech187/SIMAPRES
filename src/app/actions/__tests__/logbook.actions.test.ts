@@ -43,10 +43,13 @@ describe('Server Action Integration: logbook.actions (Patrol Activities & Pawas 
     });
 
     expect(result.success).toBe(true);
-    expect(result.data).toBeDefined();
-    expect(result.data?.id).toBe('301');
-    expect(result.data?.statusValidasi).toBe('VALID');
+    if (result.success) {
+      expect(result.data).toBeDefined();
+      expect(result.data?.id).toBe('301');
+      expect(result.data?.statusValidasi).toBe('VALID');
+    }
   });
+
 
   it('validateOfficerLogbookAction: allows Pawas to approve or flag patrol activities', async () => {
     const validatedLogbook = new LogbookEntity({
@@ -74,7 +77,10 @@ describe('Server Action Integration: logbook.actions (Patrol Activities & Pawas 
     const result = await validateOfficerLogbookAction('301', 'VALID', 'Disahkan Pawas');
 
     expect(result.success).toBe(true);
-    expect(result.data?.statusValidasi).toBe('VALID');
+    if (result.success) {
+      expect(result.data?.statusValidasi).toBe('VALID');
+    }
     expect(mockUseCase.execute).toHaveBeenCalledWith(BigInt(301), 'VALID', 'Disahkan Pawas');
   });
+
 });

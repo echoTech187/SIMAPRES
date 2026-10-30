@@ -6,6 +6,18 @@
 export type JenisAksiLogbook = 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN' | (string & {});
 export type StatusValidasiLogbook = 'BELUM_DIVALIDASI' | 'VALID' | 'FLAGGED_AUDIT' | (string & {});
 
+export interface LogbookOfficerData {
+  id?: bigint | number;
+  nrp?: string | null;
+  rank_pangkat?: string | null;
+  jabatan?: string | null;
+  user?: {
+    full_name?: string | null;
+    [key: string]: unknown;
+  } | null;
+  [key: string]: unknown;
+}
+
 export interface LogbookProps {
   id?: bigint;
   officerId: bigint;
@@ -26,7 +38,7 @@ export interface LogbookProps {
   deskripsiKegiatan: string;
   statusValidasi: StatusValidasiLogbook;
   createdAt?: Date;
-  officer?: any;
+  officer?: LogbookOfficerData | null;
 }
 
 export class LogbookEntity {
@@ -71,7 +83,7 @@ export class LogbookEntity {
     return this.props.statusValidasi;
   }
 
-  get officer(): any {
+  get officer(): LogbookOfficerData | null | undefined {
     return this.props.officer;
   }
 
@@ -83,3 +95,4 @@ export class LogbookEntity {
     return { ...this.props };
   }
 }
+

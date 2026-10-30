@@ -9,23 +9,23 @@ export interface IOfficerRepository {
   updateLocation(officerId: bigint, lat: number, lng: number): Promise<void>;
   updateDutyStatus(officerId: bigint, status: DutyStatus): Promise<void>;
   updateKpiScore(officerId: bigint, score: number): Promise<void>;
-  getPatrolFleet?(): Promise<any[]>;
-  getPatrolFleetRaw?(): Promise<any[]>;
-  getPatrolFleetFallback?(): Promise<{
-    officers: any[];
-    vehicles: any[];
-    activeDispatches: any[];
-    stations: any[];
-    pairingSessions: any[];
-    vehicleUsageLogs: any[];
+  getPatrolFleet?<T = any>(): Promise<T[]>;
+  getPatrolFleetRaw?<T = any>(): Promise<T[]>;
+  getPatrolFleetFallback?<T = any>(): Promise<{
+    officers: T[];
+    vehicles: T[];
+    activeDispatches: T[];
+    stations: T[];
+    pairingSessions: T[];
+    vehicleUsageLogs: T[];
   }>;
   updatePatrolFleetTelemetry?(unitKey: string, lat: number, lng: number, status?: string): Promise<void>;
-  submitPresensi?(input: {
+  submitPresensi?<T = any>(input: {
     nrp?: string;
     officerId?: string;
     isMasuk: boolean;
     lat?: number;
     lng?: number;
-  }): Promise<{ officer: any; dutyStatus: string }>;
+  }): Promise<{ officer: T; dutyStatus: string }>;
 }
 

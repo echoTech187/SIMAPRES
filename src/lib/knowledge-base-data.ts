@@ -5,8 +5,9 @@
 
 export interface KnowledgeFaqItem {
   id: string;
-  kategori: 'LANTAS_SIM' | 'SAMSAT_STNK_BPKB' | 'INTELKAM_SKCK' | 'RESKRIM_CYBER' | 'SPKT_KEHILANGAN' | 'SOP_OPERATOR_110';
+  kategori: 'LANTAS_SIM' | 'SAMSAT_STNK_BPKB' | 'INTELKAM_SKCK' | 'RESKRIM_CYBER' | 'SPKT_KEHILANGAN' | 'SOP_OPERATOR_110' | (string & {});
   kategoriLabel: string;
+
   icon: string;
   judul: string;
   subjudul: string;

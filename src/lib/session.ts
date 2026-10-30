@@ -80,30 +80,27 @@ export type RequireRoleResult =
 export async function requireRole(
   allowedRoles: UserRole | UserRole[] | 'ANY_LOGGED_IN'
 ): Promise<RequireRoleResult> {
-  const session = await getSession();
+  let session = await getSession();
 
   if (!session) {
     // Fallback khusus untuk automated headless scripts di environment non-production jika disetel bypass
     if (process.env.NODE_ENV !== 'production' && process.env.SIMAPRES_BYPASS_AUTH === 'true') {
       const mockRole = process.env.SIMAPRES_MOCK_ROLE ? (process.env.SIMAPRES_MOCK_ROLE as UserRole) : 'SUPERADMIN';
+      session = {
+        userId: '0',
+        identifier: 'AUTOMATION_TESTER',
+        fullName: 'System Test Automation',
+        role: mockRole,
+        issuedAt: Date.now(),
+        expiresAt: Date.now() + 3600000,
+        lastActiveAt: Date.now(),
+      };
+    } else {
       return {
-        authorized: true,
-        user: {
-          userId: '0',
-          identifier: 'AUTOMATION_TESTER',
-          fullName: 'System Test Automation',
-          role: mockRole,
-          issuedAt: Date.now(),
-          expiresAt: Date.now() + 3600000,
-          lastActiveAt: Date.now(),
-        },
+        authorized: false,
+        error: 'Akses ditolak: Anda belum login atau sesi telah berakhir. Silakan login kembali ke konsol SIMAPRES.',
       };
     }
-
-    return {
-      authorized: false,
-      error: 'Akses ditolak: Anda belum login atau sesi telah berakhir. Silakan login kembali ke konsol SIMAPRES.',
-    };
   }
 
   if (allowedRoles === 'ANY_LOGGED_IN') {

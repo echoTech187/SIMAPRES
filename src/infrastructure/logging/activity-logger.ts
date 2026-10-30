@@ -1,13 +1,7 @@
 // SIMAPRES 110 - User Log Activity Service
 import { prisma } from '@/infrastructure/db/prisma.client';
-
-function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
+import { serializeBigInt, SerializedBigInt } from '@/lib/serialization';
+import { ActionResult, actionSuccess, actionFailure, getErrorMessage } from '@/types/action.types';
 
 export interface UserActivityInput {
   userId?: string | bigint | null;
@@ -31,6 +25,19 @@ export interface UserActivityInput {
   endpoint?: string;
   ipAddress?: string;
   userAgent?: string;
+}
+
+export interface UserActivityRecord {
+  id: bigint | number;
+  user_id?: bigint | number | null;
+  identifier: string;
+  user_name: string;
+  role: string;
+  activity_type: string;
+  description: string;
+  endpoint?: string | null;
+  ip_address?: string | null;
+  created_at: Date;
 }
 
 export async function logUserActivity(params: UserActivityInput): Promise<boolean> {
@@ -57,17 +64,21 @@ export async function logUserActivity(params: UserActivityInput): Promise<boolea
   }
 }
 
-export async function getRecentUserActivitiesAction(limit = 100) {
+export async function getRecentUserActivitiesAction(
+  limit = 100
+): Promise<ActionResult<SerializedBigInt<UserActivityRecord[]>>> {
   try {
-    const rows = await prisma.$queryRawUnsafe<any[]>(
+    const rows = await prisma.$queryRawUnsafe<UserActivityRecord[]>(
       `SELECT id, user_id, identifier, user_name, role, activity_type, description, endpoint, ip_address, created_at
        FROM user_log_activities
        ORDER BY created_at DESC
        LIMIT ?`,
       limit
     );
-    return { success: true, data: serializeBigInt(rows) };
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Gagal mengambil riwayat aktivitas pengguna.' };
+    return actionSuccess(serializeBigInt(rows));
+  } catch (error: unknown) {
+    return actionFailure(getErrorMessage(error));
   }
 }
+
+

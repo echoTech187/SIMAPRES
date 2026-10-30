@@ -862,7 +862,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
     if (subcategoryId) {
       try {
-        const foundSub = await (prisma as any).masterIncidentSubcategory.findUnique({
+        const foundSub = await prisma.masterIncidentSubcategory.findUnique({
           where: { id: subcategoryId },
           select: { id: true, category_id: true, category_key: true },
         });
@@ -898,7 +898,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     // Fallback: search subcategory by name if still not resolved
     if (!subcategoryId && (cleanJenisKejadian || data.ringkasanKeterangan)) {
       try {
-        const foundSub = await (prisma as any).masterIncidentSubcategory.findFirst({
+        const foundSub = await prisma.masterIncidentSubcategory.findFirst({
           where: {
             OR: [
               { nama_kasus: { contains: cleanJenisKejadian } },
@@ -1435,59 +1435,47 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     return await prisma.$transaction(fn);
   }
 
-  async findMany(modelName: string, queryOptions: any = {}): Promise<any[]> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.findMany !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
+  private getModelDelegate(modelName: string): Record<string, Function> {
+    const client = prisma as unknown as Record<string, Record<string, Function>>;
+    const model = client[modelName];
+    if (!model) {
+      throw new Error(`Model '${modelName}' is not defined on the database context`);
     }
+    return model;
+  }
+
+  async findMany(modelName: string, queryOptions: any = {}): Promise<any[]> {
+    const model = this.getModelDelegate(modelName);
     return await model.findMany(queryOptions);
   }
 
   async findUnique(modelName: string, queryOptions: any): Promise<any | null> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.findUnique !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
+    const model = this.getModelDelegate(modelName);
     return await model.findUnique(queryOptions);
   }
 
   async findFirst(modelName: string, queryOptions: any = {}): Promise<any | null> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.findFirst !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
+    const model = this.getModelDelegate(modelName);
     return await model.findFirst(queryOptions);
   }
 
   async createRecord(modelName: string, createOptions: any): Promise<any> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.create !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
+    const model = this.getModelDelegate(modelName);
     return await model.create(createOptions);
   }
 
   async updateRecord(modelName: string, updateOptions: any): Promise<any> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.update !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
+    const model = this.getModelDelegate(modelName);
     return await model.update(updateOptions);
   }
 
   async deleteRecord(modelName: string, deleteOptions: any): Promise<any> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.delete !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
+    const model = this.getModelDelegate(modelName);
     return await model.delete(deleteOptions);
   }
 
   async countRecord(modelName: string, countOptions: any = {}): Promise<number> {
-    const model = (prisma as any)[modelName];
-    if (!model || typeof model.count !== 'function') {
-      throw new Error(`Model ${modelName} not found on database context`);
-    }
+    const model = this.getModelDelegate(modelName);
     return await model.count(countOptions);
   }
 }

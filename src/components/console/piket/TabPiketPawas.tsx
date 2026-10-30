@@ -12,6 +12,10 @@ import {
 } from '@/app/actions/piket.actions';
 import {
   POLRI_ATTENDANCE_STATUSES,
+  POLRI_PIKET_ROLES,
+  type PiketScheduleDetail,
+  type PiketTimelineItem,
+  type PiketLookupsResponse,
 } from '@/types/piket.types';
 import {
   Calendar,
@@ -63,16 +67,18 @@ export default function TabPiketPawas({
   const [timelineAnchorDate, setTimelineAnchorDate] = useState<string>(() => formatLocalDateToYMD(new Date()));
 
   // Data piket pada tanggal aktif
-  const [activePiket, setActivePiket] = useState<any>(null);
+  const [activePiket, setActivePiket] = useState<PiketScheduleDetail | null>(null);
 
   // Timeline harian (Riwayat sebelumnya, Hari ini, besok, lusa, dst)
-  const [timeline, setTimeline] = useState<any[]>([]);
+  const [timeline, setTimeline] = useState<PiketTimelineItem[]>([]);
 
   // Lookups stasiun & officers & operational units
-  const [lookups, setLookups] = useState<{ stations: any[]; officers: any[]; operationalUnits: any[] }>({
+  const [lookups, setLookups] = useState<PiketLookupsResponse>({
     stations: [],
     officers: [],
     operationalUnits: [],
+    roles: POLRI_PIKET_ROLES,
+    statuses: POLRI_ATTENDANCE_STATUSES,
   });
 
   // Modal atur piket & print
@@ -87,8 +93,8 @@ export default function TabPiketPawas({
 
   // Client-side cache & single-call guards to prevent redundant roundtrips
   const isLookupsLoadedRef = React.useRef(false);
-  const activePiketCacheRef = React.useRef<Map<string, any>>(new Map());
-  const timelineCacheRef = React.useRef<Map<string, any[]>>(new Map());
+  const activePiketCacheRef = React.useRef<Map<string, PiketScheduleDetail | null>>(new Map());
+  const timelineCacheRef = React.useRef<Map<string, PiketTimelineItem[]>>(new Map());
 
   const loadLookups = useCallback(async () => {
     if (isLookupsLoadedRef.current) return;
@@ -103,6 +109,8 @@ export default function TabPiketPawas({
           stations,
           officers,
           operationalUnits,
+          roles: POLRI_PIKET_ROLES,
+          statuses: POLRI_ATTENDANCE_STATUSES,
         });
       }
     } catch (err) {
@@ -115,7 +123,7 @@ export default function TabPiketPawas({
   const loadActivePiket = useCallback(async (stationId: number, dateStr: string, bypassCache = false) => {
     const key = `${stationId}_${dateStr}`;
     if (!bypassCache && activePiketCacheRef.current.has(key)) {
-      setActivePiket(activePiketCacheRef.current.get(key));
+      setActivePiket(activePiketCacheRef.current.get(key) ?? null);
       return;
     }
     try {
@@ -623,8 +631,8 @@ export default function TabPiketPawas({
                     {item.dayOfWeek}
                   </div>
 
-                  <div style={{ fontSize: '11px', marginTop: '4px', color: isSelected ? '#EFF6FF' : item.membersCount > 0 ? '#4ADE80' : '#64748B', fontWeight: 600 }}>
-                    {item.membersCount > 0 ? (
+                  <div style={{ fontSize: '11px', marginTop: '4px', color: isSelected ? '#EFF6FF' : (item.membersCount ?? 0) > 0 ? '#4ADE80' : '#64748B', fontWeight: 600 }}>
+                    {(item.membersCount ?? 0) > 0 ? (
                       <span>● {item.membersCount} Polisi Piket</span>
                     ) : (
                       <span style={{ opacity: 0.7 }}>Belum ada jadwal</span>
@@ -679,7 +687,7 @@ export default function TabPiketPawas({
                   | Pawas:
                   <NameInitialAvatar
                     name={activePiket.pawas.user?.full_name || activePiket.pawas.rank_pangkat}
-                    avatarUrl={activePiket.pawas.user?.avatar_url || activePiket.pawas.avatar_url}
+                    avatarUrl={activePiket.pawas.user?.avatar_url}
                     size={22}
                     variant="gold"
                     title={activePiket.pawas.user?.full_name}

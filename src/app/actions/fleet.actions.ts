@@ -2,15 +2,8 @@
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { requireRole } from '@/lib/session';
+import { serializeBigInt } from '@/lib/serialization';
 
-// Helper serialize BigInt
-function serializeBigInt<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
 
 let patrolFleetCache: { data: any; expiresAt: number } | null = null;
 const PATROL_FLEET_CACHE_TTL_MS = 20 * 1000;

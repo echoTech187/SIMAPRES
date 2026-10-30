@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     const shouldFix = url.searchParams.get('fix') === 'true';
 
     // 1. Audit complaint_audit_logs
-    const allAuditLogs = await (prisma as any).complaintAuditLog.findMany({
+    const allAuditLogs = await prisma.complaintAuditLog.findMany({
       orderBy: { id: 'asc' },
     });
 
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     }
 
     // 2. Audit complaint_dispatches
-    const allDispatches = await (prisma as any).complaintDispatch.findMany({
+    const allDispatches = await prisma.complaintDispatch.findMany({
       include: {
         complaint: { select: { id: true, nomor_tiket: true, status: true, tahap: true } },
         officer: { select: { id: true, nrp: true, rank_pangkat: true } },
@@ -94,7 +94,7 @@ export async function GET(request: Request) {
     }
 
     // 3. Audit Complaints Status vs Tahap
-    const allComplaints = await (prisma as any).complaint.findMany({
+    const allComplaints = await prisma.complaint.findMany({
       select: {
         id: true,
         nomor_tiket: true,
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
 
     if (shouldFix) {
       if (logsToFixIds.length > 0) {
-        const res = await (prisma as any).complaintAuditLog.updateMany({
+        const res = await prisma.complaintAuditLog.updateMany({
           where: { id: { in: logsToFixIds } },
           data: { actor_role: 'PERSONIL' },
         });
@@ -140,7 +140,7 @@ export async function GET(request: Request) {
       }
 
       for (const dFix of dispatchesToFixDeparted) {
-        await (prisma as any).complaintDispatch.update({
+        await prisma.complaintDispatch.update({
           where: { id: dFix.id },
           data: { departed_at: dFix.departed_at },
         });
@@ -149,7 +149,7 @@ export async function GET(request: Request) {
     }
 
     // 4. Audit Users & Police Officers role consistency
-    const allUsers = await (prisma as any).user.findMany({
+    const allUsers = await prisma.user.findMany({
       include: { officer_profile: true },
     });
 
@@ -184,13 +184,13 @@ export async function GET(request: Request) {
     }
 
     // 5. Audit Patrol Vehicles
-    const allVehicles = await (prisma as any).patrolVehicle.findMany();
+    const allVehicles = await prisma.patrolVehicle.findMany();
     const vehicleAnomalies: any[] = [];
     for (const v of allVehicles) {
-      if (!v.plat_nomor || !v.call_sign) {
+      if (!v.plat_nomor_polisi || !v.nomor_lambung) {
         vehicleAnomalies.push({
           id: v.id,
-          issue: 'Kendaraan patroli tidak memiliki plat nomor atau call sign lengkap',
+          issue: 'Kendaraan patroli tidak memiliki plat nomor atau nomor lambung lengkap',
         });
       }
     }
