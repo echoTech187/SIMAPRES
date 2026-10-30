@@ -8,10 +8,26 @@ const globalForPrisma = globalThis as unknown as {
 function getPrismaClient(): PrismaClient {
   if (!globalForPrisma.prisma) {
     const url = process.env.DATABASE_URL;
-    globalForPrisma.prisma = new PrismaClient({
+    const baseClient = new PrismaClient({
       datasources: url ? { db: { url } } : undefined,
       log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
     });
+
+    const clientWithTelemetry = baseClient.$extends({
+      query: {
+        async $allOperations({ model, operation, args, query }) {
+          const start = performance.now();
+          const result = await query(args);
+          const duration = performance.now() - start;
+          if (duration > 500) {
+            console.warn(`[PRISMA SLOW QUERY] ${model ? model + '.' : ''}${operation} took ${duration.toFixed(2)}ms`);
+          }
+          return result;
+        },
+      },
+    });
+
+    globalForPrisma.prisma = clientWithTelemetry as unknown as PrismaClient;
   }
   return globalForPrisma.prisma;
 }
@@ -57,6 +73,21 @@ export const prisma: PrismaClient & Record<string, any> = new Proxy({} as any, {
     return undefined;
   },
 });
+
+/**
+ * Health check & latency telemetry helper for TiDB Cloud Serverless database.
+ */
+export async function pingDatabaseHealth(): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+  const start = performance.now();
+  try {
+    await prisma.$queryRawUnsafe('SELECT 1');
+    const latencyMs = Number((performance.now() - start).toFixed(2));
+    return { ok: true, latencyMs };
+  } catch (err: any) {
+    const latencyMs = Number((performance.now() - start).toFixed(2));
+    return { ok: false, latencyMs, error: err?.message || 'Database ping failed' };
+  }
+}
 
 export default prisma;
 export type { PrismaClient } from '@prisma/client';

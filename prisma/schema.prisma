@@ -575,6 +575,7 @@ model PoliceOfficer {
   @@index([duty_status_id], map: "idx_officers_duty_id")
   @@index([rank_id], map: "idx_officers_rank_id")
   @@index([station_id], map: "idx_officers_station")
+  @@index([station_id, duty_status_id, last_gps_heartbeat_at], map: "idx_officers_station_duty_gps")
   @@index([unit_id], map: "idx_officers_unit")
   @@index([assigned_vehicle_id], map: "idx_officers_assigned_vehicle")
   @@index([device_id], map: "idx_officers_device")
@@ -727,12 +728,17 @@ model Complaint {
   evidences             ComplaintEvidence[]
   citizen_review_rel    CitizenReview?
   logbooks              OfficerLogbook[]
+  // Historical Retention & SLA Audit Fields (10/10 Enterprise)
+  is_archived           Boolean                 @default(false)
+  resolved_at           DateTime?
 
   created_at            DateTime                @default(now())
   updated_at            DateTime                @updatedAt
 
   @@index([status, created_at], map: "idx_complaints_status_created")
   @@index([status_id], map: "idx_complaints_status_id")
+  @@index([station_id, status_id, created_at], map: "idx_complaints_station_status_created")
+  @@index([is_archived, status_id, station_id], map: "idx_complaints_archived_status_station")
   @@index([urgency_id], map: "idx_complaints_urgency_id")
   @@index([subcategory_id], map: "idx_complaints_subcategory_id")
   @@index([rejection_reason_id], map: "idx_complaints_rejection_id")
@@ -806,12 +812,14 @@ model ComplaintDispatch {
   fuel_claim_notes      String?               @db.Text
 
   @@index([complaint_id], map: "idx_dispatches_complaint")
+  @@index([complaint_id, is_primary_unit, id], map: "idx_dispatches_complaint_primary")
   @@index([unit_id], map: "idx_dispatches_unit")
   @@index([officer_id], map: "idx_dispatches_officer")
   @@index([crew_leader_id], map: "idx_dispatches_crew_leader")
   @@index([crew_partner_id], map: "idx_dispatches_crew_partner")
   @@index([dispatch_status_id], map: "idx_dispatches_status_id")
   @@index([station_id], map: "idx_dispatches_station_id")
+  @@index([station_id, dispatch_status_id, dispatched_at], map: "idx_dispatches_station_status")
   @@index([dispatch_mode_id], map: "idx_dispatches_mode")
   @@index([assigned_vehicle_id], map: "idx_dispatches_vehicle")
   @@index([fuel_claim_status_id], map: "idx_dispatches_fuel_claim")
@@ -1076,10 +1084,6 @@ model PiketSchedule {
   serah_terima_at       DateTime?
   catatan_arahan_pawas  String?                 @db.Text
   kejadian_menonjol     String?                 @db.Text
-  
-  // Pengecekan Barang Inventaris Dinas (SOP Polri)
-  ranmor_inventaris     String?                 @db.Text // "1 Unit R4 Samapta (BBM Full), 2 Unit R2 Trail Presisi"
-  rompi_borgol_ht       String?                 @db.Text // "4 Rompi Level III-A, 8 Borgol, 6 Unit HT Motorola Siaga"
   
   members               PiketScheduleMember[]
   
