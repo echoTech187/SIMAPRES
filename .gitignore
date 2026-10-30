@@ -33,3 +33,5 @@ e2e/.data/
 e2e/manual/
 test-results/
 playwright-report/
+.vscode/settings.json
+e2e/*.ts
