@@ -35,3 +35,4 @@ e2e/manual/
 test-results/
 playwright-report/
 .vscode/settings.json
+TEST_REPORT.md
