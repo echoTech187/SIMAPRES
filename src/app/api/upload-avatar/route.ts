@@ -136,34 +136,35 @@ export async function POST(req: NextRequest) {
     }
 
     // --------------------------------------------------------------------------
-    // LAYER 7: Path Traversal Immunity, Safe Storage & Orphan Cleanup
+    // LAYER 7: Path Traversal Immunity, Safe Storage & Serverless Resilience
     // --------------------------------------------------------------------------
     const targetIdentifier = (nrpParam && session.role === 'SUPERADMIN' ? nrpParam : session.identifier) || 'user';
     const filename = generateSafeAvatarFilename(targetIdentifier);
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
-
-    // Buat direktori dengan izin aman jika belum ada
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
-    }
-
     const filePath = path.join(uploadDir, filename);
 
-    // Verifikasi mutlak bahwa file berada di dalam uploadDir (Anti Path Traversal)
-    if (!isPathInsideDirectory(uploadDir, filePath)) {
-      return NextResponse.json(
-        { success: false, error: 'Terdeteksi pelanggaran keamanan direktori berkas.' },
-        { status: 403, headers: { 'X-Content-Type-Options': 'nosniff' } }
-      );
+    let publicUrl = `/uploads/avatars/${filename}`;
+
+    try {
+      // Buat direktori dengan izin aman jika belum ada
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true, mode: 0o755 });
+      }
+
+      // Verifikasi mutlak bahwa file berada di dalam uploadDir (Anti Path Traversal)
+      if (isPathInsideDirectory(uploadDir, filePath)) {
+        // Tulis buffer yang sudah 100% disterilisasi
+        await fs.promises.writeFile(filePath, sanitizedResult.buffer, { mode: 0o644 });
+        // Bersihkan avatar lama personil ini untuk mencegah akumulasi disk (Disk Exhaustion DoS)
+        await cleanupOrphanUserAvatars(uploadDir, targetIdentifier, filename);
+      } else {
+        publicUrl = `data:image/webp;base64,${sanitizedResult.buffer.toString('base64')}`;
+      }
+    } catch (_fsErr) {
+      // Serverless (Vercel) Resilience: Filesystem ephemeral / read-only
+      // Kembalikan Data URL WebP steril berkualitas tinggi yang tersimpan permanen di DB LONGTEXT
+      publicUrl = `data:image/webp;base64,${sanitizedResult.buffer.toString('base64')}`;
     }
-
-    // Tulis buffer yang sudah 100% disterilisasi
-    await fs.promises.writeFile(filePath, sanitizedResult.buffer, { mode: 0o644 });
-
-    // Bersihkan avatar lama personil ini untuk mencegah akumulasi disk (Disk Exhaustion DoS)
-    await cleanupOrphanUserAvatars(uploadDir, targetIdentifier, filename);
-
-    const publicUrl = `/uploads/avatars/${filename}`;
 
     return NextResponse.json(
       {

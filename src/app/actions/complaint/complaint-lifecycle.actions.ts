@@ -5,6 +5,7 @@ import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entit
 import { getComplaintActionPermissions, calculateComplaintSlaTargetMinutes } from '@/domain/rules/complaint.rules';
 import { ComplaintNotificationDispatcher } from '@/application/services/complaint-notification.service';
 import { requireRole } from '@/lib/session';
+import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
 import {
   getComplaintRepo,
   prisma,
@@ -40,6 +41,14 @@ export async function fieldStepAction(input: {
   const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
+  }
+
+  // Validasi Integritas Foto Bukti Penanganan TKP (Maksimal 5MB, Magic Bytes, Format Sah)
+  if (input.fotoBuktiUrl) {
+    const vFoto = validateBase64ImagePayload(input.fotoBuktiUrl);
+    if (!vFoto.valid) {
+      return { success: false, error: 'Foto bukti tindakan lapangan tidak valid: ' + vFoto.error };
+    }
   }
 
   try {

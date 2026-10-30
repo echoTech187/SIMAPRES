@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
-import { SessionPayload } from '@/lib/session';
-import { ConsoleRoleData } from '@/lib/console/console-data-loader';
+import type { SessionPayload } from '@/lib/session';
+import type { ConsoleRoleData } from '@/lib/console/console-data-loader';
 
 import SuperadminConsoleView from './SuperadminConsoleView';
 import PawasConsoleView from './PawasConsoleView';

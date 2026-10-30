@@ -258,6 +258,12 @@ export default function ModalKlaimBbm({
       return;
     }
 
+    // Blokir pengajuan mutlak jika struk terindikasi manipulasi / bukan struk resmi SPBU
+    if (isFraudDetected) {
+      setErrorMsg('Pengajuan ditolak sistem: Foto struk terdeteksi bukan struk fisik resmi SPBU atau terindikasi rekayasa digital.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Sisipkan catatan audit AI ke dalam logistik jika struk telah dipindai
