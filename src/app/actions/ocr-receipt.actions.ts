@@ -3,6 +3,15 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
 export interface ScannedReceiptData {
+  // Analisis Forensik & Keaslian Struk BBM
+  isValidSpbuReceipt?: boolean;
+  authenticityStatus?: 'ASLI_VALID' | 'MERAGUKAN' | 'BUKAN_STRUK_SPBU' | 'REKAYASA_DIGITAL';
+  authenticityScore?: number; // Skor 0 - 100
+  isPhysicalPaper?: boolean;
+  isScreenPhoto?: boolean;
+  authenticityReason?: string;
+
+  // Data Transaksi Struk
   spbuName?: string;
   purchaseDate?: string;
   purchaseTime?: string;
@@ -16,7 +25,7 @@ export interface ScannedReceiptData {
 
 /**
  * Server Action untuk memindai foto struk SPBU menggunakan Gemini AI Vision
- * Dioptimalkan untuk kecepatan kilat (2-4 detik) tanpa antrean 503 high demand.
+ * Mendeteksi keaslian fisik struk (anti-fraud) serta mengekstrak data transaksi BBM secara kilat (2-4 detik).
  */
 export async function scanReceiptSpbuAction(
   imageBase64: string
@@ -49,7 +58,7 @@ export async function scanReceiptSpbuAction(
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Prioritaskan gemini-3.5-flash & gemini-3.6-flash (respon kilat ~2 detik tanpa antrean 503 high-demand)
+    // Prioritaskan model cepat gemini-3.5-flash & gemini-3.6-flash (respon ~2-4 detik)
     const modelsToTry = [
       'gemini-3.5-flash',
       'gemini-3.6-flash',
@@ -73,27 +82,47 @@ export async function scanReceiptSpbuAction(
                   },
                 },
                 {
-                  text: `Anda adalah asisten AI pemeriksa struk BBM dinas kepolisian Presisi 110. Analisis foto struk SPBU Indonesia ini dan ekstrak informasi berikut secara presisi:
-1. spbuName: Nama atau kode SPBU (contoh: "SPBU 44.511.02 Kajen" atau "Pertamina Kajen").
-2. purchaseDate: Tanggal transaksi pembelian BBM (format standar YYYY-MM-DD, contoh: "2026-10-31"). Jika tertera format DD/MM/YYYY atau DD-MM-YYYY, konversikan ke format YYYY-MM-DD.
-3. purchaseTime: Jam/waktu transaksi (format HH:mm, contoh: "14:35").
-4. receiptNumber: Nomor struk / No. Transaksi kasir jika tertera.
-5. fuelType: Jenis bahan bakar (contoh: "Pertalite", "Pertamax", "Pertamax Turbo", "Biosolar", "Solar", "Dexlite", "Pertamina Dex").
-6. liters: Jumlah volume pengisian dalam liter (angka desimal float, contoh: 20.00).
-7. totalCostRupiah: Total biaya pembelian dalam Rupiah (angka integer, contoh: 136000).
-8. pricePerLiter: Harga satuan BBM per liter dalam Rupiah jika ada.
+                  text: `Anda adalah asisten AI auditor forensik struk BBM dinas kepolisian Presisi 110. Analisis foto struk SPBU Indonesia ini dan lakukan dua hal utama:
 
-Pastikan membaca angka desimal koma/titik dan tanggal secara cermat. Jika suatu nilai tidak terbaca pada gambar, kosongkan field tersebut.`,
+1. PEMERIKSAAN KEASLIAN (ANTI-FRAUD / FORENSIK FISIK):
+   - isValidSpbuReceipt (boolean): Apakah gambar ini benar-benar struk pembelian BBM SPBU (Pertamina, Shell, BP, Vivo, dll) dan bukan struk toko umum/parkir/dokumen lain.
+   - authenticityStatus (string): Tentukan status keaslian:
+     * "ASLI_VALID": Kertas struk fisik nyata tercetak printer SPBU asli tanpa tanda manipulasi.
+     * "MERAGUKAN": Kertas buram, teks terpotong tidak terbaca, atau ada coretan yang mencurigakan.
+     * "BUKAN_STRUK_SPBU": Bukan struk pembelian BBM (foto barang lain, faktur umum, struk minimarket).
+     * "REKAYASA_DIGITAL": Terdeteksi foto dari layar HP/monitor lain (terlihat garis moire/pixel LCD) atau manipulasi font digital.
+   - authenticityScore (number): Skor persentase keyakinan keaslian fisik (0 sampai 100).
+   - isPhysicalPaper (boolean): Apakah terlihat kertas fisik nyata dengan tekstur, bayangan, atau lipatan alami.
+   - isScreenPhoto (boolean): Apakah gambar merupakan hasil memfoto layar monitor komputer atau layar smartphone lain.
+   - authenticityReason (string): Uraian kesimpulan audit keaslian dalam 1-2 kalimat Bahasa Indonesia ringkas.
+
+2. EKSTRAKSI INFORMASI TRANSAKSI:
+   - spbuName: Nama atau kode SPBU (contoh: "SPBU 44.511.02 Kajen" atau "Pertamina Kajen").
+   - purchaseDate: Tanggal transaksi pembelian BBM (format standar YYYY-MM-DD, contoh: "2026-10-31"). Jika tertera DD/MM/YYYY atau DD-MM-YYYY, konversikan ke YYYY-MM-DD.
+   - purchaseTime: Jam/waktu transaksi (format HH:mm, contoh: "14:35").
+   - receiptNumber: Nomor struk / No. Transaksi kasir jika tertera.
+   - fuelType: Jenis bahan bakar (contoh: "Pertalite", "Pertamax", "Pertamax Turbo", "Biosolar", "Solar", "Dexlite", "Pertamina Dex").
+   - liters: Jumlah volume pengisian dalam liter (angka desimal float, contoh: 20.00).
+   - totalCostRupiah: Total biaya pembelian dalam Rupiah (angka integer, contoh: 136000).
+   - pricePerLiter: Harga satuan BBM per liter dalam Rupiah jika ada.
+
+Jika ada kolom transaksi yang tidak terbaca, kosongkan kolom tersebut namun tetap berikan penilaian keaslian struk.`,
                 },
               ],
             },
           ],
           config: {
-            thinkingConfig: { thinkingBudget: 0 }, // Matikan thinking tokens agar respon instan
+            thinkingConfig: { thinkingBudget: 0 },
             responseMimeType: 'application/json',
             responseSchema: {
               type: Type.OBJECT,
               properties: {
+                isValidSpbuReceipt: { type: Type.BOOLEAN },
+                authenticityStatus: { type: Type.STRING },
+                authenticityScore: { type: Type.INTEGER },
+                isPhysicalPaper: { type: Type.BOOLEAN },
+                isScreenPhoto: { type: Type.BOOLEAN },
+                authenticityReason: { type: Type.STRING },
                 spbuName: { type: Type.STRING },
                 purchaseDate: { type: Type.STRING },
                 purchaseTime: { type: Type.STRING },

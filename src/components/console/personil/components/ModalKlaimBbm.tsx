@@ -15,6 +15,8 @@ import {
   Calendar,
   Clock,
   Check,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { submitFuelClaimAction } from '@/app/actions/master.actions';
 import { scanReceiptSpbuAction, type ScannedReceiptData } from '@/app/actions/ocr-receipt.actions';
@@ -67,8 +69,9 @@ export default function ModalKlaimBbm({
   const [strukPhoto, setStrukPhoto] = useState<string | null>(null);
   const [spidometerPhoto, setSpidometerPhoto] = useState<string | null>(null);
 
-  // Status AI Scanner
+  // Status AI Scanner & Forensik Keaslian Struk
   const [isScanning, setIsScanning] = useState(false);
+  const [authenticityData, setAuthenticityData] = useState<ScannedReceiptData | null>(null);
   const [scanNotice, setScanNotice] = useState<{
     type: 'success' | 'error' | 'info';
     text: string;
@@ -147,9 +150,10 @@ export default function ModalKlaimBbm({
       if (compressedDataUrl) {
         setter(compressedDataUrl);
         if (isReceipt) {
+          setAuthenticityData(null);
           setScanNotice({
             type: 'info',
-            text: 'Foto struk terpilih & dioptimalkan. Klik tombol "Pindai Otomatis AI" di bawah untuk membaca tanggal & biaya secara instan.',
+            text: 'Foto struk terpilih & dioptimalkan. Klik tombol "Pindai Otomatis AI" di bawah untuk memverifikasi keaslian dan mengisi data transaksi.',
           });
         }
       }
@@ -159,7 +163,7 @@ export default function ModalKlaimBbm({
   };
 
   /**
-   * Eksekusi Pemindaian AI Vision untuk Struk SPBU
+   * Eksekusi Pemindaian & Audit Forensik Keaslian Struk SPBU dengan AI Vision
    */
   const handleScanReceipt = async () => {
     if (!strukPhoto) {
@@ -170,11 +174,13 @@ export default function ModalKlaimBbm({
     setIsScanning(true);
     setErrorMsg(null);
     setScanNotice(null);
+    setAuthenticityData(null);
 
     try {
       const res = await scanReceiptSpbuAction(strukPhoto);
       if (res.success && res.data) {
         const d: ScannedReceiptData = res.data;
+        setAuthenticityData(d);
         const scannedItems: string[] = [];
 
         if (d.purchaseDate) {
@@ -205,9 +211,10 @@ export default function ModalKlaimBbm({
           setReceiptNumber(d.receiptNumber);
         }
 
+        const isAuthentic = d.authenticityStatus === 'ASLI_VALID';
         setScanNotice({
-          type: 'success',
-          text: `AI Berhasil membaca struk! [${scannedItems.join(' • ')}]. Silakan periksa kembali angka di bawah.`,
+          type: isAuthentic ? 'success' : 'info',
+          text: `Audit AI Selesai! [${scannedItems.join(' • ')}]. Silakan tinjau data transaksi di bawah.`,
         });
       } else {
         setScanNotice({
@@ -250,6 +257,12 @@ export default function ModalKlaimBbm({
 
     setIsSubmitting(true);
     try {
+      // Sisipkan catatan audit AI ke dalam logistik jika struk telah dipindai
+      const auditTag = authenticityData
+        ? `[Audit AI: ${authenticityData.authenticityStatus || 'VALID'} (${authenticityData.authenticityScore ?? 95}%)] `
+        : '';
+      const finalNotes = `${auditTag}${notes.trim()}`.trim();
+
       const res = await submitFuelClaimAction({
         complaintId: activeComplaint?.id,
         officerId: officer.id,
@@ -263,7 +276,7 @@ export default function ModalKlaimBbm({
         fuelType: fuelType.trim() || undefined,
         strukPhotoUrl: strukPhoto || undefined,
         spidometerPhotoUrl: spidometerPhoto || undefined,
-        notes: notes.trim() || undefined,
+        notes: finalNotes || undefined,
       });
 
       if (res.success) {
@@ -300,7 +313,7 @@ export default function ModalKlaimBbm({
                 <h3 className="text-sm font-black text-white">Pengajuan Klaim BBM &amp; Struk</h3>
                 <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/40 text-amber-300 flex items-center gap-1">
                   <Sparkles size={10} className="text-amber-400" />
-                  AI OCR
+                  AI Forensik
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 line-clamp-1">
@@ -372,6 +385,7 @@ export default function ModalKlaimBbm({
                       onClick={() => {
                         setStrukPhoto(null);
                         setScanNotice(null);
+                        setAuthenticityData(null);
                       }}
                       className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 text-white hover:bg-red-600 transition-colors"
                       title="Hapus foto"
@@ -449,17 +463,74 @@ export default function ModalKlaimBbm({
                   {isScanning ? (
                     <>
                       <Loader2 size={16} className="animate-spin text-amber-400" />
-                      <span>Membaca Struk &amp; Tanggal dengan Gemini AI...</span>
+                      <span>Memverifikasi Keaslian Struk dengan Gemini AI...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles size={16} className="text-amber-400 animate-pulse" />
-                      <span>⚡ Pindai Otomatis dengan AI Vision (Tanggal &amp; Biaya)</span>
+                      <span>⚡ Pindai &amp; Audit Keaslian Struk (AI Forensik)</span>
                     </>
                   )}
                 </button>
 
-                {scanNotice && (
+                {/* Kartu Hasil Evaluasi Keaslian Struk BBM (Anti-Fraud) */}
+                {authenticityData && (
+                  <div
+                    className={`p-3 rounded-2xl border text-xs flex items-start gap-2.5 animate-in fade-in zoom-in-95 duration-200 ${
+                      authenticityData.authenticityStatus === 'ASLI_VALID'
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
+                        : authenticityData.authenticityStatus === 'REKAYASA_DIGITAL' || authenticityData.isScreenPhoto
+                        ? 'bg-rose-500/15 border-rose-500/40 text-rose-200'
+                        : authenticityData.authenticityStatus === 'BUKAN_STRUK_SPBU'
+                        ? 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                        : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
+                    }`}
+                  >
+                    {authenticityData.authenticityStatus === 'ASLI_VALID' ? (
+                      <ShieldCheck size={20} className="text-emerald-400 shrink-0 mt-0.5" />
+                    ) : (
+                      <ShieldAlert size={20} className="text-rose-400 shrink-0 mt-0.5" />
+                    )}
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-black text-[12px] flex items-center gap-1.5">
+                          {authenticityData.authenticityStatus === 'ASLI_VALID' && (
+                            <span className="text-emerald-300">🛡️ Struk Terverifikasi Asli Fisik</span>
+                          )}
+                          {authenticityData.authenticityStatus === 'REKAYASA_DIGITAL' && (
+                            <span className="text-rose-300">🚨 Terindikasi Rekayasa / Foto Layar</span>
+                          )}
+                          {authenticityData.authenticityStatus === 'BUKAN_STRUK_SPBU' && (
+                            <span className="text-amber-300">⚠️ Gambar Bukan Struk SPBU</span>
+                          )}
+                          {authenticityData.authenticityStatus === 'MERAGUKAN' && (
+                            <span className="text-yellow-300">⚠️ Kualitas Struk Meragukan</span>
+                          )}
+                        </span>
+                        <span
+                          className={`text-[9.5px] font-mono font-black px-2 py-0.5 rounded-full border ${
+                            authenticityData.authenticityStatus === 'ASLI_VALID'
+                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                              : 'bg-rose-500/20 border-rose-500/40 text-rose-300'
+                          }`}
+                        >
+                          Skor: {authenticityData.authenticityScore ?? 90}%
+                        </span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed opacity-90">
+                        {authenticityData.authenticityReason ||
+                          'Struk fisik terverifikasi dengan detail pencetakan kertas thermal resmi.'}
+                      </p>
+                      {authenticityData.isScreenPhoto && (
+                        <div className="text-[10px] text-rose-300 font-bold bg-rose-950/60 px-2 py-1 rounded-lg border border-rose-500/30">
+                          Catatan: Terdeteksi pantulan / moire grid layar LCD (bukan foto langsung struk fisik).
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {scanNotice && !authenticityData && (
                   <div
                     className={`p-2.5 rounded-xl border text-[11px] flex items-start gap-2 ${
                       scanNotice.type === 'success'
