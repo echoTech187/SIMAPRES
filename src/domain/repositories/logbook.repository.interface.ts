@@ -8,4 +8,5 @@ export interface ILogbookRepository {
   findFlaggedAudit(limit?: number): Promise<LogbookEntity[]>;
   countByJenisAksi(officerId: bigint): Promise<Record<string, number>>;
   updateValidationStatus(id: bigint, status: string, note?: string): Promise<LogbookEntity>;
+  completePatrolGiat?(id: bigint, finalMeters: number, catatanHasil?: string): Promise<any>;
 }

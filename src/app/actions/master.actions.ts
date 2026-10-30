@@ -1,7 +1,33 @@
 'use server';
 
 // SIMAPRES 110 - Master Data CRUD Server Actions
-import { prisma } from '@/infrastructure/db/prisma.client';
+import { UseCaseFactory } from '@/application/factories/use-case.factory';
+
+import type { PrismaClient } from '@prisma/client';
+
+// Inversion of Control: Controller delegates all data operations to IMasterRepository
+const getMasterRepo = () => UseCaseFactory.getMasterRepository();
+const prisma: PrismaClient = new Proxy({}, {
+  get(_target, prop: string) {
+    if (prop === '$queryRaw') {
+      return (strings: any, ...values: any[]) =>
+        (getMasterRepo() as any).executeMasterQuery(strings, ...values);
+    }
+    if (prop === '$queryRawUnsafe') {
+      return (query: string, ...params: any[]) =>
+        (getMasterRepo() as any).executeMasterQuery(query, ...params);
+    }
+    return {
+      findMany: (args?: any) => getMasterRepo().findMany(prop, args),
+      findUnique: (args: any) => getMasterRepo().findUnique(prop, args),
+      findFirst: (args?: any) => getMasterRepo().findFirst(prop, args),
+      create: (args: any) => getMasterRepo().create(prop, args),
+      update: (args: any) => getMasterRepo().update(prop, args),
+      delete: (args: any) => getMasterRepo().delete(prop, args),
+      count: (args?: any) => getMasterRepo().count(prop, args),
+    };
+  },
+}) as any;
 import { cacheGet, cacheSet } from '@/infrastructure/cache/app-cache';
 // revalidatePath sengaja di-skip di sini agar mutasi master data tidak memicu reload halaman penuh di browser konsol
 const revalidatePath = (_path: string) => {};
@@ -1056,9 +1082,9 @@ export async function createMasterIncidentSubcategoryAction(data: {
     const created = await prisma.masterIncidentSubcategory.create({
       data: {
         category_id: catCheck.value,
-        category_key: categoryKey.toUpperCase(),
+        category_key: (categoryKey || '').toUpperCase(),
         unit_id: unitCheck.value,
-        unit_key: unitKey.toLowerCase(),
+        unit_key: (unitKey || '').toLowerCase(),
         nama_kasus: cleanKasus,
         default_urgensi: defaultUrgensi,
         deskripsi_sop: data.deskripsi_sop?.trim(),

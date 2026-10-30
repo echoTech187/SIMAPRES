@@ -57,6 +57,7 @@ describe('Complaints Use Cases Suite (Create, Dispatch, & Rating)', () => {
     updateLocation: vi.fn(),
     updateDutyStatus: vi.fn(),
     updateKpiScore: vi.fn(),
+    getPatrolFleet: vi.fn(),
     ...overrides,
   });
 

@@ -87,4 +87,19 @@ export class PrismaHotspotRepository implements IHotspotRepository {
       return false;
     }
   }
+
+  async getMasterOptions(): Promise<{ categories: any[]; dangerLevels: any[] }> {
+    const [categories, dangerLevels] = await Promise.all([
+      prisma.masterHotspotCategory.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+      prisma.masterHotspotDangerLevel.findMany({
+        where: { is_active: true },
+        orderBy: { display_order: 'asc' },
+      }),
+    ]);
+    return { categories, dangerLevels };
+  }
 }
+

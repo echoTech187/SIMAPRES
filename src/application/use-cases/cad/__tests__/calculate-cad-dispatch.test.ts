@@ -64,6 +64,7 @@ describe('CAD Dispatch Recommendation & SOP Routing Algorithm', () => {
     updateLocation: vi.fn(),
     updateDutyStatus: vi.fn(),
     updateKpiScore: vi.fn(),
+    getPatrolFleet: vi.fn(),
   });
 
   it('routes traffic accident (laka lantas / tabrakan) primarily to Sat Lantas', async () => {

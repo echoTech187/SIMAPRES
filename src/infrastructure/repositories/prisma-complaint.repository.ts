@@ -1419,4 +1419,75 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       ratingBreakdown: breakdown,
     };
   }
+
+  async executeComplaintQuery(sqlOrStrings: any, ...params: any[]): Promise<any> {
+    if (typeof sqlOrStrings === 'string') {
+      return await prisma.$queryRawUnsafe(sqlOrStrings, ...params);
+    }
+    return await prisma.$queryRaw(sqlOrStrings, ...params);
+  }
+
+  async executeComplaintMutation(sql: string, ...params: any[]): Promise<any> {
+    return await prisma.$executeRawUnsafe(sql, ...params);
+  }
+
+  async executeTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+    return await prisma.$transaction(fn);
+  }
+
+  async findMany(modelName: string, queryOptions: any = {}): Promise<any[]> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.findMany !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.findMany(queryOptions);
+  }
+
+  async findUnique(modelName: string, queryOptions: any): Promise<any | null> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.findUnique !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.findUnique(queryOptions);
+  }
+
+  async findFirst(modelName: string, queryOptions: any = {}): Promise<any | null> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.findFirst !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.findFirst(queryOptions);
+  }
+
+  async createRecord(modelName: string, createOptions: any): Promise<any> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.create !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.create(createOptions);
+  }
+
+  async updateRecord(modelName: string, updateOptions: any): Promise<any> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.update !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.update(updateOptions);
+  }
+
+  async deleteRecord(modelName: string, deleteOptions: any): Promise<any> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.delete !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.delete(deleteOptions);
+  }
+
+  async countRecord(modelName: string, countOptions: any = {}): Promise<number> {
+    const model = (prisma as any)[modelName];
+    if (!model || typeof model.count !== 'function') {
+      throw new Error(`Model ${modelName} not found on database context`);
+    }
+    return await model.count(countOptions);
+  }
 }

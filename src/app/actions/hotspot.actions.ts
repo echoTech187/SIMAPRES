@@ -159,17 +159,8 @@ export async function getMasterHotspotOptionsAction() {
       return { success: true, data: masterHotspotOptionsCache.data };
     }
 
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
-    const [categories, dangerLevels] = await Promise.all([
-      prisma.masterHotspotCategory.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-      prisma.masterHotspotDangerLevel.findMany({
-        where: { is_active: true },
-        orderBy: { display_order: 'asc' },
-      }),
-    ]);
+    const useCase = UseCaseFactory.getManageHotspotsUseCase();
+    const { categories, dangerLevels } = await useCase.getMasterOptions();
 
     const serialized = {
       categories: serializeBigInt(categories),

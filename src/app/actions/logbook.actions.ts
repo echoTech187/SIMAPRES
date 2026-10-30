@@ -2,7 +2,6 @@
 
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { invalidatePawasUnifiedCache } from './pawas.actions';
-import { prisma } from '@/infrastructure/db/prisma.client';
 
 
 function serializeBigInt<T>(obj: T): T {
@@ -137,33 +136,13 @@ export async function completeGiatPatroliAction(input: {
 }) {
   try {
     const id = BigInt(input.logbookId);
-    const existing = await prisma.officerLogbook.findUnique({ where: { id } });
-    if (!existing) {
-      return { success: false, error: 'Data giat tidak ditemukan.' };
+    const repo = UseCaseFactory.getLogbookRepository();
+    if (!repo.completePatrolGiat) {
+      return { success: false, error: 'Metode completePatrolGiat tidak didukung oleh repositori.' };
     }
+    const updated = await repo.completePatrolGiat(id, input.finalMeters, input.catatanHasil);
 
-    const nowTime = new Date().toTimeString().slice(0, 5);
-    const finalKm = (Number(input.finalMeters) / 1000).toFixed(2);
-    const existingDesc = existing.activity_description || '';
-    const noteText = input.catatanHasil?.trim() || 'Patroli selesai dalam situasi aman dan kondusif.';
-
-    const updatedDesc = [
-      existingDesc,
-      `• Total Jarak Tempuh: ${finalKm} KM (Klaim BBM Sikeu / Bag Log)`,
-      `• Hasil Patroli: ${noteText}`,
-    ].join('\n');
-
-    const updated = await prisma.officerLogbook.update({
-      where: { id },
-      data: {
-        end_time: nowTime,
-        deviation_meters: Number(input.finalMeters),
-        activity_description: updatedDesc,
-        validation_status: 'SELESAI',
-      },
-    });
-
-    invalidateOfficerLogbooksCache(String(existing.officer_id));
+    invalidateOfficerLogbooksCache(updated.officer_id ? String(updated.officer_id) : undefined);
     await invalidatePawasUnifiedCache().catch(() => {});
     return { success: true, data: serializeBigInt(updated) };
   } catch (error: any) {

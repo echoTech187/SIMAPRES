@@ -30,5 +30,6 @@ ROADMAP.md
 
 # E2E local data (contains device ids) and outputs
 e2e/.data/
+e2e/manual/
 test-results/
 playwright-report/

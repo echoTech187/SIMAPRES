@@ -1,8 +1,31 @@
+/**
+ * SIMAPRES 110 - USE CASE FACTORY & DEPENDENCY INVERSION CONTAINER
+ * Lapisan: Application (Central Inversion of Control / DI Factory)
+ * Memastikan Controller / Delivery Mechanism hanya bergantung pada Interface Domain,
+ * bukan implementasi konkrit infrastruktur.
+ */
+
+import { IComplaintRepository } from '@/domain/repositories/complaint.repository.interface';
+import { IOfficerRepository } from '@/domain/repositories/officer.repository.interface';
+import { ILogbookRepository } from '@/domain/repositories/logbook.repository.interface';
+import { IHotspotRepository } from '@/domain/repositories/hotspot.repository.interface';
+import { IUserRepository } from '@/domain/repositories/user.repository.interface';
+import { IPiketRepository } from '@/domain/repositories/piket.repository.interface';
+import { IMasterRepository } from '@/domain/repositories/master.repository.interface';
+import { IDeviceRepository } from '@/domain/repositories/device.repository.interface';
+import { IKnowledgeRepository } from '@/domain/repositories/knowledge.repository.interface';
+import { IChatRepository } from '@/domain/repositories/chat.repository.interface';
+
 import { PrismaComplaintRepository } from '@/infrastructure/repositories/prisma-complaint.repository';
 import { PrismaOfficerRepository } from '@/infrastructure/repositories/prisma-officer.repository';
 import { PrismaLogbookRepository } from '@/infrastructure/repositories/prisma-logbook.repository';
 import { PrismaHotspotRepository } from '@/infrastructure/repositories/prisma-hotspot.repository';
 import { PrismaUserRepository } from '@/infrastructure/repositories/prisma-user.repository';
+import { PrismaPiketRepository } from '@/infrastructure/repositories/prisma-piket.repository';
+import { PrismaMasterRepository } from '@/infrastructure/repositories/prisma-master.repository';
+import { PrismaDeviceRepository } from '@/infrastructure/repositories/prisma-device.repository';
+import { PrismaKnowledgeRepository } from '@/infrastructure/repositories/prisma-knowledge.repository';
+import { PrismaChatRepository } from '@/infrastructure/repositories/prisma-chat.repository';
 
 import { CreateComplaintUseCase } from '../use-cases/complaints/create-complaint.use-case';
 import { DispatchComplaintUseCase } from '../use-cases/complaints/dispatch-complaint.use-case';
@@ -19,13 +42,19 @@ import { GetPawasLogbookUseCase } from '../use-cases/pawas/get-pawas-logbook.use
 import { ValidateLogbookUseCase } from '../use-cases/logbook/validate-logbook.use-case';
 
 // Singleton Repositories
-const complaintRepo = new PrismaComplaintRepository();
-const officerRepo = new PrismaOfficerRepository();
-const logbookRepo = new PrismaLogbookRepository();
-const hotspotRepo = new PrismaHotspotRepository();
-const userRepo = new PrismaUserRepository();
+const complaintRepo: IComplaintRepository = new PrismaComplaintRepository();
+const officerRepo: IOfficerRepository = new PrismaOfficerRepository();
+const logbookRepo: ILogbookRepository = new PrismaLogbookRepository();
+const hotspotRepo: IHotspotRepository = new PrismaHotspotRepository();
+const userRepo: IUserRepository = new PrismaUserRepository();
+const piketRepo: IPiketRepository = new PrismaPiketRepository();
+const masterRepo: IMasterRepository = new PrismaMasterRepository();
+const deviceRepo: IDeviceRepository = new PrismaDeviceRepository();
+const knowledgeRepo: IKnowledgeRepository = new PrismaKnowledgeRepository();
+const chatRepo: IChatRepository = new PrismaChatRepository();
 
 export class UseCaseFactory {
+  // Use Case Getters
   static getLoginUseCase(): LoginUseCase {
     return new LoginUseCase(userRepo);
   }
@@ -78,20 +107,45 @@ export class UseCaseFactory {
     return new ValidateLogbookUseCase(logbookRepo);
   }
 
-  // Direct repo access for queries
-  static getComplaintRepository(): PrismaComplaintRepository {
+  // Pure Interface Access (Dependency Inversion Principle)
+  static getComplaintRepository(): IComplaintRepository {
     return complaintRepo;
   }
 
-  static getOfficerRepository(): PrismaOfficerRepository {
+  static getOfficerRepository(): IOfficerRepository {
     return officerRepo;
   }
 
-  static getLogbookRepository(): PrismaLogbookRepository {
+  static getLogbookRepository(): ILogbookRepository {
     return logbookRepo;
   }
 
-  static getHotspotRepository(): PrismaHotspotRepository {
+  static getHotspotRepository(): IHotspotRepository {
     return hotspotRepo;
   }
+
+  static getUserRepository(): IUserRepository {
+    return userRepo;
+  }
+
+  static getPiketRepository(): IPiketRepository {
+    return piketRepo;
+  }
+
+  static getMasterRepository(): IMasterRepository {
+    return masterRepo;
+  }
+
+  static getDeviceRepository(): IDeviceRepository {
+    return deviceRepo;
+  }
+
+  static getKnowledgeRepository(): IKnowledgeRepository {
+    return knowledgeRepo;
+  }
+
+  static getChatRepository(): IChatRepository {
+    return chatRepo;
+  }
 }
+

@@ -1,40 +1,12 @@
 'use server';
 
-import { prisma } from '@/infrastructure/db/prisma.client';
+import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import type { ChatMessageItem } from '@/types/chat.types';
 import { cacheInvalidate } from '@/infrastructure/cache/app-cache';
 import { requireRole } from '@/lib/session';
 
 // In-memory fallback / quick cache for ultra-responsive low-latency chat
 const chatCache = new Map<string, ChatMessageItem[]>();
-
-let isTableInitialized = false;
-
-/**
- * Memastikan tabel terdedikasi `complaint_chats` telah dibuat di MySQL/MariaDB
- * agar percakapan warga dan personel terpisah bersih dari tabel audit log umum.
- */
-async function ensureComplaintChatTableExists() {
-  if (isTableInitialized) return;
-  try {
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS \`complaint_chats\` (
-        \`id\` BIGINT NOT NULL AUTO_INCREMENT,
-        \`complaint_id\` BIGINT NOT NULL,
-        \`sender_role\` VARCHAR(20) NOT NULL,
-        \`sender_name\` VARCHAR(120) NOT NULL,
-        \`officer_nrp\` VARCHAR(50) NULL,
-        \`message_text\` TEXT NOT NULL,
-        \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-        PRIMARY KEY (\`id\`),
-        INDEX \`idx_complaint_chats_cid_created\` (\`complaint_id\`, \`created_at\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-    `);
-    isTableInitialized = true;
-  } catch (err) {
-    console.warn('ensureComplaintChatTableExists warning:', err);
-  }
-}
 
 export async function getTicketChatMessagesAction(
   complaintIdOrTiket: string
@@ -48,25 +20,10 @@ export async function getTicketChatMessagesAction(
     const cleanKey = rawKey.replace(/^#+/, '').trim();
     const withHash = `#${cleanKey}`;
 
-    // 1. Cari data tiket dan periksa status siklus penanganan (fleksibel dengan/tanpa '#')
-    let complaint: { id: bigint; status: string; nomor_tiket: string } | null = null;
-    if (/^\d+$/.test(rawKey)) {
-      complaint = await prisma.complaint.findFirst({
-        where: { id: BigInt(rawKey) },
-        select: { id: true, status: true, nomor_tiket: true },
-      });
-    } else {
-      complaint = await prisma.complaint.findFirst({
-        where: {
-          OR: [
-            { nomor_tiket: rawKey },
-            { nomor_tiket: cleanKey },
-            { nomor_tiket: withHash },
-          ],
-        },
-        select: { id: true, status: true, nomor_tiket: true },
-      });
-    }
+    const chatRepo = UseCaseFactory.getChatRepository();
+
+    // 1. Cari data tiket via domain repository
+    const complaint = await chatRepo.findComplaintByKey(rawKey);
 
     if (!complaint) {
       // Tiket belum terdaftar di DB, ambil dari cache memori jika ada
@@ -74,7 +31,6 @@ export async function getTicketChatMessagesAction(
     }
 
     // 2. Jika tiket / pengaduan SUDAH SELESAI, riwayat chat tidak perlu lagi ditampilkan
-    // Data tetap tersimpan aman di tabel `complaint_chats` untuk audit kepolisian
     const statusUpper = (complaint.status || '').toUpperCase();
     if (statusUpper === 'SELESAI') {
       return {
@@ -84,73 +40,12 @@ export async function getTicketChatMessagesAction(
       };
     }
 
-    await ensureComplaintChatTableExists();
-
     // 3. Ambil riwayat chat dari tabel terdedikasi `complaint_chats`
-    const parsedMessages: ChatMessageItem[] = [];
+    let parsedMessages = await chatRepo.getMessagesByComplaintId(complaint.id);
 
-    try {
-      const rows = await prisma.$queryRawUnsafe<any[]>(
-        `SELECT id, sender_role, sender_name, officer_nrp, message_text, created_at
-         FROM complaint_chats
-         WHERE complaint_id = ?
-         ORDER BY created_at ASC`,
-        complaint.id
-      );
-
-      if (Array.isArray(rows) && rows.length > 0) {
-        for (const row of rows) {
-          parsedMessages.push({
-            id: row.id.toString(),
-            senderRole: row.sender_role === 'WARGA' ? 'WARGA' : 'PERSONIL',
-            senderName: row.sender_name,
-            text: row.message_text,
-            timestamp: new Date(row.created_at).toISOString(),
-            officerNrp: row.officer_nrp || undefined,
-          });
-        }
-      }
-    } catch (dbErr) {
-      console.warn('Error querying complaint_chats, falling back to audit logs:', dbErr);
-    }
-
-    // 4. Jika di tabel complaint_chats belum ada pesan (migrasi/legacy dev), cek complaint_audit_logs
+    // 4. Jika di tabel complaint_chats belum ada pesan (migrasi/legacy dev), cek audit log fallback
     if (parsedMessages.length === 0) {
-      try {
-        const legacyLogs = await prisma.complaintAuditLog.findMany({
-          where: {
-            complaint_id: complaint.id,
-            action: 'CHAT_MESSAGE',
-          },
-          orderBy: { created_at: 'asc' },
-        });
-
-        for (const log of legacyLogs) {
-          let text = log.notes || '';
-          let role: 'WARGA' | 'PERSONIL' | 'SISTEM' =
-            log.actor_role === 'WARGA' ? 'WARGA' : 'PERSONIL';
-          let name = log.actor_name || (role === 'WARGA' ? 'Pelapor' : 'Personil Lapangan');
-          let ts = log.created_at.toISOString();
-
-          try {
-            if (text.startsWith('{') && text.endsWith('}')) {
-              const parsed = JSON.parse(text);
-              if (parsed.text) text = parsed.text;
-              if (parsed.senderRole) role = parsed.senderRole;
-              if (parsed.senderName) name = parsed.senderName;
-              if (parsed.timestamp) ts = parsed.timestamp;
-            }
-          } catch (_) {}
-
-          parsedMessages.push({
-            id: log.id.toString(),
-            senderRole: role,
-            senderName: name,
-            text,
-            timestamp: ts,
-          });
-        }
-      } catch (_) {}
+      parsedMessages = await chatRepo.getLegacyAuditMessages(complaint.id);
     }
 
     // 5. Gabungkan dengan cache in-memory untuk pesan ultra-responsif yang belum sempat tersimpan ke DB
@@ -230,25 +125,10 @@ export async function sendTicketChatMessageAction(input: {
     const cleanKey = rawKey.replace(/^#+/, '').trim();
     const withHash = `#${cleanKey}`;
 
-    // 1. Cari complaint di DB (fleksibel dengan/tanpa '#')
-    let complaint: { id: bigint; status: string; nomor_tiket: string } | null = null;
-    if (/^\d+$/.test(rawKey)) {
-      complaint = await prisma.complaint.findFirst({
-        where: { id: BigInt(rawKey) },
-        select: { id: true, status: true, nomor_tiket: true },
-      });
-    } else {
-      complaint = await prisma.complaint.findFirst({
-        where: {
-          OR: [
-            { nomor_tiket: rawKey },
-            { nomor_tiket: cleanKey },
-            { nomor_tiket: withHash },
-          ],
-        },
-        select: { id: true, status: true, nomor_tiket: true },
-      });
-    }
+    const chatRepo = UseCaseFactory.getChatRepository();
+
+    // 1. Cari complaint di DB via domain repository
+    const complaint = await chatRepo.findComplaintByKey(rawKey);
 
     // Jika tiket sudah selesai, tidak diizinkan mengirim pesan lagi
     if (complaint) {
@@ -283,40 +163,9 @@ export async function sendTicketChatMessageAction(input: {
     if (withHash !== rawKey) chatCache.set(withHash, updatedMsgs);
     cacheInvalidate('tracking_');
 
-    // Simpan ke tabel terdedikasi `complaint_chats`
+    // Simpan ke database via repository
     if (complaint) {
-      await ensureComplaintChatTableExists();
-      try {
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO complaint_chats (complaint_id, sender_role, sender_name, officer_nrp, message_text, created_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          complaint.id,
-          input.senderRole,
-          newMsg.senderName,
-          input.officerNrp || null,
-          cleanText,
-          now
-        );
-      } catch (insertErr) {
-        console.warn('Failed inserting to complaint_chats table, using audit log fallback:', insertErr);
-        // Fallback simpan ke audit log jika executeRaw belum siap
-        const jsonPayload = JSON.stringify({
-          text: cleanText,
-          senderRole: input.senderRole,
-          senderName: newMsg.senderName,
-          timestamp: newMsg.timestamp,
-          officerNrp: input.officerNrp || undefined,
-        });
-        await prisma.complaintAuditLog.create({
-          data: {
-            complaint_id: complaint.id,
-            actor_name: newMsg.senderName,
-            actor_role: input.senderRole,
-            action: 'CHAT_MESSAGE',
-            notes: jsonPayload,
-          },
-        });
-      }
+      await chatRepo.saveMessage(complaint.id, newMsg);
     }
 
     return { success: true, data: newMsg };
@@ -337,26 +186,12 @@ export async function clearTicketChatMessagesAction(
     chatCache.delete(key);
     cacheInvalidate('tracking_');
 
-    // 2. Clear from DB
-    let complaintIdBig: bigint | null = null;
-    if (/^\d+$/.test(key)) {
-      complaintIdBig = BigInt(key);
-    } else {
-      const found = await prisma.complaint.findFirst({
-        where: { nomor_tiket: key },
-        select: { id: true },
-      });
-      if (found) complaintIdBig = found.id;
-    }
+    // 2. Clear from DB via repository
+    const chatRepo = UseCaseFactory.getChatRepository();
+    const complaint = await chatRepo.findComplaintByKey(key);
 
-    if (complaintIdBig) {
-      await ensureComplaintChatTableExists();
-      try {
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM complaint_chats WHERE complaint_id = ?`,
-          complaintIdBig
-        );
-      } catch (_) {}
+    if (complaint) {
+      await chatRepo.clearMessages(complaint.id);
     }
 
     return { success: true };

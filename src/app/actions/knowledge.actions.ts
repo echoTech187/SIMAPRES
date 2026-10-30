@@ -1,8 +1,10 @@
 'use server';
 
-import { prisma } from '@/infrastructure/db/prisma.client';
+import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { WhatsAppService } from '@/infrastructure/services/whatsapp.service';
 import { KnowledgeFaqItem } from '@/lib/knowledge-base-data';
+import { cacheGetOrLoad } from '@/infrastructure/cache/app-cache';
+import { requireRole } from '@/lib/session';
 
 export interface GetKnowledgeItemsResult {
   success: boolean;
@@ -39,7 +41,13 @@ function mapDbRowToKnowledgeItem(row: any): KnowledgeFaqItem {
   };
 }
 
-import { cacheGetOrLoad } from '@/infrastructure/cache/app-cache';
+function serialize<T>(obj: T): T {
+  return JSON.parse(
+    JSON.stringify(obj, (key, value) =>
+      typeof value === 'bigint' ? value.toString() : value
+    )
+  );
+}
 
 /**
  * Mengambil daftar master panduan SOP & Dynamic FAQ secara dinamis dari database (Tabel master_knowledge_faqs)
@@ -51,71 +59,13 @@ export async function getKnowledgeBaseItemsAction(
   const cacheKey = `knowledge_base_${searchQuery || ''}_${categoryFilter || 'ALL'}`;
   try {
     return await cacheGetOrLoad(cacheKey, 300000, async () => {
-      const [dbRows, masterCats] = await Promise.all([
-        prisma.masterKnowledgeFaq.findMany({
-          where: { is_active: true },
-          orderBy: { display_order: 'asc' },
-        }),
-        prisma.masterKnowledgeFaqCategory.findMany({
-          where: { is_active: true },
-          orderBy: { display_order: 'asc' },
-        }).catch(() => []),
-      ]);
-
-      let rows = dbRows || [];
-      if (!rows || rows.length === 0) {
-        try {
-          const { seedKnowledgeFaqs } = await import('../../../prisma/seed_knowledge_faqs');
-          await seedKnowledgeFaqs();
-          rows = await prisma.masterKnowledgeFaq.findMany({
-            where: { is_active: true },
-            orderBy: { display_order: 'asc' },
-          });
-        } catch (seedErr) {
-          console.warn('[getKnowledgeBaseItemsAction] Auto-seed warning:', seedErr);
-        }
-      }
-
-      // Calculate category counts from rows
-      const countMap = new Map<string, number>();
-      rows.forEach((it: any) => {
-        countMap.set(it.kategori, (countMap.get(it.kategori) || 0) + 1);
-      });
-
-      const categories = masterCats.map((mc: any) => ({
-        key: mc.key,
-        label: mc.label,
-        icon: mc.icon || '📖',
-        count: countMap.get(mc.key) || 0,
-      }));
-
-      // Filter by category if requested
-      if (categoryFilter && categoryFilter !== 'ALL') {
-        rows = rows.filter((r) => r.kategori === categoryFilter);
-      }
-
-      let items: KnowledgeFaqItem[] = rows.map(mapDbRowToKnowledgeItem);
-
-      // Filter by search query
-      if (searchQuery && searchQuery.trim() !== '') {
-        const q = searchQuery.toLowerCase().trim();
-        items = items.filter((it) => {
-          const inJudul = it.judul.toLowerCase().includes(q);
-          const inSubjudul = it.subjudul.toLowerCase().includes(q);
-          const inTags = it.tags.some((t) => t.toLowerCase().includes(q));
-          const inSyarat = it.persyaratan.some((p) => p.toLowerCase().includes(q));
-          const inProsedur = it.prosedur.some((pr) => pr.toLowerCase().includes(q));
-          const inLokasi = it.lokasiPelayanan.toLowerCase().includes(q);
-          const inScript = it.scriptOperator.toLowerCase().includes(q);
-          return inJudul || inSubjudul || inTags || inSyarat || inProsedur || inLokasi || inScript;
-        });
-      }
-
+      const repo = UseCaseFactory.getKnowledgeRepository();
+      const res = await repo.getKnowledgeItems(searchQuery, categoryFilter);
       return {
         success: true,
-        data: items,
-        total: items.length,
-        categories,
+        data: res.items,
+        total: res.total,
+        categories: res.categories,
       };
     });
   } catch (error: any) {
@@ -150,16 +100,10 @@ export async function sendKnowledgeFaqWhatsAppAction(
       };
     }
 
-    // 1. Ambil data item dari database
+    // 1. Ambil data item dari database via domain repository
     let item: KnowledgeFaqItem | null = null;
-    const dbRow = await prisma.masterKnowledgeFaq.findFirst({
-      where: {
-        OR: [
-          { slug: faqId },
-          { id: !isNaN(Number(faqId)) ? Number(faqId) : undefined },
-        ],
-      },
-    }).catch(() => null);
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const dbRow = await repo.getArticleByIdOrSlug(faqId);
 
     if (dbRow) {
       item = mapDbRowToKnowledgeItem(dbRow);
@@ -217,7 +161,7 @@ export async function sendKnowledgeFaqWhatsAppAction(
     const messageText = lines.join('\n');
     const waWebUrl = `https://wa.me/${intlPhone}?text=${encodeURIComponent(messageText)}`;
 
-    // Kirim via FlowKirim REST API
+    // Kirim via WhatsAppService Gateway
     const sendResult = await WhatsAppService.sendTicketNotification({
       pelaporHp: intlPhone,
       pelaporNama: recipientName || 'Masyarakat',
@@ -274,33 +218,10 @@ export interface MasterFaqInput {
   display_order?: number;
 }
 
-function serialize<T>(obj: T): T {
-  return JSON.parse(
-    JSON.stringify(obj, (key, value) =>
-      typeof value === 'bigint' ? value.toString() : value
-    )
-  );
-}
-
 export async function getAllMasterFaqsAction() {
   try {
-    let list = await prisma.masterKnowledgeFaq.findMany({
-      orderBy: { display_order: 'asc' },
-    });
-
-    // Auto-seed jika tabel masih kosong
-    if (!list || list.length === 0) {
-      try {
-        const { seedKnowledgeFaqs } = await import('../../../prisma/seed_knowledge_faqs');
-        await seedKnowledgeFaqs();
-        list = await prisma.masterKnowledgeFaq.findMany({
-          orderBy: { display_order: 'asc' },
-        });
-      } catch (seedErr) {
-        console.warn('[getAllMasterFaqsAction] Auto-seed warning:', seedErr);
-      }
-    }
-
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const list = await repo.getAllMasterFaqs();
     return { success: true, data: serialize(list) };
   } catch (e: any) {
     return { success: false, error: e.message, data: [] };
@@ -308,28 +229,12 @@ export async function getAllMasterFaqsAction() {
 }
 
 export async function createMasterFaqAction(input: MasterFaqInput) {
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   try {
-    const created = await prisma.masterKnowledgeFaq.create({
-      data: {
-        slug: input.slug,
-        kategori: input.kategori,
-        kategori_label: input.kategori_label,
-        icon: input.icon || '📖',
-        judul: input.judul,
-        subjudul: input.subjudul,
-        tags: JSON.stringify(input.tags || []),
-        persyaratan: JSON.stringify(input.persyaratan || []),
-        prosedur: JSON.stringify(input.prosedur || []),
-        biaya_pnbp: input.biaya_pnbp,
-        lokasi_pelayanan: input.lokasi_pelayanan,
-        jam_operasional: input.jam_operasional,
-        waktu_penyelesaian: input.waktu_penyelesaian,
-        script_operator: input.script_operator,
-        kontak_penting: input.kontak_penting || null,
-        is_active: input.is_active ?? true,
-        display_order: input.display_order ?? 1,
-      },
-    });
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const created = await repo.createArticle(input);
     return { success: true, data: serialize(created) };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -337,30 +242,12 @@ export async function createMasterFaqAction(input: MasterFaqInput) {
 }
 
 export async function updateMasterFaqAction(id: number, input: Partial<MasterFaqInput>) {
-  try {
-    const dataToUpdate: any = {};
-    if (input.slug !== undefined) dataToUpdate.slug = input.slug;
-    if (input.kategori !== undefined) dataToUpdate.kategori = input.kategori;
-    if (input.kategori_label !== undefined) dataToUpdate.kategori_label = input.kategori_label;
-    if (input.icon !== undefined) dataToUpdate.icon = input.icon;
-    if (input.judul !== undefined) dataToUpdate.judul = input.judul;
-    if (input.subjudul !== undefined) dataToUpdate.subjudul = input.subjudul;
-    if (input.tags !== undefined) dataToUpdate.tags = JSON.stringify(input.tags);
-    if (input.persyaratan !== undefined) dataToUpdate.persyaratan = JSON.stringify(input.persyaratan);
-    if (input.prosedur !== undefined) dataToUpdate.prosedur = JSON.stringify(input.prosedur);
-    if (input.biaya_pnbp !== undefined) dataToUpdate.biaya_pnbp = input.biaya_pnbp;
-    if (input.lokasi_pelayanan !== undefined) dataToUpdate.lokasi_pelayanan = input.lokasi_pelayanan;
-    if (input.jam_operasional !== undefined) dataToUpdate.jam_operasional = input.jam_operasional;
-    if (input.waktu_penyelesaian !== undefined) dataToUpdate.waktu_penyelesaian = input.waktu_penyelesaian;
-    if (input.script_operator !== undefined) dataToUpdate.script_operator = input.script_operator;
-    if (input.kontak_penting !== undefined) dataToUpdate.kontak_penting = input.kontak_penting;
-    if (input.is_active !== undefined) dataToUpdate.is_active = input.is_active;
-    if (input.display_order !== undefined) dataToUpdate.display_order = input.display_order;
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-    const updated = await prisma.masterKnowledgeFaq.update({
-      where: { id },
-      data: dataToUpdate,
-    });
+  try {
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const updated = await repo.updateArticle(id, input);
     return { success: true, data: serialize(updated) };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -368,10 +255,12 @@ export async function updateMasterFaqAction(id: number, input: Partial<MasterFaq
 }
 
 export async function deleteMasterFaqAction(id: number) {
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   try {
-    await prisma.masterKnowledgeFaq.delete({
-      where: { id },
-    });
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    await repo.deleteArticle(id);
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -379,14 +268,13 @@ export async function deleteMasterFaqAction(id: number) {
 }
 
 export async function toggleMasterFaqStatusAction(id: number) {
-  try {
-    const existing = await prisma.masterKnowledgeFaq.findUnique({ where: { id } });
-    if (!existing) return { success: false, error: 'Data tidak ditemukan' };
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
 
-    const updated = await prisma.masterKnowledgeFaq.update({
-      where: { id },
-      data: { is_active: !existing.is_active },
-    });
+  try {
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const updated = await repo.toggleArticleStatus(id);
+    if (!updated) return { success: false, error: 'Data tidak ditemukan' };
     return { success: true, data: serialize(updated) };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -407,9 +295,8 @@ export interface MasterFaqCategoryInput {
 
 export async function getMasterFaqCategoriesAction() {
   try {
-    const list = await prisma.masterKnowledgeFaqCategory.findMany({
-      orderBy: { display_order: 'asc' },
-    });
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const list = await repo.getMasterCategories();
     return { success: true, data: serialize(list) };
   } catch (e: any) {
     return { success: false, error: e.message, data: [] };
@@ -417,17 +304,12 @@ export async function getMasterFaqCategoriesAction() {
 }
 
 export async function createMasterFaqCategoryAction(input: MasterFaqCategoryInput) {
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   try {
-    const created = await prisma.masterKnowledgeFaqCategory.create({
-      data: {
-        key: input.key,
-        label: input.label,
-        icon: input.icon || '📖',
-        description: input.description || null,
-        display_order: input.display_order ?? 1,
-        is_active: input.is_active ?? true,
-      },
-    });
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const created = await repo.createCategory(input);
     return { success: true, data: serialize(created) };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -435,11 +317,12 @@ export async function createMasterFaqCategoryAction(input: MasterFaqCategoryInpu
 }
 
 export async function updateMasterFaqCategoryAction(id: number, input: Partial<MasterFaqCategoryInput>) {
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   try {
-    const updated = await prisma.masterKnowledgeFaqCategory.update({
-      where: { id },
-      data: input,
-    });
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    const updated = await repo.updateCategory(id, input);
     return { success: true, data: serialize(updated) };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -447,8 +330,12 @@ export async function updateMasterFaqCategoryAction(id: number, input: Partial<M
 }
 
 export async function deleteMasterFaqCategoryAction(id: number) {
+  const auth = await requireRole('SUPERADMIN');
+  if (!auth.authorized) return { success: false, error: auth.error };
+
   try {
-    await prisma.masterKnowledgeFaqCategory.delete({ where: { id } });
+    const repo = UseCaseFactory.getKnowledgeRepository();
+    await repo.deleteCategory(id);
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };

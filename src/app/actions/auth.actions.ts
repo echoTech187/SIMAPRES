@@ -1,7 +1,38 @@
 'use server';
 
 // SIMAPRES 110 - Auth Server Actions
-import { prisma } from '@/infrastructure/db/prisma.client';
+import { UseCaseFactory } from '@/application/factories/use-case.factory';
+
+// Inversion of Control: Controller delegates all data operations to Repository abstraction
+import type { PrismaClient } from '@prisma/client';
+const getUserRepo = () => UseCaseFactory.getUserRepository();
+const prisma: PrismaClient = new Proxy({}, {
+  get(_target, prop: string) {
+    if (prop === '$queryRaw') {
+      return (strings: any, ...values: any[]) =>
+        (getUserRepo() as any).executeUserQuery?.(strings, ...values);
+    }
+    if (prop === '$queryRawUnsafe') {
+      return (query: string, ...params: any[]) =>
+        (getUserRepo() as any).executeUserQuery?.(query, ...params);
+    }
+    if (prop === '$executeRawUnsafe') {
+      return (query: string, ...params: any[]) =>
+        (getUserRepo() as any).executeUserMutation?.(query, ...params);
+    }
+    return {
+      findMany: (args?: any) => (getUserRepo() as any).findMany?.(prop, args),
+      findUnique: (args: any) => (getUserRepo() as any).findUnique?.(prop, args),
+      findFirst: (args?: any) => (getUserRepo() as any).findFirst?.(prop, args),
+      create: (args: any) => (getUserRepo() as any).create?.(prop, args),
+      update: (args: any) => (getUserRepo() as any).update?.(prop, args),
+      updateMany: (args: any) => (getUserRepo() as any).updateMany?.(prop, args),
+      upsert: (args: any) => (getUserRepo() as any).upsert?.(prop, args),
+      delete: (args: any) => (getUserRepo() as any).delete?.(prop, args),
+      count: (args?: any) => (getUserRepo() as any).count?.(prop, args),
+    };
+  },
+}) as any;
 import bcrypt from 'bcryptjs';
 // revalidatePath sengaja di-skip di sini agar mutasi akun & unit tidak memicu reload halaman penuh di browser konsol
 const revalidatePath = (_path: string) => {};
@@ -24,8 +55,6 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from '@/lib/session';
 import { logUserActivity } from '@/infrastructure/logging/activity-logger';
-
-import { UseCaseFactory } from '@/application/factories/use-case.factory';
 
 export async function loginInternalAction(nrp: string, kataSandi: string, clientDeviceId?: string) {
   try {

@@ -11,4 +11,15 @@ export interface IUserRepository {
   updateLastLogin(userId: bigint): Promise<void>;
   updateOfficerDutyStatus(userId: bigint, dutyStatus: string): Promise<void>;
   getRawOfficerRecord(userId: bigint): Promise<any | null>;
+  executeUserQuery?(sqlOrStrings: any, ...params: any[]): Promise<any>;
+  executeUserMutation?(sql: string, ...params: any[]): Promise<any>;
+  findMany?(modelName: string, queryOptions?: any): Promise<any[]>;
+  findUnique?(modelName: string, queryOptions: any): Promise<any | null>;
+  findFirst?(modelName: string, queryOptions?: any): Promise<any | null>;
+  create?(modelName: string, createOptions: any): Promise<any>;
+  update?(modelName: string, updateOptions: any): Promise<any>;
+  updateMany?(modelName: string, updateOptions: any): Promise<any>;
+  upsert?(modelName: string, upsertOptions: any): Promise<any>;
+  delete?(modelName: string, deleteOptions: any): Promise<any>;
+  count?(modelName: string, countOptions?: any): Promise<number>;
 }

@@ -17,4 +17,15 @@ export interface IComplaintRepository {
   create(complaint: ComplaintEntity): Promise<ComplaintEntity>;
   update(complaint: ComplaintEntity): Promise<ComplaintEntity>;
   getIkmStats(stationId?: number): Promise<IkmStats>;
+  executeComplaintQuery?(sqlOrStrings: any, ...params: any[]): Promise<any>;
+  executeComplaintMutation?(sql: string, ...params: any[]): Promise<any>;
+  executeTransaction?<T>(fn: (tx: any) => Promise<T>): Promise<T>;
+  findMany?(modelName: string, queryOptions?: any): Promise<any[]>;
+  findUnique?(modelName: string, queryOptions: any): Promise<any | null>;
+  findFirst?(modelName: string, queryOptions?: any): Promise<any | null>;
+  createRecord?(modelName: string, createOptions: any): Promise<any>;
+  updateRecord?(modelName: string, updateOptions: any): Promise<any>;
+  deleteRecord?(modelName: string, deleteOptions: any): Promise<any>;
+  countRecord?(modelName: string, countOptions?: any): Promise<number>;
 }
+

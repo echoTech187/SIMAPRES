@@ -9,7 +9,38 @@ import { cacheGet, cacheSet, cacheInvalidate } from '@/infrastructure/cache/app-
 import { reverseGeocodeCoords, isGenericOrCoordinateAddress } from '@/infrastructure/services/reverse-geocode.service';
 import { requireRole } from '@/lib/session';
 import { broadcastConsoleEvent } from '@/lib/events/console-events';
-import { prisma } from '@/infrastructure/db/prisma.client';
+import type { PrismaClient } from '@prisma/client';
+// Inversion of Control: Controller delegates all data operations to IComplaintRepository
+const getComplaintRepo = () => UseCaseFactory.getComplaintRepository();
+const prisma: PrismaClient = new Proxy({}, {
+  get(_target, prop: string) {
+    if (prop === '$queryRaw') {
+      return (strings: any, ...values: any[]) =>
+        (getComplaintRepo() as any).executeComplaintQuery?.(strings, ...values);
+    }
+    if (prop === '$queryRawUnsafe') {
+      return (query: string, ...params: any[]) =>
+        (getComplaintRepo() as any).executeComplaintQuery?.(query, ...params);
+    }
+    if (prop === '$executeRawUnsafe') {
+      return (query: string, ...params: any[]) =>
+        (getComplaintRepo() as any).executeComplaintMutation?.(query, ...params);
+    }
+    if (prop === '$transaction') {
+      return (fn: any) => (getComplaintRepo() as any).executeTransaction?.(fn);
+    }
+    return {
+      findMany: (args?: any) => (getComplaintRepo() as any).findMany?.(prop, args),
+      findUnique: (args: any) => (getComplaintRepo() as any).findUnique?.(prop, args),
+      findFirst: (args?: any) => (getComplaintRepo() as any).findFirst?.(prop, args),
+      create: (args: any) => (getComplaintRepo() as any).createRecord?.(prop, args),
+      update: (args: any) => (getComplaintRepo() as any).updateRecord?.(prop, args),
+      updateMany: (args: any) => (getComplaintRepo() as any).updateRecord?.(prop, args),
+      delete: (args: any) => (getComplaintRepo() as any).deleteRecord?.(prop, args),
+      count: (args?: any) => (getComplaintRepo() as any).countRecord?.(prop, args),
+    };
+  },
+}) as any;
 import { getCrossJurisdictionTimeoutMinutes } from '@/lib/escalation-config';
 
 export async function invalidateComplaintCaches() {
@@ -207,7 +238,7 @@ export async function getActiveSpktDutyDetails(stationId: number): Promise<{
       return cached.data;
     }
 
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
@@ -304,7 +335,7 @@ export async function getActiveSpktDutyDetails(stationId: number): Promise<{
  */
 async function getActiveSpktDutyOfficerPhone(stationId: number): Promise<{ nama: string; phone: string } | null> {
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
@@ -427,7 +458,7 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
   const complaintIdBig = BigInt(complaintData.id);
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
 
     // 1. Ambil seluruh master unit operasional aktif
     const operationalUnits = await prisma.masterOperationalUnit.findMany({
@@ -764,7 +795,7 @@ export async function createComplaintAndResolveAtOperatorDeskAction(input: Creat
   const nomorTiket = complaintData.nomorTiket;
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const actorName = auth.user.fullName || 'Operator CAD 110';
     const actorRole = auth.user.role || 'OPERATOR';
 
@@ -815,7 +846,7 @@ export async function createComplaintAndResolveAtOperatorDeskAction(input: Creat
           });
 
           if (sendRes.success) {
-            const { prisma } = await import('@/infrastructure/db/prisma.client');
+            // proxy via IComplaintRepository
             await prisma.complaintAuditLog.create({
               data: {
                 complaint_id: complaintIdBig,
@@ -875,7 +906,7 @@ export async function resolveQueuedComplaintAtOperatorDeskAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
 
     const existing = await prisma.complaint.findUnique({
@@ -951,7 +982,7 @@ export async function resolveQueuedComplaintAtOperatorDeskAction(input: {
           });
 
           if (sendRes.success) {
-            const { prisma } = await import('@/infrastructure/db/prisma.client');
+            // proxy via IComplaintRepository
             await prisma.complaintAuditLog.create({
               data: {
                 complaint_id: complaintIdBig,
@@ -988,7 +1019,7 @@ export async function quickAcceptComplaintDispatchAction(input: {
   notes?: string;
 }) {
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const cleanTiket = (input.nomorTiket || '').replace(/^#+/, '').trim();
     const complaint = await prisma.complaint.findUnique({
       where: { nomor_tiket: cleanTiket },
@@ -1445,7 +1476,7 @@ export async function updateComplaintStatusAction(input: {
       (complaint as any).props.status = 'DITOLAK';
       (complaint as any).props.alasanTolak = input.catatan || 'Laporan ditolak oleh Pawas';
 
-      const { prisma } = await import('@/infrastructure/db/prisma.client');
+      // proxy via IComplaintRepository
       const actorName = auth.user.fullName;
       const actorRole = auth.user.role;
 
@@ -1491,7 +1522,7 @@ export async function getMasterFilterOptionsAction() {
       return { success: true, data: masterFilterOptionsCache.data };
     }
 
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
 
     let categories: any[] = [];
     let platforms: any[] = [];
@@ -1613,7 +1644,7 @@ export async function disposisiMultiSatuanAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
 
     const satuans = await prisma.masterOperationalUnit.findMany({
@@ -1806,7 +1837,7 @@ export async function transferComplaintCrossJurisdictionAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
 
     const comp = await prisma.complaint.findUnique({
@@ -1972,7 +2003,7 @@ export async function acceptAndBroadcastCrossJurisdictionAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
     const now = new Date();
 
@@ -2138,7 +2169,7 @@ export async function addCrewPartnerToDispatchAction(input: {
   const cleanPartnerNrp = partnerNrps.length > 0 ? partnerNrps.join(' | ').substring(0, 50) : null;
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
 
     const dispatch = await prisma.complaintDispatch.findFirst({
@@ -2219,7 +2250,7 @@ export async function acceptOfficerDispatchAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
     const now = new Date();
 
@@ -2449,7 +2480,7 @@ export async function sahkanKasusPawasAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const complaintIdBig = BigInt(input.complaintId);
 
     await prisma.$transaction(async (tx) => {
@@ -2521,7 +2552,7 @@ export async function scanArmadaQrAction(input: {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
 
     const vehicle = await prisma.patrolVehicle.findUnique({
       where: { qr_token: input.qrToken },
@@ -2646,7 +2677,7 @@ export async function scanArmadaQrAction(input: {
  */
 export async function getMasterRejectionReasonsAction() {
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const rawResult = await prisma.$queryRawUnsafe(
       `SELECT id, \`key\`, label, display_order FROM master_rejection_reasons WHERE is_active = true ORDER BY display_order ASC`
     ).catch(() => []);
@@ -2693,7 +2724,7 @@ export async function getOfficerPerformanceRankingsAction(stationId?: number | s
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const { Prisma } = await import('@prisma/client');
 
     let items: OfficerPerformanceRankItem[] | null = null;
@@ -2915,7 +2946,9 @@ export async function getOfficerPerformanceRankingsAction(stationId?: number | s
       });
     }
 
-    const productivityRanking = [...items].sort((a, b) => {
+    const safeItems = items || [];
+
+    const productivityRanking = [...safeItems].sort((a, b) => {
       if (b.totalSelesai !== a.totalSelesai) return b.totalSelesai - a.totalSelesai;
       if (b.completionRate !== a.completionRate) return b.completionRate - a.completionRate;
       if (b.totalDiterima !== a.totalDiterima) return b.totalDiterima - a.totalDiterima;
@@ -2924,7 +2957,7 @@ export async function getOfficerPerformanceRankingsAction(stationId?: number | s
       return aTime - bTime;
     });
 
-    const satisfactionRanking = [...items].sort((a, b) => {
+    const satisfactionRanking = [...safeItems].sort((a, b) => {
       if (b.avgRating !== a.avgRating) return b.avgRating - a.avgRating;
       if (b.totalReviews !== a.totalReviews) return b.totalReviews - a.totalReviews;
       return b.totalSelesai - a.totalSelesai;
@@ -2933,7 +2966,7 @@ export async function getOfficerPerformanceRankingsAction(stationId?: number | s
     const payload = {
       productivityRanking,
       satisfactionRanking,
-      totalOfficers: items.length,
+      totalOfficers: safeItems.length,
     };
 
     cacheSet(cacheKey, payload, 60000); // 60 detik TTL
@@ -2984,7 +3017,7 @@ export async function getStationPerformanceRankingsAction() {
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
 
     let items: StationPerformanceRankItem[] | null = null;
 
@@ -3287,7 +3320,7 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
   }
 
   try {
-    const { prisma } = await import('@/infrastructure/db/prisma.client');
+    // proxy via IComplaintRepository
     const { Prisma } = await import('@prisma/client');
 
     let items: OperatorPerformanceRankItem[] | null = null;
@@ -3635,7 +3668,7 @@ export async function sendWhatsAppNotificationAction(input: {
 
     if (result.success && input.complaintId) {
       try {
-        const { prisma } = await import('@/infrastructure/db/prisma.client');
+        // proxy via IComplaintRepository
         let sessionUser: any = null;
       try {
         const { getSession } = await import('@/lib/session');

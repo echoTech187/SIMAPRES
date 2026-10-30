@@ -259,4 +259,33 @@ export class PrismaLogbookRepository implements ILogbookRepository {
 
     return this.mapToEntity(updated);
   }
+
+  async completePatrolGiat(id: bigint, finalMeters: number, catatanHasil?: string): Promise<any> {
+    const existing = await prisma.officerLogbook.findUnique({ where: { id } });
+    if (!existing) {
+      throw new Error('Data giat tidak ditemukan.');
+    }
+
+    const nowTime = new Date().toTimeString().slice(0, 5);
+    const finalKm = (Number(finalMeters) / 1000).toFixed(2);
+    const existingDesc = existing.activity_description || '';
+    const noteText = catatanHasil?.trim() || 'Patroli selesai dalam situasi aman dan kondusif.';
+
+    const updatedDesc = [
+      existingDesc,
+      `• Total Jarak Tempuh: ${finalKm} KM (Klaim BBM Sikeu / Bag Log)`,
+      `• Hasil Patroli: ${noteText}`,
+    ].join('\n');
+
+    return await prisma.officerLogbook.update({
+      where: { id },
+      data: {
+        end_time: nowTime,
+        deviation_meters: Number(finalMeters),
+        activity_description: updatedDesc,
+        validation_status: 'SELESAI',
+      },
+    });
+  }
 }
+

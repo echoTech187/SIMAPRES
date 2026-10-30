@@ -35,4 +35,12 @@ export class ManageHotspotsUseCase {
   async deleteHotspot(key: string): Promise<boolean> {
     return await this.hotspotRepo.delete(key);
   }
+
+  async getMasterOptions(): Promise<{ categories: any[]; dangerLevels: any[] }> {
+    if (!this.hotspotRepo.getMasterOptions) {
+      throw new Error('getMasterOptions is not supported by this repository implementation');
+    }
+    return await this.hotspotRepo.getMasterOptions();
+  }
 }
+
