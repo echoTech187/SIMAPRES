@@ -5,7 +5,11 @@ const nextConfig = {
   images: {
     unoptimized: true,
     dangerouslyAllowSVG: false,
-    domains: ['localhost', 'simapres-nu.vercel.app', 'maps.googleapis.com'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'simapres-nu.vercel.app' },
+      { protocol: 'https', hostname: 'maps.googleapis.com' },
+    ],
   },
   serverExternalPackages: ['@prisma/client', 'bcryptjs'],
   outputFileTracingIncludes: {
