@@ -49,8 +49,13 @@ export async function scanReceiptSpbuAction(
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Coba model prioritas (gemini-2.5-flash -> gemini-2.0-flash -> gemini-1.5-flash)
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // Model prioritas: gemini-3.8-flash adalah model multimodal resmi terbaru yang aktif untuk API key saat ini
+    const modelsToTry = [
+      'gemini-3.8-flash',
+      'gemini-flash-latest',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+    ];
     let lastError: any = null;
 
     for (const modelName of modelsToTry) {
@@ -115,9 +120,18 @@ Pastikan membaca angka desimal koma/titik dan tanggal secara cermat. Jika suatu 
     throw lastError || new Error('Gagal memproses gambar struk dengan semua model Gemini.');
   } catch (error: any) {
     console.error('Error scanning SPBU receipt with Gemini AI:', error);
+    let cleanMsg = error?.message || 'Gagal memindai struk dengan AI Vision.';
+    try {
+      const parsedJson = JSON.parse(cleanMsg);
+      if (parsedJson?.error?.message) {
+        cleanMsg = parsedJson.error.message;
+      }
+    } catch {
+      // bukan JSON, gunakan pesan apa adanya
+    }
     return {
       success: false,
-      error: error.message || 'Gagal memindai struk dengan AI Vision.',
+      error: cleanMsg,
     };
   }
 }
