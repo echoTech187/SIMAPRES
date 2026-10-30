@@ -1005,15 +1005,13 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         },
       });
 
-      // Simpan foto bukti lampiran kejadian langsung dari pelapor jika ada (eksklusif dokumen/foto pelapor)
+      // Simpan foto bukti lampiran kejadian langsung dari pelapor jika ada (Base64 aman di DB LONGTEXT)
       if (data.fotoBuktiUrl) {
-        const savedPhotoUrl = await saveBase64Image(data.fotoBuktiUrl, `pelapor_${newComplaint.id}`);
-
         await tx.complaintEvidence.create({
           data: {
             complaint_id: newComplaint.id,
             incident_phase: 'LAPORAN_AWAL',
-            file_url: (savedPhotoUrl || data.fotoBuktiUrl).slice(0, 255),
+            file_url: data.fotoBuktiUrl,
             caption: 'Foto Lampiran Kejadian dari Pelapor',
             exif_lat: data.tkpLat,
             exif_lng: data.tkpLng,
@@ -1289,11 +1287,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             },
           });
 
-          // 3.1 Simpan foto bukti watermark personel ke static storage disk terlebih dahulu
-          let savedPhotoUrl: string | null = null;
-          if (latestTimeline.fotoBuktiUrl) {
-            savedPhotoUrl = await saveBase64Image(latestTimeline.fotoBuktiUrl, `personel_${complaintId}`);
-          }
+          // 3.1 Catat foto bukti personil (Base64 aman tersimpan permanen di DB LONGTEXT)
+          const photoPayload = latestTimeline.fotoBuktiUrl || null;
 
           // 3.2 Catat ke officer_logbooks untuk Audit Integritas Dual-GPS (Propam)
           const devMeters = Number(latestTimeline?.deviationMeters || 0);
@@ -1313,7 +1308,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
                 is_deviation_flagged: isAnomaly,
                 start_time: nowTime,
                 end_time: nowTime,
-                photo_url: savedPhotoUrl ? savedPhotoUrl.slice(0, 255) : null,
+                photo_url: photoPayload,
                 photo_exif_lat: latestTimeline.gpsLat || null,
                 photo_exif_lng: latestTimeline.gpsLng || null,
                 activity_description: (latestTimeline.catatan || latestTimeline.tahapTitle || 'Tindakan Pengamanan TKP').slice(0, 1000),
@@ -1323,12 +1318,12 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           }
 
           // 3.3 Simpan foto bukti ke tabel terstruktur complaint_evidences (Atomik dalam Transaksi)
-          if (savedPhotoUrl) {
+          if (photoPayload) {
             await tx.complaintEvidence.create({
               data: {
                 complaint_id: complaintId,
                 incident_phase: (auditAction || 'TIBA_TKP').slice(0, 50),
-                file_url: savedPhotoUrl.slice(0, 255),
+                file_url: photoPayload,
                 caption: (latestTimeline.catatan || latestTimeline.tahapTitle || 'Foto Dokumentasi Personil Lapangan').slice(0, 255),
                 watermark_text: (latestTimeline.photoAddress || 'Watermark SIMAPRES 110').slice(0, 255),
                 exif_lat: finalLat,
@@ -1342,13 +1337,12 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             for (const ev of data.evidences) {
               const evAny = ev as any;
               const rawEvUrl = String(evAny.file_url || evAny.fileUrl || '');
-              if (rawEvUrl && rawEvUrl !== latestTimeline.fotoBuktiUrl && rawEvUrl !== savedPhotoUrl) {
-                const savedEvUrl = await saveBase64Image(rawEvUrl, `evidence_${complaintId}`);
+              if (rawEvUrl && rawEvUrl !== photoPayload) {
                 await tx.complaintEvidence.create({
                   data: {
                     complaint_id: complaintId,
                     incident_phase: String(evAny.incident_phase || auditAction || 'SELESAI').slice(0, 50),
-                    file_url: String(savedEvUrl || rawEvUrl).slice(0, 255),
+                    file_url: rawEvUrl,
                     caption: String(evAny.caption || 'Foto Berkas Bukti Lapangan').slice(0, 255),
                     watermark_text: String(evAny.watermark_text || 'Watermark SIMAPRES 110').slice(0, 255),
                     exif_lat: evAny.exif_lat ?? finalLat ?? null,

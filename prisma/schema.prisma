@@ -499,7 +499,7 @@ model User {
   full_name             String          @db.VarChar(120)
   phone_number          String          @db.VarChar(30)
   email                 String?         @db.VarChar(100)
-  avatar_url            String?         @db.VarChar(255)
+  avatar_url            String?         @db.LongText
   
   role_id               Int?
   role_rel              MasterRole?     @relation(fields: [role_id], references: [id], onDelete: SetNull)
@@ -553,7 +553,7 @@ model PoliceOfficer {
   last_gps_heartbeat_at   DateTime?
   
   kpi_score               Decimal                 @default(100.00) @db.Decimal(5, 2)
-  avatar_url              String?                 @db.VarChar(255)
+  avatar_url              String?                 @db.LongText
   device_id               String?                 @db.VarChar(64)   // Bound to Official Police Device
   
   logbooks                OfficerLogbook[]
@@ -866,7 +866,7 @@ model ComplaintEvidence {
   complaint             Complaint     @relation(fields: [complaint_id], references: [id], onDelete: Cascade)
   
   incident_phase        String        @db.VarChar(50) // "TIBA_TKP", "PENANGANAN", "SELESAI_KONDUSIF"
-  file_url              String        @db.VarChar(255)
+  file_url              String        @db.LongText
   caption               String?       @db.VarChar(255)
   watermark_text        String?       @db.VarChar(255)
   
@@ -923,7 +923,7 @@ model OfficerLogbook {
   start_time            String                  @db.VarChar(10)
   end_time              String                  @db.VarChar(10)
   
-  photo_url             String?                 @db.VarChar(255)
+  photo_url             String?                 @db.LongText
   photo_exif_lat        Decimal?                @db.Decimal(10, 8)
   photo_exif_lng        Decimal?                @db.Decimal(11, 8)
   

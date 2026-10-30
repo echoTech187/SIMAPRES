@@ -429,36 +429,6 @@ export async function getFuelAuditReportAction(stationId?: number | null, month?
 // ==============================================================================
 // 6. PENGAJUAN KLAIM STRUK BBM & SPIDOMETER PERSONEL LAPANGAN
 // ==============================================================================
-async function saveEvidencePhoto(photoDataUrl?: string, prefix = 'struk'): Promise<string | null> {
-  if (!photoDataUrl || typeof photoDataUrl !== 'string') return null;
-  if (!photoDataUrl.startsWith('data:image/')) {
-    return photoDataUrl.slice(0, 255);
-  }
-
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-    const matches = photoDataUrl.match(/^data:image\/([a-zA-Z0-9.+_-]+);base64,(.+)$/);
-    if (matches) {
-      const ext = matches[1].includes('jpeg') ? 'jpg' : matches[1].replace(/[^a-zA-Z0-9]/g, '');
-      const buffer = Buffer.from(matches[2], 'base64');
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      const fileName = `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext || 'jpg'}`;
-      const filePath = path.join(uploadDir, fileName);
-      fs.writeFileSync(filePath, buffer);
-      return `/uploads/${fileName}`;
-    }
-  } catch (err) {
-    console.warn(`[Evidence] Gagal menyimpan file ${prefix} ke public/uploads:`, err);
-  }
-
-  // Fallback jika filesystem serverless read-only:
-  return `/uploads/${prefix}_archive_${Date.now()}.jpg`;
-}
-
 export async function submitFuelClaimAction(input: {
   complaintId?: string | number | null;
   dispatchId?: string | number | null;
@@ -519,9 +489,9 @@ export async function submitFuelClaimAction(input: {
       input.notes ? `Catatan: ${input.notes}` : null,
     ].filter(Boolean).join(' | ');
 
-    // Simpan foto bukti ke direktori static public/uploads agar URL ringkas (< 255 karakter)
-    const savedStrukUrl = await saveEvidencePhoto(input.strukPhotoUrl, 'struk_bbm');
-    const savedSpidometerUrl = await saveEvidencePhoto(input.spidometerPhotoUrl, 'spidometer');
+    // Simpan foto bukti langsung format Base64 ke DB (tipe LONGTEXT) untuk integritas audit dan serverless persistence
+    const savedStrukUrl = input.strukPhotoUrl || null;
+    const savedSpidometerUrl = input.spidometerPhotoUrl || null;
 
     if (dispatch) {
       await prisma.complaintDispatch.update({
@@ -588,7 +558,7 @@ export async function submitFuelClaimAction(input: {
             deviation_meters: 0,
             start_time: nowTime,
             end_time: nowTime,
-            photo_url: savedStrukUrl ? savedStrukUrl.slice(0, 255) : null,
+            photo_url: savedStrukUrl || null,
             activity_description: `[KLAIM BBM DIPA LOGISTIK - ${input.liters} Liter / Rp ${Number(input.costRupiah).toLocaleString('id-ID')}] ${notesSummary}`.slice(0, 1000),
             validation_status: 'VALID',
           },
