@@ -65,12 +65,12 @@ export async function scanReceiptSpbuAction(
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Model Gemini Flash resmi (@google/genai) untuk analisis multimodal kilat
+    // Prioritaskan model generasi Gemini 3.* Flash (respon kilat ~2-4 detik)
     const modelsToTry = [
-      'gemini-2.0-flash',
-      'gemini-2.5-flash',
+      'gemini-3.5-flash',
+      'gemini-3.6-flash',
+      'gemini-3.8-flash',
       'gemini-flash-latest',
-      'gemini-2.0-flash-lite',
     ];
     let lastError: any = null;
 
