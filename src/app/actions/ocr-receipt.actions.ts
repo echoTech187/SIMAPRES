@@ -16,7 +16,7 @@ export interface ScannedReceiptData {
 
 /**
  * Server Action untuk memindai foto struk SPBU menggunakan Gemini AI Vision
- * Mengekstrak Tanggal Pembelian, Jam, Nama SPBU, No. Struk, Jenis BBM, Liter, & Total Rupiah.
+ * Dioptimalkan untuk kecepatan kilat (2-4 detik) tanpa antrean 503 high demand.
  */
 export async function scanReceiptSpbuAction(
   imageBase64: string
@@ -49,12 +49,12 @@ export async function scanReceiptSpbuAction(
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Model prioritas: gemini-3.8-flash adalah model multimodal resmi terbaru yang aktif untuk API key saat ini
+    // Prioritaskan gemini-3.5-flash & gemini-3.6-flash (respon kilat ~2 detik tanpa antrean 503 high-demand)
     const modelsToTry = [
+      'gemini-3.5-flash',
+      'gemini-3.6-flash',
       'gemini-3.8-flash',
       'gemini-flash-latest',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
     ];
     let lastError: any = null;
 
@@ -89,6 +89,7 @@ Pastikan membaca angka desimal koma/titik dan tanggal secara cermat. Jika suatu 
             },
           ],
           config: {
+            thinkingConfig: { thinkingBudget: 0 }, // Matikan thinking tokens agar respon instan
             responseMimeType: 'application/json',
             responseSchema: {
               type: Type.OBJECT,

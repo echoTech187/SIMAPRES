@@ -86,7 +86,7 @@ export default function ModalKlaimBbm({
    * Kompresi gambar sisi klien agar tidak melebihi batas request payload (1MB)
    * dan mempercepat pengiriman ke server action & Gemini AI.
    */
-  const compressImageClient = (file: File, maxDim = 1600, quality = 0.85): Promise<string> => {
+  const compressImageClient = (file: File, maxDim = 1280, quality = 0.8): Promise<string> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onerror = () => resolve('');
