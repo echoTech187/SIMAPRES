@@ -1,4 +1,4 @@
-// SIMAPRES 110 - Strict RBAC, Single Console URL & Security Middleware
+// SIMOPMAS 110 - Strict RBAC, Single Console URL & Security Middleware
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import {
@@ -8,7 +8,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from './lib/session-token';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Lewati static assets, API calls publik, file berekstensi, favicon
