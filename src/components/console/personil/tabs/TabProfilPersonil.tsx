@@ -43,6 +43,7 @@ import {
   getOfficerPerformanceRankingsAction,
   type OfficerPerformanceRankItem,
 } from '@/app/actions/complaint.actions';
+import { compressAndSanitizeImageClient } from '@/lib/client-image-compressor';
 import { toast } from '@/components/ui/Toast';
 
 interface TabProfilPersonilProps {
@@ -155,28 +156,31 @@ export default function TabProfilPersonil({
     }
   };
 
-  // Avatar file selection handler
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Avatar file selection handler (Proteksi Berlapis 5MB, Ekstensi, MIME, Magic Bytes, Canvas 512px)
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.warning('Format Berkas', 'Berkas harus berupa gambar berformat JPG, PNG, atau WEBP');
-      return;
-    }
+    try {
+      const result = await compressAndSanitizeImageClient(file, {
+        maxDimension: 512,
+        quality: 0.80,
+        maxSizeKB: 250,
+      });
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.warning('Ukuran Berkas', 'Ukuran berkas foto maksimal 5MB');
-      return;
-    }
+      if (!result.success || !result.dataUrl) {
+        toast.warning('Verifikasi Berkas', result.error || 'Berkas foto tidak memenuhi standar keamanan.');
+        e.target.value = '';
+        return;
+      }
 
-    setSelectedAvatarFile(file);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setEditAvatar(result);
-    };
-    reader.readAsDataURL(file);
+      setSelectedAvatarFile(file);
+      setEditAvatar(result.dataUrl);
+      toast.info('Foto Terpilih', `Foto profil terverifikasi aman & terkompresi (${result.sizeKB} KB).`);
+    } catch (err: any) {
+      toast.warning('Gagal Memproses Foto', err?.message || 'Format berkas tidak didukung.');
+      e.target.value = '';
+    }
   };
 
   // Save Profile Handler

@@ -5,6 +5,7 @@ import { invalidatePawasUnifiedCache } from './pawas.actions';
 import { serializeBigInt } from '@/lib/serialization';
 import { getErrorMessage, type ActionResult } from '@/types/action.types';
 import { requireRole } from '@/lib/session';
+import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
 
 const officerLogbooksCache = new Map<string, { data: any[]; expiresAt: number }>();
 const OFFICER_LOGBOOKS_CACHE_TTL_MS = 60 * 1000; // 60 detik cache per personel
@@ -41,6 +42,14 @@ export async function createLogbookAction(input: {
     const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
     if (!auth.authorized) {
       return { success: false, error: auth.error };
+    }
+
+    // Validasi Integritas Foto Bukti Giat (Maksimal 5MB, Magic Bytes, Format Sah)
+    if (input.fotoBuktiUrl) {
+      const vFoto = validateBase64ImagePayload(input.fotoBuktiUrl);
+      if (!vFoto.valid) {
+        return { success: false, error: 'Foto bukti giat tidak valid: ' + vFoto.error };
+      }
     }
 
     const nowTime = new Date().toTimeString().slice(0, 5);

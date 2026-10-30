@@ -25,6 +25,7 @@ import {
   searchIndonesianLocations,
   type LocationSuggestionItem,
 } from '@/infrastructure/services/indonesian-location-search.service';
+import { compressAndSanitizeImageClient } from '@/lib/client-image-compressor';
 
 const MiniMapPicker = dynamic(() => import('@/components/maps/MiniMapPicker'), {
   ssr: false,
@@ -222,23 +223,29 @@ export default function PortalWargaPage() {
     );
   };
 
-  // 5. Handle Photo Attachment (Base64)
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 5. Handle Photo Attachment (Proteksi Berlapis & Kompresi Klien < 500KB, max 1080px, Base64)
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Ukuran foto terlalu besar. Maksimal 5 MB.');
-      return;
-    }
+    try {
+      const result = await compressAndSanitizeImageClient(file, {
+        maxDimension: 1080,
+        quality: 0.75,
+        maxSizeKB: 450,
+      });
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setFotoBukti(reader.result);
+      if (!result.success || !result.dataUrl) {
+        alert(result.error || 'Berkas foto tidak lolos verifikasi keamanan.');
+        e.target.value = '';
+        return;
       }
-    };
-    reader.readAsDataURL(file);
+
+      setFotoBukti(result.dataUrl);
+    } catch (err: any) {
+      alert('Gagal memproses foto: ' + (err?.message || 'Format tidak didukung.'));
+      e.target.value = '';
+    }
   };
 
   // 6. Handle Submit Complaint (Standard Flow)

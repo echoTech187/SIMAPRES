@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Select2CustomDropdown from '@/components/ui/Select2CustomDropdown';
+import { compressAndSanitizeImageClient } from '@/lib/client-image-compressor';
 
 export interface TabBuatLogPawasProps {
   logWaktuMulai: string;
@@ -121,13 +122,27 @@ export default function TabBuatLogPawas({
           <input
             type="file"
             id="log-file-input"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/*"
             style={{ display: 'none' }}
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files?.[0];
               if (file) {
-                const url = URL.createObjectURL(file);
-                setLogFotoPreview(url);
+                try {
+                  const result = await compressAndSanitizeImageClient(file, {
+                    maxDimension: 1080,
+                    quality: 0.75,
+                    maxSizeKB: 450,
+                  });
+                  if (result.success && result.dataUrl) {
+                    setLogFotoPreview(result.dataUrl);
+                  } else {
+                    alert(result.error || 'Berkas foto tidak lolos verifikasi keamanan.');
+                    e.target.value = '';
+                  }
+                } catch (err: any) {
+                  alert('Gagal memproses foto: ' + (err?.message || 'Format tidak didukung.'));
+                  e.target.value = '';
+                }
               }
             }}
           />

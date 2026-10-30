@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { submitFuelClaimAction } from '@/app/actions/master.actions';
 import { scanReceiptSpbuAction, type ScannedReceiptData } from '@/app/actions/ocr-receipt.actions';
+import { compressAndSanitizeImageClient } from '@/lib/client-image-compressor';
 import type { OfficerProfile, ComplaintData } from '../types';
 
 interface ModalKlaimBbmProps {
@@ -96,53 +97,6 @@ export default function ModalKlaimBbm({
         (authenticityData.authenticityScore !== undefined && authenticityData.authenticityScore < 60))
   );
 
-  /**
-   * Kompresi gambar sisi klien agar tidak melebihi batas request payload (1MB)
-   * dan mempercepat pengiriman ke server action & Gemini AI.
-   */
-  const compressImageClient = (file: File, maxDim = 1280, quality = 0.8): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onerror = () => resolve('');
-      reader.onload = (e) => {
-        const rawDataUrl = e.target?.result as string;
-        if (!rawDataUrl) return resolve('');
-
-        const img = new Image();
-        img.onerror = () => resolve(rawDataUrl);
-        img.onload = () => {
-          try {
-            let { width, height } = img;
-            if (width > maxDim || height > maxDim) {
-              if (width > height) {
-                height = Math.round((height * maxDim) / width);
-                width = maxDim;
-              } else {
-                width = Math.round((width * maxDim) / height);
-                height = maxDim;
-              }
-            }
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) {
-              resolve(rawDataUrl);
-              return;
-            }
-            ctx.drawImage(img, 0, 0, width, height);
-            const compressed = canvas.toDataURL('image/jpeg', quality);
-            resolve(compressed);
-          } catch {
-            resolve(rawDataUrl);
-          }
-        };
-        img.src = rawDataUrl;
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (val: string | null) => void,
@@ -151,23 +105,28 @@ export default function ModalKlaimBbm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 20 * 1024 * 1024) {
-      setErrorMsg('Ukuran berkas maksimal 20 MB.');
-      return;
-    }
-
     try {
-      const compressedDataUrl = await compressImageClient(file);
-      if (compressedDataUrl) {
-        setter(compressedDataUrl);
-        if (isReceipt) {
-          setAuthenticityData(null);
-          setErrorMsg(null);
-          setScanNotice({
-            type: 'info',
-            text: 'Foto struk terpilih & dioptimalkan. Klik tombol "Pindai & Audit Keaslian Struk" untuk verifikasi keabsahan fisik.',
-          });
-        }
+      // Proteksi Berlapis: Ukuran <= 5MB, Ekstensi, MIME Whitelist, Magic Bytes, Decompression Bomb, Re-encode Canvas 1080px
+      const result = await compressAndSanitizeImageClient(file, {
+        maxDimension: 1080,
+        quality: 0.75,
+        maxSizeKB: 450,
+      });
+
+      if (!result.success || !result.dataUrl) {
+        setErrorMsg(result.error || 'Berkas foto tidak lolos verifikasi keamanan.');
+        return;
+      }
+
+      setErrorMsg(null);
+      setter(result.dataUrl);
+
+      if (isReceipt) {
+        setAuthenticityData(null);
+        setScanNotice({
+          type: 'info',
+          text: `Foto struk lolos verifikasi integritas & terkompresi (${result.sizeKB} KB). Klik tombol "Pindai & Audit Keaslian Struk" untuk analisis forensik fisik.`,
+        });
       }
     } catch (err: any) {
       setErrorMsg('Gagal memproses gambar: ' + (err?.message || 'Format tidak didukung.'));

@@ -18,6 +18,7 @@ import {
   getClientIp,
   RATE_LIMIT_CONFIG,
 } from '@/infrastructure/security/rate-limiter';
+import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
 
 export async function createComplaintAction(input: CreateComplaintActionInput) {
   try {
@@ -87,6 +88,14 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
           finalAlamat = resolved;
         }
       } catch (_) {}
+    }
+
+    // Validasi Integritas Foto Bukti Pelapor (Maksimal 5MB, Magic Bytes, Format Sah)
+    if (initialFoto) {
+      const vFoto = validateBase64ImagePayload(initialFoto);
+      if (!vFoto.valid) {
+        return { success: false, error: 'Foto lampiran bukti tidak valid: ' + vFoto.error };
+      }
     }
 
     const useCase = UseCaseFactory.getCreateComplaintUseCase();

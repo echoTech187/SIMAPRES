@@ -532,8 +532,22 @@ export default function LiveCameraWatermarkCapture({
         video.play().catch(console.warn);
       }
 
-      const width = video.videoWidth > 0 ? video.videoWidth : 1280;
-      const height = video.videoHeight > 0 ? video.videoHeight : 720;
+      const rawW = video.videoWidth > 0 ? video.videoWidth : 1280;
+      const rawH = video.videoHeight > 0 ? video.videoHeight : 720;
+      const maxDim = 1080;
+      let width = rawW;
+      let height = rawH;
+
+      // Kompresi resolusi: batasi maksimal dimensi 1080px dengan mempertahankan aspect ratio
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
 
       const canvas = canvasRef.current || document.createElement('canvas');
       canvas.width = width;
@@ -541,6 +555,9 @@ export default function LiveCameraWatermarkCapture({
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
 
       // Render frame video asli dari kamera (Mirroring horizontal jika kamera depan agar natural)
       if (facingMode === 'user') {
@@ -564,7 +581,8 @@ export default function LiveCameraWatermarkCapture({
       // Sematkan watermark lokasi & koordinat terkini personel langsung ke piksel kanvas
       stampWatermarkOnCanvas(ctx, width, height);
 
-      const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.90);
+      // Kompresi optimal: JPEG kualitas 0.75 (menghasilkan ukuran file aman < 300 - 500 KB)
+      const watermarkedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
       const meta = {
         lat: activeLat,
         lng: activeLng,

@@ -227,3 +227,67 @@ export async function cleanupOrphanUserAvatars(
     // Non-blocking cleanup
   }
 }
+
+/**
+ * Layer Tambahan Server-Side: Validasi Integritas Base64 Image Payload.
+ * Memeriksa Data URL, batas ukuran byte biner, magic bytes, dan format gambar yang sah.
+ */
+export function validateBase64ImagePayload(
+  dataUrl?: string | null,
+  maxBytes: number = FILE_UPLOAD_LIMITS.MAX_RAW_SIZE_BYTES
+): { valid: boolean; error?: string; detectedMime?: string } {
+  if (!dataUrl) {
+    return { valid: true }; // Opsional jika field boleh kosong
+  }
+
+  if (typeof dataUrl !== 'string') {
+    return { valid: false, error: 'Format data foto tidak valid.' };
+  }
+
+  // Izinkan path URL static yang sah (misal avatar bawaan sistem atau URL CDN)
+  if (dataUrl.startsWith('/') || dataUrl.startsWith('http://') || dataUrl.startsWith('https://')) {
+    return { valid: true };
+  }
+
+  const prefixMatch = dataUrl.match(/^data:image\/(jpeg|png|webp|heic);base64,(.+)$/);
+  if (!prefixMatch) {
+    return {
+      valid: false,
+      error: 'Data foto harus berformat Data URL Base64 yang sah (data:image/jpeg, data:image/png, atau data:image/webp).',
+    };
+  }
+
+  const mime = `image/${prefixMatch[1]}`;
+  const base64Data = prefixMatch[2];
+
+  // Hitung ukuran biner sebenarnya
+  const padding = (base64Data.match(/=+$/) || [''])[0].length;
+  const decodedBytesLength = (base64Data.length * 3) / 4 - padding;
+
+  if (decodedBytesLength > maxBytes) {
+    return {
+      valid: false,
+      error: `Ukuran foto terurai (${(decodedBytesLength / (1024 * 1024)).toFixed(2)} MB) melebihi batas maksimal 5 MB.`,
+    };
+  }
+
+  if (decodedBytesLength < 16) {
+    return { valid: false, error: 'Data foto terlalu kecil atau tidak lengkap.' };
+  }
+
+  // Periksa binary magic bytes dari 24 karakter awal Base64
+  try {
+    const headerBuffer = Buffer.from(base64Data.slice(0, 32), 'base64');
+    const magicResult = validateImageMagicBytes(headerBuffer);
+    if (!magicResult.valid) {
+      return {
+        valid: false,
+        error: `Integritas biner foto ditolak: ${magicResult.error || 'Magic bytes tidak cocok dengan gambar asli.'}`,
+      };
+    }
+  } catch (err: any) {
+    return { valid: false, error: 'Gagal mendecode header biner foto: ' + (err?.message || 'Error.') };
+  }
+
+  return { valid: true, detectedMime: mime };
+}

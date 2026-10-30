@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { updateUserProfileAndAvatarAction, updateUserPasswordAction } from '@/app/actions/auth.actions';
+import { compressAndSanitizeImageClient } from '@/lib/client-image-compressor';
 import { getInitials } from '../HeaderProfileBadge';
 import ResponsiveModal from '@/components/ui/ResponsiveModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
@@ -181,28 +182,30 @@ export default function TabProfilSuperadmin({
     }
   };
 
-  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      showToast('Berkas harus berupa gambar berformat JPG, PNG, atau WEBP');
-      return;
-    }
+    try {
+      const result = await compressAndSanitizeImageClient(file, {
+        maxDimension: 512,
+        quality: 0.80,
+        maxSizeKB: 250,
+      });
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Ukuran berkas foto maksimal 5MB');
-      return;
-    }
+      if (!result.success || !result.dataUrl) {
+        showToast(result.error || 'Berkas foto tidak memenuhi standar keamanan.');
+        e.target.value = '';
+        return;
+      }
 
-    setSelectedAvatarFile(file);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setEditAvatar(result);
-      showToast('✓ Foto profil berhasil dipilih! Klik "Simpan Perubahan Profil" untuk menerapkan.');
-    };
-    reader.readAsDataURL(file);
+      setSelectedAvatarFile(file);
+      setEditAvatar(result.dataUrl);
+      showToast(`✓ Foto profil berhasil diverifikasi aman & terkompresi (${result.sizeKB} KB)! Klik "Simpan Perubahan Profil" untuk menerapkan.`);
+    } catch (err: any) {
+      showToast('Gagal memproses foto: ' + (err?.message || 'Format tidak didukung.'));
+      e.target.value = '';
+    }
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {

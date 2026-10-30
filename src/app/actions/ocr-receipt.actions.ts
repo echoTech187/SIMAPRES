@@ -1,6 +1,7 @@
 'use server';
 
 import { GoogleGenAI, Type } from '@google/genai';
+import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
 
 export interface ScannedReceiptData {
   // Analisis Forensik & Keaslian Struk BBM
@@ -46,6 +47,12 @@ export async function scanReceiptSpbuAction(
         success: false,
         error: 'Berkas foto struk tidak valid atau kosong.',
       };
+    }
+
+    // Layer Keamanan: Validasi integritas Base64 & binary signature
+    const vCheck = validateBase64ImagePayload(imageBase64);
+    if (!vCheck.valid) {
+      return { success: false, error: 'Foto struk ditolak: ' + vCheck.error };
     }
 
     // Deteksi MIME type dari data URL jika ada

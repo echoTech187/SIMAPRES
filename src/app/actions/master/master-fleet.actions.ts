@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma, serializeBigInt, auditLog, parsePositiveIntId, revalidatePath, requireSuperadmin, requireRole } from './master-common';
+import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
 
 // ==============================================================================
 // 1. MASTER TIPE & STATUS OPERASIONAL KENDARAAN (master_vehicle_types & master_vehicle_statuses)
@@ -462,6 +463,20 @@ export async function submitFuelClaimAction(input: {
         error:
           'Pengajuan klaim ditolak sistem: Struk BBM terdeteksi sebagai rekayasa digital atau bukan struk resmi SPBU.',
       };
+    }
+
+    // Validasi Integritas Foto Bukti Sisi Server (Maksimal 5MB, Magic Bytes, Format Sah)
+    if (input.strukPhotoUrl) {
+      const vStruk = validateBase64ImagePayload(input.strukPhotoUrl);
+      if (!vStruk.valid) {
+        return { success: false, error: 'Foto struk tidak valid: ' + vStruk.error };
+      }
+    }
+    if (input.spidometerPhotoUrl) {
+      const vSpido = validateBase64ImagePayload(input.spidometerPhotoUrl);
+      if (!vSpido.valid) {
+        return { success: false, error: 'Foto spidometer tidak valid: ' + vSpido.error };
+      }
     }
 
     const diajukanStatus = await prisma.masterFuelClaimStatus.findUnique({
