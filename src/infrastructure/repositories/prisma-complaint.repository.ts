@@ -419,25 +419,39 @@ export class PrismaComplaintRepository implements IComplaintRepository {
   ): Promise<ComplaintEntity[]> {
     const query = Prisma.sql`
       SELECT 
-        c.id, c.nomor_tiket, c.pelapor_nama, c.pelapor_hp, c.jenis_kejadian, c.urgensi,
-        c.category_id, c.kategori_key, c.subcategory_id, c.source_id, c.platform_key,
+        c.id, c.nomor_tiket, c.pelapor_nama, c.pelapor_hp, c.jenis_kejadian,
+        COALESCE(mul.key, c.urgensi) as urgensi,
+        c.category_id,
+        COALESCE(cat.key, c.kategori_key) as kategori_key,
+        c.subcategory_id,
+        c.source_id,
+        COALESCE(src.key, c.platform_key) as platform_key,
         c.station_id, c.operator_id, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng,
-        c.ringkasan_keterangan, c.status, c.tahap, c.alasan_tolak,
+        c.ringkasan_keterangan,
+        COALESCE(mcs.key, c.status) as status,
+        c.tahap,
+        COALESCE(mrr.label, c.alasan_tolak) as alasan_tolak,
+        c.rejection_reason_id,
         c.resolution_location_id, c.resolution_location_key, c.resolution_location_name,
         c.resolution_document_id, c.resolution_document_key, c.resolution_document_name,
         c.created_at, c.updated_at,
         
         -- Primary Dispatch & Officer
-        d.id as dispatch_id, d.officer_id, d.unit_id as dispatch_unit_id, d.dispatch_status,
+        d.id as dispatch_id, d.officer_id, d.unit_id as dispatch_unit_id,
+        COALESCE(mds.key, d.dispatch_status) as dispatch_status,
         d.dispatched_at, d.accepted_at, d.departed_at, d.arrived_at, d.completed_at,
         d.estimated_distance, d.estimated_eta, d.tactical_orders, d.crew_partner_name,
+        d.estimated_distance_meters, d.estimated_eta_seconds,
         
         -- Unit
         u.unit_name, u.short_name as unit_short_name,
         
         -- Officer
-        po.nrp as officer_nrp, po.rank_pangkat as officer_rank, po.jabatan as officer_jabatan,
-        po.avatar_url as officer_avatar, po.assigned_patrol_vehicle as officer_vehicle,
+        po.nrp as officer_nrp,
+        COALESCE(mr.label, po.rank_pangkat) as officer_rank,
+        po.jabatan as officer_jabatan,
+        po.avatar_url as officer_avatar,
+        COALESCE(pv.nomor_lambung, po.assigned_patrol_vehicle) as officer_vehicle,
         po.current_gps_lat as officer_gps_lat, po.current_gps_lng as officer_gps_lng,
         usr.full_name as officer_full_name, usr.phone_number as officer_phone,
         
@@ -461,14 +475,20 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         al.logs_json
 
       FROM complaints c
+      LEFT JOIN master_complaint_statuses mcs ON mcs.id = c.status_id
+      LEFT JOIN master_urgency_levels mul ON mul.id = c.urgency_id
+      LEFT JOIN master_rejection_reasons mrr ON mrr.id = c.rejection_reason_id
       LEFT JOIN (
         SELECT * FROM (
           SELECT *, ROW_NUMBER() OVER (PARTITION BY complaint_id ORDER BY is_primary_unit DESC, id DESC) as rn
           FROM complaint_dispatches
         ) ranked_d WHERE ranked_d.rn = 1
       ) d ON d.complaint_id = c.id
+      LEFT JOIN master_dispatch_statuses mds ON mds.id = d.dispatch_status_id
       LEFT JOIN master_operational_units u ON u.id = d.unit_id
       LEFT JOIN police_officers po ON po.id = d.officer_id
+      LEFT JOIN master_ranks mr ON mr.id = po.rank_id
+      LEFT JOIN patrol_vehicles pv ON pv.id = po.assigned_vehicle_id
       LEFT JOIN users usr ON usr.id = po.user_id
       LEFT JOIN police_stations st ON st.id = c.station_id
       LEFT JOIN master_incident_categories cat ON cat.id = c.category_id

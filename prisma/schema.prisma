@@ -231,24 +231,28 @@ model MasterHotspotDangerLevel {
 
 // 1.13 Master Police Ranks (Pangkat Kepolisian)
 model MasterRank {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @db.VarChar(50) // "BRIPDA", "BRIPTU", "BRIGADIR", "BRIPKA", "AIPDA", "AIPTU", "IPDA", "IPTU", "AKP", "KOMPOL", "AKBP", "KOMBES"
-  label         String   @db.VarChar(100)
-  display_order Int      @default(1)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
+  id            Int             @id @default(autoincrement())
+  key           String          @unique @db.VarChar(50) // "BRIPDA", "BRIPTU", "BRIGADIR", "BRIPKA", "AIPDA", "AIPTU", "IPDA", "IPTU", "AKP", "KOMPOL", "AKBP", "KOMBES"
+  label         String          @db.VarChar(100)
+  display_order Int             @default(1)
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now())
+
+  officers      PoliceOfficer[]
 
   @@map("master_ranks")
 }
 
 // 1.14 Master Complaint Rejection Reasons
 model MasterRejectionReason {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @db.VarChar(50)
-  label         String   @db.VarChar(150)
-  display_order Int      @default(1)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
+  id            Int         @id @default(autoincrement())
+  key           String      @unique @db.VarChar(50)
+  label         String      @db.VarChar(150)
+  display_order Int         @default(1)
+  is_active     Boolean     @default(true)
+  created_at    DateTime    @default(now())
+
+  complaints    Complaint[]
 
   @@map("master_rejection_reasons")
 }
@@ -270,25 +274,29 @@ model MasterDispatchStatus {
 
 // Master Vehicle Types
 model MasterVehicleType {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @db.VarChar(50)
-  label         String   @db.VarChar(150)
-  display_order Int      @default(1)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
+  id            Int             @id @default(autoincrement())
+  key           String          @unique @db.VarChar(50)
+  label         String          @db.VarChar(150)
+  display_order Int             @default(1)
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now())
+
+  vehicles      PatrolVehicle[]
 
   @@map("master_vehicle_types")
 }
 
 // Master Vehicle Statuses
 model MasterVehicleStatus {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @db.VarChar(50)
-  label         String   @db.VarChar(150)
-  badge_color   String?  @default("#10B981") @db.VarChar(20)
-  display_order Int      @default(1)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
+  id            Int             @id @default(autoincrement())
+  key           String          @unique @db.VarChar(50)
+  label         String          @db.VarChar(150)
+  badge_color   String?         @default("#10B981") @db.VarChar(20)
+  display_order Int             @default(1)
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now())
+
+  vehicles      PatrolVehicle[]
 
   @@map("master_vehicle_statuses")
 }
@@ -326,27 +334,30 @@ model MasterResolutionDocumentType {
 
 // 1.17 Master Digital Knowledge Base / Dynamic FAQ Operator 110 & SOP Layanan
 model MasterKnowledgeFaq {
-  id                  Int       @id @default(autoincrement())
-  slug                String    @unique @db.VarChar(100) // "sim-perpanjang", "sim-baru", etc.
-  kategori            String    @db.VarChar(50)          // "LANTAS_SIM", "SAMSAT_STNK_BPKB", etc.
-  kategori_label      String    @db.VarChar(100)         // "Lalu Lintas & SIM"
-  icon                String    @default("📖") @db.VarChar(20)
-  judul               String    @db.VarChar(200)
-  subjudul            String    @db.VarChar(255)
-  tags                String    @db.Text                 // JSON array of strings
-  persyaratan         String    @db.Text                 // JSON array of strings
-  prosedur            String    @db.Text                 // JSON array of strings
-  biaya_pnbp          String    @db.VarChar(255)
-  lokasi_pelayanan    String    @db.Text
-  jam_operasional     String    @db.VarChar(200)
-  waktu_penyelesaian  String    @db.VarChar(100)
-  script_operator     String    @db.Text
-  kontak_penting      String?   @db.VarChar(255)
-  is_active           Boolean   @default(true)
-  display_order       Int       @default(1)
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  id                  Int                         @id @default(autoincrement())
+  slug                String                      @unique @db.VarChar(100) // "sim-perpanjang", "sim-baru", etc.
+  category_id         Int?
+  category_rel        MasterKnowledgeFaqCategory? @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  kategori            String                      @db.VarChar(50)          // "LANTAS_SIM", "SAMSAT_STNK_BPKB", etc.
+  kategori_label      String                      @db.VarChar(100)         // "Lalu Lintas & SIM"
+  icon                String                      @default("📖") @db.VarChar(20)
+  judul               String                      @db.VarChar(200)
+  subjudul            String                      @db.VarChar(255)
+  tags                String                      @db.Text                 // JSON array of strings
+  persyaratan         String                      @db.Text                 // JSON array of strings
+  prosedur            String                      @db.Text                 // JSON array of strings
+  biaya_pnbp          String                      @db.VarChar(255)
+  lokasi_pelayanan    String                      @db.Text
+  jam_operasional     String                      @db.VarChar(200)
+  waktu_penyelesaian  String                      @db.VarChar(100)
+  script_operator     String                      @db.Text
+  kontak_penting      String?                     @db.VarChar(255)
+  is_active           Boolean                     @default(true)
+  display_order       Int                         @default(1)
+  created_at          DateTime                    @default(now())
+  updated_at          DateTime                    @updatedAt
 
+  @@index([category_id], map: "idx_faq_category_id")
   @@index([kategori], map: "idx_faq_kategori")
   @@index([is_active], map: "idx_faq_active")
   @@map("master_knowledge_faqs")
@@ -354,15 +365,17 @@ model MasterKnowledgeFaq {
 
 // 1.18 Master Kategori Buku Pintar SOP & Dynamic FAQ Layanan
 model MasterKnowledgeFaqCategory {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @db.VarChar(50)  // "LANTAS_SIM", "SAMSAT_STNK_BPKB", etc.
-  label         String   @db.VarChar(100)         // "Lalu Lintas & SIM"
-  icon          String   @default("📖") @db.VarChar(20) // "🚗", "📑", "🪪", etc.
-  description   String?  @db.VarChar(255)
-  display_order Int      @default(1)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id            Int                  @id @default(autoincrement())
+  key           String               @unique @db.VarChar(50)  // "LANTAS_SIM", "SAMSAT_STNK_BPKB", etc.
+  label         String               @db.VarChar(100)         // "Lalu Lintas & SIM"
+  icon          String               @default("📖") @db.VarChar(20) // "🚗", "📑", "🪪", etc.
+  description   String?              @db.VarChar(255)
+  display_order Int                  @default(1)
+  is_active     Boolean              @default(true)
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @updatedAt
+
+  faqs          MasterKnowledgeFaq[]
 
   @@index([is_active], map: "idx_faq_cat_active")
   @@map("master_knowledge_faq_categories")
@@ -402,14 +415,16 @@ model MasterFuelClaimStatus {
 
 // 1.21 Master Patrol Crew Roles (Peran Awak Regu Patroli 110 Polsek - Anti-Hardcode)
 model MasterPatrolCrewRole {
-  id            Int      @id @default(autoincrement())
-  key           String   @unique @db.VarChar(50) // "KATIM_REGU", "DRIVER_ARMADA", "BINTARA_PENINDAK", "BINTARA_PENGAMAN", "BAMIN_SIAGA"
-  label         String   @db.VarChar(100)
-  description   String?  @db.VarChar(255)
-  display_order Int      @default(1)
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id            Int                   @id @default(autoincrement())
+  key           String                @unique @db.VarChar(50) // "KATIM_REGU", "DRIVER_ARMADA", "BINTARA_PENINDAK", "BINTARA_PENGAMAN", "BAMIN_SIAGA"
+  label         String                @db.VarChar(100)
+  description   String?               @db.VarChar(255)
+  display_order Int                   @default(1)
+  is_active     Boolean               @default(true)
+  created_at    DateTime              @default(now())
+  updated_at    DateTime              @updatedAt
+
+  piket_members PiketScheduleMember[]
 
   @@map("master_patrol_crew_roles")
 }
@@ -514,6 +529,8 @@ model PoliceOfficer {
   user_id                 BigInt                  @unique
   user                    User                    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   nrp                     String                  @unique @db.VarChar(20)
+  rank_id                 Int?
+  rank_rel                MasterRank?             @relation(fields: [rank_id], references: [id], onDelete: SetNull)
   rank_pangkat            String                  @db.VarChar(50)   // "Kompol", "Bripka", "Aipda"
   jabatan                 String                  @db.VarChar(100)  // "Ba Turjawali Samapta", "Pawas Piket Komando"
   
@@ -526,6 +543,8 @@ model PoliceOfficer {
   duty_status_rel         MasterDutyStatus?       @relation(fields: [duty_status_id], references: [id], onDelete: SetNull)
   duty_status             String                  @default("LEPAS_DINAS") @db.VarChar(50)
   
+  assigned_vehicle_id     Int?
+  assigned_vehicle        PatrolVehicle?          @relation("OfficerAssignedVehicle", fields: [assigned_vehicle_id], references: [id], onDelete: SetNull)
   assigned_patrol_vehicle String?                 @db.VarChar(50)   // "R4-Samapta-81"
   
   // Single Source of Truth for Live GPS
@@ -538,7 +557,10 @@ model PoliceOfficer {
   device_id               String?                 @db.VarChar(64)   // Bound to Official Police Device
   
   logbooks                OfficerLogbook[]
-  dispatches              ComplaintDispatch[]
+  dispatches              ComplaintDispatch[]     @relation("DispatchPrimaryOfficer")
+  lead_dispatches         ComplaintDispatch[]     @relation("DispatchCrewLeader")
+  partner_dispatches      ComplaintDispatch[]     @relation("DispatchCrewPartner")
+  driven_vehicles         PatrolVehicle[]         @relation("VehicleActiveDriver")
   vehicle_sessions        VehicleUsageLog[]
   created_hotspots        HotspotLocation[]       @relation("HotspotCreator")
   assigned_piket_members  PiketScheduleMember[]
@@ -551,8 +573,10 @@ model PoliceOfficer {
 
   @@index([duty_status, last_gps_heartbeat_at], map: "idx_officers_duty_gps")
   @@index([duty_status_id], map: "idx_officers_duty_id")
+  @@index([rank_id], map: "idx_officers_rank_id")
   @@index([station_id], map: "idx_officers_station")
   @@index([unit_id], map: "idx_officers_unit")
+  @@index([assigned_vehicle_id], map: "idx_officers_assigned_vehicle")
   @@index([device_id], map: "idx_officers_device")
   @@map("police_officers")
 }
@@ -566,6 +590,8 @@ model PatrolVehicle {
   id                 Int                    @id @default(autoincrement())
   nomor_lambung      String                 @unique @db.VarChar(50)  // "R4-SAMAPTA-81", "SEDAN-PJR-01"
   nama_armada        String                 @db.VarChar(100)         // "Patroli Samapta 110-A"
+  vehicle_type_id    Int?
+  vehicle_type_rel   MasterVehicleType?     @relation(fields: [vehicle_type_id], references: [id], onDelete: SetNull)
   jenis_kendaraan    String                 @default("RODA_4") @db.VarChar(30) // "RODA_4", "RODA_2", "MINIBUS"
   plat_nomor_polisi  String?                @db.VarChar(30)          // "1001-VII"
   qr_token           String                 @unique @db.VarChar(64)  // Secret cryptographic token on physical vehicle sticker
@@ -576,15 +602,19 @@ model PatrolVehicle {
   unit               MasterOperationalUnit? @relation(fields: [unit_id], references: [id], onDelete: SetNull)
   
   driver_officer_id  BigInt?
+  driver_officer     PoliceOfficer?         @relation("VehicleActiveDriver", fields: [driver_officer_id], references: [id], onDelete: SetNull)
   driver_officer_nrp String?                @db.VarChar(20)
   
   current_lat        Decimal?               @db.Decimal(10, 8)
   current_lng        Decimal?               @db.Decimal(11, 8)
   speed_kmh          Int                    @default(0)
+  vehicle_status_id  Int?
+  vehicle_status_rel MasterVehicleStatus?   @relation(fields: [vehicle_status_id], references: [id], onDelete: SetNull)
   status_operasional String                 @default("SIAGA") @db.VarChar(50) // "SIAGA", "PATROLI", "MENUJU_TKP"
   status_color       String                 @default("#10B981") @db.VarChar(20)
   last_heartbeat_at  DateTime?
   
+  assigned_officers  PoliceOfficer[]        @relation("OfficerAssignedVehicle")
   usage_logs         VehicleUsageLog[]
   dispatches         ComplaintDispatch[]
   
@@ -598,6 +628,9 @@ model PatrolVehicle {
 
   @@index([unit_id], map: "idx_vehicles_unit")
   @@index([station_id], map: "idx_vehicles_station")
+  @@index([vehicle_type_id], map: "idx_vehicles_type_id")
+  @@index([vehicle_status_id], map: "idx_vehicles_status_id")
+  @@index([driver_officer_id], map: "idx_vehicles_driver_id")
   @@index([status_operasional], map: "idx_vehicles_status")
   @@index([fuel_type_id], map: "idx_vehicles_fuel_type")
   @@map("patrol_vehicles")
@@ -657,6 +690,8 @@ model Complaint {
   status                String                  @default("MENUNGGU") @db.VarChar(50)
   
   tahap                 Int                     @default(1)
+  rejection_reason_id   Int?
+  rejection_reason_rel  MasterRejectionReason?  @relation(fields: [rejection_reason_id], references: [id], onDelete: SetNull)
   alasan_tolak          String?                 @db.Text
   
   category_id           Int?
@@ -700,6 +735,7 @@ model Complaint {
   @@index([status_id], map: "idx_complaints_status_id")
   @@index([urgency_id], map: "idx_complaints_urgency_id")
   @@index([subcategory_id], map: "idx_complaints_subcategory_id")
+  @@index([rejection_reason_id], map: "idx_complaints_rejection_id")
   @@index([pelapor_hp, created_at], map: "idx_complaints_reporter_created")
   @@index([tkp_lat, tkp_lng], map: "idx_complaints_scene_coords")
   @@index([kategori_key], map: "idx_complaints_category_key")
@@ -718,7 +754,7 @@ model ComplaintDispatch {
   unit                  MasterOperationalUnit @relation(fields: [unit_id], references: [id])
   
   officer_id            BigInt?
-  officer               PoliceOfficer?        @relation(fields: [officer_id], references: [id], onDelete: SetNull)
+  officer               PoliceOfficer?        @relation("DispatchPrimaryOfficer", fields: [officer_id], references: [id], onDelete: SetNull)
   
   is_primary_unit       Boolean               @default(true)
   personnel_quota       Int                   @default(4)
@@ -733,8 +769,10 @@ model ComplaintDispatch {
   arrived_at            DateTime?
   completed_at          DateTime?
   
-  estimated_distance    String?               @db.VarChar(30)
-  estimated_eta         String?               @db.VarChar(30)
+  estimated_distance        String?             @db.VarChar(30)
+  estimated_eta             String?             @db.VarChar(30)
+  estimated_distance_meters Int?
+  estimated_eta_seconds     Int?
 
   station_id            Int?
   station               PoliceStation?        @relation(fields: [station_id], references: [id], onDelete: SetNull)
@@ -748,8 +786,12 @@ model ComplaintDispatch {
   dispatch_mode_rel     MasterDispatchMode?   @relation(fields: [dispatch_mode_id], references: [id], onDelete: SetNull)
   assigned_vehicle_id   Int?
   assigned_vehicle      PatrolVehicle?        @relation(fields: [assigned_vehicle_id], references: [id], onDelete: SetNull)
+  crew_leader_id        BigInt?
+  crew_leader           PoliceOfficer?        @relation("DispatchCrewLeader", fields: [crew_leader_id], references: [id], onDelete: SetNull)
   crew_leader_nrp       String?               @db.VarChar(50)
   crew_leader_name      String?               @db.VarChar(120)
+  crew_partner_id       BigInt?
+  crew_partner          PoliceOfficer?        @relation("DispatchCrewPartner", fields: [crew_partner_id], references: [id], onDelete: SetNull)
   crew_partner_nrp      String?               @db.VarChar(50)
   crew_partner_name     String?               @db.VarChar(120)
 
@@ -766,6 +808,8 @@ model ComplaintDispatch {
   @@index([complaint_id], map: "idx_dispatches_complaint")
   @@index([unit_id], map: "idx_dispatches_unit")
   @@index([officer_id], map: "idx_dispatches_officer")
+  @@index([crew_leader_id], map: "idx_dispatches_crew_leader")
+  @@index([crew_partner_id], map: "idx_dispatches_crew_partner")
   @@index([dispatch_status_id], map: "idx_dispatches_status_id")
   @@index([station_id], map: "idx_dispatches_station_id")
   @@index([dispatch_mode_id], map: "idx_dispatches_mode")
@@ -1058,6 +1102,8 @@ model PiketScheduleMember {
   officer               PoliceOfficer           @relation(fields: [officer_id], references: [id], onDelete: Cascade)
   
   // Peran Piket Fungsi Sesuai SOP Polri
+  crew_role_id          Int?
+  crew_role_rel         MasterPatrolCrewRole?   @relation(fields: [crew_role_id], references: [id], onDelete: SetNull)
   role_piket            String                  @db.VarChar(50) 
   // "PAWAS", "PADAL", "KA_SPKT", "ANGGOTA_SPKT", "PIKET_SABHARA", "PIKET_LANTAS", "PIKET_RESKRIM", "PIKET_INTELKAM", "PIKET_BINMAS", "PIKET_PROVOS", "PIKET_TAHTI", "PIKET_OPERATOR_CAD"
   
@@ -1075,8 +1121,10 @@ model PiketScheduleMember {
   created_at            DateTime                @default(now())
   updated_at            DateTime                @updatedAt
 
+  @@unique([schedule_id, officer_id], map: "uq_piket_schedule_officer")
   @@index([schedule_id], map: "idx_piket_member_schedule")
   @@index([officer_id], map: "idx_piket_member_officer")
+  @@index([crew_role_id], map: "idx_piket_member_crew_role")
   @@index([role_piket], map: "idx_piket_member_role")
   @@index([status_kehadiran], map: "idx_piket_member_status")
   @@map("piket_schedule_members")

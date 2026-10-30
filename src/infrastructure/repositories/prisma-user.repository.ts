@@ -12,7 +12,7 @@ export class PrismaUserRepository implements IUserRepository {
       identifier: record.identifier,
       fullName: record.full_name,
       passwordHash: record.password_hash,
-      role: record.role,
+      role: record.role_rel?.key || record.role,
       stationId: record.station_id,
       isActive: record.is_active,
       lastLoginAt: record.last_login_at,
@@ -21,7 +21,7 @@ export class PrismaUserRepository implements IUserRepository {
       officerProfile: officer
         ? {
             id: officer.id,
-            rankPangkat: officer.rank_pangkat || '',
+            rankPangkat: officer.rank_rel?.label || officer.rank_pangkat || '',
             jabatan: officer.jabatan || '',
             avatarUrl: officer.avatar_url || null,
             unitId: officer.unit_id || null,
@@ -41,10 +41,12 @@ export class PrismaUserRepository implements IUserRepository {
     const record = await prisma.user.findUnique({
       where: { identifier: identifier.trim() },
       include: {
+        role_rel: true,
         officer_profile: {
           include: {
             unit: true,
             station: true,
+            rank_rel: true,
           },
         },
         station: true,
@@ -58,10 +60,12 @@ export class PrismaUserRepository implements IUserRepository {
     const record = await prisma.user.findUnique({
       where: { id },
       include: {
+        role_rel: true,
         officer_profile: {
           include: {
             unit: true,
             station: true,
+            rank_rel: true,
           },
         },
         station: true,
