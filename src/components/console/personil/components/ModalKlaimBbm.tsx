@@ -17,6 +17,7 @@ import {
   Check,
   ShieldCheck,
   ShieldAlert,
+  Ban,
 } from 'lucide-react';
 import { submitFuelClaimAction } from '@/app/actions/master.actions';
 import { scanReceiptSpbuAction, type ScannedReceiptData } from '@/app/actions/ocr-receipt.actions';
@@ -85,6 +86,16 @@ export default function ModalKlaimBbm({
 
   if (!isOpen) return null;
 
+  // Evaluasi apakah struk terindikasi penipuan / rekayasa / bukan struk fisik sah
+  const isFraudDetected = Boolean(
+    authenticityData &&
+      (authenticityData.isValidSpbuReceipt === false ||
+        authenticityData.authenticityStatus === 'REKAYASA_DIGITAL' ||
+        authenticityData.authenticityStatus === 'BUKAN_STRUK_SPBU' ||
+        authenticityData.isScreenPhoto === true ||
+        (authenticityData.authenticityScore !== undefined && authenticityData.authenticityScore < 60))
+  );
+
   /**
    * Kompresi gambar sisi klien agar tidak melebihi batas request payload (1MB)
    * dan mempercepat pengiriman ke server action & Gemini AI.
@@ -151,9 +162,10 @@ export default function ModalKlaimBbm({
         setter(compressedDataUrl);
         if (isReceipt) {
           setAuthenticityData(null);
+          setErrorMsg(null);
           setScanNotice({
             type: 'info',
-            text: 'Foto struk terpilih & dioptimalkan. Klik tombol "Pindai Otomatis AI" di bawah untuk memverifikasi keaslian dan mengisi data transaksi.',
+            text: 'Foto struk terpilih & dioptimalkan. Klik tombol "Pindai & Audit Keaslian Struk" untuk verifikasi keabsahan fisik.',
           });
         }
       }
@@ -211,11 +223,29 @@ export default function ModalKlaimBbm({
           setReceiptNumber(d.receiptNumber);
         }
 
-        const isAuthentic = d.authenticityStatus === 'ASLI_VALID';
-        setScanNotice({
-          type: isAuthentic ? 'success' : 'info',
-          text: `Audit AI Selesai! [${scannedItems.join(' • ')}]. Silakan tinjau data transaksi di bawah.`,
-        });
+        const isFraud =
+          d.isValidSpbuReceipt === false ||
+          d.authenticityStatus === 'REKAYASA_DIGITAL' ||
+          d.authenticityStatus === 'BUKAN_STRUK_SPBU' ||
+          d.isScreenPhoto === true ||
+          (d.authenticityScore !== undefined && d.authenticityScore < 60);
+
+        if (isFraud) {
+          setErrorMsg(
+            `⛔ Audit AI Mendeteksi Kejanggalan: ${
+              d.authenticityStatus === 'REKAYASA_DIGITAL' || d.isScreenPhoto
+                ? 'Foto terdeteksi sebagai rekayasa digital atau foto dari layar monitor/HP lain.'
+                : d.authenticityStatus === 'BUKAN_STRUK_SPBU'
+                ? 'Gambar bukan struk resmi pembelian bahan bakar SPBU.'
+                : 'Struk tidak memenuhi standar validitas fisik asli.'
+            } Pengajuan klaim dikunci untuk mencegah penyalahgunaan anggaran DIPA.`
+          );
+        } else {
+          setScanNotice({
+            type: 'success',
+            text: `Audit AI Berhasil! Struk Terverifikasi Asli Fisik [${scannedItems.join(' • ')}].`,
+          });
+        }
       } else {
         setScanNotice({
           type: 'error',
@@ -235,6 +265,20 @@ export default function ModalKlaimBbm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    // KUNCI PENGAJUAN jika terdeteksi struk palsu/rekayasa
+    if (isFraudDetected) {
+      setErrorMsg(
+        `⛔ Pengajuan Klaim Ditolak: ${
+          authenticityData?.authenticityStatus === 'REKAYASA_DIGITAL' || authenticityData?.isScreenPhoto
+            ? 'Struk terdeteksi sebagai rekayasa digital atau foto dari layar HP/monitor.'
+            : authenticityData?.authenticityStatus === 'BUKAN_STRUK_SPBU'
+            ? 'Berkas foto bukan struk resmi pengisian BBM SPBU.'
+            : 'Struk terindikasi tidak valid oleh sistem audit AI.'
+        } Harap foto ulang lembaran fisik struk asli SPBU sebelum mengajukan.`
+      );
+      return;
+    }
 
     const numLiters = parseFloat(liters);
     const numCost = parseFloat(costRupiah.replace(/[^0-9]/g, ''));
@@ -338,7 +382,7 @@ export default function ModalKlaimBbm({
             {errorMsg && (
               <div className="p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-center gap-2">
                 <AlertCircle size={16} className="flex-shrink-0 text-red-400" />
-                <span>{errorMsg}</span>
+                <span className="leading-relaxed">{errorMsg}</span>
               </div>
             )}
 
@@ -386,6 +430,7 @@ export default function ModalKlaimBbm({
                         setStrukPhoto(null);
                         setScanNotice(null);
                         setAuthenticityData(null);
+                        setErrorMsg(null);
                       }}
                       className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 text-white hover:bg-red-600 transition-colors"
                       title="Hapus foto"
@@ -477,7 +522,7 @@ export default function ModalKlaimBbm({
                 {authenticityData && (
                   <div
                     className={`p-3 rounded-2xl border text-xs flex items-start gap-2.5 animate-in fade-in zoom-in-95 duration-200 ${
-                      authenticityData.authenticityStatus === 'ASLI_VALID'
+                      !isFraudDetected
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
                         : authenticityData.authenticityStatus === 'REKAYASA_DIGITAL' || authenticityData.isScreenPhoto
                         ? 'bg-rose-500/15 border-rose-500/40 text-rose-200'
@@ -486,7 +531,7 @@ export default function ModalKlaimBbm({
                         : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-200'
                     }`}
                   >
-                    {authenticityData.authenticityStatus === 'ASLI_VALID' ? (
+                    {!isFraudDetected ? (
                       <ShieldCheck size={20} className="text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
                       <ShieldAlert size={20} className="text-rose-400 shrink-0 mt-0.5" />
@@ -494,7 +539,7 @@ export default function ModalKlaimBbm({
                     <div className="space-y-1 min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-black text-[12px] flex items-center gap-1.5">
-                          {authenticityData.authenticityStatus === 'ASLI_VALID' && (
+                          {!isFraudDetected && (
                             <span className="text-emerald-300">🛡️ Struk Terverifikasi Asli Fisik</span>
                           )}
                           {authenticityData.authenticityStatus === 'REKAYASA_DIGITAL' && (
@@ -509,7 +554,7 @@ export default function ModalKlaimBbm({
                         </span>
                         <span
                           className={`text-[9.5px] font-mono font-black px-2 py-0.5 rounded-full border ${
-                            authenticityData.authenticityStatus === 'ASLI_VALID'
+                            !isFraudDetected
                               ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                               : 'bg-rose-500/20 border-rose-500/40 text-rose-300'
                           }`}
@@ -524,6 +569,12 @@ export default function ModalKlaimBbm({
                       {authenticityData.isScreenPhoto && (
                         <div className="text-[10px] text-rose-300 font-bold bg-rose-950/60 px-2 py-1 rounded-lg border border-rose-500/30">
                           Catatan: Terdeteksi pantulan / moire grid layar LCD (bukan foto langsung struk fisik).
+                        </div>
+                      )}
+                      {isFraudDetected && (
+                        <div className="text-[10px] text-amber-300/90 font-semibold bg-amber-500/10 px-2 py-1 rounded-lg border border-amber-500/20 flex items-center gap-1.5">
+                          <Ban size={12} className="text-amber-400 shrink-0" />
+                          <span>Pengajuan dikunci otomatis untuk mencegah temuan audit anggaran DIPA. Silakan foto struk fisik asli.</span>
                         </div>
                       )}
                     </div>
@@ -722,15 +773,28 @@ export default function ModalKlaimBbm({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || isScanning}
-              className="flex-1 py-3 rounded-xl font-black text-xs text-slate-950 active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 disabled:opacity-50"
-              style={{
-                background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
-              }}
+              disabled={isSubmitting || isScanning || isFraudDetected}
+              className={`flex-1 py-3 rounded-xl font-black text-xs active:scale-95 transition-all shadow-lg flex items-center justify-center gap-1.5 disabled:opacity-50 ${
+                isFraudDetected
+                  ? 'bg-rose-900/60 text-rose-200 border border-rose-500/50 cursor-not-allowed'
+                  : 'text-slate-950'
+              }`}
+              style={
+                isFraudDetected
+                  ? {}
+                  : {
+                      background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                      boxShadow: '0 4px 14px rgba(245, 158, 11, 0.35)',
+                    }
+              }
             >
               {isSubmitting ? (
                 <span>Mengirim Klaim...</span>
+              ) : isFraudDetected ? (
+                <>
+                  <Ban size={16} className="text-rose-300" />
+                  <span>Struk Tidak Valid (Pengajuan Dikunci)</span>
+                </>
               ) : (
                 <>
                   <CheckCircle2 size={16} />

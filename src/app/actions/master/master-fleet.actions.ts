@@ -482,6 +482,18 @@ export async function submitFuelClaimAction(input: {
   }
 
   try {
+    // Validasi Anti-Fraud Sisi Server: Cegah penyimpanan struk terindikasi manipulasi
+    if (
+      input.notes?.includes('[Audit AI: REKAYASA_DIGITAL') ||
+      input.notes?.includes('[Audit AI: BUKAN_STRUK_SPBU')
+    ) {
+      return {
+        success: false,
+        error:
+          'Pengajuan klaim ditolak sistem: Struk BBM terdeteksi sebagai rekayasa digital atau bukan struk resmi SPBU.',
+      };
+    }
+
     const diajukanStatus = await prisma.masterFuelClaimStatus.findUnique({
       where: { key: 'DIAJUKAN_BAGLOG' },
     });

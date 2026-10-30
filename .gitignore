@@ -40,3 +40,7 @@ TEST_REPORT.md
 # Screenshots - only track generated showcase banner
 screenshots/*
 !screenshots/simopmas-showcase.png
+
+# Uploaded user files and evidence
+public/uploads/*
+!public/uploads/.gitkeep
