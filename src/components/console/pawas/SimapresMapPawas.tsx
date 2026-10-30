@@ -300,8 +300,8 @@ export default function SimapresMapPawas({
         <button type="button" id="btn-pan-marker" style="flex: 1; text-align: center; background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%); color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; border: none; cursor: pointer;">
           🎯 Pusatkan Peta
         </button>
-        <button type="button" id="btn-ht-marker" style="flex: 1; text-align: center; background: rgba(255,255,255,0.08); color: #38BDF8; border: 1px solid rgba(56,189,248,0.3); font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; cursor: pointer;">
-          📻 Hubungi HT
+        <button type="button" id="btn-wa-marker" style="flex: 1; text-align: center; background: rgba(37,211,102,0.15); color: #25D366; border: 1px solid rgba(37,211,102,0.35); font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; cursor: pointer;">
+          💬 WhatsApp
         </button>
         <a href="https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}" target="_blank" rel="noopener noreferrer" style="text-align: center; background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.35); font-size: 11px; font-weight: 800; padding: 7px 10px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" title="Navigasi Google Maps">
           🗺️
@@ -317,13 +317,15 @@ export default function SimapresMapPawas({
       });
     }
 
-    const btnHt = container.querySelector('#btn-ht-marker');
-    if (btnHt) {
-      btnHt.addEventListener('click', () => {
-        window.dispatchEvent(new CustomEvent('pawas:call-ht', { detail: data }));
-        if (typeof window !== 'undefined' && (window as any).showFriendlyToast) {
-          (window as any).showFriendlyToast('success', 'Panggilan Radio HT', `Menghubungi frekuensi HT SIMOPMAS 110: ${data.petugas || data.title}...`);
-        }
+    const btnWa = container.querySelector('#btn-wa-marker');
+    if (btnWa) {
+      btnWa.addEventListener('click', () => {
+        const d = data as any;
+        const phone = d.phone || d.whatsapp || d.kapolsekPhone || '628112345678';
+        const cleanPhone = String(phone).replace(/[^0-9]/g, '');
+        const targetPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+        const msg = encodeURIComponent(`Halo ${data.petugas || data.title}, koordinasi darurat dari Pawas SIMOPMAS 110.`);
+        window.open(`https://wa.me/${targetPhone}?text=${msg}`, '_blank');
       });
     }
 

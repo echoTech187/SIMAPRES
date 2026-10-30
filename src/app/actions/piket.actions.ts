@@ -55,8 +55,7 @@ export async function getPiketByDateAction(station_id?: number, dateStr?: string
             ps.id, ps.station_id, ps.sprint_number, ps.sprint_date, ps.schedule_date, ps.regu,
             ps.shift_type, ps.start_time, ps.end_time, ps.pawas_id, ps.padal_id, ps.ka_spkt_id, ps.status,
             ps.serah_terima_at, ps.catatan_arahan_pawas, ps.kejadian_menonjol,
-            ps.tahanan_laki, ps.tahanan_wanita, ps.tahanan_anak, ps.tahanan_titipan, ps.kondisi_tahanan,
-            ps.senpi_inventaris, ps.amunisi_inventaris, ps.ranmor_inventaris, ps.rompi_borgol_ht,
+            ps.ranmor_inventaris, ps.rompi_borgol_ht,
             ps.created_at, ps.updated_at,
             
             st.station_code, st.station_name, st.station_level,
@@ -82,7 +81,7 @@ export async function getPiketByDateAction(station_id?: number, dateStr?: string
           const membersRows: any[] = await prisma.$queryRaw`
             SELECT 
               pm.id, pm.schedule_id, pm.officer_id, pm.role_piket, pm.pos_penugasan,
-              pm.kendaraan_dinas, pm.senpi_dinas, pm.status_kehadiran, pm.jam_masuk, pm.jam_pulang, pm.keterangan,
+              pm.kendaraan_dinas, pm.status_kehadiran, pm.jam_masuk, pm.jam_pulang, pm.keterangan,
               
               po.nrp, po.rank_pangkat, po.jabatan, po.duty_status,
               u.full_name, u.phone_number, u.avatar_url,
@@ -112,13 +111,6 @@ export async function getPiketByDateAction(station_id?: number, dateStr?: string
             serah_terima_at: s.serah_terima_at,
             catatan_arahan_pawas: s.catatan_arahan_pawas,
             kejadian_menonjol: s.kejadian_menonjol,
-            tahanan_laki: s.tahanan_laki,
-            tahanan_wanita: s.tahanan_wanita,
-            tahanan_anak: s.tahanan_anak,
-            tahanan_titipan: s.tahanan_titipan,
-            kondisi_tahanan: s.kondisi_tahanan,
-            senpi_inventaris: s.senpi_inventaris,
-            amunisi_inventaris: s.amunisi_inventaris,
             ranmor_inventaris: s.ranmor_inventaris,
             rompi_borgol_ht: s.rompi_borgol_ht,
             created_at: s.created_at,
@@ -158,7 +150,6 @@ export async function getPiketByDateAction(station_id?: number, dateStr?: string
               role_piket: m.role_piket,
               pos_penugasan: m.pos_penugasan,
               kendaraan_dinas: m.kendaraan_dinas,
-              senpi_dinas: m.senpi_dinas,
               status_kehadiran: m.status_kehadiran,
               jam_masuk: m.jam_masuk,
               jam_pulang: m.jam_pulang,

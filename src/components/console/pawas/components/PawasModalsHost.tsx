@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import ModalDisposisiPawas from '../modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from '../modals/ModalSuksesDisposisi';
 import ModalDisposisiLintasWilayah from '../modals/ModalDisposisiLintasWilayah';
 import ModalSlaMonitoring from '../modals/ModalSlaMonitoring';
@@ -178,25 +177,7 @@ export default function PawasModalsHost({
 }: PawasModalsHostProps) {
   return (
     <>
-      <ModalDisposisiPawas
-        isOpen={showDisposisiModal}
-        onClose={() => setShowDisposisiModal(false)}
-        selectedItem={selectedDisposisiItem}
-        dbSubcategories={dbSubcategories}
-        daftarArmadaAktif={daftarArmadaAktif}
-        selectedSatuanKeys={selectedSatuanKeys}
-        toggleSatuanSelection={toggleSatuanSelection}
-        kuotaPersonel={kuotaPersonel}
-        setKuotaPersonel={setKuotaPersonel}
-        arahanPawas={arahanPawas}
-        setArahanPawas={setArahanPawas}
-        tambahArahanCepatPawas={tambahArahanCepatPawas}
-        handleConfirmDisposisi={handleConfirmDisposisi}
-        loading={loading}
-        getSopRecommendationByIncident={getSopRecommendationByIncident}
-        calculateDistanceHaversineKm={calculateDistanceHaversineKm}
-        activePreviewSatuanKey={activePreviewSatuanKey}
-      />
+
 
       <ModalSuksesDisposisi
         isOpen={showSuksesModal}

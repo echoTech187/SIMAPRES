@@ -223,7 +223,7 @@ export default function ModalPrintSprintPiket({
           </div>
 
           <div style={{ fontSize: '10pt', marginBottom: '10px' }}>
-            <strong>Pertimbangan :</strong> Bahwa dalam rangka memelihara keamanan dan ketertiban masyarakat, kesiapsiagaan markas komando, pengawasan ruang tahanan, serta pelayanan cepat pengaduan masyarakat 110 secara terintegrasi di lingkungan {stationName}.
+            <strong>Pertimbangan :</strong> Bahwa dalam rangka memelihara keamanan dan ketertiban masyarakat, kesiapsiagaan markas komando, serta pelayanan cepat pengaduan masyarakat 110 secara terintegrasi di lingkungan {stationName}.
           </div>
 
           <div style={{ fontSize: '10pt', marginBottom: '12px' }}>
@@ -231,7 +231,7 @@ export default function ModalPrintSprintPiket({
             <ol style={{ margin: '4px 0 0 16px', padding: 0 }}>
               <li>Undang-Undang Nomor 2 Tahun 2002 tentang Kepolisian Negara Republik Indonesia.</li>
               <li>Peraturan Kepolisian Negara Republik Indonesia Nomor 2 Tahun 2021 tentang Susunan Organisasi dan Tata Kerja Tingkat Polres dan Polsek.</li>
-              <li>SOP Piket Jaga Markas Komando, Penjagaan Tahanan, dan Layanan Pengaduan SIMAPRES 110.</li>
+              <li>SOP Piket Jaga Markas Komando dan Layanan Pengaduan SIMAPRES 110.</li>
             </ol>
           </div>
 
@@ -323,27 +323,7 @@ export default function ModalPrintSprintPiket({
               <tbody>
                 <tr>
                   <td style={{ border: '1px solid #000', padding: '4px 8px', width: '25%', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    1. RUANG TAHANAN
-                  </td>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
-                    Total: <strong>{(schedule.tahanan_laki || 0) + (schedule.tahanan_wanita || 0) + (schedule.tahanan_anak || 0) + (schedule.tahanan_titipan || 0)} Orang</strong> (Pria: {schedule.tahanan_laki || 0}, Wanita: {schedule.tahanan_wanita || 0}, Anak: {schedule.tahanan_anak || 0}, Titipan: {schedule.tahanan_titipan || 0})
-                    <br />
-                    Kondisi: <em>{schedule.kondisi_tahanan || 'Lengkap, Sehat, Gembok & Jeruji Sel Terkunci Aman.'}</em>
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    2. SENPI & AMUNISI
-                  </td>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
-                    Senpi: {schedule.senpi_inventaris || '10 Pucuk Senpi Revolver Taurus, 2 Pucuk V2 Sabhara (Bersih & Siaga).'}
-                    <br />
-                    Amunisi: {schedule.amunisi_inventaris || '60 Butir Cal 38, 20 Butir Peluru Karet V2.'}
-                  </td>
-                </tr>
-                <tr>
-                  <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    3. KENDARAAN PATROLI
+                    1. KENDARAAN PATROLI
                   </td>
                   <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
                     {schedule.ranmor_inventaris || '1 Unit Mobil Patroli R4 Sabhara (BBM Siaga), 2 Unit Trail Presisi R2.'}
@@ -351,18 +331,18 @@ export default function ModalPrintSprintPiket({
                 </tr>
                 <tr>
                   <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    4. ROMPI / BORGOL / HT
+                    2. ROMPI / BORGOL / GAWAI DINAS
                   </td>
                   <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
-                    {schedule.rompi_borgol_ht || '4 Rompi Level III-A, 8 Pasang Borgol, 6 Unit HT Motorola Siaga.'}
+                    {schedule.rompi_borgol_ht || '4 Rompi Level III-A, 8 Pasang Borgol, Gawai WhatsApp Dinas Siaga.'}
                   </td>
                 </tr>
                 <tr>
                   <td style={{ border: '1px solid #000', padding: '4px 8px', fontWeight: 'bold', background: '#F9F9F9' }}>
-                    5. ARAHAN PAWAS
+                    3. ARAHAN PAWAS
                   </td>
                   <td style={{ border: '1px solid #000', padding: '4px 8px' }}>
-                    {schedule.catatan_arahan_pawas || 'Tingkatkan kewaspadaan markas, laksanakan patroli perintis di jam rawan, cek kondisi tahanan setiap 2 jam.'}
+                    {schedule.catatan_arahan_pawas || 'Tingkatkan kewaspadaan markas dan laksanakan patroli perintis presisi di jam rawan.'}
                   </td>
                 </tr>
               </tbody>

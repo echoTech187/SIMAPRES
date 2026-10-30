@@ -36,7 +36,6 @@ const TabTolakLogPawas = dynamic(() => import('./pawas/tabs/TabTolakLogPawas'), 
   ssr: false,
 });
 
-import ModalDisposisiPawas from './pawas/modals/ModalDisposisiPawas';
 import ModalSuksesDisposisi from './pawas/modals/ModalSuksesDisposisi';
 import ModalKeamananPawas from './pawas/modals/ModalKeamananPawas';
 import ModalLightbox from './pawas/modals/ModalLightbox';
@@ -344,26 +343,7 @@ function OperatorConsoleContent(props: {
         ]}
       />
 
-      {/* MODAL COMPONENTS */}
-      <ModalDisposisiPawas
-        isOpen={showDisposisiModal}
-        onClose={() => setShowDisposisiModal(false)}
-        selectedItem={selectedDisposisiItem}
-        dbSubcategories={dbSubcategories}
-        daftarArmadaAktif={daftarArmadaAktif}
-        selectedSatuanKeys={selectedSatuanKeys}
-        toggleSatuanSelection={toggleSatuanSelection}
-        kuotaPersonel={kuotaPersonel}
-        setKuotaPersonel={setKuotaPersonel}
-        arahanPawas={arahanPawas}
-        setArahanPawas={setArahanPawas}
-        tambahArahanCepatPawas={tambahArahanCepatPawas}
-        handleConfirmDisposisi={handleConfirmDisposisi}
-        loading={loading}
-        getSopRecommendationByIncident={getSopRecommendationByIncident}
-        calculateDistanceHaversineKm={calculateDistanceHaversineKm}
-        activePreviewSatuanKey={activePreviewSatuanKey}
-      />
+
 
       <ModalSuksesDisposisi
         isOpen={showSuksesModal}

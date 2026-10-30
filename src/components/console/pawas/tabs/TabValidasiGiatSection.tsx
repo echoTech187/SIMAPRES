@@ -842,7 +842,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
                   <span>✓ Titik GPS petugas sinkron dengan rute sasaran (Akurasi Presisi).</span>
                 ) : (
                   <span style={{ color: '#DC2626', fontWeight: 700 }}>
-                    ⚠️ Peringatan: Deviasi titik di atas batas 500 meter! Disarankan verifikasi via HT/Telepon atau tolak pengajuan.
+                    ⚠️ Peringatan: Deviasi titik di atas batas 500 meter! Disarankan verifikasi via WhatsApp/Telepon atau tolak pengajuan.
                   </span>
                 )}
               </div>

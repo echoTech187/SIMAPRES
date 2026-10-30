@@ -222,7 +222,7 @@ export default function ModalAturPiketHarian({
             else if (uKey === 'sabhara') updated.pos_penugasan = 'Patroli Samapta Presisi';
             else if (uKey === 'spkt') updated.pos_penugasan = 'Sentra Pelayanan SPKT';
             else if (uKey === 'pamapta') updated.pos_penugasan = 'Meja Piket Call Center 110';
-            else if (uKey === 'propam') updated.pos_penugasan = 'Pengawasan Disiplin & Tahanan';
+            else if (uKey === 'propam') updated.pos_penugasan = 'Pengawasan Disiplin Personel';
           }
         }
         return updated;

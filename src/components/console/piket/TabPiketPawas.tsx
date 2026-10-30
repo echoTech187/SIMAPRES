@@ -977,7 +977,7 @@ export default function TabPiketPawas({
                           else if (uKey === 'sabhara') setQuickPos('Patroli Samapta Presisi');
                           else if (uKey === 'spkt') setQuickPos('Sentra Pelayanan SPKT');
                           else if (uKey === 'pamapta') setQuickPos('Meja Piket Call Center 110');
-                          else if (uKey === 'propam') setQuickPos('Pengawasan Personel & Tahanan');
+                          else if (uKey === 'propam') setQuickPos('Pengawasan Personel & Mako');
                         }
                       }
                     }}

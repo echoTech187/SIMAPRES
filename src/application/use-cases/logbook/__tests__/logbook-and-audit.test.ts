@@ -89,14 +89,14 @@ describe('Logbook & Dual-Location Audit (Claim vs Real GPS)', () => {
       const validated = await useCase.execute(
         BigInt(1001),
         'VALID',
-        'Sudah dikonfirmasi via HT bahwa petugas merespon laka di titik deviasi.'
+        'Sudah dikonfirmasi via WhatsApp bahwa petugas merespon laka di titik deviasi.'
       );
 
       expect(validated.statusValidasi).toBe('VALID');
       expect(mockRepo.updateValidationStatus).toHaveBeenCalledWith(
         BigInt(1001),
         'VALID',
-        'Sudah dikonfirmasi via HT bahwa petugas merespon laka di titik deviasi.'
+        'Sudah dikonfirmasi via WhatsApp bahwa petugas merespon laka di titik deviasi.'
       );
     });
   });

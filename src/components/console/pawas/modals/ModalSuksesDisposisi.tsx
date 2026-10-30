@@ -99,7 +99,7 @@ export default function ModalSuksesDisposisi({
             Perintah Disposisi Berhasil Diterbitkan!
           </div>
           <div style={{ fontSize: '12px', color: '#A7F3D0', marginTop: '4px' }}>
-            Instruksi operasi telah ditransmisikan ke radio panggil &amp; konsol petugas lapangan
+            Instruksi operasi telah ditransmisikan ke WhatsApp resmi &amp; konsol petugas lapangan
           </div>
         </div>
 

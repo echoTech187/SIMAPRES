@@ -830,7 +830,7 @@ export default function TabBerandaPersonil({
       {/* 2. MAIN 2-COLUMN LAYOUT: DESKTOP / TABLET / MOBILE FLOW */}
       {/* ======================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Left Column: Aksi Cepat & Saluran Radio HT */}
+        {/* Left Column: Aksi Cepat Pengajuan Giat */}
         <div className="space-y-4">
           {/* Quick Action Pad 2x2 */}
           <div

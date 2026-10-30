@@ -1033,16 +1033,7 @@ model PiketSchedule {
   catatan_arahan_pawas  String?                 @db.Text
   kejadian_menonjol     String?                 @db.Text
   
-  // Pengecekan Ruang Tahanan (SOP Polri)
-  tahanan_laki          Int                     @default(0)
-  tahanan_wanita        Int                     @default(0)
-  tahanan_anak          Int                     @default(0)
-  tahanan_titipan       Int                     @default(0)
-  kondisi_tahanan       String?                 @db.VarChar(255) // "Lengkap, Sehat, Gembok & Sel Terkunci Aman"
-  
   // Pengecekan Barang Inventaris Dinas (SOP Polri)
-  senpi_inventaris      String?                 @db.Text // "10 Pucuk Revolver Taurus, 2 Pucuk V2 Sabhara, Lengkap & Terawat"
-  amunisi_inventaris    String?                 @db.Text // "60 Butir Peluru Tajam, 20 Butir Peluru Karet"
   ranmor_inventaris     String?                 @db.Text // "1 Unit R4 Samapta (BBM Full), 2 Unit R2 Trail Presisi"
   rompi_borgol_ht       String?                 @db.Text // "4 Rompi Level III-A, 8 Borgol, 6 Unit HT Motorola Siaga"
   
@@ -1070,9 +1061,8 @@ model PiketScheduleMember {
   role_piket            String                  @db.VarChar(50) 
   // "PAWAS", "PADAL", "KA_SPKT", "ANGGOTA_SPKT", "PIKET_SABHARA", "PIKET_LANTAS", "PIKET_RESKRIM", "PIKET_INTELKAM", "PIKET_BINMAS", "PIKET_PROVOS", "PIKET_TAHTI", "PIKET_OPERATOR_CAD"
   
-  pos_penugasan         String?                 @db.VarChar(120) // "Sentra Penjagaan Mako", "Ruang Pelayanan SPKT", "Pos Lantas Simpang 4", "Patroli R4 Samapta Unit 01", "Ruang Tahanan", "Unit Reskrim Ruang Sidik"
+  pos_penugasan         String?                 @db.VarChar(120) // "Sentra Penjagaan Mako", "Ruang Pelayanan SPKT", "Pos Lantas Simpang 4", "Patroli R4 Samapta Unit 01", "Unit Reskrim Ruang Sidik"
   kendaraan_dinas       String?                 @db.VarChar(100) // "Mobil Patroli Samapta 1001-VII"
-  senpi_dinas           String?                 @db.VarChar(100) // "Revolver Taurus No. 182763"
   
   // Status Presensi Piket
   status_kehadiran      String                  @default("BELUM_HADIR") @db.VarChar(50) 

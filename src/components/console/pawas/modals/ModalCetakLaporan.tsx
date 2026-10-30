@@ -138,7 +138,7 @@ export default function ModalCetakLaporan({
             <div style={{ paddingLeft: '18px' }}>
               a. <strong>Kekuatan Riil Personel Piket:</strong> {registeredUnits.length} Personel terdaftar aktif di sistem.<br />
               b. <strong>Kesiapan Armada Taktis:</strong> {fleetUnits.length} Unit Ranmor Dinas Presisi aktif.<br />
-              c. <strong>Inventaris Senpi &amp; Alkom:</strong> Gudang jaga lengkap terkunci, radio HT repeater Channel 110 aktif.
+              c. <strong>Komunikasi Kedinasan:</strong> Saluran koordinasi WhatsApp dinas dan notifikasi sistem terhubung aktif.
             </div>
           </div>
 
