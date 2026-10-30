@@ -11,6 +11,11 @@ const nextConfig = {
     domains: ['localhost', 'simapres-nu.vercel.app', 'maps.googleapis.com'],
   },
   serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
+  },
   outputFileTracingIncludes: {
     '/**/*': ['./node_modules/.prisma/client/**/*', './prisma/**/*'],
   },

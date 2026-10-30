@@ -82,7 +82,54 @@ export default function ModalKlaimBbm({
 
   if (!isOpen) return null;
 
-  const handleFileChange = (
+  /**
+   * Kompresi gambar sisi klien agar tidak melebihi batas request payload (1MB)
+   * dan mempercepat pengiriman ke server action & Gemini AI.
+   */
+  const compressImageClient = (file: File, maxDim = 1600, quality = 0.85): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onerror = () => resolve('');
+      reader.onload = (e) => {
+        const rawDataUrl = e.target?.result as string;
+        if (!rawDataUrl) return resolve('');
+
+        const img = new Image();
+        img.onerror = () => resolve(rawDataUrl);
+        img.onload = () => {
+          try {
+            let { width, height } = img;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              resolve(rawDataUrl);
+              return;
+            }
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', quality);
+            resolve(compressed);
+          } catch {
+            resolve(rawDataUrl);
+          }
+        };
+        img.src = rawDataUrl;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     setter: (val: string | null) => void,
     isReceipt: boolean = false
@@ -90,24 +137,25 @@ export default function ModalKlaimBbm({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMsg('Ukuran berkas maksimal 10 MB.');
+    if (file.size > 20 * 1024 * 1024) {
+      setErrorMsg('Ukuran berkas maksimal 20 MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setter(reader.result);
+    try {
+      const compressedDataUrl = await compressImageClient(file);
+      if (compressedDataUrl) {
+        setter(compressedDataUrl);
         if (isReceipt) {
           setScanNotice({
             type: 'info',
-            text: 'Foto struk terpilih. Klik tombol "Pindai Otomatis AI" di bawah untuk membaca tanggal & biaya secara instan.',
+            text: 'Foto struk terpilih & dioptimalkan. Klik tombol "Pindai Otomatis AI" di bawah untuk membaca tanggal & biaya secara instan.',
           });
         }
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err: any) {
+      setErrorMsg('Gagal memproses gambar: ' + (err?.message || 'Format tidak didukung.'));
+    }
   };
 
   /**
