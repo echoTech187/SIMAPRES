@@ -49,7 +49,7 @@ export function useLoginForm() {
   // Bersihkan sessionStorage jika diarahkan karena timeout / logout / ditolak
   useEffect(() => {
     if (rawAlertType && typeof window !== 'undefined') {
-      sessionStorage.removeItem('simapres_active_user');
+      sessionStorage.removeItem('simopmas_active_user');
     }
   }, [rawAlertType]);
 
@@ -82,7 +82,7 @@ export function useLoginForm() {
     setLoading(false);
 
     if (res.success && res.data) {
-      sessionStorage.setItem('simapres_active_user', JSON.stringify(res.data));
+      sessionStorage.setItem('simopmas_active_user', JSON.stringify(res.data));
       window.location.href = res.data.targetRoute;
     } else {
       setErrorMsg(

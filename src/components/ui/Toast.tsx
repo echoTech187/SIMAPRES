@@ -38,7 +38,7 @@ export const toast = {
     }
 
     window.dispatchEvent(
-      new CustomEvent('simapres-toast', {
+      new CustomEvent('simopmas-toast', {
         detail: { type, title, message, duration },
       })
     );
@@ -149,11 +149,11 @@ export default function ToastContainer() {
       timersRef.current.set(id, timerId);
     };
 
-    window.addEventListener('simapres-toast', handleToastEvent);
+    window.addEventListener('simopmas-toast', handleToastEvent);
 
     return () => {
       window.alert = originalAlert;
-      window.removeEventListener('simapres-toast', handleToastEvent);
+      window.removeEventListener('simopmas-toast', handleToastEvent);
       // Clean up all pending timers
       timersRef.current.forEach((t) => clearTimeout(t));
       timersRef.current.clear();

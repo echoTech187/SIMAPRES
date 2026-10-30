@@ -235,14 +235,14 @@ export default function TabProfilSuperadmin({
         setSelectedAvatarFile(null);
         setEditAvatar(res.data.avatar || null);
         if (typeof window !== 'undefined') {
-          const raw = sessionStorage.getItem('simapres_active_user');
+          const raw = sessionStorage.getItem('simopmas_active_user');
           if (raw) {
             try {
               const parsed = JSON.parse(raw);
               parsed.fullName = res.data.fullName;
               parsed.rankPangkat = res.data.pangkat;
               parsed.avatar = res.data.avatar;
-              sessionStorage.setItem('simapres_active_user', JSON.stringify(parsed));
+              sessionStorage.setItem('simopmas_active_user', JSON.stringify(parsed));
             } catch (_) {}
           }
         }

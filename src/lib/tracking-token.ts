@@ -14,7 +14,7 @@ export function generateTrackingToken(ticketNo: string): string {
   const clean = ticketNo.replace(/^#+/, '').trim();
   return crypto
     .createHmac('sha256', TRACKING_SECRET)
-    .update(`simapres_track:${clean}`)
+    .update(`simopmas_track:${clean}`)
     .digest('hex')
     .slice(0, 16);
 }

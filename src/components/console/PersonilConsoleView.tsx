@@ -72,7 +72,7 @@ function PersonilContent(props: {
 
   React.useEffect(() => {
     try {
-      const saved = sessionStorage.getItem('simapres_selected_giat');
+      const saved = sessionStorage.getItem('simopmas_selected_giat');
       if (saved) setSelectedGiat(JSON.parse(saved));
     } catch {}
   }, []);
@@ -82,9 +82,9 @@ function PersonilContent(props: {
     if (typeof window !== 'undefined') {
       try {
         if (giat) {
-          sessionStorage.setItem('simapres_selected_giat', JSON.stringify(giat));
+          sessionStorage.setItem('simopmas_selected_giat', JSON.stringify(giat));
         } else {
-          sessionStorage.removeItem('simapres_selected_giat');
+          sessionStorage.removeItem('simopmas_selected_giat');
         }
       } catch {}
     }

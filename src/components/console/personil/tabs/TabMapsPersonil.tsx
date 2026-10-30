@@ -143,7 +143,7 @@ export default function TabMapsPersonil({
   useEffect(() => {
     if (activeGiat?.id) {
       try {
-        const saved = localStorage.getItem(`simapres_giat_km_${activeGiat.id}`);
+        const saved = localStorage.getItem(`simopmas_giat_km_${activeGiat.id}`);
         if (saved) {
           const num = Number(saved);
           if (!isNaN(num) && num > 0) {
@@ -176,7 +176,7 @@ export default function TabMapsPersonil({
       setOdometerMeters((prev) => {
         const next = Math.round((prev + d) * 100) / 100;
         try {
-          localStorage.setItem(`simapres_giat_km_${activeGiat.id}`, String(next));
+          localStorage.setItem(`simopmas_giat_km_${activeGiat.id}`, String(next));
         } catch {}
         return next;
       });
@@ -202,7 +202,7 @@ export default function TabMapsPersonil({
           `Total ${currentOdometerKm} KM telah tercatat untuk laporan klaim bagian keuangan (Sikeu).`
         );
         try {
-          localStorage.removeItem(`simapres_giat_km_${activeGiat.id}`);
+          localStorage.removeItem(`simopmas_giat_km_${activeGiat.id}`);
         } catch {}
         setShowCompleteGiatModal(false);
         if (onGiatCompleted) {

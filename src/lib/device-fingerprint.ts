@@ -7,7 +7,7 @@ export function getClientDeviceBrand(): string {
   if (typeof window === 'undefined') return 'Mobile Terminal';
 
   try {
-    const storedBrand = localStorage.getItem('simapres_device_brand_name');
+    const storedBrand = localStorage.getItem('simopmas_device_brand_name');
     if (storedBrand) return storedBrand;
 
     const ua = navigator.userAgent;
@@ -21,7 +21,7 @@ export function getClientDeviceBrand(): string {
     else if (/Android/i.test(ua)) brand = 'Android Smartphone';
     else brand = 'Mobile Terminal';
 
-    localStorage.setItem('simapres_device_brand_name', brand);
+    localStorage.setItem('simopmas_device_brand_name', brand);
     return brand;
   } catch (_e) {
     return 'Mobile Terminal';
@@ -32,7 +32,7 @@ export function getOrCreateClientDeviceId(): string {
   if (typeof window === 'undefined') return '';
 
   try {
-    const storedHwId = localStorage.getItem('simapres_hardware_device_id');
+    const storedHwId = localStorage.getItem('simopmas_hardware_device_id');
     if (storedHwId && storedHwId.trim()) {
       return storedHwId.trim();
     }
@@ -68,7 +68,7 @@ export function getOrCreateClientDeviceId(): string {
     const hex = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0').slice(-8);
     const generatedId = `DEV-HP-${hex}`;
 
-    localStorage.setItem('simapres_hardware_device_id', generatedId);
+    localStorage.setItem('simopmas_hardware_device_id', generatedId);
     getClientDeviceBrand();
 
     return generatedId;

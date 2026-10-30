@@ -69,8 +69,8 @@ export function loadGoogleMaps(): Promise<any> {
   if (typeof window === 'undefined') return Promise.resolve(null);
 
   // Redam error Geocoding Billing dari Google Maps SDK agar Next.js dev overlay tidak memunculkan pop-up modal
-  if (!(window as any).__simapresGmapsHooked) {
-    (window as any).__simapresGmapsHooked = true;
+  if (!(window as any).__simopmasGmapsHooked) {
+    (window as any).__simopmasGmapsHooked = true;
     const origConsoleError = console.error;
     console.error = function (...args: any[]) {
       const msg = args.map((a) => (a && a.stack ? a.stack : String(a))).join(' ');

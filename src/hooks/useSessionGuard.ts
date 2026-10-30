@@ -26,7 +26,7 @@ export function redirectToLogin(reason: 'inactivity_timeout' | 'unauthenticated'
   isRedirecting = true;
 
   try {
-    sessionStorage.removeItem('simapres_active_user');
+    sessionStorage.removeItem('simopmas_active_user');
   } catch (_) {}
 
   const currentPath = window.location.pathname;
@@ -118,13 +118,13 @@ export function useSessionGuard({
       const customEvent = e as CustomEvent<{ reason?: 'inactivity_timeout' | 'unauthenticated' }>;
       handleExpiration(customEvent.detail?.reason || 'unauthenticated');
     };
-    window.addEventListener('simapres_auth_expired', handleAuthEvent);
+    window.addEventListener('simopmas_auth_expired', handleAuthEvent);
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleVisibilityChange);
-      window.removeEventListener('simapres_auth_expired', handleAuthEvent);
+      window.removeEventListener('simopmas_auth_expired', handleAuthEvent);
     };
   }, [checkIntervalSeconds, handleExpiration]);
 }

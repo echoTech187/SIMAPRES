@@ -18,16 +18,16 @@ export interface ConsoleEventPayload {
 // Singleton event emitter across Next.js dev server & production runtime
 declare global {
   // eslint-disable-next-line no-var
-  var __simapresConsoleEventEmitter: EventEmitter | undefined;
+  var __simopmasConsoleEventEmitter: EventEmitter | undefined;
 }
 
 function getConsoleEventEmitter(): EventEmitter {
-  if (!globalThis.__simapresConsoleEventEmitter) {
+  if (!globalThis.__simopmasConsoleEventEmitter) {
     const emitter = new EventEmitter();
     emitter.setMaxListeners(200); // Allow multiple open dashboard tabs
-    globalThis.__simapresConsoleEventEmitter = emitter;
+    globalThis.__simopmasConsoleEventEmitter = emitter;
   }
-  return globalThis.__simapresConsoleEventEmitter;
+  return globalThis.__simopmasConsoleEventEmitter;
 }
 
 export const consoleEventEmitter = getConsoleEventEmitter();

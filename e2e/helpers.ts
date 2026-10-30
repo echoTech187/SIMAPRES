@@ -31,7 +31,7 @@ export function pickAccount(role: Role, opts: { withDevice?: boolean } = {}): Ac
 
 /** Meniru perangkat dinas terdaftar (wajib untuk peran PERSONIL). */
 export async function bindDevice(page: Page, deviceId: string) {
-  await page.addInitScript((id) => localStorage.setItem('simapres_hardware_device_id', id), deviceId);
+  await page.addInitScript((id) => localStorage.setItem('simopmas_hardware_device_id', id), deviceId);
 }
 
 export async function fillLogin(page: Page, nrp: string, password: string) {

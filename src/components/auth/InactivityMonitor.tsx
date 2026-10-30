@@ -39,7 +39,7 @@ export default function InactivityMonitor() {
 
     try {
       if (typeof window !== 'undefined') {
-        sessionStorage.removeItem('simapres_active_user');
+        sessionStorage.removeItem('simopmas_active_user');
       }
       await logoutAction();
     } catch (_) {

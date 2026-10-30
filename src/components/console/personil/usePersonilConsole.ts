@@ -181,7 +181,7 @@ export function usePersonilConsole({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const localDevId = localStorage.getItem('simapres_hardware_device_id');
+      const localDevId = localStorage.getItem('simopmas_hardware_device_id');
       const isMatched = Boolean(
         localDevId &&
         officer.deviceId &&
@@ -611,7 +611,7 @@ export function usePersonilConsole({
 
   const handleLogout = async () => {
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('simapres_active_user');
+      sessionStorage.removeItem('simopmas_active_user');
     }
     await logoutAction();
     window.location.href = '/?alert=logged_out';

@@ -108,7 +108,7 @@ export function useSuperadminConsole({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       try {
-        return localStorage.getItem('simapres_sidebar_collapsed') === 'true';
+        return localStorage.getItem('simopmas_sidebar_collapsed') === 'true';
       } catch (_e) {
         return false;
       }
@@ -161,7 +161,7 @@ export function useSuperadminConsole({
     setIsSidebarCollapsed((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem('simapres_sidebar_collapsed', String(next));
+        localStorage.setItem('simopmas_sidebar_collapsed', String(next));
       } catch (_e) {}
       return next;
     });
@@ -243,7 +243,7 @@ export function useSuperadminConsole({
 
   const handleLogout = useCallback(async () => {
     if (typeof window !== 'undefined') {
-      sessionStorage.removeItem('simapres_active_user');
+      sessionStorage.removeItem('simopmas_active_user');
     }
     await logoutAction();
     window.location.href = '/?alert=logged_out';

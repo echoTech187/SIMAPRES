@@ -405,7 +405,7 @@ export function usePawasConsole({
 
     let sessionUser: any = null;
     try {
-      const stored = sessionStorage.getItem('simapres_active_user');
+      const stored = sessionStorage.getItem('simopmas_active_user');
       if (stored) sessionUser = JSON.parse(stored);
     } catch {}
 
