@@ -36,3 +36,7 @@ test-results/
 playwright-report/
 .vscode/settings.json
 TEST_REPORT.md
+
+# Screenshots - only track generated showcase banner
+screenshots/*
+!screenshots/simopmas-showcase.png
