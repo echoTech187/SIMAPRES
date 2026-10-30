@@ -3,6 +3,7 @@ import { ComplaintEntity, ComplaintStatus, UrgensiLevel } from '@/domain/entitie
 // SIMAPRES 110 - Prisma Complaint Repository Implementation (Normalized Schema)
 import { prisma } from '../db/prisma.client';
 import { Prisma } from '@prisma/client';
+import { saveBase64Image } from '@/lib/file-storage';
 
 const COMPLAINT_INCLUDE = {
   complaint_logs: {
@@ -286,7 +287,20 @@ export class PrismaComplaintRepository implements IComplaintRepository {
   private mapRawRowToEntity(r: any): ComplaintEntity {
     let cLogs: any[] = [];
     if (r.logs_json) {
-      cLogs = typeof r.logs_json === 'string' ? JSON.parse(r.logs_json) : r.logs_json;
+      try {
+        if (typeof r.logs_json === 'string') {
+          cLogs = JSON.parse(r.logs_json);
+        } else if (Buffer.isBuffer(r.logs_json)) {
+          cLogs = JSON.parse(r.logs_json.toString('utf8'));
+        } else if (Array.isArray(r.logs_json)) {
+          cLogs = r.logs_json;
+        }
+      } catch (_) {
+        cLogs = [];
+      }
+    }
+    if (!Array.isArray(cLogs)) {
+      cLogs = [];
     }
     const pawasLog = cLogs.slice().reverse().find((l: any) => l.actor_role === 'PAWAS');
 
@@ -993,33 +1007,13 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
       // Simpan foto bukti lampiran kejadian langsung dari pelapor jika ada (eksklusif dokumen/foto pelapor)
       if (data.fotoBuktiUrl) {
-        let savedPhotoUrl = data.fotoBuktiUrl;
-        if (savedPhotoUrl.startsWith('data:image/')) {
-          try {
-            const fs = await import('fs');
-            const path = await import('path');
-            const matches = savedPhotoUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-            if (matches) {
-              const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-              const buffer = Buffer.from(matches[2], 'base64');
-              const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-              if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-              }
-              const fileName = `pelapor_${newComplaint.id}_${Date.now()}.${ext}`;
-              fs.writeFileSync(path.join(uploadDir, fileName), buffer);
-              savedPhotoUrl = `/uploads/${fileName}`;
-            }
-          } catch (imgErr) {
-            console.warn('Gagal menyimpan file foto pelapor ke disk:', imgErr);
-          }
-        }
+        const savedPhotoUrl = await saveBase64Image(data.fotoBuktiUrl, `pelapor_${newComplaint.id}`);
 
         await tx.complaintEvidence.create({
           data: {
             complaint_id: newComplaint.id,
             incident_phase: 'LAPORAN_AWAL',
-            file_url: savedPhotoUrl.slice(0, 255),
+            file_url: (savedPhotoUrl || data.fotoBuktiUrl).slice(0, 255),
             caption: 'Foto Lampiran Kejadian dari Pelapor',
             exif_lat: data.tkpLat,
             exif_lng: data.tkpLng,
@@ -1295,7 +1289,13 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             },
           });
 
-          // 3.1 Catat ke officer_logbooks untuk Audit Integritas Dual-GPS (Propam)
+          // 3.1 Simpan foto bukti watermark personel ke static storage disk terlebih dahulu
+          let savedPhotoUrl: string | null = null;
+          if (latestTimeline.fotoBuktiUrl) {
+            savedPhotoUrl = await saveBase64Image(latestTimeline.fotoBuktiUrl, `personel_${complaintId}`);
+          }
+
+          // 3.2 Catat ke officer_logbooks untuk Audit Integritas Dual-GPS (Propam)
           const devMeters = Number(latestTimeline?.deviationMeters || 0);
           if (actualOfficerId && (latestTimeline.tahapTitle?.includes('Tindakan') || latestTimeline.tahapTitle?.includes('TKP') || isAnomaly)) {
             const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -1313,7 +1313,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
                 is_deviation_flagged: isAnomaly,
                 start_time: nowTime,
                 end_time: nowTime,
-                photo_url: latestTimeline.fotoBuktiUrl || null,
+                photo_url: savedPhotoUrl ? savedPhotoUrl.slice(0, 255) : null,
                 photo_exif_lat: latestTimeline.gpsLat || null,
                 photo_exif_lng: latestTimeline.gpsLng || null,
                 activity_description: (latestTimeline.catatan || latestTimeline.tahapTitle || 'Tindakan Pengamanan TKP').slice(0, 1000),
@@ -1322,30 +1322,8 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             });
           }
 
-          // 3.2 Simpan foto bukti watermark personel ke tabel terstruktur complaint_evidences (Atomik dalam Transaksi)
-          if (latestTimeline.fotoBuktiUrl) {
-            let savedPhotoUrl = latestTimeline.fotoBuktiUrl;
-            if (savedPhotoUrl.startsWith('data:image/')) {
-              try {
-                const fs = await import('fs');
-                const path = await import('path');
-                const matches = savedPhotoUrl.match(/^data:image\/([a-zA-Z0-9]+);base64,(.+)$/);
-                if (matches) {
-                  const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
-                  const buffer = Buffer.from(matches[2], 'base64');
-                  const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-                  if (!fs.existsSync(uploadDir)) {
-                    fs.mkdirSync(uploadDir, { recursive: true });
-                  }
-                  const fileName = `personel_${complaintId}_${Date.now()}.${ext}`;
-                  fs.writeFileSync(path.join(uploadDir, fileName), buffer);
-                  savedPhotoUrl = `/uploads/${fileName}`;
-                }
-              } catch (imgErr) {
-                console.warn('Gagal menyimpan file foto personil ke disk:', imgErr);
-              }
-            }
-
+          // 3.3 Simpan foto bukti ke tabel terstruktur complaint_evidences (Atomik dalam Transaksi)
+          if (savedPhotoUrl) {
             await tx.complaintEvidence.create({
               data: {
                 complaint_id: complaintId,
@@ -1357,6 +1335,28 @@ export class PrismaComplaintRepository implements IComplaintRepository {
                 exif_lng: finalLng,
               },
             });
+          }
+
+          // 3.4 Simpan lampiran berkas/bukti lainnya jika terdaftar di entitas complaint
+          if (Array.isArray(data.evidences) && data.evidences.length > 0) {
+            for (const ev of data.evidences) {
+              const evAny = ev as any;
+              const rawEvUrl = String(evAny.file_url || evAny.fileUrl || '');
+              if (rawEvUrl && rawEvUrl !== latestTimeline.fotoBuktiUrl && rawEvUrl !== savedPhotoUrl) {
+                const savedEvUrl = await saveBase64Image(rawEvUrl, `evidence_${complaintId}`);
+                await tx.complaintEvidence.create({
+                  data: {
+                    complaint_id: complaintId,
+                    incident_phase: String(evAny.incident_phase || auditAction || 'SELESAI').slice(0, 50),
+                    file_url: String(savedEvUrl || rawEvUrl).slice(0, 255),
+                    caption: String(evAny.caption || 'Foto Berkas Bukti Lapangan').slice(0, 255),
+                    watermark_text: String(evAny.watermark_text || 'Watermark SIMAPRES 110').slice(0, 255),
+                    exif_lat: evAny.exif_lat ?? finalLat ?? null,
+                    exif_lng: evAny.exif_lng ?? finalLng ?? null,
+                  },
+                });
+              }
+            }
           }
         }
       }

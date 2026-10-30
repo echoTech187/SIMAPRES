@@ -101,9 +101,22 @@ export class FieldStepActionUseCase {
           if (!resValidation.isValid) {
             throw new Error(`Validasi Berita Acara Gagal: ${resValidation.missingRequirements.join(' ')}`);
           }
-        }
 
-        complaint.tindakanTkp(
+          complaint.ajukanPengesahanBap(
+            input.catatan,
+            input.fotoBuktiUrl,
+            {
+              locationKey: input.resolutionLocationKey,
+              locationName: input.resolutionLocationName,
+              documentKey: input.resolutionDocumentKey,
+              documentName: input.resolutionDocumentName,
+            },
+            input.evidencesList,
+            input.lat,
+            input.lng
+          );
+        } else {
+          complaint.tindakanTkp(
             input.catatan,
             input.fotoBuktiUrl,
             input.lat,
@@ -113,12 +126,41 @@ export class FieldStepActionUseCase {
             input.warningMessage,
             input.photoAddress,
             input.evidencesList
+          );
+        }
+        break;
+      }
+      case 'COMPLETED': {
+        if (input.resolutionLocationKey || input.resolutionDocumentKey) {
+          const resValidation = validateResolutionSubmission({
+            locationKey: input.resolutionLocationKey,
+            documentKey: input.resolutionDocumentKey,
+            hasPhotoEvidence: Boolean(input.fotoBuktiUrl),
+            evidenceCount: input.evidencesList?.length || 0,
+            catatan: input.catatan,
+            kategoriKey: complaint.kategoriKey,
+          });
+
+          if (!resValidation.isValid) {
+            throw new Error(`Validasi Berita Acara Gagal: ${resValidation.missingRequirements.join(' ')}`);
+          }
+        }
+
+        complaint.selesaikanKasusLangsung(
+          input.catatan,
+          input.fotoBuktiUrl,
+          input.lat,
+          input.lng,
+          input.evidencesList,
+          {
+            locationKey: input.resolutionLocationKey || undefined,
+            locationName: input.resolutionLocationName || undefined,
+            documentKey: input.resolutionDocumentKey || undefined,
+            documentName: input.resolutionDocumentName || undefined,
+          }
         );
         break;
       }
-      case 'COMPLETED':
-        complaint.selesaikanKasusLangsung(input.catatan, input.fotoBuktiUrl, input.lat, input.lng);
-        break;
       default:
         throw new Error(`Tahap aksi ${input.step} tidak valid.`);
     }

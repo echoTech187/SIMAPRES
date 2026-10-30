@@ -574,46 +574,25 @@ export async function submitFuelClaimAction(input: {
       } catch (_) {}
 
       if (resolvedOfficerId) {
-        const lastDispatch = await prisma.complaintDispatch.findFirst({
-          where: { officer_id: resolvedOfficerId },
-          orderBy: { id: 'desc' },
+        // Catat klaim BBM patroli rutin ke Buku Mutasi Personel (officer_logbooks)
+        const nowTime = input.purchaseTime || new Date().toTimeString().slice(0, 5);
+        await prisma.officerLogbook.create({
+          data: {
+            officer_id: resolvedOfficerId,
+            action_type: 'PATROLI',
+            claimed_address: (input.spbuName || 'SPBU Rekanan Resmi Polri').slice(0, 250),
+            claimed_lat: 0,
+            claimed_lng: 0,
+            actual_lat: 0,
+            actual_lng: 0,
+            deviation_meters: 0,
+            start_time: nowTime,
+            end_time: nowTime,
+            photo_url: savedStrukUrl ? savedStrukUrl.slice(0, 255) : null,
+            activity_description: `[KLAIM BBM DIPA LOGISTIK - ${input.liters} Liter / Rp ${Number(input.costRupiah).toLocaleString('id-ID')}] ${notesSummary}`.slice(0, 1000),
+            validation_status: 'VALID',
+          },
         });
-
-        if (lastDispatch) {
-          await prisma.complaintDispatch.update({
-            where: { id: lastDispatch.id },
-            data: {
-              fuel_liters_used: input.liters,
-              fuel_cost_estimated: input.costRupiah,
-              fuel_claim_status_id: diajukanStatus?.id || lastDispatch.fuel_claim_status_id,
-              fuel_claim_notes: notesSummary,
-            },
-          });
-
-          if (savedStrukUrl && lastDispatch.complaint_id) {
-            await prisma.complaintEvidence.create({
-              data: {
-                complaint_id: lastDispatch.complaint_id,
-                incident_phase: 'STRUK_BBM',
-                file_url: savedStrukUrl,
-                caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L)`.slice(0, 255),
-                watermark_text: `Klaim BBM DIPA • Struk: ${input.receiptNumber || '-'}`.slice(0, 255),
-              },
-            });
-          }
-
-          if (savedSpidometerUrl && lastDispatch.complaint_id) {
-            await prisma.complaintEvidence.create({
-              data: {
-                complaint_id: lastDispatch.complaint_id,
-                incident_phase: 'SPIDOMETER',
-                file_url: savedSpidometerUrl,
-                caption: `Foto Spidometer Fisik (${input.odometerKm || 0} KM)`.slice(0, 255),
-                watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`.slice(0, 255),
-              },
-            });
-          }
-        }
       }
     }
 

@@ -247,7 +247,8 @@ export async function getPawasAnalyticsDataAction(
  */
 export async function getPawasLogbookDataAction(
   limit = 10,
-  forceFresh = false
+  forceFresh = false,
+  stationId?: number | string
 ): Promise<ActionResult<PawasLogbookData>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
@@ -255,7 +256,8 @@ export async function getPawasLogbookDataAction(
       return { success: false, error: auth.error };
     }
 
-    const cacheKey = `pawas_logbook_data_${limit}`;
+    const numStationId = stationId ? Number(stationId) : undefined;
+    const cacheKey = numStationId ? `pawas_logbook_data_${numStationId}_${limit}` : `pawas_logbook_data_${limit}`;
     if (!forceFresh) {
       const cached = cacheGet<PawasLogbookData>(cacheKey);
       if (cached) {
@@ -263,7 +265,7 @@ export async function getPawasLogbookDataAction(
       }
     }
 
-    const logbookRes = await getRecentLogbooksAction(limit);
+    const logbookRes = await getRecentLogbooksAction(limit, numStationId);
 
     const payload: PawasLogbookData = {
       recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],

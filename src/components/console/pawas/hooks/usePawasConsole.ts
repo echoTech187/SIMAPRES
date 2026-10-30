@@ -344,7 +344,8 @@ export function usePawasConsole({
   // 4. Tab 4: Logbook Data Loader (Lazy on-demand saat tab Logbook dibuka)
   const loadLogbookData = useCallback(async (force = false) => {
     try {
-      const res = await getPawasLogbookDataAction(10, force);
+      const activeStationId = userProfile?.stationId || session?.stationId;
+      const res = await getPawasLogbookDataAction(10, force, activeStationId);
       if ((res as any)?.unauthenticated) {
         redirectToLogin('inactivity_timeout');
         return;

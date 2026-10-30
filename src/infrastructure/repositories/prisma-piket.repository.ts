@@ -16,6 +16,9 @@ export class PrismaPiketRepository implements IPiketRepository {
     } else {
       targetDate = new Date();
     }
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const targetYmd = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}`;
+
     const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
     const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
 
@@ -53,8 +56,7 @@ export class PrismaPiketRepository implements IPiketRepository {
         LEFT JOIN users u_pawas ON u_pawas.id = po_pawas.user_id
         LEFT JOIN police_officers po_kaspkt ON po_kaspkt.id = ps.ka_spkt_id
         LEFT JOIN users u_kaspkt ON u_kaspkt.id = po_kaspkt.user_id
-        WHERE ps.schedule_date >= '${startOfDay.toISOString().slice(0, 19).replace('T', ' ')}'
-          AND ps.schedule_date <= '${endOfDay.toISOString().slice(0, 19).replace('T', ' ')}'
+        WHERE DATE(ps.schedule_date) = '${targetYmd}'
           ${stationFilter}
         ORDER BY ps.id DESC
         LIMIT 1;
@@ -243,6 +245,10 @@ export class PrismaPiketRepository implements IPiketRepository {
     endTimeline.setDate(endTimeline.getDate() + daysAfter);
     endTimeline.setHours(23, 59, 59, 999);
 
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const startYmd = `${startTimeline.getFullYear()}-${pad(startTimeline.getMonth() + 1)}-${pad(startTimeline.getDate())}`;
+    const endYmd = `${endTimeline.getFullYear()}-${pad(endTimeline.getMonth() + 1)}-${pad(endTimeline.getDate())}`;
+
     const stationFilter = station_id ? `AND ps.station_id = ${Number(station_id)}` : '';
     let schedules: any[] = [];
     try {
@@ -258,8 +264,8 @@ export class PrismaPiketRepository implements IPiketRepository {
         LEFT JOIN police_officers po_pawas ON po_pawas.id = ps.pawas_id
         LEFT JOIN users u_pawas ON u_pawas.id = po_pawas.user_id
         LEFT JOIN piket_schedule_members pm ON pm.schedule_id = ps.id
-        WHERE ps.schedule_date >= '${startTimeline.toISOString().slice(0, 19).replace('T', ' ')}'
-          AND ps.schedule_date <= '${endTimeline.toISOString().slice(0, 19).replace('T', ' ')}'
+        WHERE DATE(ps.schedule_date) >= '${startYmd}'
+          AND DATE(ps.schedule_date) <= '${endYmd}'
           ${stationFilter}
         GROUP BY ps.id, ps.station_id, ps.sprint_number, ps.schedule_date, ps.regu,
                  ps.shift_type, ps.pawas_id, ps.status, st.station_name, st.station_code, u_pawas.full_name

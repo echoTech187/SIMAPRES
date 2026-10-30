@@ -15,12 +15,16 @@ export type ComplaintStatus =
 
 export interface EvidenceInputItem {
   fileUrl?: string;
+  file_url?: string;
   caption?: string;
   watermarkText?: string | null;
+  watermark_text?: string | null;
   lat?: number | null;
   lng?: number | null;
   fileType?: string;
+  file_type?: string;
   fileName?: string | null;
+  file_name?: string | null;
   [key: string]: unknown;
 }
 
@@ -416,13 +420,13 @@ export class ComplaintEntity {
       for (const ev of evidencesList) {
         this.props.evidences.push({
           incident_phase: 'TIBA_TKP',
-          file_url: ev.fileUrl,
-          caption: ev.caption || ev.fileName || 'Foto Bukti Kamera TKP',
-          watermark_text: ev.watermarkText || null,
-          exif_lat: ev.lat ?? lat ?? null,
-          exif_lng: ev.lng ?? lng ?? null,
-          file_type: ev.fileType || 'KAMERA',
-          file_name: ev.fileName || null,
+          file_url: ev.fileUrl || (ev as any).file_url || '',
+          caption: ev.caption || (ev as any).caption || ev.fileName || (ev as any).file_name || 'Foto Bukti Kamera TKP',
+          watermark_text: ev.watermarkText || (ev as any).watermark_text || null,
+          exif_lat: ev.lat ?? (ev as any).exif_lat ?? lat ?? null,
+          exif_lng: ev.lng ?? (ev as any).exif_lng ?? lng ?? null,
+          file_type: ev.fileType || (ev as any).file_type || 'KAMERA',
+          file_name: ev.fileName || (ev as any).file_name || null,
           uploaded_at: new Date(),
         });
       }
@@ -532,13 +536,13 @@ export class ComplaintEntity {
       for (const ev of evidencesList) {
         this.props.evidences.push({
           incident_phase: 'PENANGANAN',
-          file_url: ev.fileUrl,
-          caption: ev.caption || ev.fileName || 'Foto Bukti Tindakan TKP',
-          watermark_text: ev.watermarkText || null,
-          exif_lat: ev.lat ?? lat ?? null,
-          exif_lng: ev.lng ?? lng ?? null,
-          file_type: ev.fileType || 'KAMERA',
-          file_name: ev.fileName || null,
+          file_url: ev.fileUrl || (ev as any).file_url || '',
+          caption: ev.caption || (ev as any).caption || ev.fileName || (ev as any).file_name || 'Foto Bukti Tindakan TKP',
+          watermark_text: ev.watermarkText || (ev as any).watermark_text || null,
+          exif_lat: ev.lat ?? (ev as any).exif_lat ?? lat ?? null,
+          exif_lng: ev.lng ?? (ev as any).exif_lng ?? lng ?? null,
+          file_type: ev.fileType || (ev as any).file_type || 'KAMERA',
+          file_name: ev.fileName || (ev as any).file_name || null,
           uploaded_at: new Date(),
         });
       }
@@ -623,13 +627,13 @@ export class ComplaintEntity {
       for (const ev of evidencesList) {
         this.props.evidences.push({
           incident_phase: 'SELESAI_KONDUSIF',
-          file_url: ev.fileUrl,
-          caption: ev.caption || ev.fileName || 'Bukti Penyelesaian BAP',
-          watermark_text: ev.watermarkText || null,
-          exif_lat: ev.lat ?? null,
-          exif_lng: ev.lng ?? null,
-          file_type: ev.fileType || 'DOKUMEN',
-          file_name: ev.fileName || null,
+          file_url: ev.fileUrl || (ev as any).file_url || '',
+          caption: ev.caption || (ev as any).caption || ev.fileName || (ev as any).file_name || 'Bukti Penyelesaian BAP',
+          watermark_text: ev.watermarkText || (ev as any).watermark_text || null,
+          exif_lat: ev.lat ?? (ev as any).exif_lat ?? null,
+          exif_lng: ev.lng ?? (ev as any).exif_lng ?? null,
+          file_type: ev.fileType || (ev as any).file_type || 'DOKUMEN',
+          file_name: ev.fileName || (ev as any).file_name || null,
           uploaded_at: new Date(),
         });
       }
@@ -662,7 +666,21 @@ export class ComplaintEntity {
   /**
    * Penanganan Tuntas Langsung oleh Personel di Lapangan (SOP Langsung Selesai)
    */
-  public selesaikanKasusLangsung(catatan?: string, fotoBuktiUrl?: string, lat?: number, lng?: number): void {
+  public selesaikanKasusLangsung(
+    catatan?: string,
+    fotoBuktiUrl?: string,
+    lat?: number,
+    lng?: number,
+    evidencesList?: EvidenceInputItem[],
+    resolutionData?: {
+      locationId?: number | null;
+      locationKey?: string | null;
+      locationName?: string | null;
+      documentId?: number | null;
+      documentKey?: string | null;
+      documentName?: string | null;
+    }
+  ): void {
     this.props.status = 'SELESAI';
     this.props.tahap = 5;
     this.props.selesaiAt = new Date();
@@ -671,6 +689,30 @@ export class ComplaintEntity {
     }
     if (fotoBuktiUrl) {
       this.props.fotoSelesai = fotoBuktiUrl;
+    }
+    if (resolutionData) {
+      if (resolutionData.locationId !== undefined) this.props.resolutionLocationId = resolutionData.locationId;
+      if (resolutionData.locationKey !== undefined) this.props.resolutionLocationKey = resolutionData.locationKey;
+      if (resolutionData.locationName !== undefined) this.props.resolutionLocationName = resolutionData.locationName;
+      if (resolutionData.documentId !== undefined) this.props.resolutionDocumentId = resolutionData.documentId;
+      if (resolutionData.documentKey !== undefined) this.props.resolutionDocumentKey = resolutionData.documentKey;
+      if (resolutionData.documentName !== undefined) this.props.resolutionDocumentName = resolutionData.documentName;
+    }
+    if (evidencesList && evidencesList.length > 0) {
+      if (!this.props.evidences) this.props.evidences = [];
+      for (const ev of evidencesList) {
+        this.props.evidences.push({
+          incident_phase: 'SELESAI',
+          file_url: ev.fileUrl || (ev as any).file_url || '',
+          caption: ev.caption || (ev as any).caption || ev.fileName || (ev as any).file_name || 'Foto Bukti Penyelesaian Tugas TKP',
+          watermark_text: ev.watermarkText || (ev as any).watermark_text || null,
+          exif_lat: ev.lat ?? (ev as any).exif_lat ?? lat ?? null,
+          exif_lng: ev.lng ?? (ev as any).exif_lng ?? lng ?? null,
+          file_type: ev.fileType || (ev as any).file_type || 'KAMERA',
+          file_name: ev.fileName || (ev as any).file_name || null,
+          uploaded_at: new Date(),
+        });
+      }
     }
     if (!this.props.waktuSelesai) {
       this.props.waktuSelesai =

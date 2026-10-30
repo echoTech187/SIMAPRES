@@ -2,6 +2,7 @@ import { ILogbookRepository } from '@/domain/repositories/logbook.repository.int
 import { LogbookEntity, JenisAksiLogbook, StatusValidasiLogbook } from '@/domain/entities/logbook.entity';
 // SIMAPRES 110 - Prisma Logbook Repository Implementation
 import { prisma } from '../db/prisma.client';
+import { saveBase64Image } from '@/lib/file-storage';
 
 export class PrismaLogbookRepository implements ILogbookRepository {
   private mapToEntity(record: any): LogbookEntity {
@@ -31,6 +32,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
 
   async create(logbook: LogbookEntity): Promise<LogbookEntity> {
     const data = logbook.toJSON();
+    const savedPhotoUrl = await saveBase64Image(data.fotoBuktiUrl, `logbook_${data.officerId}`);
     const created = await prisma.officerLogbook.create({
       data: {
         officer_id: data.officerId,
@@ -45,7 +47,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
         is_deviation_flagged: data.isDeviasiFlagged,
         start_time: data.jamMulai,
         end_time: data.jamSelesai,
-        photo_url: data.fotoBuktiUrl,
+        photo_url: savedPhotoUrl ? savedPhotoUrl.slice(0, 255) : null,
         photo_exif_lat: data.fotoExifLat,
         photo_exif_lng: data.fotoExifLng,
         activity_description: data.deskripsiKegiatan,
