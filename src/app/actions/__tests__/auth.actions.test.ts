@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loginInternalAction, logoutAction } from '../auth.actions';
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import * as sessionModule from '@/lib/session';
+import { clearAllRateLimits } from '@/infrastructure/security/rate-limiter';
 
 const mockCookieStore = {
   get: vi.fn(),
@@ -11,6 +12,7 @@ const mockCookieStore = {
 
 vi.mock('next/headers', () => ({
   cookies: vi.fn().mockImplementation(async () => mockCookieStore),
+  headers: vi.fn().mockImplementation(async () => new Map()),
 }));
 
 vi.mock('@/infrastructure/logging/activity-logger', () => ({
@@ -20,6 +22,7 @@ vi.mock('@/infrastructure/logging/activity-logger', () => ({
 describe('Server Action Integration: auth.actions (loginInternalAction & logoutAction)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAllRateLimits();
   });
 
   describe('loginInternalAction', () => {
@@ -84,6 +87,31 @@ describe('Server Action Integration: auth.actions (loginInternalAction & logoutA
           role: 'PERSONIL',
         })
       );
+    });
+
+    it('blocks login after exceeding rate limit attempts', async () => {
+      const mockLoginUseCase = {
+        execute: vi.fn().mockResolvedValue({
+          success: false,
+          error: 'Kata sandi yang Anda masukkan salah.',
+        }),
+      };
+      vi.spyOn(UseCaseFactory, 'getLoginUseCase').mockReturnValue(mockLoginUseCase as any);
+
+      const targetNrp = '99009900';
+
+      // 5 kali percobaan gagal
+      for (let i = 0; i < 5; i++) {
+        const res = await loginInternalAction(targetNrp, 'BadPass');
+        expect(res.success).toBe(false);
+      }
+
+      // Percobaan ke-6 harus langsung diblokir oleh rate-limiter tanpa memanggil loginUseCase lagi
+      const callCountBefore = mockLoginUseCase.execute.mock.calls.length;
+      const blockedRes = await loginInternalAction(targetNrp, 'BadPass');
+      expect(blockedRes.success).toBe(false);
+      expect(blockedRes.error).toContain('Akses Ditangguhkan');
+      expect(mockLoginUseCase.execute.mock.calls.length).toBe(callCountBefore);
     });
   });
 

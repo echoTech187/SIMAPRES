@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { consumeRateLimit, RATE_LIMIT_CONFIG } from '@/infrastructure/security/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 
@@ -6,6 +7,33 @@ export const dynamic = 'force-dynamic';
 const placeDetailsCache = new Map<string, { lat: number; lng: number; fullAddress: string; types: string[] }>();
 
 export async function GET(request: NextRequest) {
+  // Rate Limiting: Melindungi kuota berbayar Google Places API dari scraping & spam
+  const forwarded = request.headers.get('x-forwarded-for');
+  const clientIp = forwarded ? forwarded.split(',')[0].trim() : (request.headers.get('x-real-ip') || '127.0.0.1');
+  const rateLimitKey = `places_search:${clientIp}`;
+  const rateCheck = consumeRateLimit(
+    rateLimitKey,
+    RATE_LIMIT_CONFIG.PLACES_SEARCH.maxAttempts,
+    RATE_LIMIT_CONFIG.PLACES_SEARCH.windowMs
+  );
+
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+        items: [],
+        error: 'Terlalu banyak permintaan pencarian alamat. Harap tunggu sebentar.',
+        retryAfter: rateCheck.retryAfterSec,
+      },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateCheck.retryAfterSec),
+        },
+      }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q') || '';
   const latStr = searchParams.get('lat');

@@ -3,6 +3,7 @@ import { createComplaintAction, CreateComplaintActionInput } from '../complaint.
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { ComplaintEntity } from '@/domain/entities/complaint.entity';
 import { ComplaintNotificationDispatcher } from '@/application/services/complaint-notification.service';
+import { clearAllRateLimits } from '@/infrastructure/security/rate-limiter';
 
 // Mock next/cache
 vi.mock('next/cache', () => ({
@@ -13,6 +14,7 @@ vi.mock('next/cache', () => ({
 describe('Server Action Integration: createComplaintAction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearAllRateLimits();
   });
 
   describe('Input Validation & Sanitation', () => {
@@ -161,6 +163,50 @@ describe('Server Action Integration: createComplaintAction', () => {
           pelaporHp: '081298765432',
         })
       );
+    });
+
+    it('blocks rapid successive complaint submissions from the same phone number (anti-spam)', async () => {
+      const mockComplaint = new ComplaintEntity({
+        id: BigInt(999),
+        nomorTiket: 'TICKET-SPAM-1',
+        pelaporNama: 'Spam Bot',
+        pelaporHp: '089999999999',
+        jenisKejadian: 'GANGGUAN_KAMTIBMAS',
+        urgensi: 'NORMAL',
+        tkpAlamatTeks: 'Alun-alun',
+        tkpLat: -7.025,
+        tkpLng: 109.591,
+        ringkasanKeterangan: 'Test Spam',
+        status: 'MENUNGGU',
+        tahap: 1,
+      });
+
+      const mockUseCase = {
+        execute: vi.fn().mockResolvedValue(mockComplaint),
+      };
+      vi.spyOn(UseCaseFactory, 'getCreateComplaintUseCase').mockReturnValue(mockUseCase as any);
+      vi.spyOn(ComplaintNotificationDispatcher, 'dispatchAsync').mockImplementation(() => {});
+
+      const payload: CreateComplaintActionInput = {
+        pelaporNama: 'Spam Bot',
+        pelaporHp: '089999999999',
+        jenisKejadian: 'GANGGUAN_KAMTIBMAS',
+        tkpAlamatTeks: 'Alun-alun',
+        tkpLat: -7.025,
+        tkpLng: 109.591,
+        ringkasanKeterangan: 'Test Spam',
+      };
+
+      // 5 submissions allowed
+      for (let i = 0; i < 5; i++) {
+        const res = await createComplaintAction(payload);
+        expect(res.success).toBe(true);
+      }
+
+      // The 6th submission must be blocked by rate-limiter
+      const blockedRes = await createComplaintAction(payload);
+      expect(blockedRes.success).toBe(false);
+      expect(blockedRes.error).toContain('Batas pengiriman laporan tercapai');
     });
   });
 });

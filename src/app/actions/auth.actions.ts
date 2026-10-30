@@ -49,13 +49,46 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from '@/lib/session';
 import { logUserActivity } from '@/infrastructure/logging/activity-logger';
+import {
+  consumeRateLimit,
+  checkRateLimit,
+  resetRateLimit,
+  getClientIp,
+  RATE_LIMIT_CONFIG,
+} from '@/infrastructure/security/rate-limiter';
 
 export async function loginInternalAction(nrp: string, kataSandi: string, clientDeviceId?: string) {
   try {
+    const cleanNrp = (nrp || '').trim();
+    const clientIp = await getClientIp();
+    const rateLimitKey = `auth_login:${cleanNrp || clientIp}`;
+
+    // 1. Cek proteksi brute-force login
+    const rateCheck = checkRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.AUTH_LOGIN.maxAttempts,
+      RATE_LIMIT_CONFIG.AUTH_LOGIN.windowMs
+    );
+
+    if (!rateCheck.allowed) {
+      const waitMinutes = Math.max(1, Math.ceil(rateCheck.retryAfterSec / 60));
+      return {
+        success: false,
+        error: `Akses Ditangguhkan: Terlalu banyak percobaan login gagal untuk akun ini. Demi keamanan markas, silakan coba lagi dalam ${waitMinutes} menit (${rateCheck.retryAfterSec} detik).`,
+      };
+    }
+
     const loginUseCase = UseCaseFactory.getLoginUseCase();
     const loginResult = await loginUseCase.execute({ nrp, kataSandi, clientDeviceId });
 
     if (!loginResult.success || !loginResult.data) {
+      // Konsumsi kuota percobaan jika login gagal
+      consumeRateLimit(
+        rateLimitKey,
+        RATE_LIMIT_CONFIG.AUTH_LOGIN.maxAttempts,
+        RATE_LIMIT_CONFIG.AUTH_LOGIN.windowMs
+      );
+
       // Audit log untuk penolakan akses terkait keamanan perangkat
       if (loginResult.error?.includes('Perangkat') || loginResult.error?.includes('Device ID')) {
         try {
@@ -76,6 +109,9 @@ export async function loginInternalAction(nrp: string, kataSandi: string, client
         error: loginResult.error || 'Terjadi kesalahan sistem login.',
       };
     }
+
+    // Reset rate-limit jika login berhasil
+    resetRateLimit(rateLimitKey);
 
     const {
       userId,

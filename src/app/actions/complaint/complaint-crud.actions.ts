@@ -13,6 +13,11 @@ import {
   normalizeCreateComplaintInput,
 } from './complaint-common';
 import { getActiveSpktDutyOfficerPhone } from './complaint-query.actions';
+import {
+  consumeRateLimit,
+  getClientIp,
+  RATE_LIMIT_CONFIG,
+} from '@/infrastructure/security/rate-limiter';
 
 export async function createComplaintAction(input: CreateComplaintActionInput) {
   try {
@@ -56,6 +61,22 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
 
     if (!cleanRingkasan || cleanRingkasan === '-') {
       return { success: false, error: 'Uraian ringkasan kejadian wajib diisi!' };
+    }
+
+    // Rate Limiting: Mencegah spam pembuatan laporan darurat massal
+    const clientIp = await getClientIp();
+    const rateLimitKey = `complaint_submit:${cleanHp || clientIp}`;
+    const rateCheck = consumeRateLimit(
+      rateLimitKey,
+      RATE_LIMIT_CONFIG.CITIZEN_COMPLAINT.maxAttempts,
+      RATE_LIMIT_CONFIG.CITIZEN_COMPLAINT.windowMs
+    );
+
+    if (!rateCheck.allowed) {
+      return {
+        success: false,
+        error: `Batas pengiriman laporan tercapai. Mohon tunggu ${rateCheck.retryAfterSec} detik sebelum membuat laporan baru demi ketertiban antrean darurat.`,
+      };
     }
 
     let finalAlamat = cleanAlamat;
