@@ -447,15 +447,21 @@ export function useOperatorConsole({
     setShowTolakModal(true);
   }, []);
 
-  const handleConfirmRejectModal = useCallback(async () => {
+  const handleConfirmRejectModal = useCallback(async (reason?: string, notes?: string) => {
     if (!tolakComplaint) return;
     setLoading(true);
     try {
       const activeOperatorId = session?.userId ? String(session.userId) : (userProfile?.id ? String(userProfile.id) : '');
+      const finalCategory = reason || tolakKategori || 'Tidak Memenuhi Kualifikasi Laporan Darurat';
+      const finalNotes = notes || tolakAlasan || '-';
+      const fullCatatan = finalNotes && finalNotes !== '-'
+        ? `Laporan ditolak oleh Operator SPKT: ${finalCategory} - ${finalNotes}`
+        : `Laporan ditolak oleh Operator SPKT: ${finalCategory}`;
+
       const res = await updateComplaintStatusAction({
         complaintId: tolakComplaint.id.toString(),
         status: 'DITOLAK' as any,
-        catatan: `Laporan ditolak oleh Operator SPKT: ${tolakKategori} - ${tolakAlasan}`,
+        catatan: fullCatatan,
         pawasUserId: activeOperatorId,
       });
       if (res.success) {
@@ -473,8 +479,8 @@ export function useOperatorConsole({
   }, [tolakComplaint, session, userProfile, tolakKategori, tolakAlasan, showFriendlyToast, loadData]);
 
   const handleSubmitPenolakan = useCallback(async () => {
-    await handleConfirmRejectModal();
-  }, [handleConfirmRejectModal]);
+    await handleConfirmRejectModal(tolakKategori, tolakAlasan);
+  }, [handleConfirmRejectModal, tolakKategori, tolakAlasan]);
 
   const handleLogout = useCallback(async () => {
     await logoutAction();

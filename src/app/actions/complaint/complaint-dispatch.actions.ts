@@ -641,14 +641,14 @@ export async function acceptAndBroadcastCrossJurisdictionAction(input: {
     const acceptNotes = `[DISPOSISI LINTAS WILAYAH DITERIMA] Tiket: ${comp.nomor_tiket} | Kasus: ${comp.jenis_kejadian} | TKP: ${comp.tkp_alamat_teks} | Urgensi: ${comp.urgensi} | Penerima Tiket: ${actorName} (${actorRole} ${targetStationName}) | Pendisposisi Mako Asal: ${pendisposisiAsal} | Petugas Piket Hari Ini (${targetStationName}): ${dutyPiketText} | Waktu Masuk: ${waktuMasuk} | Waktu Diterima: ${waktuDiterima} | Status: DITERIMA_DAN_DISIARKAN_KE_PERSONIL | Sirine Mako dihentikan, tugas disiarkan terbuka ke seluruh personil dinas aktif ${targetStationName}.`;
 
     await prisma.$transaction(async (tx) => {
-      // 1. Status complaint beralih ke DIPROSES (Tahap 2: Sudah Didisposisikan & Disiarkan ke Personel/Armada)
-      // Tiket resmi masuk ke proses penanganan aktif lapangan dan keluar dari antrean menunggu disposisi
+      // 1. Status complaint beralih ke MENUNGGU (Tahap 1: Disiarkan ke Armada Patroli Mako Penerima)
+      // Status baru beralih ke DIPROSES (Tahap 2) saat ada personel patroli Mako penerima yang mengklik Terima Tugas
       await tx.complaint.update({
         where: { id: complaintIdBig },
         data: {
-          status: 'DIPROSES',
-          status_id: 2,
-          tahap: 2,
+          status: 'MENUNGGU',
+          status_id: 1,
+          tahap: 1,
           station_id: targetStationId,
         },
       });

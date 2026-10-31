@@ -102,8 +102,22 @@ export async function submitRatingAction(input: {
   rating: number;
   review?: string;
   tags?: string;
+  token?: string;
 }) {
   try {
+    if (process.env.NODE_ENV !== 'production' && process.env.SIMAPRES_BYPASS_AUTH === 'true') {
+      // Test environment bypass
+    } else {
+      const { verifyTrackingToken } = await import('@/lib/tracking-token');
+      const isValid = input.token ? verifyTrackingToken(input.nomorTiket, input.token) : false;
+      if (!isValid) {
+        return {
+          success: false,
+          error: 'Akses ditolak: Token autentikasi pelacakan warga tidak valid untuk memberikan penilaian.',
+        };
+      }
+    }
+
     const useCase = UseCaseFactory.getSubmitRatingUseCase();
     const result = await useCase.execute(input);
     safeRevalidatePath();

@@ -93,7 +93,8 @@ export default function CitizenLiveRadarTracker({
   onSwitchToOperatorReview,
 }: CitizenLiveRadarTrackerProps) {
   // ── State ──────────────────────────────────────────────────────────────────
-  const hasToken = Boolean(token && token.trim());
+  const trimmedToken = (token || '').trim();
+  const hasToken = Boolean(trimmedToken);
   const [complaint, setComplaint] = useState<any>(hasToken ? (initialData || null) : null);
   const [loading, setLoading] = useState(hasToken ? !initialData : false);
   const [ticketNotFound, setTicketNotFound] = useState(false);
@@ -581,7 +582,13 @@ export default function CitizenLiveRadarTracker({
     setChatMessages((prev) => [...prev, optimistic]);
     if (!preset) setChatInput('');
     try {
-      const res = await sendTicketChatMessageAction({ complaintIdOrTiket: nomorTiket, senderRole: 'WARGA', senderName, text });
+      const res = await sendTicketChatMessageAction({
+        complaintIdOrTiket: nomorTiket,
+        senderRole: 'WARGA',
+        senderName,
+        text,
+        token: trimmedToken || undefined,
+      });
       if (res?.success && res.data) setChatMessages((prev) => prev.map((m) => m.id === optimistic.id ? res.data! : m));
     } catch (_) { }
     finally {
@@ -612,6 +619,7 @@ export default function CitizenLiveRadarTracker({
         rating: avgScore,
         review: reviewText.trim() || undefined,
         tags: tagsFormatted || undefined,
+        token: trimmedToken || undefined,
       });
       if (res?.success) {
         setRatingDone(true);

@@ -3,13 +3,15 @@
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import type { ChatMessageItem } from '@/types/chat.types';
 import { cacheInvalidate } from '@/infrastructure/cache/app-cache';
-import { requireRole } from '@/lib/session';
+import { getSession, requireRole } from '@/lib/session';
+import { verifyTrackingToken } from '@/lib/tracking-token';
 
 // In-memory fallback / quick cache for ultra-responsive low-latency chat
 const chatCache = new Map<string, ChatMessageItem[]>();
 
 export async function getTicketChatMessagesAction(
-  complaintIdOrTiket: string
+  complaintIdOrTiket: string,
+  token?: string
 ): Promise<{ success: boolean; data: ChatMessageItem[]; isTicketClosed?: boolean; error?: string }> {
   try {
     if (!complaintIdOrTiket) {
@@ -19,6 +21,25 @@ export async function getTicketChatMessagesAction(
     const rawKey = complaintIdOrTiket.trim();
     const cleanKey = rawKey.replace(/^#+/, '').trim();
     const withHash = `#${cleanKey}`;
+
+    // Verifikasi Otorisasi: Petugas Kedinasan (Sesi Aktif) ATAU Warga Pelapor (HMAC Tracking Token)
+    let isAuthorized = false;
+    const session = await getSession();
+    if (session && ['PERSONIL', 'OPERATOR', 'PAWAS', 'SUPERADMIN', 'LOGISTIK', 'PIMPINAN'].includes(session.role)) {
+      isAuthorized = true;
+    } else if (process.env.NODE_ENV !== 'production' && process.env.SIMAPRES_BYPASS_AUTH === 'true') {
+      isAuthorized = true;
+    } else if (token) {
+      isAuthorized = verifyTrackingToken(rawKey, token) || verifyTrackingToken(cleanKey, token);
+    }
+
+    if (!isAuthorized) {
+      return {
+        success: false,
+        data: [],
+        error: 'Akses ditolak: Diperlukan sesi dinas aktif atau token pelacakan tiket yang sah.',
+      };
+    }
 
     const chatRepo = UseCaseFactory.getChatRepository();
 
@@ -104,12 +125,22 @@ export async function sendTicketChatMessageAction(input: {
   senderName: string;
   text: string;
   officerNrp?: string;
+  token?: string;
 }): Promise<{ success: boolean; data?: ChatMessageItem; error?: string }> {
   try {
     if (input.senderRole === 'PERSONIL') {
-      const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+      const auth = await requireRole(['PERSONIL', 'SUPERADMIN', 'OPERATOR', 'PAWAS']);
       if (!auth.authorized) {
         return { success: false, error: auth.error };
+      }
+    } else if (input.senderRole === 'WARGA') {
+      if (process.env.NODE_ENV !== 'production' && process.env.SIMAPRES_BYPASS_AUTH === 'true') {
+        // Test environment bypass
+      } else {
+        const isValid = input.token ? verifyTrackingToken(input.complaintIdOrTiket, input.token) : false;
+        if (!isValid) {
+          return { success: false, error: 'Akses ditolak: Token autentikasi pelacakan warga tidak valid.' };
+        }
       }
     }
 

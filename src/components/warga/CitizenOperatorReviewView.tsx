@@ -230,6 +230,7 @@ export default function CitizenOperatorReviewView({
         rating: roundedStars,
         review: reviewText.trim() || undefined,
         tags: allTagsCombined,
+        token: token ? token.trim() : undefined,
       });
 
       if (res?.success) {

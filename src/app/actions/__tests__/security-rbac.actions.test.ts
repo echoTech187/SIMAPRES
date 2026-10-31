@@ -6,6 +6,8 @@ import { createHotspotAction } from '../hotspot.actions';
 import { validateOfficerLogbookAction, createLogbookAction } from '../logbook.actions';
 import { getPawasUnifiedDataAction } from '../pawas.actions';
 import { getPiketLookupsAction } from '../piket.actions';
+import { registerNewUnitAction, deleteRegisteredUnitAction, updateUserPasswordAction } from '../auth.actions';
+import { submitRatingAction } from '../complaint/complaint-lifecycle.actions';
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
 import { LogbookEntity } from '@/domain/entities/logbook.entity';
 import { prisma } from '@/infrastructure/db/prisma.client';
@@ -114,6 +116,68 @@ describe('Security & RBAC Rigor (OWASP API5 Protection for Server Action RPCs)',
         process.env.SIMAPRES_BYPASS_AUTH = prevBypass;
       }
     });
+    it('registerNewUnitAction: rejects unauthenticated caller attempting to create police account', async () => {
+      vi.spyOn(sessionModule, 'getSession').mockResolvedValue(null);
+      const prevBypass = process.env.SIMAPRES_BYPASS_AUTH;
+      delete process.env.SIMAPRES_BYPASS_AUTH;
+
+      try {
+        const result = await registerNewUnitAction({
+          nrp: '99009900',
+          nama: 'Briptu Ilegal',
+          pangkat: 'Briptu',
+          unitId: '1',
+          satuanNama: 'Sat Samapta',
+          kelompokRegu: 'Regu A',
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error).toContain('Akses ditolak');
+        }
+      } finally {
+        process.env.SIMAPRES_BYPASS_AUTH = prevBypass;
+      }
+    });
+
+    it('deleteRegisteredUnitAction: rejects unauthenticated caller attempting to delete police account', async () => {
+      vi.spyOn(sessionModule, 'getSession').mockResolvedValue(null);
+      const prevBypass = process.env.SIMAPRES_BYPASS_AUTH;
+      delete process.env.SIMAPRES_BYPASS_AUTH;
+
+      try {
+        const result = await deleteRegisteredUnitAction('8801');
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error).toContain('Akses ditolak');
+        }
+      } finally {
+        process.env.SIMAPRES_BYPASS_AUTH = prevBypass;
+      }
+    });
+
+    it('submitRatingAction: rejects citizen rating submission without a valid tracking token', async () => {
+      const prevBypass = process.env.SIMAPRES_BYPASS_AUTH;
+      delete process.env.SIMAPRES_BYPASS_AUTH;
+
+      try {
+        const result = await submitRatingAction({
+          nomorTiket: 'TICKET-202610-001',
+          rating: 5,
+          review: 'Bagus',
+          token: 'invalid_tampered_token_xyz',
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error).toContain('Akses ditolak');
+          expect(result.error).toContain('Token autentikasi pelacakan warga tidak valid');
+        }
+      } finally {
+        process.env.SIMAPRES_BYPASS_AUTH = prevBypass;
+      }
+    });
   });
 
   describe('2. Role Escalation Prevention (Least Privilege Enforcement)', () => {
@@ -177,6 +241,44 @@ describe('Security & RBAC Rigor (OWASP API5 Protection for Server Action RPCs)',
         }
       } finally {
         delete process.env.SIMAPRES_MOCK_ROLE;
+      }
+    });
+
+    it('registerNewUnitAction: rejects non-SUPERADMIN role (PERSONIL) from creating accounts', async () => {
+      process.env.SIMAPRES_MOCK_ROLE = 'PERSONIL';
+      try {
+        const result = await registerNewUnitAction({
+          nrp: '99009900',
+          nama: 'Briptu Escalate',
+          pangkat: 'Briptu',
+          unitId: '1',
+          satuanNama: 'Sat Samapta',
+          kelompokRegu: 'Regu A',
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error).toContain('Akses ditolak');
+          expect(result.error).toContain('SUPERADMIN');
+        }
+      } finally {
+        delete process.env.SIMAPRES_MOCK_ROLE;
+      }
+    });
+
+    it('updateUserPasswordAction: rejects password update when oldPassword is omitted for non-SUPERADMIN', async () => {
+      vi.spyOn(sessionModule, 'getSession').mockResolvedValue({
+        userId: '101',
+        identifier: '8801',
+        fullName: 'Briptu Danang',
+        role: 'PERSONIL',
+      } as any);
+
+      const result = await updateUserPasswordAction('NewSecretPassword123');
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('Kata sandi lama wajib diisi');
       }
     });
   });

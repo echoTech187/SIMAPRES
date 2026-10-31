@@ -44,10 +44,12 @@ import {
   setSessionCookie,
   deleteSessionCookie,
   getSession,
+  requireRole,
   touchSession,
   SessionPayload,
   SESSION_MAX_AGE_SECONDS,
 } from '@/lib/session';
+import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
 import { logUserActivity } from '@/infrastructure/logging/activity-logger';
 import {
   consumeRateLimit,
@@ -470,6 +472,10 @@ export async function registerNewUnitAction(input: {
   liveLat?: number;
   liveLng?: number;
 }) {
+  const auth = await requireRole(['SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
   try {
     const assignedRole = input.role ? input.role.trim().toUpperCase() : 'PERSONIL';
     const masterRoleRecord = await prisma.masterRole.findFirst({
@@ -735,6 +741,10 @@ export async function registerNewUnitAction(input: {
 }
 
 export async function deleteRegisteredUnitAction(idOrNrp: string) {
+  const auth = await requireRole(['SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
   try {
     const cleanId = String(idOrNrp).trim();
     // Cari officer atau user berdasarkan id atau nrp
@@ -800,6 +810,15 @@ export async function updateDeviceTelemetryAction(input: {
   lng: number;
 }) {
   try {
+    const session = await getSession();
+    if (!session && process.env.NODE_ENV !== 'production' && process.env.SIMAPRES_BYPASS_AUTH === 'true') {
+      // Test environment bypass
+    } else if (!session) {
+      return { success: false, error: 'Akses telemetri ditolak: Sesi dinas tidak valid.' };
+    } else if (session.role !== 'SUPERADMIN' && input.nrp && session.identifier !== input.nrp) {
+      return { success: false, error: 'Akses telemetri ditolak: Anda hanya dapat memperbarui koordinat GPS diri sendiri.' };
+    }
+
     if (input.deviceId) {
       await prisma.policeOfficer.updateMany({
         where: { device_id: input.deviceId },
@@ -1155,6 +1174,14 @@ export async function updateUserProfileAndAvatarAction(input: {
 
     const identifier = session.identifier;
 
+    // Layer Keamanan: Validasi integritas Base64 foto avatar jika disertakan
+    if (input.avatar) {
+      const vAvatar = validateBase64ImagePayload(input.avatar);
+      if (!vAvatar.valid) {
+        return { success: false, error: 'Foto avatar tidak valid: ' + vAvatar.error };
+      }
+    }
+
     // 1. Update data akun User
     await prisma.user.update({
       where: { identifier },
@@ -1239,6 +1266,9 @@ export async function updateUserPasswordAction(newPassword: string, oldPassword?
     }
     if (!newPassword || newPassword.length < 6) {
       return { success: false, error: 'Kata sandi minimal 6 karakter!' };
+    }
+    if (!oldPassword && session.role !== 'SUPERADMIN') {
+      return { success: false, error: 'Kata sandi lama wajib diisi untuk verifikasi keamanan akun!' };
     }
     const user = await prisma.user.findUnique({
       where: { identifier: session.identifier },
