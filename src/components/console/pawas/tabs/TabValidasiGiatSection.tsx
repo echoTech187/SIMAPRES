@@ -19,6 +19,8 @@ import {
   AlertCircle,
   RotateCcw,
   Lock,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { validateOfficerLogbookAction } from '@/app/actions/logbook.actions';
 import { toast } from '@/components/ui/Toast';
@@ -48,6 +50,8 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [catatanPawas, setCatatanPawas] = useState('');
   const [localItems, setLocalItems] = useState<PawasLogbookItem[]>(logbooks);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Sinkronkan local state jika prop logbooks berubah
   React.useEffect(() => {
@@ -113,7 +117,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
     localItems.forEach((item) => {
       const st = String(item.statusValidasi || item.validation_status || '').toUpperCase();
 
-      if (st === 'VALID') valid++;
+      if (st === 'VALID' || st === 'SELESAI') valid++;
       else if (st === 'DITOLAK') ditolak++;
       else menunggu++;
     });
@@ -127,10 +131,10 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
       const st = String(item.statusValidasi || item.validation_status || '').toUpperCase();
 
       if (giatFilterStatus === 'menunggu') {
-        return st !== 'VALID' && st !== 'DITOLAK';
+        return st !== 'VALID' && st !== 'SELESAI' && st !== 'DITOLAK';
       }
       if (giatFilterStatus === 'valid') {
-        return st === 'VALID';
+        return st === 'VALID' || st === 'SELESAI';
       }
       if (giatFilterStatus === 'ditolak') {
         return st === 'DITOLAK';
@@ -139,14 +143,22 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
     });
   }, [localItems, giatFilterStatus]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredList.length / ITEMS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedList = useMemo(() => {
+    const start = (safeCurrentPage - 1) * ITEMS_PER_PAGE;
+    return filteredList.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredList, safeCurrentPage]);
+
   // Giat aktif yang sedang diinspeksi
   const activeGiat: any = useMemo(() => {
     if (selectedGiatId) {
       const found = filteredList.find((g) => String(g.id) === String(selectedGiatId));
       if (found) return found;
     }
-    return filteredList[0] || null;
-  }, [filteredList, selectedGiatId]);
+    return paginatedList[0] || filteredList[0] || null;
+  }, [filteredList, paginatedList, selectedGiatId]);
 
   // Eksekusi aksi validasi Pawas
   const handleValidateGiat = async (status: 'VALID' | 'DITOLAK') => {
@@ -267,6 +279,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
               className={`val-tab-btn ${isActive ? 'active' : ''}`}
               onClick={() => {
                 setGiatFilterStatus(tab.key);
+                setCurrentPage(1);
                 setSelectedGiatId(null);
               }}
               style={{
@@ -321,7 +334,9 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
         <div style={{ fontSize: '12.5px', color: '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span>Menampilkan:</span>
           <strong style={{ color: '#0F172A' }}>
-            {filteredList.length} Pengajuan Giat Lapangan
+            {filteredList.length === 0
+              ? '0 Pengajuan Giat Lapangan'
+              : `${(safeCurrentPage - 1) * ITEMS_PER_PAGE + 1} - ${Math.min(safeCurrentPage * ITEMS_PER_PAGE, filteredList.length)} dari ${filteredList.length} Pengajuan Giat Lapangan`}
           </strong>
         </div>
         <div style={{ fontSize: '11.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -383,7 +398,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
               </p>
             </div>
           ) : (
-            filteredList.map((item) => {
+            paginatedList.map((item) => {
               const isSelected = activeGiat && String(activeGiat.id) === String(item.id);
               const actionType = item.jenisAksi || item.action_type || 'PATROLI';
               const badge = getActionBadge(actionType);
@@ -534,7 +549,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
                     }}
                   >
                     {/* Status Pengesahan */}
-                    {status === 'VALID' ? (
+                    {status === 'VALID' || status === 'SELESAI' ? (
                       <span
                         style={{
                           display: 'inline-flex',
@@ -550,7 +565,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
                         }}
                       >
                         <CheckCircle2 size={12} />
-                        <span>Disahkan Pawas</span>
+                        <span>{status === 'SELESAI' ? 'Selesai Patroli' : 'Disahkan Pawas'}</span>
                       </span>
                     ) : status === 'FLAGGED_AUDIT' || isFlagged ? (
                       <span
@@ -631,6 +646,123 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
               );
             })
           )}
+
+          {/* ── Pagination Bar ── */}
+          {totalPages > 1 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+                background: '#FFFFFF',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '10px 14px',
+                marginTop: '4px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
+                Halaman <strong style={{ color: '#0F172A' }}>{safeCurrentPage}</strong> dari{' '}
+                <strong style={{ color: '#0F172A' }}>{totalPages}</strong>
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button
+                  type="button"
+                  disabled={safeCurrentPage <= 1}
+                  onClick={() => {
+                    const prev = Math.max(1, safeCurrentPage - 1);
+                    setCurrentPage(prev);
+                    setSelectedGiatId(null);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    background: safeCurrentPage <= 1 ? '#F8FAFC' : '#FFFFFF',
+                    color: safeCurrentPage <= 1 ? '#94A3B8' : '#0F172A',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: safeCurrentPage <= 1 ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <ChevronLeft size={14} />
+                  <span>Sebelumnya</span>
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1)
+                  .map((p, idx, arr) => {
+                    const prevPage = arr[idx - 1];
+                    const showEllipsis = prevPage && p - prevPage > 1;
+                    const isCurrent = p === safeCurrentPage;
+                    return (
+                      <React.Fragment key={p}>
+                        {showEllipsis && (
+                          <span style={{ fontSize: '12px', color: '#94A3B8', padding: '0 2px' }}>...</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCurrentPage(p);
+                            setSelectedGiatId(null);
+                          }}
+                          style={{
+                            minWidth: '32px',
+                            height: '32px',
+                            padding: '0 8px',
+                            borderRadius: '8px',
+                            border: isCurrent ? '1px solid #0284C7' : '1px solid #E2E8F0',
+                            background: isCurrent ? 'linear-gradient(135deg, #0F172A 0%, #0284C7 100%)' : '#FFFFFF',
+                            color: isCurrent ? '#FFFFFF' : '#334155',
+                            fontSize: '12px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {p}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                <button
+                  type="button"
+                  disabled={safeCurrentPage >= totalPages}
+                  onClick={() => {
+                    const next = Math.min(totalPages, safeCurrentPage + 1);
+                    setCurrentPage(next);
+                    setSelectedGiatId(null);
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '6px 12px',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    background: safeCurrentPage >= totalPages ? '#F8FAFC' : '#FFFFFF',
+                    color: safeCurrentPage >= totalPages ? '#94A3B8' : '#0F172A',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: safeCurrentPage >= totalPages ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <span>Berikutnya</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Kolom Kanan: Lembar Dossier Pengesahan Giat Personel */}
@@ -674,7 +806,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
               </div>
               {(() => {
                 const st = String(activeGiat.statusValidasi || activeGiat.validation_status || 'BELUM_DIVALIDASI').toUpperCase();
-                const isValid = st === 'VALID';
+                const isValid = st === 'VALID' || st === 'SELESAI';
                 const isDitolak = st === 'DITOLAK';
                 const isAudit = st === 'FLAGGED_AUDIT' || Boolean(activeGiat.isDeviasiFlagged || activeGiat.is_deviation_flagged);
 
@@ -916,7 +1048,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
             {/* ── Status Pengesahan / Form Komando Pawas ── */}
             {(() => {
               const currentStatus = String(activeGiat.statusValidasi || activeGiat.validation_status || 'BELUM_DIVALIDASI').toUpperCase();
-              const isApproved = currentStatus === 'VALID';
+              const isApproved = currentStatus === 'VALID' || currentStatus === 'SELESAI';
               const isRejected = currentStatus === 'DITOLAK';
               const parsedInfo = parseGiatDescription(activeGiat.deskripsiKegiatan || activeGiat.activity_description || '');
 

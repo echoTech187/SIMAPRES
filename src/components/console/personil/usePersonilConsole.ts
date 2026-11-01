@@ -684,7 +684,7 @@ export function usePersonilConsole({
 
       const res = await createLogbookAction({
         officerId: officer.id,
-        complaintId: activeComplaint ? String(activeComplaint.id) : undefined,
+        complaintId: undefined,
         jenisAksi: data.type,
         lokasiKlaimAlamat: data.lokasiSasaran || (officer.stationName ? officer.stationName : ''),
         lokasiKlaimLat: currentGps.lat,

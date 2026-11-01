@@ -8,7 +8,7 @@ export interface PawasLogbookData {
 export class GetPawasLogbookUseCase {
   constructor(private logbookRepo: ILogbookRepository) {}
 
-  async execute(limit = 10, stationId?: number): Promise<PawasLogbookData> {
+  async execute(limit = 200, stationId?: number): Promise<PawasLogbookData> {
     const recentLogbooks = await this.logbookRepo.findRecent(limit, stationId);
     return { recentLogbooks };
   }

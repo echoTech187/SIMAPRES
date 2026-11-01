@@ -136,7 +136,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
     });
   }
 
-  async findRecent(limit = 10, stationId?: number): Promise<LogbookEntity[]> {
+  async findRecent(limit = 200, stationId?: number): Promise<LogbookEntity[]> {
     try {
       const numStation = stationId ? Number(stationId) : null;
       const rawRows: any[] = await prisma.$queryRaw`
@@ -153,6 +153,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
         LEFT JOIN users u ON u.id = po.user_id
         LEFT JOIN master_operational_units un ON un.id = po.unit_id
         WHERE l.action_type IN ('PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP')
+          AND l.activity_description LIKE '[PENGAJUAN GIAT%'
           AND (${numStation} IS NULL OR po.station_id = ${numStation})
         ORDER BY l.created_at DESC
         LIMIT ${limit};
@@ -161,6 +162,7 @@ export class PrismaLogbookRepository implements ILogbookRepository {
     } catch (_err) {
       const where: any = {
         action_type: { in: ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'] },
+        activity_description: { startsWith: '[PENGAJUAN GIAT' },
       };
       if (stationId) {
         where.officer = { station_id: stationId };

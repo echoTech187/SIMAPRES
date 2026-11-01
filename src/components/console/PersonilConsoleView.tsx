@@ -97,13 +97,21 @@ function PersonilContent(props: {
     return (
       logbooks.find((l: any) => {
         const type = (l.jenisAksi || l.action_type || '').toUpperCase();
-        const desc = l.deskripsiKegiatan || l.activity_description || '';
+        const desc = String(l.deskripsiKegiatan || l.activity_description || '');
         const hasComplaint = l.complaintId || l.complaint_id;
         const status = String(l.statusValidasi || l.validation_status || '').toUpperCase();
+        const isAlreadyCompleted =
+          status === 'SELESAI' ||
+          status === 'DITOLAK' ||
+          desc.includes('• Hasil Patroli:') ||
+          desc.includes('• Total Jarak Tempuh:');
         return (
-          ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
-          desc.startsWith('[PENGAJUAN GIAT')
-        ) && !hasComplaint && (status === 'BELUM_DIVALIDASI' || status === 'VALID');
+          (['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
+            desc.startsWith('[PENGAJUAN GIAT')) &&
+          !hasComplaint &&
+          !isAlreadyCompleted &&
+          (status === 'BELUM_DIVALIDASI' || status === 'VALID')
+        );
       }) || null
     );
   }, [logbooks]);
@@ -114,7 +122,13 @@ function PersonilContent(props: {
       const match = logbooks.find((l: any) => String(l.id) === String(selectedGiat.id));
       if (match) {
         const st = String(match.statusValidasi || match.validation_status || '').toUpperCase();
-        if (st === 'SELESAI' || st === 'DITOLAK') {
+        const desc = String(match.deskripsiKegiatan || match.activity_description || '');
+        if (
+          st === 'SELESAI' ||
+          st === 'DITOLAK' ||
+          desc.includes('• Hasil Patroli:') ||
+          desc.includes('• Total Jarak Tempuh:')
+        ) {
           handleSetSelectedGiat(null);
         }
       }
@@ -127,13 +141,21 @@ function PersonilContent(props: {
     logbooks &&
     logbooks.some((l: any) => {
       const type = (l.jenisAksi || l.action_type || '').toUpperCase();
-      const desc = l.deskripsiKegiatan || l.activity_description || '';
+      const desc = String(l.deskripsiKegiatan || l.activity_description || '');
       const hasComplaint = l.complaintId || l.complaint_id;
       const status = String(l.statusValidasi || l.validation_status || '').toUpperCase();
+      const isAlreadyCompleted =
+        status === 'SELESAI' ||
+        status === 'DITOLAK' ||
+        desc.includes('• Hasil Patroli:') ||
+        desc.includes('• Total Jarak Tempuh:');
       return (
-        ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
-        desc.startsWith('[PENGAJUAN GIAT')
-      ) && !hasComplaint && (status === 'BELUM_DIVALIDASI' || status === 'VALID');
+        (['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
+          desc.startsWith('[PENGAJUAN GIAT')) &&
+        !hasComplaint &&
+        !isAlreadyCompleted &&
+        (status === 'BELUM_DIVALIDASI' || status === 'VALID')
+      );
     })
   );
 

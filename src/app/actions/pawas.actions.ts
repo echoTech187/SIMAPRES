@@ -120,7 +120,7 @@ export async function getPawasDashboardDataAction(
       getPendingComplaintsAction(numStationId),
       getAllRecentComplaintsAction(100, numStationId),
       getRegisteredUnitsAction(),
-      getRecentLogbooksAction(10, numStationId),
+      getRecentLogbooksAction(200, numStationId),
       getPoliceOfficesAction(),
     ]);
 
@@ -248,7 +248,7 @@ export async function getPawasAnalyticsDataAction(
  * Hanya dipanggil saat Pawas mengklik tab Logbook.
  */
 export async function getPawasLogbookDataAction(
-  limit = 10,
+  limit = 200,
   forceFresh = false,
   stationId?: number | string
 ): Promise<ActionResult<PawasLogbookData>> {

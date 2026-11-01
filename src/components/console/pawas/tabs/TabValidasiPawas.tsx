@@ -143,7 +143,12 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
     }
   }, [recentActivities]);
 
-  const giatsList = currentActivities || [];
+  const giatsList = React.useMemo(() => {
+    return (currentActivities || []).filter((g) => {
+      const desc = String(g.deskripsiKegiatan || g.activity_description || '');
+      return desc.startsWith('[PENGAJUAN GIAT');
+    });
+  }, [currentActivities]);
   const pendingGiatsCount = React.useMemo(() => {
     return giatsList.filter((g) => {
       const st = String(g.statusValidasi || g.validation_status || '').toUpperCase();
@@ -280,7 +285,7 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
       {komandoTrack === 'giat' ? (
         <TabValidasiGiatSection
           userProfile={userProfile}
-          logbooks={currentActivities}
+          logbooks={giatsList}
           setLightboxImg={setLightboxImg}
           setShowLightboxModal={setShowLightboxModal}
           onGiatStatusUpdated={(updated) => {

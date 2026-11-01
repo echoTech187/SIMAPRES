@@ -275,6 +275,7 @@ export function usePawasConsole({
         if (Array.isArray(d.pendingComplaints)) setAntreanPawas(d.pendingComplaints);
         if (Array.isArray(d.allRecentComplaints)) setAllRecentComplaints(d.allRecentComplaints);
         if (Array.isArray(d.registeredUnits)) setRegisteredUnits(d.registeredUnits);
+        if (Array.isArray(d.recentLogbooks)) setRecentActivities(d.recentLogbooks);
 
         dataLoadedRef.current = true;
       }
@@ -345,7 +346,7 @@ export function usePawasConsole({
   const loadLogbookData = useCallback(async (force = false) => {
     try {
       const activeStationId = userProfile?.stationId || session?.stationId;
-      const res = await getPawasLogbookDataAction(10, force, activeStationId);
+      const res = await getPawasLogbookDataAction(200, force, activeStationId);
       if ((res as any)?.unauthenticated) {
         redirectToLogin('inactivity_timeout');
         return;
@@ -369,7 +370,7 @@ export function usePawasConsole({
     await loadDashboardData(force, silent);
     if (activeTab === 'view-peta') loadMapData(force);
     if (activeTab === 'view-laporan') loadAnalyticsData(force);
-    if (activeTab === 'view-log') loadLogbookData(force);
+    if (activeTab === 'view-log' || activeTab === 'view-validasi') loadLogbookData(force);
   }, [loadDashboardData, loadMapData, loadAnalyticsData, loadLogbookData, activeTab]);
 
   useEffect(() => {
@@ -505,7 +506,7 @@ export function usePawasConsole({
       loadMapData();
     } else if (activeTab === 'view-laporan' && !isAnalyticsLoadedRef.current) {
       loadAnalyticsData();
-    } else if (activeTab === 'view-log' && !isLogbookLoadedRef.current) {
+    } else if ((activeTab === 'view-log' || activeTab === 'view-validasi') && !isLogbookLoadedRef.current) {
       loadLogbookData();
     }
   }, [activeTab, loadMapData, loadAnalyticsData, loadLogbookData]);
@@ -518,7 +519,7 @@ export function usePawasConsole({
       loadDashboardData(true, true);
       if (activeTab === 'view-peta') loadMapData(true);
       if (activeTab === 'view-laporan') loadAnalyticsData(true);
-      if (activeTab === 'view-log') loadLogbookData(true);
+      if (activeTab === 'view-log' || activeTab === 'view-validasi') loadLogbookData(true);
     }, [loadDashboardData, loadMapData, loadAnalyticsData, loadLogbookData, activeTab]),
   });
 

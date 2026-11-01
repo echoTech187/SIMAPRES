@@ -82,8 +82,8 @@ export default function LiveCameraWatermarkCapture({
 
   // Cegah duplikasi pangkat jika nama personel sudah diawali pangkat (misal "AIPDA AIPDA Fajar")
   const officerDisplay = useMemo(() => {
-    const rawName = personilNama?.trim() || 'Petugas Patroli';
-    const rawRank = personilPangkat?.trim() || '';
+    const rawName = personilNama?.trim() ?? null;
+    const rawRank = personilPangkat?.trim() ?? null;
     if (!rawRank) return rawName;
     if (rawName.toLowerCase().startsWith(rawRank.toLowerCase())) {
       return rawName;
@@ -109,8 +109,8 @@ export default function LiveCameraWatermarkCapture({
     tkpAlamat && !tkpAlamat.toLowerCase().includes('kawasan hukum')
       ? tkpAlamat
       : (alamatTkp && !alamatTkp.includes('TKP') && !alamatTkp.toLowerCase().includes('kawasan hukum')
-          ? alamatTkp
-          : 'Lokasi Penanganan Tugas Lapangan');
+        ? alamatTkp
+        : 'Lokasi Penanganan Tugas Lapangan');
   const hasTkpTarget = Boolean(targetTkpLat && targetTkpLng);
 
   // Nama ringkas distrik TKP untuk label saklar
@@ -145,10 +145,10 @@ export default function LiveCameraWatermarkCapture({
   const activeAddress = useSimulatedCoords
     ? resolvedTkpAlamat
     : (liveAddress && liveAddress !== 'Lokasi tidak Valid' && !liveAddress.includes('Mampang')
-        ? liveAddress
-        : (lokasiPersonil && lokasiPersonil !== 'Lokasi tidak Valid' && !lokasiPersonil.includes('Mampang')
-            ? lokasiPersonil
-            : fallbackRealAddress));
+      ? liveAddress
+      : (lokasiPersonil && lokasiPersonil !== 'Lokasi tidak Valid' && !lokasiPersonil.includes('Mampang')
+        ? lokasiPersonil
+        : fallbackRealAddress));
 
   // Hitung deviasi jarak terhadap TKP
   const distanceMeters = computeHaversineMeters(activeLat, activeLng, targetTkpLat, targetTkpLng);
@@ -239,7 +239,7 @@ export default function LiveCameraWatermarkCapture({
         streamRef.current.getTracks().forEach((track) => {
           try {
             track.stop();
-          } catch (_) {}
+          } catch (_) { }
         });
         streamRef.current = null;
       }
@@ -301,7 +301,7 @@ export default function LiveCameraWatermarkCapture({
       // Hentikan stream aktif terlebih dahulu jika ada
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => {
-          try { t.stop(); } catch (_) {}
+          try { t.stop(); } catch (_) { }
         });
         streamRef.current = null;
       }
@@ -471,8 +471,8 @@ export default function LiveCameraWatermarkCapture({
       isDiscrepancy
         ? '⚠️ POLRI SIMOPMAS 110 • DOKUMENTASI TERINDIKASI DILUAR LOKASI TKP'
         : isFlexibleLocation
-        ? '🛡️ POLRI SIMOPMAS 110 • DOKUMENTASI PENYELESAIAN PERKARA (BAP)'
-        : '🛡️ POLRI SIMOPMAS 110 • DOKUMENTASI VISUAL LAPANGAN RESMI',
+          ? '🛡️ POLRI SIMOPMAS 110 • DOKUMENTASI PENYELESAIAN PERKARA (BAP)'
+          : '🛡️ POLRI SIMOPMAS 110 • DOKUMENTASI VISUAL LAPANGAN RESMI',
       paddingX,
       currentY
     );
@@ -662,8 +662,8 @@ export default function LiveCameraWatermarkCapture({
   const currentAddressDisplay = lastPhotoMetadata ? lastPhotoMetadata.address : activeAddress;
   const currentDistStr = lastPhotoMetadata
     ? (lastPhotoMetadata.distanceMeters >= 1000
-        ? `${(lastPhotoMetadata.distanceMeters / 1000).toFixed(1)} km`
-        : `${lastPhotoMetadata.distanceMeters} meter`)
+      ? `${(lastPhotoMetadata.distanceMeters / 1000).toFixed(1)} km`
+      : `${lastPhotoMetadata.distanceMeters} meter`)
     : distStr;
 
   return (

@@ -419,12 +419,21 @@ export default function TabBerandaPersonil({
     if (!Array.isArray(logbooks) || logbooks.length === 0) return [];
     const standalone = logbooks.filter((l) => {
       const type = (l.jenisAksi || l.action_type || '').toUpperCase();
-      const desc = l.deskripsiKegiatan || l.activity_description || '';
+      const desc = String(l.deskripsiKegiatan || l.activity_description || '');
       const hasComplaint = l.complaintId || l.complaint_id;
+      const status = String(l.statusValidasi || l.validation_status || '').toUpperCase();
+      const isAlreadyCompleted =
+        status === 'SELESAI' ||
+        status === 'DITOLAK' ||
+        desc.includes('• Hasil Patroli:') ||
+        desc.includes('• Total Jarak Tempuh:');
+
       return (
-        ['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
-        desc.startsWith('[PENGAJUAN GIAT')
-      ) && !hasComplaint;
+        (['PATROLI', 'SAMBANG', 'PENGAMANAN', 'TPTKP'].includes(type) ||
+          desc.startsWith('[PENGAJUAN GIAT')) &&
+        !hasComplaint &&
+        !isAlreadyCompleted
+      );
     });
 
     // Urutkan yang statusnya BELUM_DIVALIDASI dan VALID di urutan teratas

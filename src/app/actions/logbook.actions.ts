@@ -123,7 +123,7 @@ export async function getFlaggedAuditLogbooksAction(limit = 50): Promise<ActionR
   }
 }
 
-export async function getRecentLogbooksAction(limit = 10, stationId?: number): Promise<ActionResult<any[]>> {
+export async function getRecentLogbooksAction(limit = 200, stationId?: number): Promise<ActionResult<any[]>> {
   try {
     const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
@@ -154,7 +154,7 @@ export async function validateOfficerLogbookAction(
 
     const useCase = UseCaseFactory.getValidateLogbookUseCase();
     const updated = await useCase.execute(BigInt(logbookId), status as any, note);
-    invalidateOfficerLogbooksCache(updated.officerId ? String(updated.officerId) : undefined);
+    invalidateOfficerLogbooksCache();
     await invalidatePawasUnifiedCache().catch(() => {});
     return { success: true, data: serializeBigInt(updated.toJSON()) };
   } catch (error: unknown) {
@@ -180,9 +180,9 @@ export async function completeGiatPatroliAction(input: {
     }
     const updated = await repo.completePatrolGiat(id, input.finalMeters, input.catatanHasil);
 
-    invalidateOfficerLogbooksCache(updated.officerId ? String(updated.officerId) : undefined);
+    invalidateOfficerLogbooksCache();
     await invalidatePawasUnifiedCache().catch(() => {});
-    return { success: true, data: serializeBigInt(updated) };
+    return { success: true, data: serializeBigInt(updated.toJSON ? updated.toJSON() : updated) };
   } catch (error: unknown) {
     return { success: false, error: getErrorMessage(error) };
   }

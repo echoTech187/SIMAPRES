@@ -1177,7 +1177,7 @@ const EMPTY_ARRAY: any[] = [];
 
               {/* Subtext Keterangan Kunci Radius & Tombol Simulasi Perjalanan */}
               {complaintStage === 'meluncur' && (
-                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5 px-1">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5"  >
                   {!isWithin50Meters ? (
                     isSimulating ? (
                       <span className="flex items-center gap-1.5 text-sky-400 font-semibold animate-pulse">
