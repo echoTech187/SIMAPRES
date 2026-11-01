@@ -325,6 +325,7 @@ function PersonilContent(props: {
         officer={officer}
         currentGps={currentGps}
         fleetUnits={fleetUnits}
+        complaints={complaints}
         onClose={() => setQuickActionModalType(null)}
         onSubmit={submitQuickAction}
       />

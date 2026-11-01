@@ -14,6 +14,7 @@ import {
 import {
   getOfficerLogbooksAction,
   createLogbookAction,
+  joinTicketAsBackupCrewAction,
 } from '@/app/actions/logbook.actions';
 import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import {
@@ -256,71 +257,75 @@ export function usePersonilConsole({
       const activeOfficerId = targetOfficerId || officer.id;
 
       // Jalankan query logbooks dan complaints secara terpisah agar data logbooks tampil instan
-      const logbooksPromise = getOfficerLogbooksAction(String(activeOfficerId)).then((lRes) => {
-        if (lRes?.success && lRes?.data) {
-          setLogbooks(lRes.data);
-        }
-      });
+      const logbooksPromise = getOfficerLogbooksAction(String(activeOfficerId))
+        .then((lRes) => {
+          if (lRes?.success && lRes?.data) {
+            setLogbooks(lRes.data);
+          }
+        })
+        .catch(() => {});
 
-      const complaintsPromise = getOfficerComplaintsAction(activeNrp).then((cRes) => {
-        if (cRes?.success && cRes?.data) {
-          const currentHash = JSON.stringify(cRes.data.map((c: any) => [
-            c.id,
-            c.status,
-            c.tahap,
-            c.dispatches?.length,
-            c.dispatches?.map((d: any) => [d.id, d.officer_id, d.crew_partner_name, d.dispatch_status]),
-          ]));
+      const complaintsPromise = getOfficerComplaintsAction(activeNrp)
+        .then((cRes) => {
+          if (cRes?.success && cRes?.data) {
+            const currentHash = JSON.stringify(cRes.data.map((c: any) => [
+              c.id,
+              c.status,
+              c.tahap,
+              c.dispatches?.length,
+              c.dispatches?.map((d: any) => [d.id, d.officer_id, d.crew_partner_name, d.dispatch_status]),
+            ]));
 
-          if (currentHash !== lastComplaintsHashRef.current || preferredComplaintId) {
-            lastComplaintsHashRef.current = currentHash;
-            setComplaints(cRes.data);
+            if (currentHash !== lastComplaintsHashRef.current || preferredComplaintId) {
+              lastComplaintsHashRef.current = currentHash;
+              setComplaints(cRes.data);
 
-            const targetId =
-              preferredComplaintId ||
-              activeComplaintRef.current?.id ||
-              activeComplaintRef.current?.nomorTiket;
+              const targetId =
+                preferredComplaintId ||
+                activeComplaintRef.current?.id ||
+                activeComplaintRef.current?.nomorTiket;
 
-            let active = targetId
-              ? cRes.data.find(
+              let active = targetId
+                ? cRes.data.find(
+                    (c: any) =>
+                      (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
+                      hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
+                      c.status !== 'SELESAI' &&
+                      c.status !== 'DITOLAK'
+                  )
+                : null;
+
+              if (!active) {
+                active = cRes.data.find(
                   (c: any) =>
-                    (String(c.id) === String(targetId) || String(c.nomorTiket) === String(targetId)) &&
                     hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
                     c.status !== 'SELESAI' &&
                     c.status !== 'DITOLAK'
-                )
-              : null;
+                );
+              }
 
-            if (!active) {
-              active = cRes.data.find(
-                (c: any) =>
-                  hasOfficerAcceptedTask(c, activeNrp, activeOfficerId) &&
-                  c.status !== 'SELESAI' &&
-                  c.status !== 'DITOLAK'
-              );
-            }
+              setActiveComplaint(active || null);
+              activeComplaintRef.current = active || null;
 
-            setActiveComplaint(active || null);
-            activeComplaintRef.current = active || null;
+              // Personel yang sedang menangani tiket perkara aktif tidak boleh menerima tugas perkara lain
+              const hasActiveTask = Boolean(active);
+              const pending = !hasActiveTask
+                ? cRes.data.find((c: any) =>
+                    isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id, hasActiveTask)
+                  ) || null
+                : null;
 
-            // Personel yang sedang menangani tiket perkara aktif tidak boleh menerima tugas perkara lain
-            const hasActiveTask = Boolean(active);
-            const pending = !hasActiveTask
-              ? cRes.data.find((c: any) =>
-                  isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id, hasActiveTask)
-                ) || null
-              : null;
-
-            if (pending) {
-              setPendingAcceptTask(pending);
-            } else {
-              stopPoliceAlertAudio();
-              setPendingAcceptTask(null);
-              setShowAcceptModal(false);
+              if (pending) {
+                setPendingAcceptTask(pending);
+              } else {
+                stopPoliceAlertAudio();
+                setPendingAcceptTask(null);
+                setShowAcceptModal(false);
+              }
             }
           }
-        }
-      });
+        })
+        .catch(() => {});
 
       await Promise.all([logbooksPromise, complaintsPromise]);
     } catch (e) {
@@ -361,9 +366,9 @@ export function usePersonilConsole({
       if (!isMasterDataFetching) {
         isMasterDataFetching = true;
         Promise.all([
-          needsPoliceOffices ? getPoliceOfficesAction() : Promise.resolve(null),
-          needsFleetUnits ? getPatrolFleetUnitsAction() : Promise.resolve(null),
-          needsHotspots ? getHotspotsAction() : Promise.resolve(null),
+          needsPoliceOffices ? getPoliceOfficesAction().catch(() => null) : Promise.resolve(null),
+          needsFleetUnits ? getPatrolFleetUnitsAction().catch(() => null) : Promise.resolve(null),
+          needsHotspots ? getHotspotsAction().catch(() => null) : Promise.resolve(null),
         ]).then(([poRes, fleetRes, hotRes]) => {
           if (poRes?.success && poRes?.data) {
             cachedPoliceOffices = poRes.data;
@@ -377,18 +382,20 @@ export function usePersonilConsole({
             cachedHotspots = hotRes.data;
             setHotspots(hotRes.data);
           }
-        }).finally(() => {
+        }).catch(() => {}).finally(() => {
           isMasterDataFetching = false;
         });
       }
     }
 
     if (!dispatchStatuses.length) {
-      getMasterFilterOptionsAction().then((mRes) => {
-        if (mRes?.success && mRes?.data?.dispatchStatuses) {
-          setDispatchStatuses(mRes.data.dispatchStatuses);
-        }
-      });
+      getMasterFilterOptionsAction()
+        .then((mRes) => {
+          if (mRes?.success && mRes?.data?.dispatchStatuses) {
+            setDispatchStatuses(mRes.data.dispatchStatuses);
+          }
+        })
+        .catch(() => {});
     }
 
     let watchId: number | null = null;
@@ -673,6 +680,64 @@ export function usePersonilConsole({
     data: PengajuanGiatData
   ): Promise<{ success: boolean; error?: string }> => {
     try {
+      // Khusus TPTKP Mandiri dengan Nomor Tiket Terkait (Opsional):
+      // Langsung hubungkan personil sebagai REKAN dari PENGAJU pada tiket tersebut tanpa menunggu Pawas
+      if (data.type === 'TPTKP' && data.nomorTiketTerkait && data.nomorTiketTerkait.trim()) {
+        const joinRes = await joinTicketAsBackupCrewAction({
+          ticketNumberOrId: data.nomorTiketTerkait.trim(),
+          officerId: officer.id,
+          officerName: officer.fullName,
+          officerNrp: officer.nrp,
+          officerPangkat: officer.pangkat,
+          additionalPartners: data.selectedPartnersList?.map((p) => ({
+            name: p.name,
+            nrp: p.nrp,
+            pangkat: p.pangkat,
+          })),
+        });
+
+        if (!joinRes.success) {
+          return {
+            success: false,
+            error: joinRes.error || 'Gagal menghubungkan ke nomor tiket yang dituju.',
+          };
+        }
+        if (!joinRes.data) {
+          return {
+            success: false,
+            error: 'Gagal menghubungkan ke nomor tiket yang dituju.',
+          };
+        }
+
+        const joined = joinRes.data;
+
+        // Catat logbook TPTKP terhubung ke complaintId (otomatis tidak masuk ke antrean giat mandiri Pawas)
+        await createLogbookAction({
+          officerId: officer.id,
+          complaintId: joined.complaintId,
+          jenisAksi: 'TPTKP',
+          lokasiKlaimAlamat: joined.tkpAlamat || data.lokasiSasaran,
+          lokasiKlaimLat: joined.tkpLat || currentGps.lat,
+          lokasiKlaimLng: joined.tkpLng || currentGps.lng,
+          lokasiGpsAktualLat: currentGps.lat,
+          lokasiGpsAktualLng: currentGps.lng,
+          jamMulai: data.jamMulai,
+          jamSelesai: data.jamSelesai,
+          deskripsiKegiatan: `Perbantuan TPTKP pada Tiket #${joined.nomorTiket} mendampingi ${joined.leaderName}. Armada: ${data.armada}. Catatan: ${data.uraianRencana}`,
+        }).catch(() => {});
+
+        toast.success(
+          'Terhubung sebagai Rekan Tiket',
+          `✓ Anda resmi bergabung sebagai Rekan Regu mendampingi ${joined.leaderName} pada Tiket #${joined.nomorTiket}!`
+        );
+
+        setQuickActionModalType(null);
+        isPollingRef.current = false;
+        lastComplaintsHashRef.current = '';
+        await loadData(officer.id, joined.complaintId);
+        return { success: true };
+      }
+
       const formattedDeskripsi = [
         `[PENGAJUAN GIAT ${data.type}]`,
         `• Rencana Rute/Lokasi: ${data.lokasiSasaran}`,

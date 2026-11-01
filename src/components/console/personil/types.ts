@@ -211,7 +211,7 @@ export function getTaskQuotaInfo(task: any, officerUnitId?: number | null) {
   };
 }
 
-// Helper: Mengecek apakah personel telah menerima penugasan
+// Helper: Mengecek apakah personel telah menerima penugasan (sebagai PENGAJU maupun REKAN)
 export function hasOfficerAcceptedTask(task: any, activeNrp: string, activeId: string) {
   if (!task) return false;
   const dispatches: any[] = task.dispatches || [];
@@ -219,12 +219,34 @@ export function hasOfficerAcceptedTask(task: any, activeNrp: string, activeId: s
   const normId = activeId ? String(activeId) : '';
   const normNrp = activeNrp ? String(activeNrp).trim() : '';
 
-  const acceptedInDispatches = dispatches.some(
-    (d: any) =>
-      d.accepted_at &&
-      ((normId && (String(d.officer_id) === normId || String(d.officer?.id) === normId || String(d.officer?.user_id) === normId)) ||
-        (normNrp && (d.officer?.nrp === normNrp || d.officer?.user?.identifier === normNrp || d.crew_leader_nrp === normNrp)))
-  );
+  const acceptedInDispatches = dispatches.some((d: any) => {
+    const partnerNrps = String(d.crew_partner_nrp || '')
+      .split('|')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const isPartnerByNrp = Boolean(
+      normNrp &&
+        (partnerNrps.includes(normNrp) ||
+          String(d.crew_partner_name || '').includes(normNrp))
+    );
+
+    // Jika personil adalah REKAN pendamping yang terhubung di dispatch, langsung dianggap aktif
+    if (isPartnerByNrp) return true;
+
+    return (
+      Boolean(d.accepted_at) &&
+      Boolean(
+        (normId &&
+          (String(d.officer_id) === normId ||
+            String(d.officer?.id) === normId ||
+            String(d.officer?.user_id) === normId)) ||
+          (normNrp &&
+            (d.officer?.nrp === normNrp ||
+              d.officer?.user?.identifier === normNrp ||
+              d.crew_leader_nrp === normNrp))
+      )
+    );
+  });
   if (acceptedInDispatches) return true;
 
   if (

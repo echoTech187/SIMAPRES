@@ -17,8 +17,10 @@ import {
   Plus,
   Loader2,
   UserPlus,
+  Ticket,
+  Zap,
 } from 'lucide-react';
-import type { OfficerProfile } from '../types';
+import type { OfficerProfile, ComplaintData } from '../types';
 import TacticalAlert from '@/components/ui/TacticalAlert';
 import Select2CustomDropdown, { Select2Option } from '@/components/ui/Select2CustomDropdown';
 import { getMasterVehiclesAction } from '@/app/actions/master.actions';
@@ -42,6 +44,8 @@ export interface PengajuanGiatData {
   armada: string;
   rekanRegu: string;
   uraianRencana: string;
+  nomorTiketTerkait?: string;
+  selectedPartnersList?: SelectedCrewPartner[];
 }
 
 interface ModalAksiCepatProps {
@@ -50,6 +54,7 @@ interface ModalAksiCepatProps {
   officer: OfficerProfile;
   currentGps: { lat: number; lng: number };
   fleetUnits?: any[];
+  complaints?: ComplaintData[];
   onClose: () => void;
   onSubmit: (data: PengajuanGiatData) => Promise<{ success: boolean; error?: string }>;
 }
@@ -140,6 +145,7 @@ export default function ModalAksiCepat({
   officer,
   currentGps,
   fleetUnits,
+  complaints = [],
   onClose,
   onSubmit,
 }: ModalAksiCepatProps) {
@@ -148,6 +154,7 @@ export default function ModalAksiCepat({
   const [jamSelesai, setJamSelesai] = useState('');
   const [armada, setArmada] = useState('');
   const [uraianRencana, setUraianRencana] = useState('');
+  const [nomorTiketTerkait, setNomorTiketTerkait] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -164,6 +171,19 @@ export default function ModalAksiCepat({
   const [manualPartnerName, setManualPartnerName] = useState('');
   const [manualPartnerNrp, setManualPartnerNrp] = useState('');
 
+  // Daftar tiket aktif di Mako ini (yang belum SELESAI/DITOLAK dan memiliki disposisi/pengaju) untuk quick-pick TPTKP
+  const activeStationTickets = React.useMemo(() => {
+    if (!Array.isArray(complaints)) return [];
+    return complaints.filter(
+      (c) =>
+        c &&
+        c.status !== 'SELESAI' &&
+        c.status !== 'DITOLAK' &&
+        Array.isArray(c.dispatches) &&
+        c.dispatches.length > 0
+    );
+  }, [complaints]);
+
   // Ambil data master armada patroli riil langsung dari database sesuai Mako personil
   useEffect(() => {
     if (!isOpen) return;
@@ -174,12 +194,10 @@ export default function ModalAksiCepat({
       .then((res) => {
         if (isMounted) {
           if (res?.success && Array.isArray(res.data)) {
-            // Filter ketat: Hanya armada yang station_id-nya sama dengan Mako personel, atau armada umum induk Polres (null)
             const filtered = res.data.filter((v: any) => {
               if (!userStationId) return true;
               return v.station_id == null || Number(v.station_id) === Number(userStationId);
             });
-            // Prioritaskan armada khusus Mako terlebih dahulu di atas armada umum
             filtered.sort((a: any, b: any) => {
               const aStation = userStationId && Number(a.station_id) === Number(userStationId) ? 1 : 0;
               const bStation = userStationId && Number(b.station_id) === Number(userStationId) ? 1 : 0;
@@ -224,7 +242,6 @@ export default function ModalAksiCepat({
       };
     });
 
-    // Jika kendaraan yang ditugaskan ke personil belum ada dalam database, sertakan
     if (officer.kendaraan && !mapped.some((opt) => opt.value === officer.kendaraan)) {
       mapped.unshift({
         value: officer.kendaraan,
@@ -235,7 +252,6 @@ export default function ModalAksiCepat({
       });
     }
 
-    // Opsi resmi jika personil berpatroli tanpa ranmor dinas
     return [
       ...mapped,
       {
@@ -248,7 +264,7 @@ export default function ModalAksiCepat({
     ];
   }, [dbVehicles, officer.kendaraan]);
 
-  // Muat daftar personil dinas dari database stasiun Mako yang sama (seperti di ModalTambahRekanRegu)
+  // Muat daftar personil dinas dari database stasiun Mako yang sama
   useEffect(() => {
     if (!isOpen) return;
     const userStationId = officer.stationId || (officer as any).station_id || 60001;
@@ -263,7 +279,6 @@ export default function ModalAksiCepat({
           officers = [...res.data];
         }
 
-        // Gabungkan juga dari fleetUnits HANYA personil yang berada di Mako yang sama
         if (Array.isArray(fleetUnits) && fleetUnits.length > 0) {
           fleetUnits.forEach((fu: any) => {
             const isSameStation = userStationId
@@ -284,7 +299,6 @@ export default function ModalAksiCepat({
           });
         }
 
-        // Filter agar personil yang sedang login tidak memilih dirinya sendiri
         const filtered = officers.filter(
           (o) => String(o.id) !== String(officer.id) && String(o.nrp) !== String(officer.nrp)
         );
@@ -304,7 +318,6 @@ export default function ModalAksiCepat({
     };
   }, [isOpen, officer.stationId, officer.id, officer.nrp, fleetUnits]);
 
-  // Filter daftar personil sesuai pencarian (nama, pangkat, nrp)
   const filteredAvailableOfficers = React.useMemo(() => {
     const q = officerSearchQuery.toLowerCase().trim();
     if (!q) return availableOfficers;
@@ -316,7 +329,6 @@ export default function ModalAksiCepat({
     });
   }, [availableOfficers, officerSearchQuery]);
 
-  // Toggle selection personil dari daftar (seperti di ModalTambahRekanRegu)
   const togglePartner = (off: any) => {
     const offId = String(off.id);
     const exists = selectedPartners.some(
@@ -383,6 +395,7 @@ export default function ModalAksiCepat({
       setJamMulai(formatTime(now));
       setJamSelesai(formatTime(twoHoursLater));
       setArmada(officer.kendaraan || '');
+      setNomorTiketTerkait('');
       setSelectedPartners([]);
       setShowPartnerPicker(false);
       setOfficerSearchQuery('');
@@ -407,6 +420,23 @@ export default function ModalAksiCepat({
   if (!isOpen || !type) return null;
 
   const config = ACTION_CONFIG[type];
+  const hasLinkedTicket = type === 'TPTKP' && Boolean(nomorTiketTerkait.trim());
+
+  const handleSelectActiveTicket = (ticket: ComplaintData) => {
+    const tNum = String(ticket.nomorTiket || ticket.id || '');
+    if (nomorTiketTerkait === tNum) {
+      setNomorTiketTerkait('');
+      return;
+    }
+    setNomorTiketTerkait(tNum);
+    if (ticket.tkpAlamatTeks) {
+      setLokasiSasaran(ticket.tkpAlamatTeks);
+    }
+    setUraianRencana(
+      `Perbantuan TPTKP & pendampingan regu lapangan pada tiket #${tNum} (${ticket.jenisKejadian || 'Penanganan TKP'}).`
+    );
+    if (errorMsg) setErrorMsg(null);
+  };
 
   const handleApplyPreset = (presetText: string) => {
     setUraianRencana((prev) => {
@@ -441,7 +471,6 @@ export default function ModalAksiCepat({
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    // Format susunan nama rekan regu lengkap dengan pangkat dan NRP
     const formattedRekanRegu = selectedPartners.length > 0
       ? selectedPartners
           .map((p) => {
@@ -461,12 +490,14 @@ export default function ModalAksiCepat({
       armada: armada || 'JALAN_KAKI',
       rekanRegu: formattedRekanRegu,
       uraianRencana: uraianRencana.trim(),
+      nomorTiketTerkait: type === 'TPTKP' ? nomorTiketTerkait.trim() : undefined,
+      selectedPartnersList: selectedPartners,
     });
 
     setIsSubmitting(false);
 
     if (!res.success) {
-      setErrorMsg(res.error || 'Gagal mengirim pengajuan giat ke Pawas.');
+      setErrorMsg(res.error || 'Gagal mengirim pengajuan giat.');
     }
   };
 
@@ -511,7 +542,9 @@ export default function ModalAksiCepat({
             <div className="flex items-center gap-1.5 truncate">
               <User size={13} className="text-amber-400 shrink-0" />
               <span className="truncate">
-                {officer.pangkat || (officer as any).rankPangkat || ''} {officer.fullName}
+                {officer.pangkat && !officer.fullName.toUpperCase().startsWith(officer.pangkat.toUpperCase())
+                  ? `${officer.pangkat} ${officer.fullName}`
+                  : officer.fullName}
               </span>
             </div>
             <div className="flex items-center gap-1.5 justify-end text-slate-400 font-mono">
@@ -531,6 +564,94 @@ export default function ModalAksiCepat({
 
         {/* Body Modal Form */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 text-slate-200">
+          {/* Khusus TPTKP: Input Opsional Nomor Tiket Aduan Terkait */}
+          {type === 'TPTKP' && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-500/10 via-[#0A0D14] to-amber-500/5 border border-rose-500/30 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-bold text-rose-300 uppercase tracking-wide flex items-center gap-1.5">
+                  <Ticket size={14} className="text-rose-400 shrink-0" />
+                  <span>No. Tiket Aduan Terkait (Opsional)</span>
+                </label>
+                {hasLinkedTicket && (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <Zap size={10} /> AUTO-GABUNG REGU
+                  </span>
+                )}
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={nomorTiketTerkait}
+                  onChange={(e) => {
+                    setNomorTiketTerkait(e.target.value);
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  placeholder="Ketik No. Tiket (mis: TICKET-814001) atau kosongkan jika TPTKP mandiri..."
+                  className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm text-white font-mono bg-[#07090E] border border-white/15 focus:border-rose-400 focus:ring-2 focus:ring-rose-400/20 outline-none transition-all placeholder:font-sans placeholder:text-slate-500"
+                />
+                {nomorTiketTerkait && (
+                  <button
+                    type="button"
+                    onClick={() => setNomorTiketTerkait('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                    title="Kosongkan Nomor Tiket"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Quick Pick Tiket Aktif di Mako */}
+              {activeStationTickets.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10.5px] font-semibold text-slate-400 block">
+                    Pilih Cepat Tiket Aktif di Wilayah Mako ({activeStationTickets.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                    {activeStationTickets.map((t) => {
+                      const tNum = String(t.nomorTiket || t.id);
+                      const isSelected = nomorTiketTerkait.replace(/^#/, '').toUpperCase() === tNum.replace(/^#/, '').toUpperCase();
+                      const primaryDisp = t.dispatches?.find((d: any) => d.accepted_at) || t.dispatches?.[0];
+                      const leader =
+                        primaryDisp?.crew_leader_name ||
+                        primaryDisp?.officer?.user?.full_name ||
+                        t.assignedOfficer?.nama ||
+                        'Unit Piket';
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleSelectActiveTicket(t)}
+                          className={`px-2.5 py-1.5 rounded-xl text-left text-[11px] border transition-all flex items-center gap-1.5 ${
+                            isSelected
+                              ? 'bg-rose-600/30 border-rose-400 text-white shadow-sm'
+                              : 'bg-[#0E1017] border-white/10 text-slate-300 hover:border-rose-400/40'
+                          }`}
+                        >
+                          <span className="font-mono font-bold text-rose-300">#{tNum}</span>
+                          <span className="text-slate-400">•</span>
+                          <span className="truncate max-w-[140px]">{t.jenisKejadian}</span>
+                          <span className="text-[10px] text-amber-300/90 font-semibold">({leader})</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                {hasLinkedTicket ? (
+                  <span className="text-emerald-300 font-medium">
+                    ✓ Anda akan langsung terhubung ke tiket <strong>#{nomorTiketTerkait.replace(/^#/, '')}</strong> sebagai <strong>REKAN</strong> dari petugas pengaju tanpa harus menunggu pengesahan Pawas.
+                  </span>
+                ) : (
+                  'Opsional: Isi nomor tiket jika Anda melakukan TPTKP untuk mem-backup tiket aduan yang sedang berjalan (otomatis masuk sebagai Rekan dari Pengaju tanpa menunggu Pawas).'
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Field 1: Rencana Lokasi / Rute Sasaran Giat */}
           <div>
             <label className="text-xs font-bold text-amber-300 uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
@@ -686,7 +807,7 @@ export default function ModalAksiCepat({
               )
             )}
 
-            {/* Panel Pemilih Personel Dinas (Konsep seperti Modal Tambah Rekan Regu Tiket) */}
+            {/* Panel Pemilih Personel Dinas */}
             {showPartnerPicker && (
               <div className="pt-2.5 border-t border-white/10 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* Search Input */}
@@ -782,7 +903,6 @@ export default function ModalAksiCepat({
                     Tambah Manual Rekan (BKO / Satuan Luar)
                   </span>
 
-                  {/* Tombol Tambah: Diletakkan di bawah judul dan di atas input */}
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[11px] text-slate-400">
                       Ketik nama & NRP rekan di bawah:
@@ -798,7 +918,6 @@ export default function ModalAksiCepat({
                     </button>
                   </div>
 
-                  {/* Grid Input Nama & NRP (Lebar leluasa, tidak terpotong) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <input
                       type="text"
@@ -850,7 +969,11 @@ export default function ModalAksiCepat({
               required
             />
             <div className="flex justify-between items-center mt-1 text-[11px] text-slate-400">
-              <span>Pengajuan ini akan dikirim ke antrean persetujuan Pawas.</span>
+              <span>
+                {hasLinkedTicket
+                  ? 'Langsung aktif terhubung ke tiket tanpa menunggu persetujuan Pawas.'
+                  : 'Pengajuan ini akan dikirim ke antrean persetujuan Pawas.'}
+              </span>
               <span className="font-mono text-amber-300/80">{uraianRencana.trim().length} karakter</span>
             </div>
           </div>
@@ -898,17 +1021,25 @@ export default function ModalAksiCepat({
             <button
               type="submit"
               disabled={isSubmitting || !uraianRencana.trim() || !lokasiSasaran.trim()}
-              className="px-5 py-2.5 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 active:scale-95 transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+              className={`px-5 py-2.5 rounded-xl text-xs font-black text-slate-950 active:scale-95 transition-all shadow-lg flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none ${
+                hasLinkedTicket
+                  ? 'bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-400 shadow-emerald-500/20'
+                  : 'bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:from-amber-300 hover:to-yellow-400 shadow-amber-500/20'
+              }`}
             >
               {isSubmitting ? (
                 <>
                   <div className="w-3.5 h-3.5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
-                  <span>Mengirim Pengajuan...</span>
+                  <span>{hasLinkedTicket ? 'Menghubungkan ke Tiket...' : 'Mengirim Pengajuan...'}</span>
                 </>
               ) : (
                 <>
                   <Send size={13} className="text-slate-950" />
-                  <span>Ajukan Giat {type} ke Pawas</span>
+                  <span>
+                    {hasLinkedTicket
+                      ? `Gabung Regu Tiket #${nomorTiketTerkait.replace(/^#/, '')}`
+                      : `Ajukan Giat ${type} ke Pawas`}
+                  </span>
                 </>
               )}
             </button>

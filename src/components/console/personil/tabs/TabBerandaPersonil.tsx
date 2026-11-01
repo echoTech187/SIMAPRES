@@ -70,13 +70,20 @@ export default function TabBerandaPersonil({
   const myComplaints = complaints.filter((c) => {
     const isAccepted = hasOfficerAcceptedTask(c, officer.nrp, officer.id);
     const dispatches = Array.isArray(c.dispatches) ? c.dispatches : [];
-    const isOfficerInDispatch = dispatches.some(
-      (d: any) =>
+    const normNrp = String(officer.nrp || '').trim();
+    const isOfficerInDispatch = dispatches.some((d: any) => {
+      const partnerNrps = String(d.crew_partner_nrp || '')
+        .split('|')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return (
         (officer.id && String(d.officer_id) === String(officer.id)) ||
-        d.officer?.nrp === officer.nrp ||
-        d.crew_leader_nrp === officer.nrp ||
-        d.crew_partner_nrp === officer.nrp
-    );
+        d.officer?.nrp === normNrp ||
+        d.crew_leader_nrp === normNrp ||
+        partnerNrps.includes(normNrp) ||
+        (normNrp && String(d.crew_partner_name || '').includes(normNrp))
+      );
+    });
     const hasLogbookForComplaint = logbooks.some(
       (l) => String(l.complaintId || l.complaint_id || '') === String(c.id)
     );
@@ -206,13 +213,41 @@ export default function TabBerandaPersonil({
     officerProp: OfficerProfile,
     partnerNameStr?: string | null
   ): CrewMember[] => {
-    const leaderName =
-      officerProp?.fullName ?? null;
+    const dispatches = Array.isArray(comp?.dispatches) ? comp.dispatches : [];
+    const primaryDisp =
+      dispatches.find((d: any) => d.accepted_at != null) ||
+      dispatches.find((d: any) => d.is_primary_unit) ||
+      dispatches[0] ||
+      null;
 
-    const leaderRank = officerProp?.pangkat ?? null;
-    const leaderNrp = officerProp?.nrp ?? null;
-    const leaderSatuan = officerProp?.satuan ?? null;
-    const leaderAvatar = officerProp?.avatar ?? null;
+    const dispOfficer = primaryDisp?.officer || comp?.assignedOfficer || null;
+    const leaderName =
+      primaryDisp?.crew_leader_name ||
+      dispOfficer?.user?.full_name ||
+      dispOfficer?.nama ||
+      officerProp?.fullName ||
+      'Petugas Utama';
+
+    const leaderRank =
+      dispOfficer?.rank_pangkat ||
+      dispOfficer?.pangkat ||
+      (leaderName === officerProp?.fullName ? officerProp?.pangkat : '') ||
+      '';
+    const leaderNrp =
+      primaryDisp?.crew_leader_nrp ||
+      dispOfficer?.nrp ||
+      (leaderName === officerProp?.fullName ? officerProp?.nrp : '') ||
+      '';
+    const leaderSatuan =
+      primaryDisp?.unit?.unit_name ||
+      dispOfficer?.unit?.unit_name ||
+      officerProp?.satuan ||
+      '';
+    const leaderAvatar =
+      dispOfficer?.avatar_url ||
+      dispOfficer?.user?.avatar_url ||
+      (leaderNrp === officerProp?.nrp ? officerProp?.avatar : null) ||
+      null;
 
     const hasRankInLeader =
       leaderRank &&

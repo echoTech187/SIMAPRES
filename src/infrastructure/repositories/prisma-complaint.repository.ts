@@ -605,6 +605,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
   private static officerResolutionCache = new Map<string, {
     resolvedOfficerId: bigint;
+    resolvedOfficerNrp: string;
     resolvedStationId: number | null;
     resolvedUnitId: number | null;
     isPersonilRole?: boolean;
@@ -616,6 +617,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     const officerIdStr = String(officerId);
     const paddedNrp = officerIdStr.padStart(8, '0');
     let resolvedOfficerId = officerId;
+    let resolvedOfficerNrp = paddedNrp;
     let resolvedStationId: number | null = null;
     let resolvedUnitId: number | null = null;
 
@@ -625,6 +627,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     const cached = PrismaComplaintRepository.officerResolutionCache.get(officerIdStr);
     if (cached && Date.now() < cached.expiresAt) {
       resolvedOfficerId = cached.resolvedOfficerId;
+      resolvedOfficerNrp = cached.resolvedOfficerNrp || paddedNrp;
       resolvedStationId = cached.resolvedStationId;
       resolvedUnitId = cached.resolvedUnitId;
       isPersonilRole = cached.isPersonilRole ?? true;
@@ -633,7 +636,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       let officer: any = null;
       try {
         const offRows: any[] = await prisma.$queryRaw`
-          SELECT po.id, po.station_id, po.unit_id, po.duty_status, u.role
+          SELECT po.id, po.nrp, po.station_id, po.unit_id, po.duty_status, u.role
           FROM police_officers po
           LEFT JOIN users u ON u.id = po.user_id
           WHERE po.id = ${officerId} OR po.user_id = ${officerId} OR po.nrp = ${officerIdStr} OR po.nrp = ${paddedNrp}
@@ -642,6 +645,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         if (offRows && offRows[0]) {
           officer = offRows[0];
           resolvedOfficerId = BigInt(officer.id);
+          resolvedOfficerNrp = officer.nrp || paddedNrp;
           resolvedStationId = officer.station_id || null;
           resolvedUnitId = officer.unit_id || null;
           isPersonilRole = officer.role ? officer.role === 'PERSONIL' : true;
@@ -669,6 +673,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
         if (fallbackOfficer) {
           resolvedOfficerId = fallbackOfficer.id;
+          resolvedOfficerNrp = fallbackOfficer.nrp || paddedNrp;
           resolvedStationId = fallbackOfficer.station_id || null;
           resolvedUnitId = fallbackOfficer.unit_id || null;
           isPersonilRole = fallbackOfficer.user?.role ? fallbackOfficer.user.role === 'PERSONIL' : true;
@@ -678,6 +683,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
       const cacheItem = {
         resolvedOfficerId,
+        resolvedOfficerNrp,
         resolvedStationId,
         resolvedUnitId,
         isPersonilRole,
@@ -692,6 +698,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
     try {
       const officerIdNum = Number(resolvedOfficerId);
+      const partnerNrpLike = `%${resolvedOfficerNrp}%`;
       let whereSql: Prisma.Sql;
       if (isPersonilRole && resolvedStationId) {
         const stId = Number(resolvedStationId);
@@ -700,7 +707,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
           AND NOT EXISTS (
             SELECT 1 FROM complaint_dispatches cd_act
             JOIN complaints c_act ON c_act.id = cd_act.complaint_id
-            WHERE cd_act.officer_id = ${officerIdNum}
+            WHERE (cd_act.officer_id = ${officerIdNum} OR cd_act.crew_partner_nrp LIKE ${partnerNrpLike})
               AND cd_act.accepted_at IS NOT NULL
               AND c_act.status NOT IN ('SELESAI', 'DITOLAK')
           )
@@ -708,35 +715,35 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
         if (activeOnly) {
           whereSql = Prisma.sql`(
-            EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+            EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND (cd.officer_id = ${officerIdNum} OR cd.crew_partner_nrp LIKE ${partnerNrpLike}))
             OR (
               c.station_id = ${stId}
               AND c.status IN ('MENUNGGU', 'DIPROSES')
               ${noActiveTaskFilter}
               AND (
                 NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id IS NOT NULL)
-                OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+                OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND (cd.officer_id = ${officerIdNum} OR cd.crew_partner_nrp LIKE ${partnerNrpLike}))
               )
             )
           ) AND c.status NOT IN ('SELESAI', 'DITOLAK')`;
         } else {
           whereSql = Prisma.sql`
-            EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+            EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND (cd.officer_id = ${officerIdNum} OR cd.crew_partner_nrp LIKE ${partnerNrpLike}))
             OR (
               c.station_id = ${stId}
               AND c.status IN ('MENUNGGU', 'DIPROSES')
               ${noActiveTaskFilter}
               AND (
                 NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id IS NOT NULL)
-                OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
+                OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND (cd.officer_id = ${officerIdNum} OR cd.crew_partner_nrp LIKE ${partnerNrpLike}))
               )
             )`;
         }
       } else {
         if (activeOnly) {
-          whereSql = Prisma.sql`EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum}) AND c.status NOT IN ('SELESAI', 'DITOLAK')`;
+          whereSql = Prisma.sql`EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND (cd.officer_id = ${officerIdNum} OR cd.crew_partner_nrp LIKE ${partnerNrpLike})) AND c.status NOT IN ('SELESAI', 'DITOLAK')`;
         } else {
-          whereSql = Prisma.sql`EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})`;
+          whereSql = Prisma.sql`EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND (cd.officer_id = ${officerIdNum} OR cd.crew_partner_nrp LIKE ${partnerNrpLike}))`;
         }
       }
 
