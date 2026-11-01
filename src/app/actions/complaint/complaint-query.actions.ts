@@ -494,7 +494,7 @@ export async function getMasterFilterOptionsAction() {
  */
 export async function getAvailableStationOfficersAction(stationId?: number | string) {
   try {
-    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    const auth = await requireRole(['PERSONIL', 'PAWAS', 'OPERATOR', 'SUPERADMIN']);
     if (!auth.authorized) {
       return { success: false, error: auth.error, data: [] };
     }
