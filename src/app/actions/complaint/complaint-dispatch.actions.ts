@@ -823,6 +823,14 @@ export async function addCrewPartnerToDispatchAction(input: {
       },
     });
 
+    try {
+      const { cacheInvalidate } = await import('@/infrastructure/cache/app-cache');
+      cacheInvalidate('officer_complaints_');
+      cacheInvalidate('complaint_');
+      cacheInvalidate('all_recent_complaints');
+      cacheInvalidate('antrean_pawas');
+    } catch (_) {}
+
     safeRevalidatePath('/console');
     return {
       success: true,

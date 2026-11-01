@@ -36,6 +36,9 @@ const COMPLAINT_INCLUDE = {
       estimated_eta: true,
       tactical_orders: true,
       crew_partner_name: true,
+      crew_partner_nrp: true,
+      crew_leader_name: true,
+      crew_leader_nrp: true,
       unit: {
         select: { id: true, unit_name: true, short_name: true },
       },
@@ -408,6 +411,10 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         completed_at: r.completed_at,
         departed_at: r.departed_at,
         is_primary_unit: true,
+        crew_partner_name: r.crew_partner_name || null,
+        crew_partner_nrp: r.crew_partner_nrp || null,
+        crew_leader_name: r.crew_leader_name || null,
+        crew_leader_nrp: r.crew_leader_nrp || null,
         unit: r.unit_name ? { unit_name: r.unit_name, short_name: r.unit_short_name } : null,
         officer: r.officer_id ? {
           id: r.officer_id,
@@ -464,7 +471,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         d.id as dispatch_id, d.officer_id, d.unit_id as dispatch_unit_id,
         COALESCE(mds.key, d.dispatch_status) as dispatch_status,
         d.dispatched_at, d.accepted_at, d.departed_at, d.arrived_at, d.completed_at,
-        d.estimated_distance, d.estimated_eta, d.tactical_orders, d.crew_partner_name,
+        d.estimated_distance, d.estimated_eta, d.tactical_orders, d.crew_partner_name, d.crew_partner_nrp, d.crew_leader_name, d.crew_leader_nrp,
         d.estimated_distance_meters, d.estimated_eta_seconds,
         
         -- Unit

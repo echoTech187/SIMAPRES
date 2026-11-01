@@ -460,11 +460,6 @@ export default function TabBerandaPersonil({
                   AKTIVITAS &amp; PENUGASAN SEDANG BERJALAN ({ongoingComplaintsList.length + activeGiatsList.length})
                 </span>
               </div>
-              <span className="text-[10.5px] text-slate-500 font-semibold">
-                {ongoingComplaintsList.length > 0 && `${ongoingComplaintsList.length} Aduan`}
-                {ongoingComplaintsList.length > 0 && activeGiatsList.length > 0 && ' • '}
-                {activeGiatsList.length > 0 && `${activeGiatsList.length} Giat Lapangan`}
-              </span>
             </div>
           )}
 
@@ -552,9 +547,6 @@ export default function TabBerandaPersonil({
                         <div className="flex items-center gap-1 text-[11px]">
                           <span className="font-bold text-slate-200 group-hover:text-amber-300 transition-colors">
                             {compCrewList.length} Personel
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            (Klik nama)
                           </span>
                           <ChevronDown
                             size={12}
@@ -826,9 +818,6 @@ export default function TabBerandaPersonil({
                           <div className="flex items-center gap-1 text-[11px]">
                             <span className="font-bold text-slate-200 group-hover:text-sky-300 transition-colors">
                               {crewList.length} Personel
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              (Klik nama)
                             </span>
                             <ChevronDown
                               size={12}
