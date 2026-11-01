@@ -360,7 +360,7 @@ export async function getPendingComplaintsAction(stationId?: number) {
 
 export async function getComplaintsByStatusAction(status: string) {
   try {
-    const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    const auth = await requireRole(['PAWAS', 'OPERATOR', 'PERSONIL']);
     if (!auth.authorized) {
       return { success: false, error: auth.error };
     }
@@ -494,12 +494,12 @@ export async function getMasterFilterOptionsAction() {
  */
 export async function getAvailableStationOfficersAction(stationId?: number | string) {
   try {
-    const auth = await requireRole(['PERSONIL', 'PAWAS', 'OPERATOR', 'SUPERADMIN']);
+    const auth = await requireRole(['PERSONIL']);
     if (!auth.authorized) {
       return { success: false, error: auth.error, data: [] };
     }
 
-    const stId = stationId ? Number(stationId) : 60001;
+    const stId = stationId ? Number(stationId) : 0;
     const duty = await getActiveSpktDutyDetails(stId);
     return { success: true, data: serializeBigInt(duty.dutyOfficers || []) };
   } catch (err: any) {
@@ -549,7 +549,7 @@ export async function sendWhatsAppNotificationAction(input: {
   complaintId?: string | number;
 }) {
   try {
-    const auth = await requireRole(['OPERATOR', 'PAWAS', 'SUPERADMIN']);
+    const auth = await requireRole(['OPERATOR']);
     if (!auth.authorized) {
       return { success: false, error: auth.error };
     }
