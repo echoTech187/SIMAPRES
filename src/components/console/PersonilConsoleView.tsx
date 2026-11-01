@@ -198,6 +198,7 @@ function PersonilContent(props: {
               handleSetSelectedGiat(giat);
               switchTab('peta');
             }}
+            onRefreshData={loadData}
           />
         )}
 

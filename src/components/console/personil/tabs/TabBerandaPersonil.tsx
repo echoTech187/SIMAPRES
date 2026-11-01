@@ -38,6 +38,7 @@ interface TabBerandaPersonilProps {
   onOpenChat: (complaint: ComplaintData) => void;
   onQuickAction: (type: 'PATROLI' | 'TPTKP' | 'SAMBANG' | 'PENGAMANAN') => void;
   onOpenGiatMap?: (giat: any) => void;
+  onRefreshData?: () => void;
 }
 
 export default function TabBerandaPersonil({
@@ -55,6 +56,7 @@ export default function TabBerandaPersonil({
   onOpenChat,
   onQuickAction,
   onOpenGiatMap,
+  onRefreshData,
 }: TabBerandaPersonilProps) {
   // 1. Giat Mandiri Lapangan (Logbook Non-Tiket)
   const patroliCount = logbooks.filter((l) => (l.jenisAksi || l.action_type || '').toUpperCase() === 'PATROLI').length;
@@ -134,6 +136,8 @@ export default function TabBerandaPersonil({
 
   // State untuk expand roster personel per giat
   const [expandedCrewGiatId, setExpandedCrewGiatId] = useState<string | null>(null);
+  const [expandedCrewComplaintId, setExpandedCrewComplaintId] = useState<string | null>(null);
+  const [selectedComplaintForPartner, setSelectedComplaintForPartner] = useState<ComplaintData | null>(null);
 
   useEffect(() => {
     const officerKey = officer?.id || officer?.nrp;
@@ -193,6 +197,93 @@ export default function TabBerandaPersonil({
     borderColor: string;
     textColor: string;
   }
+
+
+  const parseComplaintCrewList = (
+    comp: any,
+    officerProp: OfficerProfile,
+    partnerNameStr?: string | null
+  ): CrewMember[] => {
+    const leaderName =
+      officerProp?.fullName ??
+      officerProp?.name
+
+    const leaderRank = officerProp?.pangkat ?? null;
+    const leaderNrp = officerProp?.nrp ?? null;
+    const leaderSatuan = officerProp?.satuan ?? null;
+    const leaderAvatar = officerProp?.avatar ?? null;
+
+    const hasRankInLeader =
+      leaderRank &&
+      leaderName.toLowerCase().startsWith(leaderRank.toLowerCase());
+    const leaderFullName =
+      !hasRankInLeader && leaderRank
+        ? `${leaderRank} ${leaderName}`
+        : leaderName;
+
+    const leader: CrewMember = {
+      id: `leader-comp-${comp.id}`,
+      name: leaderFullName,
+      nrp: leaderNrp,
+      satuan: leaderSatuan,
+      role: 'PENGAJU',
+      roleLabel: 'Petugas Utama (Penerima Tugas)',
+      initials: getOfficerInitials(leaderFullName),
+      avatarUrl: leaderAvatar,
+      bgGradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+      borderColor: '#F59E0B',
+      textColor: '#0B0D12',
+    };
+
+    const crew: CrewMember[] = [leader];
+
+    const rawPartners = (partnerNameStr || '').trim();
+    if (rawPartners && rawPartners !== '-') {
+      const partnerList = rawPartners.includes('|')
+        ? rawPartners.split('|').map((s: string) => s.trim()).filter(Boolean)
+        : rawPartners
+            .split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i)
+            .map((s: string) => s.trim())
+            .filter(Boolean);
+
+      const partnerThemes = [
+        { bg: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)', text: '#FFFFFF', border: '#38BDF8' },
+        { bg: 'linear-gradient(135deg, #34D399 0%, #059669 100%)', text: '#FFFFFF', border: '#34D399' },
+        { bg: 'linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%)', text: '#FFFFFF', border: '#A78BFA' },
+        { bg: 'linear-gradient(135deg, #FB7185 0%, #E11D48 100%)', text: '#FFFFFF', border: '#FB7185' },
+      ];
+
+      partnerList.forEach((pStr: string, idx: number) => {
+        const nrpMatch = pStr.match(/\(NRP\s*[:\.]?\s*([0-9a-zA-Z]+)\)/i);
+        const nrp = nrpMatch ? nrpMatch[1].trim() : '';
+        const cleanName = pStr.replace(/\(NRP\s*[:\.]?\s*[0-9a-zA-Z]+\)/i, '').trim();
+
+        const isDuplicateOfLeader =
+          cleanName.toLowerCase() === leaderName.toLowerCase() ||
+          cleanName.toLowerCase() === leaderFullName.toLowerCase() ||
+          (nrp && leaderNrp && nrp === leaderNrp);
+
+        if (cleanName && !isDuplicateOfLeader) {
+          const theme = partnerThemes[idx % partnerThemes.length];
+          crew.push({
+            id: `partner-comp-${comp.id}-${idx}`,
+            name: cleanName,
+            nrp: nrp,
+            satuan: leaderSatuan,
+            role: 'REKAN',
+            roleLabel: 'Rekan Regu Respon',
+            initials: getOfficerInitials(cleanName),
+            avatarUrl: null,
+            bgGradient: theme.bg,
+            borderColor: theme.border,
+            textColor: theme.text,
+          });
+        }
+      });
+    }
+
+    return crew;
+  };
 
   const parseCrewList = (
     giat: any,
@@ -381,6 +472,8 @@ export default function TabBerandaPersonil({
             const currentDispatches = Array.isArray((comp as any).dispatches) ? (comp as any).dispatches : [];
             const matchPartner = currentDispatches.find((d: any) => d.crew_partner_name);
             const currentPartnerName = matchPartner ? matchPartner.crew_partner_name : partnerName;
+            const compCrewList = parseComplaintCrewList(comp, officer, currentPartnerName);
+            const isCompCrewExpanded = expandedCrewComplaintId === String(comp.id);
 
             return (
               <div
@@ -419,12 +512,137 @@ export default function TabBerandaPersonil({
                         {comp.tkpAlamatTeks || 'Lokasi Kejadian'}
                       </span>
                     </div>
+
+                    {/* Stacked Avatar Personel Regu Aduan 110 (Identik dengan Card Giat) */}
+                    <div className="flex items-center gap-2.5 pt-1 flex-wrap text-[11.5px] text-slate-400">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedCrewComplaintId(isCompCrewExpanded ? null : String(comp.id))}
+                        className="group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/90 hover:bg-slate-800/90 border border-slate-700/70 hover:border-amber-500/50 transition-all shadow-sm active:scale-95 text-left"
+                        title="Klik untuk melihat nama dan detail personil"
+                      >
+                        {/* Overlapping circular avatars */}
+                        <div className="flex items-center -space-x-1.5 overflow-hidden py-0.5">
+                          {compCrewList.map((member, mIdx) => (
+                            <div
+                              key={member.id}
+                              className="relative inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black border-2 border-slate-900 shadow-sm transition-transform group-hover:scale-105"
+                              style={{
+                                background: member.bgGradient,
+                                color: member.textColor,
+                                zIndex: compCrewList.length - mIdx,
+                              }}
+                              title={`${member.name} (${member.roleLabel})`}
+                            >
+                              {member.avatarUrl ? (
+                                <img
+                                  src={member.avatarUrl}
+                                  alt={member.name}
+                                  className="w-full h-full object-cover rounded-full"
+                                />
+                              ) : (
+                                member.initials
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Info Text & Animated Chevron */}
+                        <div className="flex items-center gap-1 text-[11px]">
+                          <span className="font-bold text-slate-200 group-hover:text-amber-300 transition-colors">
+                            {compCrewList.length} Personel
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            (Klik nama)
+                          </span>
+                          <ChevronDown
+                            size={12}
+                            className={`text-slate-400 group-hover:text-amber-300 transition-transform duration-200 ${
+                              isCompCrewExpanded ? 'rotate-180 text-amber-400' : ''
+                            }`}
+                          />
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Expandable Personnel Roster Card (Ketika di-klik baru keluar namanya) */}
+                    {isCompCrewExpanded && (
+                      <div className="mt-2.5 p-3 rounded-2xl bg-slate-950/95 border border-amber-500/30 shadow-2xl space-y-2 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                          <div className="flex items-center gap-1.5">
+                            <Users size={13} className="text-amber-400" />
+                            <span className="text-[10.5px] font-black tracking-wider uppercase text-slate-300">
+                              Personel Regu Aduan ({compCrewList.length})
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedCrewComplaintId(null);
+                            }}
+                            className="text-[10px] text-slate-400 hover:text-white px-2 py-0.5 rounded-md bg-slate-800/80 hover:bg-slate-700/80 transition-colors"
+                          >
+                            Tutup ✕
+                          </button>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          {compCrewList.map((m) => (
+                            <div
+                              key={m.id}
+                              className="flex items-center justify-between gap-2.5 p-2 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 transition-colors"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-[10.5px] font-black shrink-0 border border-white/20 shadow-sm"
+                                  style={{
+                                    background: m.bgGradient,
+                                    color: m.textColor,
+                                  }}
+                                >
+                                  {m.avatarUrl ? (
+                                    <img
+                                      src={m.avatarUrl}
+                                      alt={m.name}
+                                      className="w-full h-full object-cover rounded-full"
+                                    />
+                                  ) : (
+                                    m.initials
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-white truncate leading-snug">
+                                    {m.name}
+                                  </p>
+                                  <p className="text-[10.5px] text-slate-400 font-mono">
+                                    {m.nrp ? `NRP ${m.nrp}` : '-'} {m.satuan ? `• ${m.satuan}` : ''}
+                                  </p>
+                                </div>
+                              </div>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
+                                  m.role === 'PENGAJU'
+                                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+                                    : 'bg-sky-500/10 text-sky-300 border-sky-500/30'
+                                }`}
+                              >
+                                {m.roleLabel}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 pt-1 sm:pt-0 flex-shrink-0 flex-wrap">
                     <button
                       type="button"
-                      onClick={() => setShowPartnerModal(true)}
+                      onClick={() => {
+                        setSelectedComplaintForPartner(comp);
+                        setShowPartnerModal(true);
+                      }}
                       className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 text-blue-200 bg-blue-500/15 border border-blue-500/30 hover:bg-blue-500/25 transition-all active:scale-95 whitespace-nowrap"
                     >
                       <UserPlus size={15} className="flex-shrink-0" />
@@ -1005,14 +1223,18 @@ export default function TabBerandaPersonil({
         onSuccess={(msg) => toast.success(msg)}
       />
 
-      {showPartnerModal && activeComplaint && (
+      {showPartnerModal && (selectedComplaintForPartner || activeComplaint) && (
         <ModalTambahRekanRegu
           isOpen={showPartnerModal}
-          complaint={activeComplaint}
+          complaint={selectedComplaintForPartner || activeComplaint}
           officer={officer}
-          onClose={() => setShowPartnerModal(false)}
+          onClose={() => {
+            setShowPartnerModal(false);
+            setSelectedComplaintForPartner(null);
+          }}
           onSuccess={(name) => {
             setPartnerName(name);
+            if (onRefreshData) onRefreshData();
           }}
         />
       )}
