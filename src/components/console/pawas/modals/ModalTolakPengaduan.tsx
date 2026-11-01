@@ -99,9 +99,6 @@ export default function ModalTolakPengaduan({
         padding: '16px',
         animation: 'fadeIn 0.2s ease',
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !loading) onClose();
-      }}
     >
       <div
         style={{

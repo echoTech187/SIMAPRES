@@ -710,9 +710,6 @@ export default function MasterTabShell({
       {showFilterDrawer && (
         <div
           className="master-drawer-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowFilterDrawer(false);
-          }}
         >
           <div className="master-drawer-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="master-drawer-handle" />

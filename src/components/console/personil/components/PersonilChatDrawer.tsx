@@ -155,7 +155,6 @@ export default function PersonilChatDrawer({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
       />
 
       {/* Drawer Container (Tinggi Minimal 80vh Sesuai Kebutuhan Lapangan) */}

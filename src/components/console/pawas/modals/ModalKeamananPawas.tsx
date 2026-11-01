@@ -36,7 +36,6 @@ export default function ModalKeamananPawas({
         justifyContent: 'center',
         padding: '16px',
       }}
-      onClick={onClose}
     >
       <div
         className="pawas-modal-dialog"

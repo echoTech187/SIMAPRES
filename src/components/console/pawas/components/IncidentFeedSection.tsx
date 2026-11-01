@@ -117,12 +117,13 @@ export default function IncidentFeedSection({
               key={inc.id}
               className="tl-item"
               style={{
+                borderTop: '1px solid #E2E8F0',
+                borderRight: '1px solid #E2E8F0',
+                borderBottom: '1px solid #E2E8F0',
                 borderLeft: `4px solid ${borderColor}`,
                 padding: '12px 14px',
                 background: '#F8FAFC',
                 borderRadius: '0 10px 10px 0',
-                border: '1px solid #E2E8F0',
-                borderLeftColor: borderColor,
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '6px',

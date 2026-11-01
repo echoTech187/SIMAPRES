@@ -756,10 +756,10 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
                       }}
                       style={{
                         background: isSelected ? '#F0F9FF' : 'white',
-                        border: isSelected ? '1.5px solid #0284C7' : '1px solid #E2E8F0',
-                        borderLeftWidth: '4px',
-                        borderLeftStyle: 'solid',
-                        borderLeftColor: borderLeftColor,
+                        borderTop: isSelected ? '1.5px solid #0284C7' : '1px solid #E2E8F0',
+                        borderRight: isSelected ? '1.5px solid #0284C7' : '1px solid #E2E8F0',
+                        borderBottom: isSelected ? '1.5px solid #0284C7' : '1px solid #E2E8F0',
+                        borderLeft: `4px solid ${borderLeftColor}`,
                         borderRadius: '12px',
                         padding: '14px',
                         cursor: 'pointer',
@@ -979,7 +979,6 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
       {showFilterDrawer && (
         <div
           className="val-filter-drawer-overlay"
-          onClick={() => setShowFilterDrawer(false)}
         >
           <div
             className="val-filter-drawer-sheet"
@@ -1360,13 +1359,6 @@ export const TabValidasiPawas: React.FC<TabValidasiPawasProps> = ({
       {showDetailDrawer && activeComplaint && (
         <div
           className="val-detail-drawer-overlay"
-          onClick={(e) => {
-            if (typeof document !== 'undefined' && document.getElementById('fullscreen-tracking-map-modal')) {
-              e.stopPropagation();
-              return;
-            }
-            setShowDetailDrawer(false);
-          }}
         >
           <div
             className="val-detail-drawer-sheet"

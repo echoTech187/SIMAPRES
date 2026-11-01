@@ -55,7 +55,6 @@ export default function ModalSlaMonitoring({
         justifyContent: 'center',
         padding: '16px',
       }}
-      onClick={onClose}
     >
       <div
         className="pawas-modal-dialog"
@@ -225,7 +224,9 @@ export default function ModalSlaMonitoring({
             <div
               style={{
                 background: '#FFFFFF',
-                border: '1px solid #BBF7D0',
+                borderRight: '1px solid #BBF7D0',
+                borderBottom: '1px solid #BBF7D0',
+                borderLeft: '1px solid #BBF7D0',
                 borderTop: '3.5px solid #16A34A',
                 borderRadius: '10px',
                 padding: '10px 12px',
@@ -247,7 +248,9 @@ export default function ModalSlaMonitoring({
             <div
               style={{
                 background: '#FFFFFF',
-                border: '1px solid #BFDBFE',
+                borderRight: '1px solid #BFDBFE',
+                borderBottom: '1px solid #BFDBFE',
+                borderLeft: '1px solid #BFDBFE',
                 borderTop: '3.5px solid #0284C7',
                 borderRadius: '10px',
                 padding: '10px 12px',
@@ -269,7 +272,9 @@ export default function ModalSlaMonitoring({
             <div
               style={{
                 background: '#FFFFFF',
-                border: '1px solid #FECACA',
+                borderRight: '1px solid #FECACA',
+                borderBottom: '1px solid #FECACA',
+                borderLeft: '1px solid #FECACA',
                 borderTop: '3.5px solid #DC2626',
                 borderRadius: '10px',
                 padding: '10px 12px',
@@ -374,7 +379,9 @@ export default function ModalSlaMonitoring({
                       key={c.id || c.nomorTiket}
                       style={{
                         background: '#FFFFFF',
-                        border: '1px solid #E2E8F0',
+                        borderTop: '1px solid #E2E8F0',
+                        borderRight: '1px solid #E2E8F0',
+                        borderBottom: '1px solid #E2E8F0',
                         borderLeft: `4px solid ${isSuccess ? '#16A34A' : '#DC2626'}`,
                         borderRadius: '10px',
                         padding: '12px 14px',

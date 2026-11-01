@@ -745,7 +745,6 @@ export const IncidentTimelineProgress: React.FC<IncidentTimelineProgressProps> =
       {/* MODAL LIGHTBOX FOTO (INTERNAL FALLBACK) */}
       {internalLightbox && (
         <div
-          onClick={() => setInternalLightbox(null)}
           style={{
             position: 'fixed',
             inset: 0,

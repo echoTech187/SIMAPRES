@@ -32,9 +32,6 @@ export const CadTransferModal: React.FC<CadTransferModalProps> = ({
         padding: '16px',
         animation: 'fadeIn 0.2s ease-out',
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !isTransferring) onClose();
-      }}
     >
       <div
         style={{

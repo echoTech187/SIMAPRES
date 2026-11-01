@@ -121,7 +121,6 @@ export default function TaskAcceptModal({
       {/* Dark backdrop */}
       <div
         className="fixed inset-0 bg-black/80 backdrop-blur-md transition-opacity"
-        onClick={onClose}
       />
 
       {/* Modal Dialog */}

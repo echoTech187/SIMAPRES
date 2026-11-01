@@ -1463,7 +1463,6 @@ export default function LiveCameraWatermarkCapture({
             justifyContent: 'center',
             padding: '16px',
           }}
-          onClick={() => setPreviewModalItem(null)}
         >
           <div
             style={{

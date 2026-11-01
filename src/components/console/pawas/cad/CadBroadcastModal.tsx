@@ -45,9 +45,6 @@ export const CadBroadcastModal: React.FC<CadBroadcastModalProps> = ({
         padding: '16px',
         animation: 'fadeIn 0.2s ease-out',
       }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
       <div
         style={{

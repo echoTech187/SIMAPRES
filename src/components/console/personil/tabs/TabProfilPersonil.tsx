@@ -2898,7 +2898,6 @@ export default function TabProfilPersonil({
       {lightboxData && (
         <div
           className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setLightboxData(null)}
         >
           <div
             className="relative max-w-2xl w-full rounded-2xl p-4 sm:p-5 shadow-2xl border flex flex-col overflow-hidden"

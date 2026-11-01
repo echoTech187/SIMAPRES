@@ -1411,7 +1411,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                         </div>
 
                         {isStep5Completed ? (
-                          <div style={{ background: '#F0FDF4', border: '1px solid #86EFAC', borderLeft: '4px solid #16A34A', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                          <div style={{ background: '#F0FDF4', borderTop: '1px solid #86EFAC', borderRight: '1px solid #86EFAC', borderBottom: '1px solid #86EFAC', borderLeft: '4px solid #16A34A', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: '10px', fontWeight: 800, color: '#15803D' }}>⚖️ PENGESAHAN RESMI PIMPINAN (PAWAS):</span>
                               <span style={{ fontSize: '9.5px', fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '3px' }}>SAH &amp; VALID</span>
@@ -1424,7 +1424,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
                             </div>
                           </div>
                         ) : isStep5Awaiting ? (
-                          <div style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderLeft: '4px solid #F59E0B', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
+                          <div style={{ background: '#FFFBEB', borderTop: '1px solid #FCD34D', borderRight: '1px solid #FCD34D', borderBottom: '1px solid #FCD34D', borderLeft: '4px solid #F59E0B', borderRadius: '6px', padding: '7px 10px', marginTop: '8px', lineHeight: 1.4 }}>
                             <div style={{ fontSize: '10px', fontWeight: 800, color: '#B45309' }}>⏳ MENUNGGU OTORISASI PENGESAHAN PAWAS:</div>
                             <div style={{ fontSize: '11px', color: '#78350F', marginTop: '2px' }}>
                               Petugas lapangan telah menyelesaikan penanganan dan melampirkan berkas bukti di atas. Silakan lakukan evaluasi dan klik tombol <strong>Otorisasi Pengesahan</strong> di bawah.

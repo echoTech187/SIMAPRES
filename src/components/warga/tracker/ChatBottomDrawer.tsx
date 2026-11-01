@@ -47,7 +47,6 @@ export default function ChatBottomDrawer({
     <div className="fixed inset-0 z-50 flex flex-col justify-end items-center">
       {/* Semi-transparent dark blur backdrop */}
       <div
-        onClick={onClose}
         className="absolute inset-0 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
       />
 
