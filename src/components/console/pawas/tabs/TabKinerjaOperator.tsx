@@ -6,6 +6,7 @@ import { Award, Star, Clock, Headphones, CheckCircle, TrendingUp, Calendar, Refr
 import { PawasTab } from '../types';
 import { evaluate5W1HHeuristic } from '@/domain/rules/cad-5w1h.rules';
 import MasterTabShell from '@/components/ui/MasterTabShell';
+import ModalDetailTiket from '../modals/ModalDetailTiket';
 
 export interface TabKinerjaOperatorProps {
   userProfile: any;
@@ -34,6 +35,7 @@ export default function TabKinerjaOperator({
   const [kinerjaDate, setKinerjaDate] = useState(() => getLocalTodayDateString());
   const [activeSubTab, setActiveSubTab] = useState<'log-tiket' | 'leaderboard' | 'ulasan'>('log-tiket');
   const [rankingCategory, setRankingCategory] = useState<'kualitas' | 'produktivitas' | 'kepuasan'>('kualitas');
+  const [selectedTicketComplaint, setSelectedTicketComplaint] = useState<any | null>(null);
 
   // Helper untuk mengekstrak objek tanggal valid dari aduan
   const getComplaintDate = (c: any): Date | null => {
@@ -886,9 +888,25 @@ export default function TabKinerjaOperator({
                 const dateStr = cDate ? cDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-';
                 return (
                   <div>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 800, color: '#153E75' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTicketComplaint(c)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'monospace',
+                        fontWeight: 800,
+                        color: '#1D4ED8',
+                        textDecoration: 'underline',
+                        textAlign: 'left',
+                        display: 'inline-block',
+                      }}
+                      title="Klik untuk melihat detail lengkap tiket"
+                    >
                       {ticketNo}
-                    </div>
+                    </button>
                     <div style={{ fontSize: '10px', color: '#64748B' }}>
                       {dateStr} • {timeStr}
                     </div>
@@ -1181,11 +1199,42 @@ export default function TabKinerjaOperator({
             {
               header: 'No. Tiket',
               width: '130px',
-              render: (rev: any) => (
-                <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#153E75' }}>
-                  {rev.nomorTiket}
-                </span>
-              ),
+              render: (rev: any) => {
+                const matchedComplaint = myComplaints.find(
+                  (c: any) => (c.nomorTiket || c.nomor_tiket) === rev.nomorTiket
+                ) || filteredComplaints.find(
+                  (c: any) => (c.nomorTiket || c.nomor_tiket) === rev.nomorTiket
+                );
+
+                if (matchedComplaint) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTicketComplaint(matchedComplaint)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'monospace',
+                        fontWeight: 800,
+                        color: '#1D4ED8',
+                        textDecoration: 'underline',
+                        textAlign: 'left',
+                      }}
+                      title="Klik untuk melihat detail lengkap tiket"
+                    >
+                      {rev.nomorTiket}
+                    </button>
+                  );
+                }
+
+                return (
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#153E75' }}>
+                    {rev.nomorTiket}
+                  </span>
+                );
+              },
             },
             {
               header: 'Pelapor & Insiden',
@@ -1235,6 +1284,13 @@ export default function TabKinerjaOperator({
           ]}
         />
       )}
+
+      {/* MODAL DETAIL TIKET */}
+      <ModalDetailTiket
+        isOpen={selectedTicketComplaint !== null}
+        onClose={() => setSelectedTicketComplaint(null)}
+        complaint={selectedTicketComplaint}
+      />
     </div>
   );
 }
