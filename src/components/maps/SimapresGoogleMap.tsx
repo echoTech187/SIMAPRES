@@ -75,12 +75,16 @@ export function loadGoogleMaps(): Promise<any> {
     console.error = function (...args: any[]) {
       const msg = args.map((a) => (a && a.stack ? a.stack : String(a))).join(' ');
       if (
+        msg.includes('Maps Demo Key limit reached') ||
+        msg.includes('daily quota for Maps JavaScript 2D') ||
         msg.includes('Geocoding Service') ||
         msg.includes('enable Billing on the Google Cloud Project') ||
-        msg.includes('developers.google.com/maps/gmp-get-started')
+        msg.includes('developers.google.com/maps/gmp-get-started') ||
+        msg.includes('console.cloud.google.com/google/maps-apis') ||
+        msg.includes('google.maps')
       ) {
         console.warn(
-          '[SIMAPRES MAPS] Google Geocoding Billing belum aktif. Sistem otomatis menggunakan OpenStreetMap Nominatim (100% Gratis).'
+          '[SIMAPRES MAPS] Kuota Google Maps Demo / Billing API tercapai. Sistem otomatis menggunakan OpenStreetMap / Nominatim (100% Aktif & Bebas Kuota).'
         );
         return;
       }

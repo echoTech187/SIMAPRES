@@ -6,6 +6,7 @@ import TacticalSubmitButton from '../TacticalSubmitButton';
 import TacticalInputField from '../TacticalInputField';
 import { TacticalStatusBadge } from '../TacticalStatusBadge';
 import NameInitialAvatar from '../NameInitialAvatar';
+import ResolutionSelector from '../ResolutionSelector';
 
 describe('Atomic UI Components (React Testing Library Unit Tests)', () => {
   describe('TacticalSubmitButton Component', () => {
@@ -126,6 +127,42 @@ describe('Atomic UI Components (React Testing Library Unit Tests)', () => {
     it('renders fallback icon when name is empty or dash', () => {
       const { container } = render(<NameInitialAvatar name="" />);
       expect(container.querySelector('svg')).toBeDefined();
+    });
+  });
+
+  describe('ResolutionSelector Component', () => {
+    it('renders location and document Select2 triggers properly', () => {
+      const handleLocationChange = vi.fn();
+      const handleDocumentChange = vi.fn();
+
+      render(
+        <ResolutionSelector
+          locationKey="TKP"
+          onLocationChange={handleLocationChange}
+          documentKey="DOKUMENTASI_KONDUSIF"
+          onDocumentChange={handleDocumentChange}
+          isRjEligible={true}
+        />
+      );
+
+      expect(screen.getByText(/Lokasi Kejadian \(TKP Langsung\)/i)).toBeDefined();
+      expect(screen.getByText(/Dokumentasi Situasi Kamtibmas Kondusif/i)).toBeDefined();
+    });
+
+    it('renders restorative justice restriction warning when BAP_DAMAI is selected but isRjEligible is false', () => {
+      render(
+        <ResolutionSelector
+          locationKey="TKP"
+          onLocationChange={() => {}}
+          documentKey="BAP_DAMAI"
+          onDocumentChange={() => {}}
+          isRjEligible={false}
+          kategoriTeks="Narkoba"
+        />
+      );
+
+      expect(screen.getByText(/Peringatan Perpol No. 8\/2021:/i)).toBeDefined();
+      expect(screen.getByText(/Narkoba/i)).toBeDefined();
     });
   });
 });

@@ -168,6 +168,87 @@ export async function searchIndonesianLocations(
 let isGoogleGeocoderDisabled = false;
 
 /**
+ * Metadata hasil reverse geocoding — mencakup alamat teks + area administratif
+ */
+export interface GeocodeMeta {
+  address: string;
+  adminAreaLevel2?: string; // mis: "Kabupaten Pekalongan" | "Kota Pekalongan" | "Kabupaten Batang"
+  adminAreaLevel3?: string; // mis: "Pekajangan" (kecamatan)
+  adminAreaLevel1?: string; // mis: "Jawa Tengah"
+}
+
+/**
+ * Reverse geocodes coordinates dan mengembalikan alamat PLUS data administratif lengkap.
+ * Memanfaatkan address_components Google Maps untuk deteksi yurisdiksi yang akurat.
+ * Fallback ke Nominatim dengan field county/city jika Google tidak tersedia.
+ */
+export async function resolveIndonesianAddressMeta(targetLat: number, targetLng: number): Promise<GeocodeMeta> {
+  if (!targetLat || !targetLng) return { address: '' };
+
+  // 1. Google Maps Geocoder — ekstrak address_components
+  if (!isGoogleGeocoderDisabled && typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+    try {
+      const geocoder = new (window as any).google.maps.Geocoder();
+      const result = await new Promise<GeocodeMeta | null>((resolve) => {
+        geocoder.geocode({ location: { lat: targetLat, lng: targetLng } }, (results: any, status: any) => {
+          if (status === 'OK' && results?.[0]) {
+            const r = results[0];
+            const meta: GeocodeMeta = { address: r.formatted_address || '' };
+            // Ekstrak administrative_area dari address_components
+            for (const comp of (r.address_components || [])) {
+              const types: string[] = comp.types || [];
+              if (types.includes('administrative_area_level_2')) {
+                meta.adminAreaLevel2 = comp.long_name; // "Kabupaten Pekalongan" / "Kota Pekalongan"
+              } else if (types.includes('administrative_area_level_3')) {
+                meta.adminAreaLevel3 = comp.long_name; // Kecamatan
+              } else if (types.includes('administrative_area_level_1')) {
+                meta.adminAreaLevel1 = comp.long_name; // "Jawa Tengah"
+              }
+            }
+            resolve(meta);
+          } else {
+            if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+              isGoogleGeocoderDisabled = true;
+            }
+            resolve(null);
+          }
+        });
+      });
+      if (result?.address) return result;
+    } catch (_) {
+      isGoogleGeocoderDisabled = true;
+    }
+  }
+
+  // 2. Nominatim fallback — gunakan county/city sebagai adminAreaLevel2
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${targetLat}&lon=${targetLng}&zoom=18&addressdetails=1`,
+      {
+        headers: {
+          'Accept-Language': 'id',
+          'User-Agent': 'SIMAPRES-LocationEngine-110/1.0',
+        },
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const a = data?.address || {};
+      const meta: GeocodeMeta = {
+        address: data?.display_name || '',
+        // Nominatim: county = "Kabupaten Pekalongan", city = "Kota Pekalongan"
+        adminAreaLevel2: a.county || a.city || a.town || undefined,
+        adminAreaLevel3: a.suburb || a.village || a.city_district || undefined,
+        adminAreaLevel1: a.state || undefined,
+      };
+      return meta;
+    }
+  } catch (_) {}
+
+  return { address: `Titik Koordinat: ${targetLat.toFixed(6)}, ${targetLng.toFixed(6)}` };
+}
+
+/**
  * Reverse Geocodes coordinates into a readable Indonesian address:
  * Uses Google Maps Geocoder if loaded, or OpenStreetMap Nominatim reverse
  */

@@ -94,6 +94,7 @@ export interface PawasModalsHostProps {
   setShowTolakModal: (val: boolean) => void;
   tolakComplaint: any;
   handleConfirmRejectModal: (reason: string, notes: string) => Promise<void>;
+  dbRejectionReasons?: any[];
   // Lintas Wilayah
   showLintasWilayahModal: boolean;
   setShowLintasWilayahModal: (val: boolean) => void;
@@ -169,6 +170,7 @@ export default function PawasModalsHost({
   setShowTolakModal,
   tolakComplaint,
   handleConfirmRejectModal,
+  dbRejectionReasons = [],
   showLintasWilayahModal,
   setShowLintasWilayahModal,
   selectedLintasWilayahComplaint,
@@ -268,6 +270,7 @@ export default function PawasModalsHost({
         complaint={tolakComplaint}
         onConfirmReject={handleConfirmRejectModal}
         loading={loading}
+        rejectionReasons={dbRejectionReasons}
       />
 
       {showLintasWilayahModal && selectedLintasWilayahComplaint && (

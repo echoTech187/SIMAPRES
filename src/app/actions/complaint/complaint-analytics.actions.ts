@@ -1,14 +1,12 @@
 'use server';
 
+import { calculateStationSlaAndScore } from '@/domain/rules';
+
 import { UseCaseFactory } from '@/application/factories/use-case.factory';
-import { ComplaintStatus, UrgensiLevel } from '@/domain/entities/complaint.entity';
 import { cacheGet, cacheSet } from '@/infrastructure/cache/app-cache';
 import { requireRole } from '@/lib/session';
 import {
-  getComplaintRepo,
   prisma,
-  safeRevalidatePath,
-  serializeBigInt,
 } from './complaint-common';
 
 export async function getIkmStatsAction(stationId?: number | string) {
@@ -361,6 +359,8 @@ export interface StationPerformanceRankItem {
  * - Indeks Kepuasan Masyarakat (IKM)
  * - Status Kepatuhan SLA Presisi
  */
+
+
 export async function getStationPerformanceRankingsAction() {
   const auth = await requireRole(['PAWAS', 'OPERATOR', 'SUPERADMIN']);
   if (!auth.authorized) {
@@ -412,7 +412,7 @@ export async function getStationPerformanceRankingsAction() {
       `;
 
       if (Array.isArray(rows)) {
-        items = rows.map((r: any) => {
+        items = rows.map( (r: any) => {
           const totalMasuk = Number(r.total_masuk || 0);
           const totalSelesai = Number(r.total_selesai || 0);
           const totalDiproses = Number(r.total_diproses || 0);
@@ -423,33 +423,13 @@ export async function getStationPerformanceRankingsAction() {
           const avgRating = r.avg_rating !== null ? Math.round(Number(r.avg_rating) * 10) / 10 : 0;
           const totalReviews = Number(r.total_reviews || 0);
 
-          let slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL' = 'NETRAL';
-          let slaStatusLabel = 'Belum Ada Penugasan';
-          let slaStatusColor = '#64748B';
-          let slaStatusBg = '#F1F5F9';
-
-          if (avgResponseTimeMinutes !== null) {
-            if (avgResponseTimeMinutes <= 15) {
-              slaStatus = 'HIJAU';
-              slaStatusLabel = 'Respon Cepat (Presisi)';
-              slaStatusColor = '#059669';
-              slaStatusBg = '#ECFDF5';
-            } else if (avgResponseTimeMinutes <= 30) {
-              slaStatus = 'KUNING';
-              slaStatusLabel = 'Waspada (Batas Toleransi)';
-              slaStatusColor = '#D97706';
-              slaStatusBg = '#FEF3C7';
-            } else {
-              slaStatus = 'MERAH';
-              slaStatusLabel = 'Melanggar SLA Tanggap';
-              slaStatusColor = '#DC2626';
-              slaStatusBg = '#FEE2E2';
-            }
-          }
-
-          const ratingPart = avgRating > 0 ? (avgRating / 5) * 35 : 0;
-          const timePart = avgResponseTimeMinutes !== null ? Math.max(0, 25 - avgResponseTimeMinutes) : 10;
-          const rankScore = Math.round((completionRate * 0.4) + ratingPart + timePart);
+          const {
+            slaStatus,
+            slaStatusLabel,
+            slaStatusColor,
+            slaStatusBg,
+            rankScore,
+          } = calculateStationSlaAndScore(totalMasuk, completionRate, avgResponseTimeMinutes, avgRating);
 
           return {
             stationId: Number(r.station_id),
@@ -510,7 +490,7 @@ export async function getStationPerformanceRankingsAction() {
 
       const activeStations = (rawStations as any[]).filter((st: any) => st.is_active !== false);
 
-      items = activeStations.map((st: any) => {
+      items = activeStations.map( (st: any) => {
       const complaints = allComplaints.filter((c: any) => c.station_id === st.id);
       const totalMasuk = complaints.length;
       let totalSelesai = 0;
@@ -554,33 +534,13 @@ export async function getStationPerformanceRankingsAction() {
       const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTimeMinutes / responseCount) : null;
       const avgRating = reviewCount > 0 ? Math.round((totalStars / reviewCount) * 10) / 10 : 0;
 
-      let slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL' = 'NETRAL';
-      let slaStatusLabel = 'Belum Ada Penugasan';
-      let slaStatusColor = '#64748B';
-      let slaStatusBg = '#F1F5F9';
-
-      if (avgResponseTimeMinutes !== null) {
-        if (avgResponseTimeMinutes <= 15) {
-          slaStatus = 'HIJAU';
-          slaStatusLabel = 'Respon Cepat (Presisi)';
-          slaStatusColor = '#059669';
-          slaStatusBg = '#ECFDF5';
-        } else if (avgResponseTimeMinutes <= 30) {
-          slaStatus = 'KUNING';
-          slaStatusLabel = 'Waspada (Batas Toleransi)';
-          slaStatusColor = '#D97706';
-          slaStatusBg = '#FEF3C7';
-        } else {
-          slaStatus = 'MERAH';
-          slaStatusLabel = 'Melanggar SLA Tanggap';
-          slaStatusColor = '#DC2626';
-          slaStatusBg = '#FEE2E2';
-        }
-      }
-
-      const ratingPart = avgRating > 0 ? (avgRating / 5) * 35 : 0;
-      const timePart = avgResponseTimeMinutes !== null ? Math.max(0, 25 - avgResponseTimeMinutes) : 10;
-      const rankScore = Math.round((completionRate * 0.4) + ratingPart + timePart);
+      const {
+        slaStatus,
+        slaStatusLabel,
+        slaStatusColor,
+        slaStatusBg,
+        rankScore,
+      } = calculateStationSlaAndScore(totalMasuk, completionRate, avgResponseTimeMinutes, avgRating);
 
       return {
         stationId: st.id,
@@ -708,7 +668,9 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
             SELECT cr2.review_text
             FROM complaints c2
             JOIN citizen_reviews cr2 ON cr2.complaint_id = c2.id
-            WHERE c2.operator_id = u.id AND cr2.review_text IS NOT NULL AND cr2.review_text != ''
+            WHERE c2.operator_id = u.id 
+              AND (cr2.feedback_tags LIKE '%[Skor Operator:%' OR cr2.feedback_tags LIKE '%Respon Cepat%' OR cr2.feedback_tags LIKE '%Ramah%')
+              AND cr2.review_text IS NOT NULL AND cr2.review_text != ''
             ORDER BY cr2.created_at DESC
             LIMIT 1
           ) as recent_review_text,
@@ -719,17 +681,20 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
             ELSE NULL
           END) as avg_intake_minutes
 
-        FROM users u
-        LEFT JOIN police_stations st ON st.id = u.station_id
+        FROM police_officers po
+        JOIN users u ON u.id = po.user_id
+        LEFT JOIN police_stations st ON st.id = po.station_id
         LEFT JOIN complaints c ON c.operator_id = u.id
         LEFT JOIN citizen_reviews cr ON cr.complaint_id = c.id
+          AND (cr.feedback_tags LIKE '%[Skor Operator:%' OR cr.feedback_tags LIKE '%Respon Cepat%' OR cr.feedback_tags LIKE '%Ramah%')
+          AND (cr.feedback_tags NOT LIKE '%Police Care%' AND cr.feedback_tags NOT LIKE '%Humanis%')
         LEFT JOIN (
           SELECT complaint_id, MIN(dispatched_at) as dispatched_at
           FROM complaint_dispatches
           WHERE dispatched_at IS NOT NULL
           GROUP BY complaint_id
         ) d ON d.complaint_id = c.id
-        WHERE u.role = 'OPERATOR' ${numStationId ? Prisma.sql`AND u.station_id = ${numStationId}` : Prisma.empty}
+        WHERE u.role = 'OPERATOR' ${numStationId ? Prisma.sql`AND po.station_id = ${numStationId}` : Prisma.empty}
         GROUP BY u.id, u.identifier, u.full_name, u.role, u.avatar_url, st.station_name
         ORDER BY u.id ASC;
       `;

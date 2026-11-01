@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 
 export interface LiveCameraWatermarkCaptureProps {
   personilNama: string;
@@ -79,6 +79,17 @@ export default function LiveCameraWatermarkCapture({
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
+
+  // Cegah duplikasi pangkat jika nama personel sudah diawali pangkat (misal "AIPDA AIPDA Fajar")
+  const officerDisplay = useMemo(() => {
+    const rawName = personilNama?.trim() || 'Petugas Patroli';
+    const rawRank = personilPangkat?.trim() || '';
+    if (!rawRank) return rawName;
+    if (rawName.toLowerCase().startsWith(rawRank.toLowerCase())) {
+      return rawName;
+    }
+    return `${rawRank} ${rawName}`;
+  }, [personilNama, personilPangkat]);
 
   // Mode simulasi koordinat TKP (opsi beralih simulasi sukses vs anomali)
   const [useSimulatedCoords, setUseSimulatedCoords] = useState<boolean>(false);
@@ -470,7 +481,7 @@ export default function LiveCameraWatermarkCapture({
     currentY += Math.round(baseFontSize * 1.25);
     ctx.font = `bold ${baseFontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(`👮 PETUGAS: ${personilPangkat} ${personilNama} (NRP: ${personilNrp})`, paddingX, currentY);
+    ctx.fillText(`👮 PETUGAS: ${officerDisplay} (NRP: ${personilNrp})`, paddingX, currentY);
 
     // Baris Tambahan: Objek Dokumentasi (jika tersedia)
     if (documentTypeName) {
@@ -1010,7 +1021,7 @@ export default function LiveCameraWatermarkCapture({
               }}
             >
               <div style={{ color: '#FBBF24', fontWeight: 800 }}>
-                👮 {personilPangkat} {personilNama} (NRP: {personilNrp})
+                👮 {officerDisplay} (NRP: {personilNrp})
               </div>
               <div style={{ color: '#E2E8F0', marginTop: '2px' }}>
                 📍 {isResolvingAddress ? 'Identifikasi Lokasi...' : activeAddress}
@@ -1148,7 +1159,7 @@ export default function LiveCameraWatermarkCapture({
                 🛡️ <strong>Catatan Integritas Presisi:</strong> Temuan anomali jarak ini otomatis dicatat secara permanen pada <em>Buku Catatan Lapangan (Logbook Audit Propam)</em> dan <em>Audit Log Tiket Pengaduan</em>.
               </div>
               <div style={{ fontSize: '11px', color: '#7F1D1D', display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '2px', borderTop: '1px solid #FECACA', paddingTop: '6px' }}>
-                <span>👮 {personilPangkat} {personilNama} ({personilNrp})</span>
+                <span>👮 {officerDisplay} ({personilNrp})</span>
                 <span>📍 GPS Foto: {(lastPhotoMetadata?.lat ?? activeLat).toFixed(6)}, {(lastPhotoMetadata?.lng ?? activeLng).toFixed(6)}</span>
                 {hasTkpTarget && <span>🎯 Target TKP: {targetTkpLat.toFixed(6)}, {targetTkpLng.toFixed(6)}</span>}
               </div>
@@ -1174,7 +1185,7 @@ export default function LiveCameraWatermarkCapture({
                 <span>Watermark identitas, lokasi satelit, dan koordinat GPS telah terpatri permanen ke dalam berkas foto di atas.</span>
               </div>
               <div style={{ fontSize: '11px', color: '#15803D', display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '2px' }}>
-                <span>👮 {personilPangkat} {personilNama} ({personilNrp})</span>
+                <span>👮 {officerDisplay} ({personilNrp})</span>
                 <span>📍 {currentAddressDisplay}</span>
                 <span>🌐 {(lastPhotoMetadata?.lat ?? activeLat).toFixed(6)}, {(lastPhotoMetadata?.lng ?? activeLng).toFixed(6)}</span>
                 {hasTkpTarget && <span style={{ fontWeight: 700 }}>🎯 Terverifikasi di Radius TKP ({currentDistStr})</span>}

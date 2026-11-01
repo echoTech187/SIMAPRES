@@ -38,6 +38,7 @@ function PersonilContent(props: {
     showAcceptModal,
     setShowAcceptModal,
     isAcceptingTask,
+    isIgnoringTask,
     isPairedDevice,
     chatDrawerOpen,
     setChatDrawerOpen,
@@ -56,6 +57,7 @@ function PersonilContent(props: {
     loadData,
     handleOpenFinishModal,
     handleAcceptTask,
+    handleIgnoreTask,
     handleUpdateStep,
     handlePresensiMasuk,
     handlePresensiPulang,
@@ -234,6 +236,7 @@ function PersonilContent(props: {
             onPresensiPulang={handlePresensiPulang}
             onLogout={handleLogout}
             onTabChange={switchTab}
+            initialKpiOpen={props.initialSection === 'kinerja'}
           />
         )}
       </main>
@@ -257,10 +260,13 @@ function PersonilContent(props: {
         task={pendingAcceptTask}
         officer={officer}
         isAccepting={isAcceptingTask}
+        isIgnoring={isIgnoringTask}
         onAccept={handleAcceptTask}
+        onIgnore={handleIgnoreTask}
         onClose={() => {
           stopPoliceAlertAudio();
           setShowAcceptModal(false);
+          setPendingAcceptTask(null);
         }}
       />
 

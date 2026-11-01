@@ -1,3 +1,4 @@
+import { parseUtcDate } from '@/lib/escalation-config';
 import { prisma } from '@/infrastructure/db/prisma.client';
 import { cacheGetOrLoad } from '@/infrastructure/cache/app-cache';
 import type { ChatMessageItem } from '@/types/chat.types';
@@ -134,7 +135,7 @@ async function loadTrackingData(
         senderRole: row.sender_role === 'WARGA' ? 'WARGA' : 'PERSONIL',
         senderName: row.sender_name,
         text: row.message_text,
-        timestamp: new Date(row.created_at).toISOString(),
+        timestamp: parseUtcDate(row.created_at)?.toISOString() || (row.created_at instanceof Date ? row.created_at.toISOString() : new Date(row.created_at).toISOString()),
         officerNrp: row.officer_nrp || undefined,
       });
     }
@@ -307,8 +308,8 @@ async function loadTrackingData(
           transferLog?.notes ||
           'Laporan Anda telah dialihkan ke yurisdiksi kepolisian terdekat demi respons taktis dan percepatan penanganan lapangan.',
         transferredAt: transferLog?.created_at
-          ? new Date(transferLog.created_at).toISOString()
-          : new Date(first.updated_at || first.created_at).toISOString(),
+          ? (parseUtcDate(transferLog.created_at)?.toISOString() || new Date(transferLog.created_at).toISOString())
+          : (parseUtcDate(first.updated_at || first.created_at)?.toISOString() || new Date(first.updated_at || first.created_at).toISOString()),
       }
     : null;
 

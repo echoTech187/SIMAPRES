@@ -1,3 +1,4 @@
+import { parseUtcDate } from '@/lib/escalation-config';
 /**
  * SIMAPRES 110 - INFRASTRUCTURE REPOSITORY: TACTICAL DISPATCH CHAT
  * Lapisan: Infrastructure (Prisma Implementation)
@@ -74,7 +75,7 @@ export class PrismaChatRepository implements IChatRepository {
             senderRole: row.sender_role === 'WARGA' ? 'WARGA' : 'PERSONIL',
             senderName: row.sender_name,
             text: row.message_text,
-            timestamp: new Date(row.created_at).toISOString(),
+            timestamp: parseUtcDate(row.created_at)?.toISOString() || (row.created_at instanceof Date ? row.created_at.toISOString() : new Date(row.created_at).toISOString()),
             officerNrp: row.officer_nrp || undefined,
           });
         }

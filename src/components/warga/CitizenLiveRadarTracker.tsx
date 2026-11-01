@@ -30,7 +30,7 @@ import {
 } from '@/app/actions/chat.actions';
 import type { ChatMessageItem } from '@/types/chat.types';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
-import { formatIncidentDateTime } from '@/lib/date-utils';
+import { formatIncidentDateTime, parseDateSafe } from '@/lib/date-utils';
 import { isDeskResolvedComplaint } from '@/domain/rules/resolution.rules';
 
 const SimapresGoogleMap = dynamic(() => import('@/components/maps/SimapresGoogleMap'), {
@@ -222,7 +222,8 @@ export default function CitizenLiveRadarTracker({
     const computeElapsed = () => {
       const cTime = complaint.createdAt || complaint.created_at;
       if (cTime) {
-        const diffSec = Math.max(0, Math.floor((Date.now() - new Date(cTime).getTime()) / 1000));
+        const dObj = parseDateSafe(cTime);
+        const diffSec = Math.max(0, Math.floor((Date.now() - (dObj ? dObj.getTime() : Date.now())) / 1000));
         setScanSeconds(diffSec);
       } else {
         setScanSeconds((prev) => prev + 1);

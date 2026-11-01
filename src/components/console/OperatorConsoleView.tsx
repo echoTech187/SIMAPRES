@@ -136,6 +136,19 @@ function OperatorConsoleContent(props: {
     handleLogout,
   } = useOperatorConsole(props);
 
+  const activeComplaintsForBanner = React.useMemo(() => {
+    const seen: Record<string, boolean> = {};
+    const list: any[] = [];
+    for (const c of [...(allRecentComplaints || []), ...(antreanPawas || [])]) {
+      const k = String(c?.id || c?.nomorTiket || c?.nomor_tiket || '');
+      if (k && !seen[k]) {
+        seen[k] = true;
+        list.push(c);
+      }
+    }
+    return list;
+  }, [allRecentComplaints, antreanPawas]);
+
   return (
     <div
       className="registrasi-body"
@@ -184,7 +197,7 @@ function OperatorConsoleContent(props: {
         {/* Render banner alarm eskalasi di atas tab selain CAD, Kinerja, dan Peta */}
         {activeTab !== 'view-operator' && activeTab !== 'view-laporan' && activeTab !== 'view-peta' && (
           <EscalationAlarmBanner
-            complaints={allRecentComplaints}
+            complaints={activeComplaintsForBanner}
             currentStationId={userProfile?.stationId || session?.stationId}
             currentStationName={userProfile?.stationName || session?.stationName}
             currentUser={session || userProfile}
@@ -230,7 +243,7 @@ function OperatorConsoleContent(props: {
             }}
             escalationBanner={
               <EscalationAlarmBanner
-                complaints={allRecentComplaints}
+                complaints={activeComplaintsForBanner}
                 currentStationId={userProfile?.stationId || session?.stationId}
                 currentStationName={userProfile?.stationName || session?.stationName}
                 currentUser={session || userProfile}
@@ -276,7 +289,7 @@ function OperatorConsoleContent(props: {
             switchTab={switchTab}
             escalationBanner={
               <EscalationAlarmBanner
-                complaints={allRecentComplaints}
+                complaints={activeComplaintsForBanner}
                 currentStationId={userProfile?.stationId || session?.stationId}
                 currentStationName={userProfile?.stationName || session?.stationName}
                 currentUser={session || userProfile}
@@ -366,6 +379,7 @@ function OperatorConsoleContent(props: {
         complaint={tolakComplaint}
         onConfirmReject={handleConfirmRejectModal}
         loading={loading}
+        rejectionReasons={dbRejectionReasons}
       />
 
       {showLintasWilayahModal && selectedLintasWilayahComplaint && (

@@ -1,6 +1,9 @@
 'use client';
 
+import { calculateStationSlaAndScore } from '@/domain/rules';
+
 import React, { useState, useMemo } from 'react';
+import { parseDateSafe } from '@/lib/date-utils';
 
 export interface TabKinerjaPawasProps {
   userProfile: any;
@@ -54,8 +57,7 @@ export default function TabKinerjaPawas({
   const getComplaintDate = (c: any): Date | null => {
     const raw = c.createdAt ? c.createdAt : (c.created_at ? c.created_at : null);
     if (!raw) return null;
-    const d = new Date(raw);
-    return isNaN(d.getTime()) ? null : d;
+    return parseDateSafe(raw);
   };
 
   // Safe parse tanggal yang dipilih dari input kalender tanpa pergeseran UTC
@@ -264,7 +266,6 @@ export default function TabKinerjaPawas({
   const filteredStationRankings = useMemo(() => {
     if (baseStationList.length === 0) return [];
 
-    // Jika filter menghasilkan 0 aduan, kembalikan daftar polsek dengan metrik periode 0
     return baseStationList.map((st: any) => {
       // Ambil aduan yang masuk ke polsek ini pada periode terpilih
       const stComplaints = filteredComplaints.filter((c: any) =>
@@ -273,90 +274,109 @@ export default function TabKinerjaPawas({
         (c.stationName && c.stationName.toLowerCase().includes(st.stationName.toLowerCase()))
       );
 
-      const totalMasuk = stComplaints.length;
-      let totalSelesai = 0;
-      let totalDiproses = 0;
-      let totalMenunggu = 0;
-      let totalDitolak = 0;
-      let totalResponseTime = 0;
-      let responseCount = 0;
-      let totalStars = 0;
-      let reviewCount = 0;
+      // Jika pada periode yang dipilih terdapat aduan, hitung metrik dinamis
+      if (stComplaints.length > 0) {
+        const totalMasuk = stComplaints.length;
+        let totalSelesai = 0;
+        let totalDiproses = 0;
+        let totalMenunggu = 0;
+        let totalDitolak = 0;
+        let totalResponseTime = 0;
+        let responseCount = 0;
+        let totalStars = 0;
+        let reviewCount = 0;
 
-      for (const c of stComplaints) {
-        if (c.status === 'SELESAI') totalSelesai++;
-        else if (c.status === 'DITOLAK') totalDitolak++;
-        else if (c.status === 'MENUNGGU') totalMenunggu++;
-        else totalDiproses++;
+        for (const c of stComplaints) {
+          if (c.status === 'SELESAI') totalSelesai++;
+          else if (c.status === 'DITOLAK') totalDitolak++;
+          else if (c.status === 'MENUNGGU') totalMenunggu++;
+          else totalDiproses++;
 
-        const stars = c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : null);
-        if (stars) {
-          totalStars += Number(stars);
-          reviewCount++;
+          const stars = c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : null);
+          if (stars) {
+            totalStars += Number(stars);
+            reviewCount++;
+          }
+
+          const respM = Number(c.responseTimeMinutes);
+          if (!isNaN(respM) && respM > 0) {
+            totalResponseTime += respM;
+            responseCount++;
+          }
         }
 
-        const respM = Number(c.responseTimeMinutes);
-        if (!isNaN(respM) && respM > 0) {
-          totalResponseTime += respM;
-          responseCount++;
-        }
+        const completionRate = totalMasuk > 0 ? Math.round((totalSelesai / totalMasuk) * 100) : 0;
+        const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
+        const avgRating = reviewCount > 0 ? Math.round((totalStars / reviewCount) * 10) / 10 : 0;
+
+        const {
+          slaStatus,
+          slaStatusLabel,
+          slaStatusColor,
+          slaStatusBg,
+          rankScore,
+        } = calculateStationSlaAndScore(totalMasuk, completionRate, avgResponseTimeMinutes, avgRating);
+
+        return {
+          ...st,
+          totalMasuk,
+          totalSelesai,
+          totalDiproses,
+          totalMenunggu,
+          totalDitolak,
+          completionRate,
+          avgResponseTimeMinutes,
+          avgRating,
+          totalReviews: reviewCount,
+          slaStatus,
+          slaStatusLabel,
+          slaStatusColor,
+          slaStatusBg,
+          rankScore,
+        };
       }
 
-      const completionRate = totalMasuk > 0 ? Math.round((totalSelesai / totalMasuk) * 100) : 0;
-      const avgResponseTimeMinutes = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
-      const avgRating = reviewCount > 0 ? Math.round((totalStars / reviewCount) * 10) / 10 : 0;
+      // Jika pada periode ini belum ada tiket aduan lokal baru, gunakan baseline otoritatif database dari server
+      const totalMasuk = Number(st.totalMasuk || 0);
+      const completionRate = Number(st.completionRate || 0);
+      const avgResponseTimeMinutes = st.avgResponseTimeMinutes != null ? Number(st.avgResponseTimeMinutes) : null;
+      const avgRating = Number(st.avgRating || 0);
 
-      let slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL' = 'NETRAL';
-      let slaStatusLabel = 'Belum Ada Penugasan';
-      let slaStatusColor = '#64748B';
-      let slaStatusBg = '#F1F5F9';
-
-      if (avgResponseTimeMinutes !== null) {
-        if (avgResponseTimeMinutes <= 15) {
-          slaStatus = 'HIJAU';
-          slaStatusLabel = 'Respon Cepat (Presisi)';
-          slaStatusColor = '#059669';
-          slaStatusBg = '#ECFDF5';
-        } else if (avgResponseTimeMinutes <= 30) {
-          slaStatus = 'KUNING';
-          slaStatusLabel = 'Waspada (Batas Toleransi)';
-          slaStatusColor = '#D97706';
-          slaStatusBg = '#FEF3C7';
-        } else {
-          slaStatus = 'MERAH';
-          slaStatusLabel = 'Melanggar SLA Tanggap';
-          slaStatusColor = '#DC2626';
-          slaStatusBg = '#FEE2E2';
-        }
-      }
-
-      const ratingPart = avgRating > 0 ? (avgRating / 5) * 35 : 0;
-      const timePart = avgResponseTimeMinutes !== null ? Math.max(0, 25 - avgResponseTimeMinutes) : 10;
-      const rankScore = Math.round((completionRate * 0.4) + ratingPart + timePart);
+      const calculated = calculateStationSlaAndScore(totalMasuk, completionRate, avgResponseTimeMinutes, avgRating);
 
       return {
         ...st,
         totalMasuk,
-        totalSelesai,
-        totalDiproses,
-        totalMenunggu,
-        totalDitolak,
+        totalSelesai: Number(st.totalSelesai || 0),
+        totalDiproses: Number(st.totalDiproses || 0),
+        totalMenunggu: Number(st.totalMenunggu || 0),
+        totalDitolak: Number(st.totalDitolak || 0),
         completionRate,
         avgResponseTimeMinutes,
         avgRating,
-        totalReviews: reviewCount,
-        slaStatus,
-        slaStatusLabel,
-        slaStatusColor,
-        slaStatusBg,
-        rankScore,
+        totalReviews: Number(st.totalReviews || 0),
+        slaStatus: calculated.slaStatus,
+        slaStatusLabel: calculated.slaStatusLabel,
+        slaStatusColor: calculated.slaStatusColor,
+        slaStatusBg: calculated.slaStatusBg,
+        rankScore: calculated.rankScore,
       };
-    }).sort((a: any, b: any) => b.rankScore - a.rankScore);
+    }).sort((a: any, b: any) => {
+      const bScore = Number(b.rankScore || 0);
+      const aScore = Number(a.rankScore || 0);
+      if (bScore !== aScore) return bScore - aScore;
+      const bSelesai = Number(b.totalSelesai || 0);
+      const aSelesai = Number(a.totalSelesai || 0);
+      if (bSelesai !== aSelesai) return bSelesai - aSelesai;
+      const aTime = a.avgResponseTimeMinutes != null ? Number(a.avgResponseTimeMinutes) : 9999;
+      const bTime = b.avgResponseTimeMinutes != null ? Number(b.avgResponseTimeMinutes) : 9999;
+      return aTime - bTime;
+    });
   }, [baseStationList, filteredComplaints]);
 
   // Polsek dengan status kritis pada periode ini
   const criticalStations = filteredStationRankings.filter(
-    (s: any) => s.slaStatus === 'MERAH' || (s.totalMasuk > 0 && s.completionRate < 80)
+    (s: any) => s.slaStatus === 'MERAH' || (s.totalMasuk > 0 && (s.completionRate < 80 || (s.avgResponseTimeMinutes != null && s.avgResponseTimeMinutes > 20)))
   );
 
   // FILTERED TIER 2 LEADERBOARD (PERSONEL) SESUAI PERIODE
@@ -876,7 +896,7 @@ export default function TabKinerjaPawas({
                     ATENSI &amp; TEMUAN ANEV KAPOLRES ({criticalStations.length} Polsek Membutuhkan Peningkatan Respon pada {periodSummaryLabel})
                   </div>
                   <div style={{ fontSize: '11px', color: '#991B1B', marginTop: '3px', lineHeight: 1.45 }}>
-                    Terdapat Polsek jajaran dengan waktu respon tanggap melebihi batas toleransi SLA Presisi (&gt; 30 Menit) atau tingkat penyelesaian &lt; 80%. Diperlukan atensi Kapolsek &amp; Kanit Samapta untuk evaluasi kesiapsiagaan armada piket:
+                    Terdapat Polsek jajaran dengan waktu respon tanggap melebihi batas toleransi SLA Presisi (&gt; 20 Menit) atau tingkat penyelesaian &lt; 80%. Diperlukan atensi Kapolsek &amp; Kanit Samapta untuk evaluasi kesiapsiagaan armada piket:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
                     {criticalStations.map((st: any) => (
@@ -891,7 +911,7 @@ export default function TabKinerjaPawas({
               <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '8px 12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span>✅</span>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: '#166534' }}>
-                  Seluruh Polsek Jajaran beroperasi dalam parameter kepatuhan waktu respon Presisi (&le; 30 menit) dengan tingkat penyelesaian aduan optimal pada periode {periodSummaryLabel}.
+                  Seluruh Polsek Jajaran beroperasi dalam parameter kepatuhan waktu respon Presisi (&le; 20 menit) dengan tingkat penyelesaian aduan optimal pada periode {periodSummaryLabel}.
                 </span>
               </div>
             )}
@@ -1045,7 +1065,11 @@ export default function TabKinerjaPawas({
                           <td style={{ padding: '8px 10px' }}>
                             <div style={{
                               fontWeight: 800,
-                              color: st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes <= 15 ? '#15803D' : (st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes <= 30 ? '#D97706' : '#DC2626')
+                              color: st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes < 10 && st.completionRate >= 85
+                                ? '#15803D'
+                                : (st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes <= 20 && st.completionRate >= 80
+                                  ? '#D97706'
+                                  : (st.totalMasuk > 0 ? '#DC2626' : '#64748B'))
                             }}>
                               {st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes > 0 ? `± ${st.avgResponseTimeMinutes} Menit` : '-'}
                             </div>

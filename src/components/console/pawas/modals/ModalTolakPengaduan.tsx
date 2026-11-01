@@ -9,9 +9,10 @@ export interface ModalTolakPengaduanProps {
   complaint: any;
   onConfirmReject: (reason: string, notes: string) => Promise<void>;
   loading?: boolean;
+  rejectionReasons?: any[];
 }
 
-const DEFAULT_REASONS = [
+const FALLBACK_REASONS = [
   {
     key: 'PALSU_SPAM',
     label: 'Laporan Palsu / Fiktif / Prank / Spam',
@@ -45,18 +46,30 @@ export default function ModalTolakPengaduan({
   complaint,
   onConfirmReject,
   loading = false,
+  rejectionReasons = [],
 }: ModalTolakPengaduanProps) {
-  const [selectedReason, setSelectedReason] = useState<string>(DEFAULT_REASONS[0].label);
+  const reasonsList = React.useMemo(() => {
+    if (rejectionReasons && rejectionReasons.length > 0) {
+      return rejectionReasons.map((r) => ({
+        key: r.key || String(r.id),
+        label: r.label || r.reason || r.name,
+        desc: r.desc || r.description || `Sesuai master data verifikasi SOP: ${r.label || r.reason}`,
+      }));
+    }
+    return FALLBACK_REASONS;
+  }, [rejectionReasons]);
+
+  const [selectedReason, setSelectedReason] = useState<string>(() => reasonsList[0]?.label || FALLBACK_REASONS[0].label);
   const [catatanPenolakan, setCatatanPenolakan] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedReason(DEFAULT_REASONS[0].label);
+      setSelectedReason(reasonsList[0]?.label || FALLBACK_REASONS[0].label);
       setCatatanPenolakan('');
       setErrorMessage('');
     }
-  }, [isOpen, complaint]);
+  }, [isOpen, complaint, reasonsList]);
 
   if (!isOpen || !complaint) return null;
 
@@ -213,7 +226,7 @@ export default function ModalTolakPengaduan({
               </label>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {DEFAULT_REASONS.map((reason) => {
+                {reasonsList.map((reason) => {
                   const isSelected = selectedReason === reason.label;
                   return (
                     <div

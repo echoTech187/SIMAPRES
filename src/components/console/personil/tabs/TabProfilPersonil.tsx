@@ -55,6 +55,7 @@ interface TabProfilPersonilProps {
   onPresensiPulang: () => Promise<void>;
   onLogout: () => Promise<void>;
   onTabChange?: (tab: 'beranda' | 'peta' | 'profil') => void;
+  initialKpiOpen?: boolean;
 }
 
 export default function TabProfilPersonil({
@@ -66,6 +67,7 @@ export default function TabProfilPersonil({
   onPresensiPulang,
   onLogout,
   onTabChange,
+  initialKpiOpen = false,
 }: TabProfilPersonilProps) {
   const [localOfficer, setLocalOfficer] = useState<OfficerProfile>(officer);
   const [kpiPeriod, setKpiPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
@@ -73,7 +75,7 @@ export default function TabProfilPersonil({
   const [avatarError, setAvatarError] = useState(false);
 
   // Active Modal: 'profil' | 'keamanan' | 'kpi' | 'log' | 'logout' | null
-  const [activeModal, setActiveModal] = useState<'profil' | 'keamanan' | 'kpi' | 'log' | 'logout' | null>(null);
+  const [activeModal, setActiveModal] = useState<'profil' | 'keamanan' | 'kpi' | 'log' | 'logout' | null>(() => (initialKpiOpen ? 'kpi' : null));
 
   // Selected complaint for Tactical Detail & Timeline in Riwayat Log Lengkap
   const [selectedLogComplaint, setSelectedLogComplaint] = useState<ComplaintData | null>(null);

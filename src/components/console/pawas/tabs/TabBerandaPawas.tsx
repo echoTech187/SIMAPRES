@@ -9,6 +9,7 @@ import IncidentFeedSection from '../components/IncidentFeedSection';
 import SlaGaugeCard from '../components/SlaGaugeCard';
 import IkmSatisfactionCard from '../components/IkmSatisfactionCard';
 import RecentActivitiesCard from '../components/RecentActivitiesCard';
+import { formatTimeWib } from '@/lib/date-utils';
 
 export interface TabBerandaPawasProps {
   userProfile?: any;
@@ -92,7 +93,7 @@ export default function TabBerandaPawas({
         if (timeRaw && timeRaw !== '-') {
           timeStr = `${String(timeRaw).replace('.', ':')} WIB`;
         } else if (createdRaw) {
-          timeStr = `${new Date(createdRaw).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })} WIB`;
+          timeStr = formatTimeWib(createdRaw);
         }
 
         const off = log.officer;

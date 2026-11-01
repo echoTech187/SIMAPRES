@@ -115,12 +115,13 @@ export async function getPawasDashboardDataAction(
     }
 
 
-    const [filterRes, qRes, allRes, uRes, logbookRes] = await Promise.all([
+    const [filterRes, qRes, allRes, uRes, logbookRes, officesRes] = await Promise.all([
       getMasterFilterOptionsAction(),
       getPendingComplaintsAction(numStationId),
       getAllRecentComplaintsAction(100, numStationId),
       getRegisteredUnitsAction(),
       getRecentLogbooksAction(10, numStationId),
+      getPoliceOfficesAction(),
     ]);
 
     const payload = {
@@ -129,6 +130,7 @@ export async function getPawasDashboardDataAction(
       allRecentComplaints: allRes.success && allRes.data ? allRes.data : [],
       registeredUnits: uRes.success && uRes.data ? uRes.data : [],
       recentLogbooks: logbookRes.success && logbookRes.data ? logbookRes.data : [],
+      policeOffices: officesRes.success && officesRes.data ? officesRes.data : [],
     };
 
     cacheSet(cacheKey, payload, 15000); // 15 detik TTL
@@ -217,7 +219,7 @@ export async function getPawasAnalyticsDataAction(
       getIkmStatsAction(numStationId),
       getOfficerPerformanceRankingsAction(numStationId),
       getStationPerformanceRankingsAction(),
-      getOperatorPerformanceRankingsAction(numStationId),
+      getOperatorPerformanceRankingsAction(),
     ]);
 
     const payload: PawasAnalyticsData = {

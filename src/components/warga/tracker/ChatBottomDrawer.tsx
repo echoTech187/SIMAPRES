@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
 import { X, MessageSquare, Send } from 'lucide-react';
 import type { ChatMessageItem } from '@/types/chat.types';
+import { formatTimeWib } from '@/lib/date-utils';
 
 export interface ChatBottomDrawerProps {
   officer: any;
@@ -140,10 +141,7 @@ export default function ChatBottomDrawer({
                     {msg.text}
                   </div>
                   <div className="text-[9px] text-slate-500 mt-1">
-                    {new Date(msg.timestamp).toLocaleTimeString('id-ID', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+                    {formatTimeWib(msg.timestamp)}
                   </div>
                 </div>
               );

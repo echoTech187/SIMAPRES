@@ -602,6 +602,7 @@ function CommandCenterContent(props: {
         setShowTolakModal={setShowTolakModal}
         tolakComplaint={tolakComplaint}
         handleConfirmRejectModal={handleConfirmRejectModal}
+        dbRejectionReasons={dbRejectionReasons}
         showLintasWilayahModal={showLintasWilayahModal}
         setShowLintasWilayahModal={setShowLintasWilayahModal}
         selectedLintasWilayahComplaint={selectedLintasWilayahComplaint}

@@ -478,7 +478,14 @@ export async function transferComplaintCrossJurisdictionAction(input: {
       input.notes ||
       `[DISPOSISI LINTAS WILAYAH MASUK] Tiket: ${comp.nomor_tiket} | Kasus: ${comp.jenis_kejadian} | TKP: ${comp.tkp_alamat_teks} | Urgensi: ${comp.urgensi} | Dari: ${previousStationName} (Petugas: ${actorName}) ➔ Ke: ${targetStation.station_name} | Petugas Piket Hari Ini (${targetStation.station_name}): ${dutyPiketText} | Waktu Masuk Disposisi: ${nowTime.toLocaleString('id-ID')} | Batas Respon Expired: ${expiredAt.toLocaleString('id-ID')} | Status: MENUNGGU_RESPON_MAKO_TUJUAN | Alasan: ${input.transferReason || 'Deteksi koordinat TKP berada di luar wilayah hukum mako asal.'}`;
 
-    const isReturningToMakoAsal = Number(targetStation.id) === 60001;
+    // Penarikan kembali ke Mako Asal HANYA jika tiket ditarik kembali oleh Mako aslinya sendiri
+    // setelah sebelumnya dialihkan keluar (misal Mako pembuat laporan 60001 menarik kembali tiket yang macet di Batang).
+    // Namun jika tiket dialihkan dari Polsek/Polres lain KE Polres Pekalongan (atau Mako mana pun), ini adalah DISPOSISI LINTAS WILAYAH murni!
+    const callerStationId = (auth.user as any)?.stationId ? Number((auth.user as any).stationId) : null;
+    const isExplicitRecall = Boolean(
+      input.transferReason && input.transferReason.toLowerCase().includes('penarikan kembali ke mako asal')
+    );
+    const isReturningToMakoAsal = isExplicitRecall && callerStationId !== null && Number(targetStation.id) === callerStationId;
 
     await prisma.$transaction(async (tx) => {
       // 1. Update status & station_id complaint (jika ditarik ke Mako Asal, status kembali MENUNGGU agar siap didisposisikan mandiri)
@@ -666,17 +673,35 @@ export async function acceptAndBroadcastCrossJurisdictionAction(input: {
         },
       });
 
-      // 3. Update status dispatches: Hentikan eskalasi, bersihkan deadline eskalasi lama, arahkan ke personil Mako tujuan
-      await (tx as any).complaintDispatch.updateMany({
-        where: { complaint_id: complaintIdBig },
-        data: {
-          station_id: targetStationId,
-          is_escalated: false,
-          escalation_deadline_at: null,
-          dispatched_at: now,
-          tactical_orders: `Siaran Terbuka Mako ${targetStationName}: Disposisi resmi diterima oleh ${actorName}. Armada siaga terdekat segera klaim tugas.`,
-        } as any,
-      }).catch(() => {});
+      // 3. Bentuk siaran terbuka (open broadcast) ke seluruh master operational unit aktif Mako tujuan
+            const operationalUnits = await tx.masterOperationalUnit.findMany({
+              where: { is_active: true },
+            });
+            const satuans = operationalUnits.length > 0 ? operationalUnits : [{ id: 1 }];
+      
+            // Bersihkan antrean dispatch lama jika ada sisa, lalu siarkan ke unit aktif Mako tujuan
+            await tx.complaintDispatch.deleteMany({
+              where: { complaint_id: complaintIdBig },
+            }).catch(() => {});
+      
+            for (let i = 0; i < satuans.length; i++) {
+              const s = satuans[i];
+              await (tx as any).complaintDispatch.create({
+                data: {
+                  complaint_id: complaintIdBig,
+                  unit_id: s.id,
+                  officer_id: null, // Siaran terbuka bagi personel dinas aktif (belum diklaim)
+                  station_id: targetStationId, // Dinamis sesuai Mako tujuan
+                  is_primary_unit: i === 0,
+                  personnel_quota: 1, // Siapa cepat dia dapat (1 personel mengunci tiket)
+                  tactical_orders: `Siaran Terbuka Mako ${targetStationName}: Disposisi resmi diterima oleh ${actorName}. Respon cepat ke ${comp.tkp_alamat_teks}.`,
+                  dispatch_status_id: 1,
+                  dispatch_status: 'DISPATCHED',
+                  dispatched_at: now,
+                  escalation_deadline_at: null,
+                } as any,
+              });
+            }
     });
 
     try {
@@ -1046,5 +1071,111 @@ export async function acceptOfficerDispatchAction(input: {
     return result;
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal menerima tugas.' };
+  }
+}
+
+
+/**
+ * Aksi pengabaian tiket darurat 110 oleh personel lapangan (Abaikan/Nanti).
+ * Sesuai Dokumen Panduan & RULES.md:
+ * 1. Mencatat audit log DISPATCH_IGNORED.
+ * 2. Mengurangi kpi_score personel sebesar -10 poin.
+ * 3. Menghitung status warning Pawas jika kpi_score < 10 poin.
+ * 4. Menginvalidasi cache terkait agar UI dan Pawas tersinkronisasi.
+ */
+export async function ignoreOfficerDispatchAction(input: {
+  complaintId: string;
+  officerNrp: string;
+  alasan?: string;
+  lat?: number;
+  lng?: number;
+}): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  newKpiScore?: number;
+  isWarningPawasTriggered?: boolean;
+}> {
+  const auth = await requireRole(['PERSONIL', 'SUPERADMIN']);
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
+  try {
+    const complaintIdBig = BigInt(input.complaintId);
+
+    const officer = await prisma.policeOfficer.findFirst({
+      where: {
+        OR: [
+          { nrp: input.officerNrp },
+          { user: { identifier: input.officerNrp } },
+        ],
+      },
+      include: { user: true, station: true },
+    });
+
+    if (!officer) {
+      return { success: false, error: 'Personel dengan NRP ' + input.officerNrp + ' tidak ditemukan.' };
+    }
+
+    const { calculateKpiIgnorePenalty } = await import('@/domain/rules');
+    const currentScore = Number(officer.kpi_score ?? 100);
+    const evalResult = calculateKpiIgnorePenalty(currentScore);
+
+    const officerName = officer.user?.full_name || officer.nrp;
+    const officerRank = officer.rank_pangkat || 'Bripka';
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Update kpi_score pada tabel police_officers
+      await tx.policeOfficer.update({
+        where: { id: officer.id },
+        data: {
+          kpi_score: evalResult.newKpiScore,
+        },
+      });
+
+      // 2. Catat audit log pengabaian penugasan
+      const actionLat = input.lat ?? (officer.current_gps_lat ? Number(officer.current_gps_lat) : null);
+      const actionLng = input.lng ?? (officer.current_gps_lng ? Number(officer.current_gps_lng) : null);
+
+      const warningNotice = evalResult.isWarningPawasTriggered
+        ? ' [PERINGATAN KOMANDO PAWAS: Akumulasi Poin Kinerja < 10!]'
+        : '';
+
+      await tx.complaintAuditLog.create({
+        data: {
+          complaint_id: complaintIdBig,
+          actor_name: (`${officerRank} ${officerName}`).trim(),
+          actor_role: 'PERSONIL',
+          action: 'DISPATCH_IGNORED',
+          notes: 'Pengabaian Penugasan Lapangan: Personel ' + officerRank + ' ' + officerName + ' (NRP: ' + officer.nrp + ') memilih Abaikan/Nanti pada tiket ini. Penalti Kinerja: -10 Poin (Skor Saat Ini: ' + evalResult.newKpiScore + ').' + warningNotice,
+          action_lat: actionLat,
+          action_lng: actionLng,
+        },
+      });
+    });
+
+    // Invalidate cache
+    try {
+      const { cacheInvalidate } = await import('@/infrastructure/cache/app-cache');
+      cacheInvalidate('officer_complaints');
+      if (officer.id) cacheInvalidate('officer_complaints_' + officer.id);
+      if (officer.nrp) cacheInvalidate('officer_complaints_' + officer.nrp);
+      cacheInvalidate('officer_performance_rankings');
+      if (officer.station_id) {
+        cacheInvalidate('officer_performance_rankings_st_' + officer.station_id);
+      }
+    } catch (_) {}
+
+    safeRevalidatePath();
+
+    return {
+      success: true,
+      message: 'Tiket penugasan diabaikan. Poin kinerja Anda dikurangi 10 (Sisa Skor: ' + evalResult.newKpiScore + ').',
+      newKpiScore: evalResult.newKpiScore,
+      isWarningPawasTriggered: evalResult.isWarningPawasTriggered,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Gagal memproses pengabaian penugasan.' };
   }
 }

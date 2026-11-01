@@ -8,6 +8,7 @@ import {
   getOfficerComplaintsAction,
   fieldStepAction,
   acceptOfficerDispatchAction,
+  ignoreOfficerDispatchAction,
   getMasterFilterOptionsAction,
 } from '@/app/actions/complaint.actions';
 import {
@@ -172,6 +173,7 @@ export function usePersonilConsole({
   const [pendingAcceptTask, setPendingAcceptTask] = useState<ComplaintData | null>(null);
   const [showAcceptModal, setShowAcceptModal] = useState<boolean>(false);
   const [isAcceptingTask, setIsAcceptingTask] = useState<boolean>(false);
+  const [isIgnoringTask, setIsIgnoringTask] = useState<boolean>(false);
   const promptedTaskIdsRef = useRef<Set<string>>(new Set());
 
   // Deteksi Perangkat Fisik Terdaftar
@@ -193,9 +195,14 @@ export function usePersonilConsole({
   }, [officer.deviceId]);
 
   // Pemicu otomatis Modal Popup saat tugas masuk & HP TERHUBUNG
+  // Hanya boleh masuk ke personel yang sedang Standby, Siaga, dan Patroli (tidak sedang memiliki tiket perkara aktif)
   useEffect(() => {
-    const isOnDuty = officer.dutyStatus !== 'LEPAS_DINAS';
-    if (pendingAcceptTask && isPairedDevice && isOnDuty) {
+    const isEligibleDuty =
+      officer.dutyStatus !== 'LEPAS_DINAS' &&
+      officer.dutyStatus !== 'ISTIRAHAT';
+    const hasNoActiveTask = !activeComplaint || activeComplaint.status === 'SELESAI' || activeComplaint.status === 'DITOLAK';
+
+    if (pendingAcceptTask && isPairedDevice && isEligibleDuty && hasNoActiveTask) {
       const taskId = String(pendingAcceptTask.nomorTiket || pendingAcceptTask.id);
       if (!promptedTaskIdsRef.current.has(taskId)) {
         promptedTaskIdsRef.current.add(taskId);
@@ -203,7 +210,7 @@ export function usePersonilConsole({
         playPoliceAlertAudio();
       }
     }
-  }, [pendingAcceptTask, isPairedDevice, officer.dutyStatus]);
+  }, [pendingAcceptTask, isPairedDevice, officer.dutyStatus, activeComplaint]);
 
   // Chat & Modal Penyelesaian Tugas
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
@@ -269,18 +276,6 @@ export function usePersonilConsole({
             lastComplaintsHashRef.current = currentHash;
             setComplaints(cRes.data);
 
-            const pending = cRes.data.find((c: any) =>
-              isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id)
-            ) || null;
-
-            if (pending) {
-              setPendingAcceptTask(pending);
-            } else {
-              stopPoliceAlertAudio();
-              setPendingAcceptTask(null);
-              setShowAcceptModal(false);
-            }
-
             const targetId =
               preferredComplaintId ||
               activeComplaintRef.current?.id ||
@@ -307,6 +302,22 @@ export function usePersonilConsole({
 
             setActiveComplaint(active || null);
             activeComplaintRef.current = active || null;
+
+            // Personel yang sedang menangani tiket perkara aktif tidak boleh menerima tugas perkara lain
+            const hasActiveTask = Boolean(active);
+            const pending = !hasActiveTask
+              ? cRes.data.find((c: any) =>
+                  isTaskPendingAcceptance(c, activeNrp, activeOfficerId, officer.unit_id, hasActiveTask)
+                ) || null
+              : null;
+
+            if (pending) {
+              setPendingAcceptTask(pending);
+            } else {
+              stopPoliceAlertAudio();
+              setPendingAcceptTask(null);
+              setShowAcceptModal(false);
+            }
           }
         }
       });
@@ -527,6 +538,43 @@ export function usePersonilConsole({
     }
   };
 
+  const handleIgnoreTask = async (task: ComplaintData) => {
+    if (!task) return;
+    setIsIgnoringTask(true);
+    try {
+      stopPoliceAlertAudio();
+      const res = await ignoreOfficerDispatchAction({
+        complaintId: String(task.id),
+        officerNrp: officer.nrp,
+        lat: currentGps?.lat,
+        lng: currentGps?.lng,
+      });
+
+      setShowAcceptModal(false);
+      setPendingAcceptTask(null);
+
+      if (res?.success) {
+        if (res.isWarningPawasTriggered) {
+          toast.warning(
+            'Peringatan Kinerja Personel',
+            'Poin kinerja Anda telah turun di bawah 10 (' + res.newKpiScore + '). Peringatan telah diteruskan ke Perwira Pengawas (Pawas).'
+          );
+        } else {
+          toast.info(
+            'Penugasan Diabaikan',
+            'Tiket #' + (task.nomorTiket || task.id) + ' telah diabaikan. Poin Kinerja: ' + (res.newKpiScore ?? 'Tercatat')
+          );
+        }
+      } else {
+        toast.error('Gagal Mengabaikan Penugasan', res?.error || 'Terjadi kesalahan sistem.');
+      }
+    } catch (err: any) {
+      toast.error('Kendala Jaringan', err.message || 'Terjadi kesalahan jaringan.');
+    } finally {
+      setIsIgnoringTask(false);
+    }
+  };
+
   const handleUpdateStep = async (stepKey: DispatchStepAction) => {
     if (!activeComplaint) return;
     setIsUpdatingStep(true);
@@ -679,6 +727,7 @@ export function usePersonilConsole({
     showAcceptModal,
     setShowAcceptModal,
     isAcceptingTask,
+    isIgnoringTask,
     isPairedDevice,
     chatDrawerOpen,
     setChatDrawerOpen,
@@ -697,6 +746,7 @@ export function usePersonilConsole({
     loadData,
     handleOpenFinishModal,
     handleAcceptTask,
+    handleIgnoreTask,
     handleUpdateStep,
     handlePresensiMasuk,
     handlePresensiPulang,

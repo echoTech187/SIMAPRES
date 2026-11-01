@@ -3,7 +3,7 @@
 import React from 'react';
 import { isGenericOrCoordinateAddress, resolveSektorWilayah } from '@/infrastructure/services/reverse-geocode.service';
 import { evaluateJurisdictionBoundary } from '@/lib/jurisdiction-boundary';
-import { getCrossJurisdictionTimeoutMs, getCrossJurisdictionTimeoutMinutes } from '@/lib/escalation-config';
+import { getCrossJurisdictionTimeoutMs, getCrossJurisdictionTimeoutMinutes, parseUtcTimeMs } from '@/lib/escalation-config';
 import { getLastDispatchedStationName, getLastDispatchedStationId } from './cad-helpers';
 
 export interface CadAntreanColumnProps {
@@ -35,23 +35,35 @@ export const CadAntreanColumn: React.FC<CadAntreanColumnProps> = ({
   bukaModalTolak,
   setTolakComplaint,
 }) => {
+  // Filter antrean presisi: Tiket yang sudah resmi diterima/didisposisikan ke personil
+  // tidak lagi ditampilkan di antrean menunggu disposisi
+  const displayAntrean = React.useMemo(() => {
+    return (antreanPawas || []).filter((item) => {
+      if (item.status === 'DISPOSISI_LINTAS_WILAYAH') return true;
+      if (item.status !== 'MENUNGGU') return false;
+      const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
+      if (dispatches.length > 0) return false;
+      return true;
+    });
+  }, [antreanPawas]);
+
   return (
     <div className="cad-antrean-column" style={{ width: '100%', minWidth: 0 }}>
       <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B' }}>📋 Antrean Menunggu Disposisi</span>
           <span style={{ background: '#F59E0B', color: 'white', fontSize: '11px', fontWeight: 800, padding: '2px 8px', borderRadius: '10px' }}>
-            {antreanPawas.length}
+            {displayAntrean.length}
           </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '550px', overflowY: 'auto' }}>
-          {antreanPawas.length === 0 ? (
+          {displayAntrean.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
               Tidak ada antrean menunggu disposisi saat ini.
             </div>
           ) : (
-            antreanPawas.map((item) => (
+            displayAntrean.map((item) => (
               <div
                 key={item.id}
                 style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px' }}
@@ -80,13 +92,22 @@ export const CadAntreanColumn: React.FC<CadAntreanColumnProps> = ({
 
                 {/* Boundary Alert & Quick-Transfer Button */}
                 {(() => {
+                  const userStationId = userProfile?.stationId || session?.stationId;
+                  const userStationName = userProfile?.stationName || session?.stationName;
+
                   const boundary = evaluateJurisdictionBoundary({
                     tkpLat: item.tkpLat || item.tkp_lat,
                     tkpLng: item.tkpLng || item.tkp_lng,
                     tkpAlamat: item.tkpAlamatTeks,
+                    currentStationId: userStationId ? Number(userStationId) : 60001,
+                    currentStationName: userStationName || 'Polres Pekalongan',
+                    stations: policeOffices,
                   });
 
-                  const isCrossJurisdiction = item.status === 'DISPOSISI_LINTAS_WILAYAH' || boundary.isOutsideJurisdiction;
+                  // Jika tiket statusnya MENUNGGU dan station_id tiket ini sudah milik stasiun user (sudah diterima Mako tujuan):
+                  // tiket BUKAN LAGI lintas wilayah bagi stasiun ini!
+                  const isOwnedByCurrentStation = Boolean(userStationId && item.station_id && String(userStationId) === String(item.station_id));
+                  const isCrossJurisdiction = item.status === 'DISPOSISI_LINTAS_WILAYAH' || (!isOwnedByCurrentStation && boundary.isOutsideJurisdiction);
 
                   if (!isCrossJurisdiction) return null;
 
@@ -95,32 +116,96 @@ export const CadAntreanColumn: React.FC<CadAntreanColumnProps> = ({
                   const targetName = lastStation || boundary.targetStation?.stationName || 'Polresta Batang';
                   const targetStationId = getLastDispatchedStationId(item, policeOffices);
 
-                  // Bandingkan station_id user login dengan station_id dari getLastDispatchedStation
-                  const userStationId = userProfile?.stationId || session?.stationId;
-                  const userStationName = userProfile?.stationName || session?.stationName;
-
                   const isUserTargetStation = Boolean(
                     (userStationId && targetStationId && String(userStationId) === String(targetStationId)) ||
                     (userStationName && lastStation && userStationName.trim().toLowerCase() === lastStation.trim().toLowerCase())
                   );
 
-                  // Jika user yang login adalah Mako Tujuan (misal Polresta Batang),
-                  // mereka TIDAK PERLU melihat tombol "Transfer ke Polresta Batang" atau alert batas wilayah untuk diri sendiri!
-                  if (isUserTargetStation) return null;
+                  // Jika user yang login adalah Mako Tujuan (misal Polres Pekalongan Kota),
+                  // tampilkan kartu aksi penerimaan tugas pelimpahan lintas wilayah
+                  if (isUserTargetStation) {
+                    if (item.status === 'DISPOSISI_LINTAS_WILAYAH') {
+                      const logs = item.complaint_logs || item.complaintLogs || item.auditLogs || [];
+                      const xLog = Array.isArray(logs) ? logs.find((l: any) => l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') : null;
+                      const sourceName = xLog?.notes?.match(/Dari:\s*([^➔\n|]+)/)?.[1]?.trim() || 'Polres Pekalongan';
 
-                  // Deteksi apakah waktu respon sudah expired (1 menit tanpa respon)
+                      return (
+                        <div
+                          style={{
+                            marginTop: '8px',
+                            marginBottom: '6px',
+                            padding: '10px 12px',
+                            background: '#EFF6FF',
+                            border: '1.5px solid #3B82F6',
+                            borderRadius: '8px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1D4ED8', fontSize: '11px', fontWeight: 800, marginBottom: '6px' }}>
+                            <span>🌐</span>
+                            <span>Pelimpahan Masuk dari {sourceName}</span>
+                          </div>
+                          <button
+                            type="button"
+                            id={`btn-terima-disposisi-card-${item.id}`}
+                            disabled={loading || isTransferring}
+                            onClick={async () => {
+                              const actorName = userProfile?.fullName || userProfile?.nama || session?.fullName || 'Operator SPKT';
+                              const actorRole = userProfile?.role || session?.role || 'OPERATOR';
+                              const { acceptAndBroadcastCrossJurisdictionAction } = await import('@/app/actions/complaint/complaint-dispatch.actions');
+                              const res = await acceptAndBroadcastCrossJurisdictionAction({
+                                complaintId: String(item.id),
+                                actorName,
+                                actorRole,
+                              });
+                              if (res?.success) {
+                                window.location.reload();
+                              } else {
+                                alert(res?.error || 'Gagal menerima disposisi.');
+                              }
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                              color: '#FFFFFF',
+                              fontWeight: 900,
+                              fontSize: '11.5px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              boxShadow: '0 2px 6px rgba(16,185,129,0.3)',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <span>📥</span>
+                            <span>Terima &amp; Siarkan ke Personil</span>
+                          </button>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }
+
+                  // Deteksi apakah waktu respon sudah expired (3-5 menit tanpa respon sesuai SOP Presisi 110)
                   const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
                   const dispatchWithDeadline = dispatches.find((d: any) => d.escalation_deadline_at || d.escalationDeadlineAt);
                   const rawDeadline = dispatchWithDeadline?.escalation_deadline_at || dispatchWithDeadline?.escalationDeadlineAt;
-                  let deadlineMs = rawDeadline ? new Date(rawDeadline).getTime() : null;
+                  let deadlineMs = rawDeadline ? parseUtcTimeMs(rawDeadline) : null;
 
-                  if (!deadlineMs) {
+                  if (item.status === 'DISPOSISI_LINTAS_WILAYAH') {
                     const logs = item.complaint_logs || item.complaintLogs || item.auditLogs || [];
                     const xLog = Array.isArray(logs) ? logs.find((l: any) => l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') : null;
-                    if (xLog?.created_at) {
-                      deadlineMs = new Date(xLog.created_at).getTime() + getCrossJurisdictionTimeoutMs();
-                    } else if (item.updated_at || item.created_at) {
-                      deadlineMs = new Date(item.updated_at || item.created_at).getTime() + getCrossJurisdictionTimeoutMs();
+                    const transferTimeMs = xLog?.created_at ? parseUtcTimeMs(xLog.created_at) : (item.updated_at ? parseUtcTimeMs(item.updated_at) : (item.created_at ? parseUtcTimeMs(item.created_at) : 0));
+                    const dispatchDeadlineMs = rawDeadline ? parseUtcTimeMs(rawDeadline) : 0;
+
+                    if (dispatchDeadlineMs && dispatchDeadlineMs > transferTimeMs) {
+                      deadlineMs = dispatchDeadlineMs;
+                    } else if (transferTimeMs > 0) {
+                      deadlineMs = transferTimeMs + getCrossJurisdictionTimeoutMs(item.urgensi);
                     }
                   }
 
@@ -147,7 +232,7 @@ export const CadAntreanColumn: React.FC<CadAntreanColumnProps> = ({
                         }}
                       >
                         <span style={{ fontSize: '13px' }}>⏳</span>
-                        <span>Menunggu respon dari <strong>{targetName}</strong> (Batas waktu {getCrossJurisdictionTimeoutMinutes()} menit)</span>
+                        <span>Menunggu respon dari <strong>{targetName}</strong> (Batas waktu {getCrossJurisdictionTimeoutMinutes(item.urgensi)} menit)</span>
                       </div>
                     );
                   }
@@ -216,12 +301,19 @@ export const CadAntreanColumn: React.FC<CadAntreanColumnProps> = ({
 
                 {/* Tombol aksi reguler hanya ditampilkan jika BUKAN tiket disposisi antar wilayah */}
                 {(() => {
+                  const userStationId = userProfile?.stationId || session?.stationId;
+                  const userStationName = userProfile?.stationName || session?.stationName;
+
                   const boundary = evaluateJurisdictionBoundary({
                     tkpLat: item.tkpLat || item.tkp_lat,
                     tkpLng: item.tkpLng || item.tkp_lng,
                     tkpAlamat: item.tkpAlamatTeks,
+                    currentStationId: userStationId ? Number(userStationId) : 60001,
+                    currentStationName: userStationName || 'Polres Pekalongan',
+                    stations: policeOffices,
                   });
-                  const isCrossJurisdiction = item.status === 'DISPOSISI_LINTAS_WILAYAH' || boundary.isOutsideJurisdiction;
+                  const isOwnedByCurrentStation = Boolean(userStationId && item.station_id && String(userStationId) === String(item.station_id));
+                  const isCrossJurisdiction = item.status === 'DISPOSISI_LINTAS_WILAYAH' || (!isOwnedByCurrentStation && boundary.isOutsideJurisdiction);
                   if (isCrossJurisdiction) return null;
 
                   return (

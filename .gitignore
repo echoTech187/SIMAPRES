@@ -13,7 +13,6 @@ dokumen_audit_hardcode_dan_dummy.md
 simapres-performance.patch
 SIMAPRES_110_end_to_end_analysis.md
 subagent_18.txt
-docs
 wa_auth_session
 laporan_status_simapres.md
 dokumen_teknis_dan_user_manual_1A_3B.md
@@ -44,3 +43,6 @@ screenshots/*
 # Uploaded user files and evidence
 public/uploads/*
 !public/uploads/.gitkeep
+Recovered/BERITA_ACARA_SERAH_TERIMA_BAST_SIMAPRES_110.md
+docs/*
+!docs/panduan/*

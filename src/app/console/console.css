@@ -1486,9 +1486,9 @@
     grid-template-columns: 1fr !important;
   }
 
-  /* Antrean Menunggu Disposisi hanya tampil di layar desktop */
   .cad-antrean-column {
-    display: none !important;
+    display: block !important;
+    margin-top: 20px;
   }
 }
 

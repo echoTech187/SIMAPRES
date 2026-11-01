@@ -103,4 +103,20 @@ describe('Operator SPKT 110 Ranking (Option 1 Formula)', () => {
     expect(result.predikat).toBe('Perlu Evaluasi SOP');
     expect(result.predikatColor).toBe('#DC2626');
   });
+
+  it('correctly distinguishes operator 110 reviews from field patrol officer reviews', () => {
+    const fieldOfficerTags = 'Respon: 5★, Humanis: 5★, Transparansi: 5★, Police Care: 5★, Overall: 5★';
+    const operatorTags = '[Skor Operator: 5★] | Respon Cepat: 5★, Ramah & Sopan: 5★, Informasi Jelas: 5★, Tuntas Solutif: 5★, Overall Prima: 5★';
+
+    const isFieldOfficer = (tags: string) =>
+      tags.includes('Police Care') || tags.includes('Humanis') || tags.includes('Transparansi');
+    const isOperator = (tags: string) =>
+      tags.includes('[Skor Operator:') || tags.includes('Respon Cepat') || tags.includes('Ramah & Sopan');
+
+    expect(isFieldOfficer(fieldOfficerTags)).toBe(true);
+    expect(isOperator(fieldOfficerTags)).toBe(false);
+
+    expect(isFieldOfficer(operatorTags)).toBe(false);
+    expect(isOperator(operatorTags)).toBe(true);
+  });
 });

@@ -7,6 +7,7 @@ import {
   sendTicketChatMessageAction,
 } from '@/app/actions/chat.actions';
 import type { ChatMessageItem } from '@/types/chat.types';
+import { formatTimeWib } from '@/lib/date-utils';
 import type { ComplaintData, OfficerProfile } from '../types';
 import { formatPhoneNumber } from '../types';
 
@@ -305,12 +306,7 @@ export default function PersonilChatDrawer({
                         : (msg.senderName || 'Pelapor')}
                     </span>
                     <span className="text-[9px] text-slate-500 font-mono">
-                      {msg.timestamp
-                        ? new Date(msg.timestamp).toLocaleTimeString('id-ID', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : ''}
+                      {msg.timestamp ? formatTimeWib(msg.timestamp) : ''}
                     </span>
                   </div>
 

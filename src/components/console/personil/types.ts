@@ -216,12 +216,14 @@ export function hasOfficerAcceptedTask(task: any, activeNrp: string, activeId: s
   if (!task) return false;
   const dispatches: any[] = task.dispatches || [];
 
+  const normId = activeId ? String(activeId) : '';
+  const normNrp = activeNrp ? String(activeNrp).trim() : '';
+
   const acceptedInDispatches = dispatches.some(
     (d: any) =>
       d.accepted_at &&
-      ((activeId && String(d.officer_id) === String(activeId)) ||
-        d.officer?.nrp === activeNrp ||
-        d.officer?.user?.identifier === activeNrp)
+      ((normId && (String(d.officer_id) === normId || String(d.officer?.id) === normId || String(d.officer?.user_id) === normId)) ||
+        (normNrp && (d.officer?.nrp === normNrp || d.officer?.user?.identifier === normNrp || d.crew_leader_nrp === normNrp)))
   );
   if (acceptedInDispatches) return true;
 
@@ -248,9 +250,12 @@ export function isTaskPendingAcceptance(
   c: any,
   activeNrp: string,
   activeId: string,
-  officerUnitId?: number | null
+  officerUnitId?: number | null,
+  hasActiveTask: boolean = false
 ) {
   if (!c || c.status === 'SELESAI' || c.status === 'DITOLAK') return false;
+  // Personel yang sedang menangani tiket perkara aktif tidak boleh menerima popup/tugas perkara lain
+  if (hasActiveTask) return false;
   if (hasOfficerAcceptedTask(c, activeNrp, activeId)) return false;
 
   const { isQuotaFull, slotsRemaining } = getTaskQuotaInfo(c, officerUnitId);

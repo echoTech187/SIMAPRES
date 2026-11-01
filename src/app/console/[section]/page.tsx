@@ -101,7 +101,7 @@ export default async function ConsoleSectionPage({
   }
 
   // 3. Pre-fetch targeted data secara paralel langsung di Server (RSC) per-role
-  const roleData = await fetchConsoleRoleData(session, resolvedSearchParams);
+  const roleData = await fetchConsoleRoleData(session, { ...resolvedSearchParams, section });
 
   // 4. Audit Trail: Catat akses halaman spesifik secara non-blocking
   logUserActivity({

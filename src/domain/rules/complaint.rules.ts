@@ -275,3 +275,136 @@ export function getTahapCadLabel(tahap?: number | null): string {
       return '0. Menunggu Disposisi Unit';
   }
 }
+
+
+/**
+ * Pure function: Hitung status SLA dan skor komposit 100 poin Polsek Jajaran (Tier 1 Leaderboard).
+ */
+export function calculateStationSlaAndScore(
+  totalMasuk: number,
+  completionRate: number,
+  avgResponseTimeMinutes: number | null,
+  avgRating: number
+) {
+  let slaStatus: 'HIJAU' | 'KUNING' | 'MERAH' | 'NETRAL' = 'NETRAL';
+  let slaStatusLabel = 'Belum Ada Laporan';
+  let slaStatusColor = '#64748B';
+  let slaStatusBg = '#F1F5F9';
+
+  if (totalMasuk > 0 && avgResponseTimeMinutes !== null) {
+    if (avgResponseTimeMinutes > 20 || completionRate < 70) {
+      slaStatus = 'MERAH';
+      slaStatusLabel = 'Perlu Evaluasi (> 20m)';
+      slaStatusColor = '#DC2626';
+      slaStatusBg = '#FEE2E2';
+    } else if (avgResponseTimeMinutes <= 10 && completionRate >= 85) {
+      slaStatus = 'HIJAU';
+      slaStatusLabel = 'Respon Prima (< 10m & ≥ 85%)';
+      slaStatusColor = '#059669';
+      slaStatusBg = '#ECFDF5';
+    } else {
+      slaStatus = 'KUNING';
+      slaStatusLabel = 'Standar Presisi (10-20m)';
+      slaStatusColor = '#D97706';
+      slaStatusBg = '#FEF3C7';
+    }
+  } else if (totalMasuk > 0) {
+    if (completionRate < 80) {
+      slaStatus = 'MERAH';
+      slaStatusLabel = 'Penyelesaian Rendah (< 80%)';
+      slaStatusColor = '#DC2626';
+      slaStatusBg = '#FEE2E2';
+    } else {
+      slaStatus = 'KUNING';
+      slaStatusLabel = 'Menunggu Data Respon';
+      slaStatusColor = '#D97706';
+      slaStatusBg = '#FEF3C7';
+    }
+  }
+
+  // Kecepatan Respon Tiba di TKP (Bobot 25%, Maksimal 25 Poin)
+  let timePart = 0;
+  if (avgResponseTimeMinutes !== null && avgResponseTimeMinutes > 0) {
+    if (avgResponseTimeMinutes <= 10) {
+      timePart = 25;
+    } else if (avgResponseTimeMinutes <= 20) {
+      timePart = Math.max(10, Math.round(25 - ((avgResponseTimeMinutes - 10) * 1.5)));
+    } else {
+      timePart = Math.max(0, Math.round(10 - ((avgResponseTimeMinutes - 20) * 0.75)));
+    }
+  }
+
+  const ratingPart = avgRating > 0 ? (avgRating / 5) * 35 : 0;
+  const completionPart = completionRate * 0.4;
+  const rankScore = Math.min(100, Math.round(completionPart + ratingPart + timePart));
+
+  return {
+    slaStatus,
+    slaStatusLabel,
+    slaStatusColor,
+    slaStatusBg,
+    rankScore,
+  };
+}
+
+// -------------------------------------------------------------
+// TATA TERTIB PENGABAIAN PENUGASAN PERSONEL (TASK DISMISSAL RULES)
+// -------------------------------------------------------------
+
+export const KPI_PENALTY_DISPATCH_IGNORE = 10;
+export const KPI_LOW_SCORE_WARNING_THRESHOLD = 10;
+
+export interface KpiDisciplineEvaluation {
+  currentKpiScore: number;
+  newKpiScore: number;
+  isWarningPawasTriggered: boolean;
+  scoreDelta: number;
+  reason: string;
+}
+
+/**
+ * Pure function: Hitung penalti poin saat personel mengabaikan tiket darurat 110.
+ * Sanksi: -10 poin.
+ * Peringatan Pawas: Dipicu jika poin setelah pengurangan < 10.
+ */
+export function calculateKpiIgnorePenalty(currentScore: number): KpiDisciplineEvaluation {
+  const penalty = KPI_PENALTY_DISPATCH_IGNORE;
+  const newScore = Math.max(0, Math.round((currentScore - penalty) * 100) / 100);
+  const isWarning = newScore < KPI_LOW_SCORE_WARNING_THRESHOLD;
+
+  return {
+    currentKpiScore: currentScore,
+    newKpiScore: newScore,
+    isWarningPawasTriggered: isWarning,
+    scoreDelta: -penalty,
+    reason: 'Pengabaian tiket darurat 110 oleh personel lapangan (Abaikan/Nanti)',
+  };
+}
+
+/**
+ * Pure function: Pemulihan / reset poin saat personel mengambil dan menjalankan
+ * kembali tiket yang sebelumnya sempat diabaikan oleh dirinya.
+ * Pemulihan: +10 poin (maksimal 100).
+ */
+export function calculateKpiIgnoreReset(currentScore: number): KpiDisciplineEvaluation {
+  const recovery = KPI_PENALTY_DISPATCH_IGNORE;
+  const newScore = Math.min(100, Math.round((currentScore + recovery) * 100) / 100);
+
+  return {
+    currentKpiScore: currentScore,
+    newKpiScore: newScore,
+    isWarningPawasTriggered: newScore < KPI_LOW_SCORE_WARNING_THRESHOLD,
+    scoreDelta: recovery,
+    reason: 'Pemulihan / Reset penalti karena personel menjalankan tiket yang sempat diabaikan',
+  };
+}
+
+/**
+ * Pure function: Evaluasi deskripsi otomatis giat patroli saat dialihkan ke tiket darurat 110.
+ */
+export function formatAutoCompletedPatrolDescription(existingDescription: string, ticketNumber: string): string {
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  const stamp = '[SELESAI OTOMATIS: Dialihkan ke Penanganan Tiket Darurat 110 #' + ticketNumber + ' pada pukul ' + nowTime + ' WIB]';
+  if (!existingDescription) return stamp;
+  return existingDescription + '\n' + stamp;
+}

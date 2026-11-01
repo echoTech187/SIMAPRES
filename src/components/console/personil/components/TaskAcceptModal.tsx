@@ -10,8 +10,10 @@ interface TaskAcceptModalProps {
   task: ComplaintData | null;
   officer: OfficerProfile;
   isAccepting: boolean;
+  isIgnoring?: boolean;
   onAccept: (task: ComplaintData) => void;
   onClose: () => void;
+  onIgnore?: (task: ComplaintData) => void;
 }
 
 export default function TaskAcceptModal({
@@ -19,8 +21,10 @@ export default function TaskAcceptModal({
   task,
   officer,
   isAccepting,
+  isIgnoring = false,
   onAccept,
   onClose,
+  onIgnore,
 }: TaskAcceptModalProps) {
   if (!isOpen || !task) return null;
 
@@ -289,11 +293,20 @@ export default function TaskAcceptModal({
           }}
         >
           <button
+            id="btn-abaikan-tugas"
+            data-testid="btn-abaikan-tugas"
             type="button"
-            onClick={onClose}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+            disabled={isAccepting || isIgnoring}
+            onClick={() => {
+              if (onIgnore && task) {
+                onIgnore(task);
+              } else {
+                onClose();
+              }
+            }}
+            className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50"
           >
-            Abaikan / Nanti
+            {isIgnoring ? 'Mengabaikan...' : 'Abaikan / Nanti'}
           </button>
           <button
             id="btn-terima-tugas"

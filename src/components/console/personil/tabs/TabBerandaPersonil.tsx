@@ -356,68 +356,6 @@ export default function TabBerandaPersonil({
       {/* ======================================================== */}
       {/* 1. HERO ALERT: DISPATCH INCOMING / ACTIVE MISSIONS / CLEAR */}
       {/* ======================================================== */}
-      {/* 1.1 Disposisi Masuk Butuh Konfirmasi Cepat */}
-      {pendingAcceptTask && pendingQuota && (
-        <div
-          className="relative overflow-hidden rounded-3xl p-5 sm:p-6 transition-all duration-300 mb-3 animate-in fade-in"
-          style={{
-            background: 'linear-gradient(135deg, rgba(24, 27, 36, 0.98) 0%, rgba(15, 17, 24, 0.98) 100%)',
-            border: '2px solid #ECC473',
-            boxShadow: '0 16px 40px -10px rgba(0, 0, 0, 0.8), 0 0 25px rgba(236, 196, 115, 0.25)',
-          }}
-        >
-          {/* Glowing background accent */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse">
-                  ⚡ DISPOSISI MASUK • BUTUH KONFIRMASI
-                </span>
-                <span className="text-xs font-mono font-bold text-amber-400">
-                  #{pendingAcceptTask.nomorTiket}
-                </span>
-              </div>
-
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                {pendingAcceptTask.jenisKejadian}
-              </h2>
-
-              <div className="text-xs text-slate-300 flex items-start gap-1.5 max-w-2xl">
-                <MapPin size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-                <span>
-                  {pendingAcceptTask.tkpAlamatTeks || 'Lokasi Kejadian'}
-                  {pendingAcceptTask.arahanPawas && (
-                    <span className="text-amber-300 font-semibold ml-1">
-                      • Arahan Pawas: &ldquo;{pendingAcceptTask.arahanPawas}&rdquo;
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              <button
-                id="btn-hero-terima-tugas"
-                data-testid="btn-hero-terima-tugas"
-                type="button"
-                onClick={() => onOpenAcceptModal(pendingAcceptTask)}
-                className="w-full sm:w-auto px-6 py-3 rounded-2xl font-black text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 active:scale-95 shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, #ECC473 0%, #D4A346 50%, #B8822A 100%)',
-                  color: '#0B0D12',
-                  boxShadow: '0 6px 20px rgba(212, 163, 70, 0.4)',
-                }}
-              >
-                <Shield size={16} />
-                <span>Terima Tugas ➔</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 1.2 Feed Semua Aktivitas & Penugasan Sedang Dilakukan (Pengaduan & Giat Lapangan) */}
       {hasAnyActiveActivity ? (
         <div className="space-y-3 mb-4">

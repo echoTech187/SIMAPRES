@@ -22,7 +22,21 @@ export function parseDateSafe(
   const trimmed = String(input).trim();
   if (!trimmed || trimmed === '-') return null;
 
-  // 1. Coba parse langsung menggunakan Date standard
+  // 1. Normalisasi string ISO / MySQL datetime ("YYYY-MM-DD HH:MM:SS" atau "YYYY-MM-DDTHH:MM:SS")
+  // Pastikan string tanpa offset / 'Z' dinormalisasi sebagai UTC agar tidak terjadi pergeseran 7 jam di browser WIB
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(trimmed)) {
+    let s = trimmed;
+    if (s.includes(' ') && !s.includes('T')) {
+      s = s.replace(' ', 'T');
+    }
+    if (!s.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(s)) {
+      s = s + 'Z';
+    }
+    const dUtc = new Date(s);
+    if (!isNaN(dUtc.getTime())) return dUtc;
+  }
+
+  // 2. Coba parse langsung menggunakan Date standard
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) return d;
 

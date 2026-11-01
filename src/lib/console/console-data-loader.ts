@@ -11,7 +11,7 @@ import {
   getPoliceOfficesAction,
 } from '@/app/actions/auth.actions';
 import { getMasterCountersAction } from '@/app/actions/master.actions';
-import { getPawasDashboardDataAction, getPawasUnifiedDataAction } from '@/app/actions/pawas.actions';
+import { getPawasDashboardDataAction, getPawasUnifiedDataAction, getPawasAnalyticsDataAction } from '@/app/actions/pawas.actions';
 import { getPatrolFleetUnitsAction } from '@/app/actions/fleet.actions';
 import { getHotspotsAction } from '@/app/actions/hotspot.actions';
 import { getOfficerLogbooksAction } from '@/app/actions/logbook.actions';
@@ -61,7 +61,7 @@ export async function augmentSessionStation(session: SessionPayload): Promise<vo
  */
 export async function fetchConsoleRoleData(
   session: SessionPayload,
-  searchParams?: { nrp?: string }
+  searchParams?: { nrp?: string; section?: string; tab?: string; page?: string }
 ): Promise<ConsoleRoleData> {
   let initialMasterData: any = null;
   let initialSuperadminData: any = null;
@@ -87,16 +87,52 @@ export async function fetchConsoleRoleData(
       counters: countersRes.success && countersRes.data ? countersRes.data : null,
     };
   } else if (session.role === 'PAWAS') {
-    const pawasRes = await getPawasDashboardDataAction(session.stationId);
-    if (pawasRes.success && pawasRes.data) {
-      initialPawasData = pawasRes.data;
-      initialMasterData = pawasRes.data.filterData;
+    const isAnalyticsRequested = (searchParams as any)?.section === 'kinerja' || (searchParams as any)?.tab === 'kinerja' || (searchParams as any)?.tab === 'view-laporan';
+    if (isAnalyticsRequested) {
+      const [pawasRes, analyticsRes] = await Promise.all([
+        getPawasDashboardDataAction(session.stationId),
+        getPawasAnalyticsDataAction(session.stationId),
+      ]);
+      if (pawasRes.success && pawasRes.data) {
+        initialPawasData = {
+          ...pawasRes.data,
+          stationRankings: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.stationRankings : null,
+          officerRankings: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.officerRankings : null,
+          operatorRankings: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.operatorRankings : null,
+          ikmStats: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.ikmStats : null,
+        };
+        initialMasterData = pawasRes.data.filterData;
+      }
+    } else {
+      const pawasRes = await getPawasDashboardDataAction(session.stationId);
+      if (pawasRes.success && pawasRes.data) {
+        initialPawasData = pawasRes.data;
+        initialMasterData = pawasRes.data.filterData;
+      }
     }
   } else if (session.role === 'OPERATOR') {
-    const opRes = await getPawasDashboardDataAction(session.stationId);
-    if (opRes.success && opRes.data) {
-      initialOperatorData = opRes.data;
-      initialMasterData = opRes.data.filterData;
+    const isAnalyticsRequested = (searchParams as any)?.section === 'kinerja' || (searchParams as any)?.tab === 'kinerja' || (searchParams as any)?.tab === 'view-laporan';
+    if (isAnalyticsRequested) {
+      const [opRes, analyticsRes] = await Promise.all([
+        getPawasDashboardDataAction(session.stationId),
+        getPawasAnalyticsDataAction(session.stationId),
+      ]);
+      if (opRes.success && opRes.data) {
+        initialOperatorData = {
+          ...opRes.data,
+          stationRankings: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.stationRankings : null,
+          officerRankings: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.officerRankings : null,
+          operatorRankings: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.operatorRankings : null,
+          ikmStats: analyticsRes?.success && analyticsRes.data ? analyticsRes.data.ikmStats : null,
+        };
+        initialMasterData = opRes.data.filterData;
+      }
+    } else {
+      const opRes = await getPawasDashboardDataAction(session.stationId);
+      if (opRes.success && opRes.data) {
+        initialOperatorData = opRes.data;
+        initialMasterData = opRes.data.filterData;
+      }
     }
   } else if (session.role === 'LOGISTIK') {
     const masterRes = await getMasterFilterOptionsAction();

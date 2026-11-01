@@ -27,6 +27,7 @@ interface Select2CustomDropdownProps {
   triggerStyle?: React.CSSProperties;
   id?: string;
   title?: string;
+  'data-testid'?: string;
 }
 
 export default function Select2CustomDropdown({
@@ -43,6 +44,7 @@ export default function Select2CustomDropdown({
   triggerStyle = {},
   id,
   title,
+  'data-testid': testId,
 }: Select2CustomDropdownProps) {
   const generatedId = useId();
   const dropdownId = id || generatedId;
@@ -221,6 +223,7 @@ export default function Select2CustomDropdown({
       {/* TRIGGER BUTTON (Simulating Select Box) */}
       <div
         id={dropdownId}
+        data-testid={testId || id || dropdownId}
         role="button"
         title={title}
         tabIndex={disabled ? -1 : 0}

@@ -262,14 +262,14 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
     }
 
     await prisma.$transaction(async (tx) => {
-      // Hubungkan station_id jika ditemukan, status complaint tetap MENUNGGU (Tahap 1: Disiarkan ke Armada)
-      // Status baru berubah menjadi DIPROSES (Tahap 2) saat ada personel yang mengklik Terima/Ambil Tugas
+      // Hubungkan station_id jika ditemukan, status complaint beralih ke DIPROSES (Tahap 2: Disiarkan ke Armada)
+      // Karena langsung didisposisikan saat simpan, tiket tidak masuk ke antrean menunggu disposisi
       await tx.complaint.update({
         where: { id: complaintIdBig },
         data: {
-          status: 'MENUNGGU',
-          status_id: 1,
-          tahap: 1,
+          status: 'DIPROSES',
+          status_id: 2,
+          tahap: 2,
           ...(targetStation ? { station_id: targetStation.id } : {}),
         },
       });

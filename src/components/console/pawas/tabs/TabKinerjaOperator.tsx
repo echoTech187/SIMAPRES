@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { parseDateSafe } from '@/lib/date-utils';
 import { Award, Star, Clock, Headphones, CheckCircle, TrendingUp, Calendar, RefreshCw, MessageSquare } from 'lucide-react';
 import { PawasTab } from '../types';
 
@@ -36,8 +37,7 @@ export default function TabKinerjaOperator({
   const getComplaintDate = (c: any): Date | null => {
     const raw = c.createdAt ? c.createdAt : (c.created_at ? c.created_at : null);
     if (!raw) return null;
-    const d = new Date(raw);
-    return isNaN(d.getTime()) ? null : d;
+    return parseDateSafe(raw);
   };
 
   // Safe parse tanggal yang dipilih dari input kalender tanpa pergeseran UTC
@@ -160,7 +160,30 @@ export default function TabKinerjaOperator({
       const validRate = totalTiketInput > 0 ? Math.round((validTiketCount / totalTiketInput) * 100) : 100;
 
       const stars = opComplaints
-        .map((c: any) => c.citizenRating ? c.citizenRating : (c.citizen_review_rel?.star_rating ? c.citizen_review_rel.star_rating : null))
+        .map((c: any) => {
+          const feedbackTags =
+            c.citizenTags ||
+            c.citizenReviewRel?.feedback_tags ||
+            c.citizen_review_rel?.feedback_tags ||
+            '';
+          const isFieldOfficer =
+            feedbackTags.includes('Police Care') ||
+            feedbackTags.includes('Humanis') ||
+            feedbackTags.includes('Transparansi');
+          const isOperator =
+            feedbackTags.includes('[Skor Operator:') ||
+            feedbackTags.includes('Respon Cepat') ||
+            feedbackTags.includes('Ramah');
+          if (isFieldOfficer && !isOperator) return null;
+
+          return c.citizenRating != null
+            ? Number(c.citizenRating)
+            : c.citizenReviewRel?.star_rating != null
+            ? Number(c.citizenReviewRel.star_rating)
+            : c.citizen_review_rel?.star_rating != null
+            ? Number(c.citizen_review_rel.star_rating)
+            : null;
+        })
         .filter(Boolean);
       const avgRating = stars.length > 0
         ? Math.round((stars.reduce((a: number, b: any) => a + Number(b), 0) / stars.length) * 10) / 10
@@ -263,14 +286,72 @@ export default function TabKinerjaOperator({
   const citizenReviews = useMemo(() => {
     const list: any[] = [];
     for (const c of filteredComplaints) {
-      const review = c.citizen_review_rel || (c.citizenReview ? { review_text: c.citizenReview, star_rating: c.citizenRating } : null);
-      if (review && (review.review_text || review.star_rating)) {
+      const starRating =
+        c.citizenRating != null
+          ? Number(c.citizenRating)
+          : c.citizenReviewRel?.star_rating != null
+          ? Number(c.citizenReviewRel.star_rating)
+          : c.citizen_review_rel?.star_rating != null
+          ? Number(c.citizen_review_rel.star_rating)
+          : null;
+
+      const rawText =
+        c.citizenReview ||
+        c.citizenReviewRel?.review_text ||
+        c.citizen_review_rel?.review_text ||
+        null;
+
+      const feedbackTags =
+        c.citizenTags ||
+        c.citizenReviewRel?.feedback_tags ||
+        c.citizen_review_rel?.feedback_tags ||
+        null;
+
+      // Filter: bedakan review untuk Operator 110 vs Personil Lapangan (Patroli)
+      const isFieldOfficer = feedbackTags && (
+        feedbackTags.includes('Police Care') ||
+        feedbackTags.includes('Humanis') ||
+        feedbackTags.includes('Transparansi')
+      );
+      const isOperator = feedbackTags && (
+        feedbackTags.includes('[Skor Operator:') ||
+        feedbackTags.includes('Respon Cepat') ||
+        feedbackTags.includes('Ramah & Sopan') ||
+        feedbackTags.includes('Informasi Jelas') ||
+        feedbackTags.includes('Tuntas Solutif') ||
+        feedbackTags.includes('Overall Prima')
+      );
+
+      // Jangan tampilkan ulasan personil lapangan di halaman evaluasi meja operator 110
+      if (isFieldOfficer && !isOperator) {
+        continue;
+      }
+
+      if (starRating !== null || (rawText && String(rawText).trim().length > 0) || (feedbackTags && String(feedbackTags).trim().length > 0)) {
+        let displayText = rawText && String(rawText).trim().length > 0 ? String(rawText).trim() : null;
+        if (!displayText && feedbackTags) {
+          if (feedbackTags.includes('|')) {
+            displayText = feedbackTags.split('|')[1].trim();
+          } else {
+            displayText = feedbackTags.trim();
+          }
+        }
+        if (!displayText) {
+          displayText = 'Pelayanan ramah, cepat tanggap dan informasi jelas.';
+        }
+
         list.push({
-          id: c.id,
+          id: String(c.id),
           nomorTiket: c.nomorTiket || c.nomor_tiket,
-          namaPelapor: c.pelaporNama || c.pelapor_nama || 'Warga Pekalongan',
-          starRating: review.star_rating || c.citizenRating || 5,
-          reviewText: review.review_text || 'Pelayanan ramah, tanggap dan informasi jelas.',
+          namaPelapor:
+            c.pelaporNama ||
+            c.pelapor_nama ||
+            c.citizenReviewRel?.reporter_name ||
+            c.citizen_review_rel?.reporter_name ||
+            'Warga Pekalongan',
+          starRating: starRating ? Math.round(Number(starRating)) : 5,
+          reviewText: displayText,
+          feedbackTags: feedbackTags && feedbackTags !== displayText ? feedbackTags : null,
           createdAt: c.createdAt || c.created_at,
           jenisKejadian: c.jenisKejadian || c.jenis_kejadian,
         });
@@ -879,6 +960,11 @@ export default function TabKinerjaOperator({
                     <p style={{ margin: 0, fontSize: '12px', color: '#1E293B', fontStyle: 'italic', lineHeight: 1.5, background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
                       &ldquo;{rev.reviewText}&rdquo;
                     </p>
+                    {rev.feedbackTags && rev.feedbackTags !== rev.reviewText && (
+                      <div style={{ marginTop: '6px', fontSize: '10px', color: '#0369A1', background: '#F0F9FF', padding: '3px 8px', borderRadius: '4px', border: '1px solid #BAE6FD', fontWeight: 600 }}>
+                        🏷️ {rev.feedbackTags}
+                      </div>
+                    )}
                   </div>
                   <div style={{ fontSize: '10px', color: '#94A3B8', marginTop: '8px', textAlign: 'right' }}>
                     {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}

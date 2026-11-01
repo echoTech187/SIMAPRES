@@ -5,7 +5,7 @@ import { AlertTriangle, ChevronLeft, ChevronRight, Navigation, Loader2, MessageS
 import { acceptAndBroadcastCrossJurisdictionAction, getActiveSpktDutyDetails } from '@/app/actions/complaint.actions';
 import { getLastDispatchedStationName, getLastDispatchedStationId } from '../tabs/TabOperatorCadPawas';
 import { evaluateJurisdictionBoundary } from '@/lib/jurisdiction-boundary';
-import { getCrossJurisdictionTimeoutMs } from '@/lib/escalation-config';
+import { getCrossJurisdictionTimeoutMs, parseUtcTimeMs } from '@/lib/escalation-config';
 
 interface EscalationAlarmBannerProps {
   complaints: any[];
@@ -156,29 +156,34 @@ export default function EscalationAlarmBanner({
         const targetStationName = getLastDispatchedStationName(c, policeOffices);
         const targetStationId = getLastDispatchedStationId(c, policeOffices);
 
-        // Sesuai koreksi user: Bandingkan station_id & nama stasiun session user yang login dengan stasiun dari getLastDispatchedStation
+        // Sesuai koreksi user: Bandingkan station_id & nama stasiun session user yang login dengan stasiun dari getLastDispatchedStation atau stasiun tiket
         const isCurrentStationTarget = Boolean(
           (currentStationId && targetStationId && String(currentStationId) === String(targetStationId)) ||
-          (currentStationName && targetStationName && currentStationName.trim().toLowerCase() === targetStationName.trim().toLowerCase())
+          (currentStationId && (c.stationId || c.station_id || c.station?.id) && String(currentStationId) === String(c.stationId || c.station_id || c.station?.id)) ||
+          (currentStationName && targetStationName && currentStationName.trim().toLowerCase() === targetStationName.trim().toLowerCase()) ||
+          (currentStationName && c.stationName && currentStationName.trim().toLowerCase() === c.stationName.trim().toLowerCase())
         );
 
         // Deteksi apakah ini tiket lintas wilayah
         const isCrossJurisdiction = c.status === 'DISPOSISI_LINTAS_WILAYAH';
 
-        // Hitung deadline eskalasi standar 1 menit
+        // Hitung deadline eskalasi standar (3-5 menit sesuai urgensi & SOP Presisi 110)
         let deadlineMs: number | null = null;
         const dispatchWithDeadline = dispatches.find((d: any) => d.escalation_deadline_at || d.escalationDeadlineAt);
         const rawDeadline = dispatchWithDeadline?.escalation_deadline_at || dispatchWithDeadline?.escalationDeadlineAt;
-        if (rawDeadline) {
-          deadlineMs = new Date(rawDeadline).getTime();
-        } else {
-          // Cari waktu dari audit log DISPOSISI_LINTAS_WILAYAH jika dispatch belum tercatat
+
+        if (isCrossJurisdiction) {
           const xLog = Array.isArray(logs) ? logs.find((l: any) => l.action === 'DISPOSISI_LINTAS_WILAYAH' || l.action === 'CROSS_JURISDICTION_DISPATCHED') : null;
-          if (xLog?.created_at) {
-            deadlineMs = new Date(xLog.created_at).getTime() + getCrossJurisdictionTimeoutMs();
-          } else if (c.updated_at || c.created_at) {
-            deadlineMs = new Date(c.updated_at || c.created_at).getTime() + getCrossJurisdictionTimeoutMs();
+          const transferTimeMs = xLog?.created_at ? parseUtcTimeMs(xLog.created_at) : (c.updated_at ? parseUtcTimeMs(c.updated_at) : (c.created_at ? parseUtcTimeMs(c.created_at) : 0));
+          const dispatchDeadlineMs = rawDeadline ? parseUtcTimeMs(rawDeadline) : 0;
+
+          if (dispatchDeadlineMs && dispatchDeadlineMs > transferTimeMs) {
+            deadlineMs = dispatchDeadlineMs;
+          } else if (transferTimeMs > 0) {
+            deadlineMs = transferTimeMs + getCrossJurisdictionTimeoutMs(c.urgensi);
           }
+        } else if (rawDeadline) {
+          deadlineMs = parseUtcTimeMs(rawDeadline);
         }
 
         if (!deadlineMs && !isCrossJurisdiction) return null;
@@ -353,13 +358,47 @@ export default function EscalationAlarmBanner({
   const overdueItems = escalatedItems.filter((item) => item.isOverdue || item.isTargetMako);
   const activeCountdownItems = escalatedItems.filter((item) => !item.isOverdue && !item.isTargetMako);
 
+  // Deteksi tiket dengan pengabaian personel berulang (KPI Warning < 10)
+  const dismissedWarningItems = useMemo(() => {
+    if (!Array.isArray(complaints)) return [];
+
+    const list: any[] = [];
+    complaints.forEach((c) => {
+      const logs = c.complaint_logs || c.complaintLogs || c.auditLogs || [];
+      if (!Array.isArray(logs)) return;
+
+      const ignoreLogs = logs.filter((l: any) => l.action === 'DISPATCH_IGNORED');
+      ignoreLogs.forEach((l: any) => {
+        if (l.notes && l.notes.includes('PERINGATAN KOMANDO PAWAS')) {
+          list.push({
+            nomorTiket: c.nomorTiket || c.nomor_tiket || String(c.id),
+            jenisKejadian: c.jenisKejadian || c.jenis_kejadian || 'Laporan Darurat 110',
+            petugas: l.actor_name || 'Personel Lapangan',
+            notes: l.notes,
+            complaint: c,
+          });
+        }
+      });
+    });
+
+    return list;
+  }, [complaints]);
+
   // Satukan semua item banner aktif ke dalam list terpadu untuk tampilan slider/carousel hemat ruang
   const allBanners = useMemo(() => {
     const list: Array<{
-      type: 'transferred' | 'overdue' | 'countdown';
+      type: 'transferred' | 'overdue' | 'countdown' | 'discipline_warning';
       key: string;
       data: any;
     }> = [];
+
+    dismissedWarningItems.forEach((item, idx) => {
+      list.push({
+        type: 'discipline_warning',
+        key: `discipline-${item.nomorTiket}-${idx}`,
+        data: item,
+      });
+    });
 
     transferredAwayItems.forEach((item) => {
       list.push({
@@ -708,6 +747,84 @@ export default function EscalationAlarmBanner({
               <span>✕</span>
               <span>Paham</span>
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    if (banner.type === 'discipline_warning') {
+      const item = banner.data;
+      return (
+        <div
+          key={`discipline-${item.nomorTiket}`}
+          style={{
+            backgroundColor: '#450A0A',
+            border: '2px solid #EF4444',
+            borderRadius: '12px',
+            padding: '14px 18px',
+            color: '#FFFFFF',
+            boxShadow: '0 4px 15px rgba(239, 68, 68, 0.35)',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: '280px' }}>
+              <div
+                style={{
+                  backgroundColor: '#DC2626',
+                  borderRadius: '10px',
+                  width: '44px',
+                  height: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '22px',
+                  flexShrink: 0,
+                }}
+              >
+                🚨
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span
+                    style={{
+                      backgroundColor: '#991B1B',
+                      color: '#FFFFFF',
+                      fontSize: '11px',
+                      fontWeight: 900,
+                      padding: '3px 9px',
+                      borderRadius: '4px',
+                      letterSpacing: '0.05em',
+                    }}
+                  >
+                    PERINGATAN DISIPLIN PERSONEL (KPI &lt; 10)
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '13px',
+                      fontWeight: 800,
+                      fontFamily: 'monospace',
+                      color: '#FCA5A5',
+                    }}
+                  >
+                    #{item.nomorTiket}
+                  </span>
+                </div>
+                <div style={{ fontSize: '14px', fontWeight: 700, marginTop: '4px' }}>
+                  Petugas: <span style={{ color: '#FEE2E2' }}>{item.petugas}</span> • {item.jenisKejadian}
+                </div>
+                <div style={{ fontSize: '12px', color: '#FECACA', marginTop: '2px' }}>
+                  ⚠️ Personel ini telah berulang kali mengabaikan tugas panggilan darurat 110 hingga poin kinerja turun di bawah 10. Segera lakukan evaluasi komando atau reposisi unit siaga!
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       );

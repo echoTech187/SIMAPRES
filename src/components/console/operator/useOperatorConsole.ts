@@ -514,7 +514,14 @@ export function useOperatorConsole({
     });
   }, [dbSatuans, fleetUnits]);
 
-  const waitingCount = antreanPawas.length;
+  const waitingCount = useMemo(() => {
+    return (antreanPawas || []).filter((item: any) => {
+      if (item.status === 'DISPOSISI_LINTAS_WILAYAH') return true;
+      if (item.status !== 'MENUNGGU') return false;
+      const dispatches = Array.isArray(item.dispatches) ? item.dispatches : [];
+      return dispatches.length === 0;
+    }).length;
+  }, [antreanPawas]);
 
   // 1. Real-time Event-Driven Sync via Server-Sent Events (SSE - Zero Aggressive Polling)
   useConsoleEventSource({

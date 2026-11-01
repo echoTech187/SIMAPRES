@@ -6,13 +6,25 @@
 
 export interface StationReference {
   id: number;
-  stationCode: string;
-  stationName: string;
+  stationCode?: string;
+  station_code?: string;
+  code?: string;
+  stationName?: string;
+  station_name?: string;
+  name?: string;
   stationLevel?: string;
+  station_level?: string;
+  type?: string;
   address?: string;
   officeLat?: number | string | null;
+  office_lat?: number | string | null;
+  lat?: number | string | null;
   officeLng?: number | string | null;
+  office_lng?: number | string | null;
+  lng?: number | string | null;
   phoneHotline?: string;
+  phone_piket?: string;
+  phone_kapolsek?: string;
 }
 
 export interface BoundaryEvaluationResult {
@@ -23,40 +35,6 @@ export interface BoundaryEvaluationResult {
   reason: string;
   distanceKmToTarget?: number;
 }
-
-// Fallback koordinat pusat & stasiun tetangga resmi Jawa Tengah / Pantura
-export const DEFAULT_STATION_REFERENCES: StationReference[] = [
-  {
-    id: 60001,
-    stationCode: 'POLRES-PEKALONGAN',
-    stationName: 'Polres Pekalongan',
-    stationLevel: 'POLRES',
-    address: 'Jl. Rinjani No.1, Kajen, Kab. Pekalongan',
-    officeLat: -7.026779,
-    officeLng: 109.59308,
-    phoneHotline: '0285-381110',
-  },
-  {
-    id: 90001,
-    stationCode: 'POLRES_PEKALONGAN_KOTA',
-    stationName: 'Polres Pekalongan Kota',
-    stationLevel: 'POLRES',
-    address: 'Jl. Diponegoro No.19, Kota Pekalongan',
-    officeLat: -6.881372,
-    officeLng: 109.671882,
-    phoneHotline: '0285-422110',
-  },
-  {
-    id: 210001,
-    stationCode: 'POLRESTA_BATANG',
-    stationName: 'Polresta Batang',
-    stationLevel: 'POLRES',
-    address: 'Jl. Gajah Mada No.200, Batang',
-    officeLat: -6.91854,
-    officeLng: 109.72968,
-    phoneHotline: '0285-391110',
-  },
-];
 
 /**
  * Menghitung jarak Haversine (km) antara 2 titik koordinat
@@ -87,7 +65,7 @@ export function evaluateJurisdictionBoundary(params: {
   tkpLat?: number | null;
   tkpLng?: number | null;
   tkpAlamat?: string | null;
-  currentStationId?: number | null;
+  currentStationId?: number | string | null;
   currentStationName?: string | null;
   stations?: StationReference[];
 }): BoundaryEvaluationResult {
@@ -95,20 +73,42 @@ export function evaluateJurisdictionBoundary(params: {
     tkpLat,
     tkpLng,
     tkpAlamat,
-    currentStationId = 60001,
-    currentStationName = 'Polres Pekalongan',
-    stations = DEFAULT_STATION_REFERENCES,
+    currentStationId,
+    currentStationName,
+    stations = [],
   } = params;
 
-  const text = (tkpAlamat || '').toLowerCase();
+  // Stasiun aktif diperoleh murni dari daftar stations yang dikirim dari database
+  const strCurrentStationId = currentStationId != null ? String(currentStationId) : null;
   const activeStation =
-    stations.find((s) => s.id === currentStationId) ||
-    stations.find((s) => s.stationName.toLowerCase() === (currentStationName || '').toLowerCase()) ||
-    DEFAULT_STATION_REFERENCES[0];
+    stations.find((s: any) => strCurrentStationId && String(s.id) === strCurrentStationId) ||
+    stations.find((s: any) => {
+      const sName = (s.stationName || s.station_name || s.name || '').toLowerCase();
+      const targetName = (currentStationName || '').toLowerCase();
+      return targetName && sName && (sName === targetName || sName.includes(targetName) || targetName.includes(sName));
+    }) ||
+    null;
+
+  // Normalisasi helper nama stasiun aktif
+  const activeStationName =
+    activeStation?.stationName || activeStation?.station_name || activeStation?.name || currentStationName || 'Mako Tidak Terdaftar';
+
+  // Jika stasiun aktif tidak ada di master database, hentikan evaluasi (dalam wilayah default)
+  if (!activeStation) {
+    return {
+      isOutsideJurisdiction: false,
+      detectedRegionName: 'Dalam Wilayah',
+      currentStationName: activeStationName,
+      targetStation: null,
+      reason: 'Stasiun aktif tidak terdaftar dalam pangkalan data.',
+    };
+  }
+
+  const text = (tkpAlamat || '').toLowerCase();
 
   // 1. Deteksi Tekstual Administratif Wilayah
   let detectedTargetCode: string | null = null;
-  let detectedRegion = 'Kabupaten Pekalongan';
+  let detectedRegion: string = '';
 
   if (
     text.includes('batang') ||
@@ -143,6 +143,25 @@ export function evaluateJurisdictionBoundary(params: {
   ) {
     detectedTargetCode = 'POLRES_PEMALANG';
     detectedRegion = 'Kabupaten Pemalang';
+  } else if (
+    text.includes('kajen') ||
+    text.includes('kedungwuni') ||
+    text.includes('wiradesa') ||
+    text.includes('doro') ||
+    text.includes('karanganyar') ||
+    text.includes('wonopringgo') ||
+    text.includes('paninggaran') ||
+    text.includes('talun') ||
+    text.includes('bojong') ||
+    text.includes('sragi') ||
+    text.includes('kandangserang') ||
+    text.includes('buaran') ||
+    text.includes('tirto') ||
+    text.includes('kabupaten pekalongan') ||
+    text.includes('kab. pekalongan')
+  ) {
+    detectedTargetCode = 'POLRES-PEKALONGAN';
+    detectedRegion = 'Kabupaten Pekalongan';
   }
 
   // 2. Deteksi Koordinat GPS (Jika alamat tidak eksplisit atau konfirmasi jarak)
@@ -165,15 +184,31 @@ export function evaluateJurisdictionBoundary(params: {
       detectedTargetCode = 'POLRES_PEMALANG';
       detectedRegion = 'Kabupaten Pemalang (Perbatasan Barat)';
     }
+    // Wilayah Kabupaten Pekalongan (Kajen dan sekitarnya: lat < -6.95)
+    else if (tkpLat < -6.95 && !detectedTargetCode) {
+      detectedTargetCode = 'POLRES-PEKALONGAN';
+      detectedRegion = 'Kabupaten Pekalongan';
+    }
   }
 
   // 3. Tentukan Target Station
   let targetStation: StationReference | null = null;
   if (detectedTargetCode) {
-    targetStation =
-      stations.find((s) => s.stationCode === detectedTargetCode) ||
-      DEFAULT_STATION_REFERENCES.find((s) => s.stationCode === detectedTargetCode) ||
+    const rawTarget =
+      stations.find((s: any) => (s.stationCode || s.station_code || s.code) === detectedTargetCode) ||
       null;
+    if (rawTarget) {
+      targetStation = {
+        id: rawTarget.id,
+        stationCode: rawTarget.stationCode || rawTarget.station_code || rawTarget.code,
+        stationName: rawTarget.stationName || rawTarget.station_name || rawTarget.name,
+        stationLevel: rawTarget.stationLevel || rawTarget.station_level || rawTarget.type,
+        address: rawTarget.address,
+        officeLat: rawTarget.officeLat ?? rawTarget.office_lat ?? rawTarget.lat,
+        officeLng: rawTarget.officeLng ?? rawTarget.office_lng ?? rawTarget.lng,
+        phoneHotline: rawTarget.phoneHotline || rawTarget.phone_piket || rawTarget.phone_kapolsek,
+      };
+    }
   }
 
   // Jika target station sama dengan mako aktif, berarti masih dalam yurisdiksi sendiri
@@ -181,7 +216,7 @@ export function evaluateJurisdictionBoundary(params: {
     return {
       isOutsideJurisdiction: false,
       detectedRegionName: detectedRegion,
-      currentStationName: activeStation.stationName,
+      currentStationName: activeStationName,
       targetStation: null,
       reason: 'Lokasi TKP berada dalam wilayah hukum mako aktif.',
     };
@@ -202,7 +237,7 @@ export function evaluateJurisdictionBoundary(params: {
     return {
       isOutsideJurisdiction: true,
       detectedRegionName: detectedRegion,
-      currentStationName: activeStation.stationName,
+      currentStationName: activeStationName,
       targetStation,
       distanceKmToTarget: distanceKm,
       reason: `Titik TKP terdeteksi di wilayah ${detectedRegion}. Disarankan untuk melakukan E-Routing / Disposisi Lintas Wilayah ke ${targetStation.stationName} agar penanganan lebih cepat.`,
@@ -212,7 +247,7 @@ export function evaluateJurisdictionBoundary(params: {
   return {
     isOutsideJurisdiction: false,
     detectedRegionName: detectedRegion,
-    currentStationName: activeStation.stationName,
+    currentStationName: activeStationName,
     targetStation: null,
     reason: 'Lokasi TKP dalam yurisdiksi normal.',
   };

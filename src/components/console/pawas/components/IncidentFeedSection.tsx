@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { formatTimeWib } from '@/lib/date-utils';
 import { Radio, Clock } from 'lucide-react';
 
 export interface IncidentFeedSectionProps {
@@ -75,8 +76,9 @@ export default function IncidentFeedSection({
 
       <div className="timeline" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {complaints.slice(0, 3).map((inc) => {
-          const timeStr = inc.createdAt
-            ? new Date(inc.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
+          const timeRaw = inc.createdAt || inc.created_at;
+          const timeStr = timeRaw
+            ? formatTimeWib(timeRaw)
             : 'Hari ini';
           const isSelesai = inc.status === 'SELESAI';
           const isMeluncur = inc.status === 'DIPROSES' && Number(inc.tahap) === 3;

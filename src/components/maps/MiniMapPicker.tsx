@@ -22,6 +22,7 @@ interface MiniMapPickerProps {
   lng: number;
   onChange: (lat: number, lng: number) => void;
   onAddressChange?: (address: string) => void;
+  onAddressMetaChange?: (meta: any) => void;
   onCenterChange?: (center: { lat: number; lng: number }) => void;
   height?: string;
   fallbackCenter?: { lat: number; lng: number };
@@ -95,17 +96,23 @@ export default function MiniMapPicker({
           ? { lat: Number(fallbackCenter!.lat), lng: Number(fallbackCenter!.lng) }
           : DEFAULT_CENTER);
 
-      const map = new maps.Map(containerRef.current, {
-        center: initialCenter,
-        zoom: hasCoords ? 15 : 13,
-        disableDefaultUI: false,
-        zoomControl: true,
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: false,
-        gestureHandling: 'greedy',
-      });
-      mapRef.current = map;
+      let map: any = null;
+      try {
+        map = new maps.Map(containerRef.current, {
+          center: initialCenter,
+          zoom: hasCoords ? 15 : 13,
+          disableDefaultUI: false,
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+          gestureHandling: 'greedy',
+        });
+        mapRef.current = map;
+      } catch (mapInitErr) {
+        console.warn('[SIMAPRES MAPS] Google Maps canvas gagal diinisialisasi:', mapInitErr);
+        return;
+      }
 
       // Auto-trigger resize saat peta dimuat di container fullscreen / modal
       const triggerResize = () => {

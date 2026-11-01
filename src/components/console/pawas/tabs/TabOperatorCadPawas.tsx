@@ -201,22 +201,77 @@ export default function TabOperatorCadPawas({
     if (!transferModalItem) return;
     setIsTransferring(true);
     try {
-      const { item, boundary } = transferModalItem;
+      const { item, boundary, rawForm } = transferModalItem as any;
       const target = boundary.targetStation || { id: 210001, stationName: 'Polresta Batang' };
+      const actorName = userProfile?.fullName || session?.fullName || 'Operator CAD 110';
+
+      let complaintId = item?.id ? String(item.id) : null;
+      let ticketNo = item?.nomorTiket;
+
+      // JIKA BELUM TERSIMPAN KE DATABASE (dari alur form CAD luar yurisdiksi):
+      // Tiket baru dibuat langsung saat operator menekan tombol Alihkan
+      if (!complaintId && rawForm) {
+        const createRes = await createComplaintAction({
+          nomorTiket: rawForm.nomorTiket?.trim() || undefined,
+          namaPelapor: rawForm.nama,
+          noHpPelapor: rawForm.telepon,
+          kategoriLaporan: rawForm.kategori,
+          kategoriKey: rawForm.kategoriKey || undefined,
+          subcategoryId: rawForm.subcategoryId,
+          platformKey: 'layanan110',
+          urgensi: rawForm.urgensi,
+          tkpAlamatTeks: rawForm.alamat,
+          tkpLat: rawForm.lat,
+          tkpLng: rawForm.lng,
+          deskripsiKejadian: rawForm.uraian,
+          saluranLaporan: 'CALL_110',
+          operatorId: session?.userId ? String(session.userId) : null,
+        });
+
+        if (!createRes.success || !createRes.data) {
+          showFriendlyToast('error', 'Gagal Membuat Laporan', createRes.error || 'Terjadi kendala saat menyimpan laporan.');
+          setIsTransferring(false);
+          return;
+        }
+
+        complaintId = String(createRes.data.id);
+        ticketNo = createRes.data.nomorTiket;
+      }
+
+      if (!complaintId) {
+        showFriendlyToast('error', 'Data Laporan Tidak Valid', 'ID laporan tidak ditemukan untuk dialihkan.');
+        setIsTransferring(false);
+        return;
+      }
+
       const res = await transferComplaintCrossJurisdictionAction({
-        complaintId: String(item.id),
+        complaintId: complaintId,
         targetStationId: target.id,
         targetStationName: target.stationName,
         transferReason: boundary.reason,
-        actorName: userProfile?.fullName || session?.fullName || 'Operator CAD 110',
+        actorName: actorName,
       });
+
       if (res.success) {
         showFriendlyToast(
           'success',
           'Disposisi Lintas Wilayah Berhasil',
-          `Tiket ${item.nomorTiket} telah dialihkan ke ${target.stationName}. Status pelacakan warga otomatis terkoordinasi.`
+          `Tiket ${ticketNo || 'Pengaduan'} telah dialihkan ke ${target.stationName}. Status pelacakan warga otomatis terkoordinasi.`
         );
         setTransferModalItem(null);
+        setSimCaller({
+          nomorTiket: '',
+          nama: '',
+          telepon: '',
+          alamat: '',
+          kategori: '',
+          kategoriKey: '',
+          subcategoryId: undefined,
+          urgensi: '',
+          uraian: '',
+          lat: 0,
+          lng: 0,
+        });
         await loadData();
       } else {
         showFriendlyToast('error', 'Gagal Mengalihkan Laporan', res.error || 'Terjadi kendala saat mengalihkan laporan.');
@@ -1118,6 +1173,11 @@ export default function TabOperatorCadPawas({
                         });
                       }
                     }}
+                    onAddressMetaChange={(meta) => {
+                      if (meta.adminAreaLevel2) {
+                        setSimCaller((prev: any) => ({ ...prev, adminAreaLevel2: meta.adminAreaLevel2 }));
+                      }
+                    }}
                   />
                 </div>
 
@@ -1226,10 +1286,27 @@ export default function TabOperatorCadPawas({
 
             {/* Boundary Warning & Dynamic Action on CAD Input Form */}
             {(() => {
+              const _currentStationId =
+                userProfile?.stationId ||
+                userProfile?.station_id ||
+                (session as any)?.stationId ||
+                (session as any)?.station_id ||
+                resolvedMakoOffice?.id ||
+                null;
+              const _currentStationName =
+                userProfile?.stationName ||
+                userProfile?.satuanNama ||
+                (session as any)?.stationName ||
+                (session as any)?.satuanNama ||
+                resolvedMakoOffice?.name ||
+                null;
               const formBoundary = evaluateJurisdictionBoundary({
                 tkpLat: simCaller.lat,
                 tkpLng: simCaller.lng,
                 tkpAlamat: simCaller.alamat,
+                currentStationId: _currentStationId,
+                currentStationName: _currentStationName,
+                stations: policeOffices && policeOffices.length > 0 ? policeOffices : undefined,
               });
               const isOutside = formBoundary.isOutsideJurisdiction;
               const targetName = formBoundary.targetStation?.stationName || formBoundary.detectedRegionName || 'Mako Tetangga';
@@ -1335,48 +1412,21 @@ export default function TabOperatorCadPawas({
                         try {
                           if (isOutside) {
                             // JIKA DI LUAR YURISDIKSI:
-                            // Buat tiket tanpa broadcast ke armada lokal, lalu langsung buka Modal Disposisi Lintas Wilayah
-                            const res = await createComplaintAction({
-                              nomorTiket: simCaller.nomorTiket?.trim() || undefined,
-                              namaPelapor: simCaller.nama,
-                              noHpPelapor: simCaller.telepon,
-                              kategoriLaporan: simCaller.kategori,
-                              kategoriKey: (simCaller as any).kategoriKey || undefined,
-                              subcategoryId: simCaller.subcategoryId,
-                              platformKey: 'layanan110',
-                              urgensi: (simCaller as any).urgensi,
-                              tkpAlamatTeks: simCaller.alamat,
-                              tkpLat: simCaller.lat,
-                              tkpLng: simCaller.lng,
-                              deskripsiKejadian: simCaller.uraian,
-                              saluranLaporan: 'CALL_110',
-                              operatorId: session?.userId ? String(session.userId) : null,
-                            });
-                            if (res.success && res.data) {
-                              showFriendlyToast(
-                                'info',
-                                'Tiket Lintas Wilayah Terdaftar',
-                                `Tiket ${res.data.nomorTiket || res.data.id} berhasil dicatat. Silakan konfirmasi pengalihan ke ${targetName}.`
-                              );
-                              // Langsung munculkan Modal Disposisi Lintas Wilayah (Poin 1.A)
-                              setTransferModalItem({ item: res.data, boundary: formBoundary });
-                              setSimCaller({
-                                nomorTiket: '',
-                                nama: '',
-                                telepon: '',
-                                alamat: '',
-                                kategori: '',
-                                kategoriKey: '',
-                                subcategoryId: undefined,
-                                urgensi: '',
-                                uraian: '',
-                                lat: 0,
-                                lng: 0,
-                              });
-                              await loadData();
-                            } else {
-                              showFriendlyToast('error', 'Gagal Memproses Laporan', res.error || 'Terjadi kendala saat menyimpan laporan.');
-                            }
+                            // Jangan simpan ke database sebelum operator menekan tombol Alihkan!
+                            // Buka modal konfirmasi dengan data formulir dan preview nomor tiket sementara
+                            const previewTicketNo = simCaller.nomorTiket?.trim() || ('TICKET-' + String(Math.floor(1800000000 + Math.random() * 99999999)).padStart(10, '0'));
+                            setTransferModalItem({
+                              item: {
+                                nomorTiket: previewTicketNo,
+                                jenisKejadian: simCaller.kategori,
+                                tkpAlamatTeks: simCaller.alamat,
+                              },
+                              boundary: formBoundary,
+                              rawForm: {
+                                ...simCaller,
+                                nomorTiket: previewTicketNo,
+                              },
+                            } as any);
                           } else {
                             // JIKA DI DALAM YURISDIKSI:
                             // Alur standar: Siarkan langsung ke seluruh armada siaga lokal

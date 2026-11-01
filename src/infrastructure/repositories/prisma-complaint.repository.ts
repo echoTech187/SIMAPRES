@@ -302,6 +302,16 @@ export class PrismaComplaintRepository implements IComplaintRepository {
     if (!Array.isArray(cLogs)) {
       cLogs = [];
     }
+    cLogs = cLogs.map((l: any) => {
+      let cat = l.created_at;
+      if (typeof cat === 'string') {
+        let s = cat.trim();
+        if (s.includes(' ') && !s.includes('T')) s = s.replace(' ', 'T');
+        if (!s.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(s)) s = s + 'Z';
+        cat = s;
+      }
+      return { ...l, created_at: cat, createdAt: cat };
+    });
     const pawasLog = cLogs.slice().reverse().find((l: any) => l.actor_role === 'PAWAS');
 
     let responseTimeMinutes: number | null = null;
@@ -442,7 +452,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         COALESCE(src.key, c.platform_key) as platform_key,
         c.station_id, c.operator_id, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng,
         c.ringkasan_keterangan,
-        COALESCE(mcs.key, c.status) as status,
+        CASE WHEN c.status = 'DISPOSISI_LINTAS_WILAYAH' THEN 'DISPOSISI_LINTAS_WILAYAH' ELSE COALESCE(mcs.key, c.status) END as status,
         c.tahap,
         COALESCE(mrr.label, c.alasan_tolak) as alasan_tolak,
         c.rejection_reason_id,
@@ -522,7 +532,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
               'notes', notes,
               'action_lat', action_lat,
               'action_lng', action_lng,
-              'created_at', created_at
+              'created_at', DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%s.000Z')
             )
           ) as logs_json
         FROM complaint_audit_logs
@@ -678,12 +688,24 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       let whereSql: Prisma.Sql;
       if (isPersonilRole && resolvedStationId) {
         const stId = Number(resolvedStationId);
+        // Personel yang sedang menangani tiket perkara aktif tidak boleh menerima siaran terbuka tiket perkara lain
+        const noActiveTaskFilter = Prisma.sql`
+          AND NOT EXISTS (
+            SELECT 1 FROM complaint_dispatches cd_act
+            JOIN complaints c_act ON c_act.id = cd_act.complaint_id
+            WHERE cd_act.officer_id = ${officerIdNum}
+              AND cd_act.accepted_at IS NOT NULL
+              AND c_act.status NOT IN ('SELESAI', 'DITOLAK')
+          )
+        `;
+
         if (activeOnly) {
           whereSql = Prisma.sql`(
             EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
             OR (
               c.station_id = ${stId}
               AND c.status IN ('MENUNGGU', 'DIPROSES')
+              ${noActiveTaskFilter}
               AND (
                 NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id IS NOT NULL)
                 OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
@@ -696,6 +718,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
             OR (
               c.station_id = ${stId}
               AND c.status IN ('MENUNGGU', 'DIPROSES')
+              ${noActiveTaskFilter}
               AND (
                 NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id IS NOT NULL)
                 OR EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id AND cd.officer_id = ${officerIdNum})
@@ -771,12 +794,21 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       if (stationId) {
         const isMakoAsal = Number(stationId) === 60001;
         if (isMakoAsal) {
-          whereSql = Prisma.sql`(c.status = 'MENUNGGU' AND (c.station_id = ${Number(stationId)} OR c.station_id IS NULL)) OR c.status = 'DISPOSISI_LINTAS_WILAYAH'`;
+          whereSql = Prisma.sql`(
+            (c.status = 'MENUNGGU' AND (c.station_id = ${Number(stationId)} OR c.station_id IS NULL) AND NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id))
+            OR c.status = 'DISPOSISI_LINTAS_WILAYAH'
+          )`;
         } else {
-          whereSql = Prisma.sql`c.status IN ('MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH') AND c.station_id = ${Number(stationId)}`;
+          whereSql = Prisma.sql`
+            (c.status = 'MENUNGGU' AND c.station_id = ${Number(stationId)} AND NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id))
+            OR (c.status = 'DISPOSISI_LINTAS_WILAYAH' AND c.station_id = ${Number(stationId)})
+          `;
         }
       } else {
-        whereSql = Prisma.sql`c.status IN ('MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH')`;
+        whereSql = Prisma.sql`
+          (c.status = 'MENUNGGU' AND NOT EXISTS (SELECT 1 FROM complaint_dispatches cd WHERE cd.complaint_id = c.id))
+          OR c.status = 'DISPOSISI_LINTAS_WILAYAH'
+        `;
       }
       return await this.queryComplaintsFastSql(whereSql, Prisma.sql`c.created_at ASC`, 20);
     } catch (_err) {
@@ -787,20 +819,25 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         if (isMakoAsal) {
           whereClause = {
             OR: [
-              { status: 'MENUNGGU', station_id: stationId },
-              { status: 'MENUNGGU', station_id: null },
+              { status: 'MENUNGGU', station_id: stationId, dispatches: { none: {} } },
+              { status: 'MENUNGGU', station_id: null, dispatches: { none: {} } },
               { status: 'DISPOSISI_LINTAS_WILAYAH' },
             ],
           };
         } else {
           whereClause = {
-            status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
-            station_id: stationId,
+            OR: [
+              { status: 'MENUNGGU', station_id: stationId, dispatches: { none: {} } },
+              { status: 'DISPOSISI_LINTAS_WILAYAH', station_id: stationId },
+            ],
           };
         }
       } else {
         whereClause = {
-          status: { in: ['MENUNGGU', 'DISPOSISI_LINTAS_WILAYAH'] },
+          OR: [
+            { status: 'MENUNGGU', dispatches: { none: {} } },
+            { status: 'DISPOSISI_LINTAS_WILAYAH' },
+          ],
         };
       }
 
@@ -818,16 +855,26 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
   async findAllRecent(limit = 15, stationId?: number): Promise<ComplaintEntity[]> {
     try {
-      const whereSql = stationId ? Prisma.sql`c.station_id = ${stationId}` : Prisma.sql`1=1`;
+      const numStationId = stationId ? Number(stationId) : undefined;
+      const whereSql = numStationId
+        ? (numStationId === 60001
+            ? Prisma.sql`(c.station_id = ${numStationId} OR c.station_id IS NULL)`
+            : Prisma.sql`c.station_id = ${numStationId}`)
+        : Prisma.sql`1=1`;
       return await this.queryComplaintsFastSql(
         whereSql,
         Prisma.sql`c.created_at DESC`,
         limit
       );
     } catch (_err) {
+      const numStationId = stationId ? Number(stationId) : undefined;
       const [records, dict] = await Promise.all([
         prisma.complaint.findMany({
-          where: stationId ? { station_id: stationId } : undefined,
+          where: numStationId
+            ? (numStationId === 60001
+                ? { OR: [{ station_id: numStationId }, { station_id: null }] }
+                : { station_id: numStationId })
+            : undefined,
           take: limit,
           orderBy: { created_at: 'desc' },
           include: COMPLAINT_INCLUDE,
