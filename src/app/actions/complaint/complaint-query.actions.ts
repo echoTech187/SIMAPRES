@@ -397,6 +397,7 @@ export async function getMasterFilterOptionsAction() {
     let rawRejections: any[] = [];
     let urgencyLevels: any[] = [];
     let dutyStatuses: any[] = [];
+    let ranks: any[] = [];
 
     try {
       // 1. Eksekusi cepat dalam 1 round-trip menggunakan JSON_ARRAYAGG di TiDB
@@ -411,7 +412,8 @@ export async function getMasterFilterOptionsAction() {
           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'keterangan', keterangan, 'display_order', display_order)) FROM master_dispatch_statuses WHERE is_active = 1) as dispatch_statuses,
           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'category_id', category_id, 'category_key', category_key, 'unit_id', unit_id, 'unit_key', unit_key, 'nama_kasus', nama_kasus, 'default_urgensi', default_urgensi, 'deskripsi_sop', deskripsi_sop, 'display_order', display_order)) FROM master_incident_subcategories WHERE is_active = 1) as subcategories,
           (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_urgency_levels WHERE is_active = 1) as urgency_levels,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_duty_statuses WHERE is_active = 1) as duty_statuses;
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_duty_statuses WHERE is_active = 1) as duty_statuses,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', id, 'key', \`key\`, 'label', label, 'display_order', display_order)) FROM master_ranks WHERE is_active = 1) as ranks;
       `);
 
       if (Array.isArray(fastRow) && fastRow[0]) {
@@ -427,10 +429,11 @@ export async function getMasterFilterOptionsAction() {
         rawRejections = parseJson(row.rejection_reasons);
         urgencyLevels = parseJson(row.urgency_levels);
         dutyStatuses = parseJson(row.duty_statuses);
+        ranks = parseJson(row.ranks);
       }
     } catch (_) {
       // Fallback ke Prisma findMany jika queryRaw terkendala
-      const [fRejections, fCategories, fPlatforms, fGiats, fSatuans, fStatuses, fDispatchStatuses, fSubcategories, fUrgencyLevels, fDutyStatuses] = await Promise.all([
+      const [fRejections, fCategories, fPlatforms, fGiats, fSatuans, fStatuses, fDispatchStatuses, fSubcategories, fUrgencyLevels, fDutyStatuses, fRanks] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
           `SELECT id, \`key\`, label, display_order FROM master_rejection_reasons WHERE is_active = true ORDER BY display_order ASC`
         ).catch(() => []),
@@ -443,6 +446,7 @@ export async function getMasterFilterOptionsAction() {
         prisma.masterIncidentSubcategory.findMany({ where: { is_active: true }, orderBy: [{ category_key: 'asc' }, { display_order: 'asc' }] }),
         prisma.masterUrgencyLevel.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
         prisma.masterDutyStatus.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
+        prisma.masterRank.findMany({ where: { is_active: true }, orderBy: { display_order: 'asc' } }),
       ]);
       categories = fCategories;
       platforms = fPlatforms;
@@ -454,6 +458,7 @@ export async function getMasterFilterOptionsAction() {
       rawRejections = fRejections;
       urgencyLevels = fUrgencyLevels;
       dutyStatuses = fDutyStatuses;
+      ranks = fRanks;
     }
 
     // Hubungkan relasi category_rel & unit_rel dalam memory tanpa round-trip tambahan ke database
@@ -475,6 +480,7 @@ export async function getMasterFilterOptionsAction() {
       rejectionReasons: serializeBigInt(rawRejections),
       urgencyLevels: serializeBigInt(urgencyLevels),
       dutyStatuses: serializeBigInt(dutyStatuses),
+      ranks: serializeBigInt(ranks),
     };
 
     masterFilterOptionsCache = { data: serialized, expiresAt: now + MASTER_FILTER_CACHE_TTL_MS };

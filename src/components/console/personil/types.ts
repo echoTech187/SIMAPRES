@@ -1,5 +1,11 @@
 export type PersonilTab = 'beranda' | 'peta' | 'profil';
 
+export enum FundingSource {
+  REIMBURSE = 'REIMBURSE_PRIBADI',
+  KUPON = 'KUPON_DINAS',
+}
+
+
 export interface OfficerProfile {
   id: string;
   officerId?: string;
@@ -74,27 +80,42 @@ export function getDistanceFromLatLonInMeters(
   return Math.round(R * c);
 }
 
-// Menghitung 1-2 inisial nama petugas (mengabaikan gelar kepangkatan di depan)
-export function getOfficerInitials(fullName?: string): string {
+// Cache dinamis daftar kode pangkat dari tabel database `master_ranks`
+let dynamicMasterRanks: string[] = [];
+
+export function setDynamicMasterRanks(ranks?: Array<{ key?: string; label?: string } | string> | null): void {
+  if (!Array.isArray(ranks) || ranks.length === 0) return;
+  const parsed = new Set<string>();
+  ranks.forEach((r) => {
+    if (typeof r === 'string') {
+      const k = r.trim().toUpperCase();
+      if (k) parsed.add(k);
+    } else if (r && typeof r === 'object') {
+      if (r.key) parsed.add(String(r.key).trim().toUpperCase());
+      if (r.label) parsed.add(String(r.label).trim().toUpperCase());
+    }
+  });
+  if (parsed.size > 0) {
+    dynamicMasterRanks = Array.from(parsed);
+  }
+}
+
+export function getDynamicMasterRanks(): string[] {
+  return dynamicMasterRanks;
+}
+
+// Menghitung 1-2 inisial nama petugas (mengabaikan gelar kepangkatan di depan dari database `master_ranks`)
+export function getOfficerInitials(
+  fullName?: string,
+  ranksFromDb?: Array<{ key?: string; label?: string } | string>
+): string {
   if (!fullName) return 'PO';
+  if (ranksFromDb && ranksFromDb.length > 0) {
+    setDynamicMasterRanks(ranksFromDb);
+  }
   const clean = fullName.trim();
-  const ranks = [
-    'BRIPKA',
-    'BRIPDA',
-    'BRIGADIR',
-    'BRIPTU',
-    'AIPDA',
-    'AIPTU',
-    'IPDA',
-    'IPTU',
-    'AKP',
-    'KOMPOL',
-    'AKBP',
-    'KOMBES',
-    'JENDERAL',
-  ];
   const words = clean.split(/\s+/).filter(Boolean);
-  if (words.length > 1 && ranks.includes(words[0].toUpperCase())) {
+  if (words.length > 1 && dynamicMasterRanks.includes(words[0].toUpperCase())) {
     words.shift();
   }
   if (words.length === 0) return 'PO';

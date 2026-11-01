@@ -1249,6 +1249,8 @@ export default function TabBerandaPersonil({
         onClose={() => setShowKlaimBbmModal(false)}
         officer={officer}
         activeComplaint={activeComplaint}
+        complaints={complaints}
+        logbooks={logbooks}
         onSuccess={(msg) => toast.success(msg)}
       />
 

@@ -104,3 +104,7 @@ export function parsePositiveBigIntId(
     return { valid: false, error: `${fieldName} bukan format ID yang valid!` };
   }
 }
+
+export { FundingSource } from '@/components/console/personil/types';
+
+

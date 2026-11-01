@@ -48,6 +48,8 @@ interface TabMapsPersonilProps {
   officer: OfficerProfile;
   activeComplaint: ComplaintData | null;
   activeGiat?: any | null;
+  complaints?: ComplaintData[];
+  logbooks?: any[];
   currentGps: { lat: number; lng: number };
   fleetUnits: any[];
   hotspots: any[];
@@ -64,6 +66,8 @@ export default function TabMapsPersonil({
   officer,
   activeComplaint,
   activeGiat,
+  complaints = [],
+  logbooks = [],
   currentGps,
   fleetUnits,
   hotspots,
@@ -1529,6 +1533,8 @@ const EMPTY_ARRAY: any[] = [];
         onClose={() => setShowKlaimBbmModal(false)}
         officer={officer}
         activeComplaint={activeComplaint}
+        complaints={complaints}
+        logbooks={logbooks}
         currentOdometerKm={currentOdometerKm}
         onSuccess={(msg) => toast.success(msg)}
       />

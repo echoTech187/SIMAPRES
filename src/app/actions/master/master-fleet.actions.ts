@@ -1,7 +1,8 @@
 'use server';
 
-import { prisma, serializeBigInt, auditLog, parsePositiveIntId, revalidatePath, requireSuperadmin, requireRole } from './master-common';
+import { prisma, serializeBigInt, auditLog, parsePositiveIntId, revalidatePath, requireSuperadmin, requireRole, FundingSource } from './master-common';
 import { validateBase64ImagePayload } from '@/infrastructure/security/file-security.service';
+
 
 // ==============================================================================
 // 1. MASTER TIPE & STATUS OPERASIONAL KENDARAAN (master_vehicle_types & master_vehicle_statuses)
@@ -443,17 +444,21 @@ export async function submitFuelClaimAction(input: {
   purchaseTime?: string;
   fuelType?: string;
   fuelTypeId?: number | null;
+  fundingSource?: FundingSource;
+  vehicleLambung?: string;
+  accumulatedDailyKm?: number;
+  estimatedFairLiters?: number;
   strukPhotoUrl?: string;
   spidometerPhotoUrl?: string;
   notes?: string;
 }) {
-  const auth = await requireRole(['PERSONIL', 'SUPERADMIN', 'LOGISTIK', 'PAWAS']);
+  const auth = await requireRole(['PERSONIL']);
   if (!auth.authorized) {
     return { success: false, error: auth.error };
   }
 
   try {
-    // Validasi Anti-Fraud Sisi Server: Cegah penyimpanan struk terindikasi manipulasi
+    // 1. Validasi Anti-Fraud Sisi Server: Cegah penyimpanan struk terindikasi manipulasi
     if (
       input.notes?.includes('[Audit AI: REKAYASA_DIGITAL') ||
       input.notes?.includes('[Audit AI: BUKAN_STRUK_SPBU')
@@ -465,7 +470,34 @@ export async function submitFuelClaimAction(input: {
       };
     }
 
-    // Validasi Integritas Foto Bukti Sisi Server (Maksimal 5MB, Magic Bytes, Format Sah)
+    // 2. Validasi Anti-Double Struk (Duplikasi Nomor Struk / Transaksi SPBU)
+    const cleanReceiptNo = (input.receiptNumber || '').trim();
+    if (cleanReceiptNo && cleanReceiptNo !== '-' && cleanReceiptNo.length >= 3) {
+      const receiptMarker = `No. Struk: ${cleanReceiptNo}`;
+      const [existingDispatchClaim, existingLogbookClaim] = await Promise.all([
+        prisma.complaintDispatch.findFirst({
+          where: {
+            fuel_claim_notes: { contains: receiptMarker },
+          },
+          select: { id: true, crew_leader_name: true, fuel_claim_notes: true },
+        }),
+        prisma.officerLogbook.findFirst({
+          where: {
+            activity_description: { contains: receiptMarker },
+          },
+          select: { id: true, activity_description: true },
+        }),
+      ]);
+
+      if (existingDispatchClaim || existingLogbookClaim) {
+        return {
+          success: false,
+          error: `⛔ Anti-Double Claim: Nomor Struk SPBU "${cleanReceiptNo}" sudah pernah diajukan sebelumnya di sistem! Satu struk fisik hanya berlaku untuk 1 kali klaim.`,
+        };
+      }
+    }
+
+    // 3. Validasi Integritas Foto Bukti Sisi Server (Maksimal 5MB, Magic Bytes, Format Sah)
     if (input.strukPhotoUrl) {
       const vStruk = validateBase64ImagePayload(input.strukPhotoUrl);
       if (!vStruk.valid) {
@@ -479,9 +511,20 @@ export async function submitFuelClaimAction(input: {
       }
     }
 
-    const diajukanStatus = await prisma.masterFuelClaimStatus.findUnique({
-      where: { key: 'DIAJUKAN_BAGLOG' },
-    });
+    // 4. Evaluasi Jalur Hijau (Auto-Verified) vs Jalur Kuning (Butuh Review Baglog/Pawas)
+    const fairLiters = Number(input.estimatedFairLiters || 0);
+    const isWithinFairQuota = fairLiters > 0 ? input.liters <= Math.max(fairLiters * 1.25, 3.0) : true;
+    const isAiVerified = Boolean(input.notes?.includes('[Audit AI: VALID') || input.notes?.includes('[Audit AI: ASLI'));
+    const isAutoApproved = isWithinFairQuota && isAiVerified && Boolean(cleanReceiptNo);
+
+    const statusKeyToUse = isAutoApproved ? 'DISETUJUI_BAGLOG' : 'DIAJUKAN_BAGLOG';
+    const targetClaimStatus =
+      (await prisma.masterFuelClaimStatus.findUnique({
+        where: { key: statusKeyToUse },
+      })) ||
+      (await prisma.masterFuelClaimStatus.findUnique({
+        where: { key: 'DIAJUKAN_BAGLOG' },
+      }));
 
     let dispatch = null;
     if (input.dispatchId) {
@@ -495,11 +538,33 @@ export async function submitFuelClaimAction(input: {
       });
     }
 
+    // Cegah Double Claim pada 1 Dispatch / Armada yang sama dalam tiket tersebut
+    if (dispatch && dispatch.fuel_liters_used && Number(dispatch.fuel_liters_used) > 0 && dispatch.fuel_claim_notes) {
+      const sameVehicle =
+        !input.vehicleLambung ||
+        dispatch.fuel_claim_notes.includes(`Randis: ${input.vehicleLambung}`);
+      if (sameVehicle) {
+        return {
+          success: false,
+          error: `⛔ Klaim BBM untuk penugasan/armada ini sudah pernah diajukan (${dispatch.fuel_liters_used} Liter). Tidak dapat melakukan klaim ganda pada regu yang sama.`,
+        };
+      }
+    }
+
+    const fundingLabel = input.fundingSource === FundingSource.KUPON ? 'KUPON DINAS' : 'PRIBADI/REIMBURSE';
+    const verificationBadge = isAutoApproved
+      ? 'JALUR HIJAU (AUTO-VERIFIED)'
+      : 'JALUR KUNING (REVIEW BAGLOG/PAWAS)';
+
     const notesSummary = [
+      `Skema: ${fundingLabel}`,
+      `Jalur: ${verificationBadge}`,
+      input.vehicleLambung ? `Randis: ${input.vehicleLambung}` : null,
+      input.accumulatedDailyKm !== undefined ? `Akumulasi Giat: ${input.accumulatedDailyKm} KM (Wajar: ~${fairLiters} L)` : null,
       `SPBU: ${input.spbuName || '-'}`,
       input.purchaseDate ? `Tgl: ${input.purchaseDate}${input.purchaseTime ? ` ${input.purchaseTime}` : ''}` : null,
       input.fuelType ? `BBM: ${input.fuelType}` : null,
-      input.receiptNumber ? `No. Struk: ${input.receiptNumber}` : null,
+      cleanReceiptNo ? `No. Struk: ${cleanReceiptNo}` : null,
       input.odometerKm ? `Spidometer: ${input.odometerKm} KM` : null,
       input.notes ? `Catatan: ${input.notes}` : null,
     ].filter(Boolean).join(' | ');
@@ -514,7 +579,7 @@ export async function submitFuelClaimAction(input: {
         data: {
           fuel_liters_used: input.liters,
           fuel_cost_estimated: input.costRupiah,
-          fuel_claim_status_id: diajukanStatus?.id || dispatch.fuel_claim_status_id,
+          fuel_claim_status_id: targetClaimStatus?.id || dispatch.fuel_claim_status_id,
           fuel_claim_notes: notesSummary,
         },
       });
@@ -526,8 +591,8 @@ export async function submitFuelClaimAction(input: {
               complaint_id: dispatch.complaint_id,
               incident_phase: 'STRUK_BBM',
               file_url: savedStrukUrl,
-              caption: `Struk Pengisian BBM ${input.spbuName || 'SPBU'} (${input.liters} L - Rp ${Number(input.costRupiah).toLocaleString('id-ID')})`.slice(0, 255),
-              watermark_text: `Klaim BBM DIPA • Struk SPBU: ${input.receiptNumber || '-'}`.slice(0, 255),
+              caption: `[${fundingLabel}] Struk BBM ${input.spbuName || 'SPBU'} (${input.liters} L - Rp ${Number(input.costRupiah).toLocaleString('id-ID')})`.slice(0, 255),
+              watermark_text: `${fundingLabel} • Struk: ${cleanReceiptNo || '-'}`.slice(0, 255),
             },
           });
         }
@@ -537,7 +602,7 @@ export async function submitFuelClaimAction(input: {
               complaint_id: dispatch.complaint_id,
               incident_phase: 'SPIDOMETER',
               file_url: savedSpidometerUrl,
-              caption: `Foto Spidometer Fisik Randis (${input.odometerKm || 0} KM)`.slice(0, 255),
+              caption: `Foto Spidometer Fisik Randis ${input.vehicleLambung || ''} (${input.odometerKm || 0} KM)`.slice(0, 255),
               watermark_text: `Odometer Fisik: ${input.odometerKm || 0} KM`.slice(0, 255),
             },
           });
@@ -574,8 +639,8 @@ export async function submitFuelClaimAction(input: {
             start_time: nowTime,
             end_time: nowTime,
             photo_url: savedStrukUrl || null,
-            activity_description: `[KLAIM BBM DIPA LOGISTIK - ${input.liters} Liter / Rp ${Number(input.costRupiah).toLocaleString('id-ID')}] ${notesSummary}`.slice(0, 1000),
-            validation_status: 'VALID',
+            activity_description: `[KLAIM BBM DIPA LOGISTIK - ${fundingLabel} - ${input.liters} Liter / Rp ${Number(input.costRupiah).toLocaleString('id-ID')}] ${notesSummary}`.slice(0, 1000),
+            validation_status: isAutoApproved ? 'VALID' : 'BELUM_DIVALIDASI',
           },
         });
       }
@@ -587,7 +652,9 @@ export async function submitFuelClaimAction(input: {
 
     return {
       success: true,
-      message: 'Klaim BBM dan bukti foto struk berhasil diajukan ke Staf Logistik (Status: DIAJUKAN).',
+      message: isAutoApproved
+        ? `✓ [${fundingLabel}] Klaim BBM ${input.liters} L lolos Jalur Hijau (Auto-Verified) & langsung tercatat di Bag Logistik!`
+        : `✓ [${fundingLabel}] Klaim BBM ${input.liters} L berhasil diajukan ke Bag Logistik / Pawas (Status: Menunggu Verifikasi).`,
     };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal mengajukan klaim BBM.' };

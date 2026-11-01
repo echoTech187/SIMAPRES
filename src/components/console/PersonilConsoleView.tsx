@@ -229,6 +229,8 @@ function PersonilContent(props: {
             officer={officer}
             activeComplaint={activeComplaint}
             activeGiat={currentActiveGiat}
+            complaints={complaints}
+            logbooks={logbooks}
             currentGps={currentGps}
             fleetUnits={fleetUnits}
             hotspots={hotspots}

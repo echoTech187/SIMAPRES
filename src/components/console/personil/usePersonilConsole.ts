@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { ComplaintData, OfficerProfile, PersonilTab, DispatchStepAction } from './types';
-import { hasOfficerAcceptedTask, isTaskPendingAcceptance } from './types';
+import { hasOfficerAcceptedTask, isTaskPendingAcceptance, setDynamicMasterRanks } from './types';
 import { parsePersonilTab, personilTabToSlug, playPoliceAlertAudio, stopPoliceAlertAudio } from './personil-helpers';
 import {
   getOfficerComplaintsAction,
@@ -66,6 +66,7 @@ export function usePersonilConsole({
   if (initialPoliceOffices?.length && !cachedPoliceOffices) cachedPoliceOffices = initialPoliceOffices;
   if (initialFleetUnits?.length && !cachedFleetUnits) cachedFleetUnits = initialFleetUnits;
   if (initialHotspots?.length && !cachedHotspots) cachedHotspots = initialHotspots;
+  if (initialMasterData?.ranks?.length) setDynamicMasterRanks(initialMasterData.ranks);
 
   const nrpParam = session?.identifier || initialOfficer?.nrp;
 
@@ -388,11 +389,16 @@ export function usePersonilConsole({
       }
     }
 
-    if (!dispatchStatuses.length) {
+    if (!dispatchStatuses.length || !initialMasterData?.ranks?.length) {
       getMasterFilterOptionsAction()
         .then((mRes) => {
-          if (mRes?.success && mRes?.data?.dispatchStatuses) {
-            setDispatchStatuses(mRes.data.dispatchStatuses);
+          if (mRes?.success && mRes?.data) {
+            if (mRes.data.dispatchStatuses) {
+              setDispatchStatuses(mRes.data.dispatchStatuses);
+            }
+            if (mRes.data.ranks) {
+              setDynamicMasterRanks(mRes.data.ranks);
+            }
           }
         })
         .catch(() => {});
