@@ -4,6 +4,7 @@ import { calculateStationSlaAndScore } from '@/domain/rules';
 
 import React, { useState, useMemo } from 'react';
 import { parseDateSafe } from '@/lib/date-utils';
+import { evaluate5W1HHeuristic } from '@/domain/rules/cad-5w1h.rules';
 
 export interface TabKinerjaPawasProps {
   userProfile: any;
@@ -93,7 +94,7 @@ export default function TabKinerjaPawas({
     if (kinerjaPeriod === 'mingguan') {
       return `ANEV MINGGUAN (7 HARI S/D ${formattedDate.toUpperCase()})`;
     }
-    return `ANEV BULANAN (${formattedMonth.toUpperCase()})`;
+    return `ANEV BULANAN (30 HARI S/D ${formattedDate.toUpperCase()})`;
   }, [kinerjaPeriod, selectedDateObj]);
 
   const periodSummaryLabel = useMemo(() => {
@@ -113,7 +114,7 @@ export default function TabKinerjaPawas({
     if (kinerjaPeriod === 'mingguan') {
       return `7 Hari Terakhir (s/d ${formattedDate})`;
     }
-    return `Bulan ${formattedMonth}`;
+    return `30 Hari Terakhir (s/d ${formattedDate})`;
   }, [kinerjaPeriod, selectedDateObj]);
 
   const userStationId = userProfile?.stationId ? Number(userProfile.stationId) : undefined;
@@ -493,31 +494,61 @@ export default function TabKinerjaPawas({
         ? Math.round((stars.reduce((a: number, b: any) => a + Number(b), 0) / stars.length) * 10) / 10
         : 0;
 
-      const sopCompliant = opComplaints.filter((c: any) => {
-        const hasSubcat = Boolean(c.subcategoryId || c.subcategory_id);
-        const textLen = (c.ringkasanKeterangan || c.ringkasan_keterangan || '').trim().length;
-        return hasSubcat && textLen >= 10;
-      }).length;
+      // Evaluasi narasi CAD 5W+1H untuk supervisi Pawas/Kapolsek
+      const evaluatedComplaints = opComplaints.map((c: any) => {
+        const ringkasanKeterangan = c.ringkasanKeterangan || c.ringkasan_keterangan || '';
+        const subkasusNama = c.jenisKejadian || c.jenis_kejadian || c.subkasusNama || c.subcategory?.name || '';
+        const tkpAlamat = c.tkpAlamat || c.tkp_alamat || c.alamat || '';
+        const hasGps = Boolean((c.latitude && c.longitude) || (c.tkpLatitude && c.tkpLongitude));
+        const pelaporNama = c.pelaporNama || c.pelapor_nama || '';
+        const pelaporHp = c.pelaporHp || c.pelapor_hp || '';
+
+        const eval5W1H = evaluate5W1HHeuristic({
+          ringkasanKeterangan,
+          subkasusNama,
+          tkpAlamat,
+          hasGps,
+          pelaporNama,
+          pelaporHp,
+        });
+
+        return {
+          ...c,
+          eval5W1H,
+        };
+      });
+
+      const avg5W1HQuality = totalTiketInput > 0
+        ? Math.round(evaluatedComplaints.reduce((acc: number, cur: any) => acc + cur.eval5W1H.score, 0) / totalTiketInput)
+        : 100;
+
+      const sopCompliant = evaluatedComplaints.filter((c: any) => c.eval5W1H.score >= 70).length;
       const sopComplianceRate = totalTiketInput > 0
         ? Math.round((sopCompliant / totalTiketInput) * 100)
         : 100;
 
-      // OPSI 1: Skor Komposit 100 Poin Murni Tanggung Jawab Operator
+      // Kumpulan catatan evaluasi supervisi mutasi piket
+      const supervisionNotes = evaluatedComplaints
+        .map((c: any) => c.eval5W1H.internalEvaluationNotes)
+        .filter((note: string) => note && !note.includes('Narasi laporan lengkap'));
+
+      const internalSupervisionSummary = supervisionNotes.length > 0
+        ? supervisionNotes[0]
+        : 'Standar narasi laporan kedinasan terpenuhi dengan baik.';
+
+      // Formula Mutu Operator CAD: Kualitas Narasi 5W+1H (40%), Ketuntasan Disposisi (30%), Validitas (15%), IKM Warga (15%)
       let compositeScore = 0;
       let predikat = 'Siaga (Belum Ada Tiket)';
       let predikatColor = '#64748B';
 
       if (totalTiketInput > 0) {
-        // 1. Produktivitas Input (40 Poin)
-        const volumeScore = Math.min(40, totalTiketInput * 8);
-        // 2. Kerapian & Kepatuhan SOP Input Data (30 Poin)
-        const sopScore = Math.round((sopComplianceRate / 100) * 30);
-        // 3. Validitas & Penyaluran Tiket (15 Poin)
+        const qualityScore = Math.round((avg5W1HQuality / 100) * 40);
+        const dispositionRate = Math.round((totalDisposisi / totalTiketInput) * 100);
+        const dispositionScore = Math.round((dispositionRate / 100) * 30);
         const validScore = Math.round((validRate / 100) * 15);
-        // 4. Rating Kepuasan Warga (15 Poin)
         const ratingScore = avgRating > 0 ? Math.round((avgRating / 5) * 15) : 12;
 
-        compositeScore = Math.min(100, Math.round(volumeScore + sopScore + validScore + ratingScore));
+        compositeScore = Math.min(100, Math.round(qualityScore + dispositionScore + validScore + ratingScore));
 
         if (compositeScore >= 90) {
           predikat = 'Operator Teladan 110';
@@ -529,7 +560,7 @@ export default function TabKinerjaPawas({
           predikat = 'Cukup (Siaga Standar)';
           predikatColor = '#D97706';
         } else {
-          predikat = 'Perlu Evaluasi SOP';
+          predikat = 'Perlu Evaluasi Kedinasan';
           predikatColor = '#DC2626';
         }
       }
@@ -542,6 +573,8 @@ export default function TabKinerjaPawas({
         validTiketCount,
         validRate,
         sopComplianceRate,
+        avg5W1HQuality,
+        internalSupervisionSummary,
         avgRating,
         totalReviews: stars.length,
         compositeScore,
@@ -658,9 +691,7 @@ export default function TabKinerjaPawas({
                 boxShadow: kinerjaPeriod === 'bulanan' ? '0 2px 6px rgba(21,62,117,0.2)' : 'none',
                 transition: 'all 0.15s ease',
               }}
-            >
-              Bulanan
-            </button>
+            >Bulanan (30 Hari)</button>
           </div>
         </div>
 
@@ -1549,10 +1580,10 @@ export default function TabKinerjaPawas({
                           <th style={{ padding: '8px 10px' }}>Satuan / Penugasan</th>
                           <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Diinput</th>
                           <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Valid</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kepatuhan SOP</th>
-                          <th style={{ padding: '8px 10px' }}>Kepuasan Warga (IKM)</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Skor Anev</th>
-                          <th style={{ padding: '8px 10px' }}>Predikat</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kelengkapan 5W+1H</th>
+                          <th style={{ padding: '8px 10px' }}>Catatan Evaluasi Kedinasan (Pawas)</th>
+                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Skor Mutu</th>
+                          <th style={{ padding: '8px 10px' }}>Predikat Kedinasan</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1581,29 +1612,21 @@ export default function TabKinerjaPawas({
                               {item.totalTiketInput > 0 ? `${item.validTiketCount != null ? item.validTiketCount : (item.totalTiketInput || 0)} (${item.validRate != null ? item.validRate : 100}%)` : '-'}
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                              {item.totalTiketInput > 0 && item.sopComplianceRate != null ? (
-                                <span style={{ fontSize: '11px', fontWeight: 800, color: item.sopComplianceRate >= 90 ? '#059669' : '#D97706' }}>
-                                  {item.sopComplianceRate}%
+                              {item.totalTiketInput > 0 && item.avg5W1HQuality != null ? (
+                                <span style={{ fontSize: '11px', fontWeight: 800, color: item.avg5W1HQuality >= 80 ? '#059669' : '#D97706' }}>
+                                  {item.avg5W1HQuality}%
                                 </span>
                               ) : (
                                 <span style={{ color: '#94A3B8' }}>-</span>
                               )}
                             </td>
-                            <td style={{ padding: '8px 10px' }}>
-                              {item.totalTiketInput > 0 && item.avgRating > 0 ? (
-                                <>
-                                  <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                    ⭐ {item.avgRating.toFixed(1)} / 5.0
-                                  </div>
-                                  <div style={{ fontSize: '10px', color: '#64748B' }}>
-                                    {item.totalReviews > 0 ? `${item.totalReviews} ulasan warga` : 'Belum ada ulasan'}
-                                  </div>
-                                </>
+                            <td style={{ padding: '8px 10px', maxWidth: '320px' }}>
+                              {item.totalTiketInput > 0 ? (
+                                <div style={{ fontSize: '10.5px', color: '#334155', lineHeight: 1.4, background: '#F8FAFC', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                  🛡️ {item.internalSupervisionSummary}
+                                </div>
                               ) : (
-                                <>
-                                  <div style={{ fontWeight: 700, color: '#94A3B8' }}>- / 5.0</div>
-                                  <div style={{ fontSize: '10px', color: '#94A3B8' }}>Belum ada ulasan</div>
-                                </>
+                                <span style={{ fontSize: '10.5px', color: '#94A3B8' }}>Belum ada laporan diinput</span>
                               )}
                             </td>
                             <td style={{ padding: '8px 10px', textAlign: 'center' }}>

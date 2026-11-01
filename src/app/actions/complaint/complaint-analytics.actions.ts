@@ -654,6 +654,8 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
           u.full_name,
           u.role,
           u.avatar_url,
+          COALESCE(po.rank_pangkat, mr.label, 'Operator') as rank_pangkat,
+          COALESCE(po.jabatan, 'SPKT 110') as jabatan,
           st.station_name,
           
           COUNT(DISTINCT c.id) as total_tiket_input,
@@ -681,10 +683,11 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
             ELSE NULL
           END) as avg_intake_minutes
 
-        FROM police_officers po
-        JOIN users u ON u.id = po.user_id
-        LEFT JOIN police_stations st ON st.id = po.station_id
-        LEFT JOIN complaints c ON c.operator_id = u.id
+        FROM users u
+        LEFT JOIN police_officers po ON po.user_id = u.id
+        LEFT JOIN master_ranks mr ON mr.id = po.rank_id
+        LEFT JOIN police_stations st ON st.id = COALESCE(u.station_id, po.station_id)
+        LEFT JOIN complaints c ON c.operator_id = u.id ${numStationId ? Prisma.sql`AND (c.station_id = ${numStationId} OR c.station_id IS NULL)` : Prisma.empty}
         LEFT JOIN citizen_reviews cr ON cr.complaint_id = c.id
           AND (cr.feedback_tags LIKE '%[Skor Operator:%' OR cr.feedback_tags LIKE '%Respon Cepat%' OR cr.feedback_tags LIKE '%Ramah%')
           AND (cr.feedback_tags NOT LIKE '%Police Care%' AND cr.feedback_tags NOT LIKE '%Humanis%')
@@ -694,9 +697,10 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
           WHERE dispatched_at IS NOT NULL
           GROUP BY complaint_id
         ) d ON d.complaint_id = c.id
-        WHERE u.role = 'OPERATOR' ${numStationId ? Prisma.sql`AND po.station_id = ${numStationId}` : Prisma.empty}
-        GROUP BY u.id, u.identifier, u.full_name, u.role, u.avatar_url, st.station_name
-        ORDER BY u.id ASC;
+        WHERE (u.role = 'OPERATOR' OR EXISTS (SELECT 1 FROM complaints c_act WHERE c_act.operator_id = u.id ${numStationId ? Prisma.sql`AND (c_act.station_id = ${numStationId} OR c_act.station_id IS NULL)` : Prisma.empty}))
+          ${numStationId ? Prisma.sql`AND (u.station_id = ${numStationId} OR po.station_id = ${numStationId} OR u.station_id IS NULL OR EXISTS (SELECT 1 FROM complaints c_st WHERE c_st.operator_id = u.id AND c_st.station_id = ${numStationId}))` : Prisma.empty}
+        GROUP BY u.id, u.identifier, u.full_name, u.role, u.avatar_url, po.rank_pangkat, mr.label, po.jabatan, st.station_name
+        ORDER BY total_tiket_input DESC, u.id ASC;
       `;
 
       if (Array.isArray(rows)) {
@@ -748,17 +752,16 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
           }
 
           const fullName = r.full_name || '';
-          const nameParts = fullName.split(' ');
-          const pangkatCandidate = nameParts.length > 1 ? nameParts[0] : 'Bripka';
-          const pangkat = ['Aiptu', 'Aipda', 'Bripka', 'Brigadir', 'Briptu', 'Bripda', 'Ipda'].includes(pangkatCandidate)
-            ? pangkatCandidate
-            : 'Operator SPKT';
+          const pangkat = r.rank_pangkat || (fullName.split(' ').length > 1 ? fullName.split(' ')[0] : 'Bripka');
+          const jabatanUnit = r.jabatan ? r.jabatan.split('•')[0].trim() : 'Operator SPKT';
 
           return {
             operatorId: String(r.operator_id),
             identifier: r.identifier || '',
             namaLengkap: fullName,
             pangkat,
+            jabatan: jabatanUnit,
+            unit: jabatanUnit,
             role: r.role || 'OPERATOR',
             stationName: r.station_name || 'SPKT Mako Polres Pekalongan',
             avatarUrl: r.avatar_url || null,

@@ -219,7 +219,7 @@ export async function getPawasAnalyticsDataAction(
       getIkmStatsAction(numStationId),
       getOfficerPerformanceRankingsAction(numStationId),
       getStationPerformanceRankingsAction(),
-      getOperatorPerformanceRankingsAction(),
+      getOperatorPerformanceRankingsAction(numStationId),
     ]);
 
     const payload: PawasAnalyticsData = {

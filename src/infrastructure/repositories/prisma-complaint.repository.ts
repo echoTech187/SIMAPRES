@@ -376,7 +376,11 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       } : null,
       pawasValidasiId: null,
       pawas: pawasLog ? { id: 0n, namaLengkap: pawasLog.actor_name, identifier: pawasLog.actor_name } : null,
-      operator: null,
+      operator: r.operator_id ? {
+        id: r.operator_id,
+        namaLengkap: r.operator_full_name || "",
+        identifier: r.operator_identifier || "",
+      } : null,
       disposisiAt: r.dispatched_at || null,
       responTibaTkpAt: r.arrived_at || null,
       selesaiAt: r.completed_at || null,
@@ -458,6 +462,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
         c.source_id,
         COALESCE(src.key, c.platform_key) as platform_key,
         c.station_id, c.operator_id, c.tkp_alamat_teks, c.tkp_lat, c.tkp_lng,
+        op_u.full_name as operator_full_name, op_u.identifier as operator_identifier,
         c.ringkasan_keterangan,
         CASE WHEN c.status = 'DISPOSISI_LINTAS_WILAYAH' THEN 'DISPOSISI_LINTAS_WILAYAH' ELSE COALESCE(mcs.key, c.status) END as status,
         c.tahap,
@@ -521,6 +526,7 @@ export class PrismaComplaintRepository implements IComplaintRepository {
       LEFT JOIN master_ranks mr ON mr.id = po.rank_id
       LEFT JOIN patrol_vehicles pv ON pv.id = po.assigned_vehicle_id
       LEFT JOIN users usr ON usr.id = po.user_id
+      LEFT JOIN users op_u ON op_u.id = c.operator_id
       LEFT JOIN police_stations st ON st.id = c.station_id
       LEFT JOIN master_incident_categories cat ON cat.id = c.category_id
       LEFT JOIN master_incident_subcategories sub ON sub.id = c.subcategory_id

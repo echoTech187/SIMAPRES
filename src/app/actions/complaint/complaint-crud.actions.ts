@@ -129,6 +129,46 @@ export async function createComplaintAction(input: CreateComplaintActionInput) {
       tkpAlamatTeks: cleanAlamat,
     });
 
+    // Evaluasi AI Independen 5W+1H Standar Kedinasan Polri (Non-blocking Background Task)
+    // AI bertindak sebagai auditor mutu narasi manual tanpa mengganggu respons operator
+    (async () => {
+      try {
+        const { EvaluateCad5W1HUseCase } = await import('@/application/use-cases/cad/evaluate-5w1h-quality.use-case');
+        const evaluator = new EvaluateCad5W1HUseCase();
+        const evalResult = await evaluator.execute({
+          ringkasanKeterangan: cleanRingkasan,
+          subkasusNama: cleanJenis,
+          tkpAlamat: finalAlamat,
+          hasGps: Boolean(input.tkpLat && input.tkpLng),
+          pelaporNama: cleanNama,
+          pelaporHp: cleanHp,
+        });
+
+        // Simpan catatan evaluasi supervisi mutasi piket ke complaint_audit_logs secara aman
+        await prisma.complaintAuditLog.create({
+          data: {
+            complaint_id: BigInt(result.id || 0),
+            actor_name: 'Auditor AI Gemini 3.1 Flash Lite',
+            actor_role: 'SYSTEM',
+            action: 'EVALUASI_5W1H_CAD',
+            notes: JSON.stringify({
+              skorMutu: evalResult.score,
+              pokokPeristiwa: evalResult.hasWhat,
+              pihakTerlibat: evalResult.hasWho,
+              kejelasanLokasi: evalResult.hasWhere,
+              keteranganWaktu: evalResult.hasWhen,
+              dugaanPenyebab: evalResult.hasWhy,
+              situasiTerkini: evalResult.hasHow,
+              kesesuaianSubkasus: evalResult.isSubcategoryAligned,
+              catatanEvaluasiKedinasan: evalResult.internalEvaluationNotes,
+            }),
+          },
+        });
+      } catch (err: any) {
+        console.error('[AI CAD Audit Background Error]:', err?.message || err);
+      }
+    })().catch(() => {});
+
     return { success: true, data: { ...serialized, trackingToken: token } };
   } catch (error: any) {
     return { success: false, error: error.message || 'Gagal membuat pengaduan.' };
