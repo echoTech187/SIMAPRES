@@ -2,6 +2,14 @@
  * SIMAPRES 110 - Jurisdiction Boundary & E-Routing Resolver
  * Deteksi dinamis batas yurisdiksi kepolisian antar-Polres/Polsek
  * Menghindari hardcoded static rules & mendukung ekspansi multi-wilayah.
+ *
+ * [LOCKED / ATURAN PERMANEN]:
+ * Implementasi modul ini SUDAH FINAL dan DILARANG KERAS DIUBAH oleh agen manapun.
+ * 1. Single Source of Truth: Murni data tabel database `police_stations`.
+ * 2. Prioritas 1: Geospasial Haversine jarak terdekat (tkpLat, tkpLng) ke (officeLat, officeLng).
+ * 3. Prioritas 2: Fallback pencocokan teks dinamis dari data address & stationName di DB.
+ * 4. Tahap 3: Validasi yurisdiksi (targetStation.id === activeStation.id).
+ * DILARANG menambah hardcoded string wilayah atau batas koordinat manual.
  */
 
 export interface StationReference {
@@ -94,159 +102,177 @@ export function evaluateJurisdictionBoundary(params: {
     activeStation?.stationName || activeStation?.station_name || activeStation?.name || currentStationName || 'Mako Tidak Terdaftar';
 
   // Jika stasiun aktif tidak ada di master database, hentikan evaluasi (dalam wilayah default)
-  if (!activeStation) {
+  if (!activeStation || stations.length === 0) {
     return {
       isOutsideJurisdiction: false,
-      detectedRegionName: 'Dalam Wilayah',
+      detectedRegionName: activeStationName,
       currentStationName: activeStationName,
       targetStation: null,
       reason: 'Stasiun aktif tidak terdaftar dalam pangkalan data.',
     };
   }
 
-  const text = (tkpAlamat || '').toLowerCase();
-
-  // 1. Deteksi Tekstual Administratif Wilayah
-  let detectedTargetCode: string | null = null;
-  let detectedRegion: string = '';
-
-  if (
-    text.includes('batang') ||
-    text.includes('warungasem') ||
-    text.includes('gringsing') ||
-    text.includes('subah') ||
-    text.includes('limpung') ||
-    text.includes('bandar batang') ||
-    text.includes('banyuputih') ||
-    text.includes('tulis batang')
-  ) {
-    detectedTargetCode = 'POLRESTA_BATANG';
-    detectedRegion = 'Kabupaten Batang';
-  } else if (
-    text.includes('kota pekalongan') ||
-    text.includes('pekalongan barat') ||
-    text.includes('pekalongan timur') ||
-    text.includes('pekalongan utara') ||
-    text.includes('pekalongan selatan') ||
-    text.includes('krapyak') ||
-    text.includes('bendan') ||
-    text.includes('panjang wetan') ||
-    text.includes('medono')
-  ) {
-    detectedTargetCode = 'POLRES_PEKALONGAN_KOTA';
-    detectedRegion = 'Kota Pekalongan';
-  } else if (
-    text.includes('pemalang') ||
-    text.includes('comal') ||
-    text.includes('petarukan') ||
-    text.includes('ulujami')
-  ) {
-    detectedTargetCode = 'POLRES_PEMALANG';
-    detectedRegion = 'Kabupaten Pemalang';
-  } else if (
-    text.includes('kajen') ||
-    text.includes('kedungwuni') ||
-    text.includes('wiradesa') ||
-    text.includes('doro') ||
-    text.includes('karanganyar') ||
-    text.includes('wonopringgo') ||
-    text.includes('paninggaran') ||
-    text.includes('talun') ||
-    text.includes('bojong') ||
-    text.includes('sragi') ||
-    text.includes('kandangserang') ||
-    text.includes('buaran') ||
-    text.includes('tirto') ||
-    text.includes('kabupaten pekalongan') ||
-    text.includes('kab. pekalongan')
-  ) {
-    detectedTargetCode = 'POLRES-PEKALONGAN';
-    detectedRegion = 'Kabupaten Pekalongan';
-  }
-
-  // 2. Deteksi Koordinat GPS (Jika alamat tidak eksplisit atau konfirmasi jarak)
   const validLat = typeof tkpLat === 'number' && !isNaN(tkpLat) && tkpLat !== 0;
   const validLng = typeof tkpLng === 'number' && !isNaN(tkpLng) && tkpLng !== 0;
 
-  if (validLat && validLng) {
-    // Wilayah Batang (Pantura Timur Pekalongan: lng > 109.705)
-    if (tkpLng > 109.715 && !detectedTargetCode) {
-      detectedTargetCode = 'POLRESTA_BATANG';
-      detectedRegion = 'Kabupaten Batang (Perbatasan Timur)';
-    }
-    // Wilayah Kota Pekalongan Utara/Pusat (sekitar -6.88, 109.67)
-    else if (tkpLat > -6.905 && tkpLng > 109.655 && tkpLng < 109.710 && !detectedTargetCode) {
-      detectedTargetCode = 'POLRES_PEKALONGAN_KOTA';
-      detectedRegion = 'Kota Pekalongan';
-    }
-    // Wilayah Pemalang Barat (lng < 109.520)
-    else if (tkpLng < 109.520 && !detectedTargetCode) {
-      detectedTargetCode = 'POLRES_PEMALANG';
-      detectedRegion = 'Kabupaten Pemalang (Perbatasan Barat)';
-    }
-    // Wilayah Kabupaten Pekalongan (Kajen dan sekitarnya: lat < -6.95)
-    else if (tkpLat < -6.95 && !detectedTargetCode) {
-      detectedTargetCode = 'POLRES-PEKALONGAN';
-      detectedRegion = 'Kabupaten Pekalongan';
-    }
-  }
-
-  // 3. Tentukan Target Station
   let targetStation: StationReference | null = null;
-  if (detectedTargetCode) {
-    const rawTarget =
-      stations.find((s: any) => (s.stationCode || s.station_code || s.code) === detectedTargetCode) ||
-      null;
-    if (rawTarget) {
+  let distanceKmToTarget: number | undefined;
+
+  // =========================================================================
+  // PRIORITAS 1: Murni Geospasial Haversine Jarak Terdekat ke Stasiun di Database
+  // =========================================================================
+  if (validLat && validLng) {
+    let minDistance = Infinity;
+    let closest: any = null;
+
+    for (const st of stations) {
+      const sLat = Number(st.officeLat ?? st.office_lat ?? st.lat);
+      const sLng = Number(st.officeLng ?? st.office_lng ?? st.lng);
+      if (sLat && sLng && !isNaN(sLat) && !isNaN(sLng) && sLat !== 0) {
+        const d = calculateHaversineDistanceKm(tkpLat, tkpLng, sLat, sLng);
+        if (d < minDistance) {
+          minDistance = d;
+          closest = st;
+        }
+      }
+    }
+
+    if (closest) {
       targetStation = {
-        id: rawTarget.id,
-        stationCode: rawTarget.stationCode || rawTarget.station_code || rawTarget.code,
-        stationName: rawTarget.stationName || rawTarget.station_name || rawTarget.name,
-        stationLevel: rawTarget.stationLevel || rawTarget.station_level || rawTarget.type,
-        address: rawTarget.address,
-        officeLat: rawTarget.officeLat ?? rawTarget.office_lat ?? rawTarget.lat,
-        officeLng: rawTarget.officeLng ?? rawTarget.office_lng ?? rawTarget.lng,
-        phoneHotline: rawTarget.phoneHotline || rawTarget.phone_piket || rawTarget.phone_kapolsek,
+        id: closest.id,
+        stationCode: closest.stationCode || closest.station_code || closest.code,
+        stationName: closest.stationName || closest.station_name || closest.name,
+        stationLevel: closest.stationLevel || closest.station_level || closest.type,
+        address: closest.address,
+        officeLat: closest.officeLat ?? closest.office_lat ?? closest.lat,
+        officeLng: closest.officeLng ?? closest.office_lng ?? closest.lng,
+        phoneHotline: closest.phoneHotline || closest.phone_piket || closest.phone_kapolsek,
       };
+      distanceKmToTarget = minDistance;
     }
   }
 
-  // Jika target station sama dengan mako aktif, berarti masih dalam yurisdiksi sendiri
+  // =========================================================================
+  // PRIORITAS 2: Fallback Tekstual Jika Koordinat GPS Kosong
+  // Mengekstraksi kata kunci wilayah dari record stasiun di database
+  // (misal: "Kabupaten Pekalongan", "Kota Pekalongan", "Kajen", "Batang")
+  // =========================================================================
+  let detectedRegionText: string | null = null;
+
+  if (!targetStation && tkpAlamat) {
+    const text = tkpAlamat.toLowerCase();
+
+    // Buat daftar kandidat pencocokan dari seluruh stasiun yang terdaftar di database
+    // tanpa hardcode statis: mengekstrak komponen wilayah dari address, stationName, atau stationCode
+    const candidates: { station: any; keyword: string; regionName: string }[] = [];
+
+    for (const st of stations) {
+      const sName = (st.stationName || st.station_name || st.name || '').trim();
+      const sAddr = (st.address || '').trim();
+
+      // Ekstrak nama wilayah dari address (biasanya terpisah koma: "..., Kajen, Kab. Pekalongan" atau "..., Batang")
+      const addrParts = sAddr.split(',').map((p: string) => p.trim()).filter(Boolean);
+
+      for (const part of addrParts) {
+        if (part.length >= 3) {
+          const lowerPart = part.toLowerCase();
+          // Jika mengandung "kab." atau "kabupaten", jadikan display name "Kabupaten ..."
+          let regionDisplay = part;
+          if (lowerPart.startsWith('kab. ') || lowerPart.startsWith('kab ')) {
+            regionDisplay = part.replace(/^kab\.?\s+/i, 'Kabupaten ');
+          } else if (!lowerPart.startsWith('kota') && !lowerPart.startsWith('kabupaten') && !lowerPart.startsWith('jl')) {
+            // Jika bukan jalan atau kota, jadikan default Kabupaten jika stasiun bukan berlevel kota
+            const isKotaStation = sName.toLowerCase().includes('kota');
+            regionDisplay = isKotaStation ? `Kota ${part}` : `Kabupaten ${part}`;
+          }
+
+          candidates.push({
+            station: st,
+            keyword: lowerPart,
+            regionName: regionDisplay,
+          });
+
+          // Tambahkan juga varian tanpa singkatan "kab." atau "kota"
+          const cleanPart = lowerPart.replace(/^(kab\.?|kabupaten|kota)\s+/i, '').trim();
+          if (cleanPart.length >= 3 && cleanPart !== lowerPart) {
+            candidates.push({
+              station: st,
+              keyword: cleanPart,
+              regionName: regionDisplay,
+            });
+          }
+        }
+      }
+
+      // Tambahkan nama stasiun tanpa prefix kepolisian ("Polres", "Polresta", "Polsek")
+      const strippedStationName = sName.replace(/^(polres(ta)?|polsek)\s+/i, '').trim();
+      if (strippedStationName.length >= 3) {
+        const lowerStrip = strippedStationName.toLowerCase();
+        let regionDisplay = strippedStationName;
+        // Jika stasiun kabupaten (misal "Pekalongan" di Polres Pekalongan)
+        if (!lowerStrip.startsWith('kota') && !lowerStrip.startsWith('kabupaten')) {
+          regionDisplay = `Kabupaten ${strippedStationName}`;
+        }
+        candidates.push({
+          station: st,
+          keyword: lowerStrip,
+          regionName: regionDisplay,
+        });
+      }
+    }
+
+    // Urutkan kandidat dari keyword terpanjang ke terpendek agar token lebih spesifik dicocokkan duluan
+    // Contoh: "kota pekalongan" (15 char) dicocokkan sebelum "pekalongan" (10 char)
+    candidates.sort((a, b) => b.keyword.length - a.keyword.length);
+
+    for (const cand of candidates) {
+      if (text.includes(cand.keyword)) {
+        targetStation = {
+          id: cand.station.id,
+          stationCode: cand.station.stationCode || cand.station.station_code || cand.station.code,
+          stationName: cand.station.stationName || cand.station.station_name || cand.station.name,
+          stationLevel: cand.station.stationLevel || cand.station.station_level || cand.station.type,
+          address: cand.station.address,
+          officeLat: cand.station.officeLat ?? cand.station.office_lat ?? cand.station.lat,
+          officeLng: cand.station.officeLng ?? cand.station.office_lng ?? cand.station.lng,
+          phoneHotline: cand.station.phoneHotline || cand.station.phone_piket || cand.station.phone_kapolsek,
+        };
+        detectedRegionText = cand.regionName;
+        break;
+      }
+    }
+  }
+
+  // =========================================================================
+  // TAHAP 3: Komparasi Murni ID Stasiun (Database vs Operator Aktif)
+  // =========================================================================
+  const regionLabel = detectedRegionText || targetStation?.stationName || activeStationName;
+
   if (targetStation && targetStation.id === activeStation.id) {
     return {
       isOutsideJurisdiction: false,
-      detectedRegionName: detectedRegion,
+      detectedRegionName: regionLabel,
       currentStationName: activeStationName,
       targetStation: null,
       reason: 'Lokasi TKP berada dalam wilayah hukum mako aktif.',
     };
   }
 
-  // Jika terdeteksi di luar wilayah stasiun saat ini
-  if (targetStation) {
-    let distanceKm: number | undefined;
-    if (validLat && validLng && targetStation.officeLat && targetStation.officeLng) {
-      distanceKm = calculateHaversineDistanceKm(
-        tkpLat!,
-        tkpLng!,
-        Number(targetStation.officeLat),
-        Number(targetStation.officeLng)
-      );
-    }
-
+  if (targetStation && targetStation.id !== activeStation.id) {
+    const targetName = targetStation.stationName || 'Mako Tetangga';
     return {
       isOutsideJurisdiction: true,
-      detectedRegionName: detectedRegion,
+      detectedRegionName: regionLabel,
       currentStationName: activeStationName,
       targetStation,
-      distanceKmToTarget: distanceKm,
-      reason: `Titik TKP terdeteksi di wilayah ${detectedRegion}. Disarankan untuk melakukan E-Routing / Disposisi Lintas Wilayah ke ${targetStation.stationName} agar penanganan lebih cepat.`,
+      distanceKmToTarget,
+      reason: `Titik TKP terdeteksi di yurisdiksi ${targetName}. Laporan akan dialihkan ke Mako tetangga melalui koordinasi lintas wilayah tanpa penugasan ke armada lokal.`,
     };
   }
 
   return {
     isOutsideJurisdiction: false,
-    detectedRegionName: detectedRegion,
+    detectedRegionName: activeStationName,
     currentStationName: activeStationName,
     targetStation: null,
     reason: 'Lokasi TKP dalam yurisdiksi normal.',

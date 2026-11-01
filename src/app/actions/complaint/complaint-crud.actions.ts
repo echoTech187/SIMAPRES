@@ -181,8 +181,8 @@ export async function createComplaintAndBroadcastAction(input: CreateComplaintAc
       tkpLat: Number(input.tkpLat),
       tkpLng: Number(input.tkpLng),
       tkpAlamat: input.tkpAlamatTeks,
-      currentStationId: homeStation?.id || 60001,
-      currentStationName: homeStation?.station_name || 'Polres Pekalongan',
+      currentStationId: homeStation?.id,
+      currentStationName: homeStation?.station_name,
       stations: allStations.map((st: any) => ({
         id: st.id,
         stationCode: st.station_code,
