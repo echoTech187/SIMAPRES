@@ -204,14 +204,12 @@ export default function TabBerandaPersonil({
     officerProp: OfficerProfile,
     partnerNameStr?: string | null
   ): CrewMember[] => {
-    const leaderName =
-      officerProp?.fullName ??
-      officerProp?.name
+    const leaderName = officerProp?.fullName ?? null
 
-    const leaderRank = officerProp?.pangkat ?? null;
-    const leaderNrp = officerProp?.nrp ?? null;
-    const leaderSatuan = officerProp?.satuan ?? null;
-    const leaderAvatar = officerProp?.avatar ?? null;
+    const leaderRank = officerProp?.pangkat || '';
+    const leaderNrp = officerProp?.nrp || '';
+    const leaderSatuan = officerProp?.satuan || 'Satuan Samapta Presisi';
+    const leaderAvatar = officerProp?.avatar || null;
 
     const hasRankInLeader =
       leaderRank &&
@@ -242,9 +240,9 @@ export default function TabBerandaPersonil({
       const partnerList = rawPartners.includes('|')
         ? rawPartners.split('|').map((s: string) => s.trim()).filter(Boolean)
         : rawPartners
-            .split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i)
-            .map((s: string) => s.trim())
-            .filter(Boolean);
+          .split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i)
+          .map((s: string) => s.trim())
+          .filter(Boolean);
 
       const partnerThemes = [
         { bg: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)', text: '#FFFFFF', border: '#38BDF8' },
@@ -358,9 +356,9 @@ export default function TabBerandaPersonil({
       const partnerList = rawPartners.includes('|')
         ? rawPartners.split('|').map((s: string) => s.trim()).filter(Boolean)
         : rawPartners
-            .split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i)
-            .map((s: string) => s.trim())
-            .filter(Boolean);
+          .split(/,\s*(?!(?:S\.H\.|S\.I\.K\.|S\.E\.|S\.Sos\.|S\.Kom\.|M\.Si\.|M\.H\.|M\.M\.|dr\.|drg\.|S\.T\.|S\.Pd\.|S\.IP|M\.Tr\.Opsla))/i)
+          .map((s: string) => s.trim())
+          .filter(Boolean);
 
       const partnerThemes = [
         { bg: 'linear-gradient(135deg, #38BDF8 0%, #0284C7 100%)', text: '#FFFFFF', border: '#38BDF8' }, // Sky Blue
@@ -557,9 +555,8 @@ export default function TabBerandaPersonil({
                           </span>
                           <ChevronDown
                             size={12}
-                            className={`text-slate-400 group-hover:text-amber-300 transition-transform duration-200 ${
-                              isCompCrewExpanded ? 'rotate-180 text-amber-400' : ''
-                            }`}
+                            className={`text-slate-400 group-hover:text-amber-300 transition-transform duration-200 ${isCompCrewExpanded ? 'rotate-180 text-amber-400' : ''
+                              }`}
                           />
                         </div>
                       </button>
@@ -621,11 +618,10 @@ export default function TabBerandaPersonil({
                                 </div>
                               </div>
                               <span
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${
-                                  m.role === 'PENGAJU'
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border shrink-0 ${m.role === 'PENGAJU'
                                     ? 'bg-amber-500/10 text-amber-300 border-amber-500/30'
                                     : 'bg-sky-500/10 text-sky-300 border-sky-500/30'
-                                }`}
+                                  }`}
                               >
                                 {m.roleLabel}
                               </span>
@@ -718,10 +714,10 @@ export default function TabBerandaPersonil({
                   border: isApproved
                     ? '1.5px solid #0284C7'
                     : isAudit
-                    ? '1.5px solid #EF4444'
-                    : isRejected
-                    ? '1.5px solid #64748B'
-                    : '1.5px solid #F59E0B',
+                      ? '1.5px solid #EF4444'
+                      : isRejected
+                        ? '1.5px solid #64748B'
+                        : '1.5px solid #F59E0B',
                   boxShadow: isApproved
                     ? '0 12px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(2, 132, 199, 0.25)'
                     : '0 12px 35px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.15)',
@@ -833,9 +829,8 @@ export default function TabBerandaPersonil({
                             </span>
                             <ChevronDown
                               size={12}
-                              className={`text-slate-400 group-hover:text-sky-300 transition-transform duration-200 ${
-                                isCrewExpanded ? 'rotate-180 text-sky-400' : ''
-                              }`}
+                              className={`text-slate-400 group-hover:text-sky-300 transition-transform duration-200 ${isCrewExpanded ? 'rotate-180 text-sky-400' : ''
+                                }`}
                             />
                           </div>
                         </button>
@@ -898,11 +893,10 @@ export default function TabBerandaPersonil({
                                 </div>
 
                                 <span
-                                  className={`text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 border ${
-                                    m.role === 'PENGAJU'
+                                  className={`text-[9.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 border ${m.role === 'PENGAJU'
                                       ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                                       : 'bg-sky-500/15 text-sky-300 border-sky-500/30'
-                                  }`}
+                                    }`}
                                 >
                                   {m.role === 'PENGAJU' ? 'Pengaju / PJ' : 'Rekan Regu'}
                                 </span>
@@ -1165,11 +1159,10 @@ export default function TabBerandaPersonil({
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Status Presensi :</span>
-                <span className={`font-black px-2 py-0.5 rounded border text-[11px] ${
-                  (piketSchedule?.statusPresensi || officer.dutyStatus) !== 'LEPAS_DINAS'
+                <span className={`font-black px-2 py-0.5 rounded border text-[11px] ${(piketSchedule?.statusPresensi || officer.dutyStatus) !== 'LEPAS_DINAS'
                     ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                     : 'text-amber-400 bg-amber-500/10 border-amber-500/20'
-                }`}>
+                  }`}>
                   {(piketSchedule?.statusPresensi || officer.dutyStatus) !== 'LEPAS_DINAS'
                     ? '✓ HADIR DINAS SIAGA'
                     : '• LEPAS DINAS / CADANGAN'}
