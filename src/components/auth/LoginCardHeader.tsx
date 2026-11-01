@@ -23,10 +23,6 @@ export default function LoginCardHeader({ greeting }: LoginCardHeaderProps) {
               <span className="text-slate-600">·</span>
               <span>PRESISI</span>
             </div>
-            <span className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/25 px-2.5 py-0.5 rounded-full whitespace-nowrap shadow-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              End-to-End Encryption Active
-            </span>
           </div>
           <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
             {greeting}, Rekan Petugas

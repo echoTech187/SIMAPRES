@@ -632,9 +632,9 @@ export async function acceptAndBroadcastCrossJurisdictionAction(input: {
       return { success: false, error: 'ID Mako tujuan tidak valid.' };
     }
 
-    const targetStationName = comp.station?.station_name || auth.user.stationName || 'Mako Tujuan';
-    const actorName = input.actorName || auth.user.fullName || 'Operator SPKT';
-    const actorRole = input.actorRole || auth.user.role || 'OPERATOR';
+    const targetStationName = comp.station?.station_name || auth.user.stationName;
+    const actorName = input.actorName || auth.user.fullName;
+    const actorRole = input.actorRole || auth.user.role;
 
     // Ambil data piket hari ini di Mako tujuan
     const dutyDetails = await getActiveSpktDutyDetails(targetStationId);
@@ -817,7 +817,7 @@ export async function addCrewPartnerToDispatchAction(input: {
       data: {
         complaint_id: complaintIdBig,
         actor_name: leaderName,
-        actor_role: 'PERSONIL',
+        actor_role: auth.user.role,
         action: 'ADD_CREW_PARTNER',
         notes: `Penambahan Anggota Regu Lapangan (${partnerNames.length} Personel): ${cleanPartnerName}${cleanPartnerNrp ? ` (NRP: ${cleanPartnerNrp})` : ''} resmi ditambahkan ke regu patroli oleh ${leaderName}.`,
       },
