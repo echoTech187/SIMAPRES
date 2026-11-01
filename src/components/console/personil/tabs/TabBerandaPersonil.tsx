@@ -23,6 +23,8 @@ import { toast } from '@/components/ui/Toast';
 import { getTaskQuotaInfo, hasOfficerAcceptedTask, getOfficerInitials } from '../types';
 import type { ComplaintData, OfficerProfile, PersonilTab } from '../types';
 
+enum CrewMemberRole { PENGAJU = 'PENGAJU', REKAN = 'REKAN' };
+
 interface TabBerandaPersonilProps {
   officer: OfficerProfile;
   complaints: ComplaintData[];
@@ -182,14 +184,14 @@ export default function TabBerandaPersonil({
 
     return { route, time, vehicle, partners, plan: plan || desc, pawasNote };
   };
-
+  
   // Helper parsing seluruh personil giat (Pengaju + Rekan Regu) untuk Stacked Avatar
   interface CrewMember {
     id: string;
     name: string;
     nrp?: string;
     satuan?: string;
-    role: 'PENGAJU' | 'REKAN';
+    role: CrewMemberRole;
     roleLabel: string;
     initials: string;
     avatarUrl?: string | null;
@@ -204,12 +206,13 @@ export default function TabBerandaPersonil({
     officerProp: OfficerProfile,
     partnerNameStr?: string | null
   ): CrewMember[] => {
-    const leaderName = officerProp?.fullName ?? null
+    const leaderName =
+      officerProp?.fullName ?? null;
 
-    const leaderRank = officerProp?.pangkat || '';
-    const leaderNrp = officerProp?.nrp || '';
-    const leaderSatuan = officerProp?.satuan || 'Satuan Samapta Presisi';
-    const leaderAvatar = officerProp?.avatar || null;
+    const leaderRank = officerProp?.pangkat ?? null;
+    const leaderNrp = officerProp?.nrp ?? null;
+    const leaderSatuan = officerProp?.satuan ?? null;
+    const leaderAvatar = officerProp?.avatar ?? null;
 
     const hasRankInLeader =
       leaderRank &&
@@ -224,8 +227,8 @@ export default function TabBerandaPersonil({
       name: leaderFullName,
       nrp: leaderNrp,
       satuan: leaderSatuan,
-      role: 'PENGAJU',
-      roleLabel: 'Petugas Utama (Penerima Tugas)',
+      role: CrewMemberRole.PENGAJU,
+      roleLabel: CrewMemberRole.PENGAJU,
       initials: getOfficerInitials(leaderFullName),
       avatarUrl: leaderAvatar,
       bgGradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
@@ -268,8 +271,8 @@ export default function TabBerandaPersonil({
             name: cleanName,
             nrp: nrp,
             satuan: leaderSatuan,
-            role: 'REKAN',
-            roleLabel: 'Rekan Regu Respon',
+            role: CrewMemberRole.REKAN,
+            roleLabel: CrewMemberRole.REKAN,
             initials: getOfficerInitials(cleanName),
             avatarUrl: null,
             bgGradient: theme.bg,
@@ -329,12 +332,12 @@ export default function TabBerandaPersonil({
         : submitterRawName;
 
     const submitter: CrewMember = {
-      id: `submitter-${giat.id || 'current'}`,
+      id: `submitter-${giat.id}`,
       name: submitterFullName,
       nrp: submitterNrp,
       satuan: submitterSatuan,
-      role: 'PENGAJU',
-      roleLabel: 'Pengaju / PJ Giat',
+      role: CrewMemberRole.PENGAJU,
+      roleLabel: CrewMemberRole.PENGAJU,
       initials: getOfficerInitials(submitterFullName),
       avatarUrl: submitterAvatar,
       bgGradient: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
@@ -385,8 +388,8 @@ export default function TabBerandaPersonil({
             name: cleanName,
             nrp: nrp,
             satuan: submitterSatuan,
-            role: 'REKAN',
-            roleLabel: 'Rekan Regu',
+            role: CrewMemberRole.REKAN,
+            roleLabel: CrewMemberRole.REKAN,
             initials: getOfficerInitials(cleanName),
             avatarUrl: null,
             bgGradient: theme.bg,
