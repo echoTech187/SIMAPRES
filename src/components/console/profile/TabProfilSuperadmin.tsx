@@ -628,7 +628,7 @@ export default function TabProfilSuperadmin({
               </label>
               <input
                 type="text"
-                value={makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'Polres Metro Jakarta Selatan'}
+                value={makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'Polres Pekalongan'}
                 disabled
                 style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: '8px', background: '#F8FAFC', color: '#64748B', fontSize: '13px', boxSizing: 'border-box' }}
               />
@@ -989,7 +989,7 @@ export default function TabProfilSuperadmin({
               </div>
               <div style={{ fontSize: '13px', fontWeight: 700, color: '#1E293B' }}>{c.jenisKejadian}</div>
               <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
-                <span>📍 {c.tkpAlamatTeks || 'TKP Patroli Wilayah Metro'}</span>
+                <span>📍 {c.tkpAlamatTeks || 'TKP Wilayah Hukum Polres Pekalongan'}</span>
                 <span style={{ fontFamily: 'monospace' }}>
                   {c.createdAt ? new Date(c.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
                 </span>
@@ -1245,7 +1245,7 @@ export default function TabProfilSuperadmin({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '16px' }}>🛡️</span>
                 <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.8px', color: '#FDE68A' }}>
-                  {makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'POLRES METRO JAKARTA SELATAN'}
+                  {makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'POLRES PEKALONGAN'}
                 </span>
               </div>
               <span
@@ -1569,7 +1569,7 @@ export default function TabProfilSuperadmin({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px' }}>
                       <span style={{ color: '#64748B', whiteSpace: 'nowrap' }}>Radius Mako:</span>
                       <span style={{ fontWeight: 800, color: '#153E75', textAlign: 'right' }}>
-                        📍 {makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'Polres Metro Jakarta Selatan'}
+                        📍 {makoTitle || currentUser?.stationName || currentUser?.satuanNama || currentUser?.unit || 'Polres Pekalongan'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

@@ -1552,7 +1552,7 @@ export const TabValidasiDossier: React.FC<TabValidasiDossierProps> = ({
               <div style={{ fontSize: '12px', color: '#334155', lineHeight: 1.55 }}>
                 <div>• <strong>Satuan Bertugas:</strong> {activeComplaint.assignedOfficer?.assignedPatrolVehicle || 'Patroli Samapta Presisi (Unit Roda 4)'}</div>
                 <div>• <strong>Pimpinan Regu:</strong> {activeComplaint.assignedOfficer ? `${formatOfficerName(activeComplaint.assignedOfficer.rankPangkat, activeComplaint.assignedOfficer.namaLengkap)} (NRP: ${activeComplaint.assignedOfficer.nrp || '-'})` : 'Menunggu Disposisi Pawas'}</div>
-                <div>• <strong>Posisi Awal Armada:</strong> <span style={{ color: '#475569' }}>{activeComplaint.assignedOfficer?.jabatan || 'Polres Metro Jaksel / Posko Presisi'}</span></div>
+                <div>• <strong>Posisi Awal Armada:</strong> <span style={{ color: '#475569' }}>{activeComplaint.assignedOfficer?.jabatan || 'Mako Polres Pekalongan / Posko Presisi'}</span></div>
                 <div>• <strong>Waktu Disposisi:</strong> {activeComplaint.disposisiAt ? formatTimeWib(activeComplaint.disposisiAt) : 'Dalam Antrean'}</div>
                 <div style={{ marginTop: '4px', background: 'white', borderLeft: '3px solid #3B82F6', padding: '6px 8px', borderRadius: '0 6px 6px 0', fontSize: '11.5px', fontStyle: 'italic' }}>
                   &quot;{activeComplaint.timelines?.find((t: PawasTimelineStep) => t.tahapKe === 2 || t.tahapKe === 1)?.catatan || 'Datangi TKP dengan sirine biru, amankan perimeter, prioritaskan perlindungan warga dan amankan barang bukti.'}&quot;

@@ -129,7 +129,7 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
                 type="text"
                 required
                 className="master-form-input"
-                placeholder="Contoh: Polsek Metro Kebayoran Baru"
+                placeholder="Contoh: Polsek Kajen"
                 value={formData.station_name}
                 onChange={(e) => handleStationNameChange(e.target.value)}
               />
@@ -139,7 +139,7 @@ export default function TabStation({ lookups, showToast, onRefreshDropdowns }: M
               value={formData.station_code}
               onChange={(val) => setFormData((prev: any) => ({ ...prev, station_code: val }))}
               sourceValue={formData.station_name || ''}
-              placeholder="Contoh: POLSEK_KBY_BARU"
+              placeholder="Contoh: POLSEK_KAJEN"
               helpText="Otomatis terisi saat mengetik nama mako, atau klik Generate Otomatis"
             />
             <div className="master-form-grid-2">

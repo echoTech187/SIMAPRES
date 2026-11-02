@@ -256,7 +256,7 @@ function CommandCenterContent(props: {
         subtitle="Konsol Operasional Terpadu – Pengawas & Komando"
         onBrandClick={() => switchTab('view-beranda')}
         profile={{
-          name: userProfile.fullName || 'AKBP Bambang Wijaya, S.I.K., M.Si.',
+          name: userProfile.fullName || 'AKBP Doni Prakoso, S.I.K.',
           identifier: userProfile.identifier || userProfile.nrp || '78091122',
           role: userProfile.roleBadge ? userProfile.roleBadge : 'PAWAS',
           avatar: userProfile.avatar || null,

@@ -133,7 +133,7 @@ export default function LogistikConsoleView({
               className="md:flex"
             >
               <Building2 size={13} color="#F59E0B" />
-              <span>{session.satuanNama || 'Polres Metro'}</span>
+              <span>{session.satuanNama || 'Polres Pekalongan'}</span>
             </div>
 
             {/* Profile Badge */}

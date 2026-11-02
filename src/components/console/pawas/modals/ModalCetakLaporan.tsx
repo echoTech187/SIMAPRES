@@ -102,13 +102,13 @@ export default function ModalCetakLaporan({
                 KEPOLISIAN NEGARA REPUBLIK INDONESIA
               </div>
               <div style={{ fontSize: '12.5pt', fontWeight: 'bold', letterSpacing: '1px' }}>
-                DAERAH METRO JAYA
+                DAERAH JAWA TENGAH
               </div>
               <div style={{ fontSize: '13.5pt', fontWeight: 'bold', letterSpacing: '1.5px' }}>
-                RESOR METRO JAKARTA SELATAN
+                RESOR PEKALONGAN
               </div>
               <div style={{ fontSize: '9.5pt', fontStyle: 'italic', marginTop: '3px' }}>
-                Jalan Wijaya II No. 42, Kebayoran Baru, Jakarta Selatan • Telp: (021) 7201110
+                Jl. Rinjani No. 1, Tanjungsari, Kajen, Kabupaten Pekalongan • Telp: 08112345110 / Call Center 110
               </div>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function ModalCetakLaporan({
               LAPORAN HASIL PELAKSANAAN TUGAS PERWIRA PENGAWAS (PAWAS)
             </div>
             <div style={{ fontSize: '11pt', fontWeight: 'bold', marginTop: '3px' }}>
-              Nomor: LAP-PAWAS / {new Date().getMonth() + 1} / {new Date().getFullYear()} / SPKT-METRO
+              Nomor: LAP-PAWAS / {new Date().getMonth() + 1} / {new Date().getFullYear()} / SPKT-PKL
             </div>
             <div style={{ fontSize: '10pt', fontStyle: 'italic', marginTop: '3px' }}>
               Masa Dinas Piket: {new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -271,13 +271,13 @@ export default function ModalCetakLaporan({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '30px', flexWrap: 'wrap', gap: '20px' }}>
             <div style={{ fontSize: '10.5pt' }}>
               <strong>Tembusan Yth:</strong><br />
-              1. Kapolres Metro Jakarta Selatan<br />
-              2. Wakapolres Metro Jakarta Selatan<br />
-              3. Kabag Ops Polres Metro Jakarta Selatan<br />
-              4. Kasi Propam Polres Metro Jakarta Selatan
+              1. Kapolres Pekalongan<br />
+              2. Wakapolres Pekalongan<br />
+              3. Kabag Ops Polres Pekalongan<br />
+              4. Kasi Propam Polres Pekalongan
             </div>
             <div style={{ textAlign: 'center', minWidth: '240px' }}>
-              <div>Jakarta, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+              <div>Kajen, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
               <div style={{ fontWeight: 'bold', marginTop: '2px' }}>PERWIRA PENGAWAS (PAWAS),</div>
               <div style={{ height: '60px' }} />
               <div style={{ fontWeight: 'bold', textDecoration: 'underline' }}>{userProfile.fullName}</div>

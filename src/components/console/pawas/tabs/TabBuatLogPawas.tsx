@@ -81,7 +81,7 @@ export default function TabBuatLogPawas({
           <input
             type="text"
             className="form-control"
-            placeholder="Sektor Patroli (contoh: Wilayah Kebayoran Baru / Sektor Blok M)"
+            placeholder="Sektor Patroli (contoh: Sektor Kajen / Wilayah Alun-Alun Kajen)"
             value={logSektor}
             onChange={(e) => setLogSektor(e.target.value)}
           />

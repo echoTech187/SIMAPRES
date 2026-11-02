@@ -452,8 +452,8 @@ model MasterDispatchMode {
 
 model PoliceStation {
   id                     Int                 @id @default(autoincrement())
-  station_code           String              @unique @db.VarChar(30)   // "POLRES-JAKSEL", "POLSEK-KBY-BARU"
-  station_name           String              @db.VarChar(100)          // "Polres Metro Jakarta Selatan"
+  station_code           String              @unique @db.VarChar(30)   // "POLRES-PEKALONGAN", "POLSEK_KAJEN"
+  station_name           String              @db.VarChar(100)          // "Polres Pekalongan"
   
   station_level_id       Int?
   station_level_rel      MasterStationLevel? @relation(fields: [station_level_id], references: [id], onDelete: SetNull)

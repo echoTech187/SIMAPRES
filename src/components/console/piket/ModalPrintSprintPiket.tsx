@@ -18,7 +18,7 @@ export default function ModalPrintSprintPiket({
 }: ModalPrintSprintPiketProps) {
   if (!isOpen || !schedule) return null;
 
-  const stationName = (schedule.station?.station_name || 'POLRES METRO JAKARTA SELATAN').toUpperCase();
+  const stationName = (schedule.station?.station_name || 'POLRES PEKALONGAN').toUpperCase();
   const stationLevel = (schedule.station?.station_level || 'POLRES').toUpperCase();
   const sprintNumber = schedule.sprint_number || 'Sprin/128/X/HUK.6.6./2026';
   
@@ -202,13 +202,13 @@ export default function ModalPrintSprintPiket({
               KEPOLISIAN NEGARA REPUBLIK INDONESIA
             </div>
             <div style={{ fontSize: '11pt', fontWeight: 'bold' }}>
-              DAERAH KHUSUS IBUKOTA JAKARTA
+              DAERAH JAWA TENGAH
             </div>
             <div style={{ fontSize: '11pt', fontWeight: 'bold' }}>
               {stationName}
             </div>
             <div style={{ fontSize: '9pt', color: '#333' }}>
-              {schedule.station?.address || 'Jl. Wijaya II No.42, Kebayoran Baru, Jakarta Selatan'} - Telp. Piket: {schedule.station?.phone_piket || '110 / (021) 7206012'}
+              {schedule.station?.address} - Telp. Piket: {schedule.station?.phone_piket}
             </div>
           </div>
 
@@ -260,7 +260,7 @@ export default function ModalPrintSprintPiket({
                 <tr style={{ fontWeight: 'bold' }}>
                   <td style={{ border: '1px solid #000', padding: '4px 6px', textAlign: 'center' }}>1</td>
                   <td style={{ border: '1px solid #000', padding: '4px 6px' }}>
-                    {pawas.user?.full_name || 'Kompol Agus Wijaya, S.I.K.'}
+                    {pawas.user?.full_name || 'Kompol Agus Prasetyo, S.H.'}
                     <br />
                     <span style={{ fontSize: '8.5pt', fontWeight: 'normal' }}>{pawas.rank_pangkat} NRP {pawas.nrp}</span>
                   </td>
@@ -360,7 +360,7 @@ export default function ModalPrintSprintPiket({
               <strong>PERWIRA PENGAWAS (PAWAS)</strong>
               <div style={{ height: '55px' }} />
               <div style={{ textDecoration: 'underline', fontWeight: 'bold' }}>
-                {pawas?.user?.full_name || 'KOMPOL AGUS WIJAYA, S.I.K.'}
+                {pawas?.user?.full_name || 'KOMPOL AGUS PRASETYO, S.H.'}
               </div>
               <div>{pawas?.rank_pangkat || 'KOMPOL'} NRP {pawas?.nrp || '82040512'}</div>
             </div>

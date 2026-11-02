@@ -81,7 +81,7 @@ export default function TabProfilPawas({
     currentUser?.stationName ||
     currentUser?.satuanNama ||
     currentUser?.unit ||
-    'POLRES METRO JAKARTA SELATAN';
+    'POLRES PEKALONGAN';
 
   const resolvedMakoRadius =
     makoRadius ||

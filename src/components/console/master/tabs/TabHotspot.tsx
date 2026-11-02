@@ -114,7 +114,7 @@ export default function TabHotspot({ lookups, showToast, onRefreshDropdowns }: M
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Sektor Polisi Terdekat <span style={{ color: 'red' }}>*</span></label>
-              <input type="text" required placeholder="Contoh: Polsek Metro Kebayoran Baru" value={formData.police_sector} onChange={(e) => setFormData({ ...formData, police_sector: e.target.value })} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }} />
+              <input type="text" required placeholder="Contoh: Polsek Kajen" value={formData.police_sector} onChange={(e) => setFormData({ ...formData, police_sector: e.target.value })} style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '12.5px', boxSizing: 'border-box' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>Kategori Kerawanan</label>
