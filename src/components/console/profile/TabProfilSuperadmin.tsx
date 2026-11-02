@@ -6,6 +6,7 @@ import { compressAndSanitizeImageClient } from '@/lib/client-image-compressor';
 import { getInitials } from '../HeaderProfileBadge';
 import ResponsiveModal from '@/components/ui/ResponsiveModal';
 import NameInitialAvatar from '@/components/ui/NameInitialAvatar';
+import { cadAudioPlayer } from '@/lib/cad-audio-player';
 
 export interface TabProfilProps {
   currentUser: any;
@@ -15,6 +16,8 @@ export interface TabProfilProps {
   complaints?: any[];
   showToast: (msg: string) => void;
   onLogout: () => void;
+  onNavigateTab?: (tab: string) => void;
+  onBackToBeranda?: () => void;
   roleBadge?: string;
   roleTitle?: string;
   makoTitle?: string;
@@ -39,6 +42,8 @@ export default function TabProfilSuperadmin({
   complaints = [],
   showToast,
   onLogout,
+  onNavigateTab,
+  onBackToBeranda,
   roleBadge,
   roleTitle,
   makoTitle,
@@ -58,6 +63,9 @@ export default function TabProfilSuperadmin({
   const [localJamMasuk, setLocalJamMasuk] = useState<string>('-');
   const [localJamPulang, setLocalJamPulang] = useState<string>('-');
   const [showPresensiPulangModal, setShowPresensiPulangModal] = useState<boolean>(false);
+  // Modal States
+  const [showLogoutModal, setShowLogoutModal] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   const presensiStatus = propPresensiStatus ?? localPresensiStatus;
   const setPresensiStatus = propSetPresensiStatus ?? setLocalPresensiStatus;
@@ -67,8 +75,15 @@ export default function TabProfilSuperadmin({
   const setJamPulangPiket = propSetJamPulangPiket ?? setLocalJamPulang;
 
   // Active Menu: 'profil' | 'keamanan' | 'log'
-  const [profilActiveMenu, setProfilActiveMenu] = useState<'profil' | 'keamanan' | 'log'>('profil');
-  const [mobileActiveModal, setMobileActiveModal] = useState<'profil' | 'keamanan' | 'log' | null>(null);
+  const isOperator = roleBadge === 'OPERATOR' || currentUser?.role === 'OPERATOR';
+  const [profilActiveMenu, setProfilActiveMenu] = useState<'profil' | 'keamanan' | 'log' | 'audio'>('profil');
+  const [mobileActiveModal, setMobileActiveModal] = useState<'profil' | 'keamanan' | 'log' | 'audio' | null>(null);
+
+  // Audio CAD Alert Preferences
+  const [cadAudioTone, setCadAudioTone] = useState<string>('patwal');
+  const [cadAudioVolume, setCadAudioVolume] = useState<number>(85);
+  const [isPlayingTestAudio, setIsPlayingTestAudio] = useState<boolean>(false);
+  const testAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isMobile, setIsMobile] = useState<boolean>(false);
 
   // Profile Edit & Avatar States
@@ -126,7 +141,64 @@ export default function TabProfilSuperadmin({
     }
   }, [currentUser]);
 
-  const handleOpenMenu = (menu: 'profil' | 'keamanan' | 'log') => {
+  // Load and save CAD audio settings
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTone = localStorage.getItem('simapres_cad_audio_tone');
+      const savedVol = localStorage.getItem('simapres_cad_audio_vol');
+      if (savedTone) setCadAudioTone(savedTone);
+      if (savedVol) setCadAudioVolume(Number(savedVol));
+    }
+  }, []);
+
+  const handleTestAudioToggle = () => {
+    if (isPlayingTestAudio) {
+      cadAudioPlayer.stop();
+      setIsPlayingTestAudio(false);
+      return;
+    }
+
+    setIsPlayingTestAudio(true);
+    cadAudioPlayer.play(cadAudioTone, cadAudioVolume, () => {
+      setIsPlayingTestAudio(false);
+    });
+  };
+
+  const handleToneChange = (newTone: string) => {
+    setCadAudioTone(newTone);
+    if (isPlayingTestAudio) {
+      cadAudioPlayer.play(newTone, cadAudioVolume, () => {
+        setIsPlayingTestAudio(false);
+      });
+    }
+  };
+
+  const handleVolumeChange = (newVol: number) => {
+    setCadAudioVolume(newVol);
+    cadAudioPlayer.setVolume(newVol);
+    if (isPlayingTestAudio) {
+      cadAudioPlayer.play(cadAudioTone, newVol, () => {
+        setIsPlayingTestAudio(false);
+      });
+    }
+  };
+
+  // Bersihkan audio saat komponen unmount
+  useEffect(() => {
+    return () => {
+      cadAudioPlayer.stop();
+    };
+  }, []);
+
+  const handleSaveAudioPreferences = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('simapres_cad_audio_tone', cadAudioTone);
+      localStorage.setItem('simapres_cad_audio_vol', String(cadAudioVolume));
+    }
+    showToast('✓ Preferensi audio alarm CAD 110 berhasil disimpan!');
+  };
+
+  const handleOpenMenu = (menu: 'profil' | 'keamanan' | 'log' | 'audio') => {
     setProfilActiveMenu(menu);
     if (isMobile || (typeof window !== 'undefined' && window.innerWidth < 768)) {
       setMobileActiveModal(menu);
@@ -662,6 +734,31 @@ export default function TabProfilSuperadmin({
           >
             🔒
           </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: '#1E293B' }}>
+                Keamanan Akun &amp; Kata Sandi
+              </h3>
+              <span
+                style={{
+                  background: '#EFF6FF',
+                  color: '#153E75',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '2.5px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid #DBEAFE',
+                  whiteSpace: 'nowrap',
+                  letterSpacing: '0.3px',
+                }}
+              >
+                ● STANDAR KEAMANAN POLRI
+              </span>
+            </div>
+            <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '3px', lineHeight: 1.4 }}>
+              Perbarui kata sandi masuk sistem secara berkala untuk menjaga keamanan data operasional SIMOPMAS 110
+            </div>
+          </div>
         </div>
       )}
 
@@ -669,48 +766,56 @@ export default function TabProfilSuperadmin({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           {/* UBAH KATA SANDI */}
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
               <span style={{ fontSize: '16px' }}>🔑</span>
               <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 800, color: '#1E293B' }}>
                 Ubah Kata Sandi Masuk Sistem
               </h4>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '520px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                  Kata Sandi Lama (Saat Ini)
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '5px' }}>
+                  Kata Sandi Lama (Saat Ini) <span style={{ color: '#EF4444' }}>*</span>
                 </label>
                 <input
                   type="password"
                   value={oldPassword}
                   onChange={(e) => setOldPassword(e.target.value)}
                   placeholder="Masukkan kata sandi saat ini"
-                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                  onFocus={(e) => (e.target.style.borderColor = '#2563EB')}
+                  onBlur={(e) => (e.target.style.borderColor = '#CBD5E1')}
                 />
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                  Kata Sandi Baru
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimal 8 karakter"
-                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
-                  Konfirmasi Kata Sandi Baru
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ulangi kata sandi baru"
-                  style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
-                />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '5px' }}>
+                    Kata Sandi Baru <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimal 8 karakter"
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                    onFocus={(e) => (e.target.style.borderColor = '#2563EB')}
+                    onBlur={(e) => (e.target.style.borderColor = '#CBD5E1')}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: '#334155', marginBottom: '5px' }}>
+                    Konfirmasi Kata Sandi Baru <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Ulangi kata sandi baru"
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #CBD5E1', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'white', boxSizing: 'border-box' }}
+                    onFocus={(e) => (e.target.style.borderColor = '#2563EB')}
+                    onBlur={(e) => (e.target.style.borderColor = '#CBD5E1')}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -934,8 +1039,183 @@ export default function TabProfilSuperadmin({
     </div>
   );
 
+  // Render Audio CAD Workstation Preferences
+  const renderAudioView = (isModal: boolean = false) => (
+    <div style={{ background: 'white', border: isModal ? 'none' : '1px solid #E2E8F0', borderRadius: isModal ? '0' : '14px', padding: isModal ? '10px 0' : '20px', boxShadow: isModal ? 'none' : '0 4px 12px rgba(0,0,0,0.03)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #F1F5F9', paddingBottom: '10px' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#1E293B', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🔊</span> Preferensi Audio Workstation CAD 110
+          </h3>
+          <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px' }}>
+            Konfigurasi nada dering dan volume peringatan darurat saat tiket aduan warga masuk ke layar konsol
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* Info Box Standby 1x24 Jam */}
+        <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '12px 14px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+          <span style={{ fontSize: '18px' }}>🎧</span>
+          <div style={{ fontSize: '12px', color: '#1E40AF', lineHeight: 1.45 }}>
+            <strong>Standby Siaga 1x24 Jam:</strong> Pastikan audio komputer atau headset terpasang dengan baik. Uji suara sebelum memulai tugas dinas agar setiap panggilan masuk 110 langsung terdengar jelas.
+          </div>
+        </div>
+
+        {/* Setting 1: Pilihan Nada Peringatan */}
+        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
+          <label style={{ display: 'block', fontSize: '12px', fontWeight: 800, color: '#1E293B', marginBottom: '6px' }}>
+            Pilihan Nada Alarm Masuk:
+          </label>
+          <select
+            value={cadAudioTone}
+            onChange={(e) => handleToneChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '9px 12px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              color: '#1E293B',
+              background: 'white',
+              outline: 'none',
+            }}
+          >
+            <option value="patwal">🚨 Sirine Patwal Kedinasan Polri (Default)</option>
+            <option value="chime">🔔 Chime Darurat Sentra CAD (Halus)</option>
+            <option value="telephone">📞 Dering Telepon Meja Siaga 110</option>
+          </select>
+          <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>
+            Bunyi ini akan berdering secara otomatis begitu ada panggilan/tiket aduan baru masuk ke antrean.
+          </div>
+        </div>
+
+        {/* Setting 2: Volume Audio Slider */}
+        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B' }}>
+              Tingkat Volume Speaker / Headset:
+            </label>
+            <span style={{ fontSize: '13px', fontWeight: 900, color: '#153E75', background: '#DBEAFE', padding: '2px 8px', borderRadius: '6px' }}>
+              {cadAudioVolume}%
+            </span>
+          </div>
+          <input
+            type="range"
+            min="10"
+            max="100"
+            step="5"
+            value={cadAudioVolume}
+            onChange={(e) => handleVolumeChange(Number(e.target.value))}
+            style={{ width: '100%', accentColor: '#153E75', cursor: 'pointer' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10.5px', color: '#94A3B8', marginTop: '4px' }}>
+            <span>Pelan (10%)</span>
+            <span>Standar Meja (50%)</span>
+            <span>Maksimal (100%)</span>
+          </div>
+        </div>
+
+        {/* Tombol Uji Bunyi & Simpan */}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '4px' }}>
+          <button
+            type="button"
+            onClick={handleTestAudioToggle}
+            style={{
+              flex: 1,
+              minWidth: '160px',
+              padding: '10px 16px',
+              background: isPlayingTestAudio ? '#DC2626' : '#2563EB',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: isPlayingTestAudio ? '0 2px 6px rgba(220,38,38,0.3)' : '0 2px 6px rgba(37,99,235,0.3)',
+            }}
+          >
+            <span>{isPlayingTestAudio ? '⏹️' : '▶️'}</span>
+            <span>{isPlayingTestAudio ? 'Hentikan Uji Suara' : 'Uji Bunyi Audio Sekarang'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSaveAudioPreferences}
+            style={{
+              padding: '10px 20px',
+              background: '#059669',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 6px rgba(5,150,105,0.25)',
+            }}
+          >
+            <span>💾</span> Simpan Preferensi
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto' }}>
+    <div style={{ width: '100%', maxWidth: '1440px', margin: '0 auto', paddingBottom: '30px' }}>
+      {/* Header Halaman Profil Kedinasan (Hanya untuk Pawas & Operator, Superadmin menggunakan sidebar layout) */}
+      {roleBadge !== 'SUPERADMIN' && currentUser?.role !== 'SUPERADMIN' && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2 className="page-title" style={{ margin: 0, fontSize: '20px', fontWeight: 900, color: '#0F172A', letterSpacing: '-0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>🛡️</span> Profil Kedinasan &amp; Akun Petugas
+              </h2>
+              <span style={{ fontSize: '10.5px', fontWeight: 800, background: isOperator ? '#E0F2FE' : '#DCFCE7', color: isOperator ? '#0369A1' : '#15803D', padding: '3px 9px', borderRadius: '12px', border: isOperator ? '1px solid #BAE6FD' : '1px solid #BBF7D0' }}>
+                {isOperator ? 'OPERATOR SPKT 110' : (roleBadge || currentUser?.role || 'PETUGAS')}
+              </span>
+            </div>
+            <div style={{ fontSize: '12px', color: '#64748B', marginTop: '3px' }}>
+              {makoTitle || currentUser?.stationName || 'Polres Pekalongan'} • Sentra Komando Pelayanan Terpadu
+            </div>
+          </div>
+
+          {(onBackToBeranda || onNavigateTab) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onBackToBeranda) onBackToBeranda();
+                else if (onNavigateTab) onNavigateTab(isOperator ? 'view-operator' : 'view-beranda');
+              }}
+              style={{
+                padding: '8px 16px',
+                background: '#153E75',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 8px rgba(21,62,117,0.2)',
+              }}
+            >
+              <span>←</span> Kembali ke Beranda
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 2-Column Responsive Grid */}
       <div className="profile-grid-container">
         {/* KOLOM KIRI (Identitas, Presensi, Pengaturan Akun) */}
@@ -972,14 +1252,17 @@ export default function TabProfilSuperadmin({
                 style={{
                   fontSize: '9.5px',
                   fontWeight: 800,
-                  background: 'rgba(16,185,129,0.25)',
-                  color: '#6EE7B7',
-                  border: '1px solid rgba(110,231,183,0.3)',
+                  background: isOperator ? 'rgba(56,189,248,0.25)' : (presensiStatus === 'SUDAH_MASUK' ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'),
+                  color: isOperator ? '#38BDF8' : (presensiStatus === 'SUDAH_MASUK' ? '#6EE7B7' : '#FCA5A5'),
+                  border: isOperator ? '1px solid rgba(56,189,248,0.4)' : (presensiStatus === 'SUDAH_MASUK' ? '1px solid rgba(110,231,183,0.3)' : '1px solid rgba(239,68,68,0.3)'),
                   padding: '2px 8px',
                   borderRadius: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
                 }}
               >
-                {presensiStatus === 'SUDAH_MASUK' ? 'SIAGA PIKET AKTIF' : 'BELUM MASUK DINAS'}
+                {isOperator ? '🟢 SIAGA DINAS 1x24 JAM' : (presensiStatus === 'SUDAH_MASUK' ? 'SIAGA PIKET AKTIF' : 'BELUM MASUK DINAS')}
               </span>
             </div>
 
@@ -1071,43 +1354,43 @@ export default function TabProfilSuperadmin({
                 textAlign: 'center',
               }}
             >
-              {roleBadge === 'OPERATOR' || currentUser?.role === 'OPERATOR' ? (
+              {isOperator ? (
                 <>
                   <div>
-                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Panggilan Masuk</div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Tiket Jaga 1x24 Jam</div>
                     <div style={{ fontSize: '15px', fontWeight: 900, color: '#FBBF24' }}>
                       {counters?.totalLaporan ?? complaints.length}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>SLA Dispatch</div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Ketuntasan Disposisi</div>
                     <div style={{ fontSize: '15px', fontWeight: 900, color: '#34D399' }}>
-                      &lt; 1 Menit
+                      100%
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Tiket Disposisi</div>
-                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#60A5FA' }}>
-                      {counters?.selesaiCount ?? complaints.filter((c: any) => c.status === 'SELESAI').length}
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Status Workstation</div>
+                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#38BDF8' }}>
+                      SIAGA CAD
                     </div>
                   </div>
                 </>
               ) : currentUser?.role === 'PAWAS' || roleBadge === 'PAWAS' ? (
                 <>
                   <div>
-                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Total Laporan</div>
-                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#FBBF24' }}>
-                      {counters?.totalLaporan ?? complaints.length}
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Menunggu Validasi</div>
+                    <div style={{ fontSize: '15px', fontWeight: 900, color: '#F87171' }}>
+                      {complaints.filter((c: any) => c.status === 'MENUNGGU_PENGESAHAN' || c.status === 'DIPROSES').length}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Respon Cepat</div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Kepatuhan SLA</div>
                     <div style={{ fontSize: '15px', fontWeight: 900, color: '#34D399' }}>
-                      {responCepatPct || (counters?.responCepatPct ?? '0%')}
+                      {responCepatPct || (counters?.responCepatPct ?? '100%')}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Laporan Selesai</div>
+                    <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: 600 }}>Kasus Disahkan</div>
                     <div style={{ fontSize: '15px', fontWeight: 900, color: '#60A5FA' }}>
                       {counters?.selesaiCount ?? complaints.filter((c: any) => c.status === 'SELESAI').length}
                     </div>
@@ -1181,23 +1464,79 @@ export default function TabProfilSuperadmin({
               </span>
             </div>
 
-            {roleBadge === 'OPERATOR' ? (
+            {isOperator ? (
               <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px' }}>
-                <div style={{ fontSize: '11px', fontWeight: 700, color: '#1E3A8A', marginBottom: '4px' }}>
-                  🎙️ Standar Sapaan Resmi Operator 110:
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid #E2E8F0', paddingBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 700 }}>Siklus Tugas Jaga:</span>
+                  <span style={{ fontSize: '10.5px', fontWeight: 800, color: '#1E40AF', background: '#DBEAFE', padding: '2px 8px', borderRadius: '4px' }}>
+                    STANDBY 1x24 JAM PENUH
+                  </span>
                 </div>
-                <div style={{ fontSize: '12px', fontStyle: 'italic', color: '#1E293B', background: 'white', padding: '8px 10px', borderRadius: '6px', border: '1px solid #CBD5E1', marginBottom: '10px', lineHeight: 1.4 }}>
-                  &ldquo;Selamat Pagi / Siang / Malam Kepolisian 110, dengan {currentUser?.name || 'Petugas'}, ada yang bisa kami bantu?&rdquo;
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                  <div style={{ background: 'white', border: '1px solid #E2E8F0', padding: '8px', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '10px', color: '#64748B' }}>Mulai Jaga Hari Ini</div>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#1E293B', marginTop: '1px' }}>08.00 WIB</div>
+                  </div>
+                  <div style={{ background: 'white', border: '1px solid #E2E8F0', padding: '8px', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '10px', color: '#64748B' }}>Apel Serah Terima</div>
+                    <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#D97706', marginTop: '1px' }}>Besok, 08.00 WIB</div>
+                  </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px' }}>
-                  <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '8px', borderRadius: '6px', color: '#065F46' }}>
-                    <div style={{ fontWeight: 800, fontSize: '11.5px' }}>SLA Angkat Telepon</div>
-                    <div style={{ fontSize: '10.5px', color: '#047857' }}>Maksimal 3 Dering</div>
-                  </div>
-                  <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '8px', borderRadius: '6px', color: '#1E40AF' }}>
-                    <div style={{ fontWeight: 800, fontSize: '11.5px' }}>SLA Disposisi Tiket</div>
-                    <div style={{ fontSize: '10.5px', color: '#1D4ED8' }}>Target &lt; 1 Menit</div>
-                  </div>
+
+                <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '8px 10px', borderRadius: '6px', fontSize: '11px', color: '#1E40AF', marginBottom: '10px', lineHeight: 1.4 }}>
+                  🎙️ <strong>SOP Sapaan Kedinasan:</strong> &ldquo;Selamat Pagi/Siang/Malam Kepolisian 110, dengan {currentUser?.fullName || currentUser?.nama || 'Petugas'}, ada yang bisa kami bantu?&rdquo;
+                </div>
+
+                {/* Tombol Pintas Serah Terima & Rekap Kinerja */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {onNavigateTab && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab('view-kinerja')}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        background: '#153E75',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '7px',
+                        fontSize: '11.5px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(21,62,117,0.2)',
+                      }}
+                    >
+                      <span>📋</span>
+                      <span>Buka Buku Catatan & Peringkat Saya ↗</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPresensiPulangModal(true)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      background: '#F1F5F9',
+                      color: '#475569',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '7px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <span>🔄</span>
+                    <span>Serah Terima Dinas Jaga 1x24 Jam</span>
+                  </button>
                 </div>
               </div>
             ) : (
@@ -1294,6 +1633,57 @@ export default function TabProfilSuperadmin({
                     <span>🚪</span> Presensi Pulang
                   </button>
                 </div>
+
+                {/* Tombol Pintas Otoritas Pawas */}
+                {(currentUser?.role === 'PAWAS' || roleBadge === 'PAWAS') && (
+                  <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab ? onNavigateTab('validasi') : (onBackToBeranda && onBackToBeranda())}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        background: 'linear-gradient(135deg, #153E75 0%, #1E40AF 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '11.5px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(21,62,117,0.2)',
+                      }}
+                    >
+                      <span>📋</span>
+                      <span>Buka Dossier &amp; Validasi Kasus ↗</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab ? onNavigateTab('kinerja') : (onBackToBeranda && onBackToBeranda())}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        background: '#F1F5F9',
+                        color: '#334155',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      <span>📊</span>
+                      <span>Rekap Kinerja Operasional Jaga ↗</span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -1374,49 +1764,47 @@ export default function TabProfilSuperadmin({
               <span style={{ color: profilActiveMenu === 'keamanan' ? '#1D4ED8' : '#94A3B8', fontWeight: 800 }}>➔</span>
             </div>
 
-            {/* 3. Menu Riwayat Log Lengkap */}
-            <div
-              id="btn-menu-riwayat-log"
-              onClick={() => handleOpenMenu('log')}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '12px 8px',
-                borderBottom: '1px solid #F1F5F9',
-                cursor: 'pointer',
-                borderRadius: '8px',
-                background: profilActiveMenu === 'log' ? '#EFF6FF' : 'transparent',
-                borderLeft: profilActiveMenu === 'log' ? '4px solid #1D4ED8' : '4px solid transparent',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (profilActiveMenu !== 'log') e.currentTarget.style.backgroundColor = '#F8FAFC';
-              }}
-              onMouseLeave={(e) => {
-                if (profilActiveMenu !== 'log') e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '17px' }}>📋</span>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: profilActiveMenu === 'log' ? '#1D4ED8' : '#1E293B' }}>
-                      Riwayat Log Lengkap
-                    </span>
-                    <span style={{ background: '#DBEAFE', color: '#1E40AF', fontSize: '10px', fontWeight: 800, padding: '1px 6px', borderRadius: '10px' }}>
-                      {complaints.length}
-                    </span>
+            {isOperator ? (
+              /* Menu Preferensi Audio Workstation CAD */
+              <div
+                id="btn-menu-audio-cad"
+                onClick={() => handleOpenMenu('audio')}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '12px 8px',
+                  borderBottom: '1px solid #F1F5F9',
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  background: profilActiveMenu === 'audio' ? '#EFF6FF' : 'transparent',
+                  borderLeft: profilActiveMenu === 'audio' ? '4px solid #1D4ED8' : '4px solid transparent',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (profilActiveMenu !== 'audio') e.currentTarget.style.backgroundColor = '#F8FAFC';
+                }}
+                onMouseLeave={(e) => {
+                  if (profilActiveMenu !== 'audio') e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '17px' }}>🔊</span>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: profilActiveMenu === 'audio' ? '#1D4ED8' : '#1E293B' }}>
+                      Preferensi Audio CAD 110
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#64748B' }}>Volume &amp; nada dering alarm panggilan masuk</div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>Rekam jejak seluruh penanganan laporan &amp; tugas</div>
                 </div>
+                <span style={{ color: profilActiveMenu === 'audio' ? '#1D4ED8' : '#94A3B8', fontWeight: 800 }}>➔</span>
               </div>
-              <span style={{ color: profilActiveMenu === 'log' ? '#1D4ED8' : '#94A3B8', fontWeight: 800 }}>➔</span>
-            </div>
+            ) : null}
 
             {/* 4. Logout */}
             <div
-              onClick={onLogout}
+              id="btn-menu-logout"
+              onClick={() => setShowLogoutModal(true)}
               style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 8px', cursor: 'pointer', borderRadius: '8px' }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FEF2F2')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
@@ -1437,6 +1825,7 @@ export default function TabProfilSuperadmin({
         <div className="profile-content-desktop">
           {profilActiveMenu === 'profil' && renderProfilForm(false)}
           {profilActiveMenu === 'keamanan' && renderKeamananForm(false)}
+          {profilActiveMenu === 'audio' && renderAudioView(false)}
           {profilActiveMenu === 'log' && renderLogView(false)}
         </div>
       </div>
@@ -1451,6 +1840,8 @@ export default function TabProfilSuperadmin({
             ? 'Ubah Profil & Pasfoto Dinas'
             : mobileActiveModal === 'keamanan'
             ? 'Keamanan Akun'
+            : mobileActiveModal === 'audio'
+            ? 'Preferensi Audio CAD 110'
             : 'Riwayat Log Lengkap'
         }
         subtitle={
@@ -1458,6 +1849,8 @@ export default function TabProfilSuperadmin({
             ? 'Perbarui biodata personel, pangkat & pasfoto resmi kedinasan'
             : mobileActiveModal === 'keamanan'
             ? 'Ganti kata sandi login'
+            : mobileActiveModal === 'audio'
+            ? 'Pengaturan nada dering & volume alarm panggilan masuk'
             : 'Rekam jejak seluruh penanganan laporan & tugas'
         }
         icon={
@@ -1465,6 +1858,8 @@ export default function TabProfilSuperadmin({
             ? '👤'
             : mobileActiveModal === 'keamanan'
             ? '🔒'
+            : mobileActiveModal === 'audio'
+            ? '🔊'
             : '📋'
         }
         badge={
@@ -1477,6 +1872,7 @@ export default function TabProfilSuperadmin({
       >
         {mobileActiveModal === 'profil' && renderProfilForm(true)}
         {mobileActiveModal === 'keamanan' && renderKeamananForm(true)}
+        {mobileActiveModal === 'audio' && renderAudioView(true)}
         {mobileActiveModal === 'log' && renderLogView(true)}
       </ResponsiveModal>
 
@@ -1573,6 +1969,100 @@ export default function TabProfilSuperadmin({
             </button>
           </div>
         )}
+      </ResponsiveModal>
+
+      {/* MODAL KONFIRMASI LOGOUT / KELUAR SESI DINAS */}
+      <ResponsiveModal
+        isOpen={showLogoutModal}
+        onClose={() => {
+          if (!isLoggingOut) setShowLogoutModal(false);
+        }}
+        maxWidth="440px"
+        title="Konfirmasi Selesai Dinas"
+        subtitle="Akhiri sesi dan serah terima tugas piket dinas"
+        icon="🚪"
+      >
+        <div style={{ textAlign: 'center', padding: '12px 6px 6px' }}>
+          <div
+            style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '16px',
+              background: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+              color: '#DC2626',
+              fontSize: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 14px',
+              border: '1.5px solid #FCA5A5',
+              boxShadow: '0 4px 12px rgba(220,38,38,0.15)',
+            }}
+          >
+            🚪
+          </div>
+
+          <h3 style={{ fontSize: '16px', fontWeight: 900, color: '#0F172A', margin: '0 0 6px' }}>
+            Akhiri Sesi Dinas Sekarang?
+          </h3>
+
+          <p style={{ fontSize: '12px', color: '#64748B', lineHeight: 1.5, margin: '0 0 20px' }}>
+            Apakah Anda yakin ingin mengakhiri sesi dinas dan keluar dari sistem <strong style={{ color: '#153E75' }}>SIMOPMAS 110</strong>? Pastikan seluruh buku catatan dan tugas jaga telah diserah-terimakan.
+          </p>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              disabled={isLoggingOut}
+              onClick={() => setShowLogoutModal(false)}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: '1px solid #CBD5E1',
+                background: 'white',
+                color: '#475569',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: isLoggingOut ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Batal
+            </button>
+
+            <button
+              type="button"
+              id="btn-confirm-logout"
+              disabled={isLoggingOut}
+              onClick={async () => {
+                setIsLoggingOut(true);
+                try {
+                  await onLogout();
+                } catch (_) {
+                  setIsLoggingOut(false);
+                }
+              }}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                borderRadius: '8px',
+                border: 'none',
+                background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+                color: 'white',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: isLoggingOut ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                boxShadow: '0 2px 6px rgba(220,38,38,0.3)',
+              }}
+            >
+              {isLoggingOut ? 'Memproses Keluar...' : 'Ya, Keluar Dinas'}
+            </button>
+          </div>
+        </div>
       </ResponsiveModal>
     </div>
   );

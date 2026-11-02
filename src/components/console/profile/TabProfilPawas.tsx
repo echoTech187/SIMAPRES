@@ -13,6 +13,7 @@ export interface TabProfilPawasProps {
   showToast: (msg: string) => void;
   onBackToBeranda?: () => void;
   onLogout?: () => void;
+  onNavigateTab?: (tab: string) => void;
   presensiStatus?: 'SUDAH_MASUK' | 'BELUM_MASUK' | 'SUDAH_PULANG';
   setPresensiStatus?: React.Dispatch<React.SetStateAction<any>>;
   jamMasukPiket?: string;
@@ -36,7 +37,9 @@ export default function TabProfilPawas({
   responCepatPct,
   allRecentComplaints = [],
   showToast,
+  onBackToBeranda,
   onLogout,
+  onNavigateTab,
   presensiStatus,
   setPresensiStatus,
   jamMasukPiket,
@@ -100,6 +103,8 @@ export default function TabProfilPawas({
       complaints={allRecentComplaints}
       showToast={showToast}
       onLogout={onLogout || (() => {})}
+      onNavigateTab={onNavigateTab || (onBackToBeranda ? () => onBackToBeranda() : undefined)}
+      onBackToBeranda={onBackToBeranda}
       roleBadge={roleBadge || (currentUser?.role === 'OPERATOR' ? 'OPERATOR' : 'PAWAS')}
       roleTitle={
         roleTitle ||

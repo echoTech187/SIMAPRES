@@ -5,6 +5,7 @@ import { calculateStationSlaAndScore } from '@/domain/rules';
 import React, { useState, useMemo } from 'react';
 import { parseDateSafe } from '@/lib/date-utils';
 import { evaluate5W1HHeuristic } from '@/domain/rules/cad-5w1h.rules';
+import MasterTabShell from '@/components/ui/MasterTabShell';
 
 export interface TabKinerjaPawasProps {
   userProfile: any;
@@ -22,6 +23,7 @@ export interface TabKinerjaPawasProps {
   officerRankings: any;
   stationRankings?: any;
   operatorRankings?: any;
+  onOpenTicketInKomando?: (complaint: any) => void;
 }
 
 const getLocalTodayDateString = () => {
@@ -48,6 +50,7 @@ export default function TabKinerjaPawas({
   officerRankings,
   stationRankings,
   operatorRankings,
+  onOpenTicketInKomando,
 }: TabKinerjaPawasProps) {
   const [kinerjaPeriod, setKinerjaPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [kinerjaDate, setKinerjaDate] = useState(() => getLocalTodayDateString());
@@ -163,10 +166,14 @@ export default function TabKinerjaPawas({
     }
 
     if (kinerjaPeriod === 'bulanan') {
+      const endOfMonth = new Date(selYear, selMonth, selDate, 23, 59, 59, 999).getTime();
+      const startOfMonth = new Date(selYear, selMonth, selDate - 29, 0, 0, 0, 0).getTime();
+
       return stationScopedComplaints.filter((c) => {
         const d = getComplaintDate(c);
         if (!d) return false;
-        return d.getFullYear() === selYear && d.getMonth() === selMonth;
+        const time = d.getTime();
+        return time >= startOfMonth && time <= endOfMonth;
       });
     }
 
@@ -213,7 +220,7 @@ export default function TabKinerjaPawas({
     const onTimeCount = completedWithTime.filter((c) => Number(c.responseTimeMinutes) <= 10).length;
     const onTimeRate = completedWithTime.length > 0
       ? ((onTimeCount / completedWithTime.length) * 100).toFixed(1)
-      : (total > 0 ? '100.0' : '0.0');
+      : '0.0';
 
     // 3. Waktu Respon Rata-rata
     const avgResponseTime = completedWithTime.length > 0
@@ -221,7 +228,7 @@ export default function TabKinerjaPawas({
           completedWithTime.reduce((acc, c) => acc + Number(c.responseTimeMinutes), 0) /
           completedWithTime.length
         ).toFixed(1)
-      : '0.0';
+      : '-';
 
     // 4. Indeks Kepuasan Warga (IKM)
     let totalStars = 0;
@@ -263,11 +270,34 @@ export default function TabKinerjaPawas({
   // BASELINE DATA DARI SERVER UNTUK POLSEK & PERSONEL
   const baseStationList = stationRankings?.overallRanking ? stationRankings.overallRanking : [];
 
-  // FILTERED TIER 1 LEADERBOARD (POLSEK & SATUAN) SESUAI PERIODE
+  // FILTERED TIER 1 LEADERBOARD (POLSEK & SATUAN) SESUAI PERIODE & DAERAH TERITORIAL INDUK
   const filteredStationRankings = useMemo(() => {
     if (baseStationList.length === 0) return [];
 
-    return baseStationList.map((st: any) => {
+    // Filter teritorial: Hanya Polsek yang berada di bawah naungan Polres induk akun ini
+    // (atau jika akun adalah Polsek, induknya sama, atau jika userStationId adalah Polres maka Polsek-polsek binaannya)
+    let territorialStations = baseStationList;
+    if (userStationId) {
+      // Temukan data stasiun user
+      const currentStation = baseStationList.find((s: any) => Number(s.stationId) === userStationId);
+      const targetParentId = currentStation?.parentStationId || (currentStation?.stationLevel === 'POLRES' ? userStationId : null);
+
+      if (targetParentId) {
+        territorialStations = baseStationList.filter((s: any) => {
+          const sId = Number(s.stationId);
+          const pId = s.parentStationId ? Number(s.parentStationId) : null;
+          // Sertakan Polsek yang parentStationId-nya adalah Polres induk ini
+          return pId === targetParentId;
+        });
+      }
+    }
+
+    // Jika filter teritorial menghasilkan daftar kosong (misal data legacy), fallback ke Polsek saja
+    if (territorialStations.length === 0) {
+      territorialStations = baseStationList.filter((s: any) => s.stationLevel === 'POLSEK');
+    }
+
+    return territorialStations.map((st: any) => {
       // Ambil aduan yang masuk ke polsek ini pada periode terpilih
       const stComplaints = filteredComplaints.filter((c: any) =>
         c.stationId === st.stationId ||
@@ -752,7 +782,7 @@ export default function TabKinerjaPawas({
       <div className="kinerja-cards-grid" style={{ marginBottom: '16px' }}>
         <div style={{ background: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '14px' }}>
           <div style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B', marginBottom: '8px' }}>
-            Beban Satuan Reaksi Cepat ({periodSummaryLabel})
+            Beban Satuan Reaksi Cepat • {periodSummaryLabel}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -767,6 +797,11 @@ export default function TabKinerjaPawas({
               <span>Turjawali Lantas</span>
               <strong>{metrics.lantas} Penugasan ({Math.round((metrics.lantas / metrics.grandBeban) * 100)}%)</strong>
             </div>
+            {metrics.grandBeban === 0 && metrics.total > 0 && (
+              <div style={{ marginTop: '4px', padding: '4px 8px', background: '#FEF3C7', color: '#92400E', borderRadius: '6px', fontSize: '10px', fontWeight: 700 }}>
+                ⏳ {metrics.total} Tiket Baru (Menunggu Disposisi Armada Patroli)
+              </div>
+            )}
           </div>
         </div>
 
@@ -776,10 +811,12 @@ export default function TabKinerjaPawas({
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ fontSize: '24px', fontWeight: 900, color: Number(metrics.onTimeRate) >= 80 ? '#16A34A' : '#D97706' }}>
-              {metrics.onTimeRate}%
+              {metrics.completedWithTime.length > 0 ? `${metrics.onTimeRate}%` : '-'}
             </div>
             <div style={{ fontSize: '11px', color: '#64748B' }}>
-              {metrics.onTimeCount} dari {metrics.completedWithTime.length > 0 ? metrics.completedWithTime.length : metrics.total} insiden tertangani dalam batas target Presisi Mabes Polri.
+              {metrics.completedWithTime.length > 0
+                ? `${metrics.onTimeCount} dari ${metrics.completedWithTime.length} insiden tertangani dalam batas target Presisi Mabes Polri.`
+                : 'Menunggu pembaruan waktu respon tiba di TKP dari personel patroli lapangan.'}
             </div>
           </div>
         </div>
@@ -788,13 +825,13 @@ export default function TabKinerjaPawas({
       {/* Ringkasan Indikator Utama */}
       <div style={{ marginBottom: '16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
         <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', marginBottom: '10px' }}>
-          Indikator Utama Akuntabilitas Tugas ({periodSummaryLabel})
+          Indikator Utama Akuntabilitas Tugas • {periodSummaryLabel}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
           <div>
             <div style={{ fontSize: '11px', color: '#64748B' }}>Waktu Respon Rata-rata Tiba TKP</div>
-            <div style={{ fontSize: '14px', fontWeight: 800, color: '#16A34A' }}>
-              {metrics.avgResponseTime} Menit ({metrics.onTimeRate}%)
+            <div style={{ fontSize: '14px', fontWeight: 800, color: metrics.avgResponseTime !== '-' ? '#16A34A' : '#64748B' }}>
+              {metrics.avgResponseTime !== '-' ? `${metrics.avgResponseTime} Menit (${metrics.onTimeRate}%)` : '- (Menunggu Lapangan)'}
             </div>
           </div>
           <div>
@@ -830,11 +867,11 @@ export default function TabKinerjaPawas({
               </h3>
             </div>
             <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
-              Sistem Pemantauan Akuntabilitas Dua Tingkat: Komparasi Satuan Kewilayahan (Tier 1) &amp; Personel Individu (Tier 2).
+              Sistem Pemantauan Akuntabilitas Tiga Tingkat: Satuan Kewilayahan Polsek, Personel Patroli, &amp; Operator CAD 110.
             </div>
           </div>
 
-          {/* Master Tier 1 vs Tier 2 Switcher */}
+          {/* Master 3-Kategori Switcher */}
           <div style={{ display: 'flex', background: '#F1F5F9', padding: '4px', borderRadius: '10px', gap: '6px', flexWrap: 'wrap' }}>
             <button
               type="button"
@@ -856,7 +893,7 @@ export default function TabKinerjaPawas({
               }}
             >
               <span>🏛️</span>
-              <span>Tier 1: Polsek &amp; Satuan (Anev Kapolres)</span>
+              <span>Satuan Kewilayahan Polsek</span>
             </button>
             <button
               type="button"
@@ -878,7 +915,7 @@ export default function TabKinerjaPawas({
               }}
             >
               <span>👮</span>
-              <span>Tier 2: Personel Presisi (Individu)</span>
+              <span>Personel Patroli</span>
             </button>
             <button
               type="button"
@@ -900,7 +937,7 @@ export default function TabKinerjaPawas({
               }}
             >
               <span>🎧</span>
-              <span>Tier 3: Operator SPKT 110 (Sentra Layanan)</span>
+              <span>Operator CAD 110</span>
             </button>
           </div>
         </div>
@@ -1105,7 +1142,13 @@ export default function TabKinerjaPawas({
                               {st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes > 0 ? `± ${st.avgResponseTimeMinutes} Menit` : '-'}
                             </div>
                             <div style={{ fontSize: '9.5px', color: '#64748B' }}>
-                              {st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes <= 15 ? 'Target Presisi' : (st.avgResponseTimeMinutes != null && st.avgResponseTimeMinutes <= 30 ? 'Batas Toleransi' : 'Melebihi Toleransi')}
+                              {st.totalMasuk === 0 || st.avgResponseTimeMinutes == null
+                                ? 'Belum Ada Laporan'
+                                : st.avgResponseTimeMinutes <= 15
+                                  ? 'Target Presisi'
+                                  : st.avgResponseTimeMinutes <= 30
+                                    ? 'Batas Toleransi'
+                                    : 'Melebihi Toleransi'}
                             </div>
                           </td>
                           <td style={{ padding: '8px 10px' }}>
@@ -1533,24 +1576,49 @@ export default function TabKinerjaPawas({
                           </div>
 
                           <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', textAlign: 'center' }}>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Diinput</div>
-                              <div style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>
-                                {item.totalTiketInput} Laporan
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Valid</div>
-                              <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
-                                {item.totalTiketInput > 0 ? `${item.validRate != null ? item.validRate : 100}%` : '-'}
-                              </div>
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '10px', color: '#64748B' }}>Kepatuhan SOP</div>
-                              <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 && item.sopComplianceRate != null ? '#2563EB' : '#94A3B8' }}>
-                                {item.totalTiketInput > 0 && item.sopComplianceRate != null ? `${item.sopComplianceRate}%` : '-'}
-                              </div>
-                            </div>
+                            {rankingCategoryTab === 'produktivitas' ? (
+                              <>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Diinput</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>
+                                    {item.totalTiketInput} Laporan
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>Tiket Valid</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
+                                    {item.totalTiketInput > 0 ? `${item.validRate != null ? item.validRate : 100}%` : '-'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>Kepatuhan SOP</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: item.totalTiketInput > 0 && item.sopComplianceRate != null ? '#2563EB' : '#94A3B8' }}>
+                                    {item.totalTiketInput > 0 && item.sopComplianceRate != null ? `${item.sopComplianceRate}%` : '-'}
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>Rating Warga</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#D97706' }}>
+                                    ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'} / 5.0
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>Total Ulasan</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: '#153E75' }}>
+                                    {item.totalReviews > 0 ? `${item.totalReviews} Warga` : '-'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '10px', color: '#64748B' }}>Indeks Mutu</div>
+                                  <div style={{ fontSize: '13px', fontWeight: 800, color: item.avgRating >= 4.5 ? '#059669' : (item.avgRating >= 4.0 ? '#2563EB' : '#94A3B8') }}>
+                                    {item.avgRating > 0 ? `${Math.round((item.avgRating / 5) * 100)}%` : '-'}
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
@@ -1574,17 +1642,31 @@ export default function TabKinerjaPawas({
                   <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
                       <thead>
-                        <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0', color: '#475569', fontWeight: 800 }}>
-                          <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Rank</th>
-                          <th style={{ padding: '8px 10px' }}>Identitas Petugas Operator</th>
-                          <th style={{ padding: '8px 10px' }}>Satuan / Penugasan</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Diinput</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Valid</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kelengkapan 5W+1H</th>
-                          <th style={{ padding: '8px 10px' }}>Catatan Evaluasi Kedinasan (Pawas)</th>
-                          <th style={{ padding: '8px 10px', textAlign: 'center' }}>Skor Mutu</th>
-                          <th style={{ padding: '8px 10px' }}>Predikat Kedinasan</th>
-                        </tr>
+                        {rankingCategoryTab === 'produktivitas' ? (
+                          <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0', color: '#475569', fontWeight: 800 }}>
+                            <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Rank</th>
+                            <th style={{ padding: '8px 10px' }}>Identitas Petugas Operator</th>
+                            <th style={{ padding: '8px 10px' }}>Satuan / Penugasan</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Diinput</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tiket Valid</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Kelengkapan 5W+1H</th>
+                            <th style={{ padding: '8px 10px' }}>Catatan Evaluasi Kedinasan (Pawas)</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Skor Mutu</th>
+                            <th style={{ padding: '8px 10px' }}>Predikat Kedinasan</th>
+                          </tr>
+                        ) : (
+                          <tr style={{ background: '#F8FAFC', borderBottom: '2px solid #E2E8F0', color: '#475569', fontWeight: 800 }}>
+                            <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}>Rank</th>
+                            <th style={{ padding: '8px 10px' }}>Identitas Petugas Operator</th>
+                            <th style={{ padding: '8px 10px' }}>Satuan / Penugasan</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Rating IKM Warga</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Total Ulasan</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Tingkat Kepuasan Publik</th>
+                            <th style={{ padding: '8px 10px' }}>Sampel Ulasan / Suara Warga</th>
+                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Indeks Mutu</th>
+                            <th style={{ padding: '8px 10px' }}>Predikat Pelayanan</th>
+                          </tr>
+                        )}
                       </thead>
                       <tbody>
                         {filteredOperatorList.map((item: any, idx: number) => (
@@ -1605,54 +1687,121 @@ export default function TabKinerjaPawas({
                               <div>{item.pangkat}</div>
                               <div style={{ fontSize: '10px', color: '#64748B' }}>{item.stationName}</div>
                             </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800, color: '#153E75' }}>
-                              {item.totalTiketInput} Tiket
-                            </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
-                              {item.totalTiketInput > 0 ? `${item.validTiketCount != null ? item.validTiketCount : (item.totalTiketInput || 0)} (${item.validRate != null ? item.validRate : 100}%)` : '-'}
-                            </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                              {item.totalTiketInput > 0 && item.avg5W1HQuality != null ? (
-                                <span style={{ fontSize: '11px', fontWeight: 800, color: item.avg5W1HQuality >= 80 ? '#059669' : '#D97706' }}>
-                                  {item.avg5W1HQuality}%
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94A3B8' }}>-</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '8px 10px', maxWidth: '320px' }}>
-                              {item.totalTiketInput > 0 ? (
-                                <div style={{ fontSize: '10.5px', color: '#334155', lineHeight: 1.4, background: '#F8FAFC', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
-                                  🛡️ {item.internalSupervisionSummary}
-                                </div>
-                              ) : (
-                                <span style={{ fontSize: '10.5px', color: '#94A3B8' }}>Belum ada laporan diinput</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                              {item.totalTiketInput > 0 ? (
-                                <span style={{ fontSize: '12px', fontWeight: 900, color: '#153E75', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
-                                  {item.compositeScore}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 700 }}>-</span>
-                              )}
-                            </td>
-                            <td style={{ padding: '8px 10px' }}>
-                              <span
-                                style={{
-                                  background: item.predikatColor ? item.predikatColor : '#10B981',
-                                  color: 'white',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  fontSize: '10px',
-                                  fontWeight: 700,
-                                  display: 'inline-block',
-                                }}
-                              >
-                                {item.predikat}
-                              </span>
-                            </td>
+
+                            {rankingCategoryTab === 'produktivitas' ? (
+                              <>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 800, color: '#153E75' }}>
+                                  {item.totalTiketInput} Tiket
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: item.totalTiketInput > 0 ? '#059669' : '#94A3B8' }}>
+                                  {item.totalTiketInput > 0 ? `${item.validTiketCount != null ? item.validTiketCount : (item.totalTiketInput || 0)} (${item.validRate != null ? item.validRate : 100}%)` : '-'}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  {item.totalTiketInput > 0 && item.avg5W1HQuality != null ? (
+                                    <span style={{ fontSize: '11px', fontWeight: 800, color: item.avg5W1HQuality >= 80 ? '#059669' : '#D97706' }}>
+                                      {item.avg5W1HQuality}%
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#94A3B8' }}>-</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 10px', maxWidth: '320px' }}>
+                                  {item.totalTiketInput > 0 ? (
+                                    <div style={{ fontSize: '10.5px', color: '#334155', lineHeight: 1.4, background: '#F8FAFC', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                      🛡️ {item.internalSupervisionSummary}
+                                    </div>
+                                  ) : (
+                                    <span style={{ fontSize: '10.5px', color: '#94A3B8' }}>Belum ada laporan diinput</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  {item.totalTiketInput > 0 ? (
+                                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#153E75', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
+                                      {item.compositeScore}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 700 }}>-</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 10px' }}>
+                                  <span
+                                    style={{
+                                      background: item.predikatColor ? item.predikatColor : '#10B981',
+                                      color: 'white',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '10px',
+                                      fontWeight: 700,
+                                      display: 'inline-block',
+                                    }}
+                                  >
+                                    {item.predikat}
+                                  </span>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  <div style={{ fontWeight: 800, color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                                    ⭐ {item.avgRating > 0 ? item.avgRating.toFixed(1) : '-'} / 5.0
+                                  </div>
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: '#153E75' }}>
+                                  {item.totalReviews > 0 ? `${item.totalReviews} Ulasan` : '-'}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  {item.avgRating > 0 ? (
+                                    <span style={{
+                                      background: item.avgRating >= 4.5 ? '#DCFCE7' : (item.avgRating >= 4.0 ? '#DBEAFE' : '#FEF3C7'),
+                                      color: item.avgRating >= 4.5 ? '#15803D' : (item.avgRating >= 4.0 ? '#1E40AF' : '#92400E'),
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '10.5px',
+                                      fontWeight: 800,
+                                    }}>
+                                      {Math.round((item.avgRating / 5) * 100)}% {item.avgRating >= 4.5 ? 'Sangat Puas' : (item.avgRating >= 4.0 ? 'Puas' : 'Cukup')}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#94A3B8' }}>-</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 10px', maxWidth: '300px' }}>
+                                  {item.recentReviewText ? (
+                                    <div style={{ fontSize: '10.5px', color: '#334155', fontStyle: 'italic', background: '#F8FAFC', padding: '6px 8px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                      💬 &quot;{item.recentReviewText}&quot;
+                                    </div>
+                                  ) : item.totalReviews > 0 ? (
+                                    <span style={{ fontSize: '10.5px', color: '#059669', fontWeight: 600 }}>✓ Rating bintang tercatat baik</span>
+                                  ) : (
+                                    <span style={{ fontSize: '10.5px', color: '#94A3B8' }}>Belum ada ulasan warga</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  {item.avgRating > 0 ? (
+                                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#153E75', background: '#EFF6FF', padding: '3px 8px', borderRadius: '6px' }}>
+                                      {Math.round((item.avgRating / 5) * 100)} Pts
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#94A3B8', fontSize: '12px', fontWeight: 700 }}>-</span>
+                                  )}
+                                </td>
+                                <td style={{ padding: '8px 10px' }}>
+                                  <span
+                                    style={{
+                                      background: item.avgRating >= 4.7 ? '#059669' : (item.avgRating >= 4.0 ? '#2563EB' : (item.avgRating > 0 ? '#D97706' : '#64748B')),
+                                      color: 'white',
+                                      padding: '2px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '10px',
+                                      fontWeight: 700,
+                                      display: 'inline-block',
+                                    }}
+                                  >
+                                    {item.avgRating >= 4.7 ? 'Sangat Prima (IKM 5★)' : (item.avgRating >= 4.0 ? 'Pelayanan Baik' : (item.avgRating > 0 ? 'Perlu Peningkatan' : 'Belum Ada Ulasan'))}
+                                  </span>
+                                </td>
+                              </>
+                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -1665,65 +1814,152 @@ export default function TabKinerjaPawas({
         )}
       </div>
 
-      {/* Kejadian Menonjol Selama Periode Terpilih */}
-      <div style={{ marginBottom: '16px', background: 'white', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-        <div style={{ fontSize: '13px', fontWeight: 800, color: '#1E293B', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Kejadian Menonjol ({periodSummaryLabel})</span>
-          <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
-            {filteredComplaints.length} Laporan Tercatat
-          </span>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          {filteredComplaints.length === 0 ? (
-            <div style={{ padding: '24px 10px', textAlign: 'center', color: '#64748B', fontSize: '12px' }}>
-              <div>📋</div>
-              <div style={{ marginTop: '4px', fontWeight: 700 }}>Tidak Ada Kejadian Tercatat Pada {periodSummaryLabel}</div>
-              <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>Pilih rentang tanggal lain pada filter di atas untuk melihat riwayat tugas.</div>
-            </div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B', fontWeight: 700 }}>
-                  <th style={{ padding: '6px 8px' }}>No. Tiket</th>
-                  <th style={{ padding: '6px 8px' }}>Waktu</th>
-                  <th style={{ padding: '6px 8px' }}>Kejadian &amp; TKP</th>
-                  <th style={{ padding: '6px 8px' }}>Satuan</th>
-                  <th style={{ padding: '6px 8px' }}>Respon</th>
-                  <th style={{ padding: '6px 8px' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredComplaints.slice(0, 5).map((inc) => (
-                  <tr key={inc.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                    <td style={{ padding: '8px', fontFamily: 'monospace', fontWeight: 700 }}>{inc.nomorTiket}</td>
-                    <td style={{ padding: '8px' }}>
-                      {inc.createdAt ? new Date(inc.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini'}
-                    </td>
-                    <td style={{ padding: '8px' }}><strong>{inc.jenisKejadian}</strong> - {inc.tkpAlamatTeks}</td>
-                    <td style={{ padding: '8px' }}>
-                      {inc.assignedOfficer?.assignedPatrolVehicle ? inc.assignedOfficer.assignedPatrolVehicle : (inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat} ${inc.assignedOfficer.namaLengkap}` : '-')}
-                    </td>
-                    <td style={{ padding: '8px', color: '#16A34A', fontWeight: 700 }}>
-                      {inc.responseTimeMinutes ? `± ${inc.responseTimeMinutes} Menit` : '-'}
-                    </td>
-                    <td style={{ padding: '8px' }}>
-                      <span style={{
-                        background: inc.status === 'SELESAI' ? '#DCFCE7' : (inc.status === 'MENUNGGU_PENGESAHAN' ? '#EDE9FE' : (inc.status === 'DIPROSES' ? '#DBEAFE' : (inc.status === 'DITOLAK' ? '#FEE2E2' : '#FEF3C7'))),
-                        color: inc.status === 'SELESAI' ? '#15803D' : (inc.status === 'MENUNGGU_PENGESAHAN' ? '#6D28D9' : (inc.status === 'DIPROSES' ? '#1D4ED8' : (inc.status === 'DITOLAK' ? '#B91C1C' : '#B45309'))),
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontSize: '10px',
-                        fontWeight: 700
-                      }}>
-                        {inc.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+      {/* Kejadian Menonjol Selama Periode Terpilih via MasterTabShell */}
+      <div style={{ marginBottom: '16px' }}>
+        <MasterTabShell
+          config={{
+            title: `Kejadian Menonjol • ${periodSummaryLabel}`,
+            desc: `Daftar rekam jejak ${filteredComplaints.length} laporan insiden dan aduan masyarakat selama periode terpilih. Klik nomor tiket untuk langsung membuka berkas komando.`,
+            icon: '🚨',
+          }}
+          dataList={filteredComplaints}
+          readOnly={true}
+          showActiveFilter={false}
+          tableColumns={[
+            {
+              header: 'No. Tiket',
+              width: '180px',
+              render: (inc: any) => {
+                const ticketNo = inc.nomorTiket || inc.nomor_tiket || `TICKET-${inc.id}`;
+                return (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (onOpenTicketInKomando) {
+                          onOpenTicketInKomando(inc);
+                        }
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'monospace',
+                        fontWeight: 800,
+                        color: '#1D4ED8',
+                        textDecoration: 'underline',
+                        textAlign: 'left',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title="Klik untuk langsung membuka dan memeriksa berkas di Komando Pawas"
+                    >
+                      <span>{ticketNo}</span>
+                      <span style={{ fontSize: '10px' }}>↗</span>
+                    </button>
+                    <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
+                      Buka di Komando Pawas
+                    </div>
+                  </div>
+                );
+              },
+            },
+            {
+              header: 'Waktu Masuk',
+              width: '130px',
+              render: (inc: any) => {
+                const cDate = getComplaintDate(inc);
+                const timeStr = cDate ? cDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB' : 'Hari ini';
+                const dateStr = cDate ? cDate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-';
+                return (
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#1E293B', fontFamily: 'monospace' }}>{timeStr}</div>
+                    <div style={{ fontSize: '10px', color: '#64748B' }}>{dateStr}</div>
+                  </div>
+                );
+              },
+            },
+            {
+              header: 'Kejadian & TKP',
+              render: (inc: any) => (
+                <div>
+                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '12.5px' }}>
+                    {inc.jenisKejadian || inc.jenis_kejadian || 'Laporan Umum'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>
+                    📍 {inc.tkpAlamatTeks || inc.tkp_alamat || inc.alamat || 'Area Wilayah Hukum'}
+                  </div>
+                  {inc.deskripsi && (
+                    <div style={{ fontSize: '10.5px', color: '#64748B', fontStyle: 'italic', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '380px' }}>
+                      &quot;{inc.deskripsi}&quot;
+                    </div>
+                  )}
+                </div>
+              ),
+            },
+            {
+              header: 'Satuan Patroli',
+              width: '180px',
+              render: (inc: any) => {
+                const officerName = inc.assignedOfficer ? `${inc.assignedOfficer.rankPangkat || ''} ${inc.assignedOfficer.namaLengkap || ''}`.trim() : null;
+                const vehicle = inc.assignedOfficer?.assignedPatrolVehicle || inc.assigned_patrol_vehicle;
+                return (
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#334155' }}>
+                      {vehicle || officerName || '-'}
+                    </div>
+                    {vehicle && officerName && (
+                      <div style={{ fontSize: '10px', color: '#64748B' }}>{officerName}</div>
+                    )}
+                  </div>
+                );
+              },
+            },
+            {
+              header: 'Respon TKP',
+              width: '110px',
+              align: 'center',
+              render: (inc: any) => (
+                <div style={{ fontWeight: 800, color: inc.responseTimeMinutes ? '#16A34A' : '#94A3B8' }}>
+                  {inc.responseTimeMinutes ? `± ${inc.responseTimeMinutes} Menit` : '-'}
+                </div>
+              ),
+            },
+            {
+              header: 'Status Berkas',
+              width: '130px',
+              align: 'center',
+              render: (inc: any) => {
+                const isSelesai = inc.status === 'SELESAI';
+                const isMenunggu = inc.status === 'MENUNGGU_PENGESAHAN';
+                const isProses = inc.status === 'DIPROSES';
+                const isTolak = inc.status === 'DITOLAK';
+
+                const bg = isSelesai ? '#DCFCE7' : (isMenunggu ? '#EDE9FE' : (isProses ? '#DBEAFE' : (isTolak ? '#FEE2E2' : '#FEF3C7')));
+                const col = isSelesai ? '#15803D' : (isMenunggu ? '#6D28D9' : (isProses ? '#1D4ED8' : (isTolak ? '#B91C1C' : '#B45309')));
+
+                return (
+                  <span
+                    style={{
+                      background: bg,
+                      color: col,
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      display: 'inline-block',
+                      letterSpacing: '0.3px',
+                    }}
+                  >
+                    {inc.status}
+                  </span>
+                );
+              },
+            },
+          ]}
+        />
       </div>
 
       {/* Bottom Action Button */}

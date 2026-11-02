@@ -67,7 +67,7 @@ export const TabValidasiGiatSection: React.FC<TabValidasiGiatSectionProps> = ({
     const rank = (off.rank || off.pangkat || '') as string;
     const fullName = (usr.full_name || off.name || off.full_name || 'Personel Presisi') as string;
     const nrp = (off.nrp || '') as string;
-    const unit = off.unit?.unit_name || off.unit?.short_name || off.satuan || 'Sat Samapta';
+    const unit = off.unit?.unit_name || off.unit?.short_name || off.satuan || off.operational_unit || 'Unit Tugas Presisi';
 
     let displayName = fullName;
     if (rank && fullName.toLowerCase().startsWith(rank.toLowerCase())) {

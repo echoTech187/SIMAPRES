@@ -117,15 +117,46 @@ export async function reverseGeocodeCoords(lat: number, lng: number): Promise<st
   return fallback;
 }
 
+export interface PoliceStationLookupsItem {
+  id?: number | string;
+  station_code?: string;
+  station_name: string;
+  station_level?: string;
+  address?: string;
+}
+
+let cachedStationRegistry: PoliceStationLookupsItem[] = [];
+
+/**
+ * Register dynamic police stations from database (e.g. at app init or master bundle load).
+ */
+export function setKnownPoliceStations(stations: PoliceStationLookupsItem[]) {
+  if (Array.isArray(stations) && stations.length > 0) {
+    cachedStationRegistry = stations;
+  }
+}
+
 /**
  * Resolves Police Sector (Polsek / Sektor Wilayah) from address or complaint metadata.
+ * Dynamically prioritizes registered database stations, falling back to canonical sector definitions.
  */
-export function resolveSektorWilayah(address?: string | null, complaint?: any): string {
+export function resolveSektorWilayah(address?: string | null, complaint?: any, knownStations?: PoliceStationLookupsItem[]): string {
   if (complaint?.station?.station_name) {
     return complaint.station.station_name;
   }
 
   const text = `${address || ''} ${complaint?.tkpAlamatTeks || ''}`.toLowerCase();
+  const stationPool = (knownStations && knownStations.length > 0) ? knownStations : cachedStationRegistry;
+
+  if (stationPool.length > 0 && text) {
+    for (const st of stationPool) {
+      if (!st.station_name) continue;
+      const cleanName = st.station_name.toLowerCase().replace(/polsek|polres|mako|sektor/g, '').trim();
+      if (cleanName.length >= 4 && text.includes(cleanName)) {
+        return `Sektor ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)} (${st.station_name})`;
+      }
+    }
+  }
 
   if (text.includes('kajen')) return 'Sektor Kajen (Polsek Kajen)';
   if (text.includes('kedungwuni')) return 'Sektor Kedungwuni (Polsek Kedungwuni)';

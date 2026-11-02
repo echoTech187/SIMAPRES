@@ -178,19 +178,17 @@ function OperatorConsoleContent(props: {
 
       {/* ── HORIZONTAL TAB BAR (Desktop Only) ── */}
       {/* ── HORIZONTAL TAB BAR (Desktop Only - Reusable Atomic Component) ── */}
-      {activeTab !== 'view-profil' && (
-        <TacticalTabBar
-          tabs={[
-            { id: 'nav-operator', tabId: 'view-operator', label: 'Sentra Layanan 110 & CAD', icon: Headphones, badge: waitingCount },
-            { id: 'nav-peta', tabId: 'view-peta', label: 'Peta Situasi Wilayah', icon: Map },
-            { id: 'nav-panduan', tabId: 'view-panduan', label: 'Buku Pintar SOP & Layanan', icon: BookOpen },
-            { id: 'nav-kinerja-operator', tabId: 'view-laporan', label: 'Kinerja & Peringkat 110', icon: Award },
-          ]}
-          activeTab={activeTab}
-          onSelectTab={switchTab}
-          activeColor="#0284C7"
-        />
-      )}
+      <TacticalTabBar
+        tabs={[
+          { id: 'nav-operator', tabId: 'view-operator', label: 'Sentra Layanan 110 & CAD', icon: Headphones, badge: waitingCount },
+          { id: 'nav-peta', tabId: 'view-peta', label: 'Peta Situasi Wilayah', icon: Map },
+          { id: 'nav-panduan', tabId: 'view-panduan', label: 'Buku Pintar SOP & Layanan', icon: BookOpen },
+          { id: 'nav-kinerja-operator', tabId: 'view-laporan', label: 'Kinerja & Peringkat 110', icon: Award },
+        ]}
+        activeTab={activeTab}
+        onSelectTab={switchTab}
+        activeColor="#0284C7"
+      />
 
       {/* ── MAIN CONTENT ── */}
       <main className={`pawas-content-area ${activeTab === 'view-peta' ? 'pawas-peta-active' : 'registrasi-container'}`} style={activeTab === 'view-peta' ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : undefined}>
@@ -317,6 +315,7 @@ function OperatorConsoleContent(props: {
             showToast={showToast}
             onBackToBeranda={() => switchTab('view-operator')}
             onLogout={handleLogout}
+            onNavigateTab={(tab) => switchTab(tab as any)}
             roleBadge="OPERATOR"
             roleTitle="Operator Sentra Pelayanan Kepolisian CAD 110"
           />

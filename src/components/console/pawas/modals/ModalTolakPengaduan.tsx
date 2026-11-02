@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { getMasterRejectionReasonsAction } from '@/app/actions/complaint/complaint-query.actions';
 import { AlertTriangle, X, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 export interface ModalTolakPengaduanProps {
@@ -48,16 +49,29 @@ export default function ModalTolakPengaduan({
   loading = false,
   rejectionReasons = [],
 }: ModalTolakPengaduanProps) {
+  const [dynamicReasons, setDynamicReasons] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!rejectionReasons || rejectionReasons.length === 0) {
+      getMasterRejectionReasonsAction().then((res) => {
+        if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setDynamicReasons(res.data);
+        }
+      }).catch(() => {});
+    }
+  }, [rejectionReasons]);
+
   const reasonsList = React.useMemo(() => {
-    if (rejectionReasons && rejectionReasons.length > 0) {
-      return rejectionReasons.map((r) => ({
+    const activeList = (rejectionReasons && rejectionReasons.length > 0) ? rejectionReasons : dynamicReasons;
+    if (activeList && activeList.length > 0) {
+      return activeList.map((r) => ({
         key: r.key || String(r.id),
         label: r.label || r.reason || r.name,
         desc: r.desc || r.description || `Sesuai master data verifikasi SOP: ${r.label || r.reason}`,
       }));
     }
     return FALLBACK_REASONS;
-  }, [rejectionReasons]);
+  }, [rejectionReasons, dynamicReasons]);
 
   const [selectedReason, setSelectedReason] = useState<string>(() => reasonsList[0]?.label || FALLBACK_REASONS[0].label);
   const [catatanPenolakan, setCatatanPenolakan] = useState<string>('');

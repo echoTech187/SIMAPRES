@@ -105,6 +105,9 @@ export default function TabPiketPawas({
         const stations = res.data.stations || [];
         const officers = res.data.officers || [];
         const operationalUnits = res.data.operationalUnits || [];
+        if (operationalUnits.length > 0 && !quickRole) {
+          setQuickRole(operationalUnits[0].unit_name || (operationalUnits[0] as any).name || 'Sat Samapta');
+        }
         setLookups({
           stations,
           officers,

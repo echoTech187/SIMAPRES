@@ -39,6 +39,7 @@ import {
   updateUserProfileAndAvatarAction,
   updateUserPasswordAction,
 } from '@/app/actions/auth.actions';
+import { getMasterRanksAction } from '@/app/actions/master.actions';
 import {
   getOfficerPerformanceRankingsAction,
   type OfficerPerformanceRankItem,
@@ -73,6 +74,17 @@ export default function TabProfilPersonil({
   const [kpiPeriod, setKpiPeriod] = useState<'harian' | 'mingguan' | 'bulanan'>('harian');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [availableRanks, setAvailableRanks] = useState<string[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    getMasterRanksAction({ isActive: true }).then((res) => {
+      if (isMounted && res.success && Array.isArray(res.data) && res.data.length > 0) {
+        setAvailableRanks(res.data.map((r: any) => r.key || r.label));
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   // Active Modal: 'profil' | 'keamanan' | 'kpi' | 'log' | 'logout' | null
   const [activeModal, setActiveModal] = useState<'profil' | 'keamanan' | 'kpi' | 'log' | 'logout' | null>(() => (initialKpiOpen ? 'kpi' : null));
@@ -1212,7 +1224,10 @@ export default function TabProfilPersonil({
                         className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-white focus:outline-none focus:border-amber-400 font-medium"
                       >
                         <option value="">Pilih Pangkat Kedinasan</option>
-                        {['BRIPDA', 'BRIPTU', 'BRIPKA', 'AIPDA', 'AIPTU', 'IPDA', 'IPTU', 'AKP', 'KOMPOL', 'AKBP'].map((p) => (
+                        {(availableRanks.length > 0
+                          ? availableRanks
+                          : ['BRIPDA', 'BRIPTU', 'BRIPKA', 'AIPDA', 'AIPTU', 'IPDA', 'IPTU', 'AKP', 'KOMPOL', 'AKBP']
+                        ).map((p) => (
                           <option key={p} value={p}>
                             {p}
                           </option>

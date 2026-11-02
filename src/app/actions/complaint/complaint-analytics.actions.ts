@@ -113,7 +113,7 @@ export async function getOfficerPerformanceRankingsAction(stationId?: number | s
           ) as recent_review_text
           
         FROM police_officers po
-        LEFT JOIN users u ON u.id = po.user_id
+        JOIN users u ON u.id = po.user_id AND u.role = 'PERSONIL'
         LEFT JOIN master_operational_units un ON un.id = po.unit_id
         LEFT JOIN complaint_dispatches d ON d.officer_id = po.id
         LEFT JOIN citizen_reviews cr ON cr.complaint_id = d.complaint_id AND (d.dispatch_status = 'COMPLETED' OR d.completed_at IS NOT NULL)
@@ -177,7 +177,10 @@ export async function getOfficerPerformanceRankingsAction(stationId?: number | s
 
     if (!items) {
       const officers = await prisma.policeOfficer.findMany({
-        where: numStationId ? { station_id: numStationId } : undefined,
+        where: {
+          ...(numStationId ? { station_id: numStationId } : {}),
+          user: { role: 'PERSONIL' },
+        },
         include: {
           user: { select: { id: true, full_name: true, is_active: true } },
           unit: { select: { unit_name: true, short_name: true } },
@@ -384,6 +387,7 @@ export async function getStationPerformanceRankingsAction() {
           st.station_code,
           st.station_name,
           st.station_level,
+          st.parent_station_id,
           st.phone_piket,
           st.phone_kapolsek,
           
@@ -407,7 +411,7 @@ export async function getStationPerformanceRankingsAction() {
         LEFT JOIN citizen_reviews cr ON cr.complaint_id = c.id
         LEFT JOIN complaint_dispatches d ON d.complaint_id = c.id
         WHERE st.is_active = 1 OR st.is_active IS NULL
-        GROUP BY st.id, st.station_code, st.station_name, st.station_level, st.phone_piket, st.phone_kapolsek
+        GROUP BY st.id, st.station_code, st.station_name, st.station_level, st.parent_station_id, st.phone_piket, st.phone_kapolsek
         ORDER BY st.id ASC;
       `;
 
@@ -436,6 +440,7 @@ export async function getStationPerformanceRankingsAction() {
             stationCode: r.station_code,
             stationName: r.station_name,
             stationLevel: r.station_level,
+            parentStationId: r.parent_station_id ? Number(r.parent_station_id) : null,
             phonePiket: r.phone_piket || null,
             phoneKapolsek: r.phone_kapolsek || null,
             totalMasuk,
@@ -547,6 +552,7 @@ export async function getStationPerformanceRankingsAction() {
         stationCode: st.station_code,
         stationName: st.station_name,
         stationLevel: st.station_level,
+        parentStationId: st.parent_station_id ? Number(st.parent_station_id) : null,
         phonePiket: st.phone_piket ? st.phone_piket : null,
         phoneKapolsek: st.phone_kapolsek ? st.phone_kapolsek : null,
         totalMasuk,
@@ -763,7 +769,7 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
             jabatan: jabatanUnit,
             unit: jabatanUnit,
             role: r.role || 'OPERATOR',
-            stationName: r.station_name || 'SPKT Mako Polres Pekalongan',
+            stationName: r.station_name || 'SPKT Sentra Pelayanan',
             avatarUrl: r.avatar_url || null,
             totalTiketInput,
             totalDisposisi,
@@ -906,9 +912,7 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
 
       const nameParts = op.full_name.split(' ');
       const pangkatCandidate = nameParts.length > 1 ? nameParts[0] : 'Bripka';
-      const pangkat = ['Aiptu', 'Aipda', 'Bripka', 'Brigadir', 'Briptu', 'Bripda', 'Ipda'].includes(pangkatCandidate)
-        ? pangkatCandidate
-        : 'Operator SPKT';
+      const pangkat = (op as any).rank_pangkat || (['Aiptu', 'Aipda', 'Bripka', 'Brigadir', 'Briptu', 'Bripda', 'Ipda', 'Iptu', 'Akp'].some((r) => r.toLowerCase() === pangkatCandidate.toLowerCase()) ? pangkatCandidate : 'Operator SPKT');
 
       return {
         operatorId: op.id.toString(),
@@ -916,7 +920,7 @@ export async function getOperatorPerformanceRankingsAction(stationId?: number | 
         namaLengkap: op.full_name,
         pangkat,
         role: op.role,
-        stationName: op.station?.station_name ? op.station.station_name : 'SPKT Mako Polres Pekalongan',
+        stationName: op.station?.station_name || 'SPKT Sentra Pelayanan',
         avatarUrl: op.avatar_url,
         totalTiketInput,
         totalDisposisi,

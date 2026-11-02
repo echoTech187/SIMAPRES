@@ -428,6 +428,11 @@ function CommandCenterContent(props: {
             officerRankings={officerRankings}
             stationRankings={stationRankings}
             operatorRankings={operatorRankings}
+            onOpenTicketInKomando={(complaint) => {
+              setSelectedValComplaint(complaint);
+              switchTab('view-validasi');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
           />
         )}
 
