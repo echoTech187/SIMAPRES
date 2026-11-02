@@ -1547,6 +1547,9 @@ export class PrismaComplaintRepository implements IComplaintRepository {
 
   async updateRecord(modelName: string, updateOptions: any): Promise<any> {
     const model = this.getModelDelegate(modelName);
+    if (updateOptions && updateOptions.where && !updateOptions.where.id) {
+      return await model.updateMany(updateOptions);
+    }
     return await model.update(updateOptions);
   }
 

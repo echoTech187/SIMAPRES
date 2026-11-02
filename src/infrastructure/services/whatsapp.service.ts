@@ -82,6 +82,9 @@ export class WhatsAppService {
     apiToken: string;
     deviceId: string;
     sessionId: string;
+    wablasDomain: string;
+    wablasToken: string;
+    wablasSecret: string;
     polresName: string;
     appUrl: string;
   } {
@@ -89,10 +92,13 @@ export class WhatsAppService {
     const apiToken = process.env.FLOWKIRIM_API_TOKEN || process.env.WHATSAPP_API_TOKEN || '';
     const deviceId = process.env.FLOWKIRIM_DEVICE_ID || '';
     const sessionId = process.env.FLOWKIRIM_SESSION_ID || '';
+    const wablasDomain = (process.env.WABLAS_API_DOMAIN || 'https://kudus.wablas.com').replace(/\/+$/, '');
+    const wablasToken = process.env.WABLAS_API_TOKEN || process.env.WABLAS_TOKEN || '';
+    const wablasSecret = process.env.WABLAS_SECRET_KEY || process.env.WABLAS_SECRET || '';
     const polresName = process.env.NEXT_PUBLIC_POLRES_NAME || 'Polres Pekalongan';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
 
-    return { apiBase, apiToken, deviceId, sessionId, polresName, appUrl };
+    return { apiBase, apiToken, deviceId, sessionId, wablasDomain, wablasToken, wablasSecret, polresName, appUrl };
   }
 
   /**
@@ -153,7 +159,44 @@ export class WhatsAppService {
       }
     }
 
-    // OPSI 2 (Cadangan Handal / Cloud Fallback): FlowKirim REST API
+        // OPSI 2 (Utama / Rekomendasi Enterprise): WABLAS WhatsApp API Gateway
+    const { wablasDomain, wablasToken, wablasSecret } = this.getApiConfig();
+    if (wablasToken) {
+      try {
+        const authHeader = (wablasSecret && !wablasToken.includes('.')) ? (wablasToken + '.' + wablasSecret) : wablasToken;
+        const wablasRes = await fetch(wablasDomain + '/api/send-message', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            phone: cleanPhone,
+            message: messageText,
+            isGroup: false,
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+
+        const wablasData = await wablasRes.json().catch(() => null);
+        if (wablasRes.ok && (wablasData?.status === true || wablasData?.status === 'success' || wablasData?.status === 200)) {
+          console.log('[WhatsAppService] Pesan terkirim via Wablas ke %s', cleanPhone);
+          return {
+            success: true,
+            messageId: String(wablasData?.data?.id || wablasData?.data?.message_id || wablasData?.id || Date.now()),
+            statusText: 'Pesan berhasil terkirim via Wablas Enterprise Gateway',
+            recipientPhone: cleanPhone,
+          };
+        } else {
+          console.warn('[WhatsAppService] Wablas gagal kirim (%s), mencoba fallback provider lain...', wablasData?.message || wablasRes.statusText);
+        }
+      } catch (wablasErr: any) {
+        console.warn('[WhatsAppService] Koneksi Wablas gagal (%s), mencoba fallback provider lain...', wablasErr.message);
+      }
+    }
+
+    // OPSI 3 (Cadangan Handal / Cloud Fallback): FlowKirim REST API
     // Digunakan jika server Mako belum 24 jam, PC operator mati lampu, atau tidak ingin pasang server lokal.
 
     // 2. Fallback: Jika API token FlowKirim belum dikonfigurasi di file .env
