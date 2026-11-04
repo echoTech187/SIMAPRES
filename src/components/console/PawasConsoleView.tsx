@@ -334,6 +334,7 @@ function CommandCenterContent(props: {
             fleetUnits={fleetUnits}
             hotspots={hotspots}
             policeOffices={policeOffices}
+            complaints={allRecentComplaints}
             setShowHotspotModal={setShowHotspotModal}
             highPriorityIncident={highPriorityIncident}
             resolveUrgencyLevel={resolveUrgencyLevel}

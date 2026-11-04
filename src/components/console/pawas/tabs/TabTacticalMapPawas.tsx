@@ -27,6 +27,7 @@ export interface TabTacticalMapPawasProps {
   fleetUnits: PawasFleetUnit[];
   hotspots: PawasHotspotItem[];
   policeOffices: PawasPoliceOfficeItem[];
+  complaints?: any[];
   setShowHotspotModal: (show: boolean) => void;
   highPriorityIncident: PawasComplaintDossier | null;
   resolveUrgencyLevel: (urgensi?: string | null) => any;
@@ -38,6 +39,7 @@ export default function TabTacticalMapPawas({
   fleetUnits,
   hotspots,
   policeOffices,
+  complaints = [],
   setShowHotspotModal,
   highPriorityIncident,
   resolveUrgencyLevel,
@@ -63,11 +65,18 @@ export default function TabTacticalMapPawas({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const incidentLat = highPriorityIncident
-    ? Number(highPriorityIncident.tkpLat ?? highPriorityIncident.lat ?? highPriorityIncident.tkp_lat ?? 0)
+  // Cari aduan aktif pertama dengan koordinat valid jika highPriorityIncident null
+  const activeIncidentWithCoords = highPriorityIncident || complaints.find((c: any) => {
+    const lat = Number(c?.tkpLat ?? c?.lat ?? c?.tkp_lat ?? 0);
+    const lng = Number(c?.tkpLng ?? c?.lng ?? c?.tkp_lng ?? 0);
+    return lat !== 0 && lng !== 0;
+  }) || null;
+
+  const incidentLat = activeIncidentWithCoords
+    ? Number(activeIncidentWithCoords.tkpLat ?? activeIncidentWithCoords.lat ?? activeIncidentWithCoords.tkp_lat ?? 0)
     : 0;
-  const incidentLng = highPriorityIncident
-    ? Number(highPriorityIncident.tkpLng ?? highPriorityIncident.lng ?? highPriorityIncident.tkp_lng ?? 0)
+  const incidentLng = activeIncidentWithCoords
+    ? Number(activeIncidentWithCoords.tkpLng ?? activeIncidentWithCoords.lng ?? activeIncidentWithCoords.tkp_lng ?? 0)
     : 0;
   const hasIncidentCoords = incidentLat !== 0 && incidentLng !== 0;
 
@@ -116,7 +125,8 @@ export default function TabTacticalMapPawas({
           fleetUnits={fleetUnits}
           hotspots={hotspots}
           policeOffices={policeOffices}
-          targetComplaint={highPriorityIncident || undefined}
+          complaints={complaints}
+          targetComplaint={highPriorityIncident || activeIncidentWithCoords || undefined}
           showTraffic={showTraffic}
           focusedUnitKey={focusedUnitKey}
           controlsRightOffset={isMobileScreen ? '16px' : isPicketSidebarOpen ? '396px' : '20px'}

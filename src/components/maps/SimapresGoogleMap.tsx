@@ -1,6 +1,10 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  getMakoHierarchyStyle,
+  createMakoMapMarkerIcon,
+} from '@/lib/mako-hierarchy-styles';
 import { Plus, Minus, LocateFixed, AlertTriangle, Maximize2 } from 'lucide-react';
 
 export interface MapUnitData {
@@ -1086,47 +1090,49 @@ export default function SimapresGoogleMap({
     });
     patrolPolylinesRef.current = [];
 
-    // 1. Police Offices / Mako (Dinamis Murni dari Database Tabel auth_units)
+    // 1. Police Offices / Mako Berdasarkan Hirarki (MABES, POLDA, POLRES, POLSEK, POSPOL)
     (policeOffices || []).forEach((office) => {
       const officePos = { lat: Number(office.lat), lng: Number(office.lng) };
       if (!officePos.lat || !officePos.lng) return;
 
-      const makoIcon = makeHaloBadgeIcon('🏢', '#1E3A8A', '#93C5FD');
+      const makoStyle = getMakoHierarchyStyle(office, false);
+      const makoIcon = createMakoMapMarkerIcon(makoStyle, maps);
+
       const makoMarker = new maps.Marker({
         position: officePos,
         map,
         icon: makoIcon,
-        title: office.name,
-        zIndex: 800,
+        title: `[${makoStyle.badgeLabel}] ${office.name || office.namaKantor}`,
+        zIndex: makoStyle.zIndex,
       });
 
       const officeUnitData: MapUnitData = {
         key: `office_${office.id}`,
         pos: officePos,
-        iconEmoji: office.iconEmoji || '🏢',
+        iconEmoji: makoStyle.emoji,
         title: office.name,
-        petugas: office.petugas,
+        petugas: office.petugas && office.petugas !== '-' ? office.petugas : office.name,
         sub: office.address,
-        status: office.status,
-        statusColor: office.statusColor || '#1E3A8A',
-        tugas: office.tugas,
-        telemetri: office.telemetri,
+        status: makoStyle.badgeLabel,
+        statusColor: makoStyle.strokeColor,
+        tugas: office.tugas || 'Pusat Komando & Pengendalian Operasi',
+        telemetri: `Hirarki: ${makoStyle.level} • Koordinat: ${officePos.lat.toFixed(5)}, ${officePos.lng.toFixed(5)}`,
       };
 
       makoMarker.addListener('click', () => {
         handleUnitClick(officeUnitData);
         openMarkerDetailWindow(makoMarker, {
           title: office.name,
-          subTitle: office.address || 'Kantor Polisi & Mako Sektor',
+          subTitle: `[${makoStyle.badgeLabel}] ${office.address || 'Kantor Polisi & Mako Sektor'}`,
           petugas: office.petugas && office.petugas !== '-' ? `Personel: ${office.petugas}` : office.name,
-          badgeText: office.type || 'MAKO AKTIF',
-          badgeColor: '#1E3A8A',
+          badgeText: makoStyle.badgeLabel,
+          badgeColor: makoStyle.strokeColor,
           address: office.address,
           activity: office.tugas || 'Pusat Komando & Pengendalian Operasi',
-          status: office.status || 'MAKO AKTIF',
+          status: makoStyle.badgeLabel,
           lat: officePos.lat,
           lng: officePos.lng,
-          icon: '🏢',
+          icon: makoStyle.emoji,
         });
       });
       markersRef.current.push(makoMarker);

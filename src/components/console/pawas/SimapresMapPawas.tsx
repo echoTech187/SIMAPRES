@@ -8,12 +8,18 @@ import {
   getBestRoadRoute,
   generateTacticalPath,
 } from '@/components/maps/SimapresGoogleMap';
+import {
+  getMakoHierarchyStyle,
+  createMakoMapMarkerIcon,
+  createComplaintTkpMapMarkerIcon,
+} from '@/lib/mako-hierarchy-styles';
 
 export interface SimapresMapPawasProps {
   userProfile?: any;
   policeOffices?: any[];
   fleetUnits?: any[];
   hotspots?: any[];
+  complaints?: any[];
   targetComplaint?: any | null;
   showTraffic?: boolean;
   focusedUnitKey?: string | null;
@@ -37,6 +43,7 @@ export default function SimapresMapPawas({
   policeOffices = [],
   fleetUnits = [],
   hotspots = [],
+  complaints = [],
   targetComplaint = null,
   showTraffic = false,
   focusedUnitKey = null,
@@ -193,6 +200,19 @@ export default function SimapresMapPawas({
     hasScannedQr?: boolean;
     callsign?: string;
     etaText?: string;
+    phone?: string;
+    whatsapp?: string;
+    kapolsekPhone?: string;
+    isTicket?: boolean;
+    leaderName?: string;
+    leaderNrp?: string;
+    leaderRank?: string;
+    leaderPhone?: string;
+    partnerName?: string;
+    partnerNrp?: string;
+    unitName?: string;
+    reporterName?: string;
+    reporterPhone?: string;
   }) => {
     if (!mapInstanceRef.current || !(window as any).google?.maps) return;
     const maps = (window as any).google.maps;
@@ -206,13 +226,17 @@ export default function SimapresMapPawas({
     const container = document.createElement('div');
     container.style.cssText = `
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      width: 320px;
-      max-width: 82vw;
+      width: 316px;
+      max-width: 86vw;
+      max-height: 78vh;
+      overflow-y: auto;
+      overflow-x: hidden;
       background: rgba(15, 23, 42, 0.98);
       color: #FFFFFF;
-      border-radius: 14px;
-      padding: 14px 16px;
+      border-radius: 12px;
+      padding: 11px 13px;
       box-sizing: border-box;
+      scrollbar-width: thin;
     `;
 
     const qrBadgeHtml = data.hasScannedQr
@@ -245,16 +269,72 @@ export default function SimapresMapPawas({
 
       <div style="border-top: 1px solid rgba(255,255,255,0.12); margin: 8px 0;"></div>
 
-      <!-- Status Kedinasan -->
+      <!-- Status Kedinasan / Tiket -->
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <span style="font-size: 11px; color: #94A3B8; font-weight: 600;">Status Kedinasan:</span>
+        <span style="font-size: 11px; color: #94A3B8; font-weight: 600;">${data.isTicket ? 'Status Penanganan:' : 'Status Kedinasan:'}</span>
         <div style="display: flex; gap: 6px; align-items: center;">
           <span style="font-size: 10px; font-weight: 800; padding: 2.5px 8px; border-radius: 5px; background: ${data.badgeColor ? data.badgeColor + '25' : 'rgba(16,185,129,0.2)'}; color: ${data.badgeColor || '#34D399'}; border: 1px solid ${data.badgeColor || '#10B981'};">
-            ${escapeXml(data.badgeText || data.status || 'MAKO AKTIF')}
+            ${escapeXml(data.badgeText || data.status || 'AKTIF')}
           </span>
-          ${qrBadgeHtml}
+          ${!data.isTicket ? qrBadgeHtml : ''}
         </div>
       </div>
+
+      ${data.isTicket ? `
+        <!-- Section Khusus: Personel yang Menangani Tiket (Pengambil Tiket & Pendamping) -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 9px; padding: 10px 12px; margin-bottom: 9px;">
+          <div style="font-size: 10px; font-weight: 800; color: #38BDF8; display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; letter-spacing: 0.3px;">
+            <span style="display: flex; align-items: center; gap: 5px;">
+              <span style="font-size: 13px;">👮</span>
+              <span>PERSONEL PENANGANAN TIKET:</span>
+            </span>
+            ${data.unitName ? `<span style="color: #94A3B8; font-size: 9.5px; font-weight: 600;">${escapeXml(data.unitName)}</span>` : ''}
+          </div>
+
+          ${data.leaderName ? `
+            <!-- Personel Utama / Pengambil Tiket -->
+            <div style="margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px dashed rgba(255,255,255,0.12);">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <div style="font-size: 12px; font-weight: 800; color: #FFFFFF; display: flex; align-items: center; gap: 5px;">
+                  <span style="color: #34D399; font-size: 9px;">🟢</span>
+                  <span>${escapeXml(data.leaderName ? (data.leaderName.toUpperCase().includes('IPDA') || data.leaderName.toUpperCase().includes('BRIPKA') || data.leaderName.toUpperCase().includes('AIPDA') || data.leaderName.toUpperCase().includes('BRIGADIR') ? data.leaderName : (data.leaderRank ? data.leaderRank + ' ' : '') + data.leaderName) : '-')}</span>
+                </div>
+                <span style="font-size: 9px; font-weight: 800; color: #34D399; background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.35); padding: 1.5px 6px; border-radius: 4px; white-space: nowrap;">
+                  Pengambil Tiket
+                </span>
+              </div>
+              ${data.leaderNrp ? `
+                <div style="font-size: 10px; color: #94A3B8; margin-left: 14px; margin-top: 1px;">
+                  NRP: ${escapeXml(data.leaderNrp)} ${data.leaderPhone ? '• ' + escapeXml(data.leaderPhone) : ''}
+                </div>
+              ` : ''}
+            </div>
+
+            <!-- Personel Pendamping -->
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
+              <div>
+                <div style="font-size: 11.5px; font-weight: 700; color: ${data.partnerName ? '#E2E8F0' : '#94A3B8'}; display: flex; align-items: center; gap: 5px;">
+                  <span style="color: ${data.partnerName ? '#38BDF8' : '#64748B'}; font-size: 11px;">👥</span>
+                  <span>${escapeXml(data.partnerName || 'Tanpa Personel Pendamping')}</span>
+                </div>
+                ${data.partnerNrp ? `
+                  <div style="font-size: 10px; color: #94A3B8; margin-left: 16px; margin-top: 1px;">
+                    NRP: ${escapeXml(data.partnerNrp)}
+                  </div>
+                ` : ''}
+              </div>
+              <span style="font-size: 9px; color: #94A3B8; background: rgba(148,163,184,0.12); padding: 1.5px 5px; border-radius: 4px; white-space: nowrap;">
+                Pendamping
+              </span>
+            </div>
+          ` : `
+            <div style="font-size: 11px; color: #FBBF24; display: flex; align-items: center; gap: 5px; padding: 2px 0;">
+              <span>⏳</span>
+              <span>Menunggu penugasan / Belum ada armada yang mengambil</span>
+            </div>
+          `}
+        </div>
+      ` : ''}
 
       <!-- Estimasi Rute Google Directions jika Tanggap Darurat / Meluncur -->
       ${data.etaText ? `
@@ -269,44 +349,62 @@ export default function SimapresMapPawas({
         </div>
       ` : ''}
 
-      <!-- Sedang Di Mana -->
-      <div style="font-size: 11.5px; background: rgba(0,0,0,0.35); padding: 7px 9px; border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.06);">
-        <div style="font-size: 9.5px; color: #F59E0B; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+      <!-- Lokasi TKP / Alamat -->
+      <div style="font-size: 11px; background: rgba(0,0,0,0.32); padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.06);">
+        <div style="font-size: 9px; color: #F59E0B; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-bottom: 1.5px;">
           <span>📍</span>
-          <span>SEDANG DI MANA:</span>
+          <span>${data.isTicket ? 'LOKASI TKP:' : 'SEDANG DI MANA:'}</span>
         </div>
-        <div style="color: #E2E8F0; font-weight: 600; line-height: 1.35;">
+        <div style="color: #E2E8F0; font-weight: 600; line-height: 1.3; font-size: 11px;">
           ${escapeXml(data.address || 'Kabupaten Pekalongan, Jawa Tengah')}
         </div>
       </div>
 
-      <!-- Sedang Melakukan Apa -->
-      <div style="font-size: 11.5px; background: rgba(0,0,0,0.35); padding: 7px 9px; border-radius: 6px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.06);">
-        <div style="font-size: 9.5px; color: #34D399; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-          <span>🎯</span>
-          <span>SEDANG MELAKUKAN APA:</span>
+      ${!data.isTicket ? `
+        <!-- Sedang Melakukan Apa (Khusus Armada/Petugas) -->
+        <div style="font-size: 11px; background: rgba(0,0,0,0.32); padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.06);">
+          <div style="font-size: 9px; color: #34D399; font-weight: 800; display: flex; align-items: center; gap: 4px; margin-bottom: 1.5px;">
+            <span>🎯</span>
+            <span>AKTIVITAS:</span>
+          </div>
+          <div style="color: #E2E8F0; font-weight: 600; font-size: 11px;">
+            ${escapeXml(data.activity || 'Pusat Komando & Pengendalian Operasi')}
+          </div>
         </div>
-        <div style="color: #E2E8F0; font-weight: 600;">
-          ${escapeXml(data.activity || 'Pusat Komando & Pengendalian Operasi')}
-        </div>
-      </div>
+      ` : ''}
 
       <!-- Koordinat -->
-      <div style="font-size: 10px; color: #94A3B8; margin-bottom: 10px; font-family: monospace;">
-        🌐 Koordinat: ${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}
+      <div style="font-size: 9.5px; color: #94A3B8; margin-bottom: 8px; font-family: monospace; display: flex; justify-content: space-between; align-items: center;">
+        <span>🌐 ${data.lat.toFixed(5)}, ${data.lng.toFixed(5)}</span>
       </div>
 
-      <!-- Action Buttons -->
-      <div style="display: flex; gap: 6px;">
-        <button type="button" id="btn-pan-marker" style="flex: 1; text-align: center; background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%); color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; border: none; cursor: pointer;">
-          🎯 Pusatkan Peta
-        </button>
-        <button type="button" id="btn-wa-marker" style="flex: 1; text-align: center; background: rgba(37,211,102,0.15); color: #25D366; border: 1px solid rgba(37,211,102,0.35); font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 6px; cursor: pointer;">
-          💬 WhatsApp
-        </button>
-        <a href="https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}" target="_blank" rel="noopener noreferrer" style="text-align: center; background: rgba(16,185,129,0.15); color: #34D399; border: 1px solid rgba(16,185,129,0.35); font-size: 11px; font-weight: 800; padding: 7px 10px; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; justify-content: center;" title="Navigasi Google Maps">
-          🗺️
-        </a>
+      <!-- Action Buttons (Grid 2 Baris Simetris & Proporsional) -->
+      <div style="display: flex; flex-direction: column; gap: 6px; margin-top: 4px;">
+        <!-- Baris 1: Komunikasi Langsung -->
+        <div style="display: flex; gap: 6px;">
+          ${data.isTicket && data.leaderPhone ? `
+            <button type="button" id="btn-wa-petugas" style="flex: 1; background: rgba(16,185,129,0.18); color: #34D399; border: 1px solid rgba(16,185,129,0.4); font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;">
+              <span>👮</span>
+              <span>WA Petugas</span>
+            </button>
+          ` : ''}
+          <button type="button" id="btn-wa-marker" style="flex: 1; background: rgba(37,211,102,0.15); color: #25D366; border: 1px solid rgba(37,211,102,0.35); font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 7px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;">
+            <span>💬</span>
+            <span>${data.isTicket ? 'WA Pelapor' : 'WhatsApp'}</span>
+          </button>
+        </div>
+
+        <!-- Baris 2: Navigasi Peta -->
+        <div style="display: flex; gap: 6px;">
+          <button type="button" id="btn-pan-marker" style="flex: 1; background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%); color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 7px 8px; border-radius: 7px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;">
+            <span>🎯</span>
+            <span>Pusatkan Peta</span>
+          </button>
+          <a href="https://www.google.com/maps/dir/?api=1&destination=${data.lat},${data.lng}" target="_blank" rel="noopener noreferrer" style="flex: 1; background: rgba(255,255,255,0.08); color: #E2E8F0; border: 1px solid rgba(255,255,255,0.18); font-size: 11px; font-weight: 700; padding: 7px 8px; border-radius: 7px; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap;" title="Buka Rute di Google Maps">
+            <span>🗺️</span>
+            <span>Rute Maps</span>
+          </a>
+        </div>
       </div>
     `;
 
@@ -325,7 +423,17 @@ export default function SimapresMapPawas({
         const phone = d.phone || d.whatsapp || d.kapolsekPhone || '628112345678';
         const cleanPhone = String(phone).replace(/[^0-9]/g, '');
         const targetPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
-        const msg = encodeURIComponent(`Halo ${data.petugas || data.title}, koordinasi darurat dari Pawas SIMOPMAS 110.`);
+        const msg = encodeURIComponent(`Halo ${data.petugas || data.title}, koordinasi darurat dari Pawas/Operator SIMOPMAS 110.`);
+        window.open(`https://wa.me/${targetPhone}?text=${msg}`, '_blank');
+      });
+    }
+
+    const btnWaPetugas = container.querySelector('#btn-wa-petugas');
+    if (btnWaPetugas && data.leaderPhone) {
+      btnWaPetugas.addEventListener('click', () => {
+        const cleanPhone = String(data.leaderPhone).replace(/[^0-9]/g, '');
+        const targetPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
+        const msg = encodeURIComponent(`Halo ${data.leaderRank ? data.leaderRank + ' ' : ''}${data.leaderName || 'Petugas Lapangan'}, koordinasi penanganan tiket ${data.title} dari Pawas/Operator SIMOPMAS 110.`);
         window.open(`https://wa.me/${targetPhone}?text=${msg}`, '_blank');
       });
     }
@@ -453,7 +561,7 @@ export default function SimapresMapPawas({
     });
     makoCirclesRef.current = [];
 
-    // 1. Kantor Polisi / Mako Pengguna (Marker Mako Utama)
+    // 1. Kantor Polisi / Mako Berdasarkan Hirarki (MABES, POLDA, POLRES, POLSEK, POSPOL)
     (policeOffices || []).forEach((office) => {
       const officePos = { lat: Number(office.lat), lng: Number(office.lng) };
       if (!officePos.lat || !officePos.lng) return;
@@ -462,27 +570,24 @@ export default function SimapresMapPawas({
         Math.abs(officePos.lat - userMako.lat) < 0.0001 &&
         Math.abs(officePos.lng - userMako.lng) < 0.0001;
 
-      const makoIcon = makeHaloBadgeIcon(
-        isUserHQ ? '⭐' : '🏢',
-        isUserHQ ? '#B45309' : '#1E3A8A',
-        isUserHQ ? '#FCD34D' : '#93C5FD'
-      );
+      const makoStyle = getMakoHierarchyStyle(office, isUserHQ);
+      const makoIcon = createMakoMapMarkerIcon(makoStyle, maps);
 
       const makoMarker = new maps.Marker({
         position: officePos,
         map,
         icon: makoIcon,
-        title: office.name || office.namaKantor,
-        zIndex: isUserHQ ? 850 : 800,
+        title: `[${makoStyle.badgeLabel}] ${office.name || office.namaKantor}`,
+        zIndex: makoStyle.zIndex,
       });
 
       // Geofence Yurisdiksi Mako (Radius 1.000 m per SOP Monitoring)
       if (isUserHQ && maps.Circle) {
         const makoCircle = new maps.Circle({
-          strokeColor: '#0284C7',
-          strokeOpacity: 0.65,
+          strokeColor: '#B45309',
+          strokeOpacity: 0.75,
           strokeWeight: 1.5,
-          fillColor: '#38BDF8',
+          fillColor: '#F59E0B',
           fillOpacity: 0.12,
           map,
           center: officePos,
@@ -496,14 +601,14 @@ export default function SimapresMapPawas({
       const officeUnitData: MapUnitData = {
         key: `office_${office.id}`,
         pos: officePos,
-        iconEmoji: isUserHQ ? '⭐' : '🏢',
+        iconEmoji: makoStyle.emoji,
         title: office.name || office.namaKantor,
-        petugas: isUserHQ ? 'Mako Kedinasan Pengawas' : (office.petugas && office.petugas !== '-' ? office.petugas : office.name),
-        sub: office.address,
-        status: isUserHQ ? 'MAKO AKTIF' : (office.type || office.status || 'MAKO AKTIF'),
-        statusColor: isUserHQ ? '#B45309' : '#1E3A8A',
+        petugas: isUserHQ ? `Pusat Komando Pengawas (${makoStyle.level})` : (office.petugas && office.petugas !== '-' ? office.petugas : office.name),
+        sub: office.address || `Wilayah Hukum ${makoStyle.badgeLabel}`,
+        status: makoStyle.badgeLabel,
+        statusColor: makoStyle.strokeColor,
         tugas: office.tugas || 'Pusat Komando & Pengendalian Operasi',
-        telemetri: `Koordinat: ${officePos.lat.toFixed(5)}, ${officePos.lng.toFixed(5)}`,
+        telemetri: `Hirarki: ${makoStyle.level} • Koordinat: ${officePos.lat.toFixed(5)}, ${officePos.lng.toFixed(5)}`,
       };
 
       (makoMarker as any).unitKey = officeUnitData.key;
@@ -512,16 +617,16 @@ export default function SimapresMapPawas({
         handleUnitClick(officeUnitData);
         openMarkerDetailWindow(makoMarker, {
           title: office.name || office.namaKantor,
-          subTitle: office.address || 'Kantor Polisi & Mako Kedinasan',
-          petugas: isUserHQ ? 'Mako Kedinasan Pengawas' : (office.petugas && office.petugas !== '-' ? office.petugas : office.name),
-          badgeText: isUserHQ ? 'MAKO AKTIF' : (office.type || office.status || 'MAKO AKTIF'),
-          badgeColor: isUserHQ ? '#B45309' : '#1E3A8A',
+          subTitle: `[${makoStyle.badgeLabel}] ${office.address || 'Wilayah Hukum Kepolisian'}`,
+          petugas: isUserHQ ? `Pusat Komando Kedinasan (${makoStyle.level})` : (office.petugas && office.petugas !== '-' ? office.petugas : office.name),
+          badgeText: makoStyle.badgeLabel,
+          badgeColor: makoStyle.strokeColor,
           address: office.address || 'Kabupaten Pekalongan, Jawa Tengah',
           activity: office.tugas || 'Pusat Komando & Pengendalian Operasi',
-          status: isUserHQ ? 'MAKO AKTIF' : (office.status || 'MAKO AKTIF'),
+          status: makoStyle.badgeLabel,
           lat: officePos.lat,
           lng: officePos.lng,
-          icon: isUserHQ ? '⭐' : '🏢',
+          icon: makoStyle.emoji,
           hasScannedQr: false,
         });
       });
@@ -698,54 +803,152 @@ export default function SimapresMapPawas({
       markersRef.current.push(marker);
     });
 
-    // 4. Target Kejadian / TKP Darurat (Tetap ada di peta tapi TIDAK auto-fokus)
-    const cLat = targetComplaint?.tkpLat ?? targetComplaint?.lat ?? targetComplaint?.tkp_lat;
-    const cLng = targetComplaint?.tkpLng ?? targetComplaint?.lng ?? targetComplaint?.tkp_lng;
-    if (targetComplaint && cLat && cLng) {
-      const tkpPos = { lat: Number(cLat), lng: Number(cLng) };
-      const tkpIcon = makeHaloBadgeIcon('🚨', '#DC2626', '#FEF08A');
+        // 4. Titik Lokasi Kejadian (TKP) HANYA untuk Aduan AKTIF (Tiket SELESAI / DITOLAK TIDAK DITAMPILKAN)
+    const TERMINATED_STATUSES = new Set(['SELESAI', 'DITOLAK', 'DIBATALKAN', 'EXPIRED', 'CLOSED', 'REJECTED']);
+
+    const allMapComplaints: any[] = [];
+    const seenTicketIds = new Set<string>();
+
+    // Target complaint hanya disertakan jika belum berstatus SELESAI/DITOLAK
+    if (targetComplaint) {
+      const tStatus = String(targetComplaint.status || '').toUpperCase();
+      if (!TERMINATED_STATUSES.has(tStatus)) {
+        const tId = String(targetComplaint.id || targetComplaint.nomorTiket || 'target');
+        seenTicketIds.add(tId);
+        allMapComplaints.push({ ...targetComplaint, _isTarget: true });
+      }
+    }
+
+    (complaints || []).forEach((c: any) => {
+      const cStatus = String(c?.status || '').toUpperCase();
+      // FILTER KETAT: Abaikan tiket yang sudah selesai / ditolak
+      if (TERMINATED_STATUSES.has(cStatus)) {
+        return;
+      }
+
+      const cId = String(c.id || c.nomorTiket || c.nomor_tiket || '');
+      if (!cId || !seenTicketIds.has(cId)) {
+        if (cId) seenTicketIds.add(cId);
+        const isCurrentTarget = targetComplaint && (
+          String(targetComplaint.id) === String(c.id) ||
+          String(targetComplaint.nomorTiket) === String(c.nomorTiket || c.nomor_tiket)
+        );
+        allMapComplaints.push({ ...c, _isTarget: isCurrentTarget });
+      }
+    });
+
+    allMapComplaints.forEach((c: any) => {
+      const cLat = Number(c.tkpLat ?? c.lat ?? c.tkp_lat ?? 0);
+      const cLng = Number(c.tkpLng ?? c.lng ?? c.tkp_lng ?? 0);
+      if (!cLat || !cLng) return;
+
+      const tkpPos = { lat: cLat, lng: cLng };
+      const ticketNumber = c.nomorTiket || c.nomor_tiket || '110';
+      const isTarget = Boolean(c._isTarget) || focusedUnitKey === `tkp_${c.id || ticketNumber}`;
+      const urgency = c.urgensi || c.urgency || c.prioritas || 'SEDANG';
+      const incidentType = c.jenisKejadian || c.kategori || 'Laporan Lapangan 110';
+      const reporterName = c.pelaporNama || c.nama_pelapor || c.pelapor_nama || 'Warga';
+      const reporterPhone = c.pelaporTelepon || c.nomor_telepon_pelapor || c.pelapor_phone || '';
+      const address = c.tkpAlamatTeks || c.tkp_lokasi || c.alamat || 'Lokasi Kejadian';
+      const statusText = c.status || 'DIPROSES';
+
+      const tkpIcon = createComplaintTkpMapMarkerIcon(urgency, isTarget, ticketNumber, maps);
+
       const tkpMarker = new maps.Marker({
         position: tkpPos,
         map,
         icon: tkpIcon,
-        title: `TKP: ${targetComplaint.nomorTiket || ''} • ${targetComplaint.jenisKejadian || 'Kejadian Lapangan'}`,
-        zIndex: 1100,
+        title: `TKP: ${ticketNumber} • ${incidentType} (${urgency})`,
+        zIndex: isTarget ? 1350 : 1050,
       });
 
       const tkpUnitData: MapUnitData = {
-        key: `tkp_${targetComplaint.id || 'current'}`,
+        key: `tkp_${c.id || ticketNumber}`,
         pos: tkpPos,
-        iconEmoji: '🚨',
-        title: `TKP: ${targetComplaint.jenisKejadian || 'Darurat 110'}`,
-        petugas: `Nomor Tiket: ${targetComplaint.nomorTiket || '-'}`,
-        sub: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
-        status: targetComplaint.status || 'DIPROSES',
-        statusColor: '#DC2626',
-        tugas: 'Target Penanganan Personel',
-        telemetri: `Koordinat: ${tkpPos.lat.toFixed(5)}, ${tkpPos.lng.toFixed(5)}`,
+        iconEmoji: urgency === 'DARURAT' ? '🚨' : '⚠️',
+        title: `TKP: ${incidentType}`,
+        petugas: `Tiket: ${ticketNumber} • Pelapor: ${reporterName}`,
+        sub: address,
+        status: statusText,
+        statusColor: urgency === 'DARURAT' ? '#DC2626' : urgency === 'SEDANG' ? '#D97706' : '#2563EB',
+        tugas: c.ringkasanKeterangan || c.uraian || 'Target Penanganan Personel',
+        telemetri: `Urgensi: ${urgency} • Koordinat: ${tkpPos.lat.toFixed(5)}, ${tkpPos.lng.toFixed(5)}`,
       };
 
       (tkpMarker as any).unitKey = tkpUnitData.key;
 
+      // Ekstraksi lengkap petugas pengambil tiket dan personil pendamping
+      const primaryDispatch = (Array.isArray(c.dispatches) && c.dispatches.length > 0)
+        ? (c.dispatches.find((d: any) => d.is_primary_unit || d.accepted_at != null) || c.dispatches[0])
+        : null;
+
+      const leaderName = primaryDispatch?.crew_leader_name ||
+        primaryDispatch?.officer?.user?.full_name ||
+        primaryDispatch?.officer?.namaLengkap ||
+        c.assignedOfficer?.namaLengkap ||
+        c.officer?.namaLengkap ||
+        c.officer?.user?.full_name ||
+        c.petugas ||
+        '';
+
+      const leaderNrp = primaryDispatch?.crew_leader_nrp ||
+        primaryDispatch?.officer?.nrp ||
+        c.assignedOfficer?.nrp ||
+        c.officer?.nrp ||
+        '';
+
+      const leaderRank = primaryDispatch?.officer?.rank_pangkat ||
+        c.assignedOfficer?.rankPangkat ||
+        c.officer?.pangkat ||
+        '';
+
+      const leaderPhone = primaryDispatch?.officer?.user?.phone_number ||
+        primaryDispatch?.officer?.phoneNumber ||
+        c.assignedOfficer?.phoneNumber ||
+        c.officer?.phoneNumber ||
+        '';
+
+      const rawPartnerName = primaryDispatch?.crew_partner_name || c.crew_partner_name || '';
+      const partnerName = rawPartnerName ? rawPartnerName.replace(/\|/g, ', ') : '';
+      const rawPartnerNrp = primaryDispatch?.crew_partner_nrp || c.crew_partner_nrp || '';
+      const partnerNrp = rawPartnerNrp ? rawPartnerNrp.replace(/\|/g, ', ') : '';
+      const dispatchUnitName = primaryDispatch?.unit?.unit_name ||
+        primaryDispatch?.unit?.short_name ||
+        c.assignedOfficer?.unitName ||
+        c.unit?.unit_name ||
+        '';
+
       tkpMarker.addListener('click', () => {
         handleUnitClick(tkpUnitData);
         openMarkerDetailWindow(tkpMarker, {
-          title: `Tiket ${targetComplaint.nomorTiket || ''}`,
-          subTitle: targetComplaint.jenisKejadian || 'Darurat 110',
-          petugas: `Pelapor: ${targetComplaint.pelaporNama || 'Warga'}`,
-          badgeText: targetComplaint.status || 'DIPROSES',
-          badgeColor: '#DC2626',
-          address: targetComplaint.tkpAlamatTeks || 'Lokasi Kejadian',
-          activity: 'Target Penanganan Personel Presisi',
-          status: 'TKP LAPORAN',
+          title: `Tiket ${ticketNumber}`,
+          subTitle: `[${urgency}] ${incidentType}`,
+          petugas: `Pelapor: ${reporterName}${reporterPhone ? ' (' + reporterPhone + ')' : ''}`,
+          badgeText: statusText,
+          badgeColor: urgency === 'DARURAT' ? '#DC2626' : urgency === 'SEDANG' ? '#D97706' : '#2563EB',
+          address: address,
+          activity: c.ringkasanKeterangan || c.uraian || 'Penanganan Taktis Aduan Presisi',
+          status: statusText,
           lat: tkpPos.lat,
           lng: tkpPos.lng,
-          icon: '🚨',
+          icon: urgency === 'DARURAT' ? '🚨' : '⚠️',
           hasScannedQr: false,
+          phone: reporterPhone,
+          whatsapp: reporterPhone,
+          isTicket: true,
+          leaderName,
+          leaderNrp,
+          leaderRank,
+          leaderPhone,
+          partnerName,
+          partnerNrp,
+          unitName: dispatchUnitName,
+          reporterName,
+          reporterPhone,
         });
       });
       markersRef.current.push(tkpMarker);
-    }
+    });
   };
 
   useEffect(() => {
@@ -753,7 +956,7 @@ export default function SimapresMapPawas({
       const maps = (window as any).google.maps;
       renderMarkers(mapInstanceRef.current, maps);
     }
-  }, [focusedUnitKey, hotspots, policeOffices, fleetUnits, targetComplaint]);
+  }, [focusedUnitKey, hotspots, policeOffices, fleetUnits, targetComplaint, complaints]);
 
   // Fokus ke unit yang dipilih dan tampilkan detail langsung di atas icon
   useEffect(() => {

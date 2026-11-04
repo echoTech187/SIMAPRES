@@ -262,6 +262,7 @@ function OperatorConsoleContent(props: {
             fleetUnits={fleetUnits}
             hotspots={hotspots}
             policeOffices={policeOffices}
+            complaints={activeComplaintsForBanner}
             setShowHotspotModal={() => {}}
             highPriorityIncident={antreanPawas.length > 0 ? antreanPawas[0] : null}
             resolveUrgencyLevel={(u) => (u ? u : 'SEDANG')}
