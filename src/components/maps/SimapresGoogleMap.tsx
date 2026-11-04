@@ -36,6 +36,7 @@ export interface MapUnitData {
   routePoints?: { lat: number; lng: number }[];
   assignedVehicle?: string | null;
   lastHeartbeat?: string;
+  hasScannedQr?: boolean;
 }
 
 interface SimapresGoogleMapProps {
@@ -1141,6 +1142,11 @@ export default function SimapresGoogleMap({
     // 2. Operational Fleet Units & On-Duty Picket Personnel
     if (showOtherOfficers) {
       (fleetUnits || []).forEach((unit) => {
+        // SOP: Personel yang belum scan QR tidak perlu ditampilkan
+        if (!unit.hasScannedQr) {
+          return;
+        }
+
         if (myUnit) {
           const myNrp = (myUnit as any).nrp || (myUnit as any).callsign;
           if (

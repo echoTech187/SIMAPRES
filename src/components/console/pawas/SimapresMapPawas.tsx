@@ -633,8 +633,13 @@ export default function SimapresMapPawas({
       markersRef.current.push(makoMarker);
     });
 
-    // 2. Armada & Personel Piket Lapangan (Pawas Fleet Supervision)
+    // 2. Armada & Personel Piket Lapangan (Hanya yang SUDAH Scan QR)
     (fleetUnits || []).forEach((unit) => {
+      // SOP PRESISI: Personel yang BELUM melakukan scan QR TIDAK DITAMPILKAN di peta
+      if (!unit.hasScannedQr) {
+        return;
+      }
+
       const pos = unit.pos || { lat: Number(unit.lat), lng: Number(unit.lng) };
       if (!pos || !pos.lat || !pos.lng) return;
 
