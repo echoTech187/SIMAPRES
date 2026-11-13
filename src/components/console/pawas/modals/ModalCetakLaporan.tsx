@@ -76,7 +76,29 @@ export default function ModalCetakLaporan({
             <span>📄</span>
             <span style={{ fontSize: '13px', fontWeight: 800 }}>PRATINJAU DOKUMEN MUTASI RESMI OPERASIONAL (FORMAT POLRI)</span>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <a
+              href="/api/pawas/export-excel"
+              download
+              id="btn-modal-export-excel-pawas"
+              style={{
+                background: 'linear-gradient(135deg, #15803D 0%, #16A34A 100%)',
+                color: 'white',
+                border: '1px solid #166534',
+                padding: '7px 14px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+              title="Unduh seluruh laporan tiket dan IKM dalam format Excel (.xlsx)"
+            >
+              <span>📊</span> Unduh Excel
+            </a>
             <button
               type="button"
               onClick={handlePrint}

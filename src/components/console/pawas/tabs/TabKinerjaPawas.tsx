@@ -645,13 +645,40 @@ export default function TabKinerjaPawas({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowCetakModal(true)}
-          style={{ padding: '9px 16px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12.5px', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(21,62,117,0.2)' }}
-        >
-          <span>🖨️</span> Cetak Berkas PDF
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <a
+            href={`/api/pawas/export-excel?period=${kinerjaPeriod}&date=${kinerjaDate}${userStationId ? `&stationId=${userStationId}` : ''}`}
+            download
+            id="btn-export-excel-pawas"
+            style={{
+              padding: '9px 16px',
+              background: 'linear-gradient(135deg, #15803D 0%, #16A34A 100%)',
+              color: 'white',
+              border: '1px solid #166534',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              textDecoration: 'none',
+              boxShadow: '0 2px 8px rgba(22,163,74,0.25)',
+              transition: 'all 0.15s ease',
+            }}
+            title="Unduh seluruh data tiket, link tracking warga, dan survei 5 poin feedback dalam format Excel (.xlsx)"
+          >
+            <span>📊</span> Unduh Laporan Excel (XLSX)
+          </a>
+
+          <button
+            type="button"
+            onClick={() => setShowCetakModal(true)}
+            style={{ padding: '9px 16px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12.5px', fontWeight: 800, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 8px rgba(21,62,117,0.2)' }}
+          >
+            <span>🖨️</span> Cetak Berkas PDF
+          </button>
+        </div>
       </div>
 
       {/* FILTER PERIODE & KALENDER DINAMIS */}
@@ -1963,11 +1990,38 @@ export default function TabKinerjaPawas({
       </div>
 
       {/* Bottom Action Button */}
-      <div style={{ paddingBottom: '24px' }}>
+      <div style={{ paddingBottom: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <a
+          href={`/api/pawas/export-excel?period=${kinerjaPeriod}&date=${kinerjaDate}${userStationId ? `&stationId=${userStationId}` : ''}`}
+          download
+          id="btn-export-excel-pawas-bottom"
+          style={{
+            flex: '1 1 240px',
+            padding: '12px',
+            background: 'linear-gradient(135deg, #15803D 0%, #16A34A 100%)',
+            color: 'white',
+            border: '1px solid #166534',
+            borderRadius: '8px',
+            fontWeight: 800,
+            fontSize: '13px',
+            cursor: 'pointer',
+            textAlign: 'center',
+            textDecoration: 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            boxShadow: '0 4px 12px rgba(22,163,74,0.25)',
+          }}
+          title="Unduh seluruh data tiket, link tracking warga, dan survei 5 poin feedback dalam format Excel (.xlsx)"
+        >
+          <span>📊</span> Unduh Rekap Laporan Lengkap (Excel .xlsx)
+        </a>
+
         <button
           type="button"
           onClick={() => setShowCetakModal(true)}
-          style={{ width: '100%', padding: '12px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(21,62,117,0.2)' }}
+          style={{ flex: '1 1 240px', padding: '12px', background: '#153E75', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(21,62,117,0.2)' }}
         >
           🖨️ Cetak / Ekspor Laporan Akhir Tugas Pawas (PDF)
         </button>
